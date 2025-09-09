@@ -162,6 +162,8 @@ const CAMERA = {
   minR: 70 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.65,
+  // prevent camera from dipping below table surface
+  maxPhi: Math.PI / 2 - 0.01,
   phiMargin: 0.6
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -172,7 +174,8 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.7; // nudge camera closer to the table
+  // sit the camera slightly farther from the table
+  const r = Math.max(dzH, dzW) * 0.72;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -790,8 +793,12 @@ export default function NewSnookerGame() {
         sph.phi = clamp(
           sph.phi,
           CAMERA.minPhi,
-          Math.min(phiCap, Math.PI - CAMERA.phiMargin)
+          Math.min(phiCap, CAMERA.maxPhi)
         );
+        // subtly increase distance as the camera lowers
+        const t =
+          (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
+        sph.radius *= 1 + t * 0.05;
         const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
@@ -865,7 +872,7 @@ export default function NewSnookerGame() {
         sph.phi = clamp(
           sph.phi + dy * 0.0038,
           CAMERA.minPhi,
-          Math.PI - CAMERA.phiMargin
+          CAMERA.maxPhi
         );
         fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
       };
@@ -903,13 +910,13 @@ export default function NewSnookerGame() {
           sph.phi = clamp(
             sph.phi - step,
             CAMERA.minPhi,
-            Math.PI - CAMERA.phiMargin
+            CAMERA.maxPhi
           );
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(
             sph.phi + step,
             CAMERA.minPhi,
-            Math.PI - CAMERA.phiMargin
+            CAMERA.maxPhi
           );
         else return;
         fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
@@ -1152,8 +1159,10 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // halve impulse so ball speed matches power gauge better
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.75);
+          // further scale impulse to reduce shot power by 50%
+          .multiplyScalar(
+            4.2 * (0.48 + powerRef.current * 1.52) * 0.75 * 0.5
+          );
         cue.vel.copy(base);
       };
       fireRef.current = fire;
