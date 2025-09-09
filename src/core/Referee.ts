@@ -25,9 +25,7 @@ export class Referee {
     const values = this.rules.getBallValues();
 
     if (!this.rules.isBallOn(newState, first)) {
-      const valOn = Math.max(...newState.ballOn.map((c: BallColor) => values[c]));
-      const valFirst = first ? values[first] : 0;
-      const pts = Math.max(4, valOn, valFirst);
+      const pts = this.rules.getFoulValue(newState.ballOn, first);
       return this.awardFoul(newState, pts, 'wrong ball first');
     }
 
@@ -45,9 +43,7 @@ export class Referee {
           continue;
         }
         if (!newState.ballOn.includes(ev.ball)) {
-          const valOn = Math.max(...newState.ballOn.map((c: BallColor) => values[c]));
-          const valPot = values[ev.ball];
-          const pts = Math.max(4, valOn, valPot);
+          const pts = this.rules.getFoulValue(newState.ballOn, ev.ball);
           return this.awardFoul(newState, pts, 'wrong ball potted');
         }
         scored += values[ev.ball];
