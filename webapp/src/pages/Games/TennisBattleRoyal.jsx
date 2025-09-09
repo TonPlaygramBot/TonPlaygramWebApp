@@ -169,6 +169,12 @@ function Tennis3D({ pAvatar }){
       renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       host.appendChild(renderer.domElement);
+      // Ensure canvas covers the host element so the court stays centered
+      Object.assign(renderer.domElement.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+      });
 
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
       scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.95));
@@ -407,7 +413,7 @@ function Tennis3D({ pAvatar }){
   },[]);
 
   return (
-    <div ref={rootRef} className="w-screen h-dvh bg-black text-white overflow-hidden select-none">
+    <div ref={rootRef} className="relative w-screen h-dvh bg-black text-white overflow-hidden select-none">
       <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
       <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Tennis 3D — Controls</div>
