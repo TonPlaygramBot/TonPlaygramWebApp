@@ -1,8 +1,6 @@
 import { SnookerRules } from '../src/rules/SnookerRules';
 import { Referee } from '../src/core/Referee';
 
-const pocket = 'TR';
-
 describe('Snooker core', () => {
   test('basic rotation and colors order', () => {
     const rules = new SnookerRules();
@@ -15,26 +13,26 @@ describe('Snooker core', () => {
 
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'RED' },
-      { type: 'POTTED', ball: 'RED', pocket },
+      { type: 'POTTED', ball: 'RED' },
     ]);
     expect(state.redsRemaining).toBe(0);
     expect(state.ballOn).toEqual(['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK']);
 
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'BLACK' },
-      { type: 'POTTED', ball: 'BLACK', pocket },
+      { type: 'POTTED', ball: 'BLACK' },
     ]);
     expect(state.phase).toBe('COLORS_ORDER');
     expect(state.ballOn).toEqual(['YELLOW']);
 
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'YELLOW' },
-      { type: 'POTTED', ball: 'YELLOW', pocket },
+      { type: 'POTTED', ball: 'YELLOW' },
     ]);
     expect(state.ballOn).toEqual(['GREEN']);
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'GREEN' },
-      { type: 'POTTED', ball: 'GREEN', pocket },
+      { type: 'POTTED', ball: 'GREEN' },
     ]);
     expect(state.ballOn).toEqual(['BROWN']);
   });
@@ -45,11 +43,11 @@ describe('Snooker core', () => {
     let state = rules.getInitialFrame('p1', 'p2');
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'RED' },
-      { type: 'POTTED', ball: 'RED', pocket },
+      { type: 'POTTED', ball: 'RED' },
     ]);
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'BLACK' },
-      { type: 'POTTED', ball: 'BLACK', pocket },
+      { type: 'POTTED', ball: 'BLACK' },
     ]);
     expect(state.players.A.score).toBe(8);
   });
@@ -86,7 +84,7 @@ describe('Snooker core', () => {
     state = ref.setFreeBall(state, true);
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'YELLOW' },
-      { type: 'POTTED', ball: 'YELLOW', pocket },
+      { type: 'POTTED', ball: 'YELLOW' },
     ]);
     expect(state.players.B.score).toBe(5); // 4 + 1
     expect(state.ballOn).toEqual(['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK']);
@@ -98,11 +96,11 @@ describe('Snooker core', () => {
     let state = rules.getInitialFrame('p1', 'p2');
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'RED' },
-      { type: 'POTTED', ball: 'RED', pocket },
+      { type: 'POTTED', ball: 'RED' },
     ]);
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'BLACK' },
-      { type: 'POTTED', ball: 'BLACK', pocket },
+      { type: 'POTTED', ball: 'BLACK' },
     ]);
     const black = state.balls.find((b) => b.color === 'BLACK')!;
     expect(black.onTable).toBe(true);
@@ -113,7 +111,7 @@ describe('Snooker core', () => {
     state.ballOn = ['YELLOW'];
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'YELLOW' },
-      { type: 'POTTED', ball: 'YELLOW', pocket },
+      { type: 'POTTED', ball: 'YELLOW' },
     ]);
     const yellow = state.balls.find((b) => b.color === 'YELLOW')!;
     expect(yellow.onTable).toBe(false);
@@ -133,7 +131,7 @@ describe('Snooker core', () => {
     state.players.B.score = 5;
     state = ref.applyShot(state, [
       { type: 'HIT', firstContact: 'BLACK' },
-      { type: 'POTTED', ball: 'BLACK', pocket },
+      { type: 'POTTED', ball: 'BLACK' },
     ]);
     expect(state.frameOver).toBe(true);
     expect(state.winner).toBe('A');

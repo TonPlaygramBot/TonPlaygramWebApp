@@ -1,7 +1,6 @@
 import { Ball, BallColor, FrameState, Player } from '../types';
 
 export class SnookerRules {
-  constructor(private opts: { simplified?: boolean } = {}) {}
 
   getBallValues(): Record<BallColor, number> {
     return {
