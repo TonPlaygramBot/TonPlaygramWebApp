@@ -536,7 +536,7 @@ export default function NewSnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
-  const { cfg: calib, setCfg, mapDelta } = useAimCalibration();
+  const { mapDelta } = useAimCalibration();
   useEffect(() => {
     document.title = '3D Snooker';
   }, []);
@@ -1309,32 +1309,7 @@ export default function NewSnookerGame() {
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      <div className="absolute top-2 right-2 bg-black/50 p-2 text-xs z-50">
-        <label className="mr-2">
-          <input
-            type="checkbox"
-            checked={calib.swap}
-            onChange={(e) => setCfg({ ...calib, swap: e.target.checked })}
-          />
-          swap
-        </label>
-        <label className="mr-2">
-          <input
-            type="checkbox"
-            checked={calib.invertX}
-            onChange={(e) => setCfg({ ...calib, invertX: e.target.checked })}
-          />
-          flipX
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={calib.invertY}
-            onChange={(e) => setCfg({ ...calib, invertY: e.target.checked })}
-          />
-          flipY
-        </label>
-      </div>
+      {/* Calibration options (swap / flipX / flipY) are now always enabled and hidden */}
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
