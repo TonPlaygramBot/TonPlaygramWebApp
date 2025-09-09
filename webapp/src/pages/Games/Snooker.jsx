@@ -133,8 +133,8 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
-// stronger damping so balls settle quicker
-const FRICTION = 0.985;
+// increase damping so balls settle quicker
+const FRICTION = 0.97;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
@@ -1159,9 +1159,9 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // further scale impulse to reduce shot power by 50%
+          // boost impulse to increase shot power by 50%
           .multiplyScalar(
-            4.2 * (0.48 + powerRef.current * 1.52) * 0.75 * 0.5
+            4.2 * (0.48 + powerRef.current * 1.52) * 0.75 * 0.75
           );
         cue.vel.copy(base);
       };
