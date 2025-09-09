@@ -177,7 +177,9 @@ function Tennis3D({ pAvatar }){
 
       // Camera orbit
       camera = new THREE.PerspectiveCamera(CAM.fov, host.clientWidth/host.clientHeight, CAM.near, CAM.far);
-      sph = new THREE.Spherical(160, (CAM.phiMin+CAM.phiMax)/2, Math.PI*0.12);
+      // Align the camera so the court runs vertically with players at
+      // the top and bottom of the screen instead of slightly rotated.
+      sph = new THREE.Spherical(160, (CAM.phiMin+CAM.phiMax)/2, 0);
       const camTarget = new THREE.Vector3(0, 0, 0);
       const fit = ()=>{ camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); camera.position.setFromSpherical(sph); camera.lookAt(camTarget); };
       fit();
@@ -397,7 +399,8 @@ function Tennis3D({ pAvatar }){
   },[]);
 
   return (
-    <div ref={rootRef} className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    {/* Take over the entire viewport so the play field fits a phone screen */}
+    <div ref={rootRef} className="fixed inset-0 w-screen h-screen bg-black text-white overflow-hidden select-none">
       <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
       <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Tennis 3D — Controls</div>
