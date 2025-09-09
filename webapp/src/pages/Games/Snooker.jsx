@@ -1152,8 +1152,8 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // halve impulse so ball speed matches power gauge better
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.75);
+          // remove impulse entirely for a 100% power reduction
+          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0);
         cue.vel.copy(base);
       };
       fireRef.current = fire;
