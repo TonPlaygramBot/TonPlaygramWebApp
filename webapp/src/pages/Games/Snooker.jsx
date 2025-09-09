@@ -368,7 +368,7 @@ function Table3D(scene) {
       .multiplyScalar(railW / 2);
     const jaw = new THREE.Mesh(jawGeo, jawMat);
     jaw.rotation.x = Math.PI / 2;
-    jaw.position.set(p.x + dir.x, -TABLE.THICK + railH / 2, p.y + dir.y);
+    jaw.position.set(p.x - dir.x, -TABLE.THICK + railH / 2, p.y - dir.y);
     table.add(jaw);
   });
   // Base slab under the rails (keeps original footprint while top grew 20%)
@@ -538,7 +538,7 @@ export default function NewSnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
-  const { cfg: calib, setCfg, mapDelta } = useAimCalibration();
+  const { mapDelta } = useAimCalibration();
   useEffect(() => {
     document.title = '3D Snooker';
   }, []);
@@ -887,7 +887,7 @@ export default function NewSnookerGame() {
 
       // Cue image
       const cueTex = new THREE.TextureLoader().load(
-        '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp'
+        '/assets/snooker/cue.webp'
       );
       const cueLen = BALL_R * 20;
       const cueMesh = new THREE.Mesh(
@@ -937,7 +937,7 @@ export default function NewSnookerGame() {
         last.y = y;
         const mapped = mapDelta(dx, dy, camera);
         virt.add(mapped);
-        const dir = cue.pos.clone().sub(virt);
+        const dir = virt.clone().sub(cue.pos);
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
         }
@@ -1019,7 +1019,7 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52));
+          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
       };
       fireRef.current = fire;
@@ -1148,7 +1148,7 @@ export default function NewSnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const pull = powerRef.current * BALL_R * 10;
+          const pull = powerRef.current * BALL_R * 10 * 0.5;
           cueMesh.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
             BALL_R,
@@ -1292,7 +1292,7 @@ export default function NewSnookerGame() {
     const slider = new SnookerPowerSlider({
       mount,
       value: powerRef.current * 100,
-      cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
+      cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => fireRef.current?.()
@@ -1307,33 +1307,6 @@ export default function NewSnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      <div className="absolute top-2 right-2 bg-black/50 p-2 text-xs z-50">
-        <label className="mr-2">
-          <input
-            type="checkbox"
-            checked={calib.swap}
-            onChange={(e) => setCfg({ ...calib, swap: e.target.checked })}
-          />
-          swap
-        </label>
-        <label className="mr-2">
-          <input
-            type="checkbox"
-            checked={calib.invertX}
-            onChange={(e) => setCfg({ ...calib, invertX: e.target.checked })}
-          />
-          flipX
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={calib.invertY}
-            onChange={(e) => setCfg({ ...calib, invertY: e.target.checked })}
-          />
-          flipY
-        </label>
-      </div>
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">

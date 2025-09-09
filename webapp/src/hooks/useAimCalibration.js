@@ -27,6 +27,16 @@ export function useAimCalibration() {
   }));
 
   useEffect(() => {
+    const auto = () => {
+      const portrait = window.innerHeight > window.innerWidth;
+      setCfg((c) => ({ ...c, swap: portrait, invertX: false, invertY: false }));
+    };
+    auto();
+    window.addEventListener('resize', auto);
+    return () => window.removeEventListener('resize', auto);
+  }, []);
+
+  useEffect(() => {
     saveFlag('invertX', cfg.invertX);
     saveFlag('invertY', cfg.invertY);
     saveFlag('swap', cfg.swap);
