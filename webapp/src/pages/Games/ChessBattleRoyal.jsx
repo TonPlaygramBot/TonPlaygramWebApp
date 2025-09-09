@@ -7,6 +7,9 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { avatarToName } from '../../utils/avatarUtils.js';
+import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -357,6 +360,36 @@ function Chess3D({ avatar, username }) {
     promoting: null,
     winner: null
   });
+  const uiRef = useRef(ui);
+  const autoMoveRef = useRef(null);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [aiFlag] = useState(() => {
+    const playerFlag = FLAG_EMOJIS.includes(avatar) ? avatar : null;
+    return playerFlag
+      ? getAIOpponentFlag(playerFlag)
+      : FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+  });
+  const aiName = avatarToName(aiFlag);
+
+  useEffect(() => {
+    uiRef.current = ui;
+  }, [ui]);
+
+  useEffect(() => {
+    if (ui.winner) return;
+    const duration = ui.turnWhite ? 60 : 5;
+    setTimeLeft(duration);
+    const interval = setInterval(() => {
+      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
+    }, 1000);
+    const timeout = setTimeout(() => {
+      autoMoveRef.current && autoMoveRef.current(ui.turnWhite);
+    }, duration * 1000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [ui.turnWhite, ui.winner]);
 
   useEffect(() => {
     const host = wrapRef.current;
@@ -554,7 +587,7 @@ function Chess3D({ avatar, username }) {
     function selectAt(r, c) {
       const p = board[r][c];
       if (!p) return ((sel = null), clearHighlights());
-      if (p.w !== ui.turnWhite) return; // not your turn
+      if (p.w !== uiRef.current.turnWhite) return; // not your turn
       sel = { r, c, p };
       legal = legalMoves(board, r, c);
       clearHighlights();
@@ -590,7 +623,7 @@ function Chess3D({ avatar, username }) {
       );
 
       // turn switch & status
-      const nextWhite = !ui.turnWhite;
+      const nextWhite = !uiRef.current.turnWhite;
       const king = findKing(board, nextWhite);
       const inCheck =
         king && isSquareAttacked(board, king[0], king[1], !nextWhite);
@@ -612,6 +645,25 @@ function Chess3D({ avatar, username }) {
       sel = null;
       clearHighlights();
     }
+
+    autoMoveRef.current = (whiteTurn) => {
+      const color =
+        typeof whiteTurn === 'boolean' ? whiteTurn : uiRef.current.turnWhite;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const p = board[r][c];
+          if (p && p.w === color) {
+            const moves = legalMoves(board, r, c);
+            if (moves.length > 0) {
+              selectAt(r, c);
+              const [rr, cc] = moves[0];
+              moveSelTo(rr, cc);
+              return;
+            }
+          }
+        }
+      }
+    };
 
     function onClick(e) {
       setPointer(e);
@@ -711,6 +763,12 @@ function Chess3D({ avatar, username }) {
       ref={wrapRef}
       className="w-screen h-dvh bg-black text-white overflow-hidden select-none relative"
     >
+      {aiFlag && (
+        <div className="absolute top-2 left-2 flex items-center space-x-2 z-10 pointer-events-none">
+          <span className="text-2xl">{aiFlag}</span>
+          {aiName && <span className="text-sm font-semibold">{aiName}</span>}
+        </div>
+      )}
       {(avatar || username) && (
         <div className="absolute top-2 right-2 flex items-center space-x-2 z-10 pointer-events-none">
           {avatar && (
@@ -730,14 +788,14 @@ function Chess3D({ avatar, username }) {
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}
         >
-          Black
+          Black{!ui.turnWhite && ` - ${timeLeft}s`}
         </div>
       </div>
       <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'bg-white/20' : 'opacity-60'}`}
         >
-          White
+          White{ui.turnWhite && ` - ${timeLeft}s`}
         </div>
       </div>
 
