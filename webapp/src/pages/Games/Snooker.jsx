@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-// Use the same power slider as Pool Royale for identical look & feel
-import { PowerSlider } from '../../../../power-slider.js';
-import '../../../../power-slider.css';
+// Dedicated snooker power slider (not shared with other games)
+import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
+import '../../../../snooker-power-slider.css';
 import {
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -234,20 +234,30 @@ function Table3D(scene) {
   cloth.position.y = -TABLE.THICK;
   cloth.receiveShadow = true;
   table.add(cloth);
-  // Pocket rings (visual rim)
-  const ringGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.6, POCKET_VIS_R, 48);
-  const ringMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
+  // Pocket jaws (plastic rim) + aluminium plate
+  const jawGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.7, POCKET_VIS_R * 0.9, 48);
+  const jawMat = new THREE.MeshStandardMaterial({
+    color: 0x111111,
     side: THREE.DoubleSide,
-    metalness: 0.4,
-    roughness: 0.5,
-    depthTest: false
+    metalness: 0.2,
+    roughness: 0.6
+  });
+  const plateGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.9, POCKET_VIS_R, 48);
+  const plateMat = new THREE.MeshStandardMaterial({
+    color: 0xd0d5dd,
+    side: THREE.DoubleSide,
+    metalness: 0.8,
+    roughness: 0.3
   });
   pocketCenters().forEach((p) => {
-    const m = new THREE.Mesh(ringGeo, ringMat);
-    m.rotation.x = -Math.PI / 2;
-    m.position.set(p.x, 0.001, p.y);
-    table.add(m);
+    const jaw = new THREE.Mesh(jawGeo, jawMat);
+    jaw.rotation.x = -Math.PI / 2;
+    jaw.position.set(p.x, 0.001, p.y);
+    table.add(jaw);
+    const plate = new THREE.Mesh(plateGeo, plateMat);
+    plate.rotation.x = -Math.PI / 2;
+    plate.position.set(p.x, 0.002, p.y);
+    table.add(plate);
   });
   // Pocket sleeves for depth perception
   const pocketGeo = new THREE.CylinderGeometry(
@@ -314,30 +324,45 @@ function Table3D(scene) {
   const topZ = halfH + railW / 2;
   const leftX = -halfW - railW / 2;
   const rightX = halfW + railW / 2;
-  const railGeometry = (len) => {
+  const railGeometry = (len, horizontal) => {
     const half = len / 2;
     const chamfer = railW / 2;
     const shape = new THREE.Shape();
-    shape.moveTo(-half + chamfer, -railW / 2);
-    shape.lineTo(half - chamfer, -railW / 2);
-    shape.lineTo(half, 0);
-    shape.lineTo(half - chamfer, railW / 2);
-    shape.lineTo(-half + chamfer, railW / 2);
-    shape.lineTo(-half, 0);
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
-      bevelEnabled: false
-    });
-    return geo;
+    if (horizontal) {
+      shape.moveTo(-half + chamfer, -railW / 2);
+      shape.lineTo(half - chamfer, -railW / 2);
+      shape.lineTo(half, 0);
+      shape.lineTo(half - chamfer, railW / 2);
+      shape.lineTo(-half + chamfer, railW / 2);
+      shape.lineTo(-half, 0);
+      const holeL = new THREE.Path();
+      holeL.absarc(-half, 0, POCKET_VIS_R, Math.PI / 2, -Math.PI / 2, true);
+      const holeR = new THREE.Path();
+      holeR.absarc(half, 0, POCKET_VIS_R, -Math.PI / 2, Math.PI / 2, true);
+      shape.holes.push(holeL, holeR);
+    } else {
+      shape.moveTo(-railW / 2, -half + chamfer);
+      shape.lineTo(railW / 2, -half + chamfer);
+      shape.lineTo(railW / 2, half - chamfer);
+      shape.lineTo(0, half);
+      shape.lineTo(-railW / 2, half - chamfer);
+      shape.lineTo(-railW / 2, -half + chamfer);
+      const holeB = new THREE.Path();
+      holeB.absarc(0, -half, POCKET_VIS_R, 0, Math.PI, true);
+      const holeT = new THREE.Path();
+      holeT.absarc(0, half, POCKET_VIS_R, Math.PI, 0, true);
+      shape.holes.push(holeB, holeT);
+    }
+    return new THREE.ExtrudeGeometry(shape, { depth: railH, bevelEnabled: false });
   };
   const addRail = (x, z, len, horizontal) => {
     const group = new THREE.Group();
-    const wood = new THREE.Mesh(railGeometry(len), railMat);
+    const wood = new THREE.Mesh(railGeometry(len, horizontal), railMat);
     wood.castShadow = true;
     wood.receiveShadow = true;
     wood.rotation.x = -Math.PI / 2; // lay wood horizontally
     group.add(wood);
-    const clothGeo = railGeometry(len);
+    const clothGeo = railGeometry(len, horizontal);
     // full-size cushion so all side faces remain green
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
@@ -1288,7 +1313,7 @@ export default function NewSnookerGame() {
   useEffect(() => {
     const mount = sliderRef.current;
     if (!mount) return;
-    const slider = new PowerSlider({
+    const slider = new SnookerPowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
