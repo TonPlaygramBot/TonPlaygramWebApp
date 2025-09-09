@@ -212,6 +212,32 @@ function Tennis3D({ pAvatar }){
       window.addEventListener('mouseup', onMouseUp);
       window.addEventListener('mousemove', onMouseMove);
 
+      // Touch controls (drag to move, flick up to hit)
+      const touch = { startX: 0, startY: 0, time: 0 };
+      const updatePlayerFromTouch = (t)=>{
+        const rect = renderer.domElement.getBoundingClientRect();
+        const xNorm = (t.clientX - rect.left) / rect.width;
+        player.x = THREE.MathUtils.lerp(-COURT.W*0.35, COURT.W*0.35, xNorm);
+      };
+      const onTouchStart = (e)=>{
+        const t = e.touches[0];
+        touch.startX = t.clientX; touch.startY = t.clientY; touch.time = performance.now();
+        updatePlayerFromTouch(t);
+      };
+      const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); };
+      const onTouchEnd = (e)=>{
+        const t = e.changedTouches[0];
+        const dy = touch.startY - t.clientY;
+        const dt = performance.now() - touch.time;
+        if(dy > 25 && dt < 300){
+          player.power = 1;
+          tryHit(ball, true);
+        }
+      };
+      renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+      renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
+      renderer.domElement.addEventListener('touchend', onTouchEnd);
+
       // Hit logic
       function tryHit(ball, isPlayer){
         const racket = isPlayer ? racketP : racketA;
@@ -350,7 +376,6 @@ function Tennis3D({ pAvatar }){
       const onUp = ()=>{ drag.on=false; };
       const onWheel = (e)=>{ const r = sph.radius || 160; sph.radius = clamp(r + e.deltaY*0.2, CAM.minR, CAM.maxR); fit(); };
       dom.addEventListener('mousedown', onDown); dom.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-      dom.addEventListener('touchstart', onDown, {passive:true}); dom.addEventListener('touchmove', onMove, {passive:true}); window.addEventListener('touchend', onUp);
       dom.addEventListener('wheel', onWheel, {passive:true});
 
       // Resize
@@ -362,8 +387,10 @@ function Tennis3D({ pAvatar }){
         window.removeEventListener('resize', onResize);
         window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey);
         dom.removeEventListener('mousedown', onDown); dom.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
-        dom.removeEventListener('touchstart', onDown); dom.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp);
         dom.removeEventListener('wheel', onWheel);
+        renderer.domElement.removeEventListener('touchstart', onTouchStart);
+        renderer.domElement.removeEventListener('touchmove', onTouchMove);
+        renderer.domElement.removeEventListener('touchend', onTouchEnd);
         try{ host.removeChild(renderer.domElement); }catch{}
       };
     }catch(err){ console.error(err); }
@@ -374,8 +401,8 @@ function Tennis3D({ pAvatar }){
       <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
       <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Tennis 3D — Controls</div>
-        <div>A/D (←/→) = Move left/right | W/S (↑/↓) = In/Out</div>
-        <div>SPACE = Charge &amp; Hit | Mouse drag = Aim</div>
+        <div>Drag finger left/right to move | Flick up to hit</div>
+        <div>Keyboard: A/D (←/→) move, W/S (↑/↓) in/out, SPACE hit, mouse drag aim</div>
       </div>
     </div>
   );
