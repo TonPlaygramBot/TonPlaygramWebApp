@@ -366,6 +366,12 @@ function Chess3D() {
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    // Ensure the canvas covers the entire host element so the board is centered
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
