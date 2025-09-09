@@ -172,7 +172,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.83; // nudge camera even closer
+  const r = Math.max(dzH, dzW) * 0.8; // nudge camera slightly closer
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1151,7 +1151,7 @@ export default function NewSnookerGame() {
         const base = aimDir
           .clone()
           // increased impulse for more lifelike ball speed
-          .multiplyScalar(6 * (0.48 + powerRef.current * 1.52) * 0.5);
+          .multiplyScalar(6 * (0.48 + powerRef.current * 1.52));
         cue.vel.copy(base);
       };
       fireRef.current = fire;
@@ -1280,7 +1280,7 @@ export default function NewSnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const pull = powerRef.current * BALL_R * 10 * 0.5;
+          const pull = powerRef.current * BALL_R * 10;
           cueMesh.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
             BALL_R,
