@@ -71,33 +71,28 @@
     }
     .player {
       position: absolute;
-      bottom: 10%;
       left: 50%;
       transform: translate(-50%, 0);
     }
+    .player.bottom { bottom: 10%; }
+    .player.top {
+      top: 10%;
+      transform: translate(-50%, 0) rotate(180deg);
+    }
     .racket {
       position: relative;
-      width: 80px;
-      height: 20px;
-      background: #fff;
-      border-radius: 10px 0 0 10px;
+      font-size: 90px;
+      line-height: 1;
+      display: inline-block;
     }
-    .racket::after {
-      content: '';
-      position: absolute;
-      right: -10px;
-      top: 5px;
-      width: 10px;
-      height: 10px;
-      background: #b5651d;
-      border-radius: 2px;
-    }
+    .racket.red { filter: hue-rotate(-120deg) saturate(4); }
+    .racket.blue { filter: hue-rotate(120deg) saturate(4); }
     .ball {
       position: absolute;
-      font-size: 24px;
-      top: -20px;
       left: 50%;
-      transform: translateX(-50%);
+      bottom: 100%;
+      font-size: 36px;
+      transform: translate(-50%, -10px);
       transition: transform 0.3s;
     }
     .throw-btn {
@@ -163,10 +158,12 @@
     <div class="court">
       <div class="net"></div>
       <div class="player-area">
-        <div class="player" id="p1">
-          <div class="racket" id="racket">
-            <div class="ball" id="ball">🎾</div>
-          </div>
+        <div class="player bottom" id="p1">
+          <div class="racket red" id="racket1">🎾</div>
+          <div class="ball" id="ball">🎾</div>
+        </div>
+        <div class="player top" id="p2">
+          <div class="racket blue" id="racket2">🎾</div>
         </div>
       </div>
       <button class="throw-btn" id="throw">Throw</button>
@@ -189,9 +186,9 @@
       if (ballThrown) return;
       ballThrown = true;
       ball.animate([
-        { transform: 'translateX(-50%) translateY(0)' },
-        { transform: 'translateX(-50%) translateY(-60px)' },
-        { transform: 'translateX(-50%) translateY(-20px)' }
+        { transform: 'translate(-50%, -10px)' },
+        { transform: 'translate(-50%, -70px)' },
+        { transform: 'translate(-50%, -30px)' }
       ], { duration: 600, fill: 'forwards' });
     });
   </script>
