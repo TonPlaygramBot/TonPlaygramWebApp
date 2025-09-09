@@ -38,23 +38,40 @@ const UI = {
   swingChargeRate: 0.9,  // per second
 };
 
-const BALL_EMOJI = '🎾';
-
 // ===================== Helpers (geo/materials) =====================
 const mat = (c, r=0.9, m=0.08)=> new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:m });
 const box = (w,h,d,c)=> new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
 
-function emojiSprite(emoji, color, size = 128){
+function drawHex(ctx, cx, cy, r){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a = Math.PI/3*i;
+    const x = cx + r*Math.cos(a);
+    const y = cy + r*Math.sin(a);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function hexTexture(color='#888', size=128){
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.font = `${size * 0.8}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, size / 2, size / 2);
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, color });
-  return new THREE.Sprite(material);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  const r = size/10;
+  const h = Math.sin(Math.PI/3)*r;
+  for(let y=-h; y<size+h; y+=h*2){
+    for(let x=-r; x<size+r; x+=r*1.5){
+      const offset = Math.round(y/h)%2 ? r*0.75 : 0;
+      drawHex(ctx, x+offset, y+r, r);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4,4);
+  return tex;
 }
 
 // Lines helper (white stripes on court)
@@ -109,17 +126,37 @@ function buildCourt(scene){
 
 // ================= Physics & game state =================
 function makeBall(scene){
-  const mesh = emojiSprite(BALL_EMOJI, 0xffff00, 128); mesh.scale.set(3,3,1); mesh.position.set(0,6,0); scene.add(mesh);
-  return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
+  const group = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(1.2,32,32), mat(0xffe94d,0.5,0.3));
+  const stripeMat = mat(0xffffff,0.4,0.1);
+  const stripe1 = new THREE.Mesh(new THREE.TorusGeometry(1.2,0.08,16,64), stripeMat);
+  stripe1.rotation.set(Math.PI/2,0,0);
+  const stripe2 = stripe1.clone();
+  stripe2.rotation.set(0,Math.PI/2,0);
+  group.add(core,stripe1,stripe2);
+  group.scale.set(3,3,3);
+  group.position.set(0,6,0);
+  scene.add(group);
+  return { mesh: group, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(), alive: true };
 }
 
 function makeRacket(scene, color){
   const group = new THREE.Group();
-  const head = new THREE.Mesh(new THREE.TorusGeometry(3,0.3,16,32), mat(color));
+  const head = new THREE.Mesh(new THREE.TorusGeometry(3,0.25,16,32), mat(color));
   head.rotation.x = Math.PI/2; head.position.y = 4;
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.6,4,0.6), mat(color));
-  handle.position.y = 2; // raise handle slightly above ground
-  group.add(head, handle);
+
+  // Y-shaped throat
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,3.5,8), mat(color));
+  grip.position.y = 1.75;
+  const throatL = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,2.2,8), mat(color));
+  throatL.position.set(-0.6,3.1,0); throatL.rotation.z = 0.4;
+  const throatR = throatL.clone(); throatR.position.x = 0.6; throatR.rotation.z = -0.4;
+
+  // Hexagonal string mesh
+  const strings = new THREE.Mesh(new THREE.CircleGeometry(2.6,40), new THREE.MeshBasicMaterial({ map: hexTexture(), transparent:true }));
+  strings.rotation.x = Math.PI/2; strings.position.y = 4;
+
+  group.add(head, grip, throatL, throatR, strings);
   scene.add(group);
   return { group };
 }
