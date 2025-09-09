@@ -44,6 +44,8 @@ import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
 import TennisBattleRoyal from './pages/Games/TennisBattleRoyal.jsx';
 import TennisBattleRoyalLobby from './pages/Games/TennisBattleRoyalLobby.jsx';
+import ChessBattleRoyal from './pages/Games/ChessBattleRoyal.jsx';
+import ChessBattleRoyalLobby from './pages/Games/ChessBattleRoyalLobby.jsx';
 import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
@@ -132,6 +134,14 @@ export default function App() {
             <Route
               path="/games/tennisbattleroyal"
               element={<TennisBattleRoyal />}
+            />
+            <Route
+              path="/games/chessbattleroyal/lobby"
+              element={<ChessBattleRoyalLobby />}
+            />
+            <Route
+              path="/games/chessbattleroyal"
+              element={<ChessBattleRoyal />}
             />
             <Route
               path="/games/texasholdem/lobby"
