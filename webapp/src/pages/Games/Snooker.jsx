@@ -277,7 +277,7 @@ function Table3D(scene) {
     metalness: 0.2,
     roughness: 0.9
   });
-  const railH = TABLE.THICK * 1.6; // slightly taller rails
+  const railH = TABLE.THICK * 1.5; // raise rails and cushions a bit
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
@@ -331,11 +331,18 @@ function Table3D(scene) {
   };
   const addRail = (x, z, len, horizontal) => {
     const group = new THREE.Group();
-    const rail = new THREE.Mesh(railGeometry(len), cushionMat);
-    rail.castShadow = true;
-    rail.receiveShadow = true;
-    rail.rotation.x = -Math.PI / 2; // lay cushion horizontally
-    group.add(rail);
+    const wood = new THREE.Mesh(railGeometry(len), railMat);
+    wood.castShadow = true;
+    wood.receiveShadow = true;
+    wood.rotation.x = -Math.PI / 2; // lay wood horizontally
+    group.add(wood);
+    const clothGeo = railGeometry(len);
+    clothGeo.scale(1, 0.7, 0.7); // beefier cushion
+    const cloth = new THREE.Mesh(clothGeo, cushionMat);
+    cloth.rotation.x = -Math.PI / 2; // green faces play field
+    const clothOffset = TABLE.THICK - railH * 0.7;
+    cloth.position.y = clothOffset;
+    group.add(cloth);
     group.position.set(x, -TABLE.THICK, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     table.add(group);
@@ -637,7 +644,6 @@ export default function NewSnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
-      let cue;
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         host.clientWidth / host.clientHeight,
@@ -646,14 +652,13 @@ export default function NewSnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        160 * TABLE_SCALE,
+        180 * TABLE_SCALE,
         1.0 /*phi ~57°*/,
         Math.PI
       );
-      const target = new THREE.Vector3();
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
-        sph.radius = fitRadius(camera, m) * 0.9;
+        sph.radius = fitRadius(camera, m);
         const phiCap = Math.acos(
           THREE.MathUtils.clamp(-0.95 / sph.radius, -1, 1)
         );
@@ -662,10 +667,9 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.min(phiCap, Math.PI - CAMERA.phiMargin)
         );
-        if (cue) target.set(cue.pos.x, BALL_R, cue.pos.y);
-        else target.set(0, TABLE_Y, 0);
+        const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
-          camera.position.set(target.x, sph.radius, target.z);
+          camera.position.set(0, sph.radius, 0);
           camera.lookAt(target);
         } else {
           camera.position.setFromSpherical(sph).add(target);
@@ -812,8 +816,7 @@ export default function NewSnookerGame() {
         balls.push(b);
         return b;
       };
-      cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      fit();
+      let cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
       // reds triangle toward top side
       let rid = 0;
       const bz = PLAY_H * 0.25,
@@ -956,7 +959,7 @@ export default function NewSnookerGame() {
         last.y = e.clientY || e.touches?.[0]?.clientY || 0;
         virt.x = last.x;
         virt.y = last.y;
-        if (!hitBall) onAimMove(e); // avoid override when snapping to a ball
+        onAimMove(e);
       };
       const onAimEnd = () => {
         aiming = false;
@@ -1121,11 +1124,6 @@ export default function NewSnookerGame() {
 
       // Loop
       const step = () => {
-        if (cue) {
-          target.set(cue.pos.x, BALL_R, cue.pos.y);
-          camera.position.setFromSpherical(sph).add(target);
-          camera.lookAt(target);
-        }
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(

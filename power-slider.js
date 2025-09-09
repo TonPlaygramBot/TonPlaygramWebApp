@@ -184,14 +184,13 @@ export class PowerSlider {
     if (!this.powerBar) return;
     const uWidth = this._measureCharWidth('u');
     const pWidth = this._measureCharWidth('P');
-    const barW = uWidth * 0.7;
-    this.powerBar.style.width = `${barW}px`;
+    this.powerBar.style.width = `${uWidth}px`;
     const textRect = this.handleText.getBoundingClientRect();
     const imgRect = this.cueImg.getBoundingClientRect();
     const elRect = this.el.getBoundingClientRect();
-    const left = textRect.left - elRect.left + pWidth - barW / 2;
+    const left = textRect.left - elRect.left + pWidth;
     const top = textRect.bottom - elRect.top;
-    const height = (imgRect.bottom - textRect.bottom) * 0.8;
+    const height = imgRect.bottom - textRect.bottom;
     this.powerBar.style.left = `${left}px`;
     this.powerBar.style.top = `${top}px`;
     this.powerBar.style.height = `${height}px`;

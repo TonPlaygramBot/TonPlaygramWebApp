@@ -64,11 +64,4 @@ export class SnookerRules {
     }
     return [];
   }
-
-  getFoulValue(ballOn: BallColor[], offending: BallColor | null): number {
-    const values = this.getBallValues();
-    const valOn = Math.max(...ballOn.map((c) => values[c]));
-    const valOff = offending ? values[offending] : 0;
-    return Math.max(4, valOn, valOff);
-  }
 }
