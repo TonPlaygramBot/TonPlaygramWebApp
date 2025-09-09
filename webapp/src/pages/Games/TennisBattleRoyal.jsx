@@ -181,7 +181,8 @@ function Tennis3D({ pAvatar }){
 
       // Camera orbit
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI * 0.5);
+      // Position camera behind the player so the court runs horizontally across the screen
+      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, 0);
       const camTarget = new THREE.Vector3(0, 0, 0);
       const fit = () => {
         let w = host.clientWidth;
@@ -256,9 +257,9 @@ function Tennis3D({ pAvatar }){
       const onTouchEnd = (e)=>{
         const t = e.changedTouches[0];
         const dy = touch.startY - t.clientY;
-        const dt = performance.now() - touch.time;
-        if(dy > 25 && dt < 300){
-          player.power = 1;
+        if(dy > 25){
+          // Swipe or quick flick upwards triggers a shot; longer swipes add power
+          player.power = Math.min(1, dy / 120);
           tryHit(ball, true);
         }
       };
@@ -429,7 +430,7 @@ function Tennis3D({ pAvatar }){
       <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
       <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Tennis 3D — Controls</div>
-        <div>Drag finger left/right to move | Flick up to hit</div>
+        <div>Drag finger left/right to move | Swipe or flick up to hit</div>
         <div>Keyboard: A/D (←/→) move, W/S (↑/↓) in/out, SPACE hit, mouse drag aim</div>
       </div>
     </div>
