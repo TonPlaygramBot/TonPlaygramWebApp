@@ -204,6 +204,11 @@ function Chess3D(){
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
     renderer.setSize(host.clientWidth, host.clientHeight, false);
     host.appendChild(renderer.domElement);
+    // Position the board canvas nearer to the top-left of the page
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.transform = 'translate(-50px, -50px)';
 
     scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.bg);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
