@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-// Use the same power slider as Pool Royale for identical look & feel
-import { PowerSlider } from '../../../../power-slider.js';
-import '../../../../power-slider.css';
+// Snooker uses its own slimmer power slider
+import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
+import '../../../../snooker-power-slider.css';
 import {
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -354,21 +354,22 @@ function Table3D(scene) {
   addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
   addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
   addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
-  // fillers behind pockets to close side gaps
-  const fillerGeo = new THREE.BoxGeometry(railW, railH, railW);
-  [
-    [leftX, bottomZ],
-    [rightX, bottomZ],
-    [leftX, topZ],
-    [rightX, topZ],
-    [0, bottomZ],
-    [0, topZ]
-  ].forEach(([x, z]) => {
-    const f = new THREE.Mesh(fillerGeo, railMat);
-    f.position.set(x, -TABLE.THICK, z);
-    f.castShadow = true;
-    f.receiveShadow = true;
-    table.add(f);
+
+  // Plastic pocket jaws around the pockets (outside the cloth)
+  const jawGeo = new THREE.TorusGeometry(POCKET_VIS_R * 0.85, railW * 0.3, 16, 32);
+  const jawMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    metalness: 0.2,
+    roughness: 0.4
+  });
+  pocketCenters().forEach((p) => {
+    const dir = new THREE.Vector2(p.x, p.y)
+      .normalize()
+      .multiplyScalar(railW / 2);
+    const jaw = new THREE.Mesh(jawGeo, jawMat);
+    jaw.rotation.x = Math.PI / 2;
+    jaw.position.set(p.x + dir.x, -TABLE.THICK + railH / 2, p.y + dir.y);
+    table.add(jaw);
   });
   // Base slab under the rails (keeps original footprint while top grew 20%)
   const baseH = TABLE.THICK * 3.5;
@@ -1288,7 +1289,7 @@ export default function NewSnookerGame() {
   useEffect(() => {
     const mount = sliderRef.current;
     if (!mount) return;
-    const slider = new PowerSlider({
+    const slider = new SnookerPowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/icons/file_0000000019d86243a2f7757076cd7869.webp',
