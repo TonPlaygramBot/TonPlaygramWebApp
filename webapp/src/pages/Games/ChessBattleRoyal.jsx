@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import {
+  getTelegramFirstName,
+  getTelegramUsername,
+  getTelegramPhotoUrl
+} from '../../utils/telegram.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -342,7 +347,7 @@ function anyLegal(board, whiteTurn) {
 }
 
 // ======================= Main Component =======================
-function Chess3D() {
+function Chess3D({ avatar, username }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
 
@@ -499,8 +504,18 @@ function Chess3D() {
     const pointer = new THREE.Vector2();
     const setPointer = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+      const cx =
+        e.clientX ??
+        e.touches?.[0]?.clientX ??
+        e.changedTouches?.[0]?.clientX ??
+        0;
+      const cy =
+        e.clientY ??
+        e.touches?.[0]?.clientY ??
+        e.changedTouches?.[0]?.clientY ??
+        0;
+      pointer.x = ((cx - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -(((cy - rect.top) / rect.height) * 2 - 1);
     };
 
     // Selection
@@ -616,6 +631,7 @@ function Chess3D() {
     }
 
     renderer.domElement.addEventListener('click', onClick);
+    renderer.domElement.addEventListener('touchend', onClick);
 
     // Orbit controls minimal
     const drag = { on: false, x: 0, y: 0 };
@@ -676,6 +692,7 @@ function Chess3D() {
         host.removeChild(renderer.domElement);
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
+      renderer.domElement.removeEventListener('touchend', onClick);
     };
   }, [ui.turnWhite]);
 
@@ -684,6 +701,18 @@ function Chess3D() {
       ref={wrapRef}
       className="w-screen h-dvh bg-black text-white overflow-hidden select-none relative"
     >
+      {(avatar || username) && (
+        <div className="absolute top-2 right-2 flex items-center space-x-2">
+          {avatar && (
+            <img
+              src={avatar}
+              alt="avatar"
+              className="w-8 h-8 rounded-full border border-white/20"
+            />
+          )}
+          {username && <span className="text-sm font-semibold">{username}</span>}
+        </div>
+      )}
       {/* player turn indicators */}
       <div className="absolute top-2 left-0 right-0 flex justify-center">
         <div
@@ -717,7 +746,12 @@ function Chess3D() {
 export default function ChessBattleRoyal() {
   useTelegramBackButton();
   const { search } = useLocation();
-  // parameters like stake or avatar are unused currently
-  void search;
-  return <Chess3D />;
+  const params = new URLSearchParams(search);
+  const avatar = params.get('avatar') || getTelegramPhotoUrl();
+  let username =
+    params.get('username') ||
+    params.get('name') ||
+    getTelegramFirstName() ||
+    getTelegramUsername();
+  return <Chess3D avatar={avatar} username={username} />;
 }
