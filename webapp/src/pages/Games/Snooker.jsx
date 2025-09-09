@@ -1150,8 +1150,8 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // increased impulse for more lifelike ball speed
-          .multiplyScalar(6 * (0.48 + powerRef.current * 1.52));
+          // restore original shot impulse for consistent ball speed
+          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52));
         cue.vel.copy(base);
       };
       fireRef.current = fire;
