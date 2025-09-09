@@ -377,6 +377,7 @@ function Chess3D({ avatar, username }) {
     renderer.domElement.style.left = '0';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
+    renderer.domElement.style.zIndex = '0';
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
@@ -694,7 +695,7 @@ function Chess3D({ avatar, username }) {
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
     };
-  }, [ui.turnWhite]);
+  }, []);
 
   return (
     <div
@@ -702,7 +703,7 @@ function Chess3D({ avatar, username }) {
       className="w-screen h-dvh bg-black text-white overflow-hidden select-none relative"
     >
       {(avatar || username) && (
-        <div className="absolute top-2 right-2 flex items-center space-x-2">
+        <div className="absolute top-2 right-2 flex items-center space-x-2 z-10 pointer-events-none">
           {avatar && (
             <img
               src={avatar}
@@ -710,18 +711,20 @@ function Chess3D({ avatar, username }) {
               className="w-8 h-8 rounded-full border border-white/20"
             />
           )}
-          {username && <span className="text-sm font-semibold">{username}</span>}
+          {username && (
+            <span className="text-sm font-semibold">{username}</span>
+          )}
         </div>
       )}
       {/* player turn indicators */}
-      <div className="absolute top-2 left-0 right-0 flex justify-center">
+      <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}
         >
           Black
         </div>
       </div>
-      <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'bg-white/20' : 'opacity-60'}`}
         >
@@ -729,13 +732,13 @@ function Chess3D({ avatar, username }) {
         </div>
       </div>
 
-      <div className="absolute left-3 top-3 text-xs bg-white/10 rounded px-2 py-1">
+      <div className="absolute left-3 top-3 text-xs bg-white/10 rounded px-2 py-1 z-10 pointer-events-none">
         <div className="font-semibold">Chess 3D — {ui.status}</div>
         <div>Click piece → click destination. Orbit: drag, Zoom: wheel.</div>
       </div>
       <button
         onClick={() => window.location.reload()}
-        className="absolute left-3 bottom-3 text-xs bg-white/10 hover:bg-white/20 rounded px-3 py-1"
+        className="absolute left-3 bottom-3 text-xs bg-white/10 hover:bg-white/20 rounded px-3 py-1 z-10"
       >
         Reset
       </button>
