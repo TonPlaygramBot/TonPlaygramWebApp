@@ -5,3 +5,8 @@
   --ps-height: 288px;
   --ps-radius: 11.5px;
 }
+
+/* nudge Pull label slightly left to sit above the power bar */
+.ps.ps-theme-snooker .ps-handle-text {
+  transform: translate(-4px, 0);
+}

@@ -133,8 +133,8 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
-// higher value -> less energy loss each frame for more realistic roll
-const FRICTION = 0.995;
+// lower coefficient so balls retain speed but settle sooner
+const FRICTION = 0.99;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
@@ -159,9 +159,9 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 85 * TABLE_SCALE,
+  minR: 70 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
-  minPhi: 0.5,
+  minPhi: 0.65,
   phiMargin: 0.6
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -172,7 +172,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.8; // nudge camera slightly closer
+  const r = Math.max(dzH, dzW) * 0.7; // nudge camera closer to the table
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1150,8 +1150,8 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // restore original shot impulse for consistent ball speed
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52));
+          // boost initial impulse for snappier ball response
+          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 1.5);
         cue.vel.copy(base);
       };
       fireRef.current = fire;
@@ -1506,12 +1506,6 @@ export default function NewSnookerGame() {
         {topView ? '3D' : '2D'}
       </button>
 
-      {/* Help */}
-      <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">
-        Rrotullo ekranin si njeri pranë tavolinës (drag). Tërhiq slider‑in e
-        madh në të djathtë POSHTË për fuqi dhe lësho për të gjuajtur. 6 gropat
-        janë të prera dhe guret bien brenda.
-      </div>
     </div>
   );
 }
