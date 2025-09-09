@@ -617,14 +617,23 @@ function Chess3D({ avatar, username }) {
       setPointer(e);
       ray.setFromCamera(pointer, camera);
       const intersects = ray.intersectObjects(scene.children, true);
-      const hit = intersects.find(
-        (x) =>
-          x.object.userData &&
-          (x.object.userData.type === 'piece' ||
-            x.object.userData.type === 'tile')
-      );
-      if (!hit) return;
-      const ud = hit.object.userData;
+      let obj = null;
+      for (const i of intersects) {
+        let o = i.object;
+        while (o) {
+          if (
+            o.userData &&
+            (o.userData.type === 'piece' || o.userData.type === 'tile')
+          ) {
+            obj = o;
+            break;
+          }
+          o = o.parent;
+        }
+        if (obj) break;
+      }
+      if (!obj) return;
+      const ud = obj.userData;
       if (ud.type === 'piece') selectAt(ud.r, ud.c);
       else if (ud.type === 'tile' && sel) {
         moveSelTo(ud.r, ud.c);
