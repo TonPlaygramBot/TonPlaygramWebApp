@@ -181,7 +181,7 @@ function Tennis3D({ pAvatar }){
 
       // Camera orbit
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI * 0.12);
+      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI * 0.5);
       const camTarget = new THREE.Vector3(0, 0, 0);
       const fit = () => {
         let w = host.clientWidth;
