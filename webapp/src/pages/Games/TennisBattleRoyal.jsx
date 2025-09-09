@@ -39,7 +39,6 @@ const UI = {
 };
 
 const BALL_EMOJI = '🎾';
-const RACKET_EMOJI = '🎾';
 
 // ===================== Helpers (geo/materials) =====================
 const mat = (c, r=0.9, m=0.08)=> new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:m });
@@ -110,13 +109,19 @@ function buildCourt(scene){
 
 // ================= Physics & game state =================
 function makeBall(scene){
-  const mesh = emojiSprite(BALL_EMOJI, 0xffffff, 128); mesh.scale.set(3,3,1); mesh.position.set(0,6,0); scene.add(mesh);
+  const mesh = emojiSprite(BALL_EMOJI, 0xffff00, 128); mesh.scale.set(3,3,1); mesh.position.set(0,6,0); scene.add(mesh);
   return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
 }
 
 function makeRacket(scene, color){
-  const sprite = emojiSprite(RACKET_EMOJI, color, 256); sprite.scale.set(8,8,1); scene.add(sprite);
-  return { group: sprite };
+  const group = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.TorusGeometry(3,0.3,16,32), mat(color));
+  head.rotation.x = Math.PI/2; head.position.y = 4;
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.6,4,0.6), mat(color));
+  handle.position.y = 2; // raise handle slightly above ground
+  group.add(head, handle);
+  scene.add(group);
+  return { group };
 }
 
 const SCORE_MAP = [0,15,30,40];
@@ -282,8 +287,10 @@ function Tennis3D({ pAvatar, pName }){
         const dx = t.clientX - touch.startX;
         const dist = Math.hypot(dx, dy);
         if(dy > 10 && dist > 5){
-          // Swipe or quick flick upwards triggers a shot; longer swipes add power
-          player.power = Math.min(1, dy / 100);
+          // derive aim and power from swipe gesture similar to free kick game
+          player.power = Math.min(1, dist / 120);
+          player.aimX = clamp(dx / 120, -0.8, 0.8);
+          player.aimZ = clamp(dy / 120, 0.15, 0.85);
           tryHit(ball, true);
         }
         e.preventDefault();
@@ -356,13 +363,13 @@ function Tennis3D({ pAvatar, pName }){
         else { player.power = Math.max(0, player.power - dt*0.6); }
 
         // Position rackets
-        racketP.group.position.set(player.x, 0, player.z);
+        racketP.group.position.set(player.x, 1, player.z);
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
         const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W*0.3, COURT.W*0.3);
         ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed*dt, ai.speed*dt);
-        racketA.group.position.set(ai.x, 0, ai.z);
+        racketA.group.position.set(ai.x, 1, ai.z);
 
         // Ball physics
         if(phase==='serve'){
