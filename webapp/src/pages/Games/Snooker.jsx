@@ -273,11 +273,12 @@ function Table3D(scene) {
     roughness: 0.8
   });
   const cushionMat = new THREE.MeshStandardMaterial({
-    color: 0x0e6b32, // darker green than cloth, visible on sides
+    color: 0x0e6b32, // darker green than cloth, visible on all sides
     metalness: 0.2,
-    roughness: 0.9
+    roughness: 0.9,
+    side: THREE.DoubleSide
   });
-  const railH = TABLE.THICK * 1.7; // slightly taller rails and cushions
+  const railH = TABLE.THICK * 1.8; // rails and cushions raised slightly
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
