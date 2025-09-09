@@ -77,7 +77,8 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  return clamp(Math.max(dzH, dzW), CAMERA.minR, CAMERA.maxR);
+  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
+  return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
 // --------------------------------------------------
@@ -272,11 +273,11 @@ function Table3D(scene) {
     roughness: 0.8
   });
   const cushionMat = new THREE.MeshStandardMaterial({
-    color: 0x0e6b39,
+    color: 0x106b34, // slightly darker than the cloth
     metalness: 0.2,
     roughness: 0.9
   });
-  const railH = TABLE.THICK * 1.4; // slightly taller rails
+  const railH = TABLE.THICK * 1.5; // raise rails and cushions a bit
   const railW = TABLE.WALL * 0.5; // thinner side rails
   // Outer wooden frame around rails at same height
   // Make the side frame thicker so it lines up with the base
@@ -652,7 +653,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         180 * TABLE_SCALE,
-        1.05 /*phi ~60°*/,
+        1.0 /*phi ~57°*/,
         Math.PI
       );
       const fit = (m = 1.1) => {
