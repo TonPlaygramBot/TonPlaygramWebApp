@@ -10,7 +10,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { buildAudience } from '../../utils/audience.js';
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
@@ -317,12 +316,14 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
+    const chamfer = railW / 2;
     const shape = new THREE.Shape();
-    shape.moveTo(-half, -railW / 2);
-    shape.lineTo(half, -railW / 2);
-    shape.absarc(half, 0, railW / 2, -Math.PI / 2, Math.PI / 2, true);
-    shape.lineTo(-half, railW / 2);
-    shape.absarc(-half, 0, railW / 2, Math.PI / 2, -Math.PI / 2, true);
+    shape.moveTo(-half + chamfer, -railW / 2);
+    shape.lineTo(half - chamfer, -railW / 2);
+    shape.lineTo(half, 0);
+    shape.lineTo(half - chamfer, railW / 2);
+    shape.lineTo(-half + chamfer, railW / 2);
+    shape.lineTo(-half, 0);
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
       bevelEnabled: false
@@ -450,13 +451,6 @@ function Table3D(scene) {
   south.rotation.y = Math.PI;
   arena.add(north, south);
   table.add(arena);
-
-  const audience = buildAudience({
-    floorW: arenaW,
-    floorD: arenaD,
-    y: floor.position.y + 0.1
-  });
-  table.add(audience);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
