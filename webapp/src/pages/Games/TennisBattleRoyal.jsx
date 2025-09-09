@@ -102,10 +102,11 @@ function makeBall(scene){
 
 function makeRacket(scene, color){
   const g = new THREE.Group();
-  const handle = box(0.6, 2.2, 0.6, color); handle.position.set(0, 1.1, 0); g.add(handle);
-  const head = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.25, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.4, 0.2); g.add(head);
-  const bed  = new THREE.Mesh(new THREE.CircleGeometry(1.6, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
-  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.4, 0.21); g.add(bed);
+  // Slightly larger handle and head for easier hits
+  const handle = box(0.7, 2.5, 0.7, color); handle.position.set(0, 1.25, 0); g.add(handle);
+  const head = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.28, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.6, 0.2); g.add(head);
+  const bed  = new THREE.Mesh(new THREE.CircleGeometry(2.0, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
+  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.6, 0.21); g.add(bed);
   scene.add(g);
   return { group: g };
 }
@@ -152,6 +153,8 @@ function Tennis3D({ pAvatar }){
     let servingSide = 1; // +1 right, -1 left (from player's perspective)
     let phase = 'serve'; // 'serve' | 'rally'
     let serveFaults = 0;
+    let server = 'P';
+    let aiServeTimer = 0;
 
     const player = { x:0, z: COURT.L/2 - 6, speed: 60, aimX:0, aimZ: 0.4, power: 0 };
     const ai     = { x:0, z:-COURT.L/2 + 6, speed: 52, cooldown: 0 };
@@ -159,8 +162,15 @@ function Tennis3D({ pAvatar }){
     function resetBallForServe(ball, who='P'){
       phase = 'serve';
       serveFaults = 0;
-      ball.pos.set(player.x, 6, player.z - 3);
+      server = who;
+      if(who==='AI'){
+        ball.pos.set(ai.x, 6, ai.z + 3);
+        aiServeTimer = 0.5; // short delay before AI serves
+      } else {
+        ball.pos.set(player.x, 6, player.z - 3);
+      }
       ball.vel.set(0, 0, 0);
+      ball.spin.set(0,0,0);
       ball.mesh.position.copy(ball.pos);
     }
 
@@ -252,32 +262,40 @@ function Tennis3D({ pAvatar }){
         const t = e.touches[0];
         touch.startX = t.clientX; touch.startY = t.clientY; touch.time = performance.now();
         updatePlayerFromTouch(t);
+        e.preventDefault();
       };
-      const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); };
+      const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); e.preventDefault(); };
       const onTouchEnd = (e)=>{
         const t = e.changedTouches[0];
         const dy = touch.startY - t.clientY;
-        if(dy > 25){
+        const dx = t.clientX - touch.startX;
+        const dist = Math.hypot(dx, dy);
+        if(dy > 10 && dist > 5){
           // Swipe or quick flick upwards triggers a shot; longer swipes add power
-          player.power = Math.min(1, dy / 120);
+          player.power = Math.min(1, dy / 100);
           tryHit(ball, true);
         }
+        e.preventDefault();
       };
-      renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
-      renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
+      renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
+      renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
       renderer.domElement.addEventListener('touchend', onTouchEnd);
 
       // Hit logic
       function tryHit(ball, isPlayer){
         const racket = isPlayer ? racketP : racketA;
         const pos = racket.group.getWorldPosition(new THREE.Vector3());
-        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 4.0) return false;
+        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 5.0) return false;
         // Compose velocity based on aim + power
         const fwd = isPlayer ? -1 : +1; // player hits towards -Z, AI towards +Z
-        const lateral = (isPlayer? player.aimX : THREE.MathUtils.clamp((ball.pos.x - ai.x)/20, -0.7, 0.7)) * 48;
+        const lateralAim = isPlayer ? player.aimX : (-Math.sign(ball.pos.x) * 0.6);
+        const lateral = THREE.MathUtils.clamp(lateralAim, -0.8, 0.8) * 48;
         const depth   = (isPlayer? player.aimZ : 0.55) * (isPlayer? (60 + player.power*60) : 58);
         const up      = isPlayer? (16 + player.power*22) : 14;
         ball.vel.set(lateral, up, -depth * fwd);
+        // add spin for more natural arc
+        const spinX = -fwd * (isPlayer? player.power : 0.4) * 50;
+        ball.spin.set(spinX, lateral * 0.1, 0);
         phase = 'rally';
         return true;
       }
@@ -337,10 +355,21 @@ function Tennis3D({ pAvatar }){
         racketA.group.position.set(ai.x, 0, ai.z);
 
         // Ball physics
-        if(phase==='serve' && keys.current['Space'] && !charging){ charging=true; }
-        if(phase==='serve' && !keys.current['Space'] && charging){ charging=false; player.power = Math.max(0.25, player.power); tryHit(ball, true); }
+        if(phase==='serve'){
+          if(server==='P'){
+            if(keys.current['Space'] && !charging){ charging=true; }
+            if(!keys.current['Space'] && charging){ charging=false; player.power = Math.max(0.25, player.power); tryHit(ball, true); }
+          } else {
+            aiServeTimer -= dt;
+            if(aiServeTimer<=0){ tryHit(ball,false); }
+          }
+        }
 
         ball.vel.y -= 30 * dt; // gravity
+        // Magnus effect from spin for more natural ball movement
+        const magnus = ball.spin.clone().cross(ball.vel).multiplyScalar(0.0005);
+        ball.vel.addScaledVector(magnus, dt);
+        ball.spin.multiplyScalar(0.99);
         ball.vel.multiplyScalar(COURT.AIR_DRAG);
         ball.pos.addScaledVector(ball.vel, dt);
 
