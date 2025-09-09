@@ -43,7 +43,6 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-const RIM_CLEAR = 1.0; // trim rails slightly so pocket rims are visible
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -65,7 +64,7 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 75 * TABLE_SCALE,
+  minR: 95 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
@@ -78,7 +77,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.85; // closer view of the table
+  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -118,19 +117,6 @@ function reflectRails(ball) {
     ball.pos.y = limY;
     ball.vel.y *= -1;
   }
-}
-
-// distance from point p to segment ab
-function distToSegment(p, a, b) {
-  const l2 = a.distanceToSquared(b);
-  if (l2 === 0) return p.distanceTo(a);
-  let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
-  t = Math.max(0, Math.min(1, t));
-  const proj = new THREE.Vector2(
-    a.x + t * (b.x - a.x),
-    a.y + t * (b.y - a.y)
-  );
-  return p.distanceTo(proj);
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -322,8 +308,8 @@ function Table3D(scene) {
   frame.castShadow = true;
   frame.receiveShadow = true;
   table.add(frame);
-  const horizLen = PLAY_W - 2 * POCKET_VIS_R - RIM_CLEAR * 2;
-  const vertSeg = PLAY_H / 2 - 2 * POCKET_VIS_R - RIM_CLEAR;
+  const horizLen = PLAY_W - 2 * POCKET_VIS_R;
+  const vertSeg = PLAY_H / 2 - 2 * POCKET_VIS_R;
   const bottomZ = -halfH - railW / 2;
   const topZ = halfH + railW / 2;
   const leftX = -halfW - railW / 2;
@@ -363,30 +349,10 @@ function Table3D(scene) {
   };
   addRail(0, bottomZ, horizLen, true);
   addRail(0, topZ, horizLen, true);
-  addRail(
-    leftX,
-    -halfH + POCKET_VIS_R + vertSeg / 2 + RIM_CLEAR / 2,
-    vertSeg,
-    false
-  );
-  addRail(
-    leftX,
-    halfH - POCKET_VIS_R - vertSeg / 2 - RIM_CLEAR / 2,
-    vertSeg,
-    false
-  );
-  addRail(
-    rightX,
-    -halfH + POCKET_VIS_R + vertSeg / 2 + RIM_CLEAR / 2,
-    vertSeg,
-    false
-  );
-  addRail(
-    rightX,
-    halfH - POCKET_VIS_R - vertSeg / 2 - RIM_CLEAR / 2,
-    vertSeg,
-    false
-  );
+  addRail(leftX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
+  addRail(leftX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
+  addRail(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, vertSeg, false);
+  addRail(rightX, halfH - POCKET_VIS_R - vertSeg / 2, vertSeg, false);
 
   // Plastic pocket jaws around the pockets (outside the cloth)
   const jawGeo = new THREE.TorusGeometry(POCKET_VIS_R * 0.85, railW * 0.3, 16, 32);
@@ -536,52 +502,6 @@ function Table3D(scene) {
   scene.add(table);
   table.position.y = TABLE_Y;
   return { centers: pocketCenters(), baulkZ, group: table };
-}
-
-// --------------------------------------------------
-// Simple 3D audience around the table
-// --------------------------------------------------
-function addAudience(scene) {
-  const crowd = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2f3a });
-  const headMat = new THREE.MeshStandardMaterial({ color: 0xffd7b3 });
-  const buildPerson = () => {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 1.6, 8),
-      bodyMat
-    );
-    body.position.y = 0.8;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), headMat);
-    head.position.y = 1.7;
-    g.add(body, head);
-    return g;
-  };
-  const spacing = 6;
-  const countW = Math.floor(PLAY_W / spacing);
-  const countH = Math.floor(PLAY_H / spacing);
-  const offX = PLAY_W / 2 + 10;
-  const offZ = PLAY_H / 2 + 10;
-  for (let i = 0; i <= countW; i++) {
-    const x = -PLAY_W / 2 + i * spacing;
-    const front = buildPerson();
-    front.position.set(x, 0, offZ);
-    crowd.add(front);
-    const back = buildPerson();
-    back.position.set(x, 0, -offZ);
-    crowd.add(back);
-  }
-  for (let i = 0; i <= countH; i++) {
-    const z = -PLAY_H / 2 + i * spacing;
-    const left = buildPerson();
-    left.position.set(-offX, 0, z);
-    crowd.add(left);
-    const right = buildPerson();
-    right.position.set(offX, 0, z);
-    crowd.add(right);
-  }
-  crowd.position.y = TABLE_Y;
-  scene.add(crowd);
 }
 
 // --------------------------------------------------
@@ -897,8 +817,6 @@ export default function NewSnookerGame() {
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
-      // Surrounding audience on all four sides
-      addAudience(scene);
 
       // Balls (ONLY Guret)
       const balls = [];
@@ -1034,16 +952,11 @@ export default function NewSnookerGame() {
       const onAimStart = (e) => {
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
+        // if user taps a ball, snap aim directly to it
         const p = project(e);
         const hitBall = balls.find(
           (b) => b !== cue && b.active && p.distanceTo(b.pos) <= BALL_R
         );
-        const lineEnd = cue.pos
-          .clone()
-          .add(aimDir.clone().multiplyScalar(100));
-        const nearLine =
-          distToSegment(p, cue.pos, lineEnd) <= BALL_R * 2 || !!hitBall;
-        if (!nearLine) return;
         if (hitBall) {
           const dir = hitBall.pos.clone().sub(cue.pos);
           if (dir.lengthSq() > 1e-4) aimDir.set(dir.x, dir.y).normalize();
