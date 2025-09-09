@@ -133,7 +133,8 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
-const FRICTION = 0.9925;
+// higher value -> less energy loss each frame for more realistic roll
+const FRICTION = 0.995;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
@@ -171,7 +172,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.85; // nudge camera slightly closer
+  const r = Math.max(dzH, dzW) * 0.83; // nudge camera even closer
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1149,7 +1150,8 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
+          // increased impulse for more lifelike ball speed
+          .multiplyScalar(6 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
       };
       fireRef.current = fire;
