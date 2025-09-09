@@ -30,8 +30,9 @@ const CAM = {
   fov: 52,
   near: 0.1,
   far: 5000,
-  minR: 38,
-  maxR: 120,
+  // allow a bit wider zoom range
+  minR: 30,
+  maxR: 150,
   phiMin: 0.9,
   phiMax: 1.35
 };
@@ -50,7 +51,8 @@ const COLORS = Object.freeze({
   bg: 0x0b0d11
 });
 
-const BOARD = { N: 8, tile: 4.0, rim: 2.2, baseH: 0.8 };
+// slightly larger board tiles for a roomier layout
+const BOARD = { N: 8, tile: 4.5, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 
 // =============== Materials & simple builders ===============
@@ -451,6 +453,15 @@ function Chess3D({ avatar, username }) {
   const bombSoundRef = useRef(null);
   const capturedWhite = useRef([]);
   const capturedBlack = useRef([]);
+  const topViewRef = useRef(false);
+  const [topView, setTopView] = useState(false);
+  const last3DRef = useRef({
+    phi: (CAM.phiMin + CAM.phiMax) / 2,
+    theta: Math.PI * 0.25
+  });
+  const cameraRef = useRef(null);
+  const sphRef = useRef(null);
+  const fitRef = useRef(() => {});
 
   useEffect(() => {
     uiRef.current = ui;
@@ -589,6 +600,15 @@ function Chess3D({ avatar, username }) {
     const rim = new THREE.DirectionalLight(0x88ccff, 0.35);
     rim.position.set(80, 60, -40);
     scene.add(rim);
+    const spotGroup = new THREE.Group();
+    [-10, 0, 10].forEach((x) => {
+      const spot = new THREE.SpotLight(0xffffff, 1.5, 200, Math.PI / 8, 0.4, 1);
+      spot.position.set(x, 120, 40);
+      spot.target.position.set(0, 0, 0);
+      scene.add(spot.target);
+      spotGroup.add(spot);
+    });
+    scene.add(spotGroup);
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
@@ -597,7 +617,7 @@ function Chess3D({ avatar, username }) {
       (CAM.phiMin + CAM.phiMax) / 2,
       Math.PI * 0.25
     );
-    const fit = () => {
+    const fit = (margin = 1) => {
       const w = host.clientWidth;
       const h = host.clientHeight;
       renderer.setSize(w, h, false);
@@ -605,13 +625,17 @@ function Chess3D({ avatar, username }) {
       camera.updateProjectionMatrix();
       const boardSize = BOARD.N * BOARD.tile + BOARD.rim * 2;
       const needed =
-        boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      sph.radius = Math.max(needed, sph.radius);
+        (boardSize * margin) /
+        (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+      sph.radius = Math.max(needed, clamp(sph.radius, CAM.minR, CAM.maxR));
       camera.position.setFromSpherical(sph);
       // keep the chess board centered on all screens
       camera.lookAt(0, 0, 0);
     };
     fit();
+    cameraRef.current = camera;
+    sphRef.current = sph;
+    fitRef.current = fit;
 
     // Board base + rim
     const tile = BOARD.tile;
@@ -866,13 +890,40 @@ function Chess3D({ avatar, username }) {
 
     // Orbit controls minimal
     const drag = { on: false, x: 0, y: 0 };
+    const pinch = { active: false, dist: 0 };
     const onDown = (e) => {
+      if (e.touches?.length === 2) {
+        const [t1, t2] = e.touches;
+        pinch.active = true;
+        pinch.dist = Math.hypot(
+          t1.clientX - t2.clientX,
+          t1.clientY - t2.clientY
+        );
+        return;
+      }
+      if (topViewRef.current) return;
       drag.on = true;
       drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
       drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
     };
     const onMove = (e) => {
-      if (!drag.on) return;
+      if (pinch.active && e.touches?.length === 2) {
+        const [t1, t2] = e.touches;
+        const d = Math.hypot(
+          t1.clientX - t2.clientX,
+          t1.clientY - t2.clientY
+        );
+        const delta = pinch.dist - d;
+        sph.radius = clamp(
+          sph.radius + delta * 0.5,
+          CAM.minR,
+          CAM.maxR
+        );
+        pinch.dist = d;
+        fit(topViewRef.current ? 1.05 : 1.0);
+        return;
+      }
+      if (topViewRef.current || !drag.on) return;
       const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
       const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
       const dx = x - drag.x,
@@ -881,15 +932,16 @@ function Chess3D({ avatar, username }) {
       drag.y = y;
       sph.theta -= dx * 0.004;
       sph.phi = clamp(sph.phi + dy * 0.003, CAM.phiMin, CAM.phiMax);
-      fit();
+      fit(topViewRef.current ? 1.05 : 1.0);
     };
     const onUp = () => {
       drag.on = false;
+      pinch.active = false;
     };
     const onWheel = (e) => {
       const r = sph.radius || 88;
       sph.radius = clamp(r + e.deltaY * 0.2, CAM.minR, CAM.maxR);
-      fit();
+      fit(topViewRef.current ? 1.05 : 1.0);
     };
     renderer.domElement.addEventListener('mousedown', onDown);
     renderer.domElement.addEventListener('mousemove', onMove);
@@ -933,7 +985,7 @@ function Chess3D({ avatar, username }) {
 
     // Resize
     const onResize = () => {
-      fit();
+      fit(topViewRef.current ? 1.05 : 1.0);
     };
     window.addEventListener('resize', onResize);
 
@@ -947,6 +999,44 @@ function Chess3D({ avatar, username }) {
       renderer.domElement.removeEventListener('touchend', onClick);
     };
   }, []);
+
+  const toggleView = () => {
+    const cam = cameraRef.current;
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (!cam || !sph || !fit) return;
+    const next = !topViewRef.current;
+    const start = { radius: sph.radius, phi: sph.phi, theta: sph.theta };
+    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
+    const boardSize = BOARD.N * BOARD.tile + BOARD.rim * 2;
+    const margin = next ? 1.05 : 1.0;
+    const needed =
+      (boardSize * margin) /
+      (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+    const target = {
+      radius: clamp(needed, CAM.minR, CAM.maxR),
+      phi: next ? 0.0001 : last3DRef.current.phi,
+      theta: next ? sph.theta : last3DRef.current.theta
+    };
+    const duration = 600;
+    const t0 = performance.now();
+    function anim(t) {
+      const k = Math.min(1, (t - t0) / duration);
+      const ease = k * (2 - k);
+      sph.radius = start.radius + (target.radius - start.radius) * ease;
+      sph.phi = start.phi + (target.phi - start.phi) * ease;
+      sph.theta = start.theta + (target.theta - start.theta) * ease;
+      cam.position.setFromSpherical(sph);
+      cam.lookAt(0, 0, 0);
+      if (k < 1) requestAnimationFrame(anim);
+      else {
+        topViewRef.current = next;
+        setTopView(next);
+        fit(margin);
+      }
+    }
+    requestAnimationFrame(anim);
+  };
 
   return (
     <div
@@ -997,6 +1087,12 @@ function Chess3D({ avatar, username }) {
         className="absolute left-3 bottom-3 text-xs bg-white/10 hover:bg-white/20 rounded px-3 py-1 z-10"
       >
         Reset
+      </button>
+      <button
+        onClick={toggleView}
+        className="absolute bottom-3 right-3 w-12 h-12 rounded-full bg-white text-black text-sm font-bold flex items-center justify-center z-10"
+      >
+        {topView ? '3D' : '2D'}
       </button>
     </div>
   );
