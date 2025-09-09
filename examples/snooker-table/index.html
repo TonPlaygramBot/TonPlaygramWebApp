@@ -142,10 +142,14 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
 // --------------------- 6 Pockets (conical) + rims ---------------------
 {
   const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
-  const rim=cylinder(Dim.pocketR*1.10,0.012,56);
   const y=feltTopY-Dim.pocketDepth*0.35+UPPER_Y_OFFSET, rimY=feltTopY+0.006+UPPER_Y_OFFSET+RAIL_UP;
   const pts=[[-Dim.playX/2,-Dim.playZ/2],[Dim.playX/2,-Dim.playZ/2],[-Dim.playX/2,Dim.playZ/2],[Dim.playX/2,Dim.playZ/2],[0,-Dim.playZ/2],[0,Dim.playZ/2]];
-  pts.forEach(([x,z])=>{meshes.push(new Mesh(xform(cone,M.trans(x,y,z)),Col.pocket));meshes.push(new Mesh(xform(rim,M.trans(x,rimY,z)),Col.rim));});
+  pts.forEach(([x,z])=>{
+    meshes.push(new Mesh(xform(cone,M.trans(x,y,z)),Col.pocket));
+    const angle=Math.atan2(z,x);
+    const rim=ringSector(Dim.pocketR*1.02,Dim.pocketR*1.20,angle-Math.PI/2,angle+Math.PI/2,56);
+    meshes.push(new Mesh(xform(rim,M.trans(x,rimY,z)),Col.rim));
+  });
 }
 
 // --------------------- Markings (baulk line, D, spots) ---------------------
@@ -194,18 +198,19 @@ const feltTopY=Dim.tableH-Dim.slateT+Dim.feltT/2;meshes.push(new Mesh(xform(box(
     meshes.push(new Mesh(xform(fillerTop,M.trans(x,railY,z)),Col.wood));
   });
   const cone=coneFrustum(Dim.pocketR*0.95,Dim.pocketR*1.28,Dim.pocketDepth,64);
-  const rim=cylinder(Dim.pocketR*1.08,0.012,56);
   const y2=feltTopY2-Dim.pocketDepth*0.35;
   const rimY2=feltTopY2+0.006+RAIL_UP;
   const pts=[[-topX/2,-topZ/2],[topX/2,-topZ/2],[-topX/2,topZ/2],[topX/2,topZ/2],[0,-topZ/2],[0,topZ/2]];
   pts.forEach(([x,z])=>{
     meshes.push(new Mesh(xform(cone,M.trans(x,y2,z)),Col.pocket));
+    const angle=Math.atan2(z,x);
+    const rim=ringSector(Dim.pocketR*1.02,Dim.pocketR*1.20,angle-Math.PI/2,angle+Math.PI/2,56);
     meshes.push(new Mesh(xform(rim,M.trans(x,rimY2,z)),Col.rim));
   });
 }
 
 // --------------------- Camera & controls ---------------------
-let camDist=4.3,theta=M.rad(42),phi=M.rad(27);const target=[0,0.46,0];
+let camDist=3.2,theta=M.rad(42),phi=M.rad(27);const target=[0,0.46,0];
 function eye(){return[target[0]+camDist*Math.cos(phi)*Math.sin(theta),target[1]+camDist*Math.sin(phi),target[2]+camDist*Math.cos(phi)*Math.cos(theta)];}
 let drag=false,lastX=0,lastY=0,pan=false;canvas.addEventListener('mousedown',e=>{drag=true;pan=e.shiftKey;lastX=e.clientX;lastY=e.clientY;});window.addEventListener('mouseup',()=>{drag=false;});window.addEventListener('mousemove',e=>{if(!drag)return;const dx=(e.clientX-lastX)/window.innerWidth,dy=(e.clientY-lastY)/window.innerHeight;if(pan){target[0]-=dx*camDist*1.2;target[2]+=dy*camDist*1.2;}else{theta+=dx*2*Math.PI*0.3;phi+=dy*Math.PI*0.5;const lim=M.rad(85);if(phi>lim)phi=lim;if(phi<-lim*0.5)phi=-lim*0.5;}lastX=e.clientX;lastY=e.clientY;});
 canvas.addEventListener('wheel',e=>{camDist*=(1+Math.sign(e.deltaY)*0.08);if(camDist<1.2)camDist=1.2;if(camDist>18)camDist=18;});
