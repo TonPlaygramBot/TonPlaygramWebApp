@@ -606,9 +606,15 @@ function Chess3D({ avatar, username }) {
     rim.position.set(80, 60, -40);
     scene.add(rim);
     const spotGroup = new THREE.Group();
-    [-10, 0, 10].forEach((x) => {
-      const spot = new THREE.SpotLight(0xffffff, 1.5, 200, Math.PI / 8, 0.4, 1);
-      spot.position.set(x, 120, 40);
+    const halfBoard = (BOARD.N * BOARD.tile) / 2;
+    [
+      [halfBoard, halfBoard],
+      [halfBoard, -halfBoard],
+      [-halfBoard, halfBoard],
+      [-halfBoard, -halfBoard]
+    ].forEach(([x, z]) => {
+      const spot = new THREE.SpotLight(0xffffff, 1.5, 300, Math.PI / 6, 0.45, 1);
+      spot.position.set(x, 120, z);
       spot.target.position.set(0, 0, 0);
       spot.castShadow = true;
       spot.shadow.mapSize.set(1024, 1024);
