@@ -332,15 +332,14 @@ function Table3D(scene) {
   };
   const addRail = (x, z, len, horizontal) => {
     const group = new THREE.Group();
+    group.rotation.x = -Math.PI / 2; // lay entire rail horizontally
     const wood = new THREE.Mesh(railGeometry(len), railMat);
     wood.castShadow = true;
     wood.receiveShadow = true;
-    wood.rotation.x = -Math.PI / 2; // lay wood horizontally
     group.add(wood);
     const clothGeo = railGeometry(len);
     clothGeo.scale(1, 0.7, 0.7); // beefier cushion
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
-    cloth.rotation.x = -Math.PI / 2; // green faces play field
     cloth.position.y = railH * 0.6;
     group.add(cloth);
     group.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
@@ -364,6 +363,7 @@ function Table3D(scene) {
     [0, topZ]
   ].forEach(([x, z]) => {
     const f = new THREE.Mesh(fillerGeo, railMat);
+    f.rotation.x = -Math.PI / 2;
     f.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
     f.castShadow = true;
     f.receiveShadow = true;
@@ -531,7 +531,6 @@ export default function NewSnookerGame() {
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
-  const zoomRef = useRef(null);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const [timer, setTimer] = useState(60);
@@ -553,6 +552,12 @@ export default function NewSnookerGame() {
   );
   const aiShoot = useRef(() => {
     aimDirRef.current.set(Math.random() - 0.5, Math.random() - 0.5).normalize();
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (sph && fit) {
+      sph.theta = Math.atan2(aimDirRef.current.x, aimDirRef.current.y);
+      fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
+    }
     powerRef.current = 0.5;
     setHud((s) => ({ ...s, power: 0.5 }));
     fireRef.current?.();
@@ -681,20 +686,6 @@ export default function NewSnookerGame() {
       cameraRef.current = camera;
       sphRef.current = sph;
       fitRef.current = fit;
-      zoomRef.current = (delta) => {
-        sph.radius = clamp(
-          sph.radius + delta,
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        fit(
-          topViewRef.current
-            ? 1.15
-            : window.innerHeight > window.innerWidth
-              ? 1.4
-              : 1.1
-        );
-      };
       fit(
         topViewRef.current
           ? 1.15
@@ -952,9 +943,11 @@ export default function NewSnookerGame() {
         virt.x += mapped.dx;
         virt.y += mapped.dy;
         const hit = project({ clientX: virt.x, clientY: virt.y });
-        const dir = cue.pos.clone().sub(hit);
+        const dir = hit.clone().sub(cue.pos);
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
+          sph.theta = Math.atan2(aimDir.x, aimDir.y);
+          fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
         }
       };
       const onAimStart = (e) => {
@@ -967,7 +960,11 @@ export default function NewSnookerGame() {
         );
         if (hitBall) {
           const dir = hitBall.pos.clone().sub(cue.pos);
-          if (dir.lengthSq() > 1e-4) aimDir.set(dir.x, dir.y).normalize();
+          if (dir.lengthSq() > 1e-4) {
+            aimDir.set(dir.x, dir.y).normalize();
+            sph.theta = Math.atan2(aimDir.x, aimDir.y);
+            fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
+          }
         }
         aiming = true;
         last.x = e.clientX || e.touches?.[0]?.clientX || 0;
@@ -1416,22 +1413,6 @@ export default function NewSnookerGame() {
       >
         {topView ? '3D' : '2D'}
       </button>
-
-      {/* Zoom controls */}
-      <div className="absolute bottom-3 left-3 flex flex-col gap-2 z-50">
-        <button
-          onClick={() => zoomRef.current?.(-20)}
-          className="w-10 h-10 rounded-full bg-white text-black text-xl leading-none"
-        >
-          +
-        </button>
-        <button
-          onClick={() => zoomRef.current?.(20)}
-          className="w-10 h-10 rounded-full bg-white text-black text-xl leading-none"
-        >
-          -
-        </button>
-      </div>
 
       {/* Help */}
       <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">
