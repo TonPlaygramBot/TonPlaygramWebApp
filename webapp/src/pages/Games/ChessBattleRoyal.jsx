@@ -201,14 +201,8 @@ function Chess3D(){
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-    renderer.setSize(host.clientWidth, host.clientHeight, false);
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     host.appendChild(renderer.domElement);
-    // Position the board canvas nearer to the top-left of the page
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.top = '0';
-    renderer.domElement.style.left = '0';
-    renderer.domElement.style.transform = 'translate(-50px, -50px)';
 
     scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.bg);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
@@ -216,9 +210,20 @@ function Chess3D(){
     const rim = new THREE.DirectionalLight(0x88ccff, 0.35); rim.position.set(80, 60, -40); scene.add(rim);
 
     // Camera orbit
-    camera = new THREE.PerspectiveCamera(CAM.fov, host.clientWidth/host.clientHeight, CAM.near, CAM.far);
-    sph = new THREE.Spherical(88, (CAM.phiMin+CAM.phiMax)/2, Math.PI*0.25);
-    const fit = ()=>{ camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); camera.position.setFromSpherical(sph); camera.lookAt(0, 4, 0); };
+    camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+    sph = new THREE.Spherical(88, (CAM.phiMin + CAM.phiMax) / 2, Math.PI * 0.25);
+    const fit = () => {
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      const boardSize = BOARD.N * BOARD.tile + BOARD.rim * 2;
+      const needed = boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+      sph.radius = Math.max(needed, sph.radius);
+      camera.position.setFromSpherical(sph);
+      camera.lookAt(0, 4, 0);
+    };
     fit();
 
     // Board base + rim
@@ -341,7 +346,7 @@ function Chess3D(){
     step();
 
     // Resize
-    const onResize = ()=>{ renderer.setSize(host.clientWidth, host.clientHeight, false); fit(); };
+    const onResize = () => { fit(); };
     window.addEventListener('resize', onResize);
 
     return ()=>{
@@ -353,7 +358,7 @@ function Chess3D(){
   }, [ui.turnWhite]);
 
   return (
-    <div ref={wrapRef} className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div ref={wrapRef} className="w-screen h-dvh bg-black text-white overflow-hidden select-none">
       <div className="absolute left-3 top-3 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Chess 3D — {ui.status}</div>
         <div>Click piece → click destination. Orbit: drag, Zoom: wheel.</div>
