@@ -1,0 +1,7 @@
+@import './power-slider.css';
+
+.ps.ps-theme-snooker {
+  --ps-width: 23px;
+  --ps-height: 288px;
+  --ps-radius: 11.5px;
+}
