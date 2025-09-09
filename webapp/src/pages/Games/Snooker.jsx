@@ -77,7 +77,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
+  const r = Math.max(dzH, dzW) * 0.9; // nudge camera slightly closer
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
