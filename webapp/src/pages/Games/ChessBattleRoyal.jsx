@@ -458,6 +458,7 @@ function Chess3D({ avatar, username }) {
 
   useEffect(() => {
     bombSoundRef.current = new Audio(bombSound);
+    bombSoundRef.current.volume = 0.3;
   }, []);
 
   useEffect(() => {
@@ -483,7 +484,7 @@ function Chess3D({ avatar, username }) {
     let last = performance.now();
     const explosions = [];
 
-    function spawnExplosion(pos) {
+    function spawnExplosion(pos, piece) {
       const burst = new THREE.Mesh(
         new THREE.SphereGeometry(2.5, 16, 16),
         new THREE.MeshStandardMaterial({
@@ -497,7 +498,7 @@ function Chess3D({ avatar, username }) {
       scene.add(burst);
 
       const smoke = new THREE.Mesh(
-        new THREE.SphereGeometry(4, 12, 12),
+        new THREE.SphereGeometry(2.5, 12, 12),
         new THREE.MeshStandardMaterial({
           color: 0x555555,
           transparent: true,
@@ -505,11 +506,33 @@ function Chess3D({ avatar, username }) {
         })
       );
       smoke.position.copy(pos);
+      smoke.scale.set(0.6, 1.2, 0.6);
       smoke.userData.start = performance.now();
       smoke.userData.smoke = true;
       scene.add(smoke);
 
       explosions.push(burst, smoke);
+
+      if (piece) {
+        piece.visible = false;
+        const color = piece.userData.w ? COLORS.whitePiece : COLORS.blackPiece;
+        for (let i = 0; i < 12; i++) {
+          const frag = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 0.3, 0.3),
+            mat(color)
+          );
+          frag.position.copy(pos);
+          frag.userData.start = performance.now();
+          frag.userData.vel = new THREE.Vector3(
+            (Math.random() - 0.5) * 4,
+            Math.random() * 4,
+            (Math.random() - 0.5) * 4
+          );
+          frag.userData.fragment = true;
+          scene.add(frag);
+          explosions.push(frag);
+        }
+      }
 
       const vec = pos.clone().project(camera);
       const rect = renderer.domElement.getBoundingClientRect();
@@ -525,6 +548,20 @@ function Chess3D({ avatar, username }) {
       el.style.pointerEvents = 'none';
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 1000);
+    }
+
+    function explodeCaptured(mesh, isWhite) {
+      const pos = mesh.position.clone();
+      spawnExplosion(pos, mesh);
+      const arr = isWhite ? capturedBlack.current : capturedWhite.current;
+      setTimeout(() => {
+        const x = (arr.length - 3.5) * (tile * 0.8);
+        const z = isWhite ? half + tile : -half - tile;
+        mesh.position.set(x, 0, z);
+        mesh.userData.captured = true;
+        mesh.visible = true;
+        arr.push(mesh);
+      }, 600);
     }
 
     // ----- Build scene -----
@@ -730,19 +767,12 @@ function Chess3D({ avatar, username }) {
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
-        const pos = targetMesh.position.clone();
-        spawnExplosion(pos);
+        const isWhite = board[sel.r][sel.c].w;
         if (bombSoundRef.current) {
           bombSoundRef.current.currentTime = 0;
           bombSoundRef.current.play().catch(() => {});
         }
-        const isWhite = board[sel.r][sel.c].w;
-        const arr = isWhite ? capturedBlack.current : capturedWhite.current;
-        const x = (arr.length - 3.5) * (tile * 0.8);
-        const z = isWhite ? half + tile : -half - tile;
-        targetMesh.position.set(x, 0, z);
-        targetMesh.userData.captured = true;
-        arr.push(targetMesh);
+        explodeCaptured(targetMesh, isWhite);
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -820,8 +850,13 @@ function Chess3D({ avatar, username }) {
       }
       if (!obj) return;
       const ud = obj.userData;
-      if (ud.type === 'piece') selectAt(ud.r, ud.c);
-      else if (ud.type === 'tile' && sel) {
+      if (ud.type === 'piece') {
+        if (sel && legal.some(([r, c]) => r === ud.r && c === ud.c)) {
+          moveSelTo(ud.r, ud.c);
+        } else {
+          selectAt(ud.r, ud.c);
+        }
+      } else if (ud.type === 'tile' && sel) {
         moveSelTo(ud.r, ud.c);
       }
     }
@@ -871,10 +906,15 @@ function Chess3D({ avatar, username }) {
     // Loop
     const step = () => {
       const now = performance.now();
+      const dt = now - last;
+      last = now;
       for (let i = explosions.length - 1; i >= 0; i--) {
         const ex = explosions[i];
         const t = (now - ex.userData.start) / 600;
-        if (ex.userData.smoke) {
+        if (ex.userData.fragment) {
+          ex.position.addScaledVector(ex.userData.vel, dt * 0.002);
+          ex.material.opacity = Math.max(0, 1 - t);
+        } else if (ex.userData.smoke) {
           ex.scale.setScalar(1 + t * 3);
           ex.material.opacity = Math.max(0, 0.6 - t);
         } else {
