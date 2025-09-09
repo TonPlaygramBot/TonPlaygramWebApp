@@ -922,7 +922,7 @@ export default function NewSnookerGame() {
       const aimDir = aimDirRef.current;
       let aiming = false;
       const last = { x: 0, y: 0 };
-      const virt = { x: 0, y: 0 };
+      const virt = new THREE.Vector2();
       const onAimMove = (e) => {
         if (!aiming) return;
         if (hud.inHand || hud.over) return;
@@ -933,11 +933,9 @@ export default function NewSnookerGame() {
         const dy = y - last.y;
         last.x = x;
         last.y = y;
-        const mapped = mapDelta(dx, dy);
-        virt.x += mapped.dx;
-        virt.y += mapped.dy;
-        const hit = project({ clientX: virt.x, clientY: virt.y });
-        const dir = cue.pos.clone().sub(hit);
+        const mapped = mapDelta(dx, dy, camera);
+        virt.add(mapped);
+        const dir = cue.pos.clone().sub(virt);
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
         }
@@ -957,8 +955,7 @@ export default function NewSnookerGame() {
         aiming = true;
         last.x = e.clientX || e.touches?.[0]?.clientX || 0;
         last.y = e.clientY || e.touches?.[0]?.clientY || 0;
-        virt.x = last.x;
-        virt.y = last.y;
+        virt.copy(p);
         onAimMove(e);
       };
       const onAimEnd = () => {
