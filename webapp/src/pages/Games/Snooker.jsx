@@ -43,8 +43,6 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-// raise side rails and frames slightly higher than before
-const RAIL_LIFT = BALL_R * 0.6;
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -66,7 +64,7 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 105 * TABLE_SCALE,
+  minR: 95 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
@@ -304,7 +302,7 @@ function Table3D(scene) {
   });
   const frame = new THREE.Mesh(frameGeo, railMat);
   frame.rotation.x = -Math.PI / 2;
-  frame.position.y = -TABLE.THICK + RAIL_LIFT;
+  frame.position.y = -TABLE.THICK;
   frame.castShadow = true;
   frame.receiveShadow = true;
   table.add(frame);
@@ -341,9 +339,10 @@ function Table3D(scene) {
     clothGeo.scale(1, 0.7, 0.7); // beefier cushion
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
-    cloth.position.y = railH * 0.6;
+    const clothOffset = TABLE.THICK - railH * 0.7;
+    cloth.position.y = clothOffset;
     group.add(cloth);
-    group.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
+    group.position.set(x, -TABLE.THICK, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     table.add(group);
   };
@@ -364,7 +363,7 @@ function Table3D(scene) {
     [0, topZ]
   ].forEach(([x, z]) => {
     const f = new THREE.Mesh(fillerGeo, railMat);
-    f.position.set(x, -TABLE.THICK + RAIL_LIFT, z);
+    f.position.set(x, -TABLE.THICK, z);
     f.castShadow = true;
     f.receiveShadow = true;
     table.add(f);
@@ -531,7 +530,6 @@ export default function NewSnookerGame() {
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
-  const zoomRef = useRef(null);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const [timer, setTimer] = useState(60);
@@ -571,10 +569,10 @@ export default function NewSnookerGame() {
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
     const targetMargin = next
-      ? 1.15
+      ? 1.05
       : window.innerHeight > window.innerWidth
-        ? 1.4
-        : 1.1;
+        ? 1.2
+        : 1.0;
     const target = {
       radius: fitRadius(cam, targetMargin),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -681,26 +679,12 @@ export default function NewSnookerGame() {
       cameraRef.current = camera;
       sphRef.current = sph;
       fitRef.current = fit;
-      zoomRef.current = (delta) => {
-        sph.radius = clamp(
-          sph.radius + delta,
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        fit(
-          topViewRef.current
-            ? 1.15
-            : window.innerHeight > window.innerWidth
-              ? 1.4
-              : 1.1
-        );
-      };
       fit(
         topViewRef.current
-          ? 1.15
+          ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.4
-            : 1.1
+            ? 1.2
+            : 1.0
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -737,10 +721,10 @@ export default function NewSnookerGame() {
           pinch.dist = d;
           fit(
             topViewRef.current
-              ? 1.15
+              ? 1.05
               : window.innerHeight > window.innerWidth
-                ? 1.4
-                : 1.1
+                ? 1.2
+                : 1.0
           );
           return;
         }
@@ -757,7 +741,7 @@ export default function NewSnookerGame() {
           CAMERA.minPhi,
           Math.PI - CAMERA.phiMargin
         );
-        fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
+        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
       };
       const up = () => {
         drag.on = false;
@@ -771,10 +755,10 @@ export default function NewSnookerGame() {
         );
         fit(
           topViewRef.current
-            ? 1.15
+            ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.4
-              : 1.1
+              ? 1.2
+              : 1.0
         );
       };
       dom.addEventListener('mousedown', down);
@@ -802,7 +786,7 @@ export default function NewSnookerGame() {
             Math.PI - CAMERA.phiMargin
           );
         else return;
-        fit(window.innerHeight > window.innerWidth ? 1.4 : 1.1);
+        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
       };
       window.addEventListener('keydown', keyRot);
 
@@ -1265,10 +1249,10 @@ export default function NewSnookerGame() {
         renderer.setSize(host.clientWidth, host.clientHeight);
         fit(
           topViewRef.current
-            ? 1.15
+            ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.4
-              : 1.1
+              ? 1.2
+              : 1.0
         );
       };
       window.addEventListener('resize', onResize);
@@ -1416,22 +1400,6 @@ export default function NewSnookerGame() {
       >
         {topView ? '3D' : '2D'}
       </button>
-
-      {/* Zoom controls */}
-      <div className="absolute bottom-3 left-3 flex flex-col gap-2 z-50">
-        <button
-          onClick={() => zoomRef.current?.(-20)}
-          className="w-10 h-10 rounded-full bg-white text-black text-xl leading-none"
-        >
-          +
-        </button>
-        <button
-          onClick={() => zoomRef.current?.(20)}
-          className="w-10 h-10 rounded-full bg-white text-black text-xl leading-none"
-        >
-          -
-        </button>
-      </div>
 
       {/* Help */}
       <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">
