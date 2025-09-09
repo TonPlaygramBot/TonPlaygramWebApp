@@ -168,6 +168,11 @@ function Tennis3D({ pAvatar }){
       // Renderer & scene
       renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.domElement.style.position = 'absolute';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
       host.appendChild(renderer.domElement);
 
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
