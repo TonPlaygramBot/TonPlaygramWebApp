@@ -64,7 +64,8 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 95 * TABLE_SCALE,
+  // allow the camera to get much closer to the action
+  minR: 60 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   phiMargin: 0.4
@@ -77,9 +78,16 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.95; // slightly closer to the action
+  // pull the camera in closer than before
+  const r = Math.max(dzH, dzW) * 0.75;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
+
+// distance/height for behind-the-ball and follow camera views
+const FOLLOW = Object.freeze({
+  dist: BALL_R * 20,
+  height: BALL_R * 12
+});
 
 // --------------------------------------------------
 // Utilities
@@ -222,9 +230,14 @@ function Table3D(scene) {
     );
     shape.holes.push(h);
   });
+  // bevel around pocket cuts so the pocket edges appear rounded
   const extrude = new THREE.ExtrudeGeometry(shape, {
     depth: TABLE.THICK,
-    bevelEnabled: false
+    bevelEnabled: true,
+    bevelSize: 0.6,
+    bevelThickness: 0.6,
+    bevelSegments: 4,
+    curveSegments: 32
   });
   const cloth = new THREE.Mesh(
     extrude,
@@ -530,6 +543,8 @@ export default function NewSnookerGame() {
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const rendererRef = useRef(null);
+  // track automatic camera behaviour
+  const cameraModeRef = useRef('orbit');
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
@@ -661,7 +676,8 @@ export default function NewSnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        180 * TABLE_SCALE,
+        // start much nearer to the table
+        130 * TABLE_SCALE,
         1.0 /*phi ~57°*/,
         Math.PI
       );
@@ -966,9 +982,11 @@ export default function NewSnookerGame() {
         last.y = e.clientY || e.touches?.[0]?.clientY || 0;
         virt.copy(p);
         onAimMove(e);
+        cameraModeRef.current = 'behind';
       };
       const onAimEnd = () => {
         aiming = false;
+        if (!shooting) cameraModeRef.current = 'orbit';
       };
       dom.addEventListener('pointerdown', onAimStart);
       dom.addEventListener('pointermove', onAimMove, { passive: true });
@@ -1028,11 +1046,13 @@ export default function NewSnookerGame() {
           .clone()
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
+        cameraModeRef.current = 'follow';
       };
       fireRef.current = fire;
 
       // Resolve shot
       function resolve() {
+        cameraModeRef.current = 'orbit';
         const me = hud.turn === 0 ? 'A' : 'B',
           op = hud.turn === 0 ? 'B' : 'A';
         let gain = 0;
@@ -1128,8 +1148,37 @@ export default function NewSnookerGame() {
         firstHit = null;
       }
 
+      // Camera update for different modes
+      const updateCamera = () => {
+        const target = new THREE.Vector3(0, TABLE_Y, 0);
+        if (cameraModeRef.current === 'orbit') {
+          if (topViewRef.current) {
+            camera.position.set(0, sph.radius, 0);
+          } else {
+            camera.position.setFromSpherical(sph).add(target);
+          }
+          camera.lookAt(target);
+          return;
+        }
+        const cuePos = new THREE.Vector3(cue.pos.x, TABLE_Y + BALL_R, cue.pos.y);
+        const dir =
+          cameraModeRef.current === 'follow' && cue.vel.lengthSq() > 1e-3
+            ? cue.vel.clone().normalize()
+            : aimDir.clone();
+        const back = dir.multiplyScalar(FOLLOW.dist);
+        camera.position.set(
+          cuePos.x - back.x,
+          cuePos.y + FOLLOW.height,
+          cuePos.z - back.y
+        );
+        camera.lookAt(cuePos);
+        if (cameraModeRef.current === 'follow' && firstHit)
+          cameraModeRef.current = 'orbit';
+      };
+
       // Loop
       const step = () => {
+        updateCamera();
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
