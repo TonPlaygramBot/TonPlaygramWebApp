@@ -10,6 +10,7 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
+import { bombSound } from '../../assets/soundData.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -349,6 +350,83 @@ function anyLegal(board, whiteTurn) {
   return false;
 }
 
+// ---------- AI evaluation and search ----------
+const PIECE_VALUES = { P: 100, N: 320, B: 330, R: 500, Q: 900, K: 20000 };
+
+function evaluateBoard(board) {
+  let score = 0;
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (p) score += PIECE_VALUES[p.t] * (p.w ? 1 : -1);
+    }
+  return score;
+}
+
+function generateMoves(board, whiteTurn) {
+  const moves = [];
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (p && p.w === whiteTurn) {
+        const ls = legalMoves(board, r, c);
+        for (const [rr, cc] of ls) moves.push({ from: [r, c], to: [rr, cc] });
+      }
+    }
+  return moves;
+}
+
+function applyMove(board, move) {
+  const b = cloneBoard(board);
+  const [r, c] = move.from;
+  const [rr, cc] = move.to;
+  b[rr][cc] = b[r][c];
+  b[r][c] = null;
+  if (b[rr][cc].t === 'P' && (rr === 0 || rr === 7)) b[rr][cc].t = 'Q';
+  return b;
+}
+
+function minimax(board, depth, alpha, beta, maximizing) {
+  if (depth === 0) return { score: evaluateBoard(board) };
+  const moves = generateMoves(board, maximizing);
+  if (moves.length === 0) {
+    const king = findKing(board, maximizing);
+    const inCheck = king && isSquareAttacked(board, king[0], king[1], !maximizing);
+    const score = inCheck ? (maximizing ? -99999 : 99999) : 0;
+    return { score };
+  }
+  let bestMove = null;
+  if (maximizing) {
+    let maxEval = -Infinity;
+    for (const mv of moves) {
+      const evalScore = minimax(applyMove(board, mv), depth - 1, alpha, beta, !maximizing).score;
+      if (evalScore > maxEval) {
+        maxEval = evalScore;
+        bestMove = mv;
+      }
+      alpha = Math.max(alpha, evalScore);
+      if (beta <= alpha) break;
+    }
+    return { score: maxEval, move: bestMove };
+  } else {
+    let minEval = Infinity;
+    for (const mv of moves) {
+      const evalScore = minimax(applyMove(board, mv), depth - 1, alpha, beta, !maximizing).score;
+      if (evalScore < minEval) {
+        minEval = evalScore;
+        bestMove = mv;
+      }
+      beta = Math.min(beta, evalScore);
+      if (beta <= alpha) break;
+    }
+    return { score: minEval, move: bestMove };
+  }
+}
+
+function bestAIMove(board, whiteTurn) {
+  return minimax(board, 3, -Infinity, Infinity, whiteTurn).move;
+}
+
 // ======================= Main Component =======================
 function Chess3D({ avatar, username }) {
   const wrapRef = useRef(null);
@@ -370,10 +448,17 @@ function Chess3D({ avatar, username }) {
       : FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
   });
   const aiName = avatarToName(aiFlag);
+  const bombSoundRef = useRef(null);
+  const capturedWhite = useRef([]);
+  const capturedBlack = useRef([]);
 
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
+
+  useEffect(() => {
+    bombSoundRef.current = new Audio(bombSound);
+  }, []);
 
   useEffect(() => {
     if (ui.winner) return;
@@ -396,6 +481,36 @@ function Chess3D({ avatar, username }) {
     if (!host) return;
     let scene, camera, renderer, ray, sph;
     let last = performance.now();
+    const explosions = [];
+
+    function spawnExplosion(pos) {
+      const burst = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 12, 12),
+        new THREE.MeshStandardMaterial({
+          color: 0xffaa00,
+          transparent: true,
+          opacity: 0.8
+        })
+      );
+      burst.position.copy(pos);
+      burst.userData.start = performance.now();
+      scene.add(burst);
+
+      const smoke = new THREE.Mesh(
+        new THREE.SphereGeometry(2.2, 8, 8),
+        new THREE.MeshStandardMaterial({
+          color: 0x555555,
+          transparent: true,
+          opacity: 0.6
+        })
+      );
+      smoke.position.copy(pos);
+      smoke.userData.start = performance.now();
+      smoke.userData.smoke = true;
+      scene.add(smoke);
+
+      explosions.push(burst, smoke);
+    }
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -600,7 +715,16 @@ function Chess3D({ avatar, username }) {
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
-        scene.remove(targetMesh);
+        const pos = targetMesh.position.clone();
+        spawnExplosion(pos);
+        bombSoundRef.current?.play().catch(() => {});
+        const isWhite = board[sel.r][sel.c].w;
+        const arr = isWhite ? capturedBlack.current : capturedWhite.current;
+        const x = (arr.length - 3.5) * (tile * 0.8);
+        const z = isWhite ? half + tile : -half - tile;
+        targetMesh.position.set(x, 0, z);
+        targetMesh.userData.captured = true;
+        arr.push(targetMesh);
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -649,19 +773,10 @@ function Chess3D({ avatar, username }) {
     autoMoveRef.current = (whiteTurn) => {
       const color =
         typeof whiteTurn === 'boolean' ? whiteTurn : uiRef.current.turnWhite;
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-          const p = board[r][c];
-          if (p && p.w === color) {
-            const moves = legalMoves(board, r, c);
-            if (moves.length > 0) {
-              selectAt(r, c);
-              const [rr, cc] = moves[0];
-              moveSelTo(rr, cc);
-              return;
-            }
-          }
-        }
+      const mv = bestAIMove(board, color);
+      if (mv) {
+        selectAt(mv.from[0], mv.from[1]);
+        moveSelTo(mv.to[0], mv.to[1]);
       }
     };
 
@@ -675,6 +790,7 @@ function Chess3D({ avatar, username }) {
         while (o) {
           if (
             o.userData &&
+            !o.userData.captured &&
             (o.userData.type === 'piece' || o.userData.type === 'tile')
           ) {
             obj = o;
@@ -736,6 +852,22 @@ function Chess3D({ avatar, username }) {
 
     // Loop
     const step = () => {
+      const now = performance.now();
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        const ex = explosions[i];
+        const t = (now - ex.userData.start) / 600;
+        if (ex.userData.smoke) {
+          ex.scale.setScalar(1 + t * 2);
+          ex.material.opacity = Math.max(0, 0.6 - t);
+        } else {
+          ex.scale.setScalar(1 + t * 3);
+          ex.material.opacity = Math.max(0, 0.8 - t * 1.2);
+        }
+        if (ex.material.opacity <= 0) {
+          scene.remove(ex);
+          explosions.splice(i, 1);
+        }
+      }
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(step);
     };
@@ -801,7 +933,6 @@ function Chess3D({ avatar, username }) {
 
       <div className="absolute left-3 top-3 text-xs bg-white/10 rounded px-2 py-1 z-10 pointer-events-none">
         <div className="font-semibold">Chess 3D — {ui.status}</div>
-        <div>Click piece → click destination. Orbit: drag, Zoom: wheel.</div>
       </div>
       <button
         onClick={() => window.location.reload()}
