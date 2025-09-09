@@ -316,14 +316,13 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
-    const chamfer = railW / 2;
+    const radius = railW / 2;
     const shape = new THREE.Shape();
-    shape.moveTo(-half + chamfer, -railW / 2);
-    shape.lineTo(half - chamfer, -railW / 2);
-    shape.lineTo(half, 0);
-    shape.lineTo(half - chamfer, railW / 2);
-    shape.lineTo(-half + chamfer, railW / 2);
-    shape.lineTo(-half, 0);
+    shape.moveTo(-half + radius, -railW / 2);
+    shape.lineTo(half - radius, -railW / 2);
+    shape.absarc(half, 0, radius, -Math.PI / 2, Math.PI / 2, false);
+    shape.lineTo(-half + radius, railW / 2);
+    shape.absarc(-half, 0, radius, Math.PI / 2, -Math.PI / 2, false);
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
       bevelEnabled: false
@@ -530,6 +529,7 @@ export default function NewSnookerGame() {
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
+  const rendererRef = useRef(null);
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
@@ -595,6 +595,11 @@ export default function NewSnookerGame() {
       else {
         topViewRef.current = next;
         setTopView(next);
+        if (rendererRef.current) {
+          rendererRef.current.domElement.style.transform = next
+            ? 'scale(0.9)'
+            : 'scale(1)';
+        }
         fit(targetMargin);
       }
     }
@@ -642,6 +647,8 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
+      renderer.domElement.style.transformOrigin = 'top left';
 
       // Scene & Camera
       const scene = new THREE.Scene();
