@@ -167,8 +167,7 @@ function Tennis3D({ pAvatar }){
     try{
       // Renderer & scene
       renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-      renderer.setSize(host.clientWidth, host.clientHeight, false);
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       host.appendChild(renderer.domElement);
 
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
@@ -176,10 +175,21 @@ function Tennis3D({ pAvatar }){
       const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(-80, 140, 40); scene.add(sun);
 
       // Camera orbit
-      camera = new THREE.PerspectiveCamera(CAM.fov, host.clientWidth/host.clientHeight, CAM.near, CAM.far);
-      sph = new THREE.Spherical(160, (CAM.phiMin+CAM.phiMax)/2, Math.PI*0.12);
+      camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI * 0.12);
       const camTarget = new THREE.Vector3(0, 0, 0);
-      const fit = ()=>{ camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); camera.position.setFromSpherical(sph); camera.lookAt(camTarget); };
+      const fit = () => {
+        const w = host.clientWidth;
+        const h = host.clientHeight;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        const needed = (COURT.L + COURT.BASE_MARGIN * 2) /
+          (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+        sph.radius = Math.max(needed, sph.radius);
+        camera.position.setFromSpherical(sph);
+        camera.lookAt(camTarget);
+      };
       fit();
 
       // Build court
@@ -379,7 +389,7 @@ function Tennis3D({ pAvatar }){
       dom.addEventListener('wheel', onWheel, {passive:true});
 
       // Resize
-      const onResize = ()=>{ renderer.setSize(host.clientWidth, host.clientHeight, false); fit(); };
+      const onResize = () => { fit(); };
       window.addEventListener('resize', onResize);
 
       return ()=>{
@@ -397,7 +407,7 @@ function Tennis3D({ pAvatar }){
   },[]);
 
   return (
-    <div ref={rootRef} className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div ref={rootRef} className="w-screen h-dvh bg-black text-white overflow-hidden select-none">
       <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
       <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
         <div className="font-semibold">Tennis 3D — Controls</div>
