@@ -4,7 +4,7 @@ export default function BrickBreaker() {
   useTelegramBackButton();
   const { search } = useLocation();
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-[100dvh]">
       <iframe
         src={`/brick-breaker.html${search}`}
         title="Brick Breaker Royale"
