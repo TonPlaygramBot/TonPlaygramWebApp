@@ -97,7 +97,7 @@ function buildCourt(scene){
 function makeBall(scene) {
   const mesh = buildDetailedBall();
   const scale = 3 / (6.7 / 2); // match previous ball radius (~3 units)
-  mesh.scale.setScalar(scale);
+  mesh.scale.setScalar(scale * 0.5); // 50% smaller than standard size
   mesh.position.set(0, 6, 0);
   scene.add(mesh);
   return {
@@ -114,7 +114,7 @@ function makeRacket(scene, color) {
   group.rotation.y = Math.PI / 2;
   const box0 = new THREE.Box3().setFromObject(group);
   const scale = 7.65 / box0.getSize(new THREE.Vector3()).x;
-  group.scale.setScalar(scale);
+  group.scale.setScalar(scale * 3); // triple-size rackets
   const box = new THREE.Box3().setFromObject(group);
   group.position.x -= box.min.x;
   group.position.y -= box.min.y;
@@ -272,12 +272,14 @@ function Tennis3D({ pAvatar, pName }){
       window.addEventListener('mouseup', onMouseUp);
       window.addEventListener('mousemove', onMouseMove);
 
-      // Touch controls (drag to move, flick up to hit)
+      // Touch controls (drag to move within half-court, swipe or flick up to hit)
       const touch = { startX: 0, startY: 0, time: 0 };
-      const updatePlayerFromTouch = (t)=>{
+      const updatePlayerFromTouch = (t) => {
         const rect = renderer.domElement.getBoundingClientRect();
         const xNorm = (t.clientX - rect.left) / rect.width;
-        player.x = THREE.MathUtils.lerp(-COURT.W*0.35, COURT.W*0.35, xNorm);
+        const yNorm = (t.clientY - rect.top) / rect.height;
+        player.x = THREE.MathUtils.lerp(-COURT.W * 0.35, COURT.W * 0.35, xNorm);
+        player.z = THREE.MathUtils.lerp(2, COURT.L / 2 - 4, yNorm);
       };
       const onTouchStart = (e)=>{
         const t = e.touches[0];
@@ -286,14 +288,16 @@ function Tennis3D({ pAvatar, pName }){
         e.preventDefault();
       };
       const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); e.preventDefault(); };
-      const onTouchEnd = (e)=>{
+      const onTouchEnd = (e) => {
         const t = e.changedTouches[0];
         const dy = touch.startY - t.clientY;
         const dx = t.clientX - touch.startX;
         const dist = Math.hypot(dx, dy);
-        if(dy > 10 && dist > 5){
-          // derive aim and power from swipe gesture similar to free kick game
-          player.power = Math.min(1, dist / 120);
+        const dt = performance.now() - touch.time;
+        if (dy > 10 && dist > 5) {
+          const speed = dist / Math.max(dt, 1); // px per ms
+          const power = Math.min(1, (speed * 0.06));
+          player.power = power;
           player.aimX = clamp(dx / 120, -0.8, 0.8);
           player.aimZ = clamp(dy / 120, 0.15, 0.85);
           tryHit(ball, true);
@@ -361,7 +365,7 @@ function Tennis3D({ pAvatar, pName }){
         if(k['KeyW']||k['ArrowUp']) player.z -= sp*0.6;
         if(k['KeyS']||k['ArrowDown']) player.z += sp*0.6;
         player.x = clamp(player.x, -COURT.W*0.35, COURT.W*0.35);
-        player.z = clamp(player.z, COURT.L/2 - 14, COURT.L/2 - 4);
+        player.z = clamp(player.z, 2, COURT.L/2 - 4);
 
         // Charge power while holding SPACE
         if(k['Space']){ player.power = clamp(player.power + UI.swingChargeRate*dt, 0, UI.swingChargeMax); }
