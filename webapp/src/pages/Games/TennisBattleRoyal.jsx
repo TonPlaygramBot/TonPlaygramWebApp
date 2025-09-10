@@ -112,6 +112,7 @@ function makeBall(scene) {
 function makeRacket(scene, color) {
   const group = buildDetailedRacket();
   group.rotation.y = Math.PI / 2;
+  group.rotation.x = -Math.PI / 2; // stand racket upright
   const box0 = new THREE.Box3().setFromObject(group);
   const scale = 7.65 / box0.getSize(new THREE.Vector3()).x;
   group.scale.setScalar(scale * 3); // triple-size rackets
