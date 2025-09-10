@@ -5,15 +5,15 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
-        // Create three spot lights in a very subtle arc so the balls show
+        // Create three spot lights in a slightly deeper arc so the balls show
         // three tiny reflections. Each light is offset slightly to leave a
         // small gap between highlights and is made a touch brighter than before.
         Vector3[] lightPositions =
         {
-            // outer lights are pulled back a little on the Z axis to form the arc
-            new Vector3(-0.5f, 5f, -0.2f),
+            // outer lights are pulled back a little more on the Z axis to form the arc
+            new Vector3(-0.6f, 5f, -0.3f),
             new Vector3(0f, 5f, 0f),
-            new Vector3(0.5f, 5f, -0.2f)
+            new Vector3(0.6f, 5f, -0.3f)
         };
 
         foreach (Vector3 pos in lightPositions)
@@ -23,7 +23,7 @@ public class BilliardLighting : MonoBehaviour
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
             // Slightly brighter spotlight to better illuminate the table
-            spotLight.intensity = 3.5f;
+            spotLight.intensity = 3.8f;
             spotLight.range = 15f;
             spotLight.spotAngle = 60f;
             spotLight.shadows = LightShadows.Soft;
@@ -39,8 +39,8 @@ public class BilliardLighting : MonoBehaviour
         plasticMat.SetFloat("_Metallic", 0f);   // not metallic
         // Increase glossiness so reflections on the balls appear brighter
         plasticMat.SetFloat("_Glossiness", 1f); // extremely shiny surface
-        // Slightly boost specular color so highlights appear a bit brighter
-        plasticMat.SetColor("_SpecColor", Color.white * 1.1f);
+        // Slightly boost specular color so highlights appear a bit brighter and shinier
+        plasticMat.SetColor("_SpecColor", Color.white * 1.3f);
 
         // Apply material to all objects tagged "Ball"
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
