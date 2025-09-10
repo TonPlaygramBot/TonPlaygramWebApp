@@ -158,7 +158,8 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 95 * TABLE_SCALE,
+  // allow the camera to move a bit closer to the rails
+  minR: 80 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane
@@ -173,7 +174,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.85;
+  const r = Math.max(dzH, dzW) * 0.75;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -649,6 +650,7 @@ export default function NewSnookerGame() {
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
+  const aimingRef = useRef(false);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
@@ -720,6 +722,18 @@ export default function NewSnookerGame() {
     requestAnimationFrame(anim);
   };
 
+  const rotateCamera = (dir) => {
+    if (topViewRef.current) return;
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (!sph || !fit) return;
+    const step = 0.06;
+    sph.theta += dir * step;
+    fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+  };
+  const rotateLeft = () => rotateCamera(1);
+  const rotateRight = () => rotateCamera(-1);
+
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
@@ -776,7 +790,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         170 * TABLE_SCALE,
-        1.05 /* slightly lower angle */,
+        1.2 /* start at a lower angle */,
         Math.PI
       );
       const fit = (m = 1.1) => {
@@ -785,7 +799,7 @@ export default function NewSnookerGame() {
         let t =
           (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
         let r = baseR * (1 - 0.08 * t);
-        const railLimit = TABLE.THICK * 0.8 + 0.2; // stay above side rails
+        const railLimit = TABLE.THICK + 0.5; // stop just above side rails
         const phiCap = Math.acos(
           THREE.MathUtils.clamp(railLimit / r, -1, 1)
         );
@@ -830,7 +844,7 @@ export default function NewSnookerGame() {
           );
           return;
         }
-        if (topViewRef.current) return;
+        if (topViewRef.current || aimingRef.current) return;
         drag.on = true;
         drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
         drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
@@ -858,7 +872,7 @@ export default function NewSnookerGame() {
           );
           return;
         }
-        if (topViewRef.current || !drag.on) return;
+        if (topViewRef.current || aimingRef.current || !drag.on) return;
         const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
         const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
         const dx = x - drag.x,
@@ -1082,6 +1096,7 @@ export default function NewSnookerGame() {
           if (dir.lengthSq() > 1e-4) aimDir.set(dir.x, dir.y).normalize();
         }
         aiming = true;
+        aimingRef.current = true;
         last.x = e.clientX || e.touches?.[0]?.clientX || 0;
         last.y = e.clientY || e.touches?.[0]?.clientY || 0;
         virt.copy(p);
@@ -1089,6 +1104,7 @@ export default function NewSnookerGame() {
       };
       const onAimEnd = () => {
         aiming = false;
+        aimingRef.current = false;
       };
       dom.addEventListener('pointerdown', onAimStart);
       dom.addEventListener('pointermove', onAimMove, { passive: true });
@@ -1492,6 +1508,20 @@ export default function NewSnookerGame() {
         ref={sliderRef}
         className="absolute right-3 top-1/2 -translate-y-1/2"
       />
+
+      {/* Camera orbit buttons */}
+      <button
+        onClick={rotateLeft}
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-transparent text-white text-xl flex items-center justify-center z-50"
+      >
+        ◀
+      </button>
+      <button
+        onClick={rotateRight}
+        className="absolute right-16 top-1/2 -translate-y-1/2 w-12 h-12 bg-transparent text-white text-xl flex items-center justify-center z-50"
+      >
+        ▶
+      </button>
 
       {/* View toggle */}
       <button
