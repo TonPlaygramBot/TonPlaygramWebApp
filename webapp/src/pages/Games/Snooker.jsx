@@ -429,18 +429,16 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
-    const radius = railW / 2;
     const shape = new THREE.Shape();
-    shape.moveTo(-half + radius, -railW / 2);
-    shape.lineTo(half - radius, -railW / 2);
-    shape.absarc(half, 0, radius, -Math.PI / 2, Math.PI / 2, false);
-    shape.lineTo(-half + radius, railW / 2);
-    shape.absarc(-half, 0, radius, Math.PI / 2, -Math.PI / 2, false);
-    const geo = new THREE.ExtrudeGeometry(shape, {
+    shape.moveTo(-half, -railW / 2);
+    shape.lineTo(half, -railW / 2);
+    shape.lineTo(half, railW / 2);
+    shape.lineTo(-half, railW / 2);
+    shape.lineTo(-half, -railW / 2);
+    return new THREE.ExtrudeGeometry(shape, {
       depth: railH,
       bevelEnabled: false
     });
-    return geo;
   };
   const addRail = (x, z, len, horizontal) => {
     const group = new THREE.Group();
@@ -649,6 +647,7 @@ export default function NewSnookerGame() {
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
+  const playerOffsetRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
@@ -673,22 +672,25 @@ export default function NewSnookerGame() {
     fireRef.current?.();
   });
 
-  const rotRef = useRef(null);
-  const startRotate = (dir) => {
-    const step = 0.06;
-    const rotate = () => {
-      const sph = sphRef.current;
+  const moveRef = useRef(null);
+  const startMove = (dir) => {
+    const step = 10 * TABLE_SCALE;
+    const move = () => {
       const fit = fitRef.current;
-      if (!sph || !fit || topViewRef.current) return;
-      sph.theta += dir * step;
+      if (!fit || topViewRef.current) return;
+      playerOffsetRef.current = clamp(
+        playerOffsetRef.current + dir * step,
+        -PLAY_W / 2,
+        PLAY_W / 2
+      );
       fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
-      rotRef.current = requestAnimationFrame(rotate);
+      moveRef.current = requestAnimationFrame(move);
     };
-    rotRef.current = requestAnimationFrame(rotate);
+    moveRef.current = requestAnimationFrame(move);
   };
-  const stopRotate = () => {
-    if (rotRef.current) cancelAnimationFrame(rotRef.current);
-    rotRef.current = null;
+  const stopMove = () => {
+    if (moveRef.current) cancelAnimationFrame(moveRef.current);
+    moveRef.current = null;
   };
 
   const toggleView = () => {
@@ -721,8 +723,13 @@ export default function NewSnookerGame() {
       sph.radius = start.radius + (target.radius - start.radius) * ease;
       sph.phi = start.phi + (target.phi - start.phi) * ease;
       sph.theta = start.theta + (target.theta - start.theta) * ease;
-      cam.position.setFromSpherical(sph);
-      cam.lookAt(0, TABLE_Y, 0);
+      const targetPos = new THREE.Vector3(
+        playerOffsetRef.current,
+        TABLE_Y + 0.05,
+        0
+      );
+      cam.position.setFromSpherical(sph).add(targetPos);
+      cam.lookAt(targetPos);
       if (k < 1) requestAnimationFrame(anim);
       else {
         topViewRef.current = next;
@@ -814,7 +821,11 @@ export default function NewSnookerGame() {
         );
         t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
         sph.radius = clamp(baseR * (1 - 0.12 * t), CAMERA.minR, CAMERA.maxR);
-        const target = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
+        const target = new THREE.Vector3(
+          playerOffsetRef.current,
+          TABLE_Y + 0.05,
+          0
+        );
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
           camera.lookAt(target);
@@ -836,8 +847,10 @@ export default function NewSnookerGame() {
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
-      let aiming = false;
-      const drag = { on: false, x: 0, y: 0 };
+      const balls = [];
+      let cue;
+      let project;
+      const drag = { on: false, x: 0, y: 0, moved: false };
       const pinch = { active: false, dist: 0 };
       const down = (e) => {
         if (e.touches?.length === 2) {
@@ -851,6 +864,7 @@ export default function NewSnookerGame() {
         }
         if (topViewRef.current) return;
         drag.on = true;
+        drag.moved = false;
         drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
         drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
       };
@@ -877,23 +891,42 @@ export default function NewSnookerGame() {
           );
           return;
         }
-        if (topViewRef.current || !drag.on || aiming) return;
+        if (topViewRef.current || !drag.on) return;
         const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
         const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
-        const dx = x - drag.x,
-          dy = y - drag.y;
-        drag.x = x;
-        drag.y = y;
-        sph.theta -= dx * 0.005;
-        sph.phi = clamp(
-          sph.phi + dy * 0.0038,
-          CAMERA.minPhi,
-          CAMERA.maxPhi
-        );
-        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+        const dx = x - drag.x;
+        const dy = y - drag.y;
+        if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
+        if (drag.moved) {
+          drag.x = x;
+          drag.y = y;
+          sph.theta -= dx * 0.005;
+          sph.phi = clamp(
+            sph.phi + dy * 0.0038,
+            CAMERA.minPhi,
+            CAMERA.maxPhi
+          );
+          fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+        }
       };
-      const up = () => {
+      const up = (e) => {
+        if (drag.on && !drag.moved && !pinch.active) {
+          if (
+            cue?.active &&
+            !hud.inHand &&
+            !hud.over &&
+            allStopped(balls) &&
+            typeof project === 'function'
+          ) {
+            const p = project(e);
+            const dir = p.clone().sub(cue.pos);
+            if (dir.length() > 1e-3) {
+              aimDirRef.current.set(dir.x, dir.y).normalize();
+            }
+          }
+        }
         drag.on = false;
+        drag.moved = false;
         pinch.active = false;
       };
       const wheel = (e) => {
@@ -958,13 +991,12 @@ export default function NewSnookerGame() {
       const { centers, baulkZ, group: table } = Table3D(scene);
 
       // Balls (ONLY Guret)
-      const balls = [];
       const add = (id, color, x, z) => {
         const b = Guret(table, id, color, x, z);
         balls.push(b);
         return b;
       };
-      let cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
+      cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
       // reds triangle toward top side
       let rid = 0;
       const bz = PLAY_H * 0.25,
@@ -1048,7 +1080,7 @@ export default function NewSnookerGame() {
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
-      const project = (ev) => {
+      project = (ev) => {
         const r = dom.getBoundingClientRect();
         const cx =
           (((ev.clientX ?? ev.touches?.[0]?.clientX ?? 0) - r.left) / r.width) *
@@ -1066,61 +1098,7 @@ export default function NewSnookerGame() {
         return new THREE.Vector2(pt.x, pt.z);
       };
 
-      // Aim direction controlled via drag like Pool Royale
       const aimDir = aimDirRef.current;
-      const last = { x: 0, y: 0 };
-      const virt = new THREE.Vector2();
-      const onAimMove = (e) => {
-        if (!aiming) return;
-        if (hud.inHand || hud.over) return;
-        if (!allStopped(balls)) return;
-        const x = e.clientX || e.touches?.[0]?.clientX || last.x;
-        const y = e.clientY || e.touches?.[0]?.clientY || last.y;
-        const dx = last.x - x;
-        const dy = last.y - y;
-        last.x = x;
-        last.y = y;
-        const mapped = mapDelta(dx, dy, camera).multiplyScalar(0.5);
-        virt.add(mapped);
-        const dir = virt.clone().sub(cue.pos);
-        if (dir.length() > 1e-3) {
-          aimDir.set(dir.x, dir.y).normalize();
-        }
-      };
-      const onAimStart = (e) => {
-        if (hud.inHand || hud.over) return;
-        if (!allStopped(balls)) return;
-        const p = project(e);
-        const hitBall = balls.find(
-          (b) => b !== cue && b.active && p.distanceTo(b.pos) <= BALL_R
-        );
-        let engage = false;
-        if (hitBall) {
-          const dir = hitBall.pos.clone().sub(cue.pos);
-          if (dir.lengthSq() > 1e-4) aimDir.set(dir.x, dir.y).normalize();
-          engage = true;
-        } else {
-          const cueToP = p.clone().sub(cue.pos);
-          const proj = Math.max(0, cueToP.dot(aimDir));
-          const closest = cue.pos
-            .clone()
-            .add(aimDir.clone().multiplyScalar(proj));
-          const dist = p.distanceTo(closest);
-          if (dist <= BALL_R) engage = true;
-        }
-        aiming = engage;
-        if (!aiming) return;
-        last.x = e.clientX || e.touches?.[0]?.clientX || 0;
-        last.y = e.clientY || e.touches?.[0]?.clientY || 0;
-        virt.copy(p);
-        onAimMove(e);
-      };
-      const onAimEnd = () => {
-        aiming = false;
-      };
-      dom.addEventListener('pointerdown', onAimStart);
-      dom.addEventListener('pointermove', onAimMove, { passive: true });
-      window.addEventListener('pointerup', onAimEnd);
 
       // In-hand placement
       const free = (x, z) =>
@@ -1435,9 +1413,6 @@ export default function NewSnookerGame() {
         window.removeEventListener('touchend', up);
         dom.removeEventListener('wheel', wheel);
         window.removeEventListener('keydown', keyRot);
-        dom.removeEventListener('pointerdown', onAimStart);
-        dom.removeEventListener('pointermove', onAimMove);
-        window.removeEventListener('pointerup', onAimEnd);
         dom.removeEventListener('pointerdown', onPlace);
       };
     } catch (e) {
@@ -1541,17 +1516,17 @@ export default function NewSnookerGame() {
       {/* Camera rotation buttons */}
       <div className="absolute left-3 bottom-3 flex gap-3 z-50">
         <button
-          onPointerDown={() => startRotate(1)}
-          onPointerUp={stopRotate}
-          onPointerLeave={stopRotate}
+          onPointerDown={() => startMove(-1)}
+          onPointerUp={stopMove}
+          onPointerLeave={stopMove}
           className="w-12 h-12 flex items-center justify-center text-white bg-transparent border border-white rounded-full"
         >
           ◀
         </button>
         <button
-          onPointerDown={() => startRotate(-1)}
-          onPointerUp={stopRotate}
-          onPointerLeave={stopRotate}
+          onPointerDown={() => startMove(1)}
+          onPointerUp={stopMove}
+          onPointerLeave={stopMove}
           className="w-12 h-12 flex items-center justify-center text-white bg-transparent border border-white rounded-full"
         >
           ▶
