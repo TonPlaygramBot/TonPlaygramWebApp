@@ -2,9 +2,12 @@
 using UnityEngine;
 
 /// <summary>
-/// Simple orbital camera that stays behind the cue ball. Horizontal mouse
-/// movement rotates the camera around the ball so the player can aim by moving
-/// the camera rather than the aiming line.
+/// Simple orbital camera that stays behind the cue ball. Horizontal drag
+/// rotates the camera around the ball so the player can aim by moving the
+/// camera rather than the aiming line.  Pulling the view downward blends to a
+/// close‑up shot of the cue ball, while dragging upward restores the normal
+/// overview.  The camera always looks along the aiming line so it follows the
+/// shot direction wherever the ball is on the table.
 /// </summary>
 public class CueCamera : MonoBehaviour
 {
@@ -33,14 +36,31 @@ public class CueCamera : MonoBehaviour
             return;
         }
 
-        // Accumulate horizontal movement to orbit around the cue ball.
-        yaw += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
+        bool dragging = Input.GetMouseButton(0);
 
-        // Vertical dragging blends between a normal overview and a close-up shot.
-        // Dragging down increases the blend, pulling the camera lower and closer
-        // to the cue ball. Dragging up restores the default overview.
-        float yInput = Input.GetAxis("Mouse Y");
-        viewBlend = Mathf.Clamp01(viewBlend - yInput * zoomSpeed * Time.deltaTime);
+        // Support both mouse dragging and single‑finger touch.
+        if (Input.touchCount == 1)
+        {
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Moved)
+            {
+                Vector2 d = t.deltaPosition;
+                yaw += d.x * rotationSpeed * Time.deltaTime * 0.1f;
+                viewBlend = Mathf.Clamp01(viewBlend - d.y * zoomSpeed * Time.deltaTime * 0.01f);
+            }
+        }
+        else if (dragging)
+        {
+            // Accumulate horizontal movement to orbit around the cue ball.
+            yaw += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
+
+            // Vertical dragging blends between the normal overview and a close‑up
+            // shot.  Dragging down increases the blend; dragging up restores the
+            // default view.
+            float yInput = Input.GetAxis("Mouse Y");
+            viewBlend = Mathf.Clamp01(viewBlend - yInput * zoomSpeed * Time.deltaTime);
+        }
+
         float distance = Mathf.Lerp(normalDistance, closeDistance, viewBlend);
         float height = Mathf.Lerp(normalHeight, closeHeight, viewBlend);
 
