@@ -10,7 +10,8 @@ public class BilliardLighting : MonoBehaviour
         Light spotLight = lightObj.AddComponent<Light>();
         spotLight.type = LightType.Spot;
         spotLight.color = Color.white;
-        spotLight.intensity = 2.5f;
+        // Slightly brighter spotlight to better illuminate the table
+        spotLight.intensity = 3.0f;
         spotLight.range = 15f;
         spotLight.spotAngle = 60f;
         spotLight.shadows = LightShadows.Soft;
@@ -23,7 +24,8 @@ public class BilliardLighting : MonoBehaviour
         Material plasticMat = new Material(Shader.Find("Standard"));
         plasticMat.color = Color.red;           // change color per ball as needed
         plasticMat.SetFloat("_Metallic", 0f);   // not metallic
-        plasticMat.SetFloat("_Glossiness", 0.9f); // very shiny surface
+        // Increase glossiness so reflections on the balls appear a touch brighter
+        plasticMat.SetFloat("_Glossiness", 0.95f); // very shiny surface
 
         // Apply material to all objects tagged "Ball"
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
