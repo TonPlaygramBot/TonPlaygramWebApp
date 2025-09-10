@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from 'react-router-dom';
 import * as THREE from "three";
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
+import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { buildRacket as buildDetailedRacket, buildTennisBall as buildDetailedBall } from '../../utils/tennisGear.js';
 
 // ========================== Config ==========================
 const CAM = { fov: 55, near: 0.1, far: 5000, phiMin: 0.75, phiMax: 1.35, minR: 80, maxR: 240 };
@@ -30,6 +29,7 @@ const COLORS = Object.freeze({
   tape: 0xf5f5f5,
   post: 0x7d7d7d,
   crowd: 0x0e0f12,
+  ball: 0xcedc00,
   player: 0x2563eb,
   ai: 0xef4444,
 });
@@ -42,6 +42,7 @@ const UI = {
 // ===================== Helpers (geo/materials) =====================
 const mat = (c, r=0.9, m=0.08)=> new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:m });
 const box = (w,h,d,c)=> new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
+const sph = (r,c)=> new THREE.Mesh(new THREE.SphereGeometry(r,24,20), mat(c,0.65,0));
 
 // Lines helper (white stripes on court)
 function lineRect(scene, x, z, w, d){
@@ -94,53 +95,32 @@ function buildCourt(scene){
 }
 
 // ================= Physics & game state =================
-function makeBall(scene) {
-  const mesh = buildDetailedBall();
-  const scale = 3 / (6.7 / 2); // match previous ball radius (~3 units)
-  mesh.scale.setScalar(scale * 0.5); // 50% smaller than standard size
-  mesh.position.set(0, 6, 0);
-  scene.add(mesh);
-  return {
-    mesh,
-    pos: new THREE.Vector3(0, 6, 0),
-    vel: new THREE.Vector3(),
-    spin: new THREE.Vector3(),
-    alive: true,
-  };
+function makeBall(scene){
+  const mesh = sph(1.2, COLORS.ball); mesh.position.set(0, 6, 0); mesh.castShadow=true; scene.add(mesh);
+  return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
 }
 
-function makeRacket(scene, color) {
-  const group = buildDetailedRacket();
-  group.rotation.y = Math.PI / 2;
-  const box0 = new THREE.Box3().setFromObject(group);
-  const scale = 7.65 / box0.getSize(new THREE.Vector3()).x;
-  group.scale.setScalar(scale * 3); // triple-size rackets
-  const box = new THREE.Box3().setFromObject(group);
-  group.position.x -= box.min.x;
-  group.position.y -= box.min.y;
-  group.position.z -= (box.min.z + box.max.z) / 2;
-  group.traverse((obj) => {
-    if (obj.isMesh) {
-      obj.material = obj.material.clone();
-      obj.material.color.set(color);
-    }
-  });
-  scene.add(group);
-  return { group };
+function makeRacket(scene, color){
+  const g = new THREE.Group();
+  const handle = box(0.6, 2.2, 0.6, color); handle.position.set(0, 1.1, 0); g.add(handle);
+  const head = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.25, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.4, 0.2); g.add(head);
+  const bed  = new THREE.Mesh(new THREE.CircleGeometry(1.6, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
+  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.4, 0.21); g.add(bed);
+  scene.add(g);
+  return { group: g };
 }
 
 const SCORE_MAP = [0,15,30,40];
 
-function ScorePanel({ hud, pAvatar, pName, aAvatar, aName }){
+function ScorePanel({ hud, pAvatar, aAvatar }){
   const point = i => SCORE_MAP[Math.min(i,3)] ?? 40;
   return (
-    <div className="absolute top-2 left-0 right-0 flex justify-center z-50 pointer-events-none">
-      <div className="flex items-center gap-4 bg-black/70 text-white rounded px-4 py-2">
+    <div className="absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
+      <div className="flex items-center gap-4 bg-white/10 rounded px-4 py-2">
         <div className="flex flex-col items-center gap-1">
           <img src={pAvatar} alt="You" className="w-8 h-8 rounded-full" />
-          {pName && <span className="text-xs font-semibold">{pName}</span>}
           <div className="flex gap-1">
-            {hud.pSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/50 rounded text-xs flex items-center justify-center">{g}</div>))}
+            {hud.pSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/30 rounded text-xs flex items-center justify-center">{g}</div>))}
           </div>
         </div>
         <div className="text-lg font-bold">{point(hud.pPts)}</div>
@@ -148,9 +128,8 @@ function ScorePanel({ hud, pAvatar, pName, aAvatar, aName }){
         <div className="text-lg font-bold">{point(hud.aiPts)}</div>
         <div className="flex flex-col items-center gap-1">
           <img src={aAvatar} alt="AI" className="w-8 h-8 rounded-full" />
-          {aName && <span className="text-xs font-semibold">{aName}</span>}
           <div className="flex gap-1">
-            {hud.aiSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/50 rounded text-xs flex items-center justify-center">{g}</div>))}
+            {hud.aiSets.map((g,i)=>(<div key={i} className="w-6 h-6 bg-black/30 rounded text-xs flex items-center justify-center">{g}</div>))}
           </div>
         </div>
       </div>
@@ -158,7 +137,7 @@ function ScorePanel({ hud, pAvatar, pName, aAvatar, aName }){
   );
 }
 
-function Tennis3D({ pAvatar, pName }){
+function Tennis3D({ pAvatar }){
   const rootRef = useRef(null);
   const rafRef = useRef(0);
   const keys = useRef({});
@@ -173,8 +152,6 @@ function Tennis3D({ pAvatar, pName }){
     let servingSide = 1; // +1 right, -1 left (from player's perspective)
     let phase = 'serve'; // 'serve' | 'rally'
     let serveFaults = 0;
-    let server = 'P';
-    let aiServeTimer = 0;
 
     const player = { x:0, z: COURT.L/2 - 6, speed: 60, aimX:0, aimZ: 0.4, power: 0 };
     const ai     = { x:0, z:-COURT.L/2 + 6, speed: 52, cooldown: 0 };
@@ -182,15 +159,8 @@ function Tennis3D({ pAvatar, pName }){
     function resetBallForServe(ball, who='P'){
       phase = 'serve';
       serveFaults = 0;
-      server = who;
-      if(who==='AI'){
-        ball.pos.set(ai.x, 6, ai.z + 3);
-        aiServeTimer = 0.5; // short delay before AI serves
-      } else {
-        ball.pos.set(player.x, 6, player.z - 3);
-      }
+      ball.pos.set(player.x, 6, player.z - 3);
       ball.vel.set(0, 0, 0);
-      ball.spin.set(0,0,0);
       ball.mesh.position.copy(ball.pos);
     }
 
@@ -203,7 +173,6 @@ function Tennis3D({ pAvatar, pName }){
       renderer.domElement.style.left = '0';
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
-      renderer.domElement.style.zIndex = '0';
       host.appendChild(renderer.domElement);
 
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
@@ -272,57 +241,43 @@ function Tennis3D({ pAvatar, pName }){
       window.addEventListener('mouseup', onMouseUp);
       window.addEventListener('mousemove', onMouseMove);
 
-      // Touch controls (drag to move within half-court, swipe or flick up to hit)
+      // Touch controls (drag to move, flick up to hit)
       const touch = { startX: 0, startY: 0, time: 0 };
-      const updatePlayerFromTouch = (t) => {
+      const updatePlayerFromTouch = (t)=>{
         const rect = renderer.domElement.getBoundingClientRect();
         const xNorm = (t.clientX - rect.left) / rect.width;
-        const yNorm = (t.clientY - rect.top) / rect.height;
-        player.x = THREE.MathUtils.lerp(-COURT.W * 0.35, COURT.W * 0.35, xNorm);
-        player.z = THREE.MathUtils.lerp(2, COURT.L / 2 - 4, yNorm);
+        player.x = THREE.MathUtils.lerp(-COURT.W*0.35, COURT.W*0.35, xNorm);
       };
       const onTouchStart = (e)=>{
         const t = e.touches[0];
         touch.startX = t.clientX; touch.startY = t.clientY; touch.time = performance.now();
         updatePlayerFromTouch(t);
-        e.preventDefault();
       };
-      const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); e.preventDefault(); };
-      const onTouchEnd = (e) => {
+      const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); };
+      const onTouchEnd = (e)=>{
         const t = e.changedTouches[0];
         const dy = touch.startY - t.clientY;
-        const dx = t.clientX - touch.startX;
-        const dist = Math.hypot(dx, dy);
-        const dt = performance.now() - touch.time;
-        if (dy > 10 && dist > 5) {
-          const speed = dist / Math.max(dt, 1); // px per ms
-          const power = Math.min(1, (speed * 0.06));
-          player.power = power;
-          player.aimX = clamp(dx / 120, -0.8, 0.8);
-          player.aimZ = clamp(dy / 120, 0.15, 0.85);
+        if(dy > 25){
+          // Swipe or quick flick upwards triggers a shot; longer swipes add power
+          player.power = Math.min(1, dy / 120);
           tryHit(ball, true);
         }
-        e.preventDefault();
       };
-      renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
-      renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+      renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+      renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
       renderer.domElement.addEventListener('touchend', onTouchEnd);
 
       // Hit logic
       function tryHit(ball, isPlayer){
         const racket = isPlayer ? racketP : racketA;
         const pos = racket.group.getWorldPosition(new THREE.Vector3());
-        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 5.0) return false;
+        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 4.0) return false;
         // Compose velocity based on aim + power
         const fwd = isPlayer ? -1 : +1; // player hits towards -Z, AI towards +Z
-        const lateralAim = isPlayer ? player.aimX : (-Math.sign(ball.pos.x) * 0.6);
-        const lateral = THREE.MathUtils.clamp(lateralAim, -0.8, 0.8) * 48;
+        const lateral = (isPlayer? player.aimX : THREE.MathUtils.clamp((ball.pos.x - ai.x)/20, -0.7, 0.7)) * 48;
         const depth   = (isPlayer? player.aimZ : 0.55) * (isPlayer? (60 + player.power*60) : 58);
         const up      = isPlayer? (16 + player.power*22) : 14;
         ball.vel.set(lateral, up, -depth * fwd);
-        // add spin for more natural arc
-        const spinX = -fwd * (isPlayer? player.power : 0.4) * 50;
-        ball.spin.set(spinX, lateral * 0.1, 0);
         phase = 'rally';
         return true;
       }
@@ -365,37 +320,27 @@ function Tennis3D({ pAvatar, pName }){
         if(k['KeyW']||k['ArrowUp']) player.z -= sp*0.6;
         if(k['KeyS']||k['ArrowDown']) player.z += sp*0.6;
         player.x = clamp(player.x, -COURT.W*0.35, COURT.W*0.35);
-        player.z = clamp(player.z, 2, COURT.L/2 - 4);
+        player.z = clamp(player.z, COURT.L/2 - 14, COURT.L/2 - 4);
 
         // Charge power while holding SPACE
         if(k['Space']){ player.power = clamp(player.power + UI.swingChargeRate*dt, 0, UI.swingChargeMax); }
         else { player.power = Math.max(0, player.power - dt*0.6); }
 
         // Position rackets
-        racketP.group.position.set(player.x, 1, player.z);
+        racketP.group.position.set(player.x, 0, player.z);
+        racketP.group.rotation.y = Math.atan2( (player.aimX*60), 60 );
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
         const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W*0.3, COURT.W*0.3);
         ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed*dt, ai.speed*dt);
-        racketA.group.position.set(ai.x, 1, ai.z);
+        racketA.group.position.set(ai.x, 0, ai.z);
 
         // Ball physics
-        if(phase==='serve'){
-          if(server==='P'){
-            if(keys.current['Space'] && !charging){ charging=true; }
-            if(!keys.current['Space'] && charging){ charging=false; player.power = Math.max(0.25, player.power); tryHit(ball, true); }
-          } else {
-            aiServeTimer -= dt;
-            if(aiServeTimer<=0){ tryHit(ball,false); }
-          }
-        }
+        if(phase==='serve' && keys.current['Space'] && !charging){ charging=true; }
+        if(phase==='serve' && !keys.current['Space'] && charging){ charging=false; player.power = Math.max(0.25, player.power); tryHit(ball, true); }
 
         ball.vel.y -= 30 * dt; // gravity
-        // Magnus effect from spin for more natural ball movement
-        const magnus = ball.spin.clone().cross(ball.vel).multiplyScalar(0.0005);
-        ball.vel.addScaledVector(magnus, dt);
-        ball.spin.multiplyScalar(0.99);
         ball.vel.multiplyScalar(COURT.AIR_DRAG);
         ball.pos.addScaledVector(ball.vel, dt);
 
@@ -482,7 +427,12 @@ function Tennis3D({ pAvatar, pName }){
 
   return (
     <div ref={rootRef} className="relative w-screen h-dvh min-h-screen bg-black text-white overflow-hidden select-none">
-      <ScorePanel hud={hud} pAvatar={pAvatar} pName={pName} aAvatar="/assets/avatars/avatar1.svg" aName="AI" />
+      <ScorePanel hud={hud} pAvatar={pAvatar} aAvatar="/assets/avatars/avatar1.svg" />
+      <div className="absolute left-3 top-12 text-xs bg-white/10 rounded px-2 py-1">
+        <div className="font-semibold">Tennis 3D — Controls</div>
+        <div>Drag finger left/right to move | Swipe or flick up to hit</div>
+        <div>Keyboard: A/D (←/→) move, W/S (↑/↓) in/out, SPACE hit, mouse drag aim</div>
+      </div>
     </div>
   );
 }
@@ -492,17 +442,12 @@ export default function TennisBattleRoyal(){
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const avatarParam = params.get('avatar') || '';
-  const usernameParam = params.get('username') || '';
   const [avatar, setAvatar] = useState('');
-  const [username, setUsername] = useState('');
   useEffect(()=>{
     try {
       setAvatar(avatarParam || loadAvatar() || getTelegramPhotoUrl());
     } catch {}
-    try {
-      setUsername(usernameParam || getTelegramUsername());
-    } catch {}
-  }, [avatarParam, usernameParam]);
-  return <Tennis3D pAvatar={avatar || '/assets/avatars/avatar2.svg'} pName={username || 'You'} />;
+  }, [avatarParam]);
+  return <Tennis3D pAvatar={avatar || '/assets/avatars/avatar2.svg'} />;
 }
 

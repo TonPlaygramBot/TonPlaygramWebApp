@@ -7,10 +7,6 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { avatarToName } from '../../utils/avatarUtils.js';
-import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
-import { bombSound } from '../../assets/soundData.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -30,9 +26,8 @@ const CAM = {
   fov: 52,
   near: 0.1,
   far: 5000,
-  // allow a bit wider zoom range
-  minR: 30,
-  maxR: 150,
+  minR: 38,
+  maxR: 120,
   phiMin: 0.9,
   phiMax: 1.35
 };
@@ -48,12 +43,10 @@ const COLORS = Object.freeze({
   blackPiece: 0x1c1f26,
   highlight: 0x6ee7b7,
   danger: 0xf87171,
-  bg: 0x0b0d11,
-  gold: 0xffd700
+  bg: 0x0b0d11
 });
 
-// slightly larger board tiles for a roomier layout
-const BOARD = { N: 8, tile: 4.5, rim: 2.2, baseH: 0.8 };
+const BOARD = { N: 8, tile: 4.0, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 
 // =============== Materials & simple builders ===============
@@ -145,12 +138,12 @@ function buildQueen(color) {
   body.position.y = PIECE_Y + 1.7;
   g.add(body);
   const crown = new THREE.Group();
-  const ring = cyl(1.2, 1.2, 0.3, COLORS.gold);
+  const ring = cyl(1.2, 1.2, 0.3, color);
   ring.position.y = PIECE_Y + 3.1;
   crown.add(ring);
   const spikes = 6;
   for (let i = 0; i < spikes; i++) {
-    const s = cone(0.18, 0.6, COLORS.gold);
+    const s = cone(0.18, 0.6, color);
     const a = i * ((Math.PI * 2) / spikes);
     s.position.set(Math.cos(a) * 0.9, PIECE_Y + 3.6, Math.sin(a) * 0.9);
     s.rotation.x = -Math.PI / 2;
@@ -167,13 +160,13 @@ function buildKing(color) {
   const body = cyl(1.1, 1.3, 2.9, color);
   body.position.y = PIECE_Y + 1.9;
   g.add(body);
-  const orb = sph(0.55, COLORS.gold);
+  const orb = sph(0.55, color);
   orb.position.y = PIECE_Y + 3.2;
   g.add(orb);
-  const crossV = box(0.2, 0.8, 0.2, COLORS.gold);
+  const crossV = box(0.2, 0.8, 0.2, color);
   crossV.position.y = PIECE_Y + 3.8;
   g.add(crossV);
-  const crossH = box(0.8, 0.2, 0.2, COLORS.gold);
+  const crossH = box(0.8, 0.2, 0.2, color);
   crossH.position.y = PIECE_Y + 3.8;
   g.add(crossH);
   return g;
@@ -353,83 +346,6 @@ function anyLegal(board, whiteTurn) {
   return false;
 }
 
-// ---------- AI evaluation and search ----------
-const PIECE_VALUES = { P: 100, N: 320, B: 330, R: 500, Q: 900, K: 20000 };
-
-function evaluateBoard(board) {
-  let score = 0;
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      const p = board[r][c];
-      if (p) score += PIECE_VALUES[p.t] * (p.w ? 1 : -1);
-    }
-  return score;
-}
-
-function generateMoves(board, whiteTurn) {
-  const moves = [];
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      const p = board[r][c];
-      if (p && p.w === whiteTurn) {
-        const ls = legalMoves(board, r, c);
-        for (const [rr, cc] of ls) moves.push({ from: [r, c], to: [rr, cc] });
-      }
-    }
-  return moves;
-}
-
-function applyMove(board, move) {
-  const b = cloneBoard(board);
-  const [r, c] = move.from;
-  const [rr, cc] = move.to;
-  b[rr][cc] = b[r][c];
-  b[r][c] = null;
-  if (b[rr][cc].t === 'P' && (rr === 0 || rr === 7)) b[rr][cc].t = 'Q';
-  return b;
-}
-
-function minimax(board, depth, alpha, beta, maximizing) {
-  if (depth === 0) return { score: evaluateBoard(board) };
-  const moves = generateMoves(board, maximizing);
-  if (moves.length === 0) {
-    const king = findKing(board, maximizing);
-    const inCheck = king && isSquareAttacked(board, king[0], king[1], !maximizing);
-    const score = inCheck ? (maximizing ? -99999 : 99999) : 0;
-    return { score };
-  }
-  let bestMove = null;
-  if (maximizing) {
-    let maxEval = -Infinity;
-    for (const mv of moves) {
-      const evalScore = minimax(applyMove(board, mv), depth - 1, alpha, beta, !maximizing).score;
-      if (evalScore > maxEval) {
-        maxEval = evalScore;
-        bestMove = mv;
-      }
-      alpha = Math.max(alpha, evalScore);
-      if (beta <= alpha) break;
-    }
-    return { score: maxEval, move: bestMove };
-  } else {
-    let minEval = Infinity;
-    for (const mv of moves) {
-      const evalScore = minimax(applyMove(board, mv), depth - 1, alpha, beta, !maximizing).score;
-      if (evalScore < minEval) {
-        minEval = evalScore;
-        bestMove = mv;
-      }
-      beta = Math.min(beta, evalScore);
-      if (beta <= alpha) break;
-    }
-    return { score: minEval, move: bestMove };
-  }
-}
-
-function bestAIMove(board, whiteTurn) {
-  return minimax(board, 3, -Infinity, Infinity, whiteTurn).move;
-}
-
 // ======================= Main Component =======================
 function Chess3D({ avatar, username }) {
   const wrapRef = useRef(null);
@@ -441,140 +357,12 @@ function Chess3D({ avatar, username }) {
     promoting: null,
     winner: null
   });
-  const uiRef = useRef(ui);
-  const autoMoveRef = useRef(null);
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [aiFlag] = useState(() => {
-    const playerFlag = FLAG_EMOJIS.includes(avatar) ? avatar : null;
-    return playerFlag
-      ? getAIOpponentFlag(playerFlag)
-      : FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-  });
-  const aiName = avatarToName(aiFlag);
-  const bombSoundRef = useRef(null);
-  const capturedWhite = useRef([]);
-  const capturedBlack = useRef([]);
-  const topViewRef = useRef(false);
-  const [topView, setTopView] = useState(false);
-  const last3DRef = useRef({
-    phi: (CAM.phiMin + CAM.phiMax) / 2,
-    theta: Math.PI * 0.25
-  });
-  const cameraRef = useRef(null);
-  const sphRef = useRef(null);
-  const fitRef = useRef(() => {});
-
-  useEffect(() => {
-    uiRef.current = ui;
-  }, [ui]);
-
-  useEffect(() => {
-    bombSoundRef.current = new Audio(bombSound);
-    bombSoundRef.current.volume = 0.3;
-  }, []);
-
-  useEffect(() => {
-    if (ui.winner) return;
-    const duration = ui.turnWhite ? 60 : 5;
-    setTimeLeft(duration);
-    const interval = setInterval(() => {
-      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
-    }, 1000);
-    const timeout = setTimeout(() => {
-      autoMoveRef.current && autoMoveRef.current(ui.turnWhite);
-    }, duration * 1000);
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [ui.turnWhite, ui.winner]);
 
   useEffect(() => {
     const host = wrapRef.current;
     if (!host) return;
     let scene, camera, renderer, ray, sph;
     let last = performance.now();
-    const explosions = [];
-
-    function spawnExplosion(pos, piece) {
-      const burst = new THREE.Mesh(
-        new THREE.SphereGeometry(2.5, 16, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0xffaa00,
-          transparent: true,
-          opacity: 0.8
-        })
-      );
-      burst.position.copy(pos);
-      burst.userData.start = performance.now();
-      scene.add(burst);
-
-      const smoke = new THREE.Mesh(
-        new THREE.SphereGeometry(2.5, 12, 12),
-        new THREE.MeshStandardMaterial({
-          color: 0x555555,
-          transparent: true,
-          opacity: 0.6
-        })
-      );
-      smoke.position.copy(pos);
-      smoke.scale.set(0.6, 1.2, 0.6);
-      smoke.userData.start = performance.now();
-      smoke.userData.smoke = true;
-      scene.add(smoke);
-
-      explosions.push(burst, smoke);
-
-      if (piece) {
-        piece.visible = false;
-        const color = piece.userData.w ? COLORS.whitePiece : COLORS.blackPiece;
-        for (let i = 0; i < 12; i++) {
-          const frag = new THREE.Mesh(
-            new THREE.BoxGeometry(0.3, 0.3, 0.3),
-            mat(color)
-          );
-          frag.position.copy(pos);
-          frag.userData.start = performance.now();
-          frag.userData.vel = new THREE.Vector3(
-            (Math.random() - 0.5) * 4,
-            Math.random() * 4,
-            (Math.random() - 0.5) * 4
-          );
-          frag.userData.fragment = true;
-          scene.add(frag);
-          explosions.push(frag);
-        }
-      }
-
-      const vec = pos.clone().project(camera);
-      const rect = renderer.domElement.getBoundingClientRect();
-      const x = rect.left + (vec.x * 0.5 + 0.5) * rect.width;
-      const y = rect.top + (-vec.y * 0.5 + 0.5) * rect.height;
-      const el = document.createElement('div');
-      el.textContent = '💨';
-      el.className = 'bomb-explosion';
-      el.style.position = 'absolute';
-      el.style.left = x + 'px';
-      el.style.top = y + 'px';
-      el.style.fontSize = '48px';
-      el.style.pointerEvents = 'none';
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 1000);
-    }
-
-    function explodeCaptured(mesh, isWhite) {
-      const pos = mesh.position.clone();
-      spawnExplosion(pos, mesh);
-      const arr = isWhite ? capturedBlack.current : capturedWhite.current;
-      setTimeout(() => {
-        const x = (arr.length - 3.5) * (tile * 0.8);
-        const z = isWhite ? half + tile : -half - tile;
-        mesh.position.set(x, 0, z);
-        mesh.userData.captured = true;
-        mesh.visible = true;
-        arr.push(mesh);
-      }, 600);
-    }
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -583,8 +371,6 @@ function Chess3D({ avatar, username }) {
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
@@ -599,35 +385,10 @@ function Chess3D({ avatar, username }) {
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
     key.position.set(-60, 120, 50);
-    key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
     scene.add(key);
     const rim = new THREE.DirectionalLight(0x88ccff, 0.35);
     rim.position.set(80, 60, -40);
     scene.add(rim);
-    const spotGroup = new THREE.Group();
-    const halfBoard = (BOARD.N * BOARD.tile) / 2;
-    const spotPositions = [
-      [halfBoard, halfBoard],
-      [halfBoard, -halfBoard],
-      [-halfBoard, halfBoard],
-      [-halfBoard, -halfBoard],
-      [0, halfBoard],
-      [0, -halfBoard],
-      [halfBoard, 0],
-      [-halfBoard, 0],
-      [0, 0]
-    ];
-    spotPositions.forEach(([x, z]) => {
-      const spot = new THREE.SpotLight(0xffffff, 1.2, 300, Math.PI / 6, 0.45, 1);
-      spot.position.set(x, 120, z);
-      spot.target.position.set(0, 0, 0);
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(1024, 1024);
-      scene.add(spot.target);
-      spotGroup.add(spot);
-    });
-    scene.add(spotGroup);
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
@@ -636,7 +397,7 @@ function Chess3D({ avatar, username }) {
       (CAM.phiMin + CAM.phiMax) / 2,
       Math.PI * 0.25
     );
-    const fit = (margin = 1) => {
+    const fit = () => {
       const w = host.clientWidth;
       const h = host.clientHeight;
       renderer.setSize(w, h, false);
@@ -644,17 +405,13 @@ function Chess3D({ avatar, username }) {
       camera.updateProjectionMatrix();
       const boardSize = BOARD.N * BOARD.tile + BOARD.rim * 2;
       const needed =
-        (boardSize * margin) /
-        (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      sph.radius = Math.max(needed, clamp(sph.radius, CAM.minR, CAM.maxR));
+        boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+      sph.radius = Math.max(needed, sph.radius);
       camera.position.setFromSpherical(sph);
       // keep the chess board centered on all screens
       camera.lookAt(0, 0, 0);
     };
     fit();
-    cameraRef.current = camera;
-    sphRef.current = sph;
-    fitRef.current = fit;
 
     // Board base + rim
     const tile = BOARD.tile;
@@ -667,11 +424,9 @@ function Chess3D({ avatar, username }) {
       COLORS.woodDark
     );
     base.position.set(0, BOARD.baseH / 2 - 0.01, 0);
-    base.receiveShadow = true;
     scene.add(base);
     const top = box(N * tile, 0.12, N * tile, COLORS.woodLight);
     top.position.set(0, BOARD.baseH + 0.06, 0);
-    top.receiveShadow = true;
     scene.add(top);
 
     // Tiles
@@ -694,7 +449,6 @@ function Chess3D({ avatar, username }) {
           r * tile - half + tile / 2
         );
         mesh.userData = { r, c, type: 'tile' };
-        mesh.receiveShadow = true;
         tileGroup.add(mesh);
         tiles.push(mesh);
       }
@@ -734,14 +488,6 @@ function Chess3D({ avatar, username }) {
     function placePieceMesh(r, c, p) {
       const color = p.w ? COLORS.whitePiece : COLORS.blackPiece;
       const b = BUILDERS[p.t](color);
-      b.traverse((obj) => {
-        if (obj.isMesh) {
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-          obj.material.roughness = 0.2;
-          obj.material.metalness = 0.6;
-        }
-      });
       b.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
       b.userData = { r, c, w: p.w, t: p.t, type: 'piece' };
       scene.add(b);
@@ -808,7 +554,7 @@ function Chess3D({ avatar, username }) {
     function selectAt(r, c) {
       const p = board[r][c];
       if (!p) return ((sel = null), clearHighlights());
-      if (p.w !== uiRef.current.turnWhite) return; // not your turn
+      if (p.w !== ui.turnWhite) return; // not your turn
       sel = { r, c, p };
       legal = legalMoves(board, r, c);
       clearHighlights();
@@ -821,12 +567,7 @@ function Chess3D({ avatar, username }) {
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
-        const isWhite = board[sel.r][sel.c].w;
-        if (bombSoundRef.current) {
-          bombSoundRef.current.currentTime = 0;
-          bombSoundRef.current.play().catch(() => {});
-        }
-        explodeCaptured(targetMesh, isWhite);
+        scene.remove(targetMesh);
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -849,7 +590,7 @@ function Chess3D({ avatar, username }) {
       );
 
       // turn switch & status
-      const nextWhite = !uiRef.current.turnWhite;
+      const nextWhite = !ui.turnWhite;
       const king = findKing(board, nextWhite);
       const inCheck =
         king && isSquareAttacked(board, king[0], king[1], !nextWhite);
@@ -872,16 +613,6 @@ function Chess3D({ avatar, username }) {
       clearHighlights();
     }
 
-    autoMoveRef.current = (whiteTurn) => {
-      const color =
-        typeof whiteTurn === 'boolean' ? whiteTurn : uiRef.current.turnWhite;
-      const mv = bestAIMove(board, color);
-      if (mv) {
-        selectAt(mv.from[0], mv.from[1]);
-        moveSelTo(mv.to[0], mv.to[1]);
-      }
-    };
-
     function onClick(e) {
       setPointer(e);
       ray.setFromCamera(pointer, camera);
@@ -892,7 +623,6 @@ function Chess3D({ avatar, username }) {
         while (o) {
           if (
             o.userData &&
-            !o.userData.captured &&
             (o.userData.type === 'piece' || o.userData.type === 'tile')
           ) {
             obj = o;
@@ -904,13 +634,8 @@ function Chess3D({ avatar, username }) {
       }
       if (!obj) return;
       const ud = obj.userData;
-      if (ud.type === 'piece') {
-        if (sel && legal.some(([r, c]) => r === ud.r && c === ud.c)) {
-          moveSelTo(ud.r, ud.c);
-        } else {
-          selectAt(ud.r, ud.c);
-        }
-      } else if (ud.type === 'tile' && sel) {
+      if (ud.type === 'piece') selectAt(ud.r, ud.c);
+      else if (ud.type === 'tile' && sel) {
         moveSelTo(ud.r, ud.c);
       }
     }
@@ -920,40 +645,13 @@ function Chess3D({ avatar, username }) {
 
     // Orbit controls minimal
     const drag = { on: false, x: 0, y: 0 };
-    const pinch = { active: false, dist: 0 };
     const onDown = (e) => {
-      if (e.touches?.length === 2) {
-        const [t1, t2] = e.touches;
-        pinch.active = true;
-        pinch.dist = Math.hypot(
-          t1.clientX - t2.clientX,
-          t1.clientY - t2.clientY
-        );
-        return;
-      }
-      if (topViewRef.current) return;
       drag.on = true;
       drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
       drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
     };
     const onMove = (e) => {
-      if (pinch.active && e.touches?.length === 2) {
-        const [t1, t2] = e.touches;
-        const d = Math.hypot(
-          t1.clientX - t2.clientX,
-          t1.clientY - t2.clientY
-        );
-        const delta = pinch.dist - d;
-        sph.radius = clamp(
-          sph.radius + delta * 0.5,
-          CAM.minR,
-          CAM.maxR
-        );
-        pinch.dist = d;
-        fit(topViewRef.current ? 1.05 : 1.0);
-        return;
-      }
-      if (topViewRef.current || !drag.on) return;
+      if (!drag.on) return;
       const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
       const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
       const dx = x - drag.x,
@@ -962,16 +660,15 @@ function Chess3D({ avatar, username }) {
       drag.y = y;
       sph.theta -= dx * 0.004;
       sph.phi = clamp(sph.phi + dy * 0.003, CAM.phiMin, CAM.phiMax);
-      fit(topViewRef.current ? 1.05 : 1.0);
+      fit();
     };
     const onUp = () => {
       drag.on = false;
-      pinch.active = false;
     };
     const onWheel = (e) => {
       const r = sph.radius || 88;
       sph.radius = clamp(r + e.deltaY * 0.2, CAM.minR, CAM.maxR);
-      fit(topViewRef.current ? 1.05 : 1.0);
+      fit();
     };
     renderer.domElement.addEventListener('mousedown', onDown);
     renderer.domElement.addEventListener('mousemove', onMove);
@@ -987,27 +684,6 @@ function Chess3D({ avatar, username }) {
 
     // Loop
     const step = () => {
-      const now = performance.now();
-      const dt = now - last;
-      last = now;
-      for (let i = explosions.length - 1; i >= 0; i--) {
-        const ex = explosions[i];
-        const t = (now - ex.userData.start) / 600;
-        if (ex.userData.fragment) {
-          ex.position.addScaledVector(ex.userData.vel, dt * 0.002);
-          ex.material.opacity = Math.max(0, 1 - t);
-        } else if (ex.userData.smoke) {
-          ex.scale.setScalar(1 + t * 3);
-          ex.material.opacity = Math.max(0, 0.6 - t);
-        } else {
-          ex.scale.setScalar(1 + t * 5);
-          ex.material.opacity = Math.max(0, 0.8 - t * 1.2);
-        }
-        if (ex.material.opacity <= 0) {
-          scene.remove(ex);
-          explosions.splice(i, 1);
-        }
-      }
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(step);
     };
@@ -1015,7 +691,7 @@ function Chess3D({ avatar, username }) {
 
     // Resize
     const onResize = () => {
-      fit(topViewRef.current ? 1.05 : 1.0);
+      fit();
     };
     window.addEventListener('resize', onResize);
 
@@ -1030,55 +706,11 @@ function Chess3D({ avatar, username }) {
     };
   }, []);
 
-  const toggleView = () => {
-    const cam = cameraRef.current;
-    const sph = sphRef.current;
-    const fit = fitRef.current;
-    if (!cam || !sph || !fit) return;
-    const next = !topViewRef.current;
-    const start = { radius: sph.radius, phi: sph.phi, theta: sph.theta };
-    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-    const boardSize = BOARD.N * BOARD.tile + BOARD.rim * 2;
-    const margin = next ? 1.05 : 1.0;
-    const needed =
-      (boardSize * margin) /
-      (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-    const target = {
-      radius: clamp(needed, CAM.minR, CAM.maxR),
-      phi: next ? 0.0001 : last3DRef.current.phi,
-      theta: next ? sph.theta : last3DRef.current.theta
-    };
-    const duration = 600;
-    const t0 = performance.now();
-    function anim(t) {
-      const k = Math.min(1, (t - t0) / duration);
-      const ease = k * (2 - k);
-      sph.radius = start.radius + (target.radius - start.radius) * ease;
-      sph.phi = start.phi + (target.phi - start.phi) * ease;
-      sph.theta = start.theta + (target.theta - start.theta) * ease;
-      cam.position.setFromSpherical(sph);
-      cam.lookAt(0, 0, 0);
-      if (k < 1) requestAnimationFrame(anim);
-      else {
-        topViewRef.current = next;
-        setTopView(next);
-        fit(margin);
-      }
-    }
-    requestAnimationFrame(anim);
-  };
-
   return (
     <div
       ref={wrapRef}
       className="w-screen h-dvh bg-black text-white overflow-hidden select-none relative"
     >
-      {aiFlag && (
-        <div className="absolute top-2 left-2 flex items-center space-x-2 z-10 pointer-events-none">
-          <span className="text-2xl">{aiFlag}</span>
-          {aiName && <span className="text-sm font-semibold">{aiName}</span>}
-        </div>
-      )}
       {(avatar || username) && (
         <div className="absolute top-2 right-2 flex items-center space-x-2 z-10 pointer-events-none">
           {avatar && (
@@ -1098,31 +730,26 @@ function Chess3D({ avatar, username }) {
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}
         >
-          Black{!ui.turnWhite && ` - ${timeLeft}s`}
+          Black
         </div>
       </div>
       <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'bg-white/20' : 'opacity-60'}`}
         >
-          White{ui.turnWhite && ` - ${timeLeft}s`}
+          White
         </div>
       </div>
 
       <div className="absolute left-3 top-3 text-xs bg-white/10 rounded px-2 py-1 z-10 pointer-events-none">
         <div className="font-semibold">Chess 3D — {ui.status}</div>
+        <div>Click piece → click destination. Orbit: drag, Zoom: wheel.</div>
       </div>
       <button
         onClick={() => window.location.reload()}
         className="absolute left-3 bottom-3 text-xs bg-white/10 hover:bg-white/20 rounded px-3 py-1 z-10"
       >
         Reset
-      </button>
-      <button
-        onClick={toggleView}
-        className="absolute bottom-3 right-3 w-12 h-12 rounded-full bg-white text-black text-sm font-bold flex items-center justify-center z-10"
-      >
-        {topView ? '3D' : '2D'}
       </button>
     </div>
   );

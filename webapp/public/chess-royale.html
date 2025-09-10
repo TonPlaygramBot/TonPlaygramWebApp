@@ -49,7 +49,7 @@
   const p1Badge = document.getElementById('p1');
   const p2Badge = document.getElementById('p2');
   const p1Name = params.get('name') || 'Player 1';
-  const p2Name = params.get('p2Name') || 'AI';
+  const p2Name = params.get('p2Name') || 'Player 2';
   const avatarParam = params.get('avatar') || '😀';
   const oppParam = params.get('p2Avatar') || '🤖';
   p1NameEl.textContent = p1Name;
@@ -64,79 +64,22 @@
   }
   setAvatar(p1AvatarEl, avatarParam);
   setAvatar(p2AvatarEl, oppParam);
-  const playerColor = 'w';
+
   const game = new Chess();
   const board = Chessboard('board', {
     position: 'start',
     draggable: true,
     onDragStart: (source, piece) => {
       if (game.game_over()) return false;
-      if (game.turn() !== playerColor) return false;
-      if (piece[0] !== playerColor) return false;
+      if ((game.turn() === 'w' && piece.startsWith('b')) || (game.turn() === 'b' && piece.startsWith('w'))) return false;
     },
     onDrop: (source, target) => {
       const move = game.move({ from: source, to: target, promotion: 'q' });
       if (move === null) return 'snapback';
       board.position(game.fen());
       updateTurn();
-      setTimeout(()=>{
-        if(!game.game_over()) aiMove();
-      },250);
     }
   });
-
-  const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-  function evaluateBoard(game){
-    return game.board().flat().reduce((sum, piece)=>{
-      if(!piece) return sum;
-      const value = pieceValues[piece.type];
-      return sum + (piece.color === 'w' ? value : -value);
-    },0);
-  }
-
-  function minimax(depth, game, alpha, beta, isMaximizing){
-    if(depth === 0 || game.game_over()) return [evaluateBoard(game), null];
-    const moves = game.moves();
-    let bestMove = null;
-    if(isMaximizing){
-      let maxEval = -Infinity;
-      for(const move of moves){
-        game.move(move);
-        const [evalScore] = minimax(depth-1, game, alpha, beta, false);
-        game.undo();
-        if(evalScore > maxEval){
-          maxEval = evalScore;
-          bestMove = move;
-        }
-        alpha = Math.max(alpha, evalScore);
-        if(beta <= alpha) break;
-      }
-      return [maxEval, bestMove];
-    }else{
-      let minEval = Infinity;
-      for(const move of moves){
-        game.move(move);
-        const [evalScore] = minimax(depth-1, game, alpha, beta, true);
-        game.undo();
-        if(evalScore < minEval){
-          minEval = evalScore;
-          bestMove = move;
-        }
-        beta = Math.min(beta, evalScore);
-        if(beta <= alpha) break;
-      }
-      return [minEval, bestMove];
-    }
-  }
-
-  function aiMove(){
-    const [, move] = minimax(3, game, -Infinity, Infinity, game.turn() === 'w');
-    if(move){
-      game.move(move);
-      board.position(game.fen());
-      updateTurn();
-    }
-  }
   function updateTurn(){
     if(game.turn()==='w'){
       p1Badge.classList.add('active');

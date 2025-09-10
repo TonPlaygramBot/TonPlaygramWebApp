@@ -1,10 +1,12 @@
 export type BallColor = 'RED'|'YELLOW'|'GREEN'|'BROWN'|'BLUE'|'PINK'|'BLACK'|'CUE';
+export type PocketId = 'TL'|'TM'|'TR'|'BL'|'BM'|'BR';
 
 export interface Ball {
   id: string;
   color: BallColor;
   onTable: boolean;
   potted: boolean;
+  position?: { x:number; y:number };
 }
 
 export interface Player { id:string; name:string; score:number; }
@@ -26,4 +28,6 @@ export interface FrameState {
 
 export type ShotEvent =
   | { type:'HIT'; firstContact:BallColor|null }
-  | { type:'POTTED'; ball:BallColor };
+  | { type:'POTTED'; ball:BallColor; pocket:PocketId }
+  | { type:'FOUL'; reason:string; ball?:BallColor }
+  | { type:'END_TURN' };
