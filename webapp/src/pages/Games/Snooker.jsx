@@ -162,7 +162,7 @@ const CAMERA = {
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane
-  maxPhi: 1.4 // stop just above side rails
+  maxPhi: Math.PI / 2 - 0.02
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -173,7 +173,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.8;
+  const r = Math.max(dzH, dzW) * 0.85;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -644,7 +644,7 @@ export default function NewSnookerGame() {
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const rendererRef = useRef(null);
-  const last3DRef = useRef({ phi: 1.2, theta: Math.PI });
+  const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
@@ -720,24 +720,6 @@ export default function NewSnookerGame() {
     requestAnimationFrame(anim);
   };
 
-  const rotateLeft = () => {
-    if (topViewRef.current) return;
-    const sph = sphRef.current;
-    const fit = fitRef.current;
-    if (!sph || !fit) return;
-    sph.theta += 0.1;
-    fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
-  };
-
-  const rotateRight = () => {
-    if (topViewRef.current) return;
-    const sph = sphRef.current;
-    const fit = fitRef.current;
-    if (!sph || !fit) return;
-    sph.theta -= 0.1;
-    fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
-  };
-
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
@@ -794,7 +776,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         170 * TABLE_SCALE,
-        1.2 /* slightly lower angle */,
+        1.05 /* slightly lower angle */,
         Math.PI
       );
       const fit = (m = 1.1) => {
@@ -849,13 +831,6 @@ export default function NewSnookerGame() {
           return;
         }
         if (topViewRef.current) return;
-        const aimDir = aimDirRef.current;
-        const p = project(e);
-        const toPt = p.clone().sub(cue.pos);
-        const proj = Math.max(0, toPt.dot(aimDir));
-        const closest = cue.pos.clone().add(aimDir.clone().multiplyScalar(proj));
-        const dist = closest.distanceTo(p);
-        if (dist < BALL_R) return;
         drag.on = true;
         drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
         drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
@@ -1097,14 +1072,8 @@ export default function NewSnookerGame() {
       const onAimStart = (e) => {
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
-        const p = project(e);
-        const aimDir = aimDirRef.current;
-        const toPt = p.clone().sub(cue.pos);
-        const proj = Math.max(0, toPt.dot(aimDir));
-        const closest = cue.pos.clone().add(aimDir.clone().multiplyScalar(proj));
-        const dist = closest.distanceTo(p);
-        if (dist > BALL_R) return; // allow camera move when clicking away from line
         // if user taps a ball, snap aim directly to it
+        const p = project(e);
         const hitBall = balls.find(
           (b) => b !== cue && b.active && p.distanceTo(b.pos) <= BALL_R
         );
@@ -1532,20 +1501,11 @@ export default function NewSnookerGame() {
         {topView ? '3D' : '2D'}
       </button>
 
-      {/* Camera orbit buttons */}
-      <div className="absolute left-3 bottom-2 flex gap-2 z-50">
-        <button
-          onClick={rotateLeft}
-          className="w-10 h-10 rounded-full bg-transparent text-white border border-white/40 flex items-center justify-center"
-        >
-          &#8592;
-        </button>
-        <button
-          onClick={rotateRight}
-          className="w-10 h-10 rounded-full bg-transparent text-white border border-white/40 flex items-center justify-center"
-        >
-          &#8594;
-        </button>
+      {/* Help */}
+      <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">
+        Rrotullo ekranin si njeri pranë tavolinës (drag). Tërhiq slider‑in e
+        madh në të djathtë POSHTË për fuqi dhe lësho për të gjuajtur. 6 gropat
+        janë të prera dhe guret bien brenda.
       </div>
     </div>
   );
