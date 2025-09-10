@@ -84,7 +84,7 @@ function heightToNormalCanvas(heightCanvas, strength = 2.0) {
   return c;
 }
 
-function makeColorCanvasFromHeight(heightCanvas, c0 = '#156f2a', c1 = '#1b8031', variation = 0.08) {
+function makeColorCanvasFromHeight(heightCanvas, c0 = '#1a8f2f', c1 = '#23b043', variation = 0.08) {
   const w = heightCanvas.width, h = heightCanvas.height;
   const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
   const c = document.createElement('canvas');
@@ -140,8 +140,8 @@ const TABLE_Y = -2; // vertical offset to lower entire table
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
-  cloth: 0x147d3a,
-  rail: 0x7b4a26,
+  cloth: 0x1b9e45,
+  rail: 0x8b5a2e,
   cue: 0xffffff,
   red: 0xcc0000,
   yellow: 0xffdd33,
@@ -161,7 +161,7 @@ const CAMERA = {
   minR: 95 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
-  phiMargin: 0.4
+  maxPhi: Math.PI / 2
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -272,7 +272,7 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.15 })
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -298,7 +298,7 @@ function Table3D(scene) {
   // Procedural cloth textures used for table surface and cushions
   const heightC = makeFbmHeightCanvas(512, 5);
   const normalC = heightToNormalCanvas(heightC, 1.6);
-  const colorC = makeColorCanvasFromHeight(heightC, '#156f2a', '#1b8031', 0.06);
+  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.06);
   const heightTex = new THREE.CanvasTexture(heightC);
   heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
   heightTex.repeat.set(10, 20);
@@ -786,7 +786,7 @@ export default function NewSnookerGame() {
         sph.phi = clamp(
           sph.phi,
           CAMERA.minPhi,
-          Math.min(phiCap, Math.PI - CAMERA.phiMargin)
+          Math.min(phiCap, CAMERA.maxPhi)
         );
         const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
@@ -861,7 +861,7 @@ export default function NewSnookerGame() {
         sph.phi = clamp(
           sph.phi + dy * 0.0038,
           CAMERA.minPhi,
-          Math.PI - CAMERA.phiMargin
+          CAMERA.maxPhi
         );
         fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
       };
@@ -897,24 +897,24 @@ export default function NewSnookerGame() {
         else if (e.code === 'ArrowRight') sph.theta -= step;
         else if (e.code === 'ArrowUp')
           sph.phi = clamp(
-            sph.phi - step,
-            CAMERA.minPhi,
-            Math.PI - CAMERA.phiMargin
-          );
+          sph.phi - step,
+          CAMERA.minPhi,
+          CAMERA.maxPhi
+        );
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(
-            sph.phi + step,
-            CAMERA.minPhi,
-            Math.PI - CAMERA.phiMargin
-          );
+          sph.phi + step,
+          CAMERA.minPhi,
+          CAMERA.maxPhi
+        );
         else return;
         fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
       };
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.95));
-      const key = new THREE.DirectionalLight(0xffffff, 1.05);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 1.1));
+      const key = new THREE.DirectionalLight(0xffffff, 1.2);
       key.position.set(-60, 90, 40);
       key.castShadow = true;
       key.shadow.mapSize.set(2048, 2048);
