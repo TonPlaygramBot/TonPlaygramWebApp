@@ -39,7 +39,7 @@ export default function BrickBreaker3D({ player }) {
     const fitCamera = () => {
       camera.aspect = host.clientWidth/host.clientHeight;
       // Distance to fit height fully in view at given FOV (with small margin)
-      const margin = 1.05; // minimal breathing room so board fills screen
+      const margin = 1.0; // remove extra margin so board fills the screen
       const dist = (BOARD.H * margin) / (2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
       camera.position.set(0, 9, dist + 4);
       camera.lookAt(0, 0.5, 0);
@@ -246,14 +246,14 @@ export default function BrickBreaker3D({ player }) {
 
   return (
     <div ref={wrapRef} className="w-full h-[100dvh] bg-black relative overflow-hidden select-none">
-      <div className="absolute top-2 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+      <div className="absolute top-0 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
         <img src={player.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
         <span>{player.name}: {ui.score}</span>
       </div>
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-xs bg-white/10 rounded px-2 py-1">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 text-white text-xs bg-white/10 rounded px-2 py-1">
         Level {ui.level} • Lives {ui.lives} — {ui.msg}
       </div>
-      <button onClick={() => window.location.reload()} className="absolute left-2 bottom-2 text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
+      <button onClick={() => window.location.reload()} className="absolute left-2 bottom-0 text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
     </div>
   );
 }
