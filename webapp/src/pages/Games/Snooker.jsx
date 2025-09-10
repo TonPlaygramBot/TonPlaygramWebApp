@@ -1076,11 +1076,11 @@ export default function NewSnookerGame() {
         if (!allStopped(balls)) return;
         const x = e.clientX || e.touches?.[0]?.clientX || last.x;
         const y = e.clientY || e.touches?.[0]?.clientY || last.y;
-        const dx = x - last.x;
-        const dy = y - last.y;
+        const dx = last.x - x;
+        const dy = last.y - y;
         last.x = x;
         last.y = y;
-        const mapped = mapDelta(dx, dy, camera);
+        const mapped = mapDelta(dx, dy, camera).multiplyScalar(0.5);
         virt.add(mapped);
         const dir = virt.clone().sub(cue.pos);
         if (dir.length() > 1e-3) {
@@ -1391,6 +1391,15 @@ export default function NewSnookerGame() {
         if (shooting) {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
+        }
+        const fit = fitRef.current;
+        if (fit && cue?.active) {
+          const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
+          const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
+          const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
+          const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
+          const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
+          fit(1 + edge * 0.08);
         }
         renderer.render(scene, camera);
         rafRef.current = requestAnimationFrame(step);
