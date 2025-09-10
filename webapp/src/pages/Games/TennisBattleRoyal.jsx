@@ -204,8 +204,8 @@ function Tennis3D({ pAvatar }){
 
       // Camera orbit
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-      // Position camera on the opposite baseline so top/bottom are flipped
-      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI);
+      // Position camera behind the player so the court runs horizontally across the screen
+      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, 0);
       const camTarget = new THREE.Vector3(0, 0, 0);
       const fit = () => {
         let w = host.clientWidth;
@@ -256,7 +256,7 @@ function Tennis3D({ pAvatar }){
         const dx = e.clientX - lastMouse.x; const dy = e.clientY - lastMouse.y; lastMouse.x=e.clientX; lastMouse.y=e.clientY;
         // Adjust aim when charging
         if(charging){
-          player.aimX = clamp(player.aimX - dx * 0.0018, -0.8, 0.8);
+          player.aimX = clamp(player.aimX + dx * 0.0018, -0.8, 0.8);
           player.aimZ = clamp(player.aimZ - dy * 0.0016, 0.15, 0.85); // 0.15 short, 0.85 long
         }
       };
@@ -269,11 +269,7 @@ function Tennis3D({ pAvatar }){
       const updatePlayerFromTouch = (t)=>{
         const rect = renderer.domElement.getBoundingClientRect();
         const xNorm = (t.clientX - rect.left) / rect.width;
-        const yNorm = (t.clientY - rect.top) / rect.height;
-        // after flipping the camera, horizontal input needs inversion
-        player.x = THREE.MathUtils.lerp(COURT.W/2 - 2, -COURT.W/2 + 2, xNorm);
-        // allow moving forward/back on player's half
-        player.z = THREE.MathUtils.lerp(COURT.L/2 - 2, 2, yNorm);
+        player.x = THREE.MathUtils.lerp(-COURT.W/2 + 2, COURT.W/2 - 2, xNorm);
       };
       const onTouchStart = (e)=>{
         const t = e.touches[0];
@@ -285,9 +281,9 @@ function Tennis3D({ pAvatar }){
         const t = e.changedTouches[0];
         const dx = t.clientX - touch.startX;
         const dy = touch.startY - t.clientY;
-        if(dy < -25){
-          player.aimX = clamp(player.aimX - dx * 0.003, -0.8, 0.8);
-          player.power = Math.min(1, -dy / 120);
+        if(dy > 25){
+          player.aimX = clamp(player.aimX + dx * 0.003, -0.8, 0.8);
+          player.power = Math.min(1, dy / 120);
           tryHit(ball, true);
         }
       };
@@ -344,11 +340,10 @@ function Tennis3D({ pAvatar }){
       function step(dt){
         // Player movement
         const k = keys.current; const sp = player.speed * dt;
-        // controls are mirrored after flipping the camera
-        if(k['KeyA']||k['ArrowLeft']) player.x += sp;
-        if(k['KeyD']||k['ArrowRight']) player.x -= sp;
-        if(k['KeyW']||k['ArrowUp']) player.z += sp*0.6;
-        if(k['KeyS']||k['ArrowDown']) player.z -= sp*0.6;
+        if(k['KeyA']||k['ArrowLeft']) player.x -= sp;
+        if(k['KeyD']||k['ArrowRight']) player.x += sp;
+        if(k['KeyW']||k['ArrowUp']) player.z -= sp*0.6;
+        if(k['KeyS']||k['ArrowDown']) player.z += sp*0.6;
         player.x = clamp(player.x, -COURT.W/2 + 2, COURT.W/2 - 2);
         player.z = clamp(player.z, 2, COURT.L/2 - 2);
 
