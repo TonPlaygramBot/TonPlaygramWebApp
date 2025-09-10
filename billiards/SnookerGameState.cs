@@ -39,10 +39,13 @@ namespace TonPlaygram.Billiards
         /// <summary>Index of the active player: 0 or 1.</summary>
         public int CurrentPlayer { get; private set; }
 
-        /// <summary>True once a player reaches the target score or all balls are cleared.</summary>
-        public bool GameOver =>
-            (_targetScore > 0 && (Scores[0] >= _targetScore || Scores[1] >= _targetScore)) ||
-            (_redsRemaining == 0 && _colourIndex >= _colourOrder.Length);
+        /// <summary>
+        /// True once a player reaches the target score. If no target score is
+        /// provided the frame ends only after all balls have been cleared.
+        /// </summary>
+        public bool GameOver => _targetScore > 0
+            ? (Scores[0] >= _targetScore || Scores[1] >= _targetScore)
+            : (_redsRemaining == 0 && _colourIndex >= _colourOrder.Length);
 
         /// <summary>Reset the match to its initial state.</summary>
         /// <param name="reds">Number of reds to begin with, normally 15.</param>

@@ -32,6 +32,10 @@ public class CameraController : MonoBehaviour
     public float cornerXThreshold = 2.6f;
     public float cornerZThreshold = 1.3f;
     public float cornerPullback = 0.5f;
+    // Range beyond the thresholds where the pullback gradually reaches the
+    // maximum value.  This avoids a sudden jump in zoom when approaching a
+    // corner and gives a smoother transition.
+    public float cornerBlendRange = 0.4f;
     // Optional reference to the active player (usually the cue ball). When set,
     // corner pullback is based on the player's position instead of the camera
     // so that approaching a rail gives a better view of the shot.
@@ -57,7 +61,10 @@ public class CameraController : MonoBehaviour
         Vector3 cornerPos = player != null ? player.position : pos;
         if (Mathf.Abs(cornerPos.x) > cornerXThreshold && Mathf.Abs(cornerPos.z) > cornerZThreshold)
         {
-            currentDistance += cornerPullback;
+            float xFactor = Mathf.InverseLerp(cornerXThreshold, cornerXThreshold + cornerBlendRange, Mathf.Abs(cornerPos.x));
+            float zFactor = Mathf.InverseLerp(cornerZThreshold, cornerZThreshold + cornerBlendRange, Mathf.Abs(cornerPos.z));
+            float blend = Mathf.Min(xFactor, zFactor);
+            currentDistance += cornerPullback * Mathf.Clamp01(blend);
         }
 
         // Keep the camera at a fixed distance from the origin (assumed table
