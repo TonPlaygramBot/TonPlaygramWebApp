@@ -7,9 +7,11 @@ using Billiards;
 public class DemoBehaviour : MonoBehaviour
 {
     public LineRenderer Line;
+    // Optional circle shown at the end of the aiming line.
+    public LineRenderer Circle;
     // Reference to the cue ball so the aim direction can be calculated
     public Transform CueBall;
-    // How quickly the aiming line follows the pointer.  Lower values make
+    // How quickly the aiming line follows camera movement.  Lower values make
     // smaller adjustments for more precise shots so the player can line up
     // accurate shots without the aim jumping in large steps.
     public float aimSmoothing = 4f;
@@ -23,6 +25,10 @@ public class DemoBehaviour : MonoBehaviour
     {
         solver.InitStandardTable();
         Line.positionCount = 0;
+        if (Circle != null)
+        {
+            Circle.positionCount = 0;
+        }
     }
 
     private void Update()
@@ -30,37 +36,54 @@ public class DemoBehaviour : MonoBehaviour
         if (CueBall == null)
         {
             Line.positionCount = 0;
+            if (Circle != null)
+            {
+                Circle.positionCount = 0;
+            }
             return;
         }
 
-        // Convert cue ball and target positions to solver coordinates. The
-        // solver operates in the XZ plane while Unity uses Y for height.
+        // Convert cue ball position to solver coordinates. The solver operates
+        // in the XZ plane while Unity uses Y for height.
         var cueStart = new Vec2(CueBall.position.x, CueBall.position.z);
-        var target = ScreenToWorld.FromScreen(Camera.main, Input.mousePosition, CueBall.position.y);
-        var desiredDir = (target - cueStart).Normalized();
+        // Aim direction is derived from the camera's forward vector so the
+        // player aims by moving the camera rather than dragging the line.
+        var camForward = Camera.main.transform.forward;
+        var desiredDir = new Vec2(camForward.x, camForward.z).Normalized();
 
-        if (Input.GetMouseButtonDown(0))
+        // Smoothly adjust the aim for small camera movements.
+        float smoothingFactor = Mathf.Clamp01(1f - Mathf.Exp(-Time.deltaTime * aimSmoothing));
+        currentDir = (currentDir + (desiredDir - currentDir) * smoothingFactor).Normalized();
+
+        var preview = AimPreview.Build(solver, cueStart, currentDir, previewSpeed, balls);
+        Line.positionCount = preview.Path.Length;
+        for (int i = 0; i < preview.Path.Length; i++)
         {
-            // Snap immediately to the selected target when the player clicks.
-            currentDir = desiredDir;
+            Line.SetPosition(i, new Vector3((float)preview.Path[i].X, CueBall.position.y, (float)preview.Path[i].Y));
         }
 
-        if (Input.GetMouseButton(0))
+        if (Circle != null)
         {
-            // Smoothly adjust the aim for small pointer movements.
-            float smoothingFactor = Mathf.Clamp01(1f - Mathf.Exp(-Time.deltaTime * aimSmoothing));
-            currentDir = (currentDir + (desiredDir - currentDir) * smoothingFactor).Normalized();
-
-            var preview = AimPreview.Build(solver, cueStart, currentDir, previewSpeed, balls);
-            Line.positionCount = preview.Path.Length;
-            for (int i = 0; i < preview.Path.Length; i++)
+            if (preview.Path.Length > 0)
             {
-                Line.SetPosition(i, new Vector3((float)preview.Path[i].X, CueBall.position.y, (float)preview.Path[i].Y));
+                // Draw a circle at the end of the aiming line sized to match the ball.
+                const int segments = 32;
+                Circle.positionCount = segments + 1;
+                var endPoint = preview.Path[preview.Path.Length - 1];
+                Vector3 centre = new Vector3((float)endPoint.X, CueBall.position.y, (float)endPoint.Y);
+                float radius = (float)PhysicsConstants.BallRadius;
+                for (int i = 0; i <= segments; i++)
+                {
+                    float angle = (float)i / segments * Mathf.PI * 2f;
+                    float x = Mathf.Cos(angle) * radius;
+                    float z = Mathf.Sin(angle) * radius;
+                    Circle.SetPosition(i, centre + new Vector3(x, 0f, z));
+                }
             }
-        }
-        else
-        {
-            Line.positionCount = 0;
+            else
+            {
+                Circle.positionCount = 0;
+            }
         }
     }
 }
