@@ -190,10 +190,10 @@ function Tennis3D({ pAvatar }){
       renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.domElement.style.position = 'absolute';
-      renderer.domElement.style.top = '-15%';
-      renderer.domElement.style.left = '-5%';
-      renderer.domElement.style.width = '110%';
-      renderer.domElement.style.height = '115%';
+      renderer.domElement.style.top = '-20%';
+      renderer.domElement.style.left = '-3%';
+      renderer.domElement.style.width = '106%';
+      renderer.domElement.style.height = '120%';
       renderer.domElement.style.zIndex = '0';
       renderer.domElement.style.touchAction = 'none';
       host.appendChild(renderer.domElement);
@@ -269,7 +269,7 @@ function Tennis3D({ pAvatar }){
       const updatePlayerFromTouch = (t)=>{
         const rect = renderer.domElement.getBoundingClientRect();
         const xNorm = (t.clientX - rect.left) / rect.width;
-        player.x = THREE.MathUtils.lerp(-COURT.W*0.35, COURT.W*0.35, xNorm);
+        player.x = THREE.MathUtils.lerp(-COURT.W/2 + 2, COURT.W/2 - 2, xNorm);
       };
       const onTouchStart = (e)=>{
         const t = e.touches[0];
@@ -279,9 +279,10 @@ function Tennis3D({ pAvatar }){
       const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); };
       const onTouchEnd = (e)=>{
         const t = e.changedTouches[0];
+        const dx = t.clientX - touch.startX;
         const dy = touch.startY - t.clientY;
         if(dy > 25){
-          // Swipe or quick flick upwards triggers a shot; longer swipes add power
+          player.aimX = clamp(player.aimX + dx * 0.003, -0.8, 0.8);
           player.power = Math.min(1, dy / 120);
           tryHit(ball, true);
         }
@@ -301,6 +302,7 @@ function Tennis3D({ pAvatar }){
         const depth   = (isPlayer? player.aimZ : 0.55) * (isPlayer? (60 + player.power*60) : 58);
         const up      = isPlayer? (16 + player.power*22) : 14;
         ball.vel.set(lateral, up, -depth * fwd);
+        ball.spin.set(fwd * depth * 0.02, lateral * 0.3, 0);
         phase = 'rally';
         return true;
       }
@@ -342,8 +344,8 @@ function Tennis3D({ pAvatar }){
         if(k['KeyD']||k['ArrowRight']) player.x += sp;
         if(k['KeyW']||k['ArrowUp']) player.z -= sp*0.6;
         if(k['KeyS']||k['ArrowDown']) player.z += sp*0.6;
-        player.x = clamp(player.x, -COURT.W*0.35, COURT.W*0.35);
-        player.z = clamp(player.z, COURT.L/2 - 14, COURT.L/2 - 4);
+        player.x = clamp(player.x, -COURT.W/2 + 2, COURT.W/2 - 2);
+        player.z = clamp(player.z, 2, COURT.L/2 - 2);
 
         // Charge power while holding SPACE
         if(k['Space']){ player.power = clamp(player.power + UI.swingChargeRate*dt, 0, UI.swingChargeMax); }
@@ -366,6 +368,9 @@ function Tennis3D({ pAvatar }){
 
         ball.vel.y -= 30 * dt; // gravity
         ball.vel.multiplyScalar(COURT.AIR_DRAG);
+        const magnus = ball.spin.clone().cross(ball.vel).multiplyScalar(0.0004);
+        ball.vel.addScaledVector(magnus, dt);
+        ball.spin.multiplyScalar(0.998);
         ball.pos.addScaledVector(ball.vel, dt);
 
         // Net collision (thin plane at z=0, height netY + tape)
@@ -375,7 +380,7 @@ function Tennis3D({ pAvatar }){
 
         // Ground bounce
         if(ball.pos.y < 1.2){
-          ball.pos.y = 1.2; if(Math.abs(ball.vel.y) > 2){ ball.vel.y *= -COURT.BOUNCE_E; ball.vel.x *= 0.96; ball.vel.z *= 0.96; }
+          ball.pos.y = 1.2; if(Math.abs(ball.vel.y) > 2){ ball.vel.y *= -COURT.BOUNCE_E; ball.vel.x *= 0.96; ball.vel.z *= 0.96; ball.spin.multiplyScalar(0.7); }
           else ball.vel.y = 0;
         }
 
