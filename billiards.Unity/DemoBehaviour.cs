@@ -9,8 +9,9 @@ public class DemoBehaviour : MonoBehaviour
     public LineRenderer Line;
     // Reference to the cue ball so the aim direction can be calculated
     public Transform CueBall;
-    // How quickly the aiming line follows the pointer (higher is snappier)
-    public float aimSmoothing = 12f;
+    // How quickly the aiming line follows the pointer. Lower values make
+    // smaller adjustments for more precise shots.
+    public float aimSmoothing = 8f;
     public float previewSpeed = 2.0f;
 
     private BilliardsSolver solver = new BilliardsSolver();
@@ -25,21 +26,35 @@ public class DemoBehaviour : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetMouseButton(0) && CueBall != null)
+        if (CueBall == null)
         {
-            // Convert cue ball and target positions to solver coordinates
-            var cueStart = new Vec2(CueBall.position.x, CueBall.position.y);
-            var target = ScreenToWorld.FromScreen(Camera.main, Input.mousePosition);
+            Line.positionCount = 0;
+            return;
+        }
 
-            // Smoothly adjust the aiming direction towards the chosen target
-            var desiredDir = (target - cueStart).Normalized();
-            currentDir = (currentDir + (desiredDir - currentDir) * Time.deltaTime * aimSmoothing).Normalized();
+        // Convert cue ball and target positions to solver coordinates. The
+        // solver operates in the XZ plane while Unity uses Y for height.
+        var cueStart = new Vec2(CueBall.position.x, CueBall.position.z);
+        var target = ScreenToWorld.FromScreen(Camera.main, Input.mousePosition, CueBall.position.y);
+        var desiredDir = (target - cueStart).Normalized();
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            // Snap immediately to the selected target when the player clicks.
+            currentDir = desiredDir;
+        }
+
+        if (Input.GetMouseButton(0))
+        {
+            // Smoothly adjust the aim for small pointer movements.
+            float smoothingFactor = 1f - Mathf.Exp(-Time.deltaTime * aimSmoothing);
+            currentDir = (currentDir + (desiredDir - currentDir) * smoothingFactor).Normalized();
 
             var preview = AimPreview.Build(solver, cueStart, currentDir, previewSpeed, balls);
             Line.positionCount = preview.Path.Length;
             for (int i = 0; i < preview.Path.Length; i++)
             {
-                Line.SetPosition(i, new Vector3((float)preview.Path[i].X, (float)preview.Path[i].Y, 0));
+                Line.SetPosition(i, new Vector3((float)preview.Path[i].X, CueBall.position.y, (float)preview.Path[i].Y));
             }
         }
         else
