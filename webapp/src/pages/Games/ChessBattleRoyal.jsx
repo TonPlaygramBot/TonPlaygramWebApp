@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import { AiOutlineSetting } from 'react-icons/ai';
+import ChessConfigModal from '../../components/ChessConfigModal.jsx';
 import {
   getTelegramFirstName,
   getTelegramUsername,
@@ -39,8 +41,8 @@ const COLORS = Object.freeze({
   tileLight: 0xe7e2d3,
   tileDark: 0x776a5a,
   accent: 0x00e5ff,
-  whitePiece: 0xf5f5f7,
-  blackPiece: 0x1c1f26,
+  whitePiece: 0xffffff,
+  blackPiece: 0x2e313a,
   highlight: 0x6ee7b7,
   danger: 0xf87171,
   bg: 0x0b0d11
@@ -48,6 +50,39 @@ const COLORS = Object.freeze({
 
 const BOARD = { N: 8, tile: 4.0, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
+
+const THEME_OPTIONS = [
+  {
+    name: 'Default',
+    whitePiece: COLORS.whitePiece,
+    blackPiece: COLORS.blackPiece,
+    tileLight: COLORS.tileLight,
+    tileDark: COLORS.tileDark,
+    bg: COLORS.bg,
+    woodLight: COLORS.woodLight,
+    woodDark: COLORS.woodDark
+  },
+  {
+    name: 'Forest',
+    whitePiece: 0xffffff,
+    blackPiece: 0x2e313a,
+    tileLight: 0xecead4,
+    tileDark: 0x769656,
+    bg: COLORS.bg,
+    woodLight: COLORS.woodLight,
+    woodDark: COLORS.woodDark
+  },
+  {
+    name: 'Ocean',
+    whitePiece: 0xffffff,
+    blackPiece: 0x2e313a,
+    tileLight: 0xd7e0f2,
+    tileDark: 0x3d5a80,
+    bg: COLORS.bg,
+    woodLight: COLORS.woodLight,
+    woodDark: COLORS.woodDark
+  }
+];
 
 // =============== Materials & simple builders ===============
 const mat = (c, r = 0.82, m = 0.12) =>
@@ -357,6 +392,11 @@ function Chess3D({ avatar, username }) {
     promoting: null,
     winner: null
   });
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('chessTheme');
+    return saved ? JSON.parse(saved) : THEME_OPTIONS[0];
+  });
+  const [configOpen, setConfigOpen] = useState(false);
 
   useEffect(() => {
     const host = wrapRef.current;
@@ -371,6 +411,8 @@ function Chess3D({ avatar, username }) {
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
@@ -381,14 +423,35 @@ function Chess3D({ avatar, username }) {
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(COLORS.bg);
+    scene.background = new THREE.Color(theme.bg);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
     key.position.set(-60, 120, 50);
+    key.castShadow = true;
     scene.add(key);
     const rim = new THREE.DirectionalLight(0x88ccff, 0.35);
     rim.position.set(80, 60, -40);
+    rim.castShadow = true;
     scene.add(rim);
+    const N = BOARD.N;
+    const tile = BOARD.tile;
+    const half = (N * tile) / 2;
+    const spotPositions = [
+      [half + 20, 60, half + 20],
+      [-half - 20, 60, half + 20],
+      [-half - 20, 60, -half - 20],
+      [half + 20, 60, -half - 20]
+    ];
+    spotPositions.forEach(([x, y, z]) => {
+      const s = new THREE.SpotLight(0xffffff, 0.7);
+      s.position.set(x, y, z);
+      s.angle = Math.PI / 4;
+      s.penumbra = 0.5;
+      s.castShadow = true;
+      s.target.position.set(0, 0, 0);
+      scene.add(s);
+      scene.add(s.target);
+    });
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
@@ -414,19 +477,18 @@ function Chess3D({ avatar, username }) {
     fit();
 
     // Board base + rim
-    const tile = BOARD.tile;
-    const N = 8;
-    const half = (N * tile) / 2;
     const base = box(
       N * tile + BOARD.rim * 2,
       BOARD.baseH,
       N * tile + BOARD.rim * 2,
-      COLORS.woodDark
+      theme.woodDark
     );
     base.position.set(0, BOARD.baseH / 2 - 0.01, 0);
+    base.receiveShadow = true;
     scene.add(base);
-    const top = box(N * tile, 0.12, N * tile, COLORS.woodLight);
+    const top = box(N * tile, 0.12, N * tile, theme.woodLight);
     top.position.set(0, BOARD.baseH + 0.06, 0);
+    top.receiveShadow = true;
     scene.add(top);
 
     // Tiles
@@ -437,7 +499,7 @@ function Chess3D({ avatar, username }) {
       for (let c = 0; c < N; c++) {
         const isDark = (r + c) % 2 === 1;
         const m = new THREE.MeshStandardMaterial({
-          color: isDark ? COLORS.tileDark : COLORS.tileLight,
+          color: isDark ? theme.tileDark : theme.tileLight,
           metalness: 0.05,
           roughness: 0.85
         });
@@ -448,6 +510,7 @@ function Chess3D({ avatar, username }) {
           BOARD.baseH + 0.12,
           r * tile - half + tile / 2
         );
+        mesh.receiveShadow = true;
         mesh.userData = { r, c, type: 'tile' };
         tileGroup.add(mesh);
         tiles.push(mesh);
@@ -486,10 +549,11 @@ function Chess3D({ avatar, username }) {
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
 
     function placePieceMesh(r, c, p) {
-      const color = p.w ? COLORS.whitePiece : COLORS.blackPiece;
+      const color = p.w ? theme.whitePiece : theme.blackPiece;
       const b = BUILDERS[p.t](color);
       b.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
       b.userData = { r, c, w: p.w, t: p.t, type: 'piece' };
+      b.traverse((o) => (o.castShadow = true));
       scene.add(b);
       pieceMeshes[r][c] = b;
     }
@@ -704,7 +768,7 @@ function Chess3D({ avatar, username }) {
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
     };
-  }, []);
+  }, [theme]);
 
   return (
     <div
@@ -746,11 +810,27 @@ function Chess3D({ avatar, username }) {
         <div>Click piece → click destination. Orbit: drag, Zoom: wheel.</div>
       </div>
       <button
+        onClick={() => setConfigOpen(true)}
+        className="absolute left-3 bottom-3 text-2xl z-10"
+      >
+        <AiOutlineSetting />
+      </button>
+      <button
         onClick={() => window.location.reload()}
-        className="absolute left-3 bottom-3 text-xs bg-white/10 hover:bg-white/20 rounded px-3 py-1 z-10"
+        className="absolute right-3 bottom-3 text-xs bg-white/10 hover:bg-white/20 rounded px-3 py-1 z-10"
       >
         Reset
       </button>
+      <ChessConfigModal
+        open={configOpen}
+        themes={THEME_OPTIONS}
+        onSelect={(t) => {
+          setTheme(t);
+          localStorage.setItem('chessTheme', JSON.stringify(t));
+          setConfigOpen(false);
+        }}
+        onClose={() => setConfigOpen(false)}
+      />
     </div>
   );
 }
