@@ -827,10 +827,10 @@ export default function NewSnookerGame() {
         Math.PI
       );
       const updateCamera = () => {
-        const target =
-          cue?.mesh && !topViewRef.current
-            ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-            : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
+        const followCue = cue?.mesh && !topViewRef.current && !shooting;
+        const target = followCue
+          ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
+          : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
         if (topViewRef.current) {
           camera.position.set(target.x, sph.radius, target.z);
           camera.lookAt(target);
@@ -870,6 +870,7 @@ export default function NewSnookerGame() {
       dom.style.touchAction = 'none';
       const balls = [];
       let project;
+      let shooting = false;
       const drag = { on: false, x: 0, y: 0, moved: false };
       const pinch = { active: false, dist: 0 };
       const down = (e) => {
@@ -1113,7 +1114,6 @@ export default function NewSnookerGame() {
       dom.addEventListener('pointerdown', onPlace);
 
       // Shot lifecycle
-      let shooting = false;
       let potted = [];
       let foul = false;
       let firstHit = null;
@@ -1132,6 +1132,7 @@ export default function NewSnookerGame() {
       const fire = () => {
         if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
           return;
+        if (topViewRef.current) toggleView();
         shooting = true;
         potted = [];
         foul = false;
