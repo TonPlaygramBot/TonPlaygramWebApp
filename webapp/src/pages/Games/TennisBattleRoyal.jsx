@@ -174,8 +174,8 @@ function Tennis3D({ pAvatar }){
     let phase = 'serve'; // 'serve' | 'rally'
     let serveFaults = 0;
 
-    const player = { x:0, z: COURT.L/2 - 6, speed: 60, aimX:0, aimZ: 0.4, power: 0 };
-    const ai     = { x:0, z:-COURT.L/2 + 6, speed: 52, cooldown: 0 };
+    const player = { x:0, z: COURT.L/2 - 6, speed: 60, aimX:0, aimZ: 0.4, power: 0, swing: 0, swipeVX: 0 };
+    const ai     = { x:0, z:-COURT.L/2 + 6, speed: 52, cooldown: 0, swing: 0 };
 
     function resetBallForServe(ball, who='P'){
       phase = 'serve';
@@ -264,8 +264,8 @@ function Tennis3D({ pAvatar }){
       window.addEventListener('mouseup', onMouseUp);
       window.addEventListener('mousemove', onMouseMove);
 
-      // Touch controls (drag to move, flick up to hit)
-      const touch = { startX: 0, startY: 0, time: 0 };
+      // Touch controls (drag to move, swipe up to hit with power & direction)
+      const touch = { startX: 0, startY: 0, time: 0, lastX: 0, lastY: 0, lastTime: 0, vx: 0, vy: 0 };
       const updatePlayerFromTouch = (t)=>{
         const rect = renderer.domElement.getBoundingClientRect();
         const xNorm = (t.clientX - rect.left) / rect.width;
@@ -273,17 +273,32 @@ function Tennis3D({ pAvatar }){
       };
       const onTouchStart = (e)=>{
         const t = e.touches[0];
-        touch.startX = t.clientX; touch.startY = t.clientY; touch.time = performance.now();
+        const now = performance.now();
+        touch.startX = t.clientX; touch.startY = t.clientY; touch.time = now;
+        touch.lastX = t.clientX; touch.lastY = t.clientY; touch.lastTime = now;
+        touch.vx = 0; touch.vy = 0;
         updatePlayerFromTouch(t);
       };
-      const onTouchMove = (e)=>{ updatePlayerFromTouch(e.touches[0]); };
+      const onTouchMove = (e)=>{
+        const t = e.touches[0];
+        const now = performance.now();
+        const dtm = Math.max(1, now - touch.lastTime);
+        touch.vx = (t.clientX - touch.lastX) / dtm;
+        touch.vy = (touch.lastY - t.clientY) / dtm; // up is positive
+        touch.lastX = t.clientX; touch.lastY = t.clientY; touch.lastTime = now;
+        updatePlayerFromTouch(t);
+      };
       const onTouchEnd = (e)=>{
         const t = e.changedTouches[0];
-        const dx = t.clientX - touch.startX;
-        const dy = touch.startY - t.clientY;
-        if(dy > 25){
-          player.aimX = clamp(player.aimX + dx * 0.003, -0.8, 0.8);
-          player.power = Math.min(1, dy / 120);
+        const dt = Math.max(16, performance.now() - touch.time);
+        const totalDx = t.clientX - touch.startX;
+        const totalDy = touch.startY - t.clientY;
+        const vx = totalDx / dt;
+        const vy = totalDy / dt;
+        if(vy > 0.2){
+          player.aimX = clamp(player.aimX + vx * 4, -0.8, 0.8);
+          player.power = clamp(vy * 0.6, 0, 1);
+          player.swipeVX = vx;
           tryHit(ball, true);
         }
       };
@@ -302,7 +317,10 @@ function Tennis3D({ pAvatar }){
         const depth   = (isPlayer? player.aimZ : 0.55) * (isPlayer? (60 + player.power*60) : 58);
         const up      = isPlayer? (16 + player.power*22) : 14;
         ball.vel.set(lateral, up, -depth * fwd);
-        ball.spin.set(fwd * depth * 0.02, lateral * 0.3, 0);
+        const sideSpin = isPlayer ? player.swipeVX : 0;
+        ball.spin.set(fwd * depth * 0.02, lateral * 0.3, sideSpin * 0.25);
+        if(isPlayer){ player.swing = 1; player.swipeVX = 0; }
+        else { ai.swing = 1; }
         phase = 'rally';
         return true;
       }
@@ -351,16 +369,20 @@ function Tennis3D({ pAvatar }){
         if(k['Space']){ player.power = clamp(player.power + UI.swingChargeRate*dt, 0, UI.swingChargeMax); }
         else { player.power = Math.max(0, player.power - dt*0.6); }
 
-        // Position rackets
+        // Position rackets with simple swing animation
+        player.swing = Math.max(0, player.swing - dt * 4);
         racketP.group.position.set(player.x, 0, player.z);
         racketP.group.rotation.y = Math.PI/2 + Math.atan2((player.aimX*60), 60);
+        racketP.group.rotation.x = -player.swing;
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
         const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W*0.3, COURT.W*0.3);
         ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed*dt, ai.speed*dt);
+        ai.swing = Math.max(0, ai.swing - dt * 4);
         racketA.group.position.set(ai.x, 0, ai.z);
         racketA.group.rotation.y = Math.PI/2;
+        racketA.group.rotation.x = -ai.swing;
 
         // Ball physics
         if(phase==='serve' && keys.current['Space'] && !charging){ charging=true; }
