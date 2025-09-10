@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from 'react-router-dom';
 import * as THREE from "three";
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
@@ -201,6 +202,24 @@ function Tennis3D({ pAvatar }){
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
       scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.95));
       const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(-80, 140, 40); scene.add(sun);
+
+      // Stadium lights in the four corners
+      RectAreaLightUniformsLib.init();
+      const lightSize = 30;
+      const lightHeight = 60;
+      const lightIntensity = 40;
+      const cornerPositions = [
+        [ COURT.W / 2 + COURT.BASE_MARGIN, lightHeight,  COURT.L / 2 + COURT.BASE_MARGIN ],
+        [-COURT.W / 2 - COURT.BASE_MARGIN, lightHeight,  COURT.L / 2 + COURT.BASE_MARGIN ],
+        [ COURT.W / 2 + COURT.BASE_MARGIN, lightHeight, -COURT.L / 2 - COURT.BASE_MARGIN ],
+        [-COURT.W / 2 - COURT.BASE_MARGIN, lightHeight, -COURT.L / 2 - COURT.BASE_MARGIN ],
+      ];
+      cornerPositions.forEach(([x,y,z]) => {
+        const light = new THREE.RectAreaLight(0xffffff, lightIntensity, lightSize, lightSize);
+        light.position.set(x, y, z);
+        light.lookAt(0, 0, 0);
+        scene.add(light);
+      });
 
       // Camera orbit
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
