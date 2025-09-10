@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { getGameVolume } from '../utils/sound.js';
 
 /**
  * AIR HOCKEY 3D — Mobile Portrait
@@ -18,6 +19,17 @@ export default function AirHockey3D({ player, ai }) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+
+    const playHit = () => {
+      const a = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
+      a.volume = getGameVolume();
+      a.play().catch(() => {});
+    };
+    const playGoal = () => {
+      const a = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
+      a.volume = getGameVolume();
+      a.play().catch(() => {});
+    };
 
     // renderer
     const renderer = new THREE.WebGLRenderer({
@@ -38,8 +50,8 @@ export default function AirHockey3D({ player, ai }) {
     dir.position.set(-10, 20, 10);
     scene.add(dir);
 
-    // table dims
-    const TABLE = { w: 1.4, h: 2.8, rim: 0.06, goalW: 0.7 };
+    // table dims (slightly bigger for mobile screens)
+    const TABLE = { w: 1.6, h: 3.2, rim: 0.06, goalW: 0.8 };
 
     // camera
     const camera = new THREE.PerspectiveCamera(
@@ -182,7 +194,7 @@ export default function AirHockey3D({ player, ai }) {
     // physics state
     const S = {
       vel: new THREE.Vector3(0, 0, 0),
-      friction: 0.992,
+      friction: 0.985,
       lastTouch: 0
     };
 
@@ -216,9 +228,10 @@ export default function AirHockey3D({ player, ai }) {
       if (d2 < 0.12 * 0.12) {
         const nx = -dx;
         const nz = -dz;
-        S.vel.x += nx * 8e-3;
-        S.vel.z += nz * 8e-3;
+        S.vel.x += nx * 5e-3;
+        S.vel.z += nz * 5e-3;
         S.lastTouch = 0.15;
+        playHit();
       }
     };
 
@@ -248,14 +261,15 @@ export default function AirHockey3D({ player, ai }) {
       const dz = puck.position.z - aiMallet.position.z;
       const d2 = dx * dx + dz * dz;
       if (d2 < 0.12 * 0.12) {
-        S.vel.x += dx * 9e-3;
-        S.vel.z += dz * 9e-3;
+        S.vel.x += dx * 6e-3;
+        S.vel.z += dz * 6e-3;
+        playHit();
       }
     };
 
     const reset = towardTop => {
       puck.position.set(0, 0.01, 0);
-      S.vel.set(0, 0, towardTop ? -0.6 : 0.6);
+      S.vel.set(0, 0, towardTop ? -0.4 : 0.4);
       you.position.set(0, 0, TABLE.h * 0.36);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     };
@@ -274,7 +288,7 @@ export default function AirHockey3D({ player, ai }) {
       for (let i = 0; i < 16; i++) {
         const over = corners.some(c => {
           const p = toNDC(c);
-          return Math.abs(p.x) > 0.98 || Math.abs(p.y) > 0.98;
+          return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
         });
         if (!over) break;
         cam.z += 0.18;
@@ -294,7 +308,7 @@ export default function AirHockey3D({ player, ai }) {
 
       puck.position.x += S.vel.x;
       puck.position.z += S.vel.z;
-      S.vel.multiplyScalar(0.992);
+      S.vel.multiplyScalar(S.friction);
 
       if (Math.abs(puck.position.x) > TABLE.w / 2 - 0.06) {
         puck.position.x = clamp(
@@ -303,6 +317,7 @@ export default function AirHockey3D({ player, ai }) {
           TABLE.w / 2 - 0.06
         );
         S.vel.x = -S.vel.x;
+        playHit();
       }
 
       const goalHalf = TABLE.goalW / 2;
@@ -314,6 +329,7 @@ export default function AirHockey3D({ player, ai }) {
             left: s.left + (atBot ? 1 : 0),
             right: s.right + (atTop ? 1 : 0)
           }));
+          playGoal();
           reset(!atBot);
         } else {
           S.vel.z = -S.vel.z;
@@ -322,6 +338,7 @@ export default function AirHockey3D({ player, ai }) {
             -TABLE.h / 2 + 0.06,
             TABLE.h / 2 - 0.06
           );
+          playHit();
         }
       }
 
