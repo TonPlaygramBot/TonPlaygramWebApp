@@ -63,8 +63,6 @@ export default function AirHockey3D({ player, ai }) {
 
     // build table
     const group = new THREE.Group();
-    // Slightly shrink entire table so it comfortably fits on smaller screens
-    group.scale.setScalar(0.9);
     scene.add(group);
 
     const floor = new THREE.Mesh(
@@ -149,15 +147,11 @@ export default function AirHockey3D({ player, ai }) {
     group.add(goalBot);
 
     // mallets
-    const makeMallet = (c) => {
+    const makeMallet = c => {
       const g = new THREE.Group();
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.12, 0.05, 24),
-        new THREE.MeshStandardMaterial({
-          color: c,
-          roughness: 0.4,
-          metalness: 0.2
-        })
+        new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.2 })
       );
       const knob = new THREE.Mesh(
         new THREE.CylinderGeometry(0.06, 0.06, 0.08, 24),
@@ -210,7 +204,7 @@ export default function AirHockey3D({ player, ai }) {
       };
     };
 
-    const onMove = (e) => {
+    const onMove = e => {
       const t = e.touches ? e.touches[0] : e;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
@@ -235,7 +229,7 @@ export default function AirHockey3D({ player, ai }) {
     renderer.domElement.addEventListener('mousemove', onMove);
 
     // AI logic
-    const aiUpdate = (dt) => {
+    const aiUpdate = dt => {
       const targetZ =
         puck.position.z < 0
           ? clamp(puck.position.z + 0.15, -TABLE.h / 2 + 0.12, 0 - 0.12)
@@ -257,7 +251,7 @@ export default function AirHockey3D({ player, ai }) {
       }
     };
 
-    const reset = (towardTop) => {
+    const reset = towardTop => {
       puck.position.set(0, 0.01, 0);
       S.vel.set(0, 0, towardTop ? -0.6 : 0.6);
       you.position.set(0, 0, TABLE.h * 0.36);
@@ -271,12 +265,12 @@ export default function AirHockey3D({ player, ai }) {
       new THREE.Vector3(-TABLE.w / 2, 0, TABLE.h / 2),
       new THREE.Vector3(TABLE.w / 2, 0, TABLE.h / 2)
     ];
-    const toNDC = (v) => v.clone().project(camera);
+    const toNDC = v => v.clone().project(camera);
     const ensureFit = () => {
       camera.position.set(0, cam.y, cam.z);
       camera.lookAt(0, 0, 0);
       for (let i = 0; i < 16; i++) {
-        const over = corners.some((c) => {
+        const over = corners.some(c => {
           const p = toNDC(c);
           return Math.abs(p.x) > 0.98 || Math.abs(p.y) > 0.98;
         });
@@ -314,7 +308,7 @@ export default function AirHockey3D({ player, ai }) {
       const atBot = puck.position.z > TABLE.h / 2 - 0.06;
       if (atTop || atBot) {
         if (Math.abs(puck.position.x) <= goalHalf) {
-          setUi((s) => ({
+          setUi(s => ({
             left: s.left + (atBot ? 1 : 0),
             right: s.right + (atTop ? 1 : 0)
           }));
@@ -355,31 +349,27 @@ export default function AirHockey3D({ player, ai }) {
   return (
     <div
       ref={hostRef}
-      className="w-screen h-dvh bg-black relative overflow-hidden select-none"
+      className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
     >
-      <div className="absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
-        <div className="flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
-          <img
-            src={ai.avatar}
-            alt=""
-            className="w-5 h-5 rounded-full object-cover"
-          />
-          <span>
-            {ui.right}: {ai.name}
-          </span>
-        </div>
+      <div className="absolute top-2 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+        <img
+          src={player.avatar}
+          alt=""
+          className="w-5 h-5 rounded-full object-cover"
+        />
+        <span>
+          {player.name}: {ui.left}
+        </span>
       </div>
-      <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
-        <div className="flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
-          <span>
-            {player.name}: {ui.left}
-          </span>
-          <img
-            src={player.avatar}
-            alt=""
-            className="w-5 h-5 rounded-full object-cover"
-          />
-        </div>
+      <div className="absolute top-2 right-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+        <span>
+          {ui.right}: {ai.name}
+        </span>
+        <img
+          src={ai.avatar}
+          alt=""
+          className="w-5 h-5 rounded-full object-cover"
+        />
       </div>
       <button
         onClick={() => window.location.reload()}
@@ -390,3 +380,4 @@ export default function AirHockey3D({ player, ai }) {
     </div>
   );
 }
+
