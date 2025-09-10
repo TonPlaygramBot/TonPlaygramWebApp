@@ -785,6 +785,20 @@ export default function NewSnookerGame() {
         1.05 /* slightly lower angle */,
         Math.PI
       );
+      const updateCamera = () => {
+        const target = new THREE.Vector3(
+          playerOffsetRef.current,
+          TABLE_Y + 0.05,
+          0
+        );
+        if (topViewRef.current) {
+          camera.position.set(0, sph.radius, 0);
+          camera.lookAt(target);
+        } else {
+          camera.position.setFromSpherical(sph).add(target);
+          camera.lookAt(target);
+        }
+      };
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         const baseR = fitRadius(camera, m);
@@ -802,18 +816,7 @@ export default function NewSnookerGame() {
         );
         t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
         sph.radius = clamp(baseR * (1 - 0.12 * t), CAMERA.minR, CAMERA.maxR);
-        const target = new THREE.Vector3(
-          playerOffsetRef.current,
-          TABLE_Y + 0.05,
-          0
-        );
-        if (topViewRef.current) {
-          camera.position.set(0, sph.radius, 0);
-          camera.lookAt(target);
-        } else {
-          camera.position.setFromSpherical(sph).add(target);
-          camera.lookAt(target);
-        }
+        updateCamera();
         camera.updateProjectionMatrix();
       };
       cameraRef.current = camera;
@@ -863,13 +866,7 @@ export default function NewSnookerGame() {
             CAMERA.maxR
           );
           pinch.dist = d;
-          fit(
-            topViewRef.current
-              ? 1.05
-              : window.innerHeight > window.innerWidth
-                ? 1.2
-                : 1.0
-          );
+          updateCamera();
           return;
         }
         if (topViewRef.current || !drag.on) return;
@@ -882,30 +879,15 @@ export default function NewSnookerGame() {
           drag.x = x;
           drag.y = y;
           sph.theta -= dx * 0.005;
-          sph.phi = clamp(
-            sph.phi + dy * 0.0038,
-            CAMERA.minPhi,
-            CAMERA.maxPhi
+          sph.radius = clamp(
+            sph.radius - dy * 0.5,
+            CAMERA.minR,
+            CAMERA.maxR
           );
-          fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+          updateCamera();
         }
       };
-      const up = (e) => {
-        if (drag.on && !drag.moved && !pinch.active) {
-          if (
-            cue?.active &&
-            !hud.inHand &&
-            !hud.over &&
-            allStopped(balls) &&
-            typeof project === 'function'
-          ) {
-            const p = project(e);
-            const dir = p.clone().sub(cue.pos);
-            if (dir.length() > 1e-3) {
-              aimDirRef.current.set(dir.x, dir.y).normalize();
-            }
-          }
-        }
+      const up = () => {
         drag.on = false;
         drag.moved = false;
         pinch.active = false;
@@ -916,13 +898,7 @@ export default function NewSnookerGame() {
           CAMERA.minR,
           CAMERA.maxR
         );
-        fit(
-          topViewRef.current
-            ? 1.05
-            : window.innerHeight > window.innerWidth
-              ? 1.2
-              : 1.0
-        );
+        updateCamera();
       };
       dom.addEventListener('mousedown', down);
       dom.addEventListener('mousemove', move);
@@ -1046,7 +1022,7 @@ export default function NewSnookerGame() {
 
       // Cue image
       const cueTex = new THREE.TextureLoader().load(
-        '/assets/snooker/cue.webp'
+        '/assets/cue.png'
       );
       const cueLen = BALL_R * 20;
       const cueMesh = new THREE.Mesh(
@@ -1079,7 +1055,9 @@ export default function NewSnookerGame() {
         return new THREE.Vector2(pt.x, pt.z);
       };
 
-      const aimDir = aimDirRef.current;
+        const aimDir = aimDirRef.current;
+        const camFwd = new THREE.Vector3();
+        const tmpAim = new THREE.Vector2();
 
       // In-hand placement
       const free = (x, z) =>
@@ -1236,9 +1214,12 @@ export default function NewSnookerGame() {
       }
 
       // Loop
-      const step = () => {
-        // Aiming vizual
-        if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
+        const step = () => {
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z).normalize();
+          aimDir.lerp(tmpAim, 0.2);
+          // Aiming vizual
+          if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
