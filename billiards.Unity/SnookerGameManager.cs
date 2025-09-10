@@ -1,51 +1,42 @@
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
-using System.Collections.Generic;
+using TonPlaygram.Billiards;
 
 /// <summary>
-/// Basic snooker scoring and game state manager. Keeps track of the
-/// player's score and only ends the game when the target score has been
-/// reached. Ball values roughly match standard snooker rules.
+/// Unity wrapper around <see cref="SnookerGameState"/> so the demo scene can
+/// drive a basic two player snooker match. The full scoring rules are handled
+/// by <c>SnookerGameState</c> – including fouls, alternating turns and clearing
+/// the colours once all reds have been potted.
 /// </summary>
 public class SnookerGameManager : MonoBehaviour
 {
-    public int targetScore = 50;
-    public int CurrentScore { get; private set; }
-    public bool GameOver => CurrentScore >= targetScore;
+    // Number of reds to begin a frame with.
+    public int redsInFrame = 15;
 
-    private readonly Dictionary<string, int> ballValues = new Dictionary<string, int>
-    {
-        {"red", 1},
-        {"yellow", 2},
-        {"green", 3},
-        {"brown", 4},
-        {"blue", 5},
-        {"pink", 6},
-        {"black", 7}
-    };
+    public SnookerGameState State { get; private set; } = new SnookerGameState();
 
-    /// <summary>
-    /// Call when a ball has been potted. The colour name is matched to the
-    /// standard snooker point table. The game continues until the target
-    /// score is reached.
-    /// </summary>
-    public void PotBall(string colour)
+    public int CurrentPlayer => State.CurrentPlayer;
+    public int[] Scores => State.Scores;
+    public bool GameOver => State.GameOver;
+
+    private void Awake()
     {
-        if (GameOver) return;
-        if (ballValues.TryGetValue(colour.ToLowerInvariant(), out int value))
-        {
-            CurrentScore += value;
-        }
-        if (GameOver)
-        {
-            Debug.Log("Game over - target score reached");
-        }
+        State.ResetGame(redsInFrame);
     }
 
-    /// <summary>Reset score so a new match can begin.</summary>
+    /// <summary>Call when a ball has been legally potted.</summary>
+    public void PotBall(string colour) => State.PotBall(colour);
+
+    /// <summary>Award a foul against the current player.</summary>
+    public void Foul(int value) => State.Foul(value);
+
+    /// <summary>End the current player's turn after a miss.</summary>
+    public void EndTurn() => State.EndTurn();
+
+    /// <summary>Reset the frame back to its initial state.</summary>
     public void ResetGame()
     {
-        CurrentScore = 0;
+        State.ResetGame(redsInFrame);
     }
 }
 #endif
