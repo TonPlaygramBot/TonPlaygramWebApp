@@ -9,13 +9,19 @@ export interface Ball {
   position?: { x:number; y:number };
 }
 
-export interface Player { id:string; name:string; score:number; }
+export interface Player {
+  id:string;
+  name:string;
+  score:number;
+  highestBreak?:number;
+}
 export type Phase = 'OPENING'|'REDS_AND_COLORS'|'COLORS_ORDER';
 
 export interface FrameState {
   balls: Ball[];
   activePlayer: 'A'|'B';
   players: { A:Player; B:Player };
+  currentBreak?: number;
   phase: Phase;
   redsRemaining: number;
   colorOnAfterRed?: boolean;
