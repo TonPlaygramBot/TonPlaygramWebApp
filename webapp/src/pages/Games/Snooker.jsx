@@ -133,14 +133,10 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
-// reduce damping so balls retain speed and roll faster
-// slightly higher value keeps velocity longer so balls roll faster
-const FRICTION = 0.995;
+const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-// factor to boost shot impulse for a snappier break
-const SHOT_POWER_MULTIPLIER = 1.5;
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -162,12 +158,10 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 70 * TABLE_SCALE,
+  minR: 95 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
-  minPhi: 0.65,
-  // prevent camera from dipping below table surface
-  maxPhi: Math.PI / 2 - 0.01,
-  phiMargin: 0.6
+  minPhi: 0.5,
+  phiMargin: 0.4
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -177,8 +171,7 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  // sit the camera slightly farther from the table
-  const r = Math.max(dzH, dzW) * 0.72;
+  const r = Math.max(dzH, dzW) * 0.9; // nudge camera slightly closer
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -279,7 +272,7 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.2, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 })
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -760,7 +753,6 @@ export default function NewSnookerGame() {
         powerPreference: 'high-performance'
       });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -788,20 +780,14 @@ export default function NewSnookerGame() {
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         sph.radius = fitRadius(camera, m);
-        // when viewing from the long sides, bring camera slightly closer
-        sph.radius *= 1 - 0.1 * Math.abs(Math.sin(sph.theta));
         const phiCap = Math.acos(
           THREE.MathUtils.clamp(-0.95 / sph.radius, -1, 1)
         );
         sph.phi = clamp(
           sph.phi,
           CAMERA.minPhi,
-          Math.min(phiCap, CAMERA.maxPhi)
+          Math.min(phiCap, Math.PI - CAMERA.phiMargin)
         );
-        // subtly increase distance as the camera lowers
-        const t =
-          (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-        sph.radius *= 1 + t * 0.05;
         const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
@@ -875,7 +861,7 @@ export default function NewSnookerGame() {
         sph.phi = clamp(
           sph.phi + dy * 0.0038,
           CAMERA.minPhi,
-          CAMERA.maxPhi
+          Math.PI - CAMERA.phiMargin
         );
         fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
       };
@@ -913,13 +899,13 @@ export default function NewSnookerGame() {
           sph.phi = clamp(
             sph.phi - step,
             CAMERA.minPhi,
-            CAMERA.maxPhi
+            Math.PI - CAMERA.phiMargin
           );
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(
             sph.phi + step,
             CAMERA.minPhi,
-            CAMERA.maxPhi
+            Math.PI - CAMERA.phiMargin
           );
         else return;
         fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
@@ -940,16 +926,6 @@ export default function NewSnookerGame() {
       key.shadow.camera.top = d;
       key.shadow.camera.bottom = -d;
       scene.add(key);
-
-      const spotGroup = new THREE.Group();
-      [-20, 0, 20].forEach((x) => {
-        const spot = new THREE.SpotLight(0xffffff, 1.5, 300, Math.PI / 8, 0.4, 1);
-        spot.position.set(x, 120, 40);
-        spot.target.position.set(0, TABLE_Y, 0);
-        scene.add(spot.target);
-        spotGroup.add(spot);
-      });
-      scene.add(spotGroup);
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
@@ -1162,11 +1138,7 @@ export default function NewSnookerGame() {
         clearInterval(timerRef.current);
         const base = aimDir
           .clone()
-          // boost impulse to increase shot power by 50%
-          .multiplyScalar(
-            4.2 * (0.48 + powerRef.current * 1.52) * 0.75 * 0.75 *
-              SHOT_POWER_MULTIPLIER
-          );
+          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
       };
       fireRef.current = fire;
@@ -1295,7 +1267,7 @@ export default function NewSnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const pull = powerRef.current * BALL_R * 10;
+          const pull = powerRef.current * BALL_R * 10 * 0.5;
           cueMesh.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
             BALL_R,
@@ -1521,6 +1493,12 @@ export default function NewSnookerGame() {
         {topView ? '3D' : '2D'}
       </button>
 
+      {/* Help */}
+      <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">
+        Rrotullo ekranin si njeri pranë tavolinës (drag). Tërhiq slider‑in e
+        madh në të djathtë POSHTË për fuqi dhe lësho për të gjuajtur. 6 gropat
+        janë të prera dhe guret bien brenda.
+      </div>
     </div>
   );
 }
