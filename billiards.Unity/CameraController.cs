@@ -12,22 +12,24 @@ public class CameraController : MonoBehaviour
     public float tableTopY = 0f;
     // Height of the top of the wooden side rails in world space.
     public float railTopY = 0.3f;
+    // Small clearance so the camera always remains a little above the side rails.
+    public float railClearance = 0.05f;
     // How far above the rails the camera is allowed to travel.
-    public float maxHeightAboveTable = 2.5f;
+    public float maxHeightAboveTable = 2.2f;
     // The closest distance the camera can zoom towards the centre.
-    public float minDistanceFromCenter = 6f;
+    public float minDistanceFromCenter = 5.5f;
     // Desired default distance of the camera from the table centre.
-    public float distanceFromCenter = 7f;
-    // Slight height offset so the camera looks a touch above the table centre
-    // to reduce the viewing angle.
-    public float lookAtHeightOffset = 0.1f;
+    public float distanceFromCenter = 6.5f;
+    // Slight height offset so the camera looks just above the table centre
+    // to reduce the viewing angle and give a lower perspective.
+    public float lookAtHeightOffset = 0.05f;
 
     private void LateUpdate()
     {
         // Clamp vertical movement so the camera never dips below the side rails
         // and doesn't fly too high above the table surface.
         Vector3 pos = transform.position;
-        float minY = railTopY;
+        float minY = railTopY + railClearance;
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
