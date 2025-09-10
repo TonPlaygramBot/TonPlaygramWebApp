@@ -26,6 +26,11 @@ public class CameraController : MonoBehaviour
     // Slight height offset so the camera looks just above the table centre
     // to reduce the viewing angle and give a lower perspective.
     public float lookAtHeightOffset = 0.05f;
+    // When the camera moves close to the table corners pull back slightly so
+    // the rails remain visible and aiming is easier.
+    public float cornerXThreshold = 2.6f;
+    public float cornerZThreshold = 1.3f;
+    public float cornerPullback = 0.5f;
 
     private void LateUpdate()
     {
@@ -41,6 +46,13 @@ public class CameraController : MonoBehaviour
         // the centre, revealing the rails at the bottom of the screen.
         float t = Mathf.InverseLerp(maxY, minY, pos.y);
         float currentDistance = Mathf.Lerp(distanceFromCenter, minDistanceFromCenter, t);
+
+        // If the camera is near a corner, increase the distance a little to
+        // give the player a better view of the shot.
+        if (Mathf.Abs(pos.x) > cornerXThreshold && Mathf.Abs(pos.z) > cornerZThreshold)
+        {
+            currentDistance += cornerPullback;
+        }
 
         // Keep the camera at a fixed distance from the origin (assumed table
         // centre) while applying the calculated zoom factor.
