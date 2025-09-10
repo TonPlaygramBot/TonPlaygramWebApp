@@ -173,7 +173,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.85;
+  const r = Math.max(dzH, dzW) * 0.95;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1485,14 +1485,6 @@ export default function NewSnookerGame() {
         ref={sliderRef}
         className="absolute right-3 top-1/2 -translate-y-1/2"
       />
-
-      {/* View toggle */}
-      <button
-        onClick={toggleView}
-        className="absolute bottom-3 right-3 w-12 h-12 rounded-full bg-white text-black text-sm font-bold flex items-center justify-center z-50"
-      >
-        {topView ? '3D' : '2D'}
-      </button>
 
     </div>
   );
