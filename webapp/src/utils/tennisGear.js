@@ -25,7 +25,7 @@ function overgripMaterial() {
 
 function stringMaterial() {
   return new THREE.MeshStandardMaterial({
-    color: 0xffff00,
+    color: 0xe8e8e8,
     roughness: 0.6,
     metalness: 0.0,
   });
