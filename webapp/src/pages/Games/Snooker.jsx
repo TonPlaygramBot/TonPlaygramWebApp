@@ -272,11 +272,7 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.1,
-      metalness: 0.6
-    })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 })
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -930,43 +926,6 @@ export default function NewSnookerGame() {
       key.shadow.camera.top = d;
       key.shadow.camera.bottom = -d;
       scene.add(key);
-
-      // Overhead spotlight rig
-      const lightRig = new THREE.Group();
-      const lightY = 120;
-      const segment = PLAY_H / 4;
-      for (let i = 0; i < 4; i++) {
-        const z = -PLAY_H / 2 + (i + 0.5) * segment;
-        const spot = new THREE.SpotLight(
-          0xffffff,
-          1.25,
-          300,
-          Math.PI / 7,
-          0.35,
-          1
-        );
-        spot.position.set(0, lightY, z);
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(1024, 1024);
-        const target = new THREE.Object3D();
-        target.position.set(0, 0, z);
-        lightRig.add(target);
-        spot.target = target;
-        lightRig.add(spot);
-      }
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 2, PLAY_H),
-        new THREE.MeshStandardMaterial({
-          color: 0x333333,
-          metalness: 0.8,
-          roughness: 0.2
-        })
-      );
-      bar.position.set(0, lightY, 0);
-      bar.castShadow = false;
-      bar.receiveShadow = false;
-      lightRig.add(bar);
-      scene.add(lightRig);
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
