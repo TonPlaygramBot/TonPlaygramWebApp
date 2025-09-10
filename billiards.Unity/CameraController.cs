@@ -10,28 +10,46 @@ public class CameraController : MonoBehaviour
 {
     // Y position of the top of the table in world space.
     public float tableTopY = 0f;
-    // Maximum height the camera is allowed to move above the table.
-    public float maxHeightAboveTable = 3f;
-    // Desired distance of the camera from the table centre.
-    public float distanceFromCenter = 8f;
+    // Height of the top of the wooden side rails in world space.
+    public float railTopY = 0.3f;
+    // How far above the rails the camera is allowed to travel.
+    public float maxHeightAboveTable = 2.5f;
+    // The closest distance the camera can zoom towards the centre.
+    public float minDistanceFromCenter = 6f;
+    // Desired default distance of the camera from the table centre.
+    public float distanceFromCenter = 7f;
+    // Slight height offset so the camera looks a touch above the table centre
+    // to reduce the viewing angle.
+    public float lookAtHeightOffset = 0.1f;
 
     private void LateUpdate()
     {
-        // Clamp vertical movement so the camera never goes below the table
-        // and doesn't fly too high above it.
+        // Clamp vertical movement so the camera never dips below the side rails
+        // and doesn't fly too high above the table surface.
         Vector3 pos = transform.position;
-        float minY = tableTopY;
+        float minY = railTopY;
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
-        // Pull the camera slightly closer to the table by keeping it at a
-        // fixed distance from the origin (assumed table centre).
+        // Determine how close the camera should zoom based on height.  When the
+        // camera is pulled down towards the rails it gradually moves closer to
+        // the centre, revealing the rails at the bottom of the screen.
+        float t = Mathf.InverseLerp(maxY, minY, pos.y);
+        float currentDistance = Mathf.Lerp(distanceFromCenter, minDistanceFromCenter, t);
+
+        // Keep the camera at a fixed distance from the origin (assumed table
+        // centre) while applying the calculated zoom factor.
         Vector3 flatDir = new Vector3(pos.x, 0f, pos.z).normalized;
-        pos = new Vector3(flatDir.x * distanceFromCenter,
+        pos = new Vector3(flatDir.x * currentDistance,
                           pos.y,
-                          flatDir.z * distanceFromCenter);
+                          flatDir.z * currentDistance);
 
         transform.position = pos;
+
+        // Maintain a slightly lower viewing angle by looking just above the table
+        // centre rather than straight down at it.
+        Vector3 lookTarget = new Vector3(0f, tableTopY + lookAtHeightOffset, 0f);
+        transform.LookAt(lookTarget);
     }
 }
 #endif
