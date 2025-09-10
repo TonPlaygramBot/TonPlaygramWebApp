@@ -4,6 +4,7 @@ import * as THREE from "three";
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { buildRacket as buildDetailedRacket, buildTennisBall as buildDetailedBall } from '../../utils/tennisGear.js';
 
 // ========================== Config ==========================
 const CAM = { fov: 55, near: 0.1, far: 5000, phiMin: 0.75, phiMax: 1.35, minR: 80, maxR: 240 };
@@ -95,19 +96,39 @@ function buildCourt(scene){
 }
 
 // ================= Physics & game state =================
-function makeBall(scene){
-  const mesh = sph(1.2, COLORS.ball); mesh.position.set(0, 6, 0); mesh.castShadow=true; scene.add(mesh);
-  return { mesh, pos: new THREE.Vector3(0,6,0), vel: new THREE.Vector3(), spin: new THREE.Vector3(0,0,0), alive: true };
+function makeBall(scene) {
+  const mesh = buildDetailedBall();
+  const scale = 3 / (6.7 / 2); // match previous ball radius (~3 units)
+  mesh.scale.setScalar(scale * 0.5); // 50% smaller than standard size
+  mesh.position.set(0, 6, 0);
+  scene.add(mesh);
+  return {
+    mesh,
+    pos: new THREE.Vector3(0, 6, 0),
+    vel: new THREE.Vector3(),
+    spin: new THREE.Vector3(),
+    alive: true,
+  };
 }
 
-function makeRacket(scene, color){
-  const g = new THREE.Group();
-  const handle = box(0.6, 2.2, 0.6, color); handle.position.set(0, 1.1, 0); g.add(handle);
-  const head = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.25, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.4, 0.2); g.add(head);
-  const bed  = new THREE.Mesh(new THREE.CircleGeometry(1.6, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
-  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.4, 0.21); g.add(bed);
-  scene.add(g);
-  return { group: g };
+function makeRacket(scene, color) {
+  const group = buildDetailedRacket();
+  group.rotation.y = Math.PI / 2;
+  const box0 = new THREE.Box3().setFromObject(group);
+  const scale = 7.65 / box0.getSize(new THREE.Vector3()).x;
+  group.scale.setScalar(scale * 3); // triple-size rackets
+  const box = new THREE.Box3().setFromObject(group);
+  group.position.x -= box.min.x;
+  group.position.y -= box.min.y;
+  group.position.z -= (box.min.z + box.max.z) / 2;
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.material = obj.material.clone();
+      obj.material.color.set(color);
+    }
+  });
+  scene.add(group);
+  return { group };
 }
 
 const SCORE_MAP = [0,15,30,40];
