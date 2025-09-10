@@ -9,7 +9,6 @@ import {
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
-import { Referee } from '../../../../src/core/Referee.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 
 // --------------------------------------------------
@@ -626,14 +625,6 @@ export default function NewSnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new SnookerRules(), []);
-  const refereeRef = useRef(new Referee(rules));
-  const [frame, setFrame] = useState(() =>
-    rules.getInitialFrame('Player A', 'Player B')
-  );
-  const frameRef = useRef(frame);
-  useEffect(() => {
-    frameRef.current = frame;
-  }, [frame]);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -822,15 +813,7 @@ export default function NewSnookerGame() {
           Math.min(phiCap, CAMERA.maxPhi)
         );
         t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-        r = baseR * (1 - 0.12 * t);
-        if (
-          cue &&
-          Math.abs(cue.pos.x) > PLAY_W / 2 - BALL_R * 4 &&
-          Math.abs(cue.pos.y) > PLAY_H / 2 - BALL_R * 4
-        ) {
-          r *= 1.05;
-        }
-        sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
+        sph.radius = clamp(baseR * (1 - 0.12 * t), CAMERA.minR, CAMERA.maxR);
         const target = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
@@ -1097,16 +1080,14 @@ export default function NewSnookerGame() {
         const dy = y - last.y;
         last.x = x;
         last.y = y;
-        const mapped = mapDelta(dx, dy, camera).multiplyScalar(0.5);
-        virt.sub(mapped);
+        const mapped = mapDelta(dx, dy, camera);
+        virt.add(mapped);
         const dir = virt.clone().sub(cue.pos);
         if (dir.length() > 1e-3) {
           aimDir.set(dir.x, dir.y).normalize();
         }
       };
       const onAimStart = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
         const p = project(e);
@@ -1169,7 +1150,18 @@ export default function NewSnookerGame() {
       // Shot lifecycle
       let shooting = false;
       let potted = [];
+      let foul = false;
       let firstHit = null;
+      const legalTarget = () =>
+        hud.phase === 'reds'
+          ? hud.next === 'red'
+            ? 'red'
+            : 'colour'
+          : hud.next;
+      const isRedId = (id) => id.startsWith('red');
+      const values = rules.getBallValues();
+      const val = (id) =>
+        isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
       // Fire (slider e thërret në release)
       const fire = () => {
@@ -1177,6 +1169,7 @@ export default function NewSnookerGame() {
           return;
         shooting = true;
         potted = [];
+        foul = false;
         firstHit = null;
         clearInterval(timerRef.current);
         const base = aimDir
@@ -1188,68 +1181,103 @@ export default function NewSnookerGame() {
 
       // Resolve shot
       function resolve() {
-        const toColor = (id) => {
-          if (id === 'cue') return 'CUE';
-          return id.startsWith('red') ? 'RED' : id.toUpperCase();
-        };
-        const events = [
-          { type: 'HIT', firstContact: firstHit ? toColor(firstHit) : null }
-        ];
-        for (const id of potted) {
-          events.push({ type: 'POTTED', ball: toColor(id), pocket: 'TR' });
+        const me = hud.turn === 0 ? 'A' : 'B',
+          op = hud.turn === 0 ? 'B' : 'A';
+        let gain = 0;
+        let swap = true;
+        if (!cue.active) foul = true;
+        const target = legalTarget();
+        if (firstHit) {
+          if (target === 'red' && !isRedId(firstHit)) foul = true;
+          else if (target === 'colour' && isRedId(firstHit)) foul = true;
+          else if (
+            target !== 'red' &&
+            target !== 'colour' &&
+            firstHit !== target
+          )
+            foul = true;
+        } else {
+          foul = true;
         }
-        const next = refereeRef.current.applyShot(frameRef.current, events);
-        setFrame(next);
-        Object.entries(SPOTS).forEach(([name, [sx, sz]]) => {
-          const st = next.balls.find((b) => b.color === name.toUpperCase());
-          const obj = colors[name];
-          if (!obj || !st) return;
-          if (st.onTable && !obj.active) {
-            obj.active = true;
-            obj.mesh.visible = true;
-            obj.pos.set(sx, sz);
-            obj.mesh.position.set(sx, BALL_R, sz);
-          } else if (!st.onTable) {
-            obj.active = false;
-            obj.mesh.visible = false;
+        const reds = potted.filter(isRedId),
+          cols = potted.filter((id) => !isRedId(id));
+        if (hud.phase === 'reds') {
+          if (hud.next === 'red') {
+            if (cols.length > 0) foul = true;
+            gain += reds.length;
+            if (reds.length > 0 && !foul) {
+              setHud((s) => ({ ...s, next: 'colour' }));
+              swap = false;
+            }
+          } else {
+            if (reds.length > 0) foul = true;
+            if (cols.length > 0 && !foul) {
+              cols.forEach((id) => {
+                gain += val(id);
+                const b = colors[id];
+                if (b) {
+                  const [sx, sy] = SPOTS[id];
+                  b.active = true;
+                  b.mesh.visible = true;
+                  b.pos.set(sx, sy);
+                  b.mesh.position.set(sx, BALL_R, sy);
+                }
+              });
+              setHud((s) => ({ ...s, next: 'red' }));
+              swap = false;
+            }
           }
-        });
-        if (potted.includes('cue') || next.foul) {
+          const redsLeft = balls.some((b) => b.active && isRedId(b.id));
+          if (!redsLeft)
+            setHud((s) => ({ ...s, phase: 'colors', next: 'yellow' }));
+        } else {
+          if (
+            cols.length === 1 &&
+            reds.length === 0 &&
+            cols[0] === hud.next &&
+            !foul
+          ) {
+            gain += val(hud.next);
+            const order = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
+            const idx = order.indexOf(hud.next);
+            const nxt = order[idx + 1];
+            if (nxt) {
+              setHud((s) => ({ ...s, next: nxt }));
+              swap = false;
+            } else {
+              setHud((s) => ({ ...s, over: true }));
+            }
+          } else if (cols.length > 0 || reds.length > 0) {
+            foul = true;
+          }
+        }
+        if (foul) {
+          const foulPts = Math.max(
+            4,
+            ...potted.map((id) => val(id)),
+            cue.active ? 0 : 4
+          );
+          setHud((s) => ({
+            ...s,
+            [op]: s[op] + foulPts,
+            inHand: true,
+            next: s.phase === 'reds' ? 'red' : s.next
+          }));
           cue.active = false;
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
+        } else if (gain > 0) {
+          setHud((s) => ({ ...s, [me]: s[me] + gain }));
         }
-        setHud((s) => ({
-          ...s,
-          A: next.players.A.score,
-          B: next.players.B.score,
-          turn: next.activePlayer === 'A' ? 0 : 1,
-          phase: next.phase === 'REDS_AND_COLORS' ? 'reds' : 'colors',
-          next: next.ballOn.includes('RED')
-            ? next.ballOn.length > 1
-              ? 'colour'
-              : 'red'
-            : next.ballOn[0]?.toLowerCase() || 'red',
-          inHand: potted.includes('cue') || Boolean(next.foul),
-          over: next.frameOver
-        }));
+        if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
         potted = [];
+        foul = false;
         firstHit = null;
       }
 
       // Loop
       const step = () => {
-        const fit = fitRef.current;
-        if (fit) {
-          fit(
-            topViewRef.current
-              ? 1.05
-              : window.innerHeight > window.innerWidth
-                ? 1.2
-                : 1.0
-          );
-        }
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
@@ -1354,11 +1382,7 @@ export default function NewSnookerGame() {
               b.active = false;
               b.mesh.visible = false;
               b.vel.set(0, 0);
-              if (b === cue) {
-                potted.push('cue');
-              } else {
-                potted.push(b.id.startsWith('red') ? 'red' : b.id);
-              }
+              if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
               break;
             }
           }
