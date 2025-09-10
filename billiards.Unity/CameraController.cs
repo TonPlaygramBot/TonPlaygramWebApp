@@ -10,14 +10,17 @@ public class CameraController : MonoBehaviour
 {
     // Y position of the top of the table in world space.
     public float tableTopY = 0f;
-    // Height of the top of the wooden side rails in world space.
-    public float railTopY = 0.3f;
+    // Height of the top of the wooden side rails in world space.  Slightly raised
+    // to keep the camera from dipping too low relative to the table frame.
+    public float railTopY = 0.33f;
     // Small clearance so the camera always remains a little above the side rails.
-    public float railClearance = 0.05f;
+    // Increased slightly so the camera stops a bit sooner when moving down.
+    public float railClearance = 0.08f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 2.2f;
-    // The closest distance the camera can zoom towards the centre.
-    public float minDistanceFromCenter = 5.5f;
+    // The closest distance the camera can zoom towards the centre.  Reduced
+    // to allow a touch more zoom when the user pulls the camera down.
+    public float minDistanceFromCenter = 5.2f;
     // Desired default distance of the camera from the table centre.
     public float distanceFromCenter = 6.5f;
     // Slight height offset so the camera looks just above the table centre

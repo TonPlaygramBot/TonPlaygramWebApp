@@ -10,9 +10,10 @@ public class BilliardLighting : MonoBehaviour
         plasticMat.color = Color.red;           // change color per ball as needed
         plasticMat.SetFloat("_Metallic", 0f);   // not metallic
         // Make the balls a bit shinier and brighter
-        plasticMat.color *= 1.15f;
-        plasticMat.SetFloat("_Glossiness", 0.95f);
-        plasticMat.SetColor("_SpecColor", Color.white * 1.3f);
+        // Slightly boost base colour and specular highlights for more sheen.
+        plasticMat.color *= 1.2f;
+        plasticMat.SetFloat("_Glossiness", 0.97f);
+        plasticMat.SetColor("_SpecColor", Color.white * 1.4f);
 
         // Apply material and attach small point lights to each ball
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
