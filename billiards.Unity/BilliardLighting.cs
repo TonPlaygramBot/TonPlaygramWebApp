@@ -5,44 +5,16 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
-        // Create three spot lights in a slightly deeper arc so the balls show
-        // three tiny reflections. Each light is offset slightly to leave a
-        // small gap between highlights and is made a touch brighter than before.
-        Vector3[] lightPositions =
-        {
-            // outer lights are pulled back a little more on the Z axis to form the arc
-            new Vector3(-0.6f, 5f, -0.3f),
-            new Vector3(0f, 5f, 0f),
-            new Vector3(0.6f, 5f, -0.3f)
-        };
-
-        foreach (Vector3 pos in lightPositions)
-        {
-            GameObject lightObj = new GameObject("BilliardSpotLight");
-            Light spotLight = lightObj.AddComponent<Light>();
-            spotLight.type = LightType.Spot;
-            spotLight.color = Color.white;
-            // Slightly brighter spotlight to better illuminate the table
-            spotLight.intensity = 3.8f;
-            spotLight.range = 15f;
-            spotLight.spotAngle = 60f;
-            spotLight.shadows = LightShadows.Soft;
-
-            // Position the light above the table with a small horizontal offset
-            lightObj.transform.position = pos;
-            lightObj.transform.rotation = Quaternion.Euler(90, 0, 0);
-        }
-
-        // Create a shiny plastic (PBR) material
+        // Create a shiny plastic (PBR) material with slightly brighter base color
         Material plasticMat = new Material(Shader.Find("Standard"));
         plasticMat.color = Color.red;           // change color per ball as needed
         plasticMat.SetFloat("_Metallic", 0f);   // not metallic
-        // Increase glossiness so reflections on the balls appear brighter
-        plasticMat.SetFloat("_Glossiness", 1f); // extremely shiny surface
-        // Slightly boost specular color so highlights appear a bit brighter and shinier
+        // Make the balls a bit shinier and brighter
+        plasticMat.color *= 1.1f;
+        plasticMat.SetFloat("_Glossiness", 0.9f);
         plasticMat.SetColor("_SpecColor", Color.white * 1.3f);
 
-        // Apply material to all objects tagged "Ball"
+        // Apply material and attach three small point lights to each ball
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
         foreach (GameObject ball in balls)
         {
@@ -51,7 +23,26 @@ public class BilliardLighting : MonoBehaviour
             {
                 renderer.material = plasticMat;
             }
+
+            // Position three point lights in an arc so reflections don't touch
+            CreateHighlightLight(ball.transform, new Vector3(0.5f, 0.8f, 0.6f));
+            CreateHighlightLight(ball.transform, new Vector3(-0.6f, 0.7f, -0.5f));
+            CreateHighlightLight(ball.transform, new Vector3(0.2f, 0.9f, -0.6f));
         }
+    }
+
+    void CreateHighlightLight(Transform parent, Vector3 localPosition)
+    {
+        GameObject lightObj = new GameObject("HighlightLight");
+        lightObj.transform.parent = parent;
+        lightObj.transform.localPosition = localPosition;
+
+        Light pointLight = lightObj.AddComponent<Light>();
+        pointLight.type = LightType.Point;
+        pointLight.range = 0.5f;   // keep small so highlights don't overlap
+        pointLight.intensity = 2f;
+        pointLight.shadows = LightShadows.None;
+        pointLight.color = Color.white;
     }
 }
 #endif
