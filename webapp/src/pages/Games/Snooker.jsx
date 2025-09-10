@@ -158,11 +158,11 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 95 * TABLE_SCALE,
+  minR: 90 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane
-  maxPhi: Math.PI / 2 - 0.02
+  maxPhi: Math.PI / 2 - 0.1
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -673,6 +673,24 @@ export default function NewSnookerGame() {
     fireRef.current?.();
   });
 
+  const rotRef = useRef(null);
+  const startRotate = (dir) => {
+    const step = 0.06;
+    const rotate = () => {
+      const sph = sphRef.current;
+      const fit = fitRef.current;
+      if (!sph || !fit || topViewRef.current) return;
+      sph.theta += dir * step;
+      fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+      rotRef.current = requestAnimationFrame(rotate);
+    };
+    rotRef.current = requestAnimationFrame(rotate);
+  };
+  const stopRotate = () => {
+    if (rotRef.current) cancelAnimationFrame(rotRef.current);
+    rotRef.current = null;
+  };
+
   const toggleView = () => {
     const cam = cameraRef.current;
     const sph = sphRef.current;
@@ -784,8 +802,8 @@ export default function NewSnookerGame() {
         const baseR = fitRadius(camera, m);
         let t =
           (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-        let r = baseR * (1 - 0.08 * t);
-        const railLimit = TABLE.THICK * 0.8 + 0.2; // stay above side rails
+        let r = baseR * (1 - 0.12 * t);
+        const railLimit = TABLE.THICK + 0.4; // stay above side rails
         const phiCap = Math.acos(
           THREE.MathUtils.clamp(railLimit / r, -1, 1)
         );
@@ -795,8 +813,8 @@ export default function NewSnookerGame() {
           Math.min(phiCap, CAMERA.maxPhi)
         );
         t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-        sph.radius = clamp(baseR * (1 - 0.08 * t), CAMERA.minR, CAMERA.maxR);
-        const target = new THREE.Vector3(0, TABLE_Y, 0);
+        sph.radius = clamp(baseR * (1 - 0.12 * t), CAMERA.minR, CAMERA.maxR);
+        const target = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
           camera.lookAt(target);
@@ -818,6 +836,7 @@ export default function NewSnookerGame() {
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
+      let aiming = false;
       const drag = { on: false, x: 0, y: 0 };
       const pinch = { active: false, dist: 0 };
       const down = (e) => {
@@ -858,7 +877,7 @@ export default function NewSnookerGame() {
           );
           return;
         }
-        if (topViewRef.current || !drag.on) return;
+        if (topViewRef.current || !drag.on || aiming) return;
         const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
         const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
         const dx = x - drag.x,
@@ -1049,7 +1068,6 @@ export default function NewSnookerGame() {
 
       // Aim direction controlled via drag like Pool Royale
       const aimDir = aimDirRef.current;
-      let aiming = false;
       const last = { x: 0, y: 0 };
       const virt = new THREE.Vector2();
       const onAimMove = (e) => {
@@ -1072,16 +1090,26 @@ export default function NewSnookerGame() {
       const onAimStart = (e) => {
         if (hud.inHand || hud.over) return;
         if (!allStopped(balls)) return;
-        // if user taps a ball, snap aim directly to it
         const p = project(e);
         const hitBall = balls.find(
           (b) => b !== cue && b.active && p.distanceTo(b.pos) <= BALL_R
         );
+        let engage = false;
         if (hitBall) {
           const dir = hitBall.pos.clone().sub(cue.pos);
           if (dir.lengthSq() > 1e-4) aimDir.set(dir.x, dir.y).normalize();
+          engage = true;
+        } else {
+          const cueToP = p.clone().sub(cue.pos);
+          const proj = Math.max(0, cueToP.dot(aimDir));
+          const closest = cue.pos
+            .clone()
+            .add(aimDir.clone().multiplyScalar(proj));
+          const dist = p.distanceTo(closest);
+          if (dist <= BALL_R) engage = true;
         }
-        aiming = true;
+        aiming = engage;
+        if (!aiming) return;
         last.x = e.clientX || e.touches?.[0]?.clientX || 0;
         last.y = e.clientY || e.touches?.[0]?.clientY || 0;
         virt.copy(p);
@@ -1501,11 +1529,24 @@ export default function NewSnookerGame() {
         {topView ? '3D' : '2D'}
       </button>
 
-      {/* Help */}
-      <div className="absolute left-3 bottom-2 text-[11px] text-white/70 pr-4 max-w-[80%]">
-        Rrotullo ekranin si njeri pranë tavolinës (drag). Tërhiq slider‑in e
-        madh në të djathtë POSHTË për fuqi dhe lësho për të gjuajtur. 6 gropat
-        janë të prera dhe guret bien brenda.
+      {/* Camera rotation buttons */}
+      <div className="absolute left-3 bottom-3 flex gap-3 z-50">
+        <button
+          onPointerDown={() => startRotate(1)}
+          onPointerUp={stopRotate}
+          onPointerLeave={stopRotate}
+          className="w-12 h-12 flex items-center justify-center text-white bg-transparent border border-white rounded-full"
+        >
+          ◀
+        </button>
+        <button
+          onPointerDown={() => startRotate(-1)}
+          onPointerUp={stopRotate}
+          onPointerLeave={stopRotate}
+          className="w-12 h-12 flex items-center justify-center text-white bg-transparent border border-white rounded-full"
+        >
+          ▶
+        </button>
       </div>
     </div>
   );
