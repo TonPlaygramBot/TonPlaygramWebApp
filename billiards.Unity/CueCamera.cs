@@ -10,19 +10,21 @@ public class CueCamera : MonoBehaviour
 {
     // Reference to the cue ball the camera should follow.
     public Transform CueBall;
-    // Distance behind the cue ball.
-    public float distance = 2f;
-    // Height of the camera above the table surface.
-    public float height = 0.5f;
+    // Distance behind the cue ball in the normal overview.
+    public float normalDistance = 2f;
+    // Height of the camera above the table surface in the normal overview.
+    public float normalHeight = 0.5f;
+    // Distance and height when pulling the camera down for a close-up view.
+    public float closeDistance = 0.7f;
+    public float closeHeight = 0.15f;
     // Rotation speed in degrees per second for horizontal mouse movement.
     public float rotationSpeed = 90f;
-    // Speed at which the camera zooms in/out when dragging vertically.
+    // Speed at which the view blends between normal and close-up when dragging vertically.
     public float zoomSpeed = 2f;
-    // Minimum and maximum distance from the cue ball.
-    public float minDistance = 1.5f;
-    public float maxDistance = 3f;
 
     private float yaw;
+    // Blend value: 0 for normal view, 1 for close-up view.
+    private float viewBlend;
 
     private void LateUpdate()
     {
@@ -31,16 +33,21 @@ public class CueCamera : MonoBehaviour
             return;
         }
 
-        // Accumulate horizontal mouse movement to orbit around the cue ball.
+        // Accumulate horizontal movement to orbit around the cue ball.
         yaw += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
 
-        // Adjust distance based on vertical movement to provide a small zoom.
-        float zoom = Input.GetAxis("Mouse Y") * zoomSpeed * Time.deltaTime;
-        distance = Mathf.Clamp(distance + zoom, minDistance, maxDistance);
+        // Vertical dragging blends between a normal overview and a close-up shot.
+        // Dragging down increases the blend, pulling the camera lower and closer
+        // to the cue ball. Dragging up restores the default overview.
+        float yInput = Input.GetAxis("Mouse Y");
+        viewBlend = Mathf.Clamp01(viewBlend - yInput * zoomSpeed * Time.deltaTime);
+        float distance = Mathf.Lerp(normalDistance, closeDistance, viewBlend);
+        float height = Mathf.Lerp(normalHeight, closeHeight, viewBlend);
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
         transform.position = CueBall.position - forward * distance + Vector3.up * height;
+        // Look down the aiming line so the camera follows the shot direction.
         transform.LookAt(CueBall.position + forward * 5f);
     }
 }
