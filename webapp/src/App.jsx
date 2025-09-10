@@ -35,7 +35,6 @@ import FreeKickLobby from './pages/Games/FreeKickLobby.jsx';
 import BrickBreaker from './pages/Games/BrickBreaker.jsx';
 import BrickBreakerLobby from './pages/Games/BrickBreakerLobby.jsx';
 import BrickBreaker3DPage from './pages/Games/BrickBreaker3D.jsx';
-import BrickBreaker3DLobby from './pages/Games/BrickBreaker3DLobby.jsx';
 import TetrisRoyale from './pages/Games/TetrisRoyale.jsx';
 import TetrisRoyaleLobby from './pages/Games/TetrisRoyaleLobby.jsx';
 import FruitSliceRoyale from './pages/Games/FruitSliceRoyale.jsx';
@@ -104,10 +103,6 @@ export default function App() {
               element={<BrickBreakerLobby />}
             />
             <Route path="/games/brickbreaker" element={<BrickBreaker />} />
-            <Route
-              path="/games/brickbreaker3d/lobby"
-              element={<BrickBreaker3DLobby />}
-            />
             <Route
               path="/games/brickbreaker3d"
               element={<BrickBreaker3DPage />}
