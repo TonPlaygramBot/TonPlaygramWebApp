@@ -786,26 +786,17 @@ export default function NewSnookerGame() {
         Math.PI
       );
       const updateCamera = () => {
-        const cuePos = cue
-          ? new THREE.Vector3(cue.pos.x, TABLE_Y + BALL_R, cue.pos.y)
-          : new THREE.Vector3(
-              playerOffsetRef.current,
-              TABLE_Y + BALL_R,
-              0
-            );
-        const dir = new THREE.Vector3(
-          Math.sin(sph.theta),
-          0,
-          Math.cos(sph.theta)
+        const target = new THREE.Vector3(
+          playerOffsetRef.current,
+          TABLE_Y + 0.05,
+          0
         );
-        aimDirRef.current.set(dir.x, dir.z).normalize();
-        const look = cuePos.clone().add(dir.multiplyScalar(50));
         if (topViewRef.current) {
-          camera.position.copy(cuePos).add(new THREE.Vector3(0, sph.radius, 0));
-          camera.lookAt(cuePos);
+          camera.position.set(0, sph.radius, 0);
+          camera.lookAt(target);
         } else {
-          camera.position.setFromSpherical(sph).add(cuePos);
-          camera.lookAt(look);
+          camera.position.setFromSpherical(sph).add(target);
+          camera.lookAt(target);
         }
       };
       const fit = (m = 1.1) => {
@@ -963,7 +954,6 @@ export default function NewSnookerGame() {
         return b;
       };
       cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      updateCamera();
       // reds triangle toward top side
       let rid = 0;
       const bz = PLAY_H * 0.25,
@@ -1065,8 +1055,9 @@ export default function NewSnookerGame() {
         return new THREE.Vector2(pt.x, pt.z);
       };
 
-      const aimDir = aimDirRef.current;
-      const tmpAim = new THREE.Vector2();
+        const aimDir = aimDirRef.current;
+        const camFwd = new THREE.Vector3();
+        const tmpAim = new THREE.Vector2();
 
       // In-hand placement
       const free = (x, z) =>
@@ -1224,8 +1215,8 @@ export default function NewSnookerGame() {
 
       // Loop
         const step = () => {
-          const sph = sphRef.current;
-          tmpAim.set(Math.sin(sph.theta), Math.cos(sph.theta)).normalize();
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z).normalize();
           aimDir.lerp(tmpAim, 0.2);
           // Aiming vizual
           if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
