@@ -204,8 +204,8 @@ function Tennis3D({ pAvatar }){
 
       // Camera orbit
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-      // Position camera behind the player so the court runs horizontally across the screen
-      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, 0);
+      // Position camera behind the player so the court runs vertically (net horizontal)
+      sph = new THREE.Spherical(160, (CAM.phiMin + CAM.phiMax) / 2, Math.PI / 2);
       const camTarget = new THREE.Vector3(0, 0, 0);
       const fit = () => {
         let w = host.clientWidth;
@@ -269,7 +269,9 @@ function Tennis3D({ pAvatar }){
       const updatePlayerFromTouch = (t)=>{
         const rect = renderer.domElement.getBoundingClientRect();
         const xNorm = (t.clientX - rect.left) / rect.width;
+        const yNorm = (t.clientY - rect.top) / rect.height;
         player.x = THREE.MathUtils.lerp(-COURT.W/2 + 2, COURT.W/2 - 2, xNorm);
+        player.z = THREE.MathUtils.lerp(2, COURT.L/2 - 2, yNorm);
       };
       const onTouchStart = (e)=>{
         const t = e.touches[0];
@@ -297,7 +299,7 @@ function Tennis3D({ pAvatar }){
         const pos = racket.group.getWorldPosition(new THREE.Vector3());
         const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 6.0) return false;
         // Compose velocity based on aim + power
-        const fwd = isPlayer ? -1 : +1; // player hits towards -Z, AI towards +Z
+        const fwd = isPlayer ? 1 : -1; // player hits towards -Z, AI towards +Z
         const lateral = (isPlayer? player.aimX : THREE.MathUtils.clamp((ball.pos.x - ai.x)/20, -0.7, 0.7)) * 48;
         const depth   = (isPlayer? player.aimZ : 0.55) * (isPlayer? (60 + player.power*60) : 58);
         const up      = isPlayer? (16 + player.power*22) : 14;
