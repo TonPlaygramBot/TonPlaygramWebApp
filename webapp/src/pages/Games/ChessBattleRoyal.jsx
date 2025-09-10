@@ -40,7 +40,8 @@ const COLORS = Object.freeze({
   tileDark: 0x776a5a,
   accent: 0x00e5ff,
   whitePiece: 0xf5f5f7,
-  blackPiece: 0x1c1f26,
+  // Slightly brighter black pieces for better visibility
+  blackPiece: 0x2b2f33,
   highlight: 0x6ee7b7,
   danger: 0xf87171,
   bg: 0x0b0d11
@@ -346,10 +347,107 @@ function anyLegal(board, whiteTurn) {
   return false;
 }
 
+// --------- Simple minimax AI for black ---------
+const PIECE_VALUE = { P: 100, N: 320, B: 330, R: 500, Q: 900, K: 20000 };
+
+function evaluate(board) {
+  let score = 0;
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (!p) continue;
+      const val = PIECE_VALUE[p.t] || 0;
+      score += p.w ? val : -val;
+    }
+  }
+  return score;
+}
+
+function minimax(board, depth, whiteTurn, alpha, beta) {
+  const noMoves = !anyLegal(board, whiteTurn);
+  if (depth === 0 || noMoves) {
+    if (noMoves) {
+      const king = findKing(board, whiteTurn);
+      const inCheck = king && isSquareAttacked(board, king[0], king[1], !whiteTurn);
+      if (inCheck) return whiteTurn ? -Infinity : Infinity;
+      return 0;
+    }
+    return evaluate(board);
+  }
+  if (whiteTurn) {
+    let maxEval = -Infinity;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        if (!p || !p.w) continue;
+        for (const [rr, cc] of legalMoves(board, r, c)) {
+          const b2 = cloneBoard(board);
+          b2[rr][cc] = b2[r][c];
+          b2[r][c] = null;
+          if (b2[rr][cc].t === 'P' && rr === 0) b2[rr][cc].t = 'Q';
+          const evalScore = minimax(b2, depth - 1, false, alpha, beta);
+          maxEval = Math.max(maxEval, evalScore);
+          alpha = Math.max(alpha, evalScore);
+          if (beta <= alpha) break;
+        }
+      }
+    }
+    return maxEval;
+  } else {
+    let minEval = Infinity;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        if (!p || p.w) continue;
+        for (const [rr, cc] of legalMoves(board, r, c)) {
+          const b2 = cloneBoard(board);
+          b2[rr][cc] = b2[r][c];
+          b2[r][c] = null;
+          if (b2[rr][cc].t === 'P' && rr === 7) b2[rr][cc].t = 'Q';
+          const evalScore = minimax(b2, depth - 1, true, alpha, beta);
+          minEval = Math.min(minEval, evalScore);
+          beta = Math.min(beta, evalScore);
+          if (beta <= alpha) break;
+        }
+      }
+    }
+    return minEval;
+  }
+}
+
+function bestBlackMove(board, depth = 3) {
+  let best = null;
+  let bestScore = Infinity;
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (!p || p.w) continue;
+      for (const [rr, cc] of legalMoves(board, r, c)) {
+        const b2 = cloneBoard(board);
+        b2[rr][cc] = b2[r][c];
+        b2[r][c] = null;
+        if (b2[rr][cc].t === 'P' && rr === 7) b2[rr][cc].t = 'Q';
+        const score = minimax(b2, depth - 1, true, -Infinity, Infinity);
+        if (score < bestScore) {
+          bestScore = score;
+          best = { from: [r, c], to: [rr, cc] };
+        }
+      }
+    }
+  }
+  return best;
+}
+
+const formatTime = (t) =>
+  `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+
 // ======================= Main Component =======================
 function Chess3D({ avatar, username }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
+  const timerRef = useRef(null);
+  const [whiteTime, setWhiteTime] = useState(60);
+  const [blackTime, setBlackTime] = useState(5);
 
   const [ui, setUi] = useState({
     turnWhite: true,
@@ -357,6 +455,10 @@ function Chess3D({ avatar, username }) {
     promoting: null,
     winner: null
   });
+  const uiRef = useRef(ui);
+  useEffect(() => {
+    uiRef.current = ui;
+  }, [ui]);
 
   useEffect(() => {
     const host = wrapRef.current;
@@ -523,6 +625,45 @@ function Chess3D({ avatar, username }) {
     let sel = null;
     let legal = [];
 
+    function startTimer(isWhite) {
+      clearInterval(timerRef.current);
+      if (isWhite) {
+        setWhiteTime(60);
+        timerRef.current = setInterval(() => {
+          setWhiteTime((t) => {
+            if (t <= 1) {
+              clearInterval(timerRef.current);
+              setUi((s) => ({ ...s, status: 'White ran out of time', winner: 'Black' }));
+              return 0;
+            }
+            return t - 1;
+          });
+        }, 1000);
+      } else {
+        setBlackTime(5);
+        timerRef.current = setInterval(() => {
+          setBlackTime((t) => {
+            if (t <= 1) {
+              clearInterval(timerRef.current);
+              setUi((s) => ({ ...s, status: 'Black ran out of time', winner: 'White' }));
+              return 0;
+            }
+            return t - 1;
+          });
+        }, 1000);
+      }
+    }
+
+    function applyStatus(nextWhite, status, winner) {
+      setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
+      if (winner) {
+        clearInterval(timerRef.current);
+        return;
+      }
+      startTimer(nextWhite);
+      if (!nextWhite) setTimeout(aiMove, 200);
+    }
+
     function highlightMoves(list, color = COLORS.highlight) {
       list.forEach(([rr, cc]) => {
         const mesh = tiles.find(
@@ -554,7 +695,7 @@ function Chess3D({ avatar, username }) {
     function selectAt(r, c) {
       const p = board[r][c];
       if (!p) return ((sel = null), clearHighlights());
-      if (p.w !== ui.turnWhite) return; // not your turn
+      if (p.w !== uiRef.current.turnWhite) return; // not your turn
       sel = { r, c, p };
       legal = legalMoves(board, r, c);
       clearHighlights();
@@ -590,7 +731,7 @@ function Chess3D({ avatar, username }) {
       );
 
       // turn switch & status
-      const nextWhite = !ui.turnWhite;
+      const nextWhite = !uiRef.current.turnWhite;
       const king = findKing(board, nextWhite);
       const inCheck =
         king && isSquareAttacked(board, king[0], king[1], !nextWhite);
@@ -608,9 +749,17 @@ function Chess3D({ avatar, username }) {
         status = (nextWhite ? 'White' : 'Black') + ' in check';
       }
 
-      setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
+      applyStatus(nextWhite, status, winner);
       sel = null;
       clearHighlights();
+    }
+
+    function aiMove() {
+      const mv = bestBlackMove(board, 3);
+      if (!mv) return;
+      sel = { r: mv.from[0], c: mv.from[1] };
+      legal = legalMoves(board, mv.from[0], mv.from[1]);
+      moveSelTo(mv.to[0], mv.to[1]);
     }
 
     function onClick(e) {
@@ -695,9 +844,13 @@ function Chess3D({ avatar, username }) {
     };
     window.addEventListener('resize', onResize);
 
+    // Start timer for the human player
+    startTimer(true);
+
     return () => {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', onResize);
+      clearInterval(timerRef.current);
       try {
         host.removeChild(renderer.domElement);
       } catch {}
@@ -730,20 +883,19 @@ function Chess3D({ avatar, username }) {
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}
         >
-          Black
+          Black {formatTime(blackTime)}
         </div>
       </div>
       <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
         <div
           className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'bg-white/20' : 'opacity-60'}`}
         >
-          White
+          White {formatTime(whiteTime)}
         </div>
       </div>
 
       <div className="absolute left-3 top-3 text-xs bg-white/10 rounded px-2 py-1 z-10 pointer-events-none">
-        <div className="font-semibold">Chess 3D — {ui.status}</div>
-        <div>Click piece → click destination. Orbit: drag, Zoom: wheel.</div>
+        <div className="font-semibold">{ui.status}</div>
       </div>
       <button
         onClick={() => window.location.reload()}
