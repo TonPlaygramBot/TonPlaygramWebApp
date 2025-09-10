@@ -672,26 +672,7 @@ export default function NewSnookerGame() {
     fireRef.current?.();
   });
 
-  const moveRef = useRef(null);
-  const startMove = (dir) => {
-    const step = 10 * TABLE_SCALE;
-    const move = () => {
-      const fit = fitRef.current;
-      if (!fit || topViewRef.current) return;
-      playerOffsetRef.current = clamp(
-        playerOffsetRef.current + dir * step,
-        -PLAY_W / 2,
-        PLAY_W / 2
-      );
-      fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
-      moveRef.current = requestAnimationFrame(move);
-    };
-    moveRef.current = requestAnimationFrame(move);
-  };
-  const stopMove = () => {
-    if (moveRef.current) cancelAnimationFrame(moveRef.current);
-    moveRef.current = null;
-  };
+  // Removed camera rotation helpers previously triggered by UI buttons
 
   const toggleView = () => {
     const cam = cameraRef.current;
@@ -1513,25 +1494,6 @@ export default function NewSnookerGame() {
         {topView ? '3D' : '2D'}
       </button>
 
-      {/* Camera rotation buttons */}
-      <div className="absolute left-3 bottom-3 flex gap-3 z-50">
-        <button
-          onPointerDown={() => startMove(-1)}
-          onPointerUp={stopMove}
-          onPointerLeave={stopMove}
-          className="w-12 h-12 flex items-center justify-center text-white bg-transparent border border-white rounded-full"
-        >
-          ◀
-        </button>
-        <button
-          onPointerDown={() => startMove(1)}
-          onPointerUp={stopMove}
-          onPointerLeave={stopMove}
-          className="w-12 h-12 flex items-center justify-center text-white bg-transparent border border-white rounded-full"
-        >
-          ▶
-        </button>
-      </div>
     </div>
   );
 }
