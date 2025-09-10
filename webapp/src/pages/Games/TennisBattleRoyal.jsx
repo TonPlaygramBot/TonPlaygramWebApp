@@ -349,13 +349,14 @@ function Tennis3D({ pAvatar }){
 
         // Position rackets
         racketP.group.position.set(player.x, 0, player.z);
-        racketP.group.rotation.y = Math.atan2( (player.aimX*60), 60 );
+        racketP.group.rotation.y = Math.PI / 2 + Math.atan2((player.aimX * 60), 60);
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
         const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W*0.3, COURT.W*0.3);
         ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed*dt, ai.speed*dt);
         racketA.group.position.set(ai.x, 0, ai.z);
+        racketA.group.rotation.y = Math.PI / 2;
 
         // Ball physics
         if(phase==='serve' && keys.current['Space'] && !charging){ charging=true; }
