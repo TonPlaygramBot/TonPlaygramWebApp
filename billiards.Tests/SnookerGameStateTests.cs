@@ -45,5 +45,18 @@ namespace Billiards.Tests
 
             Assert.That(state.GameOver, Is.True);
         }
+
+        [Test]
+        public void GameEndsWhenTargetScoreReached()
+        {
+            var state = new SnookerGameState();
+            state.ResetGame(0, 10);
+
+            state.Foul(7);
+            Assert.That(state.GameOver, Is.False);
+
+            state.Foul(7);
+            Assert.That(state.GameOver, Is.True);
+        }
     }
 }

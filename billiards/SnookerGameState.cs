@@ -28,25 +28,33 @@ namespace TonPlaygram.Billiards
         private int _redsRemaining;
         private bool _expectingColour;
         private int _colourIndex;
+        private int _targetScore;
 
         /// <summary>Scores for the two players.</summary>
         public int[] Scores { get; } = new int[2];
 
+        /// <summary>Optional score limit that must be reached to win the game.</summary>
+        public int TargetScore => _targetScore;
+
         /// <summary>Index of the active player: 0 or 1.</summary>
         public int CurrentPlayer { get; private set; }
 
-        /// <summary>True once all balls have been correctly potted.</summary>
-        public bool GameOver => _redsRemaining == 0 && _colourIndex >= _colourOrder.Length;
+        /// <summary>True once a player reaches the target score or all balls are cleared.</summary>
+        public bool GameOver =>
+            (_targetScore > 0 && (Scores[0] >= _targetScore || Scores[1] >= _targetScore)) ||
+            (_redsRemaining == 0 && _colourIndex >= _colourOrder.Length);
 
         /// <summary>Reset the match to its initial state.</summary>
         /// <param name="reds">Number of reds to begin with, normally 15.</param>
-        public void ResetGame(int reds = 15)
+        /// <param name="targetScore">Optional score to reach before the game ends.</param>
+        public void ResetGame(int reds = 15, int targetScore = 0)
         {
             Scores[0] = Scores[1] = 0;
             CurrentPlayer = 0;
             _redsRemaining = reds;
             _expectingColour = false;
             _colourIndex = 0;
+            _targetScore = targetScore;
         }
 
         /// <summary>

@@ -12,6 +12,9 @@ public class SnookerGameManager : MonoBehaviour
 {
     // Number of reds to begin a frame with.
     public int redsInFrame = 15;
+    // Optional winning score for the match. A value of zero means the frame
+    // ends when all balls are cleared.
+    public int targetScore = 0;
 
     public SnookerGameState State { get; private set; } = new SnookerGameState();
 
@@ -21,7 +24,7 @@ public class SnookerGameManager : MonoBehaviour
 
     private void Awake()
     {
-        State.ResetGame(redsInFrame);
+        State.ResetGame(redsInFrame, targetScore);
     }
 
     /// <summary>Call when a ball has been legally potted.</summary>
@@ -36,7 +39,7 @@ public class SnookerGameManager : MonoBehaviour
     /// <summary>Reset the frame back to its initial state.</summary>
     public void ResetGame()
     {
-        State.ResetGame(redsInFrame);
+        State.ResetGame(redsInFrame, targetScore);
     }
 }
 #endif
