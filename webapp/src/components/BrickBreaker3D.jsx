@@ -38,11 +38,9 @@ export default function BrickBreaker3D({ player }) {
 
     const fitCamera = () => {
       camera.aspect = host.clientWidth/host.clientHeight;
-      // Playfield framing: width x height in world units
-      const W = 8.0, H = 14.0; // portrait board
       // Distance to fit height fully in view at given FOV (with small margin)
-      const margin = 1.15; // 15% breathing room
-      const dist = (H*margin) / (2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+      const margin = 1.05; // minimal breathing room so board fills screen
+      const dist = (BOARD.H * margin) / (2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
       camera.position.set(0, 9, dist + 4);
       camera.lookAt(0, 0.5, 0);
       camera.updateProjectionMatrix();
@@ -55,7 +53,7 @@ export default function BrickBreaker3D({ player }) {
     const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(-6, 12, 8); dir.castShadow = true; scene.add(dir);
 
     // ---------- Playfield ----------
-    const BOARD = { W: 8.0, H: 14.0, wallT: 0.2 };
+    const BOARD = { W: 9.0, H: 16.0, wallT: 0.2 }; // larger board
     const group = new THREE.Group(); scene.add(group);
 
     // Floor
@@ -106,7 +104,7 @@ export default function BrickBreaker3D({ player }) {
     // Physics state
     const S = {
       vel: new THREE.Vector3(0, 0, 0),
-      speed: 6.0, // base speed (world units/sec)
+      speed: 8.0, // slightly faster base speed
       launched: false,
       lives: 3,
       level: 1,
