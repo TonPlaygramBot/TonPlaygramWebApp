@@ -58,5 +58,22 @@ namespace Billiards.Tests
             state.Foul(7);
             Assert.That(state.GameOver, Is.True);
         }
+
+        [Test]
+        public void ClearingBallsDoesNotEndGameBeforeTargetScore()
+        {
+            var state = new SnookerGameState();
+            // Set a target higher than the available points on the table so
+            // the frame would normally be cleared without ending.
+            state.ResetGame(0, 100);
+
+            string[] order = {"yellow", "green", "brown", "blue", "pink", "black"};
+            foreach (var c in order)
+            {
+                state.PotBall(c);
+            }
+
+            Assert.That(state.GameOver, Is.False);
+        }
     }
 }
