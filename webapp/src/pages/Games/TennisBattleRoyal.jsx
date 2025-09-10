@@ -103,10 +103,9 @@ function makeBall(scene){
 function makeRacket(scene, color){
   const g = new THREE.Group();
   const handle = box(0.6, 2.2, 0.6, color); handle.position.set(0, 1.1, 0); g.add(handle);
-  const head = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.25, 12, 24), mat(color,0.6,0.1));
-  head.position.set(0, 2.4, 0.2); g.add(head);
+  const head = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.25, 12, 24), mat(color,0.6,0.1)); head.rotation.x = Math.PI/2; head.position.set(0, 2.4, 0.2); g.add(head);
   const bed  = new THREE.Mesh(new THREE.CircleGeometry(1.6, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.02, transparent:true, opacity:0.3 }));
-  bed.position.set(0, 2.4, 0.21); g.add(bed);
+  bed.rotation.x = -Math.PI/2; bed.position.set(0, 2.4, 0.21); g.add(bed);
   scene.add(g);
   return { group: g };
 }
@@ -329,14 +328,13 @@ function Tennis3D({ pAvatar }){
 
         // Position rackets
         racketP.group.position.set(player.x, 0, player.z);
-        racketP.group.rotation.y = Math.PI + Math.atan2((player.aimX * 60), 60);
+        racketP.group.rotation.y = Math.atan2( (player.aimX*60), 60 );
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
-        const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W * 0.3, COURT.W * 0.3);
-        ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed * dt, ai.speed * dt);
+        const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W*0.3, COURT.W*0.3);
+        ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed*dt, ai.speed*dt);
         racketA.group.position.set(ai.x, 0, ai.z);
-        racketA.group.rotation.y = Math.atan2((ball.pos.x - ai.x) * 60, 60);
 
         // Ball physics
         if(phase==='serve' && keys.current['Space'] && !charging){ charging=true; }
