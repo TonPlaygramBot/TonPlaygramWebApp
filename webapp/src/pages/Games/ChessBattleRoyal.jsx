@@ -7,6 +7,8 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
+import { bombSound } from '../../assets/soundData.js';
+import { getGameVolume } from '../../utils/sound.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -41,13 +43,13 @@ const COLORS = Object.freeze({
   accent: 0x00e5ff,
   whitePiece: 0xf5f5f7,
   // Slightly brighter black pieces for better visibility
-  blackPiece: 0x2b2f33,
+  blackPiece: 0x3c4044,
   highlight: 0x6ee7b7,
   danger: 0xf87171,
   bg: 0x0b0d11
 });
 
-const BOARD = { N: 8, tile: 4.0, rim: 2.2, baseH: 0.8 };
+const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 
 // =============== Materials & simple builders ===============
@@ -446,6 +448,8 @@ function Chess3D({ avatar, username }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
+  const bombSoundRef = useRef(null);
+  const zoomRef = useRef({});
   const [whiteTime, setWhiteTime] = useState(60);
   const [blackTime, setBlackTime] = useState(5);
 
@@ -465,6 +469,12 @@ function Chess3D({ avatar, username }) {
     if (!host) return;
     let scene, camera, renderer, ray, sph;
     let last = performance.now();
+    const capturedByWhite = [];
+    const capturedByBlack = [];
+
+    const vol = getGameVolume();
+    bombSoundRef.current = new Audio(bombSound);
+    bombSoundRef.current.volume = vol;
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -514,6 +524,38 @@ function Chess3D({ avatar, username }) {
       camera.lookAt(0, 0, 0);
     };
     fit();
+
+    zoomRef.current = {
+      zoomIn: () => {
+        const r = sph.radius || 88;
+        sph.radius = clamp(r - 5, CAM.minR, CAM.maxR);
+        fit();
+      },
+      zoomOut: () => {
+        const r = sph.radius || 88;
+        sph.radius = clamp(r + 5, CAM.minR, CAM.maxR);
+        fit();
+      }
+    };
+
+    const createExplosion = (pos) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = '💨';
+      el.className = 'bomb-explosion';
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+      el.style.fontSize = '64px';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '200';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
+    };
 
     // Board base + rim
     const tile = BOARD.tile;
@@ -708,7 +750,23 @@ function Chess3D({ avatar, username }) {
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
-        scene.remove(targetMesh);
+        const worldPos = targetMesh.position.clone();
+        const capturingWhite = board[sel.r][sel.c].w;
+        const zone = capturingWhite ? capturedByWhite : capturedByBlack;
+        const idx = zone.push(targetMesh) - 1;
+        const row = Math.floor(idx / 8);
+        const col = idx % 8;
+        const capX = (col - 3.5) * (tile * 0.5);
+        const capZ = capturingWhite
+          ? half + BOARD.rim + 1 + row * (tile * 0.5)
+          : -half - BOARD.rim - 1 - row * (tile * 0.5);
+        targetMesh.position.set(capX, 0, capZ);
+        targetMesh.scale.set(0.8, 0.8, 0.8);
+        createExplosion(worldPos);
+        if (bombSoundRef.current) {
+          bombSoundRef.current.currentTime = 0;
+          bombSoundRef.current.play().catch(() => {});
+        }
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -856,6 +914,7 @@ function Chess3D({ avatar, username }) {
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
+      bombSoundRef.current?.pause();
     };
   }, []);
 
@@ -903,6 +962,20 @@ function Chess3D({ avatar, username }) {
       >
         Reset
       </button>
+      <div className="absolute right-3 bottom-3 flex flex-col space-y-2 z-10">
+        <button
+          onClick={() => zoomRef.current.zoomIn && zoomRef.current.zoomIn()}
+          className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+        >
+          +
+        </button>
+        <button
+          onClick={() => zoomRef.current.zoomOut && zoomRef.current.zoomOut()}
+          className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+        >
+          -
+        </button>
+      </div>
     </div>
   );
 }
