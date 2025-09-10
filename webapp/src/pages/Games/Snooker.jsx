@@ -135,11 +135,12 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const POCKET_VIS_R = POCKET_R / 0.85;
 // reduce damping so balls retain speed and roll faster
 // slightly higher value keeps velocity longer so balls roll faster
-const FRICTION = 0.995;
+// bumped to let balls travel a touch farther after contact
+const FRICTION = 0.997;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-// factor to boost shot impulse for a snappier break
+// factor to boost shot impulse for a snappier break (50% more power)
 const SHOT_POWER_MULTIPLIER = 1.5;
 
 // slightly brighter colors for table and balls
