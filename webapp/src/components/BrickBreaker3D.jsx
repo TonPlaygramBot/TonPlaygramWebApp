@@ -21,8 +21,11 @@ export default function BrickBreaker3D({ player }) {
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.setSize(host.clientWidth, host.clientHeight, false);
+    // Ensure the canvas element visually matches its drawing buffer so the
+    // game always fills the available space on screen.
+    renderer.setSize(host.clientWidth, host.clientHeight); // update style size
     renderer.shadowMap.enabled = true;
+    renderer.domElement.style.display = "block"; // remove inline gap
     host.appendChild(renderer.domElement);
 
     // ---------- Scene & Camera ----------
@@ -43,7 +46,8 @@ export default function BrickBreaker3D({ player }) {
       camera.position.set(0, 9, dist + 4);
       camera.lookAt(0, 0.5, 0);
       camera.updateProjectionMatrix();
-      renderer.setSize(host.clientWidth, host.clientHeight, false);
+      // Keep renderer canvas in sync with host size on resize events
+      renderer.setSize(host.clientWidth, host.clientHeight);
     };
 
     // ---------- Lights ----------
