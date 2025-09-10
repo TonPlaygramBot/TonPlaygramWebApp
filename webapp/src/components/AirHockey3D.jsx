@@ -25,7 +25,8 @@ export default function AirHockey3D({ player, ai }) {
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.setSize(host.clientWidth, host.clientHeight, false);
+    // ensure canvas CSS size matches the host container
+    renderer.setSize(host.clientWidth, host.clientHeight);
     host.appendChild(renderer.domElement);
 
     // scene & lights
@@ -58,7 +59,8 @@ export default function AirHockey3D({ player, ai }) {
       camera.position.set(cam.x, cam.y, cam.z);
       camera.lookAt(cam.tiltTarget);
       camera.updateProjectionMatrix();
-      renderer.setSize(host.clientWidth, host.clientHeight, false);
+      // keep canvas sized with the host on layout changes
+      renderer.setSize(host.clientWidth, host.clientHeight);
     };
 
     // build table
