@@ -10,11 +10,11 @@ public class BilliardLighting : MonoBehaviour
         plasticMat.color = Color.red;           // change color per ball as needed
         plasticMat.SetFloat("_Metallic", 0f);   // not metallic
         // Make the balls a bit shinier and brighter
-        plasticMat.color *= 1.1f;
-        plasticMat.SetFloat("_Glossiness", 0.9f);
+        plasticMat.color *= 1.15f;
+        plasticMat.SetFloat("_Glossiness", 0.95f);
         plasticMat.SetColor("_SpecColor", Color.white * 1.3f);
 
-        // Apply material and attach three small point lights to each ball
+        // Apply material and attach small point lights to each ball
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
         foreach (GameObject ball in balls)
         {
@@ -24,10 +24,15 @@ public class BilliardLighting : MonoBehaviour
                 renderer.material = plasticMat;
             }
 
-            // Position three point lights in an arc so reflections don't touch
-            CreateHighlightLight(ball.transform, new Vector3(0.5f, 0.8f, 0.6f));
-            CreateHighlightLight(ball.transform, new Vector3(-0.6f, 0.7f, -0.5f));
-            CreateHighlightLight(ball.transform, new Vector3(0.2f, 0.9f, -0.6f));
+            // Position point lights in an arc so reflections don't touch
+            int lightCount = 3;
+            Vector3 basePos = new Vector3(0.5f, 0.8f, 0.6f);
+            for (int i = 0; i < lightCount; i++)
+            {
+                float angle = (i - (lightCount - 1) / 2f) * 30f;
+                Vector3 pos = Quaternion.Euler(0f, 0f, angle) * basePos;
+                CreateHighlightLight(ball.transform, pos);
+            }
         }
     }
 
@@ -39,8 +44,8 @@ public class BilliardLighting : MonoBehaviour
 
         Light pointLight = lightObj.AddComponent<Light>();
         pointLight.type = LightType.Point;
-        pointLight.range = 0.5f;   // keep small so highlights don't overlap
-        pointLight.intensity = 2f;
+        pointLight.range = 0.75f;  // keep small so highlights don't overlap
+        pointLight.intensity = 3f;
         pointLight.shadows = LightShadows.None;
         pointLight.color = Color.white;
     }
