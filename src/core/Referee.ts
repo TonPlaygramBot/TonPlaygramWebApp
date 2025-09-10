@@ -84,11 +84,19 @@ export class Referee {
     }
 
     newState.players[newState.activePlayer].score += scored;
+    if (scored > 0) {
+      newState.currentBreak = (newState.currentBreak || 0) + scored;
+      const p = newState.players[newState.activePlayer];
+      if ((p.highestBreak || 0) < newState.currentBreak) {
+        p.highestBreak = newState.currentBreak;
+      }
+    }
 
     // update next balls
     newState.ballOn = this.rules.computeLegalNext(newState);
 
     if (scored === 0) {
+      newState.currentBreak = 0;
       // turn over
       newState.activePlayer = newState.activePlayer === 'A' ? 'B' : 'A';
       if (newState.phase === 'REDS_AND_COLORS') {
@@ -120,6 +128,7 @@ export class Referee {
     newState.players[opponent].score += points;
     newState.activePlayer = opponent;
     newState.freeBall = false;
+    newState.currentBreak = 0;
     if (newState.phase === 'REDS_AND_COLORS') newState.colorOnAfterRed = false;
     newState.ballOn = this.rules.computeLegalNext(newState);
     return newState;

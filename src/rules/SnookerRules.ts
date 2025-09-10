@@ -27,13 +27,14 @@ export class SnookerRules {
       balls.push({ id: c, color: c, onTable: true, potted: false });
     }
     const players: { A: Player; B: Player } = {
-      A: { id: 'A', name: pA, score: 0 },
-      B: { id: 'B', name: pB, score: 0 },
+      A: { id: 'A', name: pA, score: 0, highestBreak: 0 },
+      B: { id: 'B', name: pB, score: 0, highestBreak: 0 },
     };
     return {
       balls,
       activePlayer: 'A',
       players,
+      currentBreak: 0,
       phase: 'REDS_AND_COLORS',
       redsRemaining: 15,
       colorOnAfterRed: false,

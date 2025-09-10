@@ -54,6 +54,28 @@ describe('Snooker core', () => {
     expect(state.players.A.score).toBe(8);
   });
 
+  test('tracks current and highest break', () => {
+    const rules = new SnookerRules();
+    const ref = new Referee(rules);
+    let state = rules.getInitialFrame('p1', 'p2');
+    state = ref.applyShot(state, [
+      { type: 'HIT', firstContact: 'RED' },
+      { type: 'POTTED', ball: 'RED', pocket },
+    ]);
+    state = ref.applyShot(state, [
+      { type: 'HIT', firstContact: 'BLACK' },
+      { type: 'POTTED', ball: 'BLACK', pocket },
+    ]);
+    expect(state.currentBreak).toBe(8);
+    expect(state.players.A.highestBreak).toBe(8);
+    state = ref.applyShot(state, [
+      { type: 'HIT', firstContact: 'RED' },
+    ]);
+    expect(state.currentBreak).toBe(0);
+    expect(state.activePlayer).toBe('B');
+    expect(state.players.A.highestBreak).toBe(8);
+  });
+
   test('foul minimum four when red on', () => {
     const rules = new SnookerRules();
     const ref = new Referee(rules);
