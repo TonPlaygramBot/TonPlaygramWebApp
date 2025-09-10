@@ -161,7 +161,8 @@ const CAMERA = {
   minR: 95 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
-  maxPhi: Math.PI / 2
+  // keep the camera slightly above the horizontal plane
+  maxPhi: Math.PI / 2 - 0.02
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -171,7 +172,8 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  const r = Math.max(dzH, dzW) * 0.9; // nudge camera slightly closer
+  // Nudge camera closer so the table fills more of the view
+  const r = Math.max(dzH, dzW) * 0.85;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -773,21 +775,27 @@ export default function NewSnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        180 * TABLE_SCALE,
-        1.0 /*phi ~57°*/,
+        170 * TABLE_SCALE,
+        1.05 /* slightly lower angle */,
         Math.PI
       );
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
-        sph.radius = fitRadius(camera, m);
+        const baseR = fitRadius(camera, m);
+        let t =
+          (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
+        let r = baseR * (1 - 0.08 * t);
+        const railLimit = TABLE.THICK * 0.8 + 0.2; // stay above side rails
         const phiCap = Math.acos(
-          THREE.MathUtils.clamp(-0.95 / sph.radius, -1, 1)
+          THREE.MathUtils.clamp(railLimit / r, -1, 1)
         );
         sph.phi = clamp(
           sph.phi,
           CAMERA.minPhi,
           Math.min(phiCap, CAMERA.maxPhi)
         );
+        t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
+        sph.radius = clamp(baseR * (1 - 0.08 * t), CAMERA.minR, CAMERA.maxR);
         const target = new THREE.Vector3(0, TABLE_Y, 0);
         if (topViewRef.current) {
           camera.position.set(0, sph.radius, 0);
