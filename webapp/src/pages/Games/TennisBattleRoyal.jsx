@@ -136,8 +136,8 @@ const SCORE_MAP = [0,15,30,40];
 function ScorePanel({ hud, pAvatar, aAvatar }){
   const point = i => SCORE_MAP[Math.min(i,3)] ?? 40;
   return (
-    <div className="absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
-      <div className="flex items-center gap-4 bg-white/10 rounded px-4 py-2">
+    <div className="absolute top-2 left-0 right-0 flex justify-center pointer-events-none z-10">
+      <div className="flex items-center gap-4 bg-black/60 rounded px-4 py-2">
         <div className="flex flex-col items-center gap-1">
           <img src={pAvatar} alt="You" className="w-8 h-8 rounded-full" />
           <div className="flex gap-1">
@@ -190,10 +190,12 @@ function Tennis3D({ pAvatar }){
       renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.domElement.style.position = 'absolute';
-      renderer.domElement.style.top = '0';
-      renderer.domElement.style.left = '0';
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.top = '-15%';
+      renderer.domElement.style.left = '-5%';
+      renderer.domElement.style.width = '110%';
+      renderer.domElement.style.height = '115%';
+      renderer.domElement.style.zIndex = '0';
+      renderer.domElement.style.touchAction = 'none';
       host.appendChild(renderer.domElement);
 
       scene = new THREE.Scene(); scene.background = new THREE.Color(COLORS.crowd);
@@ -292,7 +294,7 @@ function Tennis3D({ pAvatar }){
       function tryHit(ball, isPlayer){
         const racket = isPlayer ? racketP : racketA;
         const pos = racket.group.getWorldPosition(new THREE.Vector3());
-        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 4.0) return false;
+        const toBall = ball.pos.clone().sub(pos); if(toBall.length() > 6.0) return false;
         // Compose velocity based on aim + power
         const fwd = isPlayer ? -1 : +1; // player hits towards -Z, AI towards +Z
         const lateral = (isPlayer? player.aimX : THREE.MathUtils.clamp((ball.pos.x - ai.x)/20, -0.7, 0.7)) * 48;
@@ -349,13 +351,14 @@ function Tennis3D({ pAvatar }){
 
         // Position rackets
         racketP.group.position.set(player.x, 0, player.z);
-        racketP.group.rotation.y = Math.atan2( (player.aimX*60), 60 );
+        racketP.group.rotation.y = Math.PI/2 + Math.atan2((player.aimX*60), 60);
 
         // AI simple track
         ai.cooldown = Math.max(0, ai.cooldown - dt);
         const targetX = THREE.MathUtils.clamp(ball.pos.x, -COURT.W*0.3, COURT.W*0.3);
         ai.x += THREE.MathUtils.clamp(targetX - ai.x, -ai.speed*dt, ai.speed*dt);
         racketA.group.position.set(ai.x, 0, ai.z);
+        racketA.group.rotation.y = Math.PI/2;
 
         // Ball physics
         if(phase==='serve' && keys.current['Space'] && !charging){ charging=true; }
