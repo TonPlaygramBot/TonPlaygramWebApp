@@ -10,8 +10,7 @@ public static class PhysicsConstants
     public const double ConnectorRestitution = CushionRestitution * 0.25;
     // pocket edges fully absorb balls (no bounce)
     public const double PocketRestitution = 0.0;
-    // reduced damping so balls maintain velocity longer and roll faster
-    public const double Mu = 0.15;                      // linear damping (m/s^2)
+    public const double Mu = 0.2;                      // linear damping (m/s^2)
     public const double TableWidth = 2.84;             // 9ft table internal size
     public const double TableHeight = 1.42;
     public const double FixedDt = 1.0 / 120.0;         // simulation step
