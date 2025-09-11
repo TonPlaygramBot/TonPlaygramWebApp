@@ -80,7 +80,7 @@ export default function AirHockey3D({ player, ai }) {
     // build table
     const group = new THREE.Group();
     // slightly closer to the top
-    group.position.z = 0.1;
+    group.position.z = 0.2;
     scene.add(group);
 
     const floor = new THREE.Mesh(
@@ -198,7 +198,7 @@ export default function AirHockey3D({ player, ai }) {
     // physics state
     const S = {
       vel: new THREE.Vector3(0, 0, 0),
-      friction: 0.98,
+      friction: 0.94,
       lastTouch: 0
     };
 
@@ -268,7 +268,7 @@ export default function AirHockey3D({ player, ai }) {
 
     const reset = towardTop => {
       puck.position.set(0, 0.01, 0);
-      S.vel.set(0, 0, towardTop ? -0.1 : 0.1);
+      S.vel.set(0, 0, towardTop ? -0.05 : 0.05);
       you.position.set(0, 0, TABLE.h * 0.36);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     };
@@ -308,6 +308,8 @@ export default function AirHockey3D({ player, ai }) {
       puck.position.x += S.vel.x;
       puck.position.z += S.vel.z;
       S.vel.multiplyScalar(S.friction);
+      // keep puck speed manageable
+      S.vel.clampLength(0, 0.08);
 
       if (Math.abs(puck.position.x) > TABLE.w / 2 - 0.06) {
         puck.position.x = clamp(
