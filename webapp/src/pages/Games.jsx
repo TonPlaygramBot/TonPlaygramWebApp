@@ -109,6 +109,18 @@ export default function Games() {
               </h3>
             </Link>
             <Link
+              to="/games/tabletennis/lobby"
+              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+            >
+              <div className="h-20 w-20 flex items-center justify-center text-5xl">🏓</div>
+              <h3
+                className="text-sm font-semibold text-center text-yellow-400"
+                style={{ WebkitTextStroke: '1px black' }}
+              >
+                Table Tennis
+              </h3>
+            </Link>
+            <Link
               to="/games/brickbreaker3d"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
             >
