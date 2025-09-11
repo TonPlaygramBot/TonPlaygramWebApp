@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
@@ -36,6 +34,7 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+    renderer.shadowMap.enabled = true;
     // ensure canvas CSS size matches the host container
     const setSize = () => renderer.setSize(host.clientWidth, host.clientHeight);
     setSize(); host.appendChild(renderer.domElement);
@@ -43,7 +42,7 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Scene & Lights ----------
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e14);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1b2233, 0.95));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(-16, 28, 18); scene.add(sun);
+    const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(-16, 28, 18); sun.castShadow = true; scene.add(sun);
     const rim = new THREE.DirectionalLight(0x99ccff, 0.35); rim.position.set(20, 14, -12); scene.add(rim);
 
     // arena spotlights
@@ -58,6 +57,7 @@ export default function TableTennis3D({ player, ai }){
       s.position.set(p[0], p[1], p[2]);
       s.angle = Math.PI / 5;
       s.penumbra = 0.3;
+      s.castShadow = true;
       s.target.position.set(0, 1, 0);
       scene.add(s);
       scene.add(s.target);
@@ -81,7 +81,9 @@ export default function TableTennis3D({ player, ai }){
 
     // Table top
     const table = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.04, T.L), new THREE.MeshStandardMaterial({ color: 0x0e5b85, roughness: 0.92 }));
-    table.position.set(0, T.H, 0); tableG.add(table);
+    table.position.set(0, T.H, 0);
+    table.castShadow = true;
+    tableG.add(table);
 
     // White lines
     const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
@@ -98,14 +100,44 @@ export default function TableTennis3D({ player, ai }){
 
     // Net & posts
     const net = new THREE.Mesh(new THREE.BoxGeometry(T.W, T.NET_H, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent:true, opacity:0.85 }));
-    net.position.set(0, T.H + T.NET_H/2, 0); tableG.add(net);
+    net.position.set(0, T.H + T.NET_H/2, 0);
+    net.castShadow = true;
+    tableG.add(net);
     const postGeo = new THREE.CylinderGeometry(0.015,0.015, T.NET_H+0.1, 18);
-    const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); tableG.add(postL);
+    const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); postL.castShadow = true; tableG.add(postL);
     const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
 
+    // Legs
+    const legH = T.H - 0.02;
+    const legGeo = new THREE.CylinderGeometry(0.04, 0.04, legH, 12);
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+    const legOffsetX = T.W/2 - 0.15;
+    const legOffsetZ = T.L/2 - 0.3;
+    [[-legOffsetX,-legOffsetZ],[legOffsetX,-legOffsetZ],[-legOffsetX,legOffsetZ],[legOffsetX,legOffsetZ]].forEach(([x,z])=>{
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(x, legH/2, z);
+      leg.castShadow = true;
+      tableG.add(leg);
+    });
+
     // floor
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0xc17f65 }));
-    floor.rotation.x = -Math.PI/2; floor.position.y = 0; scene.add(floor);
+    const carpetCanvas = document.createElement('canvas');
+    carpetCanvas.width = carpetCanvas.height = 256;
+    const ctx = carpetCanvas.getContext('2d');
+    ctx.fillStyle = '#8b0000';
+    ctx.fillRect(0,0,256,256);
+    for(let i=0;i<5000;i++){
+      const x = Math.random()*256;
+      const y = Math.random()*256;
+      const shade = 110 + Math.random()*40;
+      ctx.fillStyle = `rgb(${shade},0,0)`;
+      ctx.fillRect(x,y,1,1);
+    }
+    const carpetTex = new THREE.CanvasTexture(carpetCanvas);
+    carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping;
+    carpetTex.repeat.set(8,8);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 }));
+    floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true; scene.add(floor);
     // walls
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xd3d3d3 });
     const wallGeo = new THREE.PlaneGeometry(20, 5);
@@ -113,15 +145,12 @@ export default function TableTennis3D({ player, ai }){
     const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
     const wallLeft = new THREE.Mesh(wallGeo, wallMat); wallLeft.rotation.y = Math.PI/2; wallLeft.position.set(-10, 2.5, 0); scene.add(wallLeft);
     const wallRight = new THREE.Mesh(wallGeo, wallMat); wallRight.rotation.y = -Math.PI/2; wallRight.position.set(10, 2.5, 0); scene.add(wallRight);
-    // wall text
-    const fontLoader = new FontLoader();
-    fontLoader.load("https://threejs.org/examples/fonts/helvetiker_regular.typeface.json", f => {
-      const txtGeo = new TextGeometry("Table Tennis Arena", { font: f, size: 0.6, height: 0.05 });
-      const txtMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-      const txt = new THREE.Mesh(txtGeo, txtMat);
-      txt.position.set(-4, 3.5, -9.99);
-      scene.add(txt);
-    });
+    // wall logo
+    const logoTex = new THREE.TextureLoader().load('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+    const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(4,1.5), logoMat);
+    logo.position.set(0, 3, -9.99);
+    scene.add(logo);
 
     // ---------- Rackets (paddles) ----------
     const PADDLE_SCALE = 2;
@@ -129,9 +158,9 @@ export default function TableTennis3D({ player, ai }){
     function makePaddle(color){
       const g = new THREE.Group();
       const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085*PADDLE_SCALE,0.085*PADDLE_SCALE,0.014*PADDLE_SCALE, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
-      head.rotation.x = Math.PI/2; head.position.y = T.H + 0.07 * PADDLE_SCALE; g.add(head);
+      head.rotation.x = Math.PI/2; head.position.y = T.H + 0.07 * PADDLE_SCALE; head.castShadow = true; g.add(head);
       const handle = new THREE.Mesh(new THREE.BoxGeometry(0.025*PADDLE_SCALE,0.10*PADDLE_SCALE,0.025*PADDLE_SCALE), new THREE.MeshStandardMaterial({ color:0x8b5a2b, roughness:0.8 }));
-      handle.position.set(0, T.H + 0.045 * PADDLE_SCALE, 0.07 * PADDLE_SCALE); g.add(handle);
+      handle.position.set(0, T.H + 0.045 * PADDLE_SCALE, 0.07 * PADDLE_SCALE); handle.castShadow = true; g.add(handle);
       return g;
     }
 
@@ -142,6 +171,7 @@ export default function TableTennis3D({ player, ai }){
 
     // ---------- Ball ----------
     const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 24, 20), new THREE.MeshStandardMaterial({ color: 0xffe14a, roughness: 0.4 }));
+    ball.castShadow = true;
     tableG.add(ball);
 
     // ---------- Physics State ----------
