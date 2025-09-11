@@ -78,7 +78,7 @@ public class BilliardLighting : MonoBehaviour
         Light spotLight = lightObj.AddComponent<Light>();
         spotLight.type = LightType.Spot;
         spotLight.cookie = Texture2D.whiteTexture; // square reflection
-        const float sizeMultiplier = 5f;            // enlarge highlight to 5x
+        const float sizeMultiplier = 0.2f;          // 5x smaller highlight
         spotLight.range = 2.5f * sizeMultiplier;
         spotLight.intensity = 3f;
         spotLight.spotAngle = 10f * sizeMultiplier;
