@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { getTelegramUsername, getTelegramPhotoUrl } from "../../utils/telegram.js";
+import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
+import { avatarToName } from "../../utils/avatarUtils.js";
 
 /**
  * TENNIS 3D — Mobile Portrait (1:1)
@@ -7,7 +10,7 @@ import * as THREE from "three";
  * • Full phone screen (100dvh), portrait-only; zero overflow.
  * • Official court ratio (singles): 23.77m x 8.23m, full markings.
  * • Middle hexagonal net (visual hex mask + thin collision bar).
- * • Controls: 1‑finger drag to move your racket (bottom half). Pinch to zoom, two‑finger drag to orbit.
+ * • Controls: 1‑finger drag to move your racket (bottom half). Two‑finger drag to orbit.
  * • Basic rally logic vs simple AI on the top side. Scoring 0–15–30–40–Game, service swaps each game.
  */
 
@@ -16,12 +19,27 @@ export default function TennisBattleRoyal(){
   const raf = useRef(0);
 
   const [ui, setUi] = useState({
-    player: 0,
-    opp: 0,
+    playerPts: 0,
+    oppPts: 0,
+    playerGames: 0,
+    oppGames: 0,
+    playerSets: 0,
+    oppSets: 0,
     serving: 'P', // P or O
-    msg: 'Drag to move • Pinch zoom • Two‑finger orbit',
+    msg: 'Drag to move • Two‑finger orbit',
     gameOver: false,
   });
+  const uiRef = useRef(ui);
+  const [userName, setUserName] = useState('');
+  const [userPhoto, setUserPhoto] = useState('');
+  const [aiFlag, setAiFlag] = useState('🇺🇸');
+
+  useEffect(() => {
+    setUserName(getTelegramUsername() || 'You');
+    setUserPhoto(getTelegramPhotoUrl() || '');
+    setAiFlag(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
+  }, []);
+  useEffect(() => { uiRef.current = ui; }, [ui]);
 
   useEffect(()=>{
     const host = hostRef.current; if (!host) return;
@@ -53,7 +71,7 @@ export default function TennisBattleRoyal(){
 
     // ---------------- Court dims (meters) ----------------
     const C = { L: 23.77, W: 8.23, NET_H: 0.914, SVC_DIST: 6.40, BASE: 11.885 };
-    const SCALE = 0.6; // fit portrait nicely (world units = meters * SCALE)
+    const SCALE = 0.9; // enlarged 50% (world units = meters * SCALE)
     const S = SCALE;
 
     const court = new THREE.Group(); court.scale.set(S,S,S); scene.add(court);
@@ -134,9 +152,8 @@ export default function TennisBattleRoyal(){
       faults: 0,
     };
 
-    function placeForServe(){
+    function placeForServe(side=uiRef.current.serving){
       Sx.v.set(0,0,0); Sx.w.set(0,0,0); Sx.state='serve';
-      const side = ui.serving;
       if (side==='P'){ ball.position.set(player.position.x, 0.5,  C.BASE - 0.6); }
       else            { ball.position.set(opp.position.x,    0.5, -C.BASE + 0.6); }
     }
@@ -158,7 +175,7 @@ export default function TennisBattleRoyal(){
       const dx=t.clientX-swipeStart.x;
       const dy=swipeStart.y-t.clientY;
       if (Math.hypot(dx,dy)>20){
-        if (Sx.state==='serve' && ui.serving==='P'){
+        if (Sx.state==='serve' && uiRef.current.serving==='P'){
           Sx.v.set(dx*0.02, 4 + Math.abs(dy)*0.01, -dy*0.05);
           Sx.state='rally';
           Sx.last='P';
@@ -179,19 +196,18 @@ export default function TennisBattleRoyal(){
     renderer.domElement.addEventListener('mousemove',  onMove);
     window.addEventListener('mouseup', onUp);
 
-    // ---------------- Pinch zoom + two‑finger orbit ----------------
-    let pinchStart=null, last2=null;
-    function dist(a,b){ const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.hypot(dx,dy); }
+    // ---------------- Two‑finger orbit ----------------
+    let last2=null;
     const onGesture=(e)=>{
       if (e.touches && e.touches.length===2){ e.preventDefault(); const a=e.touches[0], b=e.touches[1];
-        if(!pinchStart){ pinchStart = dist(a,b); last2={ax:a.clientX,ay:a.clientY,bx:b.clientX,by:b.clientY}; }
+        if(!last2){ last2={ax:a.clientX,ay:a.clientY,bx:b.clientX,by:b.clientY}; }
         else{
-          const d=dist(a,b); const scale=d/pinchStart; camRig.dist = THREE.MathUtils.clamp(26/scale, 14, 48);
-          const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2; const dx=cx-((last2.ax+last2.bx)/2); const dy=cy-((last2.ay+last2.by)/2);
+          const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
+          const dx=cx-((last2.ax+last2.bx)/2); const dy=cy-((last2.ay+last2.by)/2);
           camRig.yaw  -= dx*0.004; camRig.pitch = THREE.MathUtils.clamp(camRig.pitch + dy*0.003, 0.12, 0.62);
           last2={ax:a.clientX,ay:a.clientY,bx:b.clientX,by:b.clientY};
         }
-      } else { pinchStart=null; last2=null; }
+      } else { last2=null; }
     };
     renderer.domElement.addEventListener('touchmove', onGesture, { passive:false });
 
@@ -258,15 +274,34 @@ export default function TennisBattleRoyal(){
     }
 
     // ---------------- Scoring ----------------
-    function resetGameIfWon(){
-      const p=ui.player, o=ui.opp; const winP = (p>=4 && p-o>=2); const winO = (o>=4 && o-p>=2);
-      if (winP || winO){ setUi(s=>({ ...s, msg: winP? 'Game You!':'Game AI', player:0, opp:0, serving: s.serving==='P'?'O':'P' })); placeForServe(); }
-    }
     function awardPoint(who, reason){
-      if (who==='P') setUi(s=>({ ...s, player: s.player+1, msg: `You +1 (${reason})` }));
-      else           setUi(s=>({ ...s, opp:    s.opp+1,    msg: `AI +1 (${reason})` }));
-      placeForServe();
-      setTimeout(resetGameIfWon, 0);
+      let serveSide = 'P';
+      setUi(s=>{
+        if(s.gameOver) return s;
+        const ns={...s};
+        if (who==='P'){ ns.playerPts++; ns.msg=`You +1 (${reason})`; }
+        else           { ns.oppPts++;    ns.msg=`AI +1 (${reason})`; }
+
+        if(ns.playerPts>=4 && ns.playerPts-ns.oppPts>=2){
+          ns.playerGames++; ns.playerPts=0; ns.oppPts=0; ns.serving = ns.serving==='P'?'O':'P'; ns.msg='Game You!';
+        } else if(ns.oppPts>=4 && ns.oppPts-ns.playerPts>=2){
+          ns.oppGames++; ns.playerPts=0; ns.oppPts=0; ns.serving = ns.serving==='P'?'O':'P'; ns.msg='Game AI';
+        }
+
+        if(ns.playerGames>=6 && ns.playerGames-ns.oppGames>=2){
+          ns.playerSets++; ns.playerGames=0; ns.oppGames=0; ns.msg='Set You!';
+        } else if(ns.oppGames>=6 && ns.oppGames-ns.playerGames>=2){
+          ns.oppSets++; ns.playerGames=0; ns.oppGames=0; ns.msg='Set AI';
+        }
+
+        if(ns.playerSets>=2 || ns.oppSets>=2){
+          ns.gameOver=true; ns.msg = ns.playerSets>ns.oppSets? 'Match You!':'Match AI';
+        }
+        serveSide = ns.serving;
+        uiRef.current = ns;
+        return ns;
+      });
+      placeForServe(serveSide);
     }
 
     // ---------------- Loop ----------------
@@ -278,7 +313,7 @@ export default function TennisBattleRoyal(){
       // AI move
       stepAI(dt);
       // Auto-serve for AI only; player serves via swipe
-      if (Sx.state==='serve' && ui.serving==='O'){
+      if (Sx.state==='serve' && uiRef.current.serving==='O'){
         Sx.v.set(0.0, 3.0, 2.4);
         Sx.state='rally';
         Sx.last = 'O';
@@ -320,10 +355,24 @@ export default function TennisBattleRoyal(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const aiName = avatarToName(aiFlag) || 'AI';
+  const serverName = ui.serving==='P' ? userName : aiName;
   return (
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 rounded px-2 py-1 whitespace-nowrap">
-        You {toTennis(ui.player)} : {toTennis(ui.opp)} AI • Serve: {ui.serving==='P'? 'You':'AI'} — {ui.msg}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1">
+            {userPhoto && <img src={userPhoto} className="w-4 h-4 rounded-full" />}
+            <span>{userName}</span>
+            <span className="ml-1">{ui.playerSets}-{ui.playerGames}-{toTennis(ui.playerPts)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-lg">{aiFlag}</span>
+            <span>{aiName}</span>
+            <span className="ml-1">{ui.oppSets}-{ui.oppGames}-{toTennis(ui.oppPts)}</span>
+          </div>
+        </div>
+        <div className="text-center mt-1">Serve: {serverName} — {ui.msg}</div>
       </div>
       <button onClick={()=>window.location.reload()} className="absolute left-2 bottom-2 text-white text-[11px] bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
     </div>
