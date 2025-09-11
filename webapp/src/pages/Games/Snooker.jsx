@@ -467,12 +467,15 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
+    const cut = (railW / 2) / Math.tan(THREE.MathUtils.degToRad(30));
     const shape = new THREE.Shape();
-    shape.moveTo(-half, -railW / 2);
-    shape.lineTo(half, -railW / 2);
-    shape.lineTo(half, railW / 2);
-    shape.lineTo(-half, railW / 2);
-    shape.lineTo(-half, -railW / 2);
+    shape.moveTo(-half + cut, -railW / 2);
+    shape.lineTo(half - cut, -railW / 2);
+    shape.quadraticCurveTo(half, -railW / 2, half, 0);
+    shape.quadraticCurveTo(half, railW / 2, half - cut, railW / 2);
+    shape.lineTo(-half + cut, railW / 2);
+    shape.quadraticCurveTo(-half, railW / 2, -half, 0);
+    shape.quadraticCurveTo(-half, -railW / 2, -half + cut, -railW / 2);
     return new THREE.ExtrudeGeometry(shape, {
       depth: railH,
       bevelEnabled: false
@@ -490,7 +493,19 @@ function Table3D(scene) {
       'uv2',
       new THREE.BufferAttribute(clothGeo.attributes.uv.array, 2)
     );
-    // full-size cushion so all side faces remain green
+    // shape cushion to a point and carve underside
+    const pos = clothGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      if (z > 0) {
+        const t = 1 - Math.abs(y) / (railW / 2);
+        pos.setZ(i, z + t * railW * 0.2);
+      } else {
+        pos.setZ(i, z * 0.7);
+      }
+    }
+    clothGeo.computeVertexNormals();
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
     cloth.rotation.x = -Math.PI / 2; // green faces play field
     const clothOffset = TABLE.THICK - railH;
@@ -581,11 +596,11 @@ function Table3D(scene) {
   floor.receiveShadow = true;
   table.add(floor);
 
-  // Arena walls without billboards (only two sides visible)
+  // Tall arena walls around the carpet
   const arena = new THREE.Group();
   const arenaW = TABLE.W * 6;
   const arenaD = TABLE.H * 6;
-  const wallH = TABLE.H * 0.6;
+  const wallH = TABLE.H;
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x111111,
     roughness: 0.8,
@@ -606,7 +621,13 @@ function Table3D(scene) {
   const south = makeWall(arenaW);
   south.position.z = arenaD / 2;
   south.rotation.y = Math.PI;
-  arena.add(north, south);
+  const east = makeWall(arenaD);
+  east.position.x = arenaW / 2;
+  east.rotation.y = -Math.PI / 2;
+  const west = makeWall(arenaD);
+  west.position.x = -arenaW / 2;
+  west.rotation.y = Math.PI / 2;
+  arena.add(north, south, east, west);
   table.add(arena);
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
