@@ -1142,6 +1142,7 @@ export default function NewSnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, BALL_R, cue.pos.y + 0.9 * SCALE);
+      cueStick.rotation.y = Math.PI; // tip faces the cue ball
       cueStick.visible = false;
       table.add(cueStick);
 
