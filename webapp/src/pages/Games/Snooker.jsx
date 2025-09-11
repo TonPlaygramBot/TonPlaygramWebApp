@@ -1004,6 +1004,21 @@ export default function NewSnookerGame() {
       key.shadow.camera.bottom = -d;
       scene.add(key);
 
+      // Overhead spotlights for ball reflections
+      const spotHeight = 90;
+      const halfLen = PLAY_H / 2;
+      [0, -halfLen, halfLen].forEach((z) => {
+        const s = new THREE.SpotLight(0xffffff, 0.6);
+        s.position.set(0, spotHeight, z);
+        s.angle = Math.PI / 5;
+        s.penumbra = 0.3;
+        // purely cosmetic: no shadows or visible fixtures
+        s.castShadow = false;
+        s.target.position.set(0, 0, z);
+        scene.add(s);
+        scene.add(s.target);
+      });
+
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
 
