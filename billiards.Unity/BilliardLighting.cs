@@ -38,10 +38,12 @@ public class BilliardLighting : MonoBehaviour
             {
                 Material source = renderer.material;
                 Material mat = new Material(standard);
-                mat.color = source.color * 1.2f;        // slightly brighter
+                mat.color = source.color * 1.5f;        // brighter base colour
                 mat.SetFloat("_Metallic", 0f);
-                mat.SetFloat("_Glossiness", 0.8f);
+                mat.SetFloat("_Glossiness", 0.5f);     // wider specular highlight
                 mat.SetColor("_SpecColor", Color.white * 1.4f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", source.color * 0.25f);
                 renderer.material = mat;
             }
 
@@ -74,8 +76,8 @@ public class BilliardLighting : MonoBehaviour
 
         Light pointLight = lightObj.AddComponent<Light>();
         pointLight.type = LightType.Point;
-        pointLight.range = 1.5f;  // keep small so highlights don't overlap
-        pointLight.intensity = 2f;
+        pointLight.range = 2.5f;  // allow larger reflection area
+        pointLight.intensity = 3f; // stronger highlight
         pointLight.shadows = LightShadows.None;
         pointLight.color = Color.white;
         pointLight.renderMode = LightRenderMode.ForcePixel;
