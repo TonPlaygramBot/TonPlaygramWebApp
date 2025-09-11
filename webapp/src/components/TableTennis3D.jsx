@@ -50,8 +50,8 @@ export default function TableTennis3D({ player, ai }){
     const camRig = { dist: 6.8, height: 2.4, yaw: 0, pitch: 0.28 };
     const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
 
-    // ---------- Table dimensions match Air Hockey field ----------
-    const T = { L: 5.76, W: 2.2, H: 0.76, NET_H: 0.1525 };
+    // ---------- Table dimensions (expanded 30% length, 20% width) ----------
+    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.76, NET_H: 0.1525 };
 
     // Use a 1:1 scale since size already matches the field
     const S = 1;
@@ -87,32 +87,32 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Rackets (paddles) ----------
     function makePaddle(color){
       const g = new THREE.Group();
-      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.012, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,0.014, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
       head.rotation.x = Math.PI/2; head.position.y = T.H + 0.07; g.add(head);
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.02,0.09,0.02), new THREE.MeshStandardMaterial({ color:0x8b5a2b, roughness:0.8 }));
-      handle.position.set(0, T.H + 0.04, 0.06); g.add(handle);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.025,0.10,0.025), new THREE.MeshStandardMaterial({ color:0x8b5a2b, roughness:0.8 }));
+      handle.position.set(0, T.H + 0.045, 0.07); g.add(handle);
       return g;
     }
 
     const player = makePaddle(0xff4d6d); tableG.add(player);
     const opp    = makePaddle(0x49dcb1); tableG.add(opp);
-    player.position.z =  T.L/2 - 0.25; player.position.x = 0;
-    opp.position.z    = -T.L/2 + 0.25; opp.position.x    = 0;
+    player.position.z =  T.L/2 - 0.325; player.position.x = 0;
+    opp.position.z    = -T.L/2 + 0.325; opp.position.x    = 0;
 
     // ---------- Ball ----------
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.02, 24, 20), new THREE.MeshStandardMaterial({ color: 0xffe14a, roughness: 0.4 }));
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.024, 24, 20), new THREE.MeshStandardMaterial({ color: 0xffe14a, roughness: 0.4 }));
     tableG.add(ball);
 
     // ---------- Physics State ----------
-    const Srv = { side: ui.serving }; // P or O (mutable copy)
-    const Sx = {
+      const Srv = { side: ui.serving }; // P or O (mutable copy)
+      const Sx = {
       v: new THREE.Vector3(0,0,0),
       w: new THREE.Vector3(0,0,0), // spin (rad/s) — very simplified Magnus
       gravity: new THREE.Vector3(0,-9.81,0),
-      air: 0.995,
-      magnus: 0.18,
-      tableRest: 0.88,
-      paddleRest: 1.02,
+      air: 0.998,
+      magnus: 0.12,
+      tableRest: 0.9,
+      paddleRest: 1.1,
       netRest: 0.3,
       state: 'serve', // serve | rally | dead
       lastTouch: null, // 'P' or 'O'
@@ -121,11 +121,11 @@ export default function TableTennis3D({ player, ai }){
     function resetServe(){
       Sx.v.set(0,0,0); Sx.w.set(0,0,0); Sx.state='serve'; Sx.lastTouch=null;
       const side = Srv.side;
-      if (side==='P'){
-        ball.position.set(player.position.x, T.H + 0.12, T.L/2 - 0.32);
-      } else {
-        ball.position.set(opp.position.x, T.H + 0.12, -T.L/2 + 0.32);
-      }
+        if (side==='P'){
+          ball.position.set(player.position.x, T.H + 0.12, T.L/2 - 0.416);
+        } else {
+          ball.position.set(opp.position.x, T.H + 0.12, -T.L/2 + 0.416);
+        }
     }
 
     // ---------- Input: Drag to move (player) ----------
@@ -182,7 +182,7 @@ export default function TableTennis3D({ player, ai }){
     };
 
     // ---------- AI ----------
-    const AI = { speed: 2.8, react: 0.08, targetX: 0, targetZ: -T.L/2 + 0.22, timer:0 };
+    const AI = { speed: 2.8, react: 0.08, targetX: 0, targetZ: -T.L/2 + 0.286, timer:0 };
 
     function stepAI(dt){
       AI.timer -= dt; if (AI.timer <= 0){
@@ -197,7 +197,7 @@ export default function TableTennis3D({ player, ai }){
       }
       const dx = AI.targetX - opp.position.x; opp.position.x += THREE.MathUtils.clamp(dx, -AI.speed*dt, AI.speed*dt);
       // keep Z near its baseline
-      opp.position.z = -T.L/2 + 0.25;
+      opp.position.z = -T.L/2 + 0.325;
     }
 
     // ---------- Collisions ----------
@@ -216,7 +216,7 @@ export default function TableTennis3D({ player, ai }){
     function hitPaddle(paddle, who){
       // approximate as circle vs cylinder head
       const head = paddle.children[0];
-      const R = 0.075; const B = 0.02; // ball radius
+      const R = 0.085; const B = 0.024; // ball radius
       const dx = (ball.position.x - head.position.x) - paddle.position.x;
       const dz = (ball.position.z - head.position.z) - paddle.position.z;
       const dy = (ball.position.y - head.position.y);
@@ -309,10 +309,10 @@ export default function TableTennis3D({ player, ai }){
         if (Sx.state==='serve'){
           if (Srv.side==='P'){
             // light toss upwards to allow player hit
-            Sx.v.y = 1.8; Sx.v.z = -0.4; Sx.state='rally';
+            Sx.v.y = 1.8; Sx.v.z = -0.5; Sx.state='rally';
           } else {
             // AI serve towards player
-            Sx.v.set((Math.random()-0.5)*0.8, 1.8, 0.9); Sx.state='rally';
+            Sx.v.set((Math.random()-0.5)*0.8, 1.8, 1.1); Sx.state='rally';
           }
         }
       }
