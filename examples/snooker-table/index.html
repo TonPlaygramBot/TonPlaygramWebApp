@@ -92,6 +92,15 @@
             m[10] = z;
             return m;
           },
+          rotY: (a) => {
+            const c = Math.cos(a), s = Math.sin(a);
+            const m = M.ident();
+            m[0] = c;
+            m[2] = s;
+            m[8] = -s;
+            m[10] = c;
+            return m;
+          },
           perspective: (fov, aspect, n, f) => {
             const t = Math.tan(fov / 2);
             const m = new Float32Array(16);
@@ -484,7 +493,7 @@ precision mediump float;varying vec3 vCol;void main(){gl_FragColor=vec4(vCol,1.0
           railW: 0.012,
           railH: 0.06,
           cushionH: 0.06,
-          cushionD: 0.06,
+          cushionD: 0.08,
           baseH: 0.44,
           legH: 0.82,
           legR: 0.39,
@@ -617,6 +626,11 @@ precision mediump float;varying vec3 vCol;void main(){gl_FragColor=vec4(vCol,1.0
           );
           const y = feltTopY - Dim.pocketDepth * 0.35 + UPPER_Y_OFFSET,
             rimY = feltTopY + 0.006 + UPPER_Y_OFFSET + RAIL_UP;
+          const jawDepth = Dim.cushionD * 1.2,
+            jawWidth = Dim.railW * 2,
+            jawHeight = Dim.cushionH,
+            jawGeom = box(jawDepth, jawHeight, jawWidth),
+            jawAngle = M.rad(30);
           const pts = [
             [-Dim.playX / 2, -Dim.playZ / 2],
             [Dim.playX / 2, -Dim.playZ / 2],
@@ -625,6 +639,13 @@ precision mediump float;varying vec3 vCol;void main(){gl_FragColor=vec4(vCol,1.0
             [0, -Dim.playZ / 2],
             [0, Dim.playZ / 2]
           ];
+          const addJaw = (x, z, ang) => {
+            const off = jawDepth / 2;
+            const cx = x + Math.cos(ang) * off;
+            const cz = z + Math.sin(ang) * off;
+            const model = M.mult(M.trans(cx, rimY - jawHeight / 2, cz), M.rotY(ang));
+            meshes.push(new Mesh(xform(jawGeom, model), Col.cushion));
+          };
           pts.forEach(([x, z]) => {
             meshes.push(new Mesh(xform(cone, M.trans(x, y, z)), Col.pocket));
             const angle = Math.atan2(z, x);
@@ -636,6 +657,8 @@ precision mediump float;varying vec3 vCol;void main(){gl_FragColor=vec4(vCol,1.0
               56
             );
             meshes.push(new Mesh(xform(rim, M.trans(x, rimY, z)), Col.rim));
+            addJaw(x, z, angle + jawAngle);
+            addJaw(x, z, angle - jawAngle);
           });
         }
 
