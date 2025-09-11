@@ -78,8 +78,8 @@ export default function TennisBattleRoyal(){
     const court = new THREE.Group();
     court.scale.set(S, S, S);
     scene.add(court);
-    // Lift the entire court slightly so it's closer to the top of the screen
-    court.position.y = 0.6;
+    // Lift the entire court slightly more so it's closer to the top of the screen
+    court.position.y = 1.0;
 
     // Visual court elements wrapped in a separate group so we can flip the court
     const field = new THREE.Group();
@@ -128,16 +128,20 @@ export default function TennisBattleRoyal(){
     const netCol = new THREE.Mesh(new THREE.BoxGeometry(C.W, C.NET_H, 0.03), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.02 }));
     netCol.position.set(0, C.NET_H/2, 0); netGroup.add(netCol);
 
-    // ---------------- Emoji textures ----------------
-    const racketTex = new THREE.CanvasTexture(makeRacketTexture(256));
-
-    // ---------------- Rackets (emoji on head) ----------------
+    // ---------------- Rackets ----------------
     function makeRacket(){
       const g = new THREE.Group();
-      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.02, 28), new THREE.MeshStandardMaterial({ color: 0xffffff, map: racketTex }));
+      const head = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.18, 0.02, 28),
+        new THREE.MeshStandardMaterial({ color: 0xffffff })
+      );
       head.rotation.x = Math.PI/2; head.position.y = 0.16; g.add(head);
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), new THREE.MeshStandardMaterial({ color: 0x8c5a2b, roughness: 0.85 }));
+      const handle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.3, 0.05),
+        new THREE.MeshStandardMaterial({ color: 0x8c5a2b, roughness: 0.85 })
+      );
       handle.position.set(0, 0.08, 0.12); g.add(handle);
+      g.scale.setScalar(3);
       return g;
     }
 
@@ -413,27 +417,7 @@ export default function TennisBattleRoyal(){
   );
 }
 
-// ---------- Helpers: emoji texture & hex net texture ----------
-function makeEmoji(char, size=256){
-  const c=document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
-  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
-  ctx.font=`${size*0.8}px system-ui, Apple Color Emoji, Segoe UI Emoji`; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle='#000000'; ctx.fillText(char, size/2, size/2+size*0.04);
-  return c;
-}
-
-function makeRacketTexture(size=256){
-  const c = makeEmoji('🎾', size);
-  const ctx = c.getContext('2d');
-  // Erase the small ball portion of the emoji so only the racket remains
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.beginPath();
-  ctx.arc(size * 0.72, size * 0.28, size * 0.18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = 'source-over';
-  return c;
-}
-
+// ---------- Hex net texture ----------
 function makeHexTexture(w=1024,h=256,r=10){
   const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
   x.fillStyle='rgba(255,255,255,0)'; x.fillRect(0,0,w,h);
