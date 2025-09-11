@@ -166,6 +166,8 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
+// angle for cushion cuts guiding balls into pockets
+const CUSHION_CUT_ANGLE = 30;
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
@@ -467,15 +469,15 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
-    const cut = (railW / 2) / Math.tan(THREE.MathUtils.degToRad(30));
+    const cut = (railW / 2) / Math.tan(THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE));
     const shape = new THREE.Shape();
+    // Straight section between pocket cuts
     shape.moveTo(-half + cut, -railW / 2);
     shape.lineTo(half - cut, -railW / 2);
-    shape.quadraticCurveTo(half, -railW / 2, half, 0);
-    shape.quadraticCurveTo(half, railW / 2, half - cut, railW / 2);
+    // rounded cut around each pocket rim
+    shape.absarc(half - cut, 0, railW / 2, -Math.PI / 2, Math.PI / 2, false);
     shape.lineTo(-half + cut, railW / 2);
-    shape.quadraticCurveTo(-half, railW / 2, -half, 0);
-    shape.quadraticCurveTo(-half, -railW / 2, -half + cut, -railW / 2);
+    shape.absarc(-half + cut, 0, railW / 2, Math.PI / 2, -Math.PI / 2, false);
     return new THREE.ExtrudeGeometry(shape, {
       depth: railH,
       bevelEnabled: false
@@ -493,7 +495,7 @@ function Table3D(scene) {
       'uv2',
       new THREE.BufferAttribute(clothGeo.attributes.uv.array, 2)
     );
-    // shape cushion to a point and carve underside
+    // shape cushion to a point and carve underside diagonally
     const pos = clothGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
@@ -502,7 +504,8 @@ function Table3D(scene) {
         const t = 1 - Math.abs(y) / (railW / 2);
         pos.setZ(i, z + t * railW * 0.2);
       } else {
-        pos.setZ(i, z * 0.7);
+        const t = Math.abs(y) / (railW / 2);
+        pos.setZ(i, z * 0.7 - t * railW * 0.1);
       }
     }
     clothGeo.computeVertexNormals();
@@ -600,7 +603,7 @@ function Table3D(scene) {
   const arena = new THREE.Group();
   const arenaW = TABLE.W * 6;
   const arenaD = TABLE.H * 6;
-  const wallH = TABLE.H;
+  const wallH = TABLE.H * 1.5; // higher side walls around carpet
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x111111,
     roughness: 0.8,
