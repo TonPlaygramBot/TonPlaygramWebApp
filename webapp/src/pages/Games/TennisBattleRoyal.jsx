@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { buildRacket, buildTennisBall, BALL_DIAMETER_CM } from "../../utils/tennisGear.js";
 
 /**
  * TENNIS 3D — Mobile Portrait (1:1)
@@ -15,6 +14,7 @@ import { buildRacket, buildTennisBall, BALL_DIAMETER_CM } from "../../utils/tenn
 export default function TennisBattleRoyal(){
   const hostRef = useRef(null);
   const raf = useRef(0);
+
   const [ui, setUi] = useState({
     player: 0,
     opp: 0,
@@ -55,7 +55,7 @@ export default function TennisBattleRoyal(){
 
     const court = new THREE.Group(); court.scale.set(S,S,S); scene.add(court);
 
-    // Court surface
+    // Court surface (green/blue split optional)
     const surf = new THREE.Mesh(new THREE.BoxGeometry(C.W, 0.1, C.L), new THREE.MeshStandardMaterial({ color: 0x2a8f3a, roughness: 0.95 }));
     surf.position.set(0, -0.05, 0); court.add(surf);
 
@@ -63,67 +63,71 @@ export default function TennisBattleRoyal(){
     const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
     const mk = (w,h,d,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), lineMat); m.position.set(x,y,z); court.add(m); };
     const t = 0.05; // 5 cm lines
-    // Baselines
+    // Baselines (z = ±BASE)
     mk(C.W, 0.02, t, 0, 0.01,  C.BASE);
     mk(C.W, 0.02, t, 0, 0.01, -C.BASE);
-    // Singles sidelines
+    // Singles sidelines (x = ±W/2)
     mk(t, 0.02, C.L, -C.W/2, 0.01, 0);
     mk(t, 0.02, C.L,  C.W/2, 0.01, 0);
-    // Service lines
+    // Service lines (z = ±SVC_DIST)
     mk(C.W, 0.02, t, 0, 0.01,  C.SVC_DIST);
     mk(C.W, 0.02, t, 0, 0.01, -C.SVC_DIST);
-    // Center service line
+    // Center service line (x=0 between service lines only)
     mk(t, 0.02, (C.SVC_DIST*2), 0, 0.01, 0);
-    // Center marks
+    // Center marks at baselines (short)
     mk(0.2, 0.02, t, 0, 0.01,  C.BASE);
     mk(0.2, 0.02, t, 0, 0.01, -C.BASE);
 
     // ---------------- Net: hex visual + collision bar ----------------
     const netGroup = new THREE.Group(); court.add(netGroup);
-    const hexTex = makeHexTexture(1024, 256, 10);
+    // Visual: plane with hex alpha map
+    const hexTex = makeHexTexture(1024, 256, 10); // (w,h,hexRadiusPx)
     const netMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: hexTex, transparent:true, roughness:0.6 });
     const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(C.W, C.NET_H), netMat);
     netPlane.position.set(0, C.NET_H/2, 0); netPlane.rotation.y = 0; netGroup.add(netPlane);
-    mk(C.W, 0.02, t, 0, C.NET_H+0.02, 0); // tape
+    // Cord/tape
+    mk(C.W, 0.02, t, 0, C.NET_H+0.02, 0);
+    // Posts
     const postGeo = new THREE.CylinderGeometry(0.06, 0.06, C.NET_H+0.25, 20);
     const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color: 0xdddddd })); postL.position.set(-C.W/2-0.06, (C.NET_H+0.25)/2, 0); netGroup.add(postL);
     const postR = postL.clone(); postR.position.x = C.W/2+0.06; netGroup.add(postR);
+    // Collision bar (very thin box)
     const netCol = new THREE.Mesh(new THREE.BoxGeometry(C.W, C.NET_H, 0.03), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.02 }));
     netCol.position.set(0, C.NET_H/2, 0); netGroup.add(netCol);
 
-    // ---------------- Rackets ----------------
+    // ---------------- Emoji textures ----------------
+    const ballTex = new THREE.CanvasTexture(makeEmoji("🎾", 256));
+    const racketTex = new THREE.CanvasTexture(makeEmoji("🏸", 256)); // badminton emoji as stylistic racket face
+
+    // ---------------- Rackets (emoji on head) ----------------
     function makeRacket(){
-      const g = buildRacket();
-      const box0 = new THREE.Box3().setFromObject(g);
-      const desiredWidth = 0.36; // meters
-      const scale = (desiredWidth * 100) / box0.getSize(new THREE.Vector3()).x;
-      g.scale.setScalar(scale);
-      const box = new THREE.Box3().setFromObject(g);
-      g.position.set(- (box.min.x + box.max.x)/2, -box.min.y, - (box.min.z + box.max.z)/2);
+      const g = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.02, 28), new THREE.MeshStandardMaterial({ color: 0xffffff, map: racketTex }));
+      head.rotation.x = Math.PI/2; head.position.y = 0.16; g.add(head);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), new THREE.MeshStandardMaterial({ color: 0x8c5a2b, roughness: 0.85 }));
+      handle.position.set(0, 0.08, 0.12); g.add(handle);
       return g;
     }
 
     const player = makeRacket(); court.add(player); player.position.set(0, 0,  C.BASE - 0.8);
     const opp    = makeRacket(); court.add(opp);    opp.position.set(0, 0, -C.BASE + 0.8);
 
-    // ---------------- Ball ----------------
-    const ball = buildTennisBall();
-    const ballScale = 0.20 / BALL_DIAMETER_CM; // target diameter 0.20m
-    ball.scale.setScalar(ballScale);
+    // ---------------- Ball (emoji skin) ----------------
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.10, 28, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, map: ballTex }));
     court.add(ball);
 
     // ---------------- Physics ----------------
     const Sx = {
       v: new THREE.Vector3(0,0,0),
-      w: new THREE.Vector3(0,0,0),
+      w: new THREE.Vector3(0,0,0), // spin
       gravity: new THREE.Vector3(0,-9.81,0),
       air: 0.996,
       magnus: 0.16,
       restGround: 0.84,
       restRacket: 1.12,
       restNet: 0.22,
-      state: 'serve',
-      last: null,
+      state: 'serve', // serve | rally
+      last: null,     // 'P' | 'O'
       faults: 0,
     };
 
@@ -173,14 +177,14 @@ export default function TennisBattleRoyal(){
 
     const camPos = new THREE.Vector3();
     function updateCamera(dt){
-      const target = new THREE.Vector3(0, 0.4, C.BASE*S);
+      const target = new THREE.Vector3(0, 0.4, C.BASE*S); // behind bottom baseline
       const yaw = camRig.yaw; const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(-camRig.dist);
       camPos.copy(target).add(back); camPos.y = camRig.height + camRig.pitch*14;
       cam.position.lerp(camPos, 1 - Math.pow(0.001, dt));
       cam.lookAt(0, 0.3, 0);
     }
 
-    // ---------------- AI ----------------
+    // ---------------- AI (simple anticipation) ----------------
     const AI = { speed: 3.6, targetX: 0, timer: 0, baseZ: -C.BASE + 0.7 };
     function stepAI(dt){
       AI.timer -= dt; if (AI.timer <= 0){ AI.timer = 0.06 + Math.random()*0.08;
@@ -204,9 +208,9 @@ export default function TennisBattleRoyal(){
     }
 
     function collideNet(){
-      const h = C.NET_H; const halfT = 0.015;
+      const h = C.NET_H; const halfT = 0.015; // thickness half
       if (Math.abs(ball.position.z) < halfT*S && ball.position.y < h*S && Math.abs(ball.position.x/S) < C.W/2){
-        Sx.v.z *= -Sx.restNet; Sx.v.x *= 0.9; Sx.v.y *= 0.7;
+        Sx.v.z *= -Sx.restNet; Sx.v.x *= 0.9; Sx.v.y *= 0.7; // damp
         if ((Sx.last==='P' && ball.position.z>0) || (Sx.last==='O' && ball.position.z<0)){
           awardPoint(Sx.last==='P'?'O':'P', 'net');
         }
@@ -214,9 +218,8 @@ export default function TennisBattleRoyal(){
     }
 
     function hitRacket(r, who){
-      const head = r.children[0];
-      const box = new THREE.Box3().setFromObject(head);
-      const R = box.getSize(new THREE.Vector3()).x/2;
+      const head = r.children[0]; // cylinder head
+      const R = 0.18;
       const dx = (ball.position.x - (r.position.x + head.position.x));
       const dz = (ball.position.z - (r.position.z + head.position.z));
       const dy = (ball.position.y - head.position.y);
@@ -224,10 +227,10 @@ export default function TennisBattleRoyal(){
       if (d2 < minR){
         const n = new THREE.Vector3(dx, dy, dz).normalize();
         const vN = Sx.v.dot(n);
-        Sx.v.addScaledVector(n, (-1.6*vN + 6.0));
+        Sx.v.addScaledVector(n, (-1.6*vN + 6.0)); // strong impulse away
         Sx.v.z += (who==='P'? -1.6: 1.6) * (0.4 + Math.random()*0.3);
         Sx.v.x += n.x * 1.2;
-        Sx.w.y += (who==='P'? -5: 5);
+        Sx.w.y += (who==='P'? -5: 5); // topspin bias
         Sx.state='rally'; Sx.last=who;
       }
     }
@@ -248,23 +251,32 @@ export default function TennisBattleRoyal(){
     const clock = new THREE.Clock(); let dt=0;
     function step(){
       dt = Math.min(0.033, clock.getDelta());
+      // Camera
       updateCamera(dt);
+      // AI move
       stepAI(dt);
+      // Auto-serve light toss towards receiver
       if (Sx.state==='serve'){
         if (ui.serving==='P') { Sx.v.set(0.0, 3.0, -2.4); }
         else                  { Sx.v.set(0.0, 3.0,  2.4); }
         Sx.state='rally'; Sx.last = ui.serving;
       }
+
+      // Physics integrate
       const prevY = ball.position.y;
+      // Magnus
       const magnus = new THREE.Vector3().crossVectors(Sx.v, Sx.w).multiplyScalar(Sx.magnus);
       Sx.v.addScaledVector(Sx.gravity, dt);
       Sx.v.addScaledVector(magnus, dt);
       Sx.v.multiplyScalar(Math.pow(Sx.air, dt*60));
       ball.position.addScaledVector(Sx.v, dt);
+
+      // Collisions
       collideGround(prevY);
       collideNet();
       hitRacket(player, 'P');
       hitRacket(opp,    'O');
+
       renderer.render(scene, cam);
       raf.current = requestAnimationFrame(step);
     }
@@ -284,7 +296,7 @@ export default function TennisBattleRoyal(){
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.serving]);
+  }, []);
 
   return (
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
@@ -296,7 +308,15 @@ export default function TennisBattleRoyal(){
   );
 }
 
-// ---------- Helpers: hex net texture ----------
+// ---------- Helpers: emoji texture & hex net texture ----------
+function makeEmoji(char, size=256){
+  const c=document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
+  ctx.font=`${size*0.8}px system-ui, Apple Color Emoji, Segoe UI Emoji`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#000000'; ctx.fillText(char, size/2, size/2+size*0.04);
+  return c;
+}
+
 function makeHexTexture(w=1024,h=256,r=10){
   const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
   x.fillStyle='rgba(255,255,255,0)'; x.fillRect(0,0,w,h);
@@ -308,3 +328,4 @@ function makeHexTexture(w=1024,h=256,r=10){
 }
 
 function toTennis(n){ return [0,15,30,40,'Adv','Game'][n] ?? 0; }
+
