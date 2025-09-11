@@ -79,8 +79,8 @@ export default function AirHockey3D({ player, ai }) {
 
     // build table
     const group = new THREE.Group();
-    // slightly closer to the top
-    group.position.z = 0.2;
+    // shift table slightly upward so the bottom edge stays visible on mobile screens
+    group.position.z = -0.2;
     scene.add(group);
 
     const floor = new THREE.Mesh(
@@ -243,8 +243,9 @@ export default function AirHockey3D({ player, ai }) {
       const dz = puck.position.z - mallet.position.z;
       const d2 = dx * dx + dz * dz;
       if (d2 < 0.12 * 0.12) {
-        S.vel.x += dx * 1.5e-3;
-        S.vel.z += dz * 1.5e-3;
+        const HIT_FORCE = 0.5;
+        S.vel.x += dx * HIT_FORCE;
+        S.vel.z += dz * HIT_FORCE;
         S.lastTouch = 0.15;
         playHit();
       }
