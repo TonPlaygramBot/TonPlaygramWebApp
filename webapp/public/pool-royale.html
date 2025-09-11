@@ -2551,9 +2551,9 @@
               0,
               ballR * 1.05
             );
-            grad.addColorStop(0, shadeColor(BALL_BY_N[b.n].c, 35));
-            grad.addColorStop(0.5, BALL_BY_N[b.n].c);
-            grad.addColorStop(1, shadeColor(BALL_BY_N[b.n].c, -45));
+            grad.addColorStop(0, shadeColor(BALL_BY_N[b.n].c, 50));
+            grad.addColorStop(0.5, shadeColor(BALL_BY_N[b.n].c, 15));
+            grad.addColorStop(1, shadeColor(BALL_BY_N[b.n].c, -35));
 
             // stripe nese duhet
             var stripe =
@@ -2582,19 +2582,25 @@
             ctx.lineWidth = ballR * 0.05;
             ctx.stroke();
 
-            // specular highlight
+            // specular highlights (3)
             ctx.fillStyle = 'rgba(255,255,255,0.65)';
-            ctx.beginPath();
-            ctx.ellipse(
-              -ballR * 0.35,
-              -ballR * 0.35,
-              ballR * 0.25,
-              ballR * 0.15,
-              -0.5,
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
+            [
+              { x: -0.35, y: -0.35 },
+              { x: -0.1, y: -0.4 },
+              { x: -0.5, y: -0.1 }
+            ].forEach(function (hl) {
+              ctx.beginPath();
+              ctx.ellipse(
+                ballR * hl.x,
+                ballR * hl.y,
+                ballR * 0.3,
+                ballR * 0.18,
+                -0.5,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+            });
 
             // features following ball rotation
             ctx.save();
@@ -2655,7 +2661,7 @@
               ctx.arc(
                 spinVec.x * ballR * 0.75,
                 spinVec.y * ballR * 0.75,
-                ballR * 0.22,
+                ballR * 0.15,
                 0,
                 Math.PI * 2
               );
@@ -4027,6 +4033,7 @@
           table.turn = 0;
           diceRolling = true;
           isBreakShot = true;
+          spinVec = { x: 0, y: 0 }; // reset cue ball spin for break
           const overlay = document.getElementById('diceOverlay');
           overlay.classList.remove('hidden');
           overlay.innerHTML =
@@ -4186,6 +4193,7 @@
           table.running = true;
           resize();
           table.render();
+          spinVec = { x: 0, y: 0 }; // center cue ball dot at game start
           if (window.trainingMode && window.trainingSolo) {
             var cpuPlayer = document.querySelector(
               '#header .player:last-child'
