@@ -15,7 +15,7 @@ public class BilliardLighting : MonoBehaviour
         plasticMat.SetFloat("_Glossiness", 0.97f);
         plasticMat.SetColor("_SpecColor", Color.white * 1.4f);
 
-        // Apply material and attach small point lights to each ball
+        // Apply material, attach highlight lights and add cue ball dot
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
         foreach (GameObject ball in balls)
         {
@@ -25,8 +25,14 @@ public class BilliardLighting : MonoBehaviour
                 renderer.material = plasticMat;
             }
 
-            // Position point lights in an arc so reflections don't touch
-            int lightCount = 3;
+            // Add a small red aiming dot to the cue ball so it rolls with the surface
+            if (ball.name.ToLower().Contains("cue"))
+            {
+                CreateCueBallDot(ball.transform);
+            }
+
+            // Position three point lights so each ball shows three distinct reflections
+            const int lightCount = 3;
             Vector3 basePos = new Vector3(0.5f, 0.8f, 0.6f);
             for (int i = 0; i < lightCount; i++)
             {
@@ -35,6 +41,9 @@ public class BilliardLighting : MonoBehaviour
                 CreateHighlightLight(ball.transform, pos);
             }
         }
+
+        // Slightly boost the texture detail on the green cloth so the felt stands out
+        EnhanceClothTexture();
     }
 
     void CreateHighlightLight(Transform parent, Vector3 localPosition)
@@ -49,6 +58,59 @@ public class BilliardLighting : MonoBehaviour
         pointLight.intensity = 3f;
         pointLight.shadows = LightShadows.None;
         pointLight.color = Color.white;
+    }
+
+    // Create a tiny red sphere on the cue ball to help players judge spin
+    void CreateCueBallDot(Transform cueBall)
+    {
+        Renderer r = cueBall.GetComponent<Renderer>();
+        if (r == null)
+        {
+            return;
+        }
+
+        float radius = r.bounds.extents.x;
+        float dotRadius = radius * 0.1f;
+
+        GameObject dot = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        dot.name = "CueBallDot";
+        dot.transform.SetParent(cueBall);
+        dot.transform.localScale = Vector3.one * dotRadius * 2f; // diameter
+        dot.transform.localPosition = new Vector3(0f, radius - dotRadius, 0f);
+
+        Renderer dotRenderer = dot.GetComponent<Renderer>();
+        if (dotRenderer != null)
+        {
+            Material dotMat = new Material(Shader.Find("Standard"));
+            dotMat.color = Color.red;
+            dotMat.SetFloat("_Metallic", 0f);
+            dotMat.SetFloat("_Glossiness", 0.4f);
+            dotRenderer.material = dotMat;
+        }
+    }
+
+    // Increase the cloth texture scale slightly so the green felt looks richer
+    void EnhanceClothTexture()
+    {
+        GameObject cloth = GameObject.Find("TableCloth");
+        if (cloth == null)
+        {
+            cloth = GameObject.Find("Cloth");
+        }
+
+        if (cloth != null)
+        {
+            Renderer renderer = cloth.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                Material mat = renderer.material;
+                mat.mainTextureScale *= 1.2f;
+                if (mat.HasProperty("_BumpScale"))
+                {
+                    mat.SetFloat("_BumpScale", mat.GetFloat("_BumpScale") * 1.2f);
+                }
+            }
+        }
     }
 }
 #endif
