@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { getTelegramUsername, getTelegramPhotoUrl } from "../../utils/telegram.js";
 import { FLAG_EMOJIS } from "../../utils/flagEmojis.js";
 import { avatarToName } from "../../utils/avatarUtils.js";
+import { buildTennisBall } from "../../utils/tennisGear.js";
 
 /**
  * TENNIS 3D — Mobile Portrait (1:1)
@@ -64,9 +65,9 @@ export default function TennisBattleRoyal(){
     const fill = new THREE.DirectionalLight(0x8bbcff, 0.35); fill.position.set(40, 40, -30); scene.add(fill);
 
     // ---------------- Camera (behind bottom baseline) ----------------
-    const cam = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 2000);
+    const cam = new THREE.PerspectiveCamera(75, host.clientWidth/host.clientHeight, 0.05, 2000);
     scene.add(cam);
-    const camRig = { dist: 20, height: 9, yaw: 0.0, pitch: 0.28 };
+    const camRig = { dist: 20, height: 6, yaw: 0.0, pitch: 0.25 };
     const applyCam = () => { cam.aspect = host.clientWidth/host.clientHeight; cam.updateProjectionMatrix(); };
 
     // ---------------- Court dims (meters) ----------------
@@ -117,8 +118,7 @@ export default function TennisBattleRoyal(){
     netCol.position.set(0, C.NET_H/2, 0); netGroup.add(netCol);
 
     // ---------------- Emoji textures ----------------
-    const ballTex = new THREE.CanvasTexture(makeEmoji("🎾", 256));
-    const racketTex = new THREE.CanvasTexture(makeEmoji("🏸", 256)); // badminton emoji as stylistic racket face
+    const racketTex = new THREE.CanvasTexture(makeRacketTexture(256));
 
     // ---------------- Rackets (emoji on head) ----------------
     function makeRacket(){
@@ -133,8 +133,10 @@ export default function TennisBattleRoyal(){
     const player = makeRacket(); court.add(player); player.position.set(0, 0,  C.BASE - 0.8);
     const opp    = makeRacket(); court.add(opp);    opp.position.set(0, 0, -C.BASE + 0.8);
 
-    // ---------------- Ball (emoji skin) ----------------
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.10, 28, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, map: ballTex }));
+    // ---------------- Ball ----------------
+    const ball = buildTennisBall();
+    ball.scale.setScalar(0.0298);
+    ball.material.color.set(0xffeb3b);
     court.add(ball);
 
     // ---------------- Physics ----------------
@@ -223,16 +225,24 @@ export default function TennisBattleRoyal(){
     }
 
     // ---------------- AI (simple anticipation) ----------------
-    const AI = { speed: 3.6, targetX: 0, timer: 0, baseZ: -C.BASE + 0.7 };
+    const AI = { speed: 3.6, targetX: 0, targetZ: -C.BASE + 0.7, timer: 0, baseZ: -C.BASE + 0.7 };
     function stepAI(dt){
-      AI.timer -= dt; if (AI.timer <= 0){ AI.timer = 0.06 + Math.random()*0.08;
+      AI.timer -= dt;
+      if (AI.timer <= 0){
+        AI.timer = 0.05 + Math.random()*0.05;
         if (ball.position.z/S < 0 && Sx.v.z < 0){
           const tHit = Math.abs((AI.baseZ - ball.position.z/S) / (Sx.v.z || 0.001));
           AI.targetX = THREE.MathUtils.clamp((ball.position.x/S) + (Sx.v.x * tHit * 0.7), -C.W/2+0.2, C.W/2-0.2);
-        } else { AI.targetX = 0; }
+          AI.targetZ = THREE.MathUtils.clamp((ball.position.z/S) + (Sx.v.z * tHit), -C.BASE+0.2, -0.2);
+        } else {
+          AI.targetX = 0;
+          AI.targetZ = AI.baseZ;
+        }
       }
-      const dx = AI.targetX - opp.position.x; opp.position.x += THREE.MathUtils.clamp(dx, -AI.speed*dt, AI.speed*dt);
-      opp.position.z = AI.baseZ;
+      const dx = AI.targetX - opp.position.x;
+      const dz = AI.targetZ - opp.position.z;
+      opp.position.x += THREE.MathUtils.clamp(dx, -AI.speed*dt, AI.speed*dt);
+      opp.position.z += THREE.MathUtils.clamp(dz, -AI.speed*dt, AI.speed*dt);
     }
 
     // ---------------- Collisions ----------------
@@ -385,6 +395,14 @@ function makeEmoji(char, size=256){
   ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
   ctx.font=`${size*0.8}px system-ui, Apple Color Emoji, Segoe UI Emoji`; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillStyle='#000000'; ctx.fillText(char, size/2, size/2+size*0.04);
+  return c;
+}
+
+function makeRacketTexture(size=256){
+  const c = makeEmoji('🎾', size);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(size*0.72, size*0.28, size*0.18, 0, Math.PI*2); ctx.fill();
   return c;
 }
 
