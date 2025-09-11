@@ -19,33 +19,30 @@ public class BilliardLighting : MonoBehaviour
             Light spotLight = lightObj.AddComponent<Light>();
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
-            spotLight.intensity = 2.5f;        // brightness
+            spotLight.intensity = 1.8f;        // slightly dimmer
             spotLight.range = 15f;             // distance
-            spotLight.spotAngle = 60f;         // cone size
+            spotLight.spotAngle = 40f;         // tighter cone for smaller spots
             spotLight.shadows = LightShadows.Soft;
 
             lightObj.transform.position = lightPositions[i];
             lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         }
 
-        // Create a shiny plastic (PBR) material with slightly brighter base color
-        Material plasticMat = new Material(Shader.Find("Standard"));
-        plasticMat.color = Color.red;           // change color per ball as needed
-        plasticMat.SetFloat("_Metallic", 0f);   // not metallic
-        // Make the balls a bit shinier and brighter
-        // Slightly boost base colour and specular highlights for more sheen.
-        plasticMat.color *= 1.2f;
-        plasticMat.SetFloat("_Glossiness", 0.97f);
-        plasticMat.SetColor("_SpecColor", Color.white * 1.4f);
-
-        // Apply material, attach highlight lights and add cue ball dot
+        // Apply a shiny plastic (PBR) material to each ball while keeping its colour
+        Shader standard = Shader.Find("Standard");
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
         foreach (GameObject ball in balls)
         {
             Renderer renderer = ball.GetComponent<Renderer>();
             if (renderer != null)
             {
-                renderer.material = plasticMat;
+                Material source = renderer.material;
+                Material mat = new Material(standard);
+                mat.color = source.color * 1.2f;        // slightly brighter
+                mat.SetFloat("_Metallic", 0f);
+                mat.SetFloat("_Glossiness", 0.97f);
+                mat.SetColor("_SpecColor", Color.white * 1.4f);
+                renderer.material = mat;
             }
 
             // Add a small red aiming dot to the cue ball so it rolls with the surface
@@ -65,7 +62,7 @@ public class BilliardLighting : MonoBehaviour
             }
         }
 
-        // Slightly boost the texture detail on the green cloth so the felt stands out
+        // Enhance felt detail so the green cloth stands out
         EnhanceClothTexture();
     }
 
@@ -77,8 +74,8 @@ public class BilliardLighting : MonoBehaviour
 
         Light pointLight = lightObj.AddComponent<Light>();
         pointLight.type = LightType.Point;
-        pointLight.range = 0.75f;  // keep small so highlights don't overlap
-        pointLight.intensity = 3f;
+        pointLight.range = 0.5f;   // smaller highlight size
+        pointLight.intensity = 2f; // softer reflection
         pointLight.shadows = LightShadows.None;
         pointLight.color = Color.white;
     }
@@ -127,10 +124,23 @@ public class BilliardLighting : MonoBehaviour
             if (renderer != null)
             {
                 Material mat = renderer.material;
-                mat.mainTextureScale *= 1.2f;
-                if (mat.HasProperty("_BumpScale"))
+                mat.color = new Color(0f, 0.2f, 0f, 1f); // darker green cloth
+                mat.SetFloat("_Metallic", 0f);
+                mat.SetFloat("_Glossiness", 0.15f);
+
+                Texture clothTex = Resources.Load<Texture>("Textures/green_cloth");
+                if (clothTex != null)
                 {
-                    mat.SetFloat("_BumpScale", mat.GetFloat("_BumpScale") * 1.2f);
+                    mat.mainTexture = clothTex;
+                    mat.mainTextureScale *= 1.2f;
+                }
+
+                Texture bump = Resources.Load<Texture>("Textures/green_cloth_normal");
+                if (bump != null && mat.HasProperty("_BumpMap"))
+                {
+                    mat.SetTexture("_BumpMap", bump);
+                    float scale = mat.HasProperty("_BumpScale") ? mat.GetFloat("_BumpScale") : 1f;
+                    mat.SetFloat("_BumpScale", scale * 1.2f);
                 }
             }
         }
