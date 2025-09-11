@@ -169,18 +169,18 @@ const TABLE_Y = -2; // vertical offset to lower entire table
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
-// slightly brighter colors for table and balls
+// Updated colors for dark cloth and standard balls
 const COLORS = Object.freeze({
-  cloth: 0x1b9e45,
+  cloth: 0x1a6d1a,
   rail: 0x8b5a2e,
   cue: 0xffffff,
-  red: 0xcc0000,
-  yellow: 0xffdd33,
-  green: 0x32d570,
-  brown: 0x9c6e4a,
-  blue: 0x4b92ff,
-  pink: 0xff58ab,
-  black: 0x1a2233,
+  red: 0xff0000,
+  yellow: 0xffff00,
+  green: 0x006400,
+  brown: 0x8b4513,
+  blue: 0x0000ff,
+  pink: 0xff69b4,
+  black: 0x000000,
   mark: 0xffffff
 });
 
@@ -303,35 +303,34 @@ function calcTarget(cue, dir, balls) {
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
-  // brighter shiny balls without altering physics
-  const material = new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.05,
-    metalness: 0.3,
-    envMapIntensity: 1.5
+    roughness: 0.18,
+    clearcoat: 1,
+    clearcoatRoughness: 0.12
   });
-  // add a small red dot on the cue ball that rotates with it
-  if (id === 'cue') {
-    const c = document.createElement('canvas');
-    c.width = c.height = 256;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 256, 256);
-    ctx.fillStyle = '#ff0000';
-    ctx.beginPath();
-    ctx.arc(128, 128, 16, 0, Math.PI * 2);
-    ctx.fill();
-    const tex = new THREE.CanvasTexture(c);
-    tex.anisotropy = 4;
-    material.map = tex;
-  }
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(BALL_R, 28, 28),
+    new THREE.SphereGeometry(BALL_R, 64, 48),
     material
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  if (id === 'cue') {
+    const dotSize = BALL_R * 0.15;
+    const dotGeom = new THREE.SphereGeometry(dotSize, 16, 8);
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    [
+      [BALL_R * 0.7, 0, 0],
+      [-BALL_R * 0.7, 0, 0],
+      [0, 0, BALL_R * 0.7],
+      [0, 0, -BALL_R * 0.7]
+    ].forEach(([dx, dy, dz]) => {
+      const d = new THREE.Mesh(dotGeom, dotMat);
+      d.position.set(dx, dy, dz);
+      mesh.add(d);
+    });
+  }
   parent.add(mesh);
   return {
     id,
@@ -350,28 +349,12 @@ function Table3D(scene) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
-  // Procedural cloth textures used for table surface and cushions
-  const heightC = makeFbmHeightCanvas(512, 6);
-  // stronger normals for a more visible 3D cloth effect
-  const normalC = heightToNormalCanvas(heightC, 4.0);
-  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.12);
-  const heightTex = new THREE.CanvasTexture(heightC);
-  heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
-  heightTex.repeat.set(5, 10);
-  const normalTex = new THREE.CanvasTexture(normalC);
-  normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
-  normalTex.repeat.set(5, 10);
-  const colorTex = new THREE.CanvasTexture(colorC);
-  colorTex.wrapS = colorTex.wrapT = THREE.RepeatWrapping;
-  colorTex.repeat.set(5, 10);
-  const clothMat = new THREE.MeshStandardMaterial({
-    map: colorTex,
-    normalMap: normalTex,
-    normalScale: new THREE.Vector2(2, 2),
-    roughness: 0.9,
-    metalness: 0.0,
-    bumpMap: heightTex,
-    bumpScale: 0.4
+  // Simple dark green cloth
+  const clothMat = new THREE.MeshPhysicalMaterial({
+    color: COLORS.cloth,
+    roughness: 0.95,
+    sheen: 1.0,
+    sheenRoughness: 0.8
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
@@ -1005,35 +988,25 @@ export default function NewSnookerGame() {
       };
       window.addEventListener('keydown', keyRot);
 
-      // Lights
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 1.1));
-      const key = new THREE.DirectionalLight(0xffffff, 1.2);
-      key.position.set(-60, 90, 40);
-      key.castShadow = true;
-      key.shadow.mapSize.set(2048, 2048);
-      key.shadow.camera.near = 10;
-      key.shadow.camera.far = 400;
-      const d = 200;
-      key.shadow.camera.left = -d;
-      key.shadow.camera.right = d;
-      key.shadow.camera.top = d;
-      key.shadow.camera.bottom = -d;
-      scene.add(key);
+      // Lights (scaled to match table units)
+      const lightScale = BALL_R / 0.0525;
+      scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6));
+      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+      dir.position.set(-2.5 * lightScale, 4 * lightScale, 2 * lightScale);
+      scene.add(dir);
 
-      // Overhead spotlights for ball reflections
-      const spotHeight = 70;
-      const halfLen = PLAY_H / 2;
-      [0, -halfLen / 2, halfLen / 2].forEach((z) => {
-        const s = new THREE.SpotLight(0xffffff, 1.0);
-        s.position.set(0, spotHeight, z);
-        s.angle = Math.PI / 5;
-        s.penumbra = 0.3;
-        // purely cosmetic: no shadows or visible fixtures
-        s.castShadow = false;
-        s.target.position.set(0, 0, z);
-        scene.add(s);
-        scene.add(s.target);
-      });
+      const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
+      spot.position.set(1.3 * lightScale, 2.6 * lightScale, 0.5 * lightScale);
+      spot.target.position.set(0, 0.75 * lightScale, 0);
+      scene.add(spot, spot.target);
+
+      const point = new THREE.PointLight(0xffffff, 1.2, 10);
+      point.position.set(-1.5 * lightScale, 2.2 * lightScale, -0.8 * lightScale);
+      scene.add(point);
+
+      const tiny = new THREE.PointLight(0xffffff, 0.6, 3);
+      tiny.position.set(0.5 * lightScale, 1.8 * lightScale, 1.2 * lightScale);
+      scene.add(tiny);
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
@@ -1045,16 +1018,16 @@ export default function NewSnookerGame() {
         return b;
       };
       cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      // reds triangle toward top side
+      // 15 red balls arranged in triangle
       let rid = 0;
-      const bz = PLAY_H * 0.25,
-        bx = 0;
-      for (let r = 0; r < 5; r++)
-        for (let c = 0; c <= r; c++) {
-          const z = bz + r * (BALL_R * 2 + 0.6);
-          const x = bx - r * BALL_R + c * (BALL_R * 2 + 0.2);
+      for (let row = 0; row < 5; row++) {
+        for (let i = 0; i <= row; i++) {
+          if (rid >= 15) break;
+          const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
+          const z = -PLAY_W * 0.15 + row * (BALL_R * 1.9);
           add(`red_${rid++}`, COLORS.red, x, z);
         }
+      }
       // colours
       const halfH = PLAY_H / 2;
       const SPOTS = {
@@ -1111,16 +1084,58 @@ export default function NewSnookerGame() {
       target.visible = false;
       table.add(target);
 
-      // Cue image
-      const cueTex = new THREE.TextureLoader().load('/assets/cue.png');
-      const cueLen = BALL_R * 20;
-      const cueMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(cueLen, BALL_R),
-        new THREE.MeshBasicMaterial({ map: cueTex, transparent: true })
+      // Cue stick behind cueball
+      const SCALE = BALL_R / 0.0525;
+      const cueLen = 1.5 * SCALE;
+      const cueStick = new THREE.Group();
+
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.008 * SCALE, 0.025 * SCALE, cueLen, 32),
+        new THREE.MeshPhysicalMaterial({ color: 0xdeb887, roughness: 0.6 })
       );
-      cueMesh.rotation.x = -Math.PI / 2;
-      cueMesh.visible = false;
-      table.add(cueMesh);
+      shaft.rotation.x = -Math.PI / 2;
+      cueStick.add(shaft);
+
+      const tip = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.008 * SCALE, 0.008 * SCALE, 0.05 * SCALE, 32),
+        new THREE.MeshPhysicalMaterial({ color: 0x0000ff, roughness: 0.4 })
+      );
+      tip.rotation.x = -Math.PI / 2;
+      tip.position.z = -(0.75 * SCALE);
+      cueStick.add(tip);
+
+      const connector = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.009 * SCALE, 0.009 * SCALE, 0.015 * SCALE, 32),
+        new THREE.MeshPhysicalMaterial({ color: 0xcd7f32, metalness: 0.8, roughness: 0.5 })
+      );
+      connector.rotation.x = -Math.PI / 2;
+      connector.position.z = -(0.748 * SCALE);
+      cueStick.add(connector);
+
+      const buttCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.5 })
+      );
+      buttCap.position.z = 0.75 * SCALE;
+      cueStick.add(buttCap);
+
+      const stripeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      for (let i = 0; i < 12; i++) {
+        const stripe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.01 * SCALE, 0.001 * SCALE, 0.35 * SCALE),
+          stripeMat
+        );
+        const angle = (i / 12) * Math.PI * 2;
+        stripe.position.x = Math.cos(angle) * 0.02 * SCALE;
+        stripe.position.y = Math.sin(angle) * 0.02 * SCALE;
+        stripe.position.z = 0.55 * SCALE;
+        stripe.rotation.z = angle;
+        cueStick.add(stripe);
+      }
+
+      cueStick.position.set(cue.pos.x, BALL_R, cue.pos.y + 0.9 * SCALE);
+      cueStick.visible = false;
+      table.add(cueStick);
 
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
@@ -1333,13 +1348,13 @@ export default function NewSnookerGame() {
           ]);
           tick.visible = true;
           const pull = powerRef.current * BALL_R * 10 * 0.5;
-          cueMesh.position.set(
+          cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
             BALL_R,
             cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R)
           );
-          cueMesh.rotation.y = Math.atan2(dir.x, dir.z);
-          cueMesh.visible = true;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z);
+          cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
               end.x + afterDir.x * 30,
@@ -1356,7 +1371,7 @@ export default function NewSnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
-          cueMesh.visible = false;
+          cueStick.visible = false;
         }
 
         // Fizika
