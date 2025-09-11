@@ -171,7 +171,7 @@ const CUSHION_CUT_ANGLE = 30;
 
 // slightly brighter colors for table and balls
 const COLORS = Object.freeze({
-  cloth: 0x000000,
+  cloth: 0x1b9e45,
   rail: 0x8b5a2e,
   cue: 0xffffff,
   red: 0xcc0000,
@@ -303,8 +303,13 @@ function calcTarget(cue, dir, balls) {
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
-  // Unlit balls without dynamic lighting
-  const material = new THREE.MeshBasicMaterial({ color });
+  // brighter shiny balls without altering physics
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.05,
+    metalness: 0.3,
+    envMapIntensity: 1.5
+  });
   // add a small red dot on the cue ball that rotates with it
   if (id === 'cue') {
     const c = document.createElement('canvas');
@@ -325,8 +330,8 @@ function Guret(parent, id, color, x, y) {
     material
   );
   mesh.position.set(x, BALL_R, y);
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   parent.add(mesh);
   return {
     id,
@@ -347,14 +352,26 @@ function Table3D(scene) {
     halfH = PLAY_H / 2;
   // Procedural cloth textures used for table surface and cushions
   const heightC = makeFbmHeightCanvas(512, 6);
-  const colorC = makeColorCanvasFromHeight(heightC, '#000000', '#000000', 0);
+  // stronger normals for a more visible 3D cloth effect
+  const normalC = heightToNormalCanvas(heightC, 4.0);
+  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.12);
+  const heightTex = new THREE.CanvasTexture(heightC);
+  heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
+  heightTex.repeat.set(5, 10);
+  const normalTex = new THREE.CanvasTexture(normalC);
+  normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
+  normalTex.repeat.set(5, 10);
   const colorTex = new THREE.CanvasTexture(colorC);
   colorTex.wrapS = colorTex.wrapT = THREE.RepeatWrapping;
   colorTex.repeat.set(5, 10);
   const clothMat = new THREE.MeshStandardMaterial({
     map: colorTex,
+    normalMap: normalTex,
+    normalScale: new THREE.Vector2(2, 2),
     roughness: 0.9,
-    metalness: 0.0
+    metalness: 0.0,
+    bumpMap: heightTex,
+    bumpScale: 0.4
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
@@ -604,7 +621,7 @@ function Table3D(scene) {
   const arenaD = TABLE.H * 6;
   const wallH = TABLE.H * 1.5; // higher side walls around carpet
   const wallMat = new THREE.MeshStandardMaterial({
-    color: 0xf8f0e3,
+    color: 0x111111,
     roughness: 0.8,
     side: THREE.FrontSide
   });
@@ -1487,13 +1504,6 @@ export default function NewSnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {/* High resolution logo without homepage link */}
-      <img
-        src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
-        alt="TonPlaygram logo"
-        className="absolute top-2 left-1/2 -translate-x-1/2 h-20 w-auto"
-      />
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
