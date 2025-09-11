@@ -304,14 +304,30 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
   // brighter shiny balls without altering physics
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.05,
+    metalness: 0.3,
+    envMapIntensity: 1.5
+  });
+  // add a small red dot on the cue ball that rotates with it
+  if (id === 'cue') {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(128, 128, 16, 0, Math.PI * 2);
+    ctx.fill();
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    material.map = tex;
+  }
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.15,
-      metalness: 0.1,
-      envMapIntensity: 1.5
-    })
+    material
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -335,9 +351,9 @@ function Table3D(scene) {
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
   // Procedural cloth textures used for table surface and cushions
-  const heightC = makeFbmHeightCanvas(512, 5);
+  const heightC = makeFbmHeightCanvas(512, 6);
   // stronger normals for a more visible 3D cloth effect
-  const normalC = heightToNormalCanvas(heightC, 3.0);
+  const normalC = heightToNormalCanvas(heightC, 4.0);
   const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.12);
   const heightTex = new THREE.CanvasTexture(heightC);
   heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
@@ -1008,7 +1024,7 @@ export default function NewSnookerGame() {
       const spotHeight = 90;
       const halfLen = PLAY_H / 2;
       [0, -halfLen, halfLen].forEach((z) => {
-        const s = new THREE.SpotLight(0xffffff, 0.6);
+        const s = new THREE.SpotLight(0xffffff, 1.0);
         s.position.set(0, spotHeight, z);
         s.angle = Math.PI / 5;
         s.penumbra = 0.3;
@@ -1348,9 +1364,15 @@ export default function NewSnookerGame() {
           if (!b.active) return;
           b.pos.add(b.vel);
           b.vel.multiplyScalar(FRICTION);
-          if (b.vel.length() < STOP_EPS) b.vel.set(0, 0);
+          const speed = b.vel.length();
+          if (speed < STOP_EPS) b.vel.set(0, 0);
           reflectRails(b);
           b.mesh.position.set(b.pos.x, BALL_R, b.pos.y);
+          if (speed > 0) {
+            const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
+            const angle = speed / BALL_R;
+            b.mesh.rotateOnWorldAxis(axis, angle);
+          }
         });
         // Kolizione + regjistro firstHit
         for (let i = 0; i < balls.length; i++)
