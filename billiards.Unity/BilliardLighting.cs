@@ -40,7 +40,7 @@ public class BilliardLighting : MonoBehaviour
                 Material mat = new Material(standard);
                 mat.color = source.color * 1.2f;        // slightly brighter
                 mat.SetFloat("_Metallic", 0f);
-                mat.SetFloat("_Glossiness", 0.97f);
+                mat.SetFloat("_Glossiness", 0.8f);
                 mat.SetColor("_SpecColor", Color.white * 1.4f);
                 renderer.material = mat;
             }
@@ -74,10 +74,11 @@ public class BilliardLighting : MonoBehaviour
 
         Light pointLight = lightObj.AddComponent<Light>();
         pointLight.type = LightType.Point;
-        pointLight.range = 0.75f;  // keep small so highlights don't overlap
-        pointLight.intensity = 3f;
+        pointLight.range = 1.5f;  // keep small so highlights don't overlap
+        pointLight.intensity = 2f;
         pointLight.shadows = LightShadows.None;
         pointLight.color = Color.white;
+        pointLight.renderMode = LightRenderMode.ForcePixel;
     }
 
     // Create a tiny red sphere on the cue ball to help players judge spin
