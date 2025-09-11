@@ -51,7 +51,8 @@ export default function AirHockey3D({ player, ai }) {
     scene.add(dir);
 
     // table dims (slightly bigger for mobile screens)
-    const TABLE = { w: 2.2, h: 4.8, rim: 0.06, goalW: 1 };
+    // expanded 20% toward the top for more play space
+    const TABLE = { w: 2.2, h: 4.8 * 1.2, rim: 0.06, goalW: 1 };
 
     // camera
     const camera = new THREE.PerspectiveCamera(
@@ -77,6 +78,8 @@ export default function AirHockey3D({ player, ai }) {
 
     // build table
     const group = new THREE.Group();
+    // nudge the whole field slightly downward on screen
+    group.position.z = 0.2;
     scene.add(group);
 
     const floor = new THREE.Mesh(
@@ -212,9 +215,11 @@ export default function AirHockey3D({ player, ai }) {
       ndc.y = -((clientY - r.top) / r.height) * 2 + 1;
       ray.setFromCamera(ndc, camera);
       ray.ray.intersectPlane(plane, hit);
+      const localX = hit.x - group.position.x;
+      const localZ = hit.z - group.position.z;
       return {
-        x: clamp(hit.x, -TABLE.w / 2 + 0.12, TABLE.w / 2 - 0.12),
-        z: clamp(hit.z, 0, TABLE.h / 2 - 0.12)
+        x: clamp(localX, -TABLE.w / 2 + 0.12, TABLE.w / 2 - 0.12),
+        z: clamp(localZ, 0, TABLE.h / 2 - 0.12)
       };
     };
 
@@ -222,17 +227,6 @@ export default function AirHockey3D({ player, ai }) {
       const t = e.touches ? e.touches[0] : e;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
-      const dx = puck.position.x - x;
-      const dz = puck.position.z - z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < 0.12 * 0.12) {
-        const nx = -dx;
-        const nz = -dz;
-        S.vel.x += nx * 1.25e-3;
-        S.vel.z += nz * 1.25e-3;
-        S.lastTouch = 0.15;
-        playHit();
-      }
     };
 
     renderer.domElement.addEventListener('touchstart', onMove, {
@@ -243,7 +237,19 @@ export default function AirHockey3D({ player, ai }) {
     });
     renderer.domElement.addEventListener('mousemove', onMove);
 
-    // AI logic
+    const handleCollision = mallet => {
+      const dx = puck.position.x - mallet.position.x;
+      const dz = puck.position.z - mallet.position.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < 0.12 * 0.12) {
+        S.vel.x += dx * 1.5e-3;
+        S.vel.z += dz * 1.5e-3;
+        S.lastTouch = 0.15;
+        playHit();
+      }
+    };
+
+    // AI logic (movement only; collisions handled in tick)
     const aiUpdate = dt => {
       const targetZ =
         puck.position.z < 0
@@ -257,14 +263,6 @@ export default function AirHockey3D({ player, ai }) {
       const k = 3.4;
       aiMallet.position.x += (targetX - aiMallet.position.x) * k * dt;
       aiMallet.position.z += (targetZ - aiMallet.position.z) * k * dt;
-      const dx = puck.position.x - aiMallet.position.x;
-      const dz = puck.position.z - aiMallet.position.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < 0.12 * 0.12) {
-        S.vel.x += dx * 1.5e-3;
-        S.vel.z += dz * 1.5e-3;
-        playHit();
-      }
     };
 
     const reset = towardTop => {
@@ -343,6 +341,8 @@ export default function AirHockey3D({ player, ai }) {
       }
 
       aiUpdate(dt);
+      handleCollision(you);
+      handleCollision(aiMallet);
       renderer.render(scene, camera);
       raf.current = requestAnimationFrame(tick);
     };
