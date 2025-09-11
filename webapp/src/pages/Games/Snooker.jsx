@@ -11,10 +11,6 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 
-// NOTE: Mobile build relies on three overhead spotlights, a tiny red cue-ball
-// marker, and a slightly boosted cloth texture.  When editing visuals in this
-// file keep those pieces in place so the game looks correct on phones.
-
 // --------------------------------------------------
 // Procedural emerald cloth texture utilities
 // --------------------------------------------------
@@ -310,16 +306,12 @@ function Guret(parent, id, color, x, y) {
   // brighter shiny balls without altering physics
   const material = new THREE.MeshStandardMaterial({
     color,
-    // tweak shading so the three overhead spotlights produce crisp
-    // specular highlights on the glossy balls
-    roughness: 0.02,
-    metalness: 0.6,
+    roughness: 0.05,
+    metalness: 0.3,
     envMapIntensity: 1.5
   });
   // add a small red dot on the cue ball that rotates with it
   if (id === 'cue') {
-    // draw a small red spot in the texture so the cue ball carries a
-    // visible marker that rotates along with it
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
@@ -327,7 +319,7 @@ function Guret(parent, id, color, x, y) {
     ctx.fillRect(0, 0, 256, 256);
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
-    ctx.arc(128, 128, 8, 0, Math.PI * 2);
+    ctx.arc(128, 128, 16, 0, Math.PI * 2);
     ctx.fill();
     const tex = new THREE.CanvasTexture(c);
     tex.anisotropy = 4;
@@ -360,9 +352,9 @@ function Table3D(scene) {
     halfH = PLAY_H / 2;
   // Procedural cloth textures used for table surface and cushions
   const heightC = makeFbmHeightCanvas(512, 6);
-  // push the cloth relief a bit further for a richer texture
-  const normalC = heightToNormalCanvas(heightC, 5.0);
-  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.15);
+  // stronger normals for a more visible 3D cloth effect
+  const normalC = heightToNormalCanvas(heightC, 4.0);
+  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.12);
   const heightTex = new THREE.CanvasTexture(heightC);
   heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
   heightTex.repeat.set(5, 10);
@@ -375,11 +367,11 @@ function Table3D(scene) {
   const clothMat = new THREE.MeshStandardMaterial({
     map: colorTex,
     normalMap: normalTex,
-    normalScale: new THREE.Vector2(4, 4),
+    normalScale: new THREE.Vector2(2, 2),
     roughness: 0.9,
     metalness: 0.0,
     bumpMap: heightTex,
-    bumpScale: 0.65
+    bumpScale: 0.4
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
@@ -1028,23 +1020,17 @@ export default function NewSnookerGame() {
       key.shadow.camera.bottom = -d;
       scene.add(key);
 
-      // Overhead spotlights for ball reflections (mobile players expect three
-      // specular dots on every ball)
+      // Overhead spotlights for ball reflections
       const spotHeight = 90;
-      const span = PLAY_W * 0.3;
-      [
-        [-span, spotHeight, 0],
-        [0, spotHeight, 0],
-        [span, spotHeight, 0]
-      ].forEach(([x, y, z]) => {
-        const s = new THREE.SpotLight(0xffffff, 1.3);
-        s.position.set(x, y, z);
-        s.angle = Math.PI / 6;
-        s.penumbra = 0.35;
-        s.distance = 300;
+      const halfLen = PLAY_H / 2;
+      [0, -halfLen, halfLen].forEach((z) => {
+        const s = new THREE.SpotLight(0xffffff, 1.0);
+        s.position.set(0, spotHeight, z);
+        s.angle = Math.PI / 5;
+        s.penumbra = 0.3;
         // purely cosmetic: no shadows or visible fixtures
         s.castShadow = false;
-        s.target.position.set(x, 0, z);
+        s.target.position.set(0, 0, z);
         scene.add(s);
         scene.add(s.target);
       });
