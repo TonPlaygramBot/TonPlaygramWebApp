@@ -34,7 +34,8 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-    const setSize = ()=> renderer.setSize(host.clientWidth, host.clientHeight, false);
+    // ensure canvas CSS size matches the host container
+    const setSize = () => renderer.setSize(host.clientWidth, host.clientHeight);
     setSize(); host.appendChild(renderer.domElement);
 
     // ---------- Scene & Lights ----------
