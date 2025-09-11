@@ -1,972 +1,226 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="sq">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Billiards Table 3D — Pure WebGL (6 pockets, bright)</title>
-    <style>
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: #0d1430;
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3D Snooker – Fusha, Topat dhe Cue</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.155.0/examples/jsm/"
       }
-      #c {
-        width: 100%;
-        height: 100%;
-        display: block;
+    }
+  </script>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0b0f1a}
+    #app{position:fixed;inset:0}
+    canvas{display:block}
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const app = document.getElementById('app');
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    app.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
+    camera.position.set(2.8,1.8,3.2);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.maxPolarAngle = Math.PI*0.49;
+    controls.minDistance = 1.1;
+    controls.maxDistance = 6;
+
+    // Lights
+    scene.add(new THREE.HemisphereLight(0xdde7ff,0x0b1020,0.6));
+    const dir = new THREE.DirectionalLight(0xffffff,0.8);
+    dir.position.set(-2.5,4,2);
+    scene.add(dir);
+
+    const spot = new THREE.SpotLight(0xffffff,1.5,0,Math.PI*0.2,0.3,1);
+    spot.position.set(1.3,2.6,0.5);
+    spot.target.position.set(0,0.75,0);
+    scene.add(spot,spot.target);
+
+    const point = new THREE.PointLight(0xffffff,1.2,10);
+    point.position.set(-1.5,2.2,-0.8);
+    scene.add(point);
+
+    const tiny = new THREE.PointLight(0xffffff,0.6,3);
+    tiny.position.set(0.5,1.8,1.2);
+    scene.add(tiny);
+
+    // Fusha (field) vetëm cloth normal pak më e errët
+    const PLAY_L = 3.57, PLAY_W = 1.78;
+    const TABLE_H = 0.75;
+
+    const baseCloth = new THREE.Mesh(
+      new THREE.PlaneGeometry(PLAY_L, PLAY_W),
+      new THREE.MeshPhysicalMaterial({
+        color:0x1a6d1a, // jeshile pak më e errët
+        roughness:0.95,
+        sheen:1.0,
+        sheenRoughness:0.8
+      })
+    );
+    baseCloth.rotation.x = -Math.PI/2;
+    baseCloth.position.set(0, TABLE_H, 0);
+    scene.add(baseCloth);
+
+    // Snooker balls
+    const BALL_R = 0.0525;
+    const SNOOKER_COLORS = {
+      cue: 0xffffff,
+      red: 0xff0000,
+      yellow: 0xffff00,
+      green: 0x006400,
+      brown: 0x8B4513,
+      blue: 0x0000ff,
+      pink: 0xff69b4,
+      black: 0x000000
+    };
+
+    function makeBall(color){
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: color, roughness:0.18,
+        clearcoat: 1, clearcoatRoughness:0.12
+      });
+      const b = new THREE.Mesh(new THREE.SphereGeometry(BALL_R,64,48), mat);
+      b.position.y = TABLE_H + BALL_R;
+      return b;
+    }
+
+    // 15 topa të kuq
+    let redIndex = 0;
+    for(let row=0; row<5; row++){
+      for(let i=0; i<=row; i++){
+        if(redIndex>=15) break;
+        const ball = makeBall(SNOOKER_COLORS.red);
+        ball.position.x = (i - row/2) * (BALL_R*2 + 0.002);
+        ball.position.z = -PLAY_W*0.15 + row*(BALL_R*1.9);
+        scene.add(ball);
+        redIndex++;
       }
-      .hud {
-        position: fixed;
-        left: 12px;
-        bottom: 12px;
-        background: rgba(15, 23, 42, 0.85);
-        color: #e5e7eb;
-        font:
-          13px/1.5 system-ui,
-          -apple-system,
-          Segoe UI,
-          Roboto,
-          Arial;
-        padding: 10px 12px;
-        border-radius: 12px;
-      }
-      .hud b {
-        color: #fff;
-      }
-    </style>
-  </head>
-  <body>
-    <canvas id="c"></canvas>
-    <div class="hud">
-      <b>Billiards Table 3D — Pure WebGL</b> • Orbit: drag • Zoom:
-      rrotë/pinch/+/− • Pan: Shift+drag. Ndriçim i fortë, 6 gropa, sponde,
-      shenja snooker (baulk line, “D”, spote). Vetëm tavolina, pa gurë.
-    </div>
-    <script>
-      // ============================================================================
-      //  Pure WebGL single‑file preview — no external libs, works offline
-      //  Features:
-      //   • True 3D table: frame, slate, felt, cushions with corner cuts, 6 conical pockets
-      //   • Bright lighting (2 directional lights + ambient in shader), specular highlights
-      //   • Snooker markings: baulk line, D (r≈0.292 m), six spots (G/Y/Brown/Blue/Pink/Black)
-      //   • Controls: orbit, zoom, pan (mouse & touch)
-      //   • Dimensions: playX=3.569 m, playZ=1.778 m (12ft field approx)
-      //   • Render order: floor → frame/legs → slate/felt → rails/cushions → pockets → markings
-      // ============================================================================
-      (function () {
-        'use strict';
+    }
 
-        // --------------------- Math utils ---------------------
-        const M = {
-          rad: (d) => (d * Math.PI) / 180,
-          ident: () => {
-            const m = new Float32Array(16);
-            m[0] = m[5] = m[10] = m[15] = 1;
-            return m;
-          },
-          mult: (a, b) => {
-            const m = new Float32Array(16);
-            for (let r = 0; r < 4; r++) {
-              for (let c = 0; c < 4; c++) {
-                m[r * 4 + c] =
-                  a[r * 4 + 0] * b[c + 0] +
-                  a[r * 4 + 1] * b[c + 4] +
-                  a[r * 4 + 2] * b[c + 8] +
-                  a[r * 4 + 3] * b[c + 12];
-              }
-            }
-            return m;
-          },
-          trans: (x, y, z) => {
-            const m = M.ident();
-            m[12] = x;
-            m[13] = y;
-            m[14] = z;
-            return m;
-          },
-          scale: (x, y, z) => {
-            const m = M.ident();
-            m[0] = x;
-            m[5] = y;
-            m[10] = z;
-            return m;
-          },
-          rotY: (a) => {
-            const c = Math.cos(a), s = Math.sin(a);
-            const m = M.ident();
-            m[0] = c;
-            m[2] = s;
-            m[8] = -s;
-            m[10] = c;
-            return m;
-          },
-          perspective: (fov, aspect, n, f) => {
-            const t = Math.tan(fov / 2);
-            const m = new Float32Array(16);
-            m[0] = 1 / (aspect * t);
-            m[5] = 1 / t;
-            m[10] = -(f + n) / (f - n);
-            m[11] = -1;
-            m[14] = -(2 * f * n) / (f - n);
-            return m;
-          },
-          lookAt: (eye, target, up) => {
-            const ex = eye[0],
-              ey = eye[1],
-              ez = eye[2];
-            let zx = ex - target[0],
-              zy = ey - target[1],
-              zz = ez - target[2];
-            let zl = Math.hypot(zx, zy, zz) || 1;
-            zx /= zl;
-            zy /= zl;
-            zz /= zl;
-            let xx = up[1] * zz - up[2] * zy;
-            let xy = up[2] * zx - up[0] * zz;
-            let xz = up[0] * zy - up[1] * zx;
-            let xl = Math.hypot(xx, xy, xz) || 1;
-            xx /= xl;
-            xy /= xl;
-            xz /= xl;
-            let yx = zy * xz - zz * xy,
-              yy = zz * xx - zx * xz,
-              yz = zx * xy - zy * xx;
-            const m = M.ident();
-            m[0] = xx;
-            m[1] = yx;
-            m[2] = zx;
-            m[4] = xy;
-            m[5] = yy;
-            m[6] = zy;
-            m[8] = xz;
-            m[9] = yz;
-            m[10] = zz;
-            m[12] = -(xx * ex + xy * ey + xz * ez);
-            m[13] = -(yx * ex + yy * ey + yz * ez);
-            m[14] = -(zx * ex + zy * ey + zz * ez);
-            return m;
-          }
-        };
+    // Topat me ngjyra speciale
+    const yellow = makeBall(SNOOKER_COLORS.yellow);
+    yellow.position.set(-PLAY_L*0.35, TABLE_H+BALL_R, PLAY_W*0.35);
+    scene.add(yellow);
 
-        // --------------------- GL init ---------------------
-        const canvas = document.getElementById('c');
-        const gl = canvas.getContext('webgl');
-        if (!gl) {
-          alert('WebGL nuk suportohet');
-          return;
-        }
-        function resize() {
-          const dpr = Math.min(window.devicePixelRatio || 1, 2);
-          const w = Math.floor(canvas.clientWidth * dpr) || window.innerWidth;
-          const h = Math.floor(canvas.clientHeight * dpr) || window.innerHeight;
-          canvas.width = w;
-          canvas.height = h;
-          gl.viewport(0, 0, w, h);
-        }
-        window.addEventListener('resize', resize);
-        resize();
+    const green = makeBall(SNOOKER_COLORS.green);
+    green.position.set(PLAY_L*0.35, TABLE_H+BALL_R, PLAY_W*0.35);
+    scene.add(green);
 
-        // --------------------- Shaders (2 lights + ambient + specular + gamma approx) ---------------------
-        const VERT = `
-attribute vec3 aPos;attribute vec3 aNormal;uniform mat4 uProj,uView,uModel;uniform vec3 uCol;uniform vec3 uL1,uL2;uniform vec3 uEye;varying vec3 vCol;void main(){vec3 N=normalize(mat3(uModel)*aNormal);vec4 W=uModel*vec4(aPos,1.0);vec3 V=normalize(uEye-W.xyz);vec3 L1=normalize(-uL1);vec3 L2=normalize(-uL2);float amb=0.56;float d1=max(dot(N,L1),0.0);float d2=max(dot(N,L2),0.0);float diff=0.8*(d1*0.6+d2*0.4);vec3 R1=reflect(-L1,N);vec3 R2=reflect(-L2,N);float s1=pow(max(dot(R1,V),0.0),22.0)*0.35;float s2=pow(max(dot(R2,V),0.0),18.0)*0.25;vec3 col=uCol*(amb+diff)+vec3(s1+s2);vCol=pow(col,vec3(1.0/1.8));gl_Position=uProj*uView*W;}`;
-        const FRAG = `
-precision mediump float;varying vec3 vCol;void main(){gl_FragColor=vec4(vCol,1.0);} `;
-        function compile(t, src) {
-          const s = gl.createShader(t);
-          gl.shaderSource(s, src);
-          gl.compileShader(s);
-          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-            console.error(gl.getShaderInfoLog(s));
-            alert('Gabim shader');
-          }
-          return s;
-        }
-        const vs = compile(gl.VERTEX_SHADER, VERT),
-          fs = compile(gl.FRAGMENT_SHADER, FRAG);
-        const program = gl.createProgram();
-        const A_POS = 0,
-          A_NRM = 1;
-        gl.attachShader(program, vs);
-        gl.attachShader(program, fs);
-        gl.bindAttribLocation(program, A_POS, 'aPos');
-        gl.bindAttribLocation(program, A_NRM, 'aNormal');
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          console.error(gl.getProgramInfoLog(program));
-          alert('Gabim linkimi');
-        }
+    const brown = makeBall(SNOOKER_COLORS.brown);
+    brown.position.set(-0.2, TABLE_H+BALL_R, PLAY_W*0.35);
+    scene.add(brown);
 
-        gl.useProgram(program);
-        const U = {
-          proj: gl.getUniformLocation(program, 'uProj'),
-          view: gl.getUniformLocation(program, 'uView'),
-          model: gl.getUniformLocation(program, 'uModel'),
-          col: gl.getUniformLocation(program, 'uCol'),
-          L1: gl.getUniformLocation(program, 'uL1'),
-          L2: gl.getUniformLocation(program, 'uL2'),
-          eye: gl.getUniformLocation(program, 'uEye')
-        };
+    const blue = makeBall(SNOOKER_COLORS.blue);
+    blue.position.set(-0.4, TABLE_H+BALL_R, 0);
+    scene.add(blue);
 
-        function vbo(a) {
-          const b = gl.createBuffer();
-          gl.bindBuffer(gl.ARRAY_BUFFER, b);
-          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.STATIC_DRAW);
-          return b;
-        }
-        function ibo(a) {
-          const b = gl.createBuffer();
-          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b);
-          gl.bufferData(
-            gl.ELEMENT_ARRAY_BUFFER,
-            new Uint16Array(a),
-            gl.STATIC_DRAW
-          );
-          return b;
-        }
-        function attr(buf, loc, size) {
-          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-          gl.enableVertexAttribArray(loc);
-          gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
-        }
+    const pink = makeBall(SNOOKER_COLORS.pink);
+    pink.position.set(0, TABLE_H+BALL_R, -PLAY_W*0.2);
+    scene.add(pink);
 
-        // --------------------- Geometry builders ---------------------
-        function box(w, h, d) {
-          const hw = w / 2,
-            hh = h / 2,
-            hd = d / 2;
-          const P = [
-            hw,
-            -hh,
-            -hd,
-            hw,
-            hh,
-            -hd,
-            hw,
-            hh,
-            hd,
-            hw,
-            -hh,
-            hd,
-            -hw,
-            -hh,
-            hd,
-            -hw,
-            hh,
-            hd,
-            -hw,
-            hh,
-            -hd,
-            -hw,
-            -hh,
-            -hd,
-            -hw,
-            hh,
-            hd,
-            hw,
-            hh,
-            hd,
-            hw,
-            hh,
-            -hd,
-            -hw,
-            hh,
-            -hd,
-            -hw,
-            -hh,
-            -hd,
-            hw,
-            -hh,
-            -hd,
-            hw,
-            -hh,
-            hd,
-            -hw,
-            -hh,
-            hd,
-            -hw,
-            -hh,
-            hd,
-            hw,
-            -hh,
-            hd,
-            hw,
-            hh,
-            hd,
-            -hw,
-            hh,
-            hd,
-            hw,
-            -hh,
-            -hd,
-            -hw,
-            -hh,
-            -hd,
-            -hw,
-            hh,
-            -hd,
-            hw,
-            hh,
-            -hd
-          ];
-          const N = [
-            1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
-            -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0,
-            -1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, -1, 0, 0,
-            -1, 0, 0, -1, 0, 0, -1
-          ];
-          const I = [];
-          for (let i = 0; i < 6; i++) {
-            const o = i * 4;
-            I.push(o, o + 1, o + 2, o, o + 2, o + 3);
-          }
-          return { pos: P, nrm: N, idx: I };
-        }
-        function cylinder(r = 0.5, h = 1, seg = 48) {
-          const P = [],
-            N = [],
-            I = [];
-          for (let i = 0; i < seg; i++) {
-            const a = (i / seg) * 2 * Math.PI;
-            const x = Math.cos(a) * r,
-              z = Math.sin(a) * r;
-            P.push(x, h / 2, z);
-            N.push(0, 1, 0);
-            P.push(x, -h / 2, z);
-            N.push(0, -1, 0);
-          }
-          const tci = P.length / 3;
-          P.push(0, h / 2, 0);
-          N.push(0, 1, 0);
-          const bci = P.length / 3;
-          P.push(0, -h / 2, 0);
-          N.push(0, -1, 0);
-          for (let i = 0; i < seg; i++) {
-            const ni = (i + 1) % seg;
-            I.push(tci, i * 2, ni * 2);
-            I.push(bci, ni * 2 + 1, i * 2 + 1);
-          }
-          const s = P.length / 3;
-          for (let i = 0; i < seg; i++) {
-            const a = (i / seg) * 2 * Math.PI;
-            const na = ((i + 1) / seg) * 2 * Math.PI;
-            const x = Math.cos(a) * r,
-              z = Math.sin(a) * r;
-            const xn = Math.cos(na) * r,
-              zn = Math.sin(na) * r;
-            P.push(x, h / 2, z, x, -h / 2, z, xn, -h / 2, zn, xn, h / 2, zn);
-            N.push(x, 0, z, x, 0, z, xn, 0, zn, xn, 0, zn);
-            const o = s + i * 4;
-            I.push(o, o + 1, o + 2, o, o + 2, o + 3);
-          }
-          return { pos: P, nrm: N, idx: I };
-        }
-        function coneFrustum(rTop, rBot, h, seg = 56) {
-          const P = [],
-            N = [],
-            I = [];
-          for (let i = 0; i < seg; i++) {
-            const a = (i / seg) * 2 * Math.PI;
-            const na = ((i + 1) / seg) * 2 * Math.PI;
-            const x = Math.cos(a),
-              z = Math.sin(a),
-              xn = Math.cos(na),
-              zn = Math.sin(na);
-            P.push(
-              x * rTop,
-              h / 2,
-              z * rTop,
-              x * rBot,
-              -h / 2,
-              z * rBot,
-              xn * rBot,
-              -h / 2,
-              zn * rBot,
-              xn * rTop,
-              h / 2,
-              zn * rTop
-            );
-            N.push(x, 0.25, z, x, 0.25, z, xn, 0.25, zn, xn, 0.25, zn);
-            const o = i * 4;
-            I.push(o, o + 1, o + 2, o, o + 2, o + 3);
-          }
-          return {
-            pos: new Float32Array(P),
-            nrm: new Float32Array(N),
-            idx: new Uint16Array(I)
-          };
-        }
-        function disc(r, th = 0.002, seg = 32) {
-          return cylinder(r, th, seg);
-        }
-        function ringSector(rIn, rOut, a0, a1, seg = 84) {
-          const P = [],
-            N = [],
-            I = [];
-          const h = 0.002;
-          for (let i = 0; i <= seg; i++) {
-            const t = i / seg;
-            const a = a0 + (a1 - a0) * t;
-            const ca = Math.cos(a),
-              sa = Math.sin(a);
-            P.push(ca * rOut, h / 2, sa * rOut, ca * rIn, h / 2, sa * rIn);
-            N.push(0, 1, 0, 0, 1, 0);
-            P.push(ca * rOut, -h / 2, sa * rOut, ca * rIn, -h / 2, sa * rIn);
-            N.push(0, -1, 0, 0, -1, 0);
-          }
-          for (let i = 0; i < seg; i++) {
-            const o = i * 4;
-            I.push(o, o + 1, o + 5, o, o + 5, o + 4);
-            I.push(o + 2, o + 6, o + 7, o + 2, o + 7, o + 3);
-          }
-          return {
-            pos: new Float32Array(P),
-            nrm: new Float32Array(N),
-            idx: new Uint16Array(I)
-          };
-        }
+    const black = makeBall(SNOOKER_COLORS.black);
+    black.position.set(0, TABLE_H+BALL_R, -PLAY_W*0.45);
+    scene.add(black);
 
-        function xform(g, mat) {
-          const p = g.pos,
-            n = g.nrm;
-          const P = new Float32Array(p.length),
-            N = new Float32Array(n.length);
-          for (let i = 0; i < p.length; i += 3) {
-            const x = p[i],
-              y = p[i + 1],
-              z = p[i + 2];
-            const X = mat[0] * x + mat[4] * y + mat[8] * z + mat[12];
-            const Y = mat[1] * x + mat[5] * y + mat[9] * z + mat[13];
-            const Z = mat[2] * x + mat[6] * y + mat[10] * z + mat[14];
-            P[i] = X;
-            P[i + 1] = Y;
-            P[i + 2] = Z;
-          }
-          for (let i = 0; i < n.length; i += 3) {
-            const x = n[i],
-              y = n[i + 1],
-              z = n[i + 2];
-            const X = mat[0] * x + mat[4] * y + mat[8] * z;
-            const Y = mat[1] * x + mat[5] * y + mat[9] * z;
-            const Z = mat[2] * x + mat[6] * y + mat[10] * z;
-            const L = Math.hypot(X, Y, Z) || 1;
-            N[i] = X / L;
-            N[i + 1] = Y / L;
-            N[i + 2] = Z / L;
-          }
-          return { pos: P, nrm: N, idx: g.idx.slice() };
-        }
+    // Cue ball
+    const cueBall = makeBall(SNOOKER_COLORS.cue);
+    cueBall.position.set(0, TABLE_H+BALL_R, PLAY_W*0.25);
 
-        function hex(hex) {
-          return [
-            ((hex >> 16) & 255) / 255,
-            ((hex >> 8) & 255) / 255,
-            (hex & 255) / 255
-          ];
-        }
-        class Mesh {
-          constructor(geom, color) {
-            this.geom = geom;
-            this.color = hex(color);
-            this.v = vbo(geom.pos);
-            this.n = vbo(geom.nrm);
-            this.i = ibo(geom.idx);
-            this.count = geom.idx.length;
-            this.model = M.ident();
-          }
-          draw() {
-            attr(this.v, 0, 3);
-            attr(this.n, 1, 3);
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.i);
-            gl.uniformMatrix4fv(U.model, false, this.model);
-            gl.uniform3fv(U.col, new Float32Array(this.color));
-            gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0);
-          }
-        }
+    // Add 4 red dots on cue ball
+    const dotSize = 0.008;
+    const dotGeom = new THREE.SphereGeometry(dotSize, 16, 8);
+    const dotMat = new THREE.MeshBasicMaterial({color:0xff0000});
+    const offsets = [
+      [ BALL_R*0.7, 0, 0],
+      [-BALL_R*0.7, 0, 0],
+      [0, 0, BALL_R*0.7],
+      [0, 0,-BALL_R*0.7]
+    ];
+    offsets.forEach(o=>{
+      const d = new THREE.Mesh(dotGeom, dotMat);
+      d.position.set(o[0], o[1], o[2]);
+      cueBall.add(d);
+    });
 
-        // --------------------- Dimensions & palette ---------------------
-        const Dim = {
-          playX: 3.569,
-          playZ: 1.778,
-          slateT: 0.06,
-          feltT: 0.016,
-          railW: 0.012,
-          railH: 0.06,
-          cushionH: 0.06,
-          cushionD: 0.08,
-          baseH: 0.44,
-          legH: 0.82,
-          legR: 0.39,
-          tableH: 0.9,
-          pocketR: 0.105,
-          pocketDepth: 0.12
-        };
-        // raise cushions and attached frame slightly
-        const UPPER_Y_OFFSET = 0.34;
-        const Col = {
-          wood: 0x704523,
-          slate: 0x3a3a3a,
-          felt: 0x148245,
-          cushion: 0x1b6c3f,
-          pocket: 0x0c0e12,
-          rim: 0xb8c4d6,
-          floor: 0x8b0000,
-          line: 0xffffff
-        };
-        const RAIL_UP = 0.02;
+    scene.add(cueBall);
 
-        const meshes = [];
+    // Cue stick behind cueball
+    const cueStick = new THREE.Group();
 
-        // --------------------- Floor & Walls ---------------------
-        meshes.push(
-          new Mesh(xform(box(20, 0.02, 20), M.trans(0, -0.01, 0)), Col.floor)
-        );
-        const wallH = 0.5,
-          wallT = 0.05,
-          floorS = 20,
-          half = floorS / 2;
-        meshes.push(
-          new Mesh(
-            xform(box(floorS, wallH, wallT), M.trans(0, wallH / 2, -half)),
-            Col.floor
-          )
-        );
-        meshes.push(
-          new Mesh(
-            xform(box(floorS, wallH, wallT), M.trans(0, wallH / 2, half)),
-            Col.floor
-          )
-        );
-        meshes.push(
-          new Mesh(
-            xform(box(wallT, wallH, floorS), M.trans(-half, wallH / 2, 0)),
-            Col.floor
-          )
-        );
-        meshes.push(
-          new Mesh(
-            xform(box(wallT, wallH, floorS), M.trans(half, wallH / 2, 0)),
-            Col.floor
-          )
-        );
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.025, 1.5, 32),
+      new THREE.MeshPhysicalMaterial({color:0xdeb887, roughness:0.6})
+    );
+    shaft.rotation.x = -Math.PI/2;
+    cueStick.add(shaft);
 
-        // --------------------- Frame/Base (top larger than legs) ---------------------
-        {
-          const totalX = Dim.playX + Dim.railW * 2,
-            totalZ = Dim.playZ + Dim.railW * 2;
-          const base = new Mesh(
-            xform(
-              box(totalX, Dim.baseH, totalZ),
-              M.trans(
-                0,
-                Dim.tableH - Dim.slateT - Dim.baseH / 2 - 0.02 + UPPER_Y_OFFSET,
-                0
-              )
-            ),
-            Col.wood
-          );
-          meshes.push(base);
-        }
+    const tip = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.008, 0.05, 32),
+      new THREE.MeshPhysicalMaterial({color:0x0000ff, roughness:0.4})
+    );
+    tip.rotation.x = -Math.PI/2;
+    tip.position.z = -0.75;
+    cueStick.add(tip);
 
-        // --------------------- Legs removed ---------------------
-        // (Table rendered without supporting legs for integration atop external surface.)
+    const connector = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.009, 0.009, 0.015, 32),
+      new THREE.MeshPhysicalMaterial({color:0xcd7f32, metalness:0.8, roughness:0.5})
+    );
+    connector.rotation.x = -Math.PI/2;
+    connector.position.z = -0.748;
+    cueStick.add(connector);
 
-        // --------------------- Slate & Felt ---------------------
-        meshes.push(
-          new Mesh(
-            xform(
-              box(Dim.playX, Dim.slateT, Dim.playZ),
-              M.trans(0, Dim.tableH - Dim.slateT / 2 + UPPER_Y_OFFSET, 0)
-            ),
-            Col.slate
-          )
-        );
-        const feltTopY = Dim.tableH - Dim.slateT + Dim.feltT / 2;
-        meshes.push(
-          new Mesh(
-            xform(
-              box(Dim.playX, Dim.feltT, Dim.playZ),
-              M.trans(0, feltTopY + UPPER_Y_OFFSET, 0)
-            ),
-            Col.felt
-          )
-        );
+    const buttCap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.03, 32, 16),
+      new THREE.MeshPhysicalMaterial({color:0x111111, roughness:0.5})
+    );
+    buttCap.position.z = 0.75;
+    cueStick.add(buttCap);
 
-        // --------------------- Rails ---------------------
-        /*
-  Original top rails were kept for reference but are no longer rendered
-  after the table expansion below.
-{
-  const rx=Dim.playX/2+Dim.railW/2,rz=Dim.playZ/2+Dim.railW/2;
-  const y=Dim.tableH-Dim.slateT-0.01+Dim.railH/2+UPPER_Y_OFFSET;
-  // shorten wooden frame on all sides by half without moving rails
-  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*0.625,Dim.railH,Dim.railW),M.trans(0,y,rz)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.playX+Dim.railW*0.625,Dim.railH,Dim.railW),M.trans(0,y,-rz)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*0.625),M.trans(rx,y,0)),Col.wood));
-  meshes.push(new Mesh(xform(box(Dim.railW,Dim.railH,Dim.playZ+Dim.railW*0.625),M.trans(-rx,y,0)),Col.wood));
-  // fill gaps behind pockets
-  const filler=box(Dim.railW,Dim.railH,Dim.railW);
-  const fx=Dim.playX/2+Dim.railW/2,fz=Dim.playZ/2+Dim.railW/2;
-  [[fx,fz],[-fx,fz],[fx,-fz],[-fx,-fz],[0,fz],[0,-fz]].forEach(([x,z])=>{
-    meshes.push(new Mesh(xform(filler,M.trans(x,y,z)),Col.wood));
-  });
-}
-*/
+    const stripeMat = new THREE.MeshBasicMaterial({color:0x000000});
+    for(let i=0;i<12;i++){
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.01, 0.001, 0.35),
+        stripeMat
+      );
+      const angle = (i/12) * Math.PI*2;
+      stripe.position.x = Math.cos(angle)*0.02;
+      stripe.position.y = Math.sin(angle)*0.02;
+      stripe.position.z = 0.55;
+      stripe.rotation.z = angle;
+      cueStick.add(stripe);
+    }
 
-        // --------------------- Cushions REMOVED per request ---------------------
-        // (No cushion meshes rendered; frame, felt, pockets remain.)
+    cueStick.position.set(cueBall.position.x, TABLE_H+BALL_R, cueBall.position.z+0.9);
+    scene.add(cueStick);
 
-        // --------------------- 6 Pockets (conical) + rims ---------------------
-        {
-          const cone = coneFrustum(
-            Dim.pocketR * 0.95,
-            Dim.pocketR * 1.28,
-            Dim.pocketDepth,
-            64
-          );
-          const y = feltTopY - Dim.pocketDepth * 0.35 + UPPER_Y_OFFSET,
-            rimY = feltTopY + 0.006 + UPPER_Y_OFFSET + RAIL_UP;
-          const jawDepth = Dim.cushionD * 1.2,
-            jawWidth = Dim.railW * 2,
-            jawHeight = Dim.cushionH,
-            jawGeom = box(jawDepth, jawHeight, jawWidth),
-            jawAngle = M.rad(30);
-          const pts = [
-            [-Dim.playX / 2, -Dim.playZ / 2],
-            [Dim.playX / 2, -Dim.playZ / 2],
-            [-Dim.playX / 2, Dim.playZ / 2],
-            [Dim.playX / 2, Dim.playZ / 2],
-            [0, -Dim.playZ / 2],
-            [0, Dim.playZ / 2]
-          ];
-          const addJaw = (x, z, ang) => {
-            const off = jawDepth / 2;
-            const cx = x + Math.cos(ang) * off;
-            const cz = z + Math.sin(ang) * off;
-            const model = M.mult(M.trans(cx, rimY - jawHeight / 2, cz), M.rotY(ang));
-            meshes.push(new Mesh(xform(jawGeom, model), Col.cushion));
-          };
-          pts.forEach(([x, z]) => {
-            meshes.push(new Mesh(xform(cone, M.trans(x, y, z)), Col.pocket));
-            const angle = Math.atan2(z, x);
-            const rim = ringSector(
-              Dim.pocketR * 1.02,
-              Dim.pocketR * 1.2,
-              angle - Math.PI / 2,
-              angle + Math.PI / 2,
-              56
-            );
-            meshes.push(new Mesh(xform(rim, M.trans(x, rimY, z)), Col.rim));
-            addJaw(x, z, angle + jawAngle);
-            addJaw(x, z, angle - jawAngle);
-          });
-        }
+    addEventListener('resize',()=>{
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth,innerHeight);
+    });
 
-        // --------------------- Markings (baulk line, D, spots) ---------------------
-        {
-          const lineTh = 0.006,
-            markColor = Col.line;
-          const baulkX = -Dim.playX / 2 + 0.737; // 737 mm
-          meshes.push(
-            new Mesh(
-              xform(
-                box(lineTh, 0.002, Dim.playZ * 0.98),
-                M.trans(baulkX, feltTopY + 0.0016 + UPPER_Y_OFFSET, 0)
-              ),
-              markColor
-            )
-          );
-          const D = 0.292;
-          meshes.push(
-            new Mesh(
-              xform(
-                ringSector(
-                  D - 0.006,
-                  D + 0.006,
-                  Math.PI / 2,
-                  Math.PI * 1.5,
-                  96
-                ),
-                M.trans(baulkX, feltTopY + 0.0018 + UPPER_Y_OFFSET, 0)
-              ),
-              markColor
-            )
-          );
-          const spot = disc(0.012, 0.002, 32);
-          const topX = Dim.playX / 2,
-            blackX = topX - 0.324,
-            pinkX = topX - 0.737,
-            blueX = 0.0,
-            Dz = 0.292;
-          function spotAt(x, z) {
-            meshes.push(
-              new Mesh(
-                xform(spot, M.trans(x, feltTopY + 0.002 + UPPER_Y_OFFSET, z)),
-                markColor
-              )
-            );
-          }
-          spotAt(baulkX, -Dz); // Yellow
-          spotAt(baulkX, Dz); // Green
-          spotAt(baulkX, 0); // Brown
-          spotAt(blueX, 0); // Blue
-          spotAt(pinkX, 0); // Pink
-          spotAt(blackX, 0); // Black
-        }
-
-        // --------------------- Lower table with legs (underlay) ---------------------
-        {
-          // narrower outer frame; keep only inner half
-          const FactorTop = 1.175;
-          const topX = Dim.playX * FactorTop,
-            topZ = Dim.playZ * FactorTop;
-          const baseX = Dim.playX * FactorTop + 0.24,
-            baseZ = Dim.playZ * FactorTop + 0.24;
-          meshes.push(
-            new Mesh(
-              xform(
-                box(baseX, Dim.baseH, baseZ),
-                M.trans(0, Dim.tableH - Dim.slateT - Dim.baseH / 2 - 0.02, 0)
-              ),
-              Col.wood
-            )
-          );
-          const margin = 0.45;
-          const legRadius = Dim.legR * 3;
-          const offX = baseX / 2 - (legRadius + margin),
-            offZ = baseZ / 2 - (legRadius + margin);
-          const leg = cylinder(legRadius, Dim.legH, 48);
-          [
-            [-offX, -offZ],
-            [offX, -offZ],
-            [-offX, offZ],
-            [offX, offZ]
-          ].forEach(([x, z]) => {
-            meshes.push(
-              new Mesh(
-                xform(leg, M.trans(x, Dim.tableH - Dim.slateT - 0.41, z)),
-                Col.wood
-              )
-            );
-          });
-          const feltTopY2 = Dim.tableH - Dim.slateT + Dim.feltT / 2;
-          meshes.push(
-            new Mesh(
-              xform(
-                box(topX, Dim.slateT, topZ),
-                M.trans(0, Dim.tableH - Dim.slateT / 2, 0)
-              ),
-              Col.slate
-            )
-          );
-          meshes.push(
-            new Mesh(
-              xform(box(topX, Dim.feltT, topZ), M.trans(0, feltTopY2, 0)),
-              Col.felt
-            )
-          );
-          // small wooden rails around enlarged top (thinner and slightly higher)
-          const thinRail = Dim.railW / 2;
-          const rxTop = topX / 2 + thinRail / 2,
-            rzTop = topZ / 2 + thinRail / 2;
-          const railY =
-            Dim.tableH - Dim.slateT - 0.01 + Dim.railH / 2 + RAIL_UP;
-          meshes.push(
-            new Mesh(
-              xform(
-                box(topX + thinRail, Dim.railH, thinRail),
-                M.trans(0, railY, rzTop)
-              ),
-              Col.wood
-            )
-          );
-          meshes.push(
-            new Mesh(
-              xform(
-                box(topX + thinRail, Dim.railH, thinRail),
-                M.trans(0, railY, -rzTop)
-              ),
-              Col.wood
-            )
-          );
-          meshes.push(
-            new Mesh(
-              xform(
-                box(thinRail, Dim.railH, topZ + thinRail),
-                M.trans(rxTop, railY, 0)
-              ),
-              Col.wood
-            )
-          );
-          meshes.push(
-            new Mesh(
-              xform(
-                box(thinRail, Dim.railH, topZ + thinRail),
-                M.trans(-rxTop, railY, 0)
-              ),
-              Col.wood
-            )
-          );
-          const fillerTop = box(thinRail, Dim.railH, thinRail);
-          const fxTop = topX / 2 + thinRail / 2,
-            fzTop = topZ / 2 + thinRail / 2;
-          [
-            [fxTop, fzTop],
-            [-fxTop, fzTop],
-            [fxTop, -fzTop],
-            [-fxTop, -fzTop],
-            [0, fzTop],
-            [0, -fzTop]
-          ].forEach(([x, z]) => {
-            meshes.push(
-              new Mesh(xform(fillerTop, M.trans(x, railY, z)), Col.wood)
-            );
-          });
-          const cone = coneFrustum(
-            Dim.pocketR * 0.95,
-            Dim.pocketR * 1.28,
-            Dim.pocketDepth,
-            64
-          );
-          const y2 = feltTopY2 - Dim.pocketDepth * 0.35;
-          const rimY2 = feltTopY2 + 0.006 + RAIL_UP;
-          const pts = [
-            [-topX / 2, -topZ / 2],
-            [topX / 2, -topZ / 2],
-            [-topX / 2, topZ / 2],
-            [topX / 2, topZ / 2],
-            [0, -topZ / 2],
-            [0, topZ / 2]
-          ];
-          pts.forEach(([x, z]) => {
-            meshes.push(new Mesh(xform(cone, M.trans(x, y2, z)), Col.pocket));
-            const angle = Math.atan2(z, x);
-            const rim = ringSector(
-              Dim.pocketR * 1.02,
-              Dim.pocketR * 1.2,
-              angle - Math.PI / 2,
-              angle + Math.PI / 2,
-              56
-            );
-            meshes.push(new Mesh(xform(rim, M.trans(x, rimY2, z)), Col.rim));
-          });
-        }
-
-        // --------------------- Camera & controls ---------------------
-        // Start a little closer to the table
-        let camDist = 3.0,
-          theta = M.rad(42),
-          phi = M.rad(27);
-        const target = [0, 0.46, 0];
-        function eye() {
-          return [
-            target[0] + camDist * Math.cos(phi) * Math.sin(theta),
-            target[1] + camDist * Math.sin(phi),
-            target[2] + camDist * Math.cos(phi) * Math.cos(theta)
-          ];
-        }
-        let drag = false,
-          lastX = 0,
-          lastY = 0,
-          pan = false;
-        const maxPhi = M.rad(85),
-          minPhi = M.rad(5);
-        canvas.addEventListener('mousedown', (e) => {
-          drag = true;
-          pan = e.shiftKey;
-          lastX = e.clientX;
-          lastY = e.clientY;
-        });
-        window.addEventListener('mouseup', () => {
-          drag = false;
-        });
-        window.addEventListener('mousemove', (e) => {
-          if (!drag) return;
-          const dx = (e.clientX - lastX) / window.innerWidth,
-            dy = (e.clientY - lastY) / window.innerHeight;
-          if (pan) {
-            target[0] -= dx * camDist * 1.2;
-            target[2] += dy * camDist * 1.2;
-          } else {
-            theta += dx * 2 * Math.PI * 0.3;
-            phi -= dy * Math.PI * 0.5;
-            if (phi > maxPhi) phi = maxPhi;
-            if (phi < minPhi) phi = minPhi;
-            camDist -= dy * 2;
-            if (camDist < 1.2) camDist = 1.2;
-            if (camDist > 18) camDist = 18;
-          }
-          lastX = e.clientX;
-          lastY = e.clientY;
-        });
-        canvas.addEventListener('wheel', (e) => {
-          camDist *= 1 + Math.sign(e.deltaY) * 0.08;
-          if (camDist < 1.2) camDist = 1.2;
-          if (camDist > 18) camDist = 18;
-        });
-        let touch = null;
-        canvas.addEventListener('touchstart', (e) => {
-          if (e.touches.length === 1) {
-            touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-          } else if (e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            touch = { p: Math.hypot(dx, dy) };
-          }
-        });
-        canvas.addEventListener('touchmove', (e) => {
-          if (!touch) return;
-          if (e.touches.length === 1 && touch.x != null) {
-            const nx = e.touches[0].clientX,
-              ny = e.touches[0].clientY;
-            const dx = (nx - touch.x) / window.innerWidth,
-              dy = (ny - touch.y) / window.innerHeight;
-            theta += dx * 2 * Math.PI * 0.3;
-            phi -= dy * Math.PI * 0.5;
-            if (phi > maxPhi) phi = maxPhi;
-            if (phi < minPhi) phi = minPhi;
-            camDist -= dy * 2;
-            if (camDist < 1.2) camDist = 1.2;
-            if (camDist > 18) camDist = 18;
-            touch = { x: nx, y: ny };
-          } else if (e.touches.length === 2 && touch.p != null) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            const p = Math.hypot(dx, dy);
-            camDist *= touch.p / (p || 1);
-            if (camDist < 1.2) camDist = 1.2;
-            if (camDist > 18) camDist = 18;
-            touch = { p };
-          }
-        });
-        window.addEventListener('keydown', (e) => {
-          if (e.key === '+') camDist = Math.max(1.2, camDist * 0.9);
-          if (e.key === '-') camDist = Math.min(18, camDist * 1.1);
-        });
-
-        // --------------------- Lights ---------------------
-        const L1 = [0.28, 1.12, 0.34],
-          L2 = [-0.42, 0.95, -0.25];
-
-        // --------------------- Render loop ---------------------
-        function loop() {
-          gl.enable(gl.DEPTH_TEST);
-          gl.clearColor(0.12, 0.17, 0.35, 1);
-          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-          const aspect = canvas.width / canvas.height;
-          const proj = M.perspective(M.rad(55), aspect, 0.1, 200);
-          const e = eye();
-          const view = M.lookAt(e, target, [0, 1, 0]);
-          gl.uniformMatrix4fv(U.proj, false, proj);
-          gl.uniformMatrix4fv(U.view, false, view);
-          gl.uniform3fv(U.eye, new Float32Array(e));
-          gl.uniform3fv(U.L1, new Float32Array(L1));
-          gl.uniform3fv(U.L2, new Float32Array(L2));
-          for (let i = 0; i < meshes.length; i++) meshes[i].draw();
-          requestAnimationFrame(loop);
-        }
-        loop();
-      })();
-    </script>
-  </body>
+    (function loop(){
+      controls.update();
+      renderer.render(scene,camera);
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
 </html>
