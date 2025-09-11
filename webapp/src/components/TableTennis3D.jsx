@@ -49,12 +49,15 @@ export default function TableTennis3D({ player, ai }){
     const camRig = { dist: 6.8, height: 2.4, yaw: 0, pitch: 0.28 };
     const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
 
-    // ---------- Table Tennis dimensions (meters approx) ----------
-    const T = { L: 2.74, W: 1.525, H: 0.76, NET_H: 0.1525 };
+    // ---------- Table dimensions match Air Hockey field ----------
+    const T = { L: 5.76, W: 2.2, H: 0.76, NET_H: 0.1525 };
 
-    // Scale up a bit for nicer visuals
-    const S = 2.2; // uniform scale
-    const tableG = new THREE.Group(); tableG.scale.set(S,S,S); scene.add(tableG);
+    // Use a 1:1 scale since size already matches the field
+    const S = 1;
+    const tableG = new THREE.Group();
+    tableG.scale.set(S, S, S);
+    tableG.position.z = 0.1; // align with Air Hockey field offset
+    scene.add(tableG);
 
     // Table top
     const table = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.04, T.L), new THREE.MeshStandardMaterial({ color: 0x0e5b85, roughness: 0.92 }));
