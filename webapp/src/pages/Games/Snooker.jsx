@@ -11,6 +11,129 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 
+// --------------------------------------------------
+// Procedural emerald cloth texture utilities
+// --------------------------------------------------
+function makeFbmHeightCanvas(size = 512, octaves = 5) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  function valueNoise(grid, x, y) {
+    const x0 = Math.floor(x),
+      y0 = Math.floor(y);
+    const x1 = x0 + 1,
+      y1 = y0 + 1;
+    const sx = x - x0,
+      sy = y - y0;
+    const v00 = grid[(y0 & 255) * 256 + (x0 & 255)];
+    const v10 = grid[(y0 & 255) * 256 + (x1 & 255)];
+    const v01 = grid[(y1 & 255) * 256 + (x0 & 255)];
+    const v11 = grid[(y1 & 255) * 256 + (x1 & 255)];
+    const cx = (1 - Math.cos(sx * Math.PI)) * 0.5;
+    const cy = (1 - Math.cos(sy * Math.PI)) * 0.5;
+    const ix0 = v00 * (1 - cx) + v10 * cx;
+    const ix1 = v01 * (1 - cx) + v11 * cx;
+    return ix0 * (1 - cy) + ix1 * cy;
+  }
+  const grid = new Float32Array(256 * 256);
+  for (let i = 0; i < grid.length; i++) grid[i] = Math.random();
+  const lacunarity = 2.2;
+  const gain = 0.52;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let amp = 1,
+        freq = 1 / 24,
+        sum = 0,
+        norm = 0;
+      for (let o = 0; o < octaves; o++) {
+        const nx = x * freq,
+          ny = y * freq;
+        const v = valueNoise(grid, nx, ny);
+        sum += v * amp;
+        norm += amp;
+        amp *= gain;
+        freq *= lacunarity;
+      }
+      let h = sum / norm;
+      h = Math.pow(h, 1.25);
+      const i = (y * size + x) * 4;
+      img.data[i + 0] = img.data[i + 1] = img.data[i + 2] = Math.floor(h * 255);
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function heightToNormalCanvas(heightCanvas, strength = 2.0) {
+  const w = heightCanvas.width,
+    h = heightCanvas.height;
+  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(w, h);
+  const get = (x, y) => src[(((y + h) % h) * w + ((x + w) % w)) << 2];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const hL = get(x - 1, y),
+        hR = get(x + 1, y);
+      const hD = get(x, y + 1),
+        hU = get(x, y - 1);
+      const dx = ((hR - hL) / 255) * strength;
+      const dy = ((hD - hU) / 255) * strength;
+      let nx = -dx,
+        ny = -dy,
+        nz = 1.0;
+      const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+      nx *= invLen;
+      ny *= invLen;
+      nz *= invLen;
+      const i = (y * w + x) * 4;
+      out.data[i + 0] = Math.floor((nx * 0.5 + 0.5) * 255);
+      out.data[i + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
+      out.data[i + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
+      out.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+  return c;
+}
+
+function makeColorCanvasFromHeight(
+  heightCanvas,
+  c0 = '#1a8f2f',
+  c1 = '#23b043',
+  variation = 0.08
+) {
+  const w = heightCanvas.width,
+    h = heightCanvas.height;
+  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(w, h);
+  const ca = new THREE.Color(c0),
+    cb = new THREE.Color(c1);
+  for (let i = 0; i < w * h; i++) {
+    const v = src[i * 4] / 255;
+    const t = Math.min(
+      1,
+      Math.max(0, v * (1 + (Math.random() - 0.5) * variation))
+    );
+    const col = ca.clone().lerp(cb, t);
+    out.data[i * 4 + 0] = Math.floor(col.r * 255);
+    out.data[i * 4 + 1] = Math.floor(col.g * 255);
+    out.data[i * 4 + 2] = Math.floor(col.b * 255);
+    out.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  return c;
+}
+
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
  * Per kërkesën tënde:
@@ -180,14 +303,30 @@ function calcTarget(cue, dir, balls) {
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
-  const material = new THREE.MeshPhysicalMaterial({
+  // brighter shiny balls without altering physics
+  const material = new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.18,
-    clearcoat: 1,
-    clearcoatRoughness: 0.12
+    roughness: 0.05,
+    metalness: 0.3,
+    envMapIntensity: 1.5
   });
+  // add a small red dot on the cue ball that rotates with it
+  if (id === 'cue') {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(128, 128, 16, 0, Math.PI * 2);
+    ctx.fill();
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    material.map = tex;
+  }
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(BALL_R, 64, 48),
+    new THREE.SphereGeometry(BALL_R, 28, 28),
     material
   );
   mesh.position.set(x, BALL_R, y);
@@ -211,20 +350,28 @@ function Table3D(scene) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
-  // Cloth texture for play field and cushions
-  const texLoader = new THREE.TextureLoader();
-  const clothTex = texLoader.load(
-    'https://threejsfundamentals.org/threejs/resources/images/checker.png'
-  );
-  clothTex.wrapS = clothTex.wrapT = THREE.RepeatWrapping;
-  clothTex.repeat.set(800, 400);
-  clothTex.anisotropy = 16;
-  const clothMat = new THREE.MeshPhysicalMaterial({
-    color: 0x176339,
-    roughness: 0.96,
-    bumpMap: clothTex,
-    bumpScale: 0.01,
-    map: clothTex
+  // Procedural cloth textures used for table surface and cushions
+  const heightC = makeFbmHeightCanvas(512, 6);
+  // stronger normals for a more visible 3D cloth effect
+  const normalC = heightToNormalCanvas(heightC, 4.0);
+  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.12);
+  const heightTex = new THREE.CanvasTexture(heightC);
+  heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
+  heightTex.repeat.set(5, 10);
+  const normalTex = new THREE.CanvasTexture(normalC);
+  normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
+  normalTex.repeat.set(5, 10);
+  const colorTex = new THREE.CanvasTexture(colorC);
+  colorTex.wrapS = colorTex.wrapT = THREE.RepeatWrapping;
+  colorTex.repeat.set(5, 10);
+  const clothMat = new THREE.MeshStandardMaterial({
+    map: colorTex,
+    normalMap: normalTex,
+    normalScale: new THREE.Vector2(2, 2),
+    roughness: 0.9,
+    metalness: 0.0,
+    bumpMap: heightTex,
+    bumpScale: 0.4
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
@@ -859,28 +1006,34 @@ export default function NewSnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      const lightScale = PLAY_W / 1.27;
-      scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6));
-      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-      dir.position.set(-2.5 * lightScale, 4 * lightScale, 2 * lightScale);
-      scene.add(dir);
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        1.5,
-        0,
-        Math.PI * 0.2,
-        0.3,
-        1
-      );
-      spot.position.set(1.3 * lightScale, 2.6 * lightScale, 0.5 * lightScale);
-      spot.target.position.set(0, 0, 0);
-      scene.add(spot, spot.target);
-      const point = new THREE.PointLight(0xffffff, 1.2, 10 * lightScale);
-      point.position.set(-1.5 * lightScale, 2.2 * lightScale, -0.8 * lightScale);
-      scene.add(point);
-      const tiny = new THREE.PointLight(0xffffff, 0.6, 3 * lightScale);
-      tiny.position.set(0.5 * lightScale, 1.8 * lightScale, 1.2 * lightScale);
-      scene.add(tiny);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 1.1));
+      const key = new THREE.DirectionalLight(0xffffff, 1.2);
+      key.position.set(-60, 90, 40);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.near = 10;
+      key.shadow.camera.far = 400;
+      const d = 200;
+      key.shadow.camera.left = -d;
+      key.shadow.camera.right = d;
+      key.shadow.camera.top = d;
+      key.shadow.camera.bottom = -d;
+      scene.add(key);
+
+      // Overhead spotlights for ball reflections
+      const spotHeight = 70;
+      const halfLen = PLAY_H / 2;
+      [0, -halfLen / 2, halfLen / 2].forEach((z) => {
+        const s = new THREE.SpotLight(0xffffff, 1.0);
+        s.position.set(0, spotHeight, z);
+        s.angle = Math.PI / 5;
+        s.penumbra = 0.3;
+        // purely cosmetic: no shadows or visible fixtures
+        s.castShadow = false;
+        s.target.position.set(0, 0, z);
+        scene.add(s);
+        scene.add(s.target);
+      });
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
