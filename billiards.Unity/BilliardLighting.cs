@@ -5,12 +5,12 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
-        // Position three soft spot lights above the table for even illumination
-        Vector3[] lightPositions = new Vector3[]
+        // Create three spot lights to highlight the D, blue and black spots on a snooker table
+        Vector3[] lightPositions =
         {
-            new Vector3(0f, 5f, 0f),   // center
-            new Vector3(-3f, 5f, -3f), // left side
-            new Vector3(3f, 5f, 3f)    // right side
+            new Vector3(0f, 5f, -3.5f), // D spot at baulk end
+            new Vector3(0f, 5f, 0f),    // blue spot in the centre
+            new Vector3(0f, 5f, 3.5f)   // black spot at top end
         };
 
         for (int i = 0; i < lightPositions.Length; i++)
@@ -19,13 +19,13 @@ public class BilliardLighting : MonoBehaviour
             Light spotLight = lightObj.AddComponent<Light>();
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
-            spotLight.intensity = 2.2f;
-            spotLight.range = 20f;
-            spotLight.spotAngle = 70f;
+            spotLight.intensity = 2.5f;        // brightness
+            spotLight.range = 15f;             // distance
+            spotLight.spotAngle = 60f;         // cone size
             spotLight.shadows = LightShadows.Soft;
 
             lightObj.transform.position = lightPositions[i];
-            lightObj.transform.LookAt(Vector3.zero);
+            lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         }
 
         // Create a shiny plastic (PBR) material with slightly brighter base color
