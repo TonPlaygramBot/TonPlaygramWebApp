@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 /**
- * TABLE TENNIS 3D — Mobile Portrait (1:1), Drag-to-Move, Pinch Zoom & Orbit
- * -------------------------------------------------------------------------
+ * TABLE TENNIS 3D — Mobile Portrait (1:1)
+ * --------------------------------------
  * • Full-screen on phones (100dvh). Portrait-only experience; no overflow.
  * • 3D table (official size ratio), white lines, center net with posts.
  * • Controls: drag with one finger to move the racket; ball follows real-ish ping-pong physics.
- * • Camera: follow/centered, **pinch** to zoom, **two‑finger drag** to orbit yaw/pitch.
+ * • Camera: fixed angle that keeps the entire table centered on screen.
  * • AI opponent on the far side with adjustable difficulty and reaction delay.
  * • Scoring: to 11, win by 2; service swaps every 2 points, auto-serve & rally logic.
  */
@@ -20,7 +20,7 @@ export default function TableTennis3D({ player, ai }){
     pScore: 0,
     oScore: 0,
     serving: 'P', // P or O
-    msg: 'Drag to move • Pinch to zoom • Two-finger drag to orbit',
+    msg: 'Drag to move',
     gameOver: false,
   });
 
@@ -148,31 +148,37 @@ export default function TableTennis3D({ player, ai }){
     renderer.domElement.addEventListener('mousemove',  onMove);
     window.addEventListener('mouseup', onUp);
 
-    // ---------- Gesture Camera: pinch zoom + two‑finger drag orbit ----------
-    let pinchStart = null; let last2 = null;
-    function dist(a,b){ const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.hypot(dx,dy); }
-    const onGesture = (e)=>{
-      if (e.touches && e.touches.length===2){ e.preventDefault(); const a=e.touches[0], b=e.touches[1];
-        if (!pinchStart){ pinchStart = dist(a,b); last2 = { ax:a.clientX, ay:a.clientY, bx:b.clientX, by:b.clientY }; }
-        else {
-          const d = dist(a,b); const scale = d/pinchStart; camRig.dist = THREE.MathUtils.clamp(6.8/scale, 4.0, 14.0);
-          const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2; const dx=cx-((last2.ax+last2.bx)/2); const dy=cy-((last2.ay+last2.by)/2);
-          camRig.yaw  -= dx*0.004; camRig.pitch = THREE.MathUtils.clamp(camRig.pitch + dy*0.003, 0.12, 0.62);
-          last2 = { ax:a.clientX, ay:a.clientY, bx:b.clientX, by:b.clientY };
-        }
-      } else { pinchStart=null; last2=null; }
-    };
-    renderer.domElement.addEventListener('touchmove', onGesture, { passive:false });
-
     const camPos = new THREE.Vector3();
-    function updateCamera(dt){
+    function updateCamera(){
       const target = new THREE.Vector3(0, T.H + 0.1, 0); // center of table
       const yaw = camRig.yaw;
-      const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(-camRig.dist);
-      camPos.copy(target).add(back); camPos.y = camRig.height + (camRig.pitch*6);
-      camera.position.lerp(camPos, 1 - Math.pow(0.001, dt));
-      camera.lookAt(0, T.H+0.05, 0);
+      const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
+      camPos.copy(target).add(back); camPos.y = camRig.height + (camRig.pitch * 6);
+      camera.position.copy(camPos);
+      camera.lookAt(0, T.H + 0.05, 0);
     }
+
+    // ensure table fits view similar to Air Hockey
+    const corners = [
+      new THREE.Vector3(-T.W/2, T.H, -T.L/2),
+      new THREE.Vector3(T.W/2, T.H, -T.L/2),
+      new THREE.Vector3(-T.W/2, T.H, T.L/2),
+      new THREE.Vector3(T.W/2, T.H, T.L/2)
+    ];
+    const toNDC = v => v.clone().project(camera);
+    const ensureFit = () => {
+      for (let i = 0; i < 20; i++) {
+        updateCamera();
+        const over = corners.some(c => {
+          const p = toNDC(c);
+          return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
+        });
+        if (!over) break;
+        camRig.dist += 0.2;
+        camRig.height += 0.07;
+      }
+      updateCamera();
+    };
 
     // ---------- AI ----------
     const AI = { speed: 2.8, react: 0.08, targetX: 0, targetZ: -T.L/2 + 0.22, timer:0 };
@@ -277,7 +283,7 @@ export default function TableTennis3D({ player, ai }){
       dt = Math.min(0.033, clock.getDelta());
 
       // Camera follow
-      updateCamera(dt);
+      updateCamera();
 
       // AI
       stepAI(dt);
@@ -314,11 +320,12 @@ export default function TableTennis3D({ player, ai }){
       raf.current = requestAnimationFrame(step);
     }
 
+    ensureFit();
     resetServe();
     step();
 
     // ---------- Resize ----------
-    const onResize = ()=>{ setSize(); applyCam(); };
+    const onResize = ()=>{ setSize(); applyCam(); ensureFit(); };
     window.addEventListener('resize', onResize);
 
     return ()=>{
