@@ -79,16 +79,22 @@ export default function TennisBattleRoyal(){
     court.scale.set(S, S, S);
     scene.add(court);
     // Lift the entire court slightly so it's closer to the top of the screen
-    court.position.y = 0.5;
+    court.position.y = 0.6;
+
+    // Visual court elements wrapped in a separate group so we can flip the court
+    const field = new THREE.Group();
+    // Rotate 180° so the wider portion of the court appears at the top
+    field.rotation.y = Math.PI;
+    court.add(field);
 
     // Court surface (green/blue split optional)
     const surf = new THREE.Mesh(new THREE.BoxGeometry(C.W, 0.1, C.L), new THREE.MeshStandardMaterial({ color: 0x2a8f3a, roughness: 0.95 }));
     surf.receiveShadow = true;
-    surf.position.set(0, -0.05, 0); court.add(surf);
+    surf.position.set(0, -0.05, 0); field.add(surf);
 
     // Lines
     const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
-    const mk = (w,h,d,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), lineMat); m.position.set(x,y,z); court.add(m); };
+    const mk = (w,h,d,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), lineMat); m.position.set(x,y,z); field.add(m); };
     const t = 0.05; // 5 cm lines
     // Baselines (z = ±BASE)
     mk(C.W, 0.02, t, 0, 0.01,  C.BASE);
@@ -106,7 +112,7 @@ export default function TennisBattleRoyal(){
     mk(0.2, 0.02, t, 0, 0.01, -C.BASE);
 
     // ---------------- Net: hex visual + collision bar ----------------
-    const netGroup = new THREE.Group(); court.add(netGroup);
+    const netGroup = new THREE.Group(); field.add(netGroup);
     // Visual: plane with hex alpha map
     const hexTex = makeHexTexture(1024, 256, 10); // (w,h,hexRadiusPx)
     const netMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: hexTex, transparent:true, roughness:0.6 });
