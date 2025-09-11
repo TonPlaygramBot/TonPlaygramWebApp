@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
+import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
@@ -44,6 +46,23 @@ export default function TableTennis3D({ player, ai }){
     const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(-16, 28, 18); scene.add(sun);
     const rim = new THREE.DirectionalLight(0x99ccff, 0.35); rim.position.set(20, 14, -12); scene.add(rim);
 
+    // arena spotlights
+    const spotPositions = [
+      [-8, 6, -8],
+      [8, 6, -8],
+      [-8, 6, 8],
+      [8, 6, 8]
+    ];
+    spotPositions.forEach(p => {
+      const s = new THREE.SpotLight(0xffffff, 0.7);
+      s.position.set(p[0], p[1], p[2]);
+      s.angle = Math.PI / 5;
+      s.penumbra = 0.3;
+      s.target.position.set(0, 1, 0);
+      scene.add(s);
+      scene.add(s.target);
+    });
+
     // ---------- Camera ----------
     const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
     scene.add(camera);
@@ -84,13 +103,35 @@ export default function TableTennis3D({ player, ai }){
     const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); tableG.add(postL);
     const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
 
+    // floor
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0xc17f65 }));
+    floor.rotation.x = -Math.PI/2; floor.position.y = 0; scene.add(floor);
+    // walls
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd3d3d3 });
+    const wallGeo = new THREE.PlaneGeometry(20, 5);
+    const wallBack = new THREE.Mesh(wallGeo, wallMat); wallBack.position.set(0, 2.5, -10); scene.add(wallBack);
+    const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
+    const wallLeft = new THREE.Mesh(wallGeo, wallMat); wallLeft.rotation.y = Math.PI/2; wallLeft.position.set(-10, 2.5, 0); scene.add(wallLeft);
+    const wallRight = new THREE.Mesh(wallGeo, wallMat); wallRight.rotation.y = -Math.PI/2; wallRight.position.set(10, 2.5, 0); scene.add(wallRight);
+    // wall text
+    const fontLoader = new FontLoader();
+    fontLoader.load("https://threejs.org/examples/fonts/helvetiker_regular.typeface.json", f => {
+      const txtGeo = new TextGeometry("Table Tennis Arena", { font: f, size: 0.6, height: 0.05 });
+      const txtMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const txt = new THREE.Mesh(txtGeo, txtMat);
+      txt.position.set(-4, 3.5, -9.99);
+      scene.add(txt);
+    });
+
     // ---------- Rackets (paddles) ----------
+    const PADDLE_SCALE = 2;
+    const BALL_R = 0.024 * PADDLE_SCALE;
     function makePaddle(color){
       const g = new THREE.Group();
-      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,0.014, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
-      head.rotation.x = Math.PI/2; head.position.y = T.H + 0.07; g.add(head);
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.025,0.10,0.025), new THREE.MeshStandardMaterial({ color:0x8b5a2b, roughness:0.8 }));
-      handle.position.set(0, T.H + 0.045, 0.07); g.add(handle);
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085*PADDLE_SCALE,0.085*PADDLE_SCALE,0.014*PADDLE_SCALE, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
+      head.rotation.x = Math.PI/2; head.position.y = T.H + 0.07 * PADDLE_SCALE; g.add(head);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.025*PADDLE_SCALE,0.10*PADDLE_SCALE,0.025*PADDLE_SCALE), new THREE.MeshStandardMaterial({ color:0x8b5a2b, roughness:0.8 }));
+      handle.position.set(0, T.H + 0.045 * PADDLE_SCALE, 0.07 * PADDLE_SCALE); g.add(handle);
       return g;
     }
 
@@ -100,7 +141,7 @@ export default function TableTennis3D({ player, ai }){
     opp.position.z    = -T.L/2 + 0.325; opp.position.x    = 0;
 
     // ---------- Ball ----------
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.024, 24, 20), new THREE.MeshStandardMaterial({ color: 0xffe14a, roughness: 0.4 }));
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 24, 20), new THREE.MeshStandardMaterial({ color: 0xffe14a, roughness: 0.4 }));
     tableG.add(ball);
 
     // ---------- Physics State ----------
@@ -109,8 +150,8 @@ export default function TableTennis3D({ player, ai }){
       v: new THREE.Vector3(0,0,0),
       w: new THREE.Vector3(0,0,0), // spin (rad/s) — very simplified Magnus
       gravity: new THREE.Vector3(0,-9.81,0),
-      air: 0.998,
-      magnus: 0.12,
+      air: 0.995,
+      magnus: 0.15,
       tableRest: 0.9,
       paddleRest: 1.1,
       netRest: 0.3,
@@ -131,7 +172,7 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Input: Drag to move (player) ----------
     const ndc = new THREE.Vector2(); const ray = new THREE.Raycaster();
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0); const hit = new THREE.Vector3();
-    const bounds = { x: T.W/2 - 0.08, zNear:  T.L/2 - 0.12, zFar: 0.08 };
+    const bounds = { x: T.W/2 - 0.16, zNear:  T.L/2 - 0.24, zFar: 0.16 };
 
     const screenToXZ = (cx, cy) => { const r=renderer.domElement.getBoundingClientRect(); ndc.x=((cx-r.left)/r.width)*2-1; ndc.y=-(((cy-r.top)/r.height)*2-1); ray.setFromCamera(ndc, camera); ray.ray.intersectPlane(plane, hit); return new THREE.Vector2(hit.x/S, hit.z/S); };
 
@@ -151,12 +192,12 @@ export default function TableTennis3D({ player, ai }){
 
     const camPos = new THREE.Vector3();
     function updateCamera(){
-      const target = new THREE.Vector3(0, T.H + 0.1, 0); // center of table
+      const target = new THREE.Vector3(0, T.H - 0.1, 0);
       const yaw = camRig.yaw;
       const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
       camPos.copy(target).add(back); camPos.y = camRig.height + (camRig.pitch * 6);
       camera.position.copy(camPos);
-      camera.lookAt(0, T.H + 0.05, 0);
+      camera.lookAt(0, T.H - 0.1, 0);
     }
 
     // ensure table fits view similar to Air Hockey
@@ -216,7 +257,7 @@ export default function TableTennis3D({ player, ai }){
     function hitPaddle(paddle, who){
       // approximate as circle vs cylinder head
       const head = paddle.children[0];
-      const R = 0.085; const B = 0.024; // ball radius
+      const R = 0.085 * PADDLE_SCALE; const B = BALL_R; // ball radius
       const dx = (ball.position.x - head.position.x) - paddle.position.x;
       const dz = (ball.position.z - head.position.z) - paddle.position.z;
       const dy = (ball.position.y - head.position.y);
@@ -237,7 +278,7 @@ export default function TableTennis3D({ player, ai }){
 
     function hitNet(){
       // net as a thin box at z=0 spanning table width
-      const halfW=T.W/2, halfT=0.005*S; // thickness scaled
+      const halfW=T.W/2, halfT=0.005*S + BALL_R; // thickness scaled
       if (Math.abs(ball.position.z) < halfT && Math.abs(ball.position.x/S) < halfW && ball.position.y < (T.H + T.NET_H)){
         Sx.v.z *= -Sx.netRest; Sx.v.x *= 0.92; Sx.v.y *= 0.7;
       }
