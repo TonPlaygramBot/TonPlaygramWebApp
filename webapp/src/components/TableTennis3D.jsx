@@ -36,8 +36,6 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // ensure canvas CSS size matches the host container
     const setSize = () => renderer.setSize(host.clientWidth, host.clientHeight);
     setSize(); host.appendChild(renderer.domElement);
@@ -45,7 +43,7 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Scene & Lights ----------
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e14);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1b2233, 0.95));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(-16, 28, 18); sun.castShadow = true; scene.add(sun);
+    const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(-16, 28, 18); scene.add(sun);
     const rim = new THREE.DirectionalLight(0x99ccff, 0.35); rim.position.set(20, 14, -12); scene.add(rim);
 
     // arena spotlights
@@ -60,7 +58,6 @@ export default function TableTennis3D({ player, ai }){
       s.position.set(p[0], p[1], p[2]);
       s.angle = Math.PI / 5;
       s.penumbra = 0.3;
-      s.castShadow = true;
       s.target.position.set(0, 1, 0);
       scene.add(s);
       scene.add(s.target);
@@ -84,7 +81,7 @@ export default function TableTennis3D({ player, ai }){
 
     // Table top
     const table = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.04, T.L), new THREE.MeshStandardMaterial({ color: 0x0e5b85, roughness: 0.92 }));
-    table.position.set(0, T.H, 0); table.castShadow = true; tableG.add(table);
+    table.position.set(0, T.H, 0); tableG.add(table);
 
     // White lines
     const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
@@ -103,45 +100,12 @@ export default function TableTennis3D({ player, ai }){
     const net = new THREE.Mesh(new THREE.BoxGeometry(T.W, T.NET_H, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent:true, opacity:0.85 }));
     net.position.set(0, T.H + T.NET_H/2, 0); tableG.add(net);
     const postGeo = new THREE.CylinderGeometry(0.015,0.015, T.NET_H+0.1, 18);
-    const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); postL.castShadow = true; tableG.add(postL);
+    const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); tableG.add(postL);
     const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
 
-    // Table legs
-    const legH = T.H - 0.02;
-    const legGeo = new THREE.CylinderGeometry(0.05, 0.05, legH, 16);
-    const legMat = new THREE.MeshStandardMaterial({ color: 0x0e5b85, roughness: 0.92 });
-    const legY = legH / 2;
-    const legOffsetX = T.W / 2 - 0.12;
-    const legOffsetZ = T.L / 2 - 0.3;
-    [
-      [-legOffsetX, legOffsetZ],
-      [legOffsetX, legOffsetZ],
-      [-legOffsetX, -legOffsetZ],
-      [legOffsetX, -legOffsetZ]
-    ].forEach(([x, z]) => {
-      const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(x, legY, z);
-      leg.castShadow = true;
-      tableG.add(leg);
-    });
-
-    // floor with red carpet texture
-    const carpetCanvas = document.createElement('canvas');
-    carpetCanvas.width = carpetCanvas.height = 256;
-    const cctx = carpetCanvas.getContext('2d');
-    for (let y = 0; y < 256; y++) {
-      for (let x = 0; x < 256; x++) {
-        const r = 140 + Math.random() * 20;
-        cctx.fillStyle = `rgb(${r},0,0)`;
-        cctx.fillRect(x, y, 1, 1);
-      }
-    }
-    const carpetTex = new THREE.CanvasTexture(carpetCanvas);
-    carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping;
-    carpetTex.repeat.set(8, 8);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 1 }));
-    floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true; scene.add(floor);
-
+    // floor
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0xc17f65 }));
+    floor.rotation.x = -Math.PI/2; floor.position.y = 0; scene.add(floor);
     // walls
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xd3d3d3 });
     const wallGeo = new THREE.PlaneGeometry(20, 5);
@@ -149,22 +113,15 @@ export default function TableTennis3D({ player, ai }){
     const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
     const wallLeft = new THREE.Mesh(wallGeo, wallMat); wallLeft.rotation.y = Math.PI/2; wallLeft.position.set(-10, 2.5, 0); scene.add(wallLeft);
     const wallRight = new THREE.Mesh(wallGeo, wallMat); wallRight.rotation.y = -Math.PI/2; wallRight.position.set(10, 2.5, 0); scene.add(wallRight);
-
-    // logos on walls
-    const logoTex = new THREE.TextureLoader().load('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
-    logoTex.wrapS = logoTex.wrapT = THREE.ClampToEdgeWrapping;
-    const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
-    const logoGeo = new THREE.PlaneGeometry(4, 2);
-    const addLogo = (x, y, z, ry = 0) => {
-      const m = new THREE.Mesh(logoGeo, logoMat);
-      m.position.set(x, y, z);
-      m.rotation.y = ry;
-      scene.add(m);
-    };
-    addLogo(0, 3, -9.98);
-    addLogo(0, 3, 9.98, Math.PI);
-    addLogo(-9.98, 3, 0, Math.PI / 2);
-    addLogo(9.98, 3, 0, -Math.PI / 2);
+    // wall text
+    const fontLoader = new FontLoader();
+    fontLoader.load("https://threejs.org/examples/fonts/helvetiker_regular.typeface.json", f => {
+      const txtGeo = new TextGeometry("Table Tennis Arena", { font: f, size: 0.6, height: 0.05 });
+      const txtMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const txt = new THREE.Mesh(txtGeo, txtMat);
+      txt.position.set(-4, 3.5, -9.99);
+      scene.add(txt);
+    });
 
     // ---------- Rackets (paddles) ----------
     const PADDLE_SCALE = 2;
