@@ -5,6 +5,29 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
+        // Position three soft spot lights above the table for even illumination
+        Vector3[] lightPositions = new Vector3[]
+        {
+            new Vector3(0f, 5f, 0f),   // center
+            new Vector3(-3f, 5f, -3f), // left side
+            new Vector3(3f, 5f, 3f)    // right side
+        };
+
+        for (int i = 0; i < lightPositions.Length; i++)
+        {
+            GameObject lightObj = new GameObject("BilliardSpotLight_" + i);
+            Light spotLight = lightObj.AddComponent<Light>();
+            spotLight.type = LightType.Spot;
+            spotLight.color = Color.white;
+            spotLight.intensity = 2.2f;
+            spotLight.range = 20f;
+            spotLight.spotAngle = 70f;
+            spotLight.shadows = LightShadows.Soft;
+
+            lightObj.transform.position = lightPositions[i];
+            lightObj.transform.LookAt(Vector3.zero);
+        }
+
         // Create a shiny plastic (PBR) material with slightly brighter base color
         Material plasticMat = new Material(Shader.Find("Standard"));
         plasticMat.color = Color.red;           // change color per ball as needed
