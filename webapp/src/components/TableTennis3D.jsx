@@ -83,7 +83,7 @@ export default function TableTennis3D({ player, ai }){
     const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
 
     // ---------- Table dimensions (expanded 30% length, 20% width) ----------
-    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.76, NET_H: 0.1525 };
+    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.82, NET_H: 0.1525 };
 
     // Use a 1:1 scale since size already matches the field
     const S = 1;
@@ -167,7 +167,10 @@ export default function TableTennis3D({ player, ai }){
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 }));
     floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true; scene.add(floor);
     // walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd3d3d3 });
+    const brickTex = new THREE.TextureLoader().load('/assets/icons/Redbrick.webp');
+    brickTex.wrapS = brickTex.wrapT = THREE.RepeatWrapping;
+    brickTex.repeat.set(4,2);
+    const wallMat = new THREE.MeshStandardMaterial({ map: brickTex, roughness: 0.9 });
     const wallGeo = new THREE.PlaneGeometry(20, 5);
     const wallBack = new THREE.Mesh(wallGeo, wallMat); wallBack.position.set(0, 2.5, -10); scene.add(wallBack);
     const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
@@ -175,7 +178,11 @@ export default function TableTennis3D({ player, ai }){
     const wallRight = new THREE.Mesh(wallGeo, wallMat); wallRight.rotation.y = -Math.PI/2; wallRight.position.set(10, 2.5, 0); scene.add(wallRight);
     // wall logo
     const logoTex = new THREE.TextureLoader().load('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+    logoTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
+    const logoShadow = new THREE.Mesh(new THREE.PlaneGeometry(4.2,1.7), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.4 }));
+    logoShadow.position.set(0, 3, -9.995);
+    scene.add(logoShadow);
     const logo = new THREE.Mesh(new THREE.PlaneGeometry(4,1.5), logoMat);
     logo.position.set(0, 3, -9.99);
     scene.add(logo);
@@ -291,33 +298,30 @@ export default function TableTennis3D({ player, ai }){
     };
 
     // ---------- AI ----------
-    const AI = { speed: 2.8, react: 0.08, targetX: 0, targetZ: -T.L/2 + 0.286, timer:0 };
+    const AI = { speed: 3.5, react: 0.05, targetX: 0, timer:0 };
 
     function stepAI(dt){
       AI.timer -= dt; if (AI.timer <= 0){
-        AI.timer = 0.06 + Math.random()*0.08;
-        // crude prediction: if ball heading to opponent half, move toward future x
-        if (ball.position.z/S < 0 && Sx.v.z < 0){
-          const tHit = Math.abs(((-T.L/2 + 0.28) - ball.position.z/S) / (Sx.v.z));
-          AI.targetX = THREE.MathUtils.clamp(ball.position.x/S + Sx.v.x * tHit * 0.6, -T.W/2+0.1, T.W/2-0.1);
+        AI.timer = AI.react;
+        if (Sx.v.z < 0){
+          const tHit = ((-T.L/2 + 0.325) - ball.position.z/S) / Sx.v.z;
+          AI.targetX = THREE.MathUtils.clamp(ball.position.x/S + Sx.v.x * tHit, -T.W/2+0.1, T.W/2-0.1);
         } else {
           AI.targetX = 0;
         }
       }
       const dx = AI.targetX - opp.position.x; opp.position.x += THREE.MathUtils.clamp(dx, -AI.speed*dt, AI.speed*dt);
-      // keep Z near its baseline
       opp.position.z = -T.L/2 + 0.325;
     }
 
     // ---------- Collisions ----------
-    function bounceTable(){
-      // bounce only if crossing table plane (y ~ T.H)
-      if (ball.position.y >= T.H && (ball.position.y + Sx.v.y*dt) < T.H){
-        // within table rectangle?
+    function bounceTable(prev){
+      if (prev.y > T.H && ball.position.y <= T.H){
         const x=ball.position.x/S, z=ball.position.z/S;
         if (Math.abs(x) <= T.W/2 && Math.abs(z) <= T.L/2){
-          // bounce with restitution, reduce horizontal a bit and add spin decay
-          Sx.v.y = -Sx.v.y * Sx.tableRest; Sx.v.x *= 0.99; Sx.v.z *= 0.99; Sx.w.multiplyScalar(0.98);
+          Sx.v.y = -Sx.v.y * Sx.tableRest;
+          Sx.v.x *= 0.99; Sx.v.z *= 0.99; Sx.w.multiplyScalar(0.98);
+          ball.position.y = T.H;
         }
       }
     }
@@ -398,9 +402,8 @@ export default function TableTennis3D({ player, ai }){
       // AI
       stepAI(dt);
 
-      // Physics integrate (very simple)
       if (!ui.gameOver){
-        // Magnus (v x w)
+        const prev = ball.position.clone();
         const magnus = new THREE.Vector3().crossVectors(Sx.v, Sx.w).multiplyScalar(Sx.magnus);
         Sx.v.addScaledVector(Sx.gravity, dt);
         Sx.v.addScaledVector(magnus, dt);
@@ -410,20 +413,16 @@ export default function TableTennis3D({ player, ai }){
         const sh = THREE.MathUtils.clamp(1 - (ball.position.y - T.H), 0.3, 1);
         ballShadow.scale.set(sh, sh, 1);
 
-        // Collisions
-        bounceTable();
+        bounceTable(prev);
         hitNet();
         hitPaddle(player, 'P');
         hitPaddle(opp, 'O');
         checkFaults();
 
-        // Auto-serve impulse
         if (Sx.state==='serve'){
           if (Srv.side==='P'){
-            // light toss upwards to allow player hit
             Sx.v.y = 1.8; Sx.v.z = -0.5; Sx.state='rally';
           } else {
-            // AI serve towards player
             Sx.v.set((Math.random()-0.5)*0.8, 1.8, 1.1); Sx.state='rally';
           }
         }
