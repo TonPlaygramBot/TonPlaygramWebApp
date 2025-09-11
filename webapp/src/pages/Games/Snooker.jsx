@@ -1021,9 +1021,9 @@ export default function NewSnookerGame() {
       scene.add(key);
 
       // Overhead spotlights for ball reflections
-      const spotHeight = 90;
+      const spotHeight = 70;
       const halfLen = PLAY_H / 2;
-      [0, -halfLen, halfLen].forEach((z) => {
+      [0, -halfLen / 2, halfLen / 2].forEach((z) => {
         const s = new THREE.SpotLight(0xffffff, 1.0);
         s.position.set(0, spotHeight, z);
         s.angle = Math.PI / 5;
