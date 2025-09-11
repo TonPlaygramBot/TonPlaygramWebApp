@@ -28,24 +28,21 @@ public class BilliardLighting : MonoBehaviour
             lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         }
 
-        // Create a shiny plastic (PBR) material with slightly brighter base color
-        Material plasticMat = new Material(Shader.Find("Standard"));
-        plasticMat.color = Color.red;           // change color per ball as needed
-        plasticMat.SetFloat("_Metallic", 0f);   // not metallic
-        // Make the balls a bit shinier and brighter
-        // Slightly boost base colour and specular highlights for more sheen.
-        plasticMat.color *= 1.2f;
-        plasticMat.SetFloat("_Glossiness", 0.97f);
-        plasticMat.SetColor("_SpecColor", Color.white * 1.4f);
-
-        // Apply material, attach highlight lights and add cue ball dot
+        // Apply a shiny plastic (PBR) material to each ball while keeping its colour
+        Shader standard = Shader.Find("Standard");
         GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
         foreach (GameObject ball in balls)
         {
             Renderer renderer = ball.GetComponent<Renderer>();
             if (renderer != null)
             {
-                renderer.material = plasticMat;
+                Material source = renderer.material;
+                Material mat = new Material(standard);
+                mat.color = source.color * 1.2f;        // slightly brighter
+                mat.SetFloat("_Metallic", 0f);
+                mat.SetFloat("_Glossiness", 0.97f);
+                mat.SetColor("_SpecColor", Color.white * 1.4f);
+                renderer.material = mat;
             }
 
             // Add a small red aiming dot to the cue ball so it rolls with the surface
@@ -65,7 +62,7 @@ public class BilliardLighting : MonoBehaviour
             }
         }
 
-        // Slightly boost the texture detail on the green cloth so the felt stands out
+        // Enhance felt detail so the green cloth stands out
         EnhanceClothTexture();
     }
 
@@ -127,10 +124,23 @@ public class BilliardLighting : MonoBehaviour
             if (renderer != null)
             {
                 Material mat = renderer.material;
-                mat.mainTextureScale *= 1.2f;
-                if (mat.HasProperty("_BumpScale"))
+                mat.color = new Color(0f, 0.3f, 0f, 1f); // deep green cloth
+                mat.SetFloat("_Metallic", 0f);
+                mat.SetFloat("_Glossiness", 0.2f);
+
+                Texture clothTex = Resources.Load<Texture>("Textures/green_cloth");
+                if (clothTex != null)
                 {
-                    mat.SetFloat("_BumpScale", mat.GetFloat("_BumpScale") * 1.2f);
+                    mat.mainTexture = clothTex;
+                    mat.mainTextureScale *= 1.2f;
+                }
+
+                Texture bump = Resources.Load<Texture>("Textures/green_cloth_normal");
+                if (bump != null && mat.HasProperty("_BumpMap"))
+                {
+                    mat.SetTexture("_BumpMap", bump);
+                    float scale = mat.HasProperty("_BumpScale") ? mat.GetFloat("_BumpScale") : 1f;
+                    mat.SetFloat("_BumpScale", scale * 1.2f);
                 }
             }
         }
