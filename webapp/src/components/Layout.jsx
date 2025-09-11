@@ -104,6 +104,17 @@ export default function Layout({ children }) {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    const isGamePage =
+      location.pathname.startsWith('/games/') &&
+      !location.pathname.includes('/lobby');
+    if (isGamePage) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [location.pathname]);
+
   return (
     <div className="flex flex-col min-h-screen text-text relative overflow-hidden">
       {showHeader && (
