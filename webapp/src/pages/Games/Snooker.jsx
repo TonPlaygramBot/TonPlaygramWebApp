@@ -829,6 +829,10 @@ export default function NewSnookerGame() {
         alpha: false,
         powerPreference: 'high-performance'
       });
+      renderer.useLegacyLights = false;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -993,19 +997,23 @@ export default function NewSnookerGame() {
       scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6));
       const dir = new THREE.DirectionalLight(0xffffff, 0.8);
       dir.position.set(-2.5 * lightScale, 4 * lightScale, 2 * lightScale);
+      dir.castShadow = true;
       scene.add(dir);
 
       const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
       spot.position.set(1.3 * lightScale, 2.6 * lightScale, 0.5 * lightScale);
       spot.target.position.set(0, 0.75 * lightScale, 0);
+      spot.castShadow = true;
       scene.add(spot, spot.target);
 
       const point = new THREE.PointLight(0xffffff, 1.2, 10);
       point.position.set(-1.5 * lightScale, 2.2 * lightScale, -0.8 * lightScale);
+      point.castShadow = true;
       scene.add(point);
 
       const tiny = new THREE.PointLight(0xffffff, 0.6, 3);
       tiny.position.set(0.5 * lightScale, 1.8 * lightScale, 1.2 * lightScale);
+      tiny.castShadow = true;
       scene.add(tiny);
 
       // Table
