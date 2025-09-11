@@ -34,7 +34,12 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-    renderer.shadowMap.enabled = true;
+    // Disable real-time shadow mapping to avoid dark artifacts on the
+    // arena walls and table surface. Shadow maps from the multiple
+    // spotlights were causing the entire scene to appear black in some
+    // devices/browsers. We render a fake ball shadow manually so real
+    // shadows are unnecessary here.
+    renderer.shadowMap.enabled = false;
     // ensure canvas CSS size matches the host container
     const setSize = () => renderer.setSize(host.clientWidth, host.clientHeight);
     setSize(); host.appendChild(renderer.domElement);
@@ -42,7 +47,13 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Scene & Lights ----------
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e14);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1b2233, 0.95));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(-16, 28, 18); sun.castShadow = true; scene.add(sun);
+    // Directional key light. Shadow casting is disabled because shadow
+    // maps are turned off above; keeping it false prevents accidental
+    // blackening of surfaces.
+    const sun = new THREE.DirectionalLight(0xffffff, 0.95);
+    sun.position.set(-16, 28, 18);
+    sun.castShadow = false;
+    scene.add(sun);
     const rim = new THREE.DirectionalLight(0x99ccff, 0.35); rim.position.set(20, 14, -12); scene.add(rim);
 
     // arena spotlights
@@ -57,7 +68,9 @@ export default function TableTennis3D({ player, ai }){
       s.position.set(p[0], p[1], p[2]);
       s.angle = Math.PI / 5;
       s.penumbra = 0.3;
-      s.castShadow = true;
+      // Spotlights are purely cosmetic; disable shadow casting to keep
+      // the table and walls lit evenly.
+      s.castShadow = false;
       s.target.position.set(0, 1, 0);
       scene.add(s);
       scene.add(s.target);
