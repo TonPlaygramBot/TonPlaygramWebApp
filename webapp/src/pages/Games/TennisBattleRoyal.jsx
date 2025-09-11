@@ -33,8 +33,11 @@ export default function TennisBattleRoyal(){
     // ---------------- Renderer ----------------
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-    const setSize = ()=> renderer.setSize(host.clientWidth, host.clientHeight, false);
-    setSize(); host.appendChild(renderer.domElement);
+    const setSize = ()=> renderer.setSize(host.clientWidth, host.clientHeight);
+    setSize();
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.inset = '0';
+    host.appendChild(renderer.domElement);
 
     // ---------------- Scene & Lights ----------------
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e14);
@@ -45,7 +48,7 @@ export default function TennisBattleRoyal(){
     // ---------------- Camera (behind bottom baseline) ----------------
     const cam = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 2000);
     scene.add(cam);
-    const camRig = { dist: 26, height: 9, yaw: 0.0, pitch: 0.28 };
+    const camRig = { dist: 20, height: 9, yaw: 0.0, pitch: 0.28 };
     const applyCam = () => { cam.aspect = host.clientWidth/host.clientHeight; cam.updateProjectionMatrix(); };
 
     // ---------------- Court dims (meters) ----------------
@@ -145,10 +148,27 @@ export default function TennisBattleRoyal(){
 
     function screenToXZ(cx, cy){ const r=renderer.domElement.getBoundingClientRect(); ndc.x=((cx-r.left)/r.width)*2-1; ndc.y=-(((cy-r.top)/r.height)*2-1); ray.setFromCamera(ndc, cam); ray.ray.intersectPlane(plane, hit); return new THREE.Vector2(hit.x/S, hit.z/S); }
 
-    let dragging=false;
-    const onDown = (e)=>{ const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); if (p.y>0){ dragging=true; movePlayer(p.x,p.y); } };
+    let dragging=false, swipeStart=null;
+    const onDown = (e)=>{ const t=e.touches?e.touches[0]:e; swipeStart={x:t.clientX,y:t.clientY}; const p=screenToXZ(t.clientX,t.clientY); if (p.y>0){ dragging=true; movePlayer(p.x,p.y); } };
     const onMove = (e)=>{ if(!dragging) return; const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); movePlayer(p.x,p.y); };
-    const onUp   = ()=>{ dragging=false; };
+    const onUp   = (e)=>{
+      dragging=false;
+      if(!swipeStart) return;
+      const t=e.changedTouches?e.changedTouches[0]:e;
+      const dx=t.clientX-swipeStart.x;
+      const dy=swipeStart.y-t.clientY;
+      if (Math.hypot(dx,dy)>20){
+        if (Sx.state==='serve' && ui.serving==='P'){
+          Sx.v.set(dx*0.02, 4 + Math.abs(dy)*0.01, -dy*0.05);
+          Sx.state='rally';
+          Sx.last='P';
+        } else if (ball.position.z > 0){
+          Sx.v.set(dx*0.02, 4 + Math.abs(dy)*0.01, -dy*0.05);
+          Sx.last='P';
+        }
+      }
+      swipeStart=null;
+    };
 
     function movePlayer(x,z){ player.position.x = THREE.MathUtils.clamp(x, -bounds.x, bounds.x); player.position.z = THREE.MathUtils.clamp(z, bounds.zMin, bounds.zMax); }
 
@@ -177,9 +197,11 @@ export default function TennisBattleRoyal(){
 
     const camPos = new THREE.Vector3();
     function updateCamera(dt){
-      const target = new THREE.Vector3(0, 0.4, C.BASE*S); // behind bottom baseline
-      const yaw = camRig.yaw; const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(-camRig.dist);
-      camPos.copy(target).add(back); camPos.y = camRig.height + camRig.pitch*14;
+      const target = new THREE.Vector3(0, 0.4, 0); // center court
+      const yaw = camRig.yaw;
+      const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
+      camPos.copy(target).add(back);
+      camPos.y = camRig.height + camRig.pitch*14;
       cam.position.lerp(camPos, 1 - Math.pow(0.001, dt));
       cam.lookAt(0, 0.3, 0);
     }
@@ -255,11 +277,11 @@ export default function TennisBattleRoyal(){
       updateCamera(dt);
       // AI move
       stepAI(dt);
-      // Auto-serve light toss towards receiver
-      if (Sx.state==='serve'){
-        if (ui.serving==='P') { Sx.v.set(0.0, 3.0, -2.4); }
-        else                  { Sx.v.set(0.0, 3.0,  2.4); }
-        Sx.state='rally'; Sx.last = ui.serving;
+      // Auto-serve for AI only; player serves via swipe
+      if (Sx.state==='serve' && ui.serving==='O'){
+        Sx.v.set(0.0, 3.0, 2.4);
+        Sx.state='rally';
+        Sx.last = 'O';
       }
 
       // Physics integrate
