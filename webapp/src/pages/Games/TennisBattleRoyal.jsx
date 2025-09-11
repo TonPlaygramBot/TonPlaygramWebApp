@@ -75,7 +75,11 @@ export default function TennisBattleRoyal(){
     const SCALE = 1.26; // enlarged 40% from previous size
     const S = SCALE;
 
-    const court = new THREE.Group(); court.scale.set(S,S,S); scene.add(court);
+    const court = new THREE.Group();
+    court.scale.set(S, S, S);
+    scene.add(court);
+    // Lift the entire court slightly so it's closer to the top of the screen
+    court.position.y = 0.5;
 
     // Court surface (green/blue split optional)
     const surf = new THREE.Mesh(new THREE.BoxGeometry(C.W, 0.1, C.L), new THREE.MeshStandardMaterial({ color: 0x2a8f3a, roughness: 0.95 }));
@@ -171,7 +175,8 @@ export default function TennisBattleRoyal(){
     // ---------------- Input: drag to move (bottom half) ----------------
     const ndc = new THREE.Vector2(), ray = new THREE.Raycaster();
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0); const hit = new THREE.Vector3();
-    const bounds = { x: C.W/2 - 0.2, zMin: 0.2, zMax: C.BASE - 0.2 };
+    // Player field is slightly narrower than opponent's to give top side more width
+    const bounds = { x: C.W/2 - 0.5, zMin: 0.2, zMax: C.BASE - 0.2 };
 
     function screenToXZ(cx, cy){ const r=renderer.domElement.getBoundingClientRect(); ndc.x=((cx-r.left)/r.width)*2-1; ndc.y=-(((cy-r.top)/r.height)*2-1); ray.setFromCamera(ndc, cam); ray.ray.intersectPlane(plane, hit); return new THREE.Vector2(hit.x/S, hit.z/S); }
 
@@ -225,7 +230,7 @@ export default function TennisBattleRoyal(){
         AI.timer = 0.05 + Math.random()*0.05;
         if (ball.position.z/S < 0 && Sx.v.z < 0){
           const tHit = Math.abs((AI.baseZ - ball.position.z/S) / (Sx.v.z || 0.001));
-          AI.targetX = THREE.MathUtils.clamp((ball.position.x/S) + (Sx.v.x * tHit * 0.7), -C.W/2+0.2, C.W/2-0.2);
+          AI.targetX = THREE.MathUtils.clamp((ball.position.x/S) + (Sx.v.x * tHit * 0.7), -C.W/2, C.W/2);
           AI.targetZ = THREE.MathUtils.clamp((ball.position.z/S) + (Sx.v.z * tHit), -C.BASE+0.2, -0.2);
         } else {
           AI.targetX = 0;
@@ -414,8 +419,12 @@ function makeEmoji(char, size=256){
 function makeRacketTexture(size=256){
   const c = makeEmoji('🎾', size);
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(size*0.72, size*0.28, size*0.18, 0, Math.PI*2); ctx.fill();
+  // Erase the small ball portion of the emoji so only the racket remains
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.arc(size * 0.72, size * 0.28, size * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
   return c;
 }
 
