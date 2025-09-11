@@ -11,7 +11,7 @@ import { buildTennisBall } from "../../utils/tennisGear.js";
  * • Full phone screen (100dvh), portrait-only; zero overflow.
  * • Official court ratio (singles): 23.77m x 8.23m, full markings.
  * • Middle hexagonal net (visual hex mask + thin collision bar).
- * • Controls: 1‑finger drag to move your racket (bottom half). Two‑finger drag to orbit.
+ * • Controls: 1‑finger drag to move your racket (bottom half).
  * • Basic rally logic vs simple AI on the top side. Scoring 0–15–30–40–Game, service swaps each game.
  */
 
@@ -27,7 +27,7 @@ export default function TennisBattleRoyal(){
     playerSets: 0,
     oppSets: 0,
     serving: 'P', // P or O
-    msg: 'Drag to move • Two‑finger orbit',
+    msg: 'Drag to move',
     gameOver: false,
   });
   const uiRef = useRef(ui);
@@ -67,18 +67,19 @@ export default function TennisBattleRoyal(){
     // ---------------- Camera (behind bottom baseline) ----------------
     const cam = new THREE.PerspectiveCamera(75, host.clientWidth/host.clientHeight, 0.05, 2000);
     scene.add(cam);
-    const camRig = { dist: 20, height: 6, yaw: 0.0, pitch: 0.25 };
+    const camRig = { dist: 20, height: 4, yaw: 0.0, pitch: 0.2 };
     const applyCam = () => { cam.aspect = host.clientWidth/host.clientHeight; cam.updateProjectionMatrix(); };
 
     // ---------------- Court dims (meters) ----------------
     const C = { L: 23.77, W: 8.23, NET_H: 0.914, SVC_DIST: 6.40, BASE: 11.885 };
-    const SCALE = 0.9; // enlarged 50% (world units = meters * SCALE)
+    const SCALE = 1.26; // enlarged 40% from previous size
     const S = SCALE;
 
     const court = new THREE.Group(); court.scale.set(S,S,S); scene.add(court);
 
     // Court surface (green/blue split optional)
     const surf = new THREE.Mesh(new THREE.BoxGeometry(C.W, 0.1, C.L), new THREE.MeshStandardMaterial({ color: 0x2a8f3a, roughness: 0.95 }));
+    surf.receiveShadow = true;
     surf.position.set(0, -0.05, 0); court.add(surf);
 
     // Lines
@@ -138,6 +139,13 @@ export default function TennisBattleRoyal(){
     ball.scale.setScalar(0.0298);
     ball.material.color.set(0xffeb3b);
     court.add(ball);
+    const ballShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.12, 16),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 })
+    );
+    ballShadow.rotation.x = -Math.PI / 2;
+    ballShadow.position.y = 0.01;
+    court.add(ballShadow);
 
     // ---------------- Physics ----------------
     const Sx = {
@@ -197,21 +205,6 @@ export default function TennisBattleRoyal(){
     renderer.domElement.addEventListener('mousedown',  onDown);
     renderer.domElement.addEventListener('mousemove',  onMove);
     window.addEventListener('mouseup', onUp);
-
-    // ---------------- Two‑finger orbit ----------------
-    let last2=null;
-    const onGesture=(e)=>{
-      if (e.touches && e.touches.length===2){ e.preventDefault(); const a=e.touches[0], b=e.touches[1];
-        if(!last2){ last2={ax:a.clientX,ay:a.clientY,bx:b.clientX,by:b.clientY}; }
-        else{
-          const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
-          const dx=cx-((last2.ax+last2.bx)/2); const dy=cy-((last2.ay+last2.by)/2);
-          camRig.yaw  -= dx*0.004; camRig.pitch = THREE.MathUtils.clamp(camRig.pitch + dy*0.003, 0.12, 0.62);
-          last2={ax:a.clientX,ay:a.clientY,bx:b.clientX,by:b.clientY};
-        }
-      } else { last2=null; }
-    };
-    renderer.domElement.addEventListener('touchmove', onGesture, { passive:false });
 
     const camPos = new THREE.Vector3();
     function updateCamera(dt){
@@ -273,11 +266,19 @@ export default function TennisBattleRoyal(){
       const dy = (ball.position.y - head.position.y);
       const d2 = dx*dx + dy*dy + dz*dz; const minR = (R + BALL_R*S*0.8)*(R + BALL_R*S*0.8);
       if (d2 < minR){
-        const n = new THREE.Vector3(dx, dy, dz).normalize();
-        const vN = Sx.v.dot(n);
-        Sx.v.addScaledVector(n, (-1.6*vN + 6.0)); // strong impulse away
-        Sx.v.z += (who==='P'? -1.6: 1.6) * (0.4 + Math.random()*0.3);
-        Sx.v.x += n.x * 1.2;
+        if (who==='O'){
+          const aimX = THREE.MathUtils.clamp((Math.random()-0.5)*C.W*0.6, -C.W/2+0.3, C.W/2-0.3);
+          const aimZ = C.BASE - 0.8;
+          const dir = new THREE.Vector3(aimX*S - ball.position.x, 0.3, aimZ*S - ball.position.z).normalize();
+          Sx.v.copy(dir.multiplyScalar(6));
+          Sx.v.y = 4;
+        } else {
+          const n = new THREE.Vector3(dx, dy, dz).normalize();
+          const vN = Sx.v.dot(n);
+          Sx.v.addScaledVector(n, (-1.6*vN + 6.0)); // strong impulse away
+          Sx.v.z += (who==='P'? -1.6: 1.6) * (0.4 + Math.random()*0.3);
+          Sx.v.x += n.x * 1.2;
+        }
         Sx.w.y += (who==='P'? -5: 5); // topspin bias
         Sx.state='rally'; Sx.last=who;
       }
@@ -324,7 +325,8 @@ export default function TennisBattleRoyal(){
       stepAI(dt);
       // Auto-serve for AI only; player serves via swipe
       if (Sx.state==='serve' && uiRef.current.serving==='O'){
-        Sx.v.set(0.0, 3.0, 2.4);
+        const dirX = (Math.random()-0.5) * 0.6;
+        Sx.v.set(dirX, 3.5, 4.2);
         Sx.state='rally';
         Sx.last = 'O';
       }
@@ -337,6 +339,9 @@ export default function TennisBattleRoyal(){
       Sx.v.addScaledVector(magnus, dt);
       Sx.v.multiplyScalar(Math.pow(Sx.air, dt*60));
       ball.position.addScaledVector(Sx.v, dt);
+      ballShadow.position.set(ball.position.x, 0.01, ball.position.z);
+      const sh = THREE.MathUtils.clamp(1.2 - ball.position.y, 0.3, 1.2);
+      ballShadow.scale.set(sh, sh, 1);
 
       // Collisions
       collideGround(prevY);
@@ -369,17 +374,25 @@ export default function TennisBattleRoyal(){
   const serverName = ui.serving==='P' ? userName : aiName;
   return (
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 rounded px-2 py-1 whitespace-nowrap">
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 rounded px-2 py-1 whitespace-nowrap z-10 pointer-events-none">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1">
             {userPhoto && <img src={userPhoto} className="w-4 h-4 rounded-full" />}
             <span>{userName}</span>
-            <span className="ml-1">{ui.playerSets}-{ui.playerGames}-{toTennis(ui.playerPts)}</span>
+            <div className="flex gap-1 ml-1">
+              <span className="border border-white/40 px-1">{ui.playerSets}</span>
+              <span className="border border-white/40 px-1">{ui.playerGames}</span>
+              <span className="border border-white/40 px-1">{toTennis(ui.playerPts)}</span>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-lg">{aiFlag}</span>
             <span>{aiName}</span>
-            <span className="ml-1">{ui.oppSets}-{ui.oppGames}-{toTennis(ui.oppPts)}</span>
+            <div className="flex gap-1 ml-1">
+              <span className="border border-white/40 px-1">{ui.oppSets}</span>
+              <span className="border border-white/40 px-1">{ui.oppGames}</span>
+              <span className="border border-white/40 px-1">{toTennis(ui.oppPts)}</span>
+            </div>
           </div>
         </div>
         <div className="text-center mt-1">Serve: {serverName} — {ui.msg}</div>
