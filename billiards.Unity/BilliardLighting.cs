@@ -38,10 +38,10 @@ public class BilliardLighting : MonoBehaviour
             {
                 Material source = renderer.material;
                 Material mat = new Material(standard);
-                mat.color = source.color * 1.5f;        // brighter base colour
+                mat.color = source.color * 1.5f;             // brighter base colour
                 mat.SetFloat("_Metallic", 0f);
-                mat.SetFloat("_Glossiness", 0.5f);     // wider specular highlight
-                mat.SetColor("_SpecColor", Color.white * 1.4f);
+                mat.SetFloat("_Glossiness", 0.9f);          // shinier surface
+                mat.SetColor("_SpecColor", Color.white);    // clean specular highlight
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", source.color * 0.25f);
                 renderer.material = mat;
@@ -53,7 +53,7 @@ public class BilliardLighting : MonoBehaviour
                 CreateCueBallDot(ball.transform);
             }
 
-            // Position three point lights so each ball shows three distinct reflections
+            // Position three spot lights so each ball shows three white square reflections
             const int lightCount = 3;
             Vector3 basePos = new Vector3(0.5f, 0.8f, 0.6f);
             for (int i = 0; i < lightCount; i++)
@@ -73,14 +73,18 @@ public class BilliardLighting : MonoBehaviour
         GameObject lightObj = new GameObject("HighlightLight");
         lightObj.transform.parent = parent;
         lightObj.transform.localPosition = localPosition;
+        lightObj.transform.LookAt(parent); // aim the spot at the ball centre
 
-        Light pointLight = lightObj.AddComponent<Light>();
-        pointLight.type = LightType.Point;
-        pointLight.range = 2.5f;  // allow larger reflection area
-        pointLight.intensity = 3f; // stronger highlight
-        pointLight.shadows = LightShadows.None;
-        pointLight.color = Color.white;
-        pointLight.renderMode = LightRenderMode.ForcePixel;
+        Light spotLight = lightObj.AddComponent<Light>();
+        spotLight.type = LightType.Spot;
+        spotLight.cookie = Texture2D.whiteTexture; // square reflection
+        const float sizeMultiplier = 5f;            // enlarge highlight to 5x
+        spotLight.range = 2.5f * sizeMultiplier;
+        spotLight.intensity = 3f;
+        spotLight.spotAngle = 10f * sizeMultiplier;
+        spotLight.color = Color.white;
+        spotLight.shadows = LightShadows.None;
+        spotLight.renderMode = LightRenderMode.ForcePixel;
     }
 
     // Create a tiny red sphere on the cue ball to help players judge spin
