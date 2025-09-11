@@ -305,9 +305,10 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.18,
+    roughness: 0.12,
+    metalness: 0.25,
     clearcoat: 1,
-    clearcoatRoughness: 0.12
+    clearcoatRoughness: 0.05
   });
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
