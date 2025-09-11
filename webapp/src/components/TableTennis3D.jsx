@@ -82,8 +82,8 @@ export default function TableTennis3D({ player, ai }){
     const camRig = { dist: 6.8, height: 2.4, yaw: 0, pitch: 0.28 };
     const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
 
-    // ---------- Table dimensions (expanded 30% length, 20% width) ----------
-    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.82, NET_H: 0.1525 };
+    // ---------- Table dimensions (expanded 30% length, 20% width, 20% height) ----------
+    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.82 * 1.2, NET_H: 0.1525 };
 
     // Use a 1:1 scale since size already matches the field
     const S = 1;
@@ -136,14 +136,15 @@ export default function TableTennis3D({ player, ai }){
     const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
 
     // Legs
-    const legH = T.H - 0.02;
+    const legExtra = 0.1; // extend legs slightly below floor
+    const legH = T.H - 0.02 + legExtra;
     const legGeo = new THREE.CylinderGeometry(0.04, 0.04, legH, 12);
     const legMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
     const legOffsetX = T.W/2 - 0.15;
     const legOffsetZ = T.L/2 - 0.3;
     [[-legOffsetX,-legOffsetZ],[legOffsetX,-legOffsetZ],[-legOffsetX,legOffsetZ],[legOffsetX,legOffsetZ]].forEach(([x,z])=>{
       const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(x, legH/2, z);
+      leg.position.set(x, (T.H - 0.02) - legH/2, z);
       leg.castShadow = true;
       tableG.add(leg);
     });
@@ -167,10 +168,7 @@ export default function TableTennis3D({ player, ai }){
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 }));
     floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true; scene.add(floor);
     // walls
-    const brickTex = new THREE.TextureLoader().load('/assets/icons/Redbrick.webp');
-    brickTex.wrapS = brickTex.wrapT = THREE.RepeatWrapping;
-    brickTex.repeat.set(4,2);
-    const wallMat = new THREE.MeshStandardMaterial({ map: brickTex, roughness: 0.9 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4b2e2e, roughness: 0.9 });
     const wallGeo = new THREE.PlaneGeometry(20, 5);
     const wallBack = new THREE.Mesh(wallGeo, wallMat); wallBack.position.set(0, 2.5, -10); scene.add(wallBack);
     const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
@@ -180,10 +178,12 @@ export default function TableTennis3D({ player, ai }){
     const logoTex = new THREE.TextureLoader().load('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
     logoTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
-    const logoShadow = new THREE.Mesh(new THREE.PlaneGeometry(4.2,1.7), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.4 }));
+    const logoW = 4 * 1.2;
+    const logoH = 1.5 * 1.2;
+    const logoShadow = new THREE.Mesh(new THREE.PlaneGeometry(logoW * 1.05, logoH * 1.05), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.4 }));
     logoShadow.position.set(0, 3, -9.995);
     scene.add(logoShadow);
-    const logo = new THREE.Mesh(new THREE.PlaneGeometry(4,1.5), logoMat);
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(logoW, logoH), logoMat);
     logo.position.set(0, 3, -9.99);
     scene.add(logo);
 
