@@ -80,7 +80,10 @@ export default function TableTennis3D({ player, ai }){
     scene.add(tableG);
 
     // Table top
-    const table = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.04, T.L), new THREE.MeshStandardMaterial({ color: 0x0e5b85, roughness: 0.92 }));
+    const table = new THREE.Mesh(
+      new THREE.BoxGeometry(T.W, 0.04, T.L),
+      new THREE.MeshStandardMaterial({ color: 0x0057b8, roughness: 0.92 })
+    );
     table.position.set(0, T.H, 0);
     table.castShadow = true;
     tableG.add(table);
@@ -99,10 +102,22 @@ export default function TableTennis3D({ player, ai }){
     mkLine(lt, 0.045, T.L, 0, T.H+0.022, 0);
 
     // Net & posts
-    const net = new THREE.Mesh(new THREE.BoxGeometry(T.W, T.NET_H, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent:true, opacity:0.85 }));
-    net.position.set(0, T.H + T.NET_H/2, 0);
-    net.castShadow = true;
-    tableG.add(net);
+    const netGroup = new THREE.Group();
+    tableG.add(netGroup);
+    const hexTex = makeHexTexture(1024, 256, 10);
+    const netMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: hexTex, transparent: true, roughness: 0.6 });
+    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(T.W, T.NET_H), netMat);
+    netPlane.position.set(0, T.H + T.NET_H / 2, 0);
+    netGroup.add(netPlane);
+    const tape = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.02, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    tape.position.set(0, T.H + T.NET_H + 0.01, 0);
+    netGroup.add(tape);
+    const netCol = new THREE.Mesh(
+      new THREE.BoxGeometry(T.W, T.NET_H, 0.01),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.02 })
+    );
+    netCol.position.set(0, T.H + T.NET_H / 2, 0);
+    netGroup.add(netCol);
     const postGeo = new THREE.CylinderGeometry(0.015,0.015, T.NET_H+0.1, 18);
     const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); postL.castShadow = true; tableG.add(postL);
     const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
@@ -170,9 +185,19 @@ export default function TableTennis3D({ player, ai }){
     opp.position.z    = -T.L/2 + 0.325; opp.position.x    = 0;
 
     // ---------- Ball ----------
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 24, 20), new THREE.MeshStandardMaterial({ color: 0xffe14a, roughness: 0.4 }));
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(BALL_R, 24, 20),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })
+    );
     ball.castShadow = true;
     tableG.add(ball);
+    const ballShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(BALL_R * 1.5, 16),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 })
+    );
+    ballShadow.rotation.x = -Math.PI / 2;
+    ballShadow.position.y = T.H + 0.01;
+    tableG.add(ballShadow);
 
     // ---------- Physics State ----------
       const Srv = { side: ui.serving }; // P or O (mutable copy)
@@ -368,6 +393,9 @@ export default function TableTennis3D({ player, ai }){
         Sx.v.addScaledVector(magnus, dt);
         Sx.v.multiplyScalar(Math.pow(Sx.air, dt*60));
         ball.position.addScaledVector(Sx.v, dt);
+        ballShadow.position.set(ball.position.x, T.H + 0.01, ball.position.z);
+        const sh = THREE.MathUtils.clamp(1 - (ball.position.y - T.H), 0.3, 1);
+        ballShadow.scale.set(sh, sh, 1);
 
         // Collisions
         bounceTable();
@@ -423,5 +451,39 @@ export default function TableTennis3D({ player, ai }){
       </div>
     </div>
   );
+}
+
+function makeHexTexture(w = 1024, h = 256, r = 10) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(255,255,255,0)';
+  x.fillRect(0, 0, w, h);
+  x.strokeStyle = 'rgba(255,255,255,0.88)';
+  x.lineWidth = 1.4;
+  const dx = r * Math.sqrt(3);
+  const dy = r * 1.5;
+  function hex(cx, cy) {
+    x.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      const px = cx + r * Math.cos(a);
+      const py = cy + r * Math.sin(a);
+      if (i === 0) x.moveTo(px, py);
+      else x.lineTo(px, py);
+    }
+    x.closePath();
+    x.stroke();
+  }
+  for (let y = 0; y < h + dy; y += dy) {
+    for (let x0 = 0; x0 < w + dx; x0 += dx) {
+      hex(x0 + (Math.floor(y / dy) % 2 ? dx / 2 : 0), y);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1, 1);
+  return tex;
 }
 
