@@ -301,9 +301,15 @@ function calcTarget(cue, dir, balls) {
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
+  // brighter shiny balls without altering physics
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.15 })
+    new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.15,
+      metalness: 0.1,
+      envMapIntensity: 1.5
+    })
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -328,26 +334,26 @@ function Table3D(scene) {
     halfH = PLAY_H / 2;
   // Procedural cloth textures used for table surface and cushions
   const heightC = makeFbmHeightCanvas(512, 5);
-  const normalC = heightToNormalCanvas(heightC, 1.6);
-  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.06);
+  // stronger normals for a more visible 3D cloth effect
+  const normalC = heightToNormalCanvas(heightC, 3.0);
+  const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.12);
   const heightTex = new THREE.CanvasTexture(heightC);
   heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
-  heightTex.repeat.set(10, 20);
+  heightTex.repeat.set(5, 10);
   const normalTex = new THREE.CanvasTexture(normalC);
   normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
-  normalTex.repeat.set(10, 20);
+  normalTex.repeat.set(5, 10);
   const colorTex = new THREE.CanvasTexture(colorC);
   colorTex.wrapS = colorTex.wrapT = THREE.RepeatWrapping;
-  colorTex.repeat.set(10, 20);
+  colorTex.repeat.set(5, 10);
   const clothMat = new THREE.MeshStandardMaterial({
     map: colorTex,
     normalMap: normalTex,
-    roughness: 0.66,
+    normalScale: new THREE.Vector2(2, 2),
+    roughness: 0.9,
     metalness: 0.0,
     bumpMap: heightTex,
-    bumpScale: 0.12,
-    aoMap: heightTex,
-    aoMapIntensity: 0.35
+    bumpScale: 0.4
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
