@@ -304,13 +304,11 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
   // brighter shiny balls without altering physics
-  const material = new THREE.MeshPhysicalMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.03,
-    metalness: 0.6,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.05,
-    envMapIntensity: 2.0
+    roughness: 0.05,
+    metalness: 0.3,
+    envMapIntensity: 1.5
   });
   // add a small red dot on the cue ball that rotates with it
   if (id === 'cue') {
@@ -321,7 +319,7 @@ function Guret(parent, id, color, x, y) {
     ctx.fillRect(0, 0, 256, 256);
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
-    ctx.arc(128, 128, 12, 0, Math.PI * 2);
+    ctx.arc(128, 128, 16, 0, Math.PI * 2);
     ctx.fill();
     const tex = new THREE.CanvasTexture(c);
     tex.anisotropy = 4;
@@ -369,11 +367,11 @@ function Table3D(scene) {
   const clothMat = new THREE.MeshStandardMaterial({
     map: colorTex,
     normalMap: normalTex,
-    normalScale: new THREE.Vector2(3, 3),
+    normalScale: new THREE.Vector2(2, 2),
     roughness: 0.9,
     metalness: 0.0,
     bumpMap: heightTex,
-    bumpScale: 0.55
+    bumpScale: 0.4
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
@@ -513,30 +511,18 @@ function Table3D(scene) {
       'uv2',
       new THREE.BufferAttribute(clothGeo.attributes.uv.array, 2)
     );
-    // shape cushion cross‑section using 5 surfaces A–E
-    // A: base (horizontal), B: outer vertical, C: inner 30° slope,
-    // D: top horizontal, E: outer arc blending D to A
+    // shape cushion to a point and carve underside diagonally
     const pos = clothGeo.attributes.position;
-    const half = railW / 2;
-    const slope = Math.tan(THREE.MathUtils.degToRad(30));
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
-      const ny = Math.abs(y);
-      let z = pos.getZ(i);
-      if (z >= 0) {
-        if (ny < half * 0.4) {
-          // C: inner slope at 30°
-          z = ny * slope;
-        } else if (ny < half * 0.7) {
-          // D: top flat
-          z = railH;
-        } else {
-          // E: smooth outer arc
-          const t = (ny - half * 0.7) / (half * 0.3);
-          z = railH * (1 - Math.sin(t * Math.PI * 0.5));
-        }
+      const z = pos.getZ(i);
+      if (z > 0) {
+        const t = 1 - Math.abs(y) / (railW / 2);
+        pos.setZ(i, z + t * railW * 0.2);
+      } else {
+        const t = Math.abs(y) / (railW / 2);
+        pos.setZ(i, z * 0.7 - t * railW * 0.1);
       }
-      pos.setZ(i, z);
     }
     clothGeo.computeVertexNormals();
     const cloth = new THREE.Mesh(clothGeo, cushionMat);
@@ -1038,12 +1024,10 @@ export default function NewSnookerGame() {
       const spotHeight = 90;
       const halfLen = PLAY_H / 2;
       [0, -halfLen, halfLen].forEach((z) => {
-        const s = new THREE.SpotLight(0xffffff, 1.5);
+        const s = new THREE.SpotLight(0xffffff, 1.0);
         s.position.set(0, spotHeight, z);
         s.angle = Math.PI / 5;
         s.penumbra = 0.3;
-        s.distance = PLAY_H * 2;
-        s.decay = 2;
         // purely cosmetic: no shadows or visible fixtures
         s.castShadow = false;
         s.target.position.set(0, 0, z);
