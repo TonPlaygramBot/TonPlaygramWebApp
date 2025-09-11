@@ -301,17 +301,9 @@ function calcTarget(cue, dir, balls) {
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
-  // slightly shinier balls for clearer highlight without affecting physics
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 28, 28),
-    new THREE.MeshPhysicalMaterial({
-      color,
-      roughness: 0.1,
-      metalness: 0.6,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.1,
-      envMapIntensity: 1.2
-    })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.15 })
   );
   mesh.position.set(x, BALL_R, y);
   mesh.castShadow = true;
@@ -336,8 +328,7 @@ function Table3D(scene) {
     halfH = PLAY_H / 2;
   // Procedural cloth textures used for table surface and cushions
   const heightC = makeFbmHeightCanvas(512, 5);
-  // stronger normals for a subtle 3D cloth effect
-  const normalC = heightToNormalCanvas(heightC, 2.5);
+  const normalC = heightToNormalCanvas(heightC, 1.6);
   const colorC = makeColorCanvasFromHeight(heightC, '#1a8f2f', '#23b043', 0.06);
   const heightTex = new THREE.CanvasTexture(heightC);
   heightTex.wrapS = heightTex.wrapT = THREE.RepeatWrapping;
@@ -351,13 +342,12 @@ function Table3D(scene) {
   const clothMat = new THREE.MeshStandardMaterial({
     map: colorTex,
     normalMap: normalTex,
-    normalScale: new THREE.Vector2(1.5, 1.5),
-    roughness: 0.85,
+    roughness: 0.66,
     metalness: 0.0,
     bumpMap: heightTex,
-    bumpScale: 0.2,
+    bumpScale: 0.12,
     aoMap: heightTex,
-    aoMapIntensity: 0.5
+    aoMapIntensity: 0.35
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
