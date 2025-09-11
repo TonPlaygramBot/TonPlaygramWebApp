@@ -51,7 +51,7 @@ export default function AirHockey3D({ player, ai }) {
     scene.add(dir);
 
     // table dims (slightly bigger for mobile screens)
-    const TABLE = { w: 2, h: 4, rim: 0.06, goalW: 1 };
+    const TABLE = { w: 2.2, h: 4.8, rim: 0.06, goalW: 1 };
 
     // camera
     const camera = new THREE.PerspectiveCamera(
@@ -228,8 +228,8 @@ export default function AirHockey3D({ player, ai }) {
       if (d2 < 0.12 * 0.12) {
         const nx = -dx;
         const nz = -dz;
-        S.vel.x += nx * 2.5e-3;
-        S.vel.z += nz * 2.5e-3;
+        S.vel.x += nx * 1.25e-3;
+        S.vel.z += nz * 1.25e-3;
         S.lastTouch = 0.15;
         playHit();
       }
@@ -261,15 +261,15 @@ export default function AirHockey3D({ player, ai }) {
       const dz = puck.position.z - aiMallet.position.z;
       const d2 = dx * dx + dz * dz;
       if (d2 < 0.12 * 0.12) {
-        S.vel.x += dx * 3e-3;
-        S.vel.z += dz * 3e-3;
+        S.vel.x += dx * 1.5e-3;
+        S.vel.z += dz * 1.5e-3;
         playHit();
       }
     };
 
     const reset = towardTop => {
       puck.position.set(0, 0.01, 0);
-      S.vel.set(0, 0, towardTop ? -0.2 : 0.2);
+      S.vel.set(0, 0, towardTop ? -0.1 : 0.1);
       you.position.set(0, 0, TABLE.h * 0.36);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     };
