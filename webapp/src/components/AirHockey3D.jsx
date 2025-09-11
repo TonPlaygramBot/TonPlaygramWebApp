@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { getGameVolume } from '../utils/sound.js';
+import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 /**
  * AIR HOCKEY 3D — Mobile Portrait
@@ -78,8 +79,8 @@ export default function AirHockey3D({ player, ai }) {
 
     // build table
     const group = new THREE.Group();
-    // nudge the whole field slightly downward on screen
-    group.position.z = 0.2;
+    // slightly closer to the top
+    group.position.z = 0.1;
     scene.add(group);
 
     const floor = new THREE.Mesh(
@@ -370,9 +371,9 @@ export default function AirHockey3D({ player, ai }) {
       ref={hostRef}
       className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
     >
-      <div className="absolute top-2 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+      <div className="absolute top-1 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
         <img
-          src={player.avatar}
+          src={getAvatarUrl(player.avatar)}
           alt=""
           className="w-5 h-5 rounded-full object-cover"
         />
@@ -380,12 +381,12 @@ export default function AirHockey3D({ player, ai }) {
           {player.name}: {ui.left}
         </span>
       </div>
-      <div className="absolute top-2 right-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+      <div className="absolute top-1 right-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
         <span>
           {ui.right}: {ai.name}
         </span>
         <img
-          src={ai.avatar}
+          src={getAvatarUrl(ai.avatar)}
           alt=""
           className="w-5 h-5 rounded-full object-cover"
         />

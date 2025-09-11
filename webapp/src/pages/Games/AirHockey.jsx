@@ -1,13 +1,8 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import AirHockey3D from '../../components/AirHockey3D.jsx';
-
-const AI_FLAGS = [
-  { name: 'France', avatar: '/assets/icons/FranceLeader.webp' },
-  { name: 'Germany', avatar: '/assets/icons/GermanyLeader.webp' },
-  { name: 'Italy', avatar: '/assets/icons/ItalyLeader.webp' },
-  { name: 'Canada', avatar: '/assets/icons/CanadaLeader.webp' }
-];
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { avatarToName } from '../../utils/avatarUtils.js';
 
 export default function AirHockey() {
   useTelegramBackButton();
@@ -17,6 +12,7 @@ export default function AirHockey() {
     name: params.get('name') || 'You',
     avatar: params.get('avatar') || '/assets/icons/profile.svg'
   };
-  const ai = AI_FLAGS[Math.floor(Math.random() * AI_FLAGS.length)];
+  const flag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+  const ai = { name: avatarToName(flag) || 'AI', avatar: flag };
   return <AirHockey3D player={player} ai={ai} />;
 }
