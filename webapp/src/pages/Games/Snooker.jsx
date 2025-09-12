@@ -852,6 +852,7 @@ export default function NewSnookerGame() {
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
       let cue;
+      let shooting = false; // track when a shot is in progress
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         host.clientWidth / host.clientHeight,
@@ -866,7 +867,7 @@ export default function NewSnookerGame() {
       );
       const updateCamera = () => {
         const target =
-          cue?.mesh && !topViewRef.current
+          cue?.mesh && !topViewRef.current && !shooting
             ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
             : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
         if (topViewRef.current) {
@@ -1003,7 +1004,14 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
-      const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
+      const spot = new THREE.SpotLight(
+        0xffffff,
+        1.5,
+        0,
+        Math.PI * 0.2 * 50,
+        0.3,
+        1
+      );
       spot.position.set(1.3, 2.6, 0.5);
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
@@ -1239,7 +1247,6 @@ export default function NewSnookerGame() {
       dom.addEventListener('pointerdown', onPlace);
 
       // Shot lifecycle
-      let shooting = false;
       let potted = [];
       let foul = false;
       let firstHit = null;
@@ -1267,6 +1274,17 @@ export default function NewSnookerGame() {
           .clone()
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
+
+        // switch camera to an orbit view covering the whole table
+        if (cameraRef.current && sphRef.current && fitRef.current) {
+          topViewRef.current = false;
+          const cam = cameraRef.current;
+          const sph = sphRef.current;
+          sph.radius = fitRadius(cam, 1.05);
+          sph.phi = 1.0;
+          fitRef.current(1.05);
+          updateCamera();
+        }
       };
       fireRef.current = fire;
 
@@ -1398,18 +1416,21 @@ export default function NewSnookerGame() {
           ]);
           tick.visible = true;
           const pull = powerRef.current * BALL_R * 10 * 0.5;
+          const side = spinRef.current.x * spinRangeRef.current;
+          const vert = -spinRef.current.y * spinRangeRef.current;
+          const spinWorld = new THREE.Vector3(
+            perp.x * side,
+            vert,
+            perp.z * side
+          );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
-            BALL_R,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R)
+            cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R) + spinWorld.x,
+            BALL_R + spinWorld.y,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R) + spinWorld.z
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(
-              spinRef.current.x * spinRangeRef.current,
-              -spinRef.current.y * spinRangeRef.current,
-              -cueLen / 2
-            );
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           cueStick.visible = true;
           if (afterDir) {
@@ -1500,7 +1521,7 @@ export default function NewSnookerGame() {
           if (!any) resolve();
         }
         const fit = fitRef.current;
-        if (fit && cue?.active) {
+        if (fit && cue?.active && !shooting) {
           const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
           const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
           const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
