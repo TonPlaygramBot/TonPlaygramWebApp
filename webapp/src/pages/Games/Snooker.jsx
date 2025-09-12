@@ -1065,13 +1065,15 @@ export default function NewSnookerGame() {
         return b;
       };
       cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      // 15 red balls arranged in triangle
+      // 15 red balls arranged in official snooker triangle
+      // apex is just behind the pink spot and triangle extends toward the black
+      const apexZ = PLAY_H * 0.25 + BALL_R * 2;
       let rid = 0;
       for (let row = 0; row < 5; row++) {
+        const z = apexZ + row * BALL_R * Math.sqrt(3);
         for (let i = 0; i <= row; i++) {
           if (rid >= 15) break;
-          const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
-          const z = -PLAY_W * 0.15 + row * (BALL_R * 1.9);
+          const x = (i - row / 2) * (BALL_R * 2);
           add(`red_${rid++}`, COLORS.red, x, z);
         }
       }
@@ -1116,6 +1118,20 @@ export default function NewSnookerGame() {
       spotD.position.set(0, 5, baulkZ);
       spotD.target.position.set(0, 0.75, baulkZ);
       scene.add(spotD, spotD.target);
+
+      // corner spotlights to illuminate each pocket area
+      const cornerSpots = [
+        [-PLAY_W / 2, -PLAY_H / 2],
+        [PLAY_W / 2, -PLAY_H / 2],
+        [-PLAY_W / 2, PLAY_H / 2],
+        [PLAY_W / 2, PLAY_H / 2]
+      ];
+      cornerSpots.forEach(([x, z]) => {
+        const s = new THREE.SpotLight(0xffffff, 1.8, 0, Math.PI / 2, 0.8, 1);
+        s.position.set(x, 5, z);
+        s.target.position.set(x, 0.75, z);
+        scene.add(s, s.target);
+      });
 
       cueRef.current = cue;
       ballsRef.current = balls;
@@ -1335,14 +1351,15 @@ export default function NewSnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // switch camera back to orbit view and pull back to show full table
+        // switch camera to top-down view so the entire table is visible
         if (cameraRef.current && sphRef.current && fitRef.current) {
-          topViewRef.current = false;
+          topViewRef.current = true;
+          setTopView(true);
           const cam = cameraRef.current;
           const sph = sphRef.current;
           sph.theta = Math.PI;
-          sph.phi = 0.9;
-          fitRef.current(1.6);
+          sph.phi = 0.0001;
+          fitRef.current(1.05);
           updateCamera();
         }
       };
@@ -1443,6 +1460,8 @@ export default function NewSnookerGame() {
         if (cameraRef.current && sphRef.current && fitRef.current) {
           const cam = cameraRef.current;
           const sph = sphRef.current;
+          topViewRef.current = false;
+          setTopView(false);
           sph.radius = fitRadius(cam, 1.25);
           sph.phi = 0.9;
           fitRef.current(1.25);
@@ -1701,9 +1720,12 @@ export default function NewSnookerGame() {
   }, []);
 
   return (
-    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
-      {/* Canvas host now stretches full width so table reaches the slider */}
-      <div ref={mountRef} className="absolute inset-0" />
+    <div className="w-full h-[100vh] bg-black text-white overflow-visible select-none">
+      {/* Canvas host now stretches full width and extends 20% above the top */}
+      <div
+        ref={mountRef}
+        className="absolute left-0 right-0 bottom-0 top-[-20%]"
+      />
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
