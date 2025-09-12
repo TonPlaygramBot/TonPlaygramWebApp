@@ -351,10 +351,12 @@ function Table3D(scene) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
-  // Simple dark green cloth without additional mesh material
-  const clothMat = new THREE.MeshStandardMaterial({
+  // Simple dark green cloth
+  const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.95
+    roughness: 0.95,
+    sheen: 1.0,
+    sheenRoughness: 0.8
   });
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
@@ -1036,7 +1038,7 @@ export default function NewSnookerGame() {
       const ambient = new THREE.AmbientLight(0xffffff, 0.6);
       scene.add(ambient);
 
-      const spot = new THREE.SpotLight(0xffffff, 1.8, 0, Math.PI / 2, 0.9, 1);
+      const spot = new THREE.SpotLight(0xffffff, 1.8, 0, Math.PI / 2, 0.8, 1);
       spot.position.set(0, 5, 0);
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
@@ -1052,21 +1054,6 @@ export default function NewSnookerGame() {
       const back = new THREE.PointLight(0xffffff, 1.2, 0);
       back.position.set(0, 3, -PLAY_W * 0.35);
       scene.add(tiny, back);
-
-      // spotlight over each pocket with slightly wider focus
-      pocketCenters().forEach((p) => {
-        const pocketSpot = new THREE.SpotLight(
-          0xffffff,
-          1.8,
-          0,
-          Math.PI / 2,
-          0.9,
-          1
-        );
-        pocketSpot.position.set(p.x, 5, p.y);
-        pocketSpot.target.position.set(p.x, 0.75, p.y);
-        scene.add(pocketSpot, pocketSpot.target);
-      });
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
@@ -1108,7 +1095,7 @@ export default function NewSnookerGame() {
         1.8,
         0,
         Math.PI / 2,
-        0.9,
+        0.8,
         1
       );
       const blackZ = SPOTS.black[1];
@@ -1121,7 +1108,7 @@ export default function NewSnookerGame() {
         1.8,
         0,
         Math.PI / 2,
-        0.9,
+        0.8,
         1
       );
       spotD.position.set(0, 5, baulkZ);
