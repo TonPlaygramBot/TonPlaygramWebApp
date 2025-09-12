@@ -306,10 +306,10 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.12,
+    roughness: 0.2,
     metalness: 0.25,
     clearcoat: 1,
-    clearcoatRoughness: 0.05
+    clearcoatRoughness: 0.1
   });
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
@@ -867,7 +867,7 @@ export default function NewSnookerGame() {
       renderer.useLegacyLights = false;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.5;
+      renderer.toneMappingExposure = 1.2;
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1342,7 +1342,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.theta = Math.PI;
           sph.phi = 0.9;
-          fitRef.current(1.5);
+          fitRef.current(1.6);
           updateCamera();
         }
       };
@@ -1443,9 +1443,9 @@ export default function NewSnookerGame() {
         if (cameraRef.current && sphRef.current && fitRef.current) {
           const cam = cameraRef.current;
           const sph = sphRef.current;
-          sph.radius = fitRadius(cam, 1.15);
+          sph.radius = fitRadius(cam, 1.25);
           sph.phi = 0.9;
-          fitRef.current(1.15);
+          fitRef.current(1.25);
           updateCamera();
         }
         potted = [];
