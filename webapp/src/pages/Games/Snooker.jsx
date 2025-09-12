@@ -162,6 +162,8 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
+// radius of the D semicircle for in-hand placement
+const D_RADIUS = (11.5 / 72) * PLAY_W;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -175,7 +177,7 @@ const COLORS = Object.freeze({
   cloth: 0x1a6d1a,
   rail: 0x8b5a2e,
   cue: 0xffffff,
-  red: 0xff0000,
+  red: 0xff4040,
   yellow: 0xffff00,
   green: 0x006400,
   brown: 0x8b4513,
@@ -311,6 +313,10 @@ function Guret(parent, id, color, x, y) {
     clearcoat: 1,
     clearcoatRoughness: 0.1
   });
+  if (color === COLORS.red) {
+    material.emissive = new THREE.Color(0x330000);
+    material.emissiveIntensity = 0.4;
+  }
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
     material
@@ -637,8 +643,6 @@ function Table3D(scene) {
   // Markings: baulk, D, spots
   // Baulk line is measured from the bottom cushion along table length
   const BAULK_RATIO_FROM_BOTTOM = 0.2014;
-  // D radius is based on table width (short side)
-  const D_R = (11.5 / 72) * PLAY_W;
   const baulkZ = -halfH + BAULK_RATIO_FROM_BOTTOM * PLAY_H;
   const markMat = new THREE.LineBasicMaterial({
     color: COLORS.mark,
@@ -656,7 +660,11 @@ function Table3D(scene) {
   for (let i = 0; i <= 64; i++) {
     const t = Math.PI * (i / 64);
     dPts.push(
-      new THREE.Vector3(Math.cos(t) * D_R, 0.001, baulkZ - Math.sin(t) * D_R)
+      new THREE.Vector3(
+        Math.cos(t) * D_RADIUS,
+        0.001,
+        baulkZ - Math.sin(t) * D_RADIUS
+      )
     );
   }
   table.add(
@@ -702,7 +710,7 @@ export default function NewSnookerGame() {
     turn: 0,
     phase: 'reds',
     next: 'red',
-    inHand: false,
+    inHand: true,
     over: false
   });
   const powerRef = useRef(hud.power);
@@ -1064,14 +1072,17 @@ export default function NewSnookerGame() {
         balls.push(b);
         return b;
       };
-      cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      // 15 red balls arranged in triangle
+      cue = add('cue', COLORS.cue, 0, baulkZ);
+      cue.active = false;
+      cue.mesh.visible = false;
+      // 15 red balls arranged in standard triangle with apex on pink spot
       let rid = 0;
+      const apexZ = PLAY_H * 0.25; // pink spot z from SPOTS below
       for (let row = 0; row < 5; row++) {
+        const z = apexZ + row * BALL_R * 2;
         for (let i = 0; i <= row; i++) {
           if (rid >= 15) break;
-          const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
-          const z = -PLAY_W * 0.15 + row * (BALL_R * 1.9);
+          const x = (i - row / 2) * BALL_R * 2;
           add(`red_${rid++}`, COLORS.red, x, z);
         }
       }
@@ -1292,11 +1303,10 @@ export default function NewSnookerGame() {
       const onPlace = (e) => {
         if (!hud.inHand) return;
         const p = project(e);
-        if (
-          p.y <= baulkZ &&
-          Math.abs(p.x) <= PLAY_W / 2 - BALL_R * 2 &&
-          free(p.x, p.y)
-        ) {
+        const d = new THREE.Vector2(p.x, p.y).distanceTo(
+          new THREE.Vector2(0, baulkZ)
+        );
+        if (p.y <= baulkZ && d <= D_RADIUS - BALL_R && free(p.x, p.y)) {
           cue.active = true;
           cue.mesh.visible = true;
           cue.pos.set(p.x, p.y);
@@ -1338,11 +1348,10 @@ export default function NewSnookerGame() {
         // switch camera back to orbit view and pull back to show full table
         if (cameraRef.current && sphRef.current && fitRef.current) {
           topViewRef.current = false;
-          const cam = cameraRef.current;
           const sph = sphRef.current;
           sph.theta = Math.PI;
-          sph.phi = 0.9;
-          fitRef.current(1.6);
+          sph.phi = 0.6;
+          fitRef.current(1.1);
           updateCamera();
         }
       };
@@ -1702,8 +1711,11 @@ export default function NewSnookerGame() {
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
-      {/* Canvas host now stretches full width so table reaches the slider */}
-      <div ref={mountRef} className="absolute inset-0" />
+      {/* Canvas host shifted up to expose more space toward the top */}
+      <div
+        ref={mountRef}
+        className="absolute left-0 right-0 bottom-0 -top-[20%]"
+      />
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
