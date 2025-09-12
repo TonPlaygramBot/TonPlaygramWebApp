@@ -1034,19 +1034,23 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
+      // add a gentle ambient light so the entire table is visible
+      const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+      scene.add(ambient);
+
       const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI / 2, 0.8, 1);
       spot.position.set(0, 5, 0);
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
 
-      // widen point light so it covers the whole table
-      const point = new THREE.PointLight(0xffffff, 1.2, 1000);
-      point.position.set(-1.5, 2.2, -0.8);
+      // center point light provides even illumination across cloth
+      const point = new THREE.PointLight(0xffffff, 1.2, 0);
+      point.position.set(0, 3, 0);
       scene.add(point);
 
-      // tiny helper light also needs a larger radius for even coverage
-      const tiny = new THREE.PointLight(0xffffff, 0.6, 500);
-      tiny.position.set(0.5, 1.8, 1.2);
+      // helper light from a different angle to soften shadows
+      const tiny = new THREE.PointLight(0xffffff, 0.8, 0);
+      tiny.position.set(0, 2.5, PLAY_W * 0.3);
       scene.add(tiny);
 
       // Table
