@@ -721,6 +721,9 @@ export default function NewSnookerGame() {
   const playerOffsetRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
+  const spinRef = useRef({ x: 0, y: 0 });
+  const tipGroupRef = useRef(null);
+  const spinRangeRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const { mapDelta } = useAimCalibration();
   useEffect(() => {
@@ -1005,11 +1008,13 @@ export default function NewSnookerGame() {
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
 
-      const point = new THREE.PointLight(0xffffff, 1.2, 10);
+      // widen point light so it covers the whole table
+      const point = new THREE.PointLight(0xffffff, 1.2, 500);
       point.position.set(-1.5, 2.2, -0.8);
       scene.add(point);
 
-      const tiny = new THREE.PointLight(0xffffff, 0.6, 3);
+      // tiny helper light also needs a larger radius for even coverage
+      const tiny = new THREE.PointLight(0xffffff, 0.6, 150);
       tiny.position.set(0.5, 1.8, 1.2);
       scene.add(tiny);
 
@@ -1101,24 +1106,47 @@ export default function NewSnookerGame() {
       shaft.rotation.x = -Math.PI / 2;
       cueStick.add(shaft);
 
+      // group for tip & connector so only the thin end moves for spin
+      const tipGroup = new THREE.Group();
+      tipGroup.position.z = -cueLen / 2;
+      cueStick.add(tipGroup);
+      tipGroupRef.current = tipGroup;
+
+      // subtle leather-like line texture for the tip
+      const tipCanvas = document.createElement('canvas');
+      tipCanvas.width = tipCanvas.height = 64;
+      const tipCtx = tipCanvas.getContext('2d');
+      tipCtx.fillStyle = '#0a4cbf';
+      tipCtx.fillRect(0, 0, 64, 64);
+      tipCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+      tipCtx.lineWidth = 2;
+      for (let i = 0; i < 64; i += 8) {
+        tipCtx.beginPath();
+        tipCtx.moveTo(i, 0);
+        tipCtx.lineTo(i, 64);
+        tipCtx.stroke();
+      }
+      const tipTex = new THREE.CanvasTexture(tipCanvas);
+
+      const tipLen = 0.03 * SCALE;
       const tip = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          0.008 * SCALE,
-          0.008 * SCALE,
-          0.05 * SCALE,
-          32
-        ),
-        new THREE.MeshPhysicalMaterial({ color: 0x0000ff, roughness: 0.4 })
+        new THREE.CapsuleGeometry(0.008 * SCALE, tipLen - 0.016 * SCALE, 8, 16),
+        new THREE.MeshPhysicalMaterial({
+          color: 0x0000ff,
+          roughness: 0.9,
+          map: tipTex
+        })
       );
       tip.rotation.x = -Math.PI / 2;
-      tip.position.z = -(0.75 * SCALE);
-      cueStick.add(tip);
+      tip.position.z = -tipLen / 2;
+      tipGroup.add(tip);
 
+      const connectorHeight = 0.015 * SCALE;
       const connector = new THREE.Mesh(
         new THREE.CylinderGeometry(
           0.009 * SCALE,
           0.009 * SCALE,
-          0.015 * SCALE,
+          connectorHeight,
           32
         ),
         new THREE.MeshPhysicalMaterial({
@@ -1128,14 +1156,14 @@ export default function NewSnookerGame() {
         })
       );
       connector.rotation.x = -Math.PI / 2;
-      connector.position.z = -(0.748 * SCALE);
-      cueStick.add(connector);
+      connector.position.z = connectorHeight / 2;
+      tipGroup.add(connector);
 
       const buttCap = new THREE.Mesh(
         new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
         new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.5 })
       );
-      buttCap.position.z = 0.75 * SCALE;
+      buttCap.position.z = cueLen / 2;
       cueStick.add(buttCap);
 
       const stripeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
@@ -1153,9 +1181,11 @@ export default function NewSnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, BALL_R, cue.pos.y + 0.9 * SCALE);
-      cueStick.rotation.y = Math.PI; // tip faces the cue ball
+      // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
+
+      spinRangeRef.current = 0.05 * SCALE;
 
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
@@ -1373,7 +1403,14 @@ export default function NewSnookerGame() {
             BALL_R,
             cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R)
           );
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z);
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(
+              spinRef.current.x * spinRangeRef.current,
+              -spinRef.current.y * spinRangeRef.current,
+              -cueLen / 2
+            );
+          }
           cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
@@ -1535,6 +1572,41 @@ export default function NewSnookerGame() {
     };
   }, []);
 
+  // Spin controller interactions
+  useEffect(() => {
+    const box = document.getElementById('spinBox');
+    const dot = document.getElementById('spinDot');
+    if (!box || !dot) return;
+    const move = (e) => {
+      const rect = box.getBoundingClientRect();
+      const x = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) / rect.width * 2 - 1;
+      const y = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) / rect.height * 2 - 1;
+      let nx = x, ny = y;
+      const r = Math.hypot(nx, ny);
+      if (r > 1) {
+        nx /= r;
+        ny /= r;
+      }
+      spinRef.current = { x: nx, y: ny };
+      dot.style.transform = `translate(${(nx * rect.width) / 2}px, ${(ny * rect.height) / 2}px)`;
+    };
+    const up = () => {
+      box.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    const down = (e) => {
+      move(e);
+      box.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    };
+    box.addEventListener('pointerdown', down);
+    return () => {
+      box.removeEventListener('pointerdown', down);
+      box.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+  }, []);
+
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
@@ -1567,14 +1639,8 @@ export default function NewSnookerGame() {
         </div>
         <div className="relative flex items-center justify-center">
           <div
-            id="spinBox"
-            className="w-16 h-16 rounded-full bg-black/60 flex items-center justify-center"
-          >
-            <div id="spinDot" className="w-2 h-2 rounded-full bg-white"></div>
-          </div>
-          <div
             id="turnTimerText"
-            className="absolute top-1 left-0 right-0 text-center text-sm font-bold"
+            className="text-center text-sm font-bold"
           >
             {timer}
           </div>
@@ -1597,6 +1663,14 @@ export default function NewSnookerGame() {
         ref={sliderRef}
         className="absolute right-3 top-1/2 -translate-y-1/2"
       />
+
+      {/* Spin controller */}
+      <div
+        id="spinBox"
+        className="absolute bottom-4 right-4 w-16 h-16 rounded-full bg-white flex items-center justify-center"
+      >
+        <div id="spinDot" className="w-2 h-2 rounded-full bg-red-600"></div>
+      </div>
     </div>
   );
 }
