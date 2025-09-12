@@ -166,7 +166,7 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-const CUE_TIP_GAP = BALL_R * 0.75; // slightly increased gap between cue tip and cue ball
+const CUE_TIP_GAP = BALL_R * 0.6; // distance between cue tip and cue ball
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
@@ -717,7 +717,6 @@ export default function NewSnookerGame() {
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
-  const breakViewRef = useRef(null);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
@@ -936,7 +935,6 @@ export default function NewSnookerGame() {
             ? 1.2
             : 1.0
       );
-      breakViewRef.current = sph.clone();
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
       const balls = [];
@@ -1036,18 +1034,18 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
-      const spot = new THREE.SpotLight(0xffffff, 1.5, 150, Math.PI / 6, 0.3, 1);
+      const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI / 2, 0.3, 1);
       spot.position.set(0, 2.6, 0);
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
 
-      // tighten point light so it covers a smaller area
-      const point = new THREE.PointLight(0xffffff, 1.2, 200);
+      // widen point light so it covers the whole table
+      const point = new THREE.PointLight(0xffffff, 1.2, 500);
       point.position.set(-1.5, 2.2, -0.8);
       scene.add(point);
 
-      // reduce helper light radius for focused coverage
-      const tiny = new THREE.PointLight(0xffffff, 0.6, 100);
+      // tiny helper light also needs a larger radius for even coverage
+      const tiny = new THREE.PointLight(0xffffff, 0.6, 150);
       tiny.position.set(0.5, 1.8, 1.2);
       scene.add(tiny);
 
@@ -1303,14 +1301,14 @@ export default function NewSnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // move camera back to break view, slightly lower and closer
-        if (cameraRef.current && sphRef.current && breakViewRef.current) {
+        // switch camera to an orbit view covering the whole table
+        if (cameraRef.current && sphRef.current && fitRef.current) {
           topViewRef.current = false;
+          const cam = cameraRef.current;
           const sph = sphRef.current;
-          const base = breakViewRef.current;
-          sph.theta = base.theta;
-          sph.phi = base.phi + 0.05;
-          sph.radius = base.radius * 0.95;
+          sph.radius = fitRadius(cam, 1.05);
+          sph.phi = 1.0;
+          fitRef.current(1.05);
           updateCamera();
         }
       };
@@ -1408,12 +1406,12 @@ export default function NewSnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
-        if (cameraRef.current && sphRef.current && breakViewRef.current) {
+        if (cameraRef.current && sphRef.current && fitRef.current) {
+          const cam = cameraRef.current;
           const sph = sphRef.current;
-          const base = breakViewRef.current;
-          sph.theta = base.theta;
-          sph.phi = base.phi + 0.05;
-          sph.radius = base.radius * 0.95;
+          sph.radius = fitRadius(cam, 1.15);
+          sph.phi = 0.9;
+          fitRef.current(1.15);
           updateCamera();
         }
         potted = [];
@@ -1636,18 +1634,9 @@ export default function NewSnookerGame() {
     if (!box || !dot) return;
     const move = (e) => {
       const rect = box.getBoundingClientRect();
-      const x =
-        (((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) /
-          rect.width) *
-          2 -
-        1;
-      const y =
-        (((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) /
-          rect.height) *
-          2 -
-        1;
-      let nx = x,
-        ny = y;
+      const x = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) / rect.width * 2 - 1;
+      const y = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) / rect.height * 2 - 1;
+      let nx = x, ny = y;
       const r = Math.hypot(nx, ny);
       if (r > 1) {
         nx /= r;
@@ -1709,7 +1698,10 @@ export default function NewSnookerGame() {
           </div>
         </div>
         <div className="relative flex items-center justify-center">
-          <div id="turnTimerText" className="text-center text-sm font-bold">
+          <div
+            id="turnTimerText"
+            className="text-center text-sm font-bold"
+          >
             {timer}
           </div>
         </div>
