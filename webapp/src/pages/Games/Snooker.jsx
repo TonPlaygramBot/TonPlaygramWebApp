@@ -867,7 +867,7 @@ export default function NewSnookerGame() {
       renderer.useLegacyLights = false;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      renderer.toneMappingExposure = 1.5;
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1035,7 +1035,7 @@ export default function NewSnookerGame() {
       scene.add(dir);
 
       // stronger ambient light so the entire table is evenly visible
-      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      const ambient = new THREE.AmbientLight(0xffffff, 1.2);
       scene.add(ambient);
 
       const spot = new THREE.SpotLight(0xffffff, 1.8, 0, Math.PI / 2, 0.8, 1);
