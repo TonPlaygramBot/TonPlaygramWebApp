@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -1034,26 +1035,20 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
-      // stronger ambient light so the entire table is evenly visible
+      // brighter ambient light so the entire table is evenly visible
       const ambient = new THREE.AmbientLight(0xffffff, 0.6);
       scene.add(ambient);
 
-      const spot = new THREE.SpotLight(0xffffff, 1.8, 0, Math.PI / 2, 0.8, 1);
-      spot.position.set(0, 5, 0);
-      spot.target.position.set(0, 0.75, 0);
-      scene.add(spot, spot.target);
-
-      // center point light provides broad illumination across cloth
-      const point = new THREE.PointLight(0xffffff, 2, 0);
-      point.position.set(0, 3.5, 0);
-      scene.add(point);
-
-      // helper lights from opposite sides to soften shadows
-      const tiny = new THREE.PointLight(0xffffff, 1.2, 0);
-      tiny.position.set(0, 3, PLAY_W * 0.35);
-      const back = new THREE.PointLight(0xffffff, 1.2, 0);
-      back.position.set(0, 3, -PLAY_W * 0.35);
-      scene.add(tiny, back);
+      // broad square lights covering each third of the table
+      RectAreaLightUniformsLib.init();
+      const square = PLAY_W;
+      const third = PLAY_H / 3;
+      [-third, 0, third].forEach((z) => {
+        const rect = new THREE.RectAreaLight(0xffffff, 15, square, square);
+        rect.position.set(0, 5, z);
+        rect.lookAt(0, 0, z);
+        scene.add(rect);
+      });
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
@@ -1089,33 +1084,7 @@ export default function NewSnookerGame() {
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
 
-      // additional spotlights for specific table areas
-      // wider penumbra to brighten the rack / black ball area
-      const spotBlack = new THREE.SpotLight(
-        0xffffff,
-        1.8,
-        0,
-        Math.PI / 2,
-        1,
-        1
-      );
-      const blackZ = SPOTS.black[1];
-      spotBlack.position.set(0, 5, blackZ);
-      spotBlack.target.position.set(0, 0.75, blackZ);
-      scene.add(spotBlack, spotBlack.target);
-
-      // wider penumbra to better illuminate the D area
-      const spotD = new THREE.SpotLight(
-        0xffffff,
-        1.8,
-        0,
-        Math.PI / 2,
-        1,
-        1
-      );
-      spotD.position.set(0, 5, baulkZ);
-      spotD.target.position.set(0, 0.75, baulkZ);
-      scene.add(spotD, spotD.target);
+      // area lights already provide even coverage for D and rack zones
 
       cueRef.current = cue;
       ballsRef.current = balls;
