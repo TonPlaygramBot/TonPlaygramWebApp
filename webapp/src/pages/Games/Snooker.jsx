@@ -183,8 +183,7 @@ const COLORS = Object.freeze({
   blue: 0x0000ff,
   pink: 0xff69b4,
   black: 0x000000,
-  mark: 0xffffff,
-  spot: 0x000000
+  mark: 0xffffff
 });
 
 // Kamera: lejojmë ulje më të madhe (phi më i vogël), por mos shko kurrë krejt në nivel (limit ~0.5rad)
@@ -668,7 +667,7 @@ function Table3D(scene) {
     const r = new THREE.Mesh(
       new THREE.RingGeometry(0.6, 1.0, 24),
       new THREE.MeshBasicMaterial({
-        color: COLORS.spot,
+        color: COLORS.mark,
         depthTest: false,
         depthWrite: false
       })
