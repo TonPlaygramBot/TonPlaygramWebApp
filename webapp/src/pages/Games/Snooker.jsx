@@ -469,7 +469,8 @@ function Table3D(scene) {
   const rightX = halfW + railW / 2;
   const railGeometry = (len) => {
     const half = len / 2;
-    const cut = (railW / 2) / Math.tan(THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE));
+    const cut =
+      railW / 2 / Math.tan(THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE));
     const shape = new THREE.Shape();
     // Straight section between pocket cuts
     shape.moveTo(-half + cut, -railW / 2);
@@ -993,28 +994,23 @@ export default function NewSnookerGame() {
       };
       window.addEventListener('keydown', keyRot);
 
-      // Lights (scaled to match table units)
-      const lightScale = BALL_R / 0.0525;
+      // Lights
       scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6));
       const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-      dir.position.set(-2.5 * lightScale, 4 * lightScale, 2 * lightScale);
-      dir.castShadow = true;
+      dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
       const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
-      spot.position.set(1.3 * lightScale, 2.6 * lightScale, 0.5 * lightScale);
-      spot.target.position.set(0, 0.75 * lightScale, 0);
-      spot.castShadow = true;
+      spot.position.set(1.3, 2.6, 0.5);
+      spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
 
       const point = new THREE.PointLight(0xffffff, 1.2, 10);
-      point.position.set(-1.5 * lightScale, 2.2 * lightScale, -0.8 * lightScale);
-      point.castShadow = true;
+      point.position.set(-1.5, 2.2, -0.8);
       scene.add(point);
 
       const tiny = new THREE.PointLight(0xffffff, 0.6, 3);
-      tiny.position.set(0.5 * lightScale, 1.8 * lightScale, 1.2 * lightScale);
-      tiny.castShadow = true;
+      tiny.position.set(0.5, 1.8, 1.2);
       scene.add(tiny);
 
       // Table
@@ -1106,7 +1102,12 @@ export default function NewSnookerGame() {
       cueStick.add(shaft);
 
       const tip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.008 * SCALE, 0.008 * SCALE, 0.05 * SCALE, 32),
+        new THREE.CylinderGeometry(
+          0.008 * SCALE,
+          0.008 * SCALE,
+          0.05 * SCALE,
+          32
+        ),
         new THREE.MeshPhysicalMaterial({ color: 0x0000ff, roughness: 0.4 })
       );
       tip.rotation.x = -Math.PI / 2;
@@ -1114,8 +1115,17 @@ export default function NewSnookerGame() {
       cueStick.add(tip);
 
       const connector = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.009 * SCALE, 0.009 * SCALE, 0.015 * SCALE, 32),
-        new THREE.MeshPhysicalMaterial({ color: 0xcd7f32, metalness: 0.8, roughness: 0.5 })
+        new THREE.CylinderGeometry(
+          0.009 * SCALE,
+          0.009 * SCALE,
+          0.015 * SCALE,
+          32
+        ),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xcd7f32,
+          metalness: 0.8,
+          roughness: 0.5
+        })
       );
       connector.rotation.x = -Math.PI / 2;
       connector.position.z = -(0.748 * SCALE);
