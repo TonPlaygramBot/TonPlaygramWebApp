@@ -1090,12 +1090,13 @@ export default function NewSnookerGame() {
       );
 
       // additional spotlights for specific table areas
+      // wider penumbra to brighten the rack / black ball area
       const spotBlack = new THREE.SpotLight(
         0xffffff,
         1.8,
         0,
         Math.PI / 2,
-        0.8,
+        1,
         1
       );
       const blackZ = SPOTS.black[1];
@@ -1103,12 +1104,13 @@ export default function NewSnookerGame() {
       spotBlack.target.position.set(0, 0.75, blackZ);
       scene.add(spotBlack, spotBlack.target);
 
+      // wider penumbra to better illuminate the D area
       const spotD = new THREE.SpotLight(
         0xffffff,
         1.8,
         0,
         Math.PI / 2,
-        0.8,
+        1,
         1
       );
       spotD.position.set(0, 5, baulkZ);
