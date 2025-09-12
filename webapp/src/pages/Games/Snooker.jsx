@@ -166,7 +166,7 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-const CUE_TIP_GAP = BALL_R * 0.6; // distance between cue tip and cue ball
+const CUE_TIP_GAP = BALL_R * 0.5; // distance between cue tip and cue ball
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
@@ -1034,18 +1034,18 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
-      const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI / 2, 0.3, 1);
-      spot.position.set(0, 2.6, 0);
+      const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI / 2, 0.8, 1);
+      spot.position.set(0, 5, 0);
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
 
       // widen point light so it covers the whole table
-      const point = new THREE.PointLight(0xffffff, 1.2, 500);
+      const point = new THREE.PointLight(0xffffff, 1.2, 1000);
       point.position.set(-1.5, 2.2, -0.8);
       scene.add(point);
 
       // tiny helper light also needs a larger radius for even coverage
-      const tiny = new THREE.PointLight(0xffffff, 0.6, 150);
+      const tiny = new THREE.PointLight(0xffffff, 0.6, 500);
       tiny.position.set(0.5, 1.8, 1.2);
       scene.add(tiny);
 
@@ -1301,14 +1301,15 @@ export default function NewSnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // switch camera to an orbit view covering the whole table
+        // switch camera back to the break view, slightly higher and farther
         if (cameraRef.current && sphRef.current && fitRef.current) {
           topViewRef.current = false;
           const cam = cameraRef.current;
           const sph = sphRef.current;
-          sph.radius = fitRadius(cam, 1.05);
-          sph.phi = 1.0;
-          fitRef.current(1.05);
+          sph.theta = Math.PI;
+          sph.radius = fitRadius(cam, 1.2);
+          sph.phi = 0.95;
+          fitRef.current(1.2);
           updateCamera();
         }
       };
