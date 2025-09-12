@@ -166,6 +166,7 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
+const CUE_TIP_GAP = BALL_R * 0.6; // distance between cue tip and cue ball
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
@@ -724,6 +725,8 @@ export default function NewSnookerGame() {
   const spinRef = useRef({ x: 0, y: 0 });
   const tipGroupRef = useRef(null);
   const spinRangeRef = useRef(0);
+  const cueRef = useRef(null);
+  const ballsRef = useRef([]);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const { mapDelta } = useAimCalibration();
   useEffect(() => {
@@ -745,6 +748,33 @@ export default function NewSnookerGame() {
     setHud((s) => ({ ...s, power: 0.5 }));
     fireRef.current?.();
   });
+
+  // determine which sides of the cue ball are blocked by nearby balls or rails
+  const getBlockedSides = () => {
+    const cue = cueRef.current;
+    const balls = ballsRef.current;
+    const sides = { left: false, right: false, up: false, down: false };
+    if (!cue) return sides;
+    const thresh = BALL_R * 2.05;
+    for (const b of balls) {
+      if (!b.active || b === cue) continue;
+      const dx = b.pos.x - cue.pos.x;
+      const dz = b.pos.y - cue.pos.y;
+      if (Math.hypot(dx, dz) < thresh) {
+        if (dx > 0) sides.right = true;
+        if (dx < 0) sides.left = true;
+        if (dz > 0) sides.up = true;
+        if (dz < 0) sides.down = true;
+      }
+    }
+    const halfW = PLAY_W / 2;
+    const halfH = PLAY_H / 2;
+    if (cue.pos.x + BALL_R >= halfW) sides.right = true;
+    if (cue.pos.x - BALL_R <= -halfW) sides.left = true;
+    if (cue.pos.y + BALL_R >= halfH) sides.up = true;
+    if (cue.pos.y - BALL_R <= -halfH) sides.down = true;
+    return sides;
+  };
 
   // Removed camera rotation helpers previously triggered by UI buttons
 
@@ -1004,15 +1034,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
 
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        1.5,
-        0,
-        Math.PI * 0.2 * 50,
-        0.3,
-        1
-      );
-      spot.position.set(1.3, 2.6, 0.5);
+      const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI / 2, 0.3, 1);
+      spot.position.set(0, 2.6, 0);
       spot.target.position.set(0, 0.75, 0);
       scene.add(spot, spot.target);
 
@@ -1059,6 +1082,9 @@ export default function NewSnookerGame() {
       const colors = Object.fromEntries(
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
+
+      cueRef.current = cue;
+      ballsRef.current = balls;
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
@@ -1188,7 +1214,7 @@ export default function NewSnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, BALL_R, cue.pos.y + 0.9 * SCALE);
+      cueStick.position.set(cue.pos.x, BALL_R, cue.pos.y + 0.8 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -1380,6 +1406,14 @@ export default function NewSnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
+        if (cameraRef.current && sphRef.current && fitRef.current) {
+          const cam = cameraRef.current;
+          const sph = sphRef.current;
+          sph.radius = fitRadius(cam, 1.15);
+          sph.phi = 0.9;
+          fitRef.current(1.15);
+          updateCamera();
+        }
         potted = [];
         foul = false;
         firstHit = null;
@@ -1424,9 +1458,9 @@ export default function NewSnookerGame() {
             perp.z * side
           );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             BALL_R + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -1608,6 +1642,11 @@ export default function NewSnookerGame() {
         nx /= r;
         ny /= r;
       }
+      const blocked = getBlockedSides();
+      if (blocked.left && nx < 0) nx = 0;
+      if (blocked.right && nx > 0) nx = 0;
+      if (blocked.down && ny < 0) ny = 0;
+      if (blocked.up && ny > 0) ny = 0;
       spinRef.current = { x: nx, y: ny };
       dot.style.transform = `translate(${(nx * rect.width) / 2}px, ${(ny * rect.height) / 2}px)`;
     };
