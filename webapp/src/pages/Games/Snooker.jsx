@@ -1089,6 +1089,32 @@ export default function NewSnookerGame() {
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
 
+      // additional spotlights for specific table areas
+      const spotBlack = new THREE.SpotLight(
+        0xffffff,
+        1.8,
+        0,
+        Math.PI / 2,
+        0.8,
+        1
+      );
+      const blackZ = SPOTS.black[1];
+      spotBlack.position.set(0, 5, blackZ);
+      spotBlack.target.position.set(0, 0.75, blackZ);
+      scene.add(spotBlack, spotBlack.target);
+
+      const spotD = new THREE.SpotLight(
+        0xffffff,
+        1.8,
+        0,
+        Math.PI / 2,
+        0.8,
+        1
+      );
+      spotD.position.set(0, 5, baulkZ);
+      spotD.target.position.set(0, 0.75, baulkZ);
+      scene.add(spotD, spotD.target);
+
       cueRef.current = cue;
       ballsRef.current = balls;
 
