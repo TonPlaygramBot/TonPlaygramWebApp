@@ -166,7 +166,7 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-const CUE_TIP_GAP = BALL_R * 0.5; // distance between cue tip and cue ball
+const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
@@ -1335,15 +1335,14 @@ export default function NewSnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // switch camera back to the break view, slightly higher and farther
+        // switch camera back to orbit view and pull back to show full table
         if (cameraRef.current && sphRef.current && fitRef.current) {
           topViewRef.current = false;
           const cam = cameraRef.current;
           const sph = sphRef.current;
           sph.theta = Math.PI;
-          sph.radius = fitRadius(cam, 1.2);
-          sph.phi = 0.95;
-          fitRef.current(1.2);
+          sph.phi = 0.9;
+          fitRef.current(1.5);
           updateCamera();
         }
       };
@@ -1467,17 +1466,16 @@ export default function NewSnookerGame() {
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
-          const end = new THREE.Vector3(impact.x, BALL_R, impact.y);
+          let end = new THREE.Vector3(impact.x, BALL_R, impact.y);
+          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          if (start.distanceTo(end) < 1e-4) {
+            end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
+          }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
           aim.material.color.set(
             targetBall && !railNormal ? 0xffff00 : 0xffffff
           );
-          const dir = new THREE.Vector3(
-            end.x - start.x,
-            0,
-            end.z - start.z
-          ).normalize();
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
