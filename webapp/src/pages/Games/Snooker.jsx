@@ -721,6 +721,12 @@ export default function NewSnookerGame() {
   const playerOffsetRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
+  const [spin, setSpin] = useState({ x: 0, y: 0 });
+  const spinRef = useRef(spin);
+  useEffect(() => {
+    spinRef.current = spin;
+  }, [spin]);
+  const spinBoxRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const { mapDelta } = useAimCalibration();
   useEffect(() => {
@@ -742,6 +748,29 @@ export default function NewSnookerGame() {
     setHud((s) => ({ ...s, power: 0.5 }));
     fireRef.current?.();
   });
+
+  const updateSpin = (e) => {
+    const box = spinBoxRef.current;
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+    const y = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+    const len = Math.sqrt(x * x + y * y);
+    const nx = len > 1 ? x / len : x;
+    const ny = len > 1 ? y / len : y;
+    setSpin({ x: nx, y: ny });
+  };
+
+  const endSpin = () => {
+    window.removeEventListener('pointermove', updateSpin);
+    window.removeEventListener('pointerup', endSpin);
+  };
+
+  const startSpin = (e) => {
+    updateSpin(e);
+    window.addEventListener('pointermove', updateSpin);
+    window.addEventListener('pointerup', endSpin);
+  };
 
   // Removed camera rotation helpers previously triggered by UI buttons
 
@@ -994,6 +1023,9 @@ export default function NewSnookerGame() {
       };
       window.addEventListener('keydown', keyRot);
 
+      // Table
+      const { centers, baulkZ, group: table } = Table3D(scene);
+
       // Lights
       scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6));
       const dir = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -1003,6 +1035,12 @@ export default function NewSnookerGame() {
       const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
       spot.position.set(1.3, 2.6, 0.5);
       spot.target.position.set(0, 0.75, 0);
+      const box = new THREE.Box3().setFromObject(table);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const radius = Math.sqrt(size.x * size.x + size.z * size.z) / 2;
+      const height = spot.position.y - spot.target.position.y;
+      spot.angle = Math.atan(radius / height);
       scene.add(spot, spot.target);
 
       const point = new THREE.PointLight(0xffffff, 1.2, 10);
@@ -1012,9 +1050,6 @@ export default function NewSnookerGame() {
       const tiny = new THREE.PointLight(0xffffff, 0.6, 3);
       tiny.position.set(0.5, 1.8, 1.2);
       scene.add(tiny);
-
-      // Table
-      const { centers, baulkZ, group: table } = Table3D(scene);
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
@@ -1105,13 +1140,13 @@ export default function NewSnookerGame() {
         new THREE.CylinderGeometry(
           0.008 * SCALE,
           0.008 * SCALE,
-          0.05 * SCALE,
+          0.02 * SCALE,
           32
         ),
         new THREE.MeshPhysicalMaterial({ color: 0x0000ff, roughness: 0.4 })
       );
       tip.rotation.x = -Math.PI / 2;
-      tip.position.z = -(0.75 * SCALE);
+      tip.position.z = -(0.735 * SCALE);
       cueStick.add(tip);
 
       const connector = new THREE.Mesh(
@@ -1368,10 +1403,14 @@ export default function NewSnookerGame() {
           ]);
           tick.visible = true;
           const pull = powerRef.current * BALL_R * 10 * 0.5;
+          const spinVec = spinRef.current;
+          const spinOffset = BALL_R * 0.5;
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R),
-            BALL_R,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R)
+            cue.pos.x - dir.x * (cueLen / 2 + pull + BALL_R) -
+              perp.x * spinVec.x * spinOffset,
+            BALL_R + spinVec.y * spinOffset,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + BALL_R) -
+              perp.z * spinVec.x * spinOffset
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z);
           cueStick.visible = true;
@@ -1567,14 +1606,8 @@ export default function NewSnookerGame() {
         </div>
         <div className="relative flex items-center justify-center">
           <div
-            id="spinBox"
-            className="w-16 h-16 rounded-full bg-black/60 flex items-center justify-center"
-          >
-            <div id="spinDot" className="w-2 h-2 rounded-full bg-white"></div>
-          </div>
-          <div
             id="turnTimerText"
-            className="absolute top-1 left-0 right-0 text-center text-sm font-bold"
+            className="text-center text-sm font-bold"
           >
             {timer}
           </div>
@@ -1590,6 +1623,22 @@ export default function NewSnookerGame() {
             {aiFlag}
           </div>
         </div>
+      </div>
+
+      {/* Spin Controller */}
+      <div
+        ref={spinBoxRef}
+        onPointerDown={startSpin}
+        className="absolute bottom-4 left-4 w-16 h-16 rounded-full bg-white"
+      >
+        <div
+          className="absolute w-3 h-3 bg-red-600 rounded-full"
+          style={{
+            left: `${(spin.x + 1) * 50}%`,
+            top: `${(spin.y + 1) * 50}%`,
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
       </div>
 
       {/* Power Slider */}
