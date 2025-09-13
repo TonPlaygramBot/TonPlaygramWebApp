@@ -251,6 +251,40 @@ function addRugUnderTable(scene, table) {
   rug.rotation.x = -Math.PI / 2;
   rug.position.set((box.max.x + box.min.x) / 2, box.min.y - 0.05, (box.max.z + box.min.z) / 2);
   scene.add(rug);
+  return rug;
+}
+
+function addArenaWalls(scene, rug) {
+  const wallT = TABLE.WALL;
+  const wallH = TABLE.H * 2; // as tall as two tables along the long side
+  const rugWidth = rug.geometry.parameters.width;
+  const rugHeight = rug.geometry.parameters.height;
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x8b8000,
+    roughness: 0.8,
+    metalness: 0.2
+  });
+  const wallGeoX = new THREE.BoxGeometry(rugWidth + wallT * 2, wallH, wallT);
+  const wallGeoZ = new THREE.BoxGeometry(wallT, wallH, rugHeight + wallT * 2);
+  const walls = new THREE.Group();
+  const north = new THREE.Mesh(wallGeoX, wallMat);
+  north.position.set(rug.position.x, wallH / 2, rug.position.z - rugHeight / 2 - wallT / 2);
+  const south = new THREE.Mesh(wallGeoX, wallMat);
+  south.position.set(rug.position.x, wallH / 2, rug.position.z + rugHeight / 2 + wallT / 2);
+  const west = new THREE.Mesh(wallGeoZ, wallMat);
+  west.position.set(rug.position.x - rugWidth / 2 - wallT / 2, wallH / 2, rug.position.z);
+  const east = new THREE.Mesh(wallGeoZ, wallMat);
+  east.position.set(rug.position.x + rugWidth / 2 + wallT / 2, wallH / 2, rug.position.z);
+  walls.add(north, south, west, east);
+  scene.add(walls);
+
+  [north, south, west, east].forEach((w) => {
+    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.25, 0.4, 1);
+    s.position.set(w.position.x, wallH - 0.5, w.position.z);
+    s.target.position.set(rug.position.x, 0, rug.position.z);
+    scene.add(s);
+    scene.add(s.target);
+  });
 }
 
 /**
@@ -1032,7 +1066,8 @@ export default function NewSnookerGame() {
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
-      addRugUnderTable(scene, table);
+      const rug = addRugUnderTable(scene, table);
+      addArenaWalls(scene, rug);
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
