@@ -160,8 +160,8 @@ const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const TABLE_H = 0.75;
 let BALL_R = 0.055 * SCALE_INV;
-// align ball centers with cloth by offsetting from the table's top surface
-const BALL_Y = -TABLE.THICK + BALL_R;
+// bring balls slightly closer to the cloth so they appear level with the field
+const BALL_Y = TABLE_H + BALL_R * 0.98;
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = 2.1 * BALL_R;
 const POCKET_R = POCKET_VIS_R * 0.9;
