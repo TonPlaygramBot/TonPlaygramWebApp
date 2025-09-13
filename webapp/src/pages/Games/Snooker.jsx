@@ -599,12 +599,12 @@ function Table3D(scene) {
     dRadius,
     32,
     1,
-    0,
+    Math.PI,
     Math.PI
   );
   const dMesh = new THREE.Mesh(dGeom, markingMeshMat);
   dMesh.rotation.x = -Math.PI / 2;
-  dMesh.position.y = 0.01;
+  dMesh.position.set(0, 0.01, baulkZ);
   table.add(dMesh);
 
   const spots = spotPositions(baulkZ);
@@ -854,8 +854,8 @@ export default function NewSnookerGame() {
     const targetMargin = next
       ? 1.05
       : window.innerHeight > window.innerWidth
-        ? 1.3
-        : 1.1;
+        ? 1.4
+        : 1.2;
     const target = {
       radius: fitRadius(cam, targetMargin),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -993,8 +993,8 @@ export default function NewSnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.3
-            : 1.1
+            ? 1.4
+            : 1.2
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1085,7 +1085,7 @@ export default function NewSnookerGame() {
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
         else return;
-        fit(window.innerHeight > window.innerWidth ? 1.3 : 1.1);
+        fit(window.innerHeight > window.innerWidth ? 1.4 : 1.2);
       };
       window.addEventListener('keydown', keyRot);
 
@@ -1097,8 +1097,9 @@ export default function NewSnookerGame() {
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
       const lightHeight = TABLE_Y + 0.2;
-      const lightX = TABLE.W / 2 - 7;
-      const lightZ = TABLE.H / 2 - 7;
+      const lightOffset = 5;
+      const lightX = TABLE.W / 2 - lightOffset;
+      const lightZ = TABLE.H / 2 - lightOffset;
 
       const spot = new THREE.SpotLight(0xffffff, 2.1, 0, fullTableAngle, 0.3, 1);
       spot.position.set(lightX, lightHeight, lightZ);
@@ -1376,7 +1377,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.theta = Math.PI;
           sph.phi = 0.9;
-          fitRef.current(1.7);
+          fitRef.current(1.8);
           updateCamera();
         }
       };
@@ -1479,7 +1480,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.radius = fitRadius(cam, 1.25);
           sph.phi = 0.9;
-          fitRef.current(1.3);
+          fitRef.current(1.4);
           updateCamera();
         }
         potted = [];
@@ -1645,8 +1646,8 @@ export default function NewSnookerGame() {
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.3
-              : 1.1
+              ? 1.4
+              : 1.2
         );
       };
       window.addEventListener('resize', onResize);
