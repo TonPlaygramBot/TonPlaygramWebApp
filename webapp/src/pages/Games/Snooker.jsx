@@ -277,7 +277,7 @@ function addRugUnderTable(scene, table) {
   rug.rotation.x = -Math.PI / 2;
   rug.position.set(
     (box.max.x + box.min.x) / 2,
-    box.min.y - 0.05,
+    box.min.y - 0.2,
     (box.max.z + box.min.z) / 2
   );
   scene.add(rug);
@@ -634,8 +634,9 @@ function Table3D(scene) {
   const clothColorTex = new THREE.CanvasTexture(
     makeColorCanvasFromHeight(clothHeight)
   );
+  // Increase normal strength so cloth texture is a bit more visible
   const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 4.0)
+    heightToNormalCanvas(clothHeight, 4.5)
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
@@ -643,7 +644,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.4, 0.4);
+  clothMat.normalScale.set(0.5, 0.5);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -978,6 +979,23 @@ export default function NewSnookerGame() {
   useEffect(() => {
     document.title = '3D Snooker';
   }, []);
+  // Prevent the device from dimming or locking the screen during play
+  useEffect(() => {
+    let wakeLock;
+    const requestLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock?.request('screen');
+      } catch (e) {
+        console.warn('wake lock failed', e);
+      }
+    };
+    requestLock();
+    document.addEventListener('visibilitychange', requestLock);
+    return () => {
+      document.removeEventListener('visibilitychange', requestLock);
+      wakeLock?.release();
+    };
+  }, []);
   useEffect(() => {
     setPlayer({
       name: getTelegramUsername() || 'Player',
@@ -1036,7 +1054,7 @@ export default function NewSnookerGame() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px sans-serif';
-    ctx.fillText('Match of the Day', w / 2, 110);
+    ctx.fillText('Match of the Day', w / 2, 130);
     if (avatarImg && avatarImg.complete)
       ctx.drawImage(avatarImg, 20, 100, 64, 64);
     else if (emoji) {
@@ -1203,8 +1221,9 @@ export default function NewSnookerGame() {
         }
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
-          const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 0.45 * fade;
+          // Fade cloth detail as camera moves away so it's invisible in orbit
+          const fade = THREE.MathUtils.clamp((160 - dist) / 80, 0, 1);
+          const ns = 0.6 * fade;
           clothMat.normalScale.set(ns, ns);
         }
       };
@@ -1335,8 +1354,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 4.5;
-      const lightOffset = 20;
+      const lightHeight = TABLE_Y + 6;
+      const lightOffset = 10;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -2109,7 +2128,7 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-10 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
+      <div className="absolute top-16 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
         <div className="font-semibold">Match of the Day</div>
         <div className="mt-2 flex items-center gap-4">
           <div className="flex items-center gap-2">
