@@ -578,10 +578,14 @@ function Table3D(scene) {
 
   // Markings
   const markingMat = new THREE.LineBasicMaterial({ color: COLORS.markings });
+  const markingMeshMat = new THREE.MeshBasicMaterial({
+    color: COLORS.markings,
+    side: THREE.DoubleSide
+  });
   const baulkZ = -PLAY_H / 4;
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(-halfW, 0.01, baulkZ),
-    new THREE.Vector3(halfW, 0.01, baulkZ),
+    new THREE.Vector3(halfW, 0.01, baulkZ)
   ]);
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
@@ -589,13 +593,19 @@ function Table3D(scene) {
   table.add(baulkLine);
 
   const dRadius = PLAY_W * 0.15;
-  const dCurve = new THREE.ArcCurve(0, baulkZ, dRadius, 0, Math.PI, false);
-  const dPoints = dCurve.getPoints(32).map((p) => new THREE.Vector3(p.x, 0.01, p.y));
-  const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
-  const dLine = new THREE.Line(dGeom, markingMat);
-  dLine.rotation.x = -Math.PI / 2;
-  dLine.position.y = 0.01;
-  table.add(dLine);
+  const dThickness = BALL_R * 0.1;
+  const dGeom = new THREE.RingGeometry(
+    dRadius - dThickness,
+    dRadius,
+    32,
+    1,
+    0,
+    Math.PI
+  );
+  const dMesh = new THREE.Mesh(dGeom, markingMeshMat);
+  dMesh.rotation.x = -Math.PI / 2;
+  dMesh.position.y = 0.01;
+  table.add(dMesh);
 
   const spots = spotPositions(baulkZ);
   const spotGeom = new THREE.CircleGeometry(BALL_R * 0.3, 32);
@@ -844,8 +854,8 @@ export default function NewSnookerGame() {
     const targetMargin = next
       ? 1.05
       : window.innerHeight > window.innerWidth
-        ? 1.2
-        : 1.0;
+        ? 1.3
+        : 1.1;
     const target = {
       radius: fitRadius(cam, targetMargin),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -983,8 +993,8 @@ export default function NewSnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.2
-            : 1.0
+            ? 1.3
+            : 1.1
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1075,7 +1085,7 @@ export default function NewSnookerGame() {
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
         else return;
-        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+        fit(window.innerHeight > window.innerWidth ? 1.3 : 1.1);
       };
       window.addEventListener('keydown', keyRot);
 
@@ -1086,9 +1096,9 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 0.3;
-      const lightX = TABLE.W / 2 - 5;
-      const lightZ = TABLE.H / 2 - 5;
+      const lightHeight = TABLE_Y + 0.2;
+      const lightX = TABLE.W / 2 - 7;
+      const lightZ = TABLE.H / 2 - 7;
 
       const spot = new THREE.SpotLight(0xffffff, 2.1, 0, fullTableAngle, 0.3, 1);
       spot.position.set(lightX, lightHeight, lightZ);
@@ -1366,7 +1376,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.theta = Math.PI;
           sph.phi = 0.9;
-          fitRef.current(1.6);
+          fitRef.current(1.7);
           updateCamera();
         }
       };
@@ -1469,7 +1479,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.radius = fitRadius(cam, 1.25);
           sph.phi = 0.9;
-          fitRef.current(1.25);
+          fitRef.current(1.3);
           updateCamera();
         }
         potted = [];
@@ -1635,8 +1645,8 @@ export default function NewSnookerGame() {
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.2
-              : 1.0
+              ? 1.3
+              : 1.1
         );
       };
       window.addEventListener('resize', onResize);
