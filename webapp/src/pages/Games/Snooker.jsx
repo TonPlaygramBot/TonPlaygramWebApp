@@ -643,9 +643,12 @@ function Table3D(scene) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.3,
-    sheen: 1.0,
-    sheenRoughness: 0.8
+    metalness: 0,
+    roughness: 1,
+    sheen: 0,
+    clearcoat: 0,
+    envMapIntensity: 0,
+    specularIntensity: 0
   });
   const clothHeight = makeDiagonalWeaveHeightCanvas(512, 16);
   const clothColorTex = new THREE.CanvasTexture(
@@ -1195,9 +1198,11 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      renderer.domElement.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault();
+        // Reload to recover from context loss which caused blackout issues
+        window.location.reload();
+      });
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
 
@@ -1233,10 +1238,12 @@ export default function NewSnookerGame() {
         }
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
-          // Fade cloth detail as camera moves away so it's invisible in orbit
-          const fade = THREE.MathUtils.clamp((160 - dist) / 80, 0, 1);
-          const ns = 0.6 * fade;
+          // Fade cloth detail as camera moves away so it's subtle in orbit view
+          const fade = THREE.MathUtils.clamp((180 - dist) / 90, 0, 1);
+          const ns = 0.8 * fade;
           clothMat.normalScale.set(ns, ns);
+          const rep = THREE.MathUtils.lerp(8, 16, fade);
+          clothMat.map?.repeat.set(rep, rep);
         }
       };
       const fit = (m = 1.1) => {
