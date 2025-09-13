@@ -110,8 +110,8 @@ function heightToNormalCanvas(heightCanvas, strength = 2.0) {
 
 function makeColorCanvasFromHeight(
   heightCanvas,
-  c0 = '#1e8f33',
-  c1 = '#26b54c',
+  c0 = '#228b22',
+  c1 = '#2ec956',
   variation = 0.1
 ) {
   const w = heightCanvas.width,
@@ -258,8 +258,8 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
 function addRugUnderTable(scene, table) {
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
-  const rugWidth = size.x * 4; // extends 150% beyond table width on each side
-  const rugHeight = size.z * 4; // extends 150% beyond table length on each side
+  const rugWidth = size.x * 4 * 0.7; // 30% smaller carpet around the table
+  const rugHeight = size.z * 4 * 0.7; // 30% smaller carpet around the table
   const tex = makeRugTexture();
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.anisotropy = 8;
@@ -375,7 +375,7 @@ const CUSHION_CUT_ANGLE = 30;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x1f7d1f,
+  cloth: 0x238b23,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -587,7 +587,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.35, 0.35);
+  clothMat.normalScale.set(0.4, 0.4);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -632,7 +632,11 @@ function Table3D(scene) {
   const markingMat = new THREE.LineBasicMaterial({ color: COLORS.markings });
   const markingMeshMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: 1
   });
   const baulkZ = -PLAY_H / 4;
   const baulkGeom = new THREE.PlaneGeometry(PLAY_W, BALL_R * 0.1);
@@ -1090,6 +1094,7 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
+      renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
 
@@ -1257,8 +1262,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 2.5;
-      const lightOffset = 35;
+      const lightHeight = TABLE_Y + 3.5;
+      const lightOffset = 50;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -2030,26 +2035,24 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-4 text-white text-xs sm:text-sm pointer-events-none z-50">
-        <div className="flex items-center gap-2">
-          <img
-            src={player.avatar || '/assets/icons/profile.svg'}
-            alt="player"
-            className="w-12 h-12 rounded-full object-cover"
-          />
-          <div className="leading-tight">
-            <div>{player.name}</div>
-            <div>Score: {hud.A}</div>
+      <div className="absolute top-6 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
+        <div className="font-semibold">Match of the Day</div>
+        <div className="mt-2 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <img
+              src={player.avatar || '/assets/icons/profile.svg'}
+              alt="player"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <span>{player.name}</span>
+          </div>
+          <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-3xl leading-none">{aiFlag}</span>
+            <span>AI</span>
           </div>
         </div>
-        <div className="text-center font-semibold">Time: {timer}</div>
-        <div className="flex items-center gap-2">
-          <div className="text-3xl leading-none">{aiFlag}</div>
-          <div className="leading-tight text-right">
-            <div>AI</div>
-            <div>Score: {hud.B}</div>
-          </div>
-        </div>
+        <div className="mt-1 text-sm">Time: {timer}</div>
       </div>
 
       {err && (
