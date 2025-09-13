@@ -106,7 +106,7 @@ function makeColorCanvasFromHeight(
   heightCanvas,
   c0 = '#1a8f2f',
   c1 = '#23b043',
-  variation = 0.08
+  variation = 0.1
 ) {
   const w = heightCanvas.width,
     h = heightCanvas.height;
@@ -118,17 +118,23 @@ function makeColorCanvasFromHeight(
   const out = ctx.createImageData(w, h);
   const ca = new THREE.Color(c0),
     cb = new THREE.Color(c1);
-  for (let i = 0; i < w * h; i++) {
-    const v = src[i * 4] / 255;
-    const t = Math.min(
-      1,
-      Math.max(0, v * (1 + (Math.random() - 0.5) * variation))
-    );
-    const col = ca.clone().lerp(cb, t);
-    out.data[i * 4 + 0] = Math.floor(col.r * 255);
-    out.data[i * 4 + 1] = Math.floor(col.g * 255);
-    out.data[i * 4 + 2] = Math.floor(col.b * 255);
-    out.data[i * 4 + 3] = 255;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const v = src[idx * 4] / 255;
+      const t = Math.min(
+        1,
+        Math.max(0, v * (1 + (Math.random() - 0.5) * variation))
+      );
+      const col = ca.clone().lerp(cb, t);
+      const edge =
+        Math.min(x, w - 1 - x, y, h - 1 - y) / (Math.min(w, h) * 0.5);
+      col.multiplyScalar(0.8 + edge * 0.2);
+      out.data[idx * 4 + 0] = Math.floor(col.r * 255);
+      out.data[idx * 4 + 1] = Math.floor(col.g * 255);
+      out.data[idx * 4 + 2] = Math.floor(col.b * 255);
+      out.data[idx * 4 + 3] = 255;
+    }
   }
   ctx.putImageData(out, 0, 0);
   return c;
@@ -165,10 +171,10 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, Wpx, Hpx);
 
-  for (let i = 0; i < 9000; i++) {
+  for (let i = 0; i < 11000; i++) {
     hairStroke(Math.random() * Wpx, Math.random() * Hpx, 10 + Math.random() * 22, Math.random() * 0.6 - 0.3, 0.18);
   }
-  for (let i = 0; i < 6000; i++) {
+  for (let i = 0; i < 8000; i++) {
     hairStroke(
       Math.random() * Wpx,
       Math.random() * Hpx,
@@ -544,6 +550,18 @@ function Table3D(scene) {
     sheen: 1.0,
     sheenRoughness: 0.8,
   });
+  const clothHeight = makeFbmHeightCanvas(512, 6);
+  const clothColorTex = new THREE.CanvasTexture(
+    makeColorCanvasFromHeight(clothHeight)
+  );
+  const clothNormalTex = new THREE.CanvasTexture(
+    heightToNormalCanvas(clothHeight, 4.0)
+  );
+  clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
+  clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
+  clothMat.map = clothColorTex;
+  clothMat.normalMap = clothNormalTex;
+  clothMat.normalScale.set(0.6, 0.6);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -875,11 +893,15 @@ export default function NewSnookerGame() {
   const updateHudPanels = useCallback(() => {
     const panels = panelsRef.current;
     if (!panels) return;
-    const { A, B, logo, playerImg } = panels;
+    const { A, B, C, D, logo, playerImg } = panels;
     drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
     A.tex.needsUpdate = true;
     drawHudPanel(B.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
     B.tex.needsUpdate = true;
+    drawHudPanel(C.ctx, logo, playerImg, player.name, hud.A, timer);
+    C.tex.needsUpdate = true;
+    drawHudPanel(D.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
+    D.tex.needsUpdate = true;
   }, [hud.A, hud.B, timer, player.name, aiFlag]);
 
   useEffect(() => {
@@ -1145,8 +1167,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 1;
-      const lightOffset = 15;
+      const lightHeight = TABLE_Y + 1.5;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1176,8 +1198,9 @@ export default function NewSnookerGame() {
       const arena = addArenaWalls(scene, rug);
 
       // 3D HUD panels on arena walls
-      const panelW = 20;
-      const panelH = 10;
+      const panelW = 100;
+      const panelH = 50;
+      const panelY = TABLE_Y + arena.wallH * 0.4;
       const canvasA = document.createElement('canvas');
       canvasA.width = 512;
       canvasA.height = 256;
@@ -1190,7 +1213,7 @@ export default function NewSnookerGame() {
       const panelOffset = TABLE.WALL / 2 + 0.1;
       meshA.position.set(
         arena.west.position.x + panelOffset,
-        TABLE_Y,
+        panelY,
         arena.west.position.z
       );
       meshA.rotation.y = Math.PI / 2;
@@ -1207,15 +1230,50 @@ export default function NewSnookerGame() {
       );
       meshB.position.set(
         arena.east.position.x - panelOffset,
-        TABLE_Y,
+        panelY,
         arena.east.position.z
       );
       meshB.rotation.y = -Math.PI / 2;
       scene.add(meshB);
 
+      const canvasC = document.createElement('canvas');
+      canvasC.width = 512;
+      canvasC.height = 256;
+      const ctxC = canvasC.getContext('2d');
+      const texC = new THREE.CanvasTexture(canvasC);
+      const meshC = new THREE.Mesh(
+        new THREE.PlaneGeometry(panelW, panelH),
+        new THREE.MeshBasicMaterial({ map: texC, transparent: true })
+      );
+      meshC.position.set(
+        arena.north.position.x,
+        panelY,
+        arena.north.position.z + panelOffset
+      );
+      scene.add(meshC);
+
+      const canvasD = document.createElement('canvas');
+      canvasD.width = 512;
+      canvasD.height = 256;
+      const ctxD = canvasD.getContext('2d');
+      const texD = new THREE.CanvasTexture(canvasD);
+      const meshD = new THREE.Mesh(
+        new THREE.PlaneGeometry(panelW, panelH),
+        new THREE.MeshBasicMaterial({ map: texD, transparent: true })
+      );
+      meshD.position.set(
+        arena.south.position.x,
+        panelY,
+        arena.south.position.z - panelOffset
+      );
+      meshD.rotation.y = Math.PI;
+      scene.add(meshD);
+
       panelsRef.current = {
         A: { ctx: ctxA, tex: texA },
         B: { ctx: ctxB, tex: texB },
+        C: { ctx: ctxC, tex: texC },
+        D: { ctx: ctxD, tex: texD },
         logo: new Image(),
         playerImg: new Image()
       };
