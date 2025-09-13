@@ -1145,8 +1145,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 0.5;
-      const lightOffset = 10;
+      const lightHeight = TABLE_Y + 1;
+      const lightOffset = 15;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1187,9 +1187,10 @@ export default function NewSnookerGame() {
         new THREE.PlaneGeometry(panelW, panelH),
         new THREE.MeshBasicMaterial({ map: texA, transparent: true })
       );
+      const panelOffset = TABLE.WALL / 2 + 0.1;
       meshA.position.set(
-        arena.west.position.x + 0.1,
-        rug.position.y + arena.wallH * 0.6,
+        arena.west.position.x + panelOffset,
+        TABLE_Y,
         arena.west.position.z
       );
       meshA.rotation.y = Math.PI / 2;
@@ -1205,8 +1206,8 @@ export default function NewSnookerGame() {
         new THREE.MeshBasicMaterial({ map: texB, transparent: true })
       );
       meshB.position.set(
-        arena.east.position.x - 0.1,
-        rug.position.y + arena.wallH * 0.6,
+        arena.east.position.x - panelOffset,
+        TABLE_Y,
         arena.east.position.z
       );
       meshB.rotation.y = -Math.PI / 2;
