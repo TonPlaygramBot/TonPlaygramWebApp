@@ -643,10 +643,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  // Start with a slightly stronger normal scale so the cloth texture is more
-  // visible when we get close to the action. This will be faded dynamically
-  // based on camera distance later on.
-  clothMat.normalScale.set(0.6, 0.6);
+  clothMat.normalScale.set(0.4, 0.4);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -685,7 +682,6 @@ function Table3D(scene) {
   const cloth = new THREE.Mesh(extrude, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
-  cloth.receiveShadow = true;
   table.add(cloth);
 
   // Markings
@@ -757,8 +753,6 @@ function Table3D(scene) {
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   frame.position.y = -TABLE.THICK + 0.01;
-  frame.castShadow = true;
-  frame.receiveShadow = true;
   table.add(frame);
 
   // Cushions
@@ -892,7 +886,6 @@ function Table3D(scene) {
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
-  skirt.castShadow = true;
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
@@ -907,8 +900,6 @@ function Table3D(scene) {
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
     leg.position.set(lx, -TABLE.THICK - legH / 2, lz);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
     table.add(leg);
   });
 
@@ -927,10 +918,6 @@ function Table3D(scene) {
   braceLeft.position.set(-outerHalfW2 + FRAME_W * 0.6, braceY, 0);
   const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
   braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
-  [braceFront, braceBack, braceLeft, braceRight].forEach((b) => {
-    b.castShadow = true;
-    b.receiveShadow = true;
-  });
   table.add(braceFront, braceBack, braceLeft, braceRight);
 
   console.assert(
@@ -1049,8 +1036,7 @@ export default function NewSnookerGame() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px sans-serif';
-    // Nudge the title down slightly so it sits comfortably under the logo
-    ctx.fillText('Match of the Day', w / 2, 140);
+    ctx.fillText('Match of the Day', w / 2, 110);
     if (avatarImg && avatarImg.complete)
       ctx.drawImage(avatarImg, 20, 100, 64, 64);
     else if (emoji) {
@@ -1217,10 +1203,8 @@ export default function NewSnookerGame() {
         }
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
-          // Fade the cloth texture in only when the camera gets close to the
-          // table surface. When orbiting far away the texture becomes invisible.
           const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 0.6 * fade;
+          const ns = 0.45 * fade;
           clothMat.normalScale.set(ns, ns);
         }
       };
@@ -1351,10 +1335,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      // Bring corner spotlights slightly towards the centre and raise them a
-      // little higher so the lighting feels more natural.
-      const lightHeight = TABLE_Y + 5.5;
-      const lightOffset = 25;
+      const lightHeight = TABLE_Y + 4.5;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1368,7 +1350,6 @@ export default function NewSnookerGame() {
       );
       spot.position.set(lightX, lightHeight, lightZ);
       spot.target.position.set(0, TABLE_Y, 0);
-      spot.castShadow = true;
       scene.add(spot, spot.target);
 
       const spotTop = new THREE.SpotLight(
@@ -1381,7 +1362,6 @@ export default function NewSnookerGame() {
       );
       spotTop.position.set(-lightX, lightHeight, lightZ);
       spotTop.target.position.set(0, TABLE_Y, 0);
-      spotTop.castShadow = true;
       scene.add(spotTop, spotTop.target);
 
       const spotBottom = new THREE.SpotLight(
@@ -1394,7 +1374,6 @@ export default function NewSnookerGame() {
       );
       spotBottom.position.set(-lightX, lightHeight, -lightZ);
       spotBottom.target.position.set(0, TABLE_Y, 0);
-      spotBottom.castShadow = true;
       scene.add(spotBottom, spotBottom.target);
 
       const spotExtra = new THREE.SpotLight(
@@ -1407,7 +1386,6 @@ export default function NewSnookerGame() {
       );
       spotExtra.position.set(lightX, lightHeight, -lightZ);
       spotExtra.target.position.set(0, TABLE_Y, 0);
-      spotExtra.castShadow = true;
       scene.add(spotExtra, spotExtra.target);
 
       // Table
@@ -2131,7 +2109,7 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-16 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
+      <div className="absolute top-10 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
         <div className="font-semibold">Match of the Day</div>
         <div className="mt-2 flex items-center gap-4">
           <div className="flex items-center gap-2">
