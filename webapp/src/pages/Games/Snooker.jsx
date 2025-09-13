@@ -160,8 +160,6 @@ const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const TABLE_H = 0.75;
 let BALL_R = 0.055 * SCALE_INV;
-// bring balls slightly closer to the cloth so they appear level with the field
-const BALL_Y = TABLE_H + BALL_R * 0.98;
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = 2.1 * BALL_R;
 const POCKET_R = POCKET_VIS_R * 0.9;
@@ -317,7 +315,7 @@ function Guret(parent, id, color, x, y) {
     new THREE.SphereGeometry(BALL_R, 64, 48),
     material
   );
-  mesh.position.set(x, BALL_Y, y);
+  mesh.position.set(x, TABLE_H + BALL_R, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   if (id === 'cue') {
@@ -354,24 +352,8 @@ function Table3D(scene) {
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
 
-  // Procedural cloth texture for more realistic shading
-  const heightCanvas = makeFbmHeightCanvas();
-  const colorCanvas = makeColorCanvasFromHeight(
-    heightCanvas,
-    '#1a6d1a',
-    '#1a6d1a',
-    0.08
-  );
-  const normalCanvas = heightToNormalCanvas(heightCanvas, 2.0);
-  const clothMap = new THREE.CanvasTexture(colorCanvas);
-  const clothNormal = new THREE.CanvasTexture(normalCanvas);
-  clothMap.wrapS = clothMap.wrapT = THREE.RepeatWrapping;
-  clothNormal.wrapS = clothNormal.wrapT = THREE.RepeatWrapping;
-
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    map: clothMap,
-    normalMap: clothNormal,
     roughness: 0.95,
     sheen: 1.0,
     sheenRoughness: 0.8,
@@ -404,7 +386,6 @@ function Table3D(scene) {
   const cloth = new THREE.Mesh(extrude, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
-  cloth.receiveShadow = true;
   table.add(cloth);
 
   // Markings on cloth
@@ -419,24 +400,14 @@ function Table3D(scene) {
   baulkLine.position.y = 0.01;
   table.add(baulkLine);
 
-  // Painted spots for official ball placements
-  const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.mark });
-  const spotR = BALL_R * 0.2;
-  const SPOTS = [
-    [-PLAY_W * 0.22, baulkZ],
-    [PLAY_W * 0.22, baulkZ],
-    [0, baulkZ],
-    [0, 0],
-    [0, PLAY_H * 0.25],
-    [0, halfH - PLAY_H * 0.09]
-  ];
-  SPOTS.forEach(([x, z]) => {
-    const g = new THREE.CircleGeometry(spotR, 32);
-    const m = new THREE.Mesh(g, spotMat);
-    m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.011, z);
-    table.add(m);
-  });
+  const dRadius = PLAY_W * 0.15;
+  const dCurve = new THREE.ArcCurve(0, baulkZ, dRadius, 0, Math.PI, false);
+  const dPoints = dCurve.getPoints(32).map((p) => new THREE.Vector3(p.x, 0.01, p.y));
+  const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
+  const dLine = new THREE.Line(dGeom, markingMat);
+  dLine.rotation.x = -Math.PI / 2;
+  dLine.position.y = 0.01;
+  table.add(dLine);
 
   // Side rails
   const railH = TABLE.THICK * 2.0;
@@ -798,7 +769,7 @@ export default function NewSnookerGame() {
       const updateCamera = () => {
         const target =
           cue?.mesh && !topViewRef.current && !shooting
-            ? new THREE.Vector3(cue.pos.x, BALL_Y, cue.pos.y)
+            ? new THREE.Vector3(cue.pos.x, TABLE_H + BALL_R, cue.pos.y)
             : new THREE.Vector3(playerOffsetRef.current, TABLE_H + 0.05, 0);
         if (topViewRef.current) {
           camera.position.set(target.x, sph.radius, target.z);
@@ -1140,7 +1111,7 @@ export default function NewSnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, BALL_Y, cue.pos.y + 0.8 * SCALE);
+      cueStick.position.set(cue.pos.x, TABLE_H + BALL_R, cue.pos.y + 0.8 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -1192,7 +1163,7 @@ export default function NewSnookerGame() {
           cue.active = true;
           cue.mesh.visible = true;
           cue.pos.set(p.x, p.y);
-          cue.mesh.position.set(p.x, BALL_Y, p.y);
+          cue.mesh.position.set(p.x, TABLE_H + BALL_R, p.y);
           setHud((s) => ({ ...s, inHand: false }));
         }
       };
@@ -1281,7 +1252,7 @@ export default function NewSnookerGame() {
                   b.active = true;
                   b.mesh.visible = true;
                   b.pos.set(sx, sy);
-                  b.mesh.position.set(sx, BALL_Y, sy);
+                  b.mesh.position.set(sx, TABLE_H + BALL_R, sy);
                 }
               });
               setHud((s) => ({ ...s, next: 'red' }));
@@ -1357,8 +1328,8 @@ export default function NewSnookerGame() {
             aimDir,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_Y, impact.y);
+          const start = new THREE.Vector3(cue.pos.x, TABLE_H + BALL_R, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, TABLE_H + BALL_R, impact.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -1384,7 +1355,7 @@ export default function NewSnookerGame() {
           );
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            BALL_Y + spinWorld.y,
+            TABLE_H + BALL_R + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -1395,7 +1366,7 @@ export default function NewSnookerGame() {
           if (afterDir) {
             const tEnd = new THREE.Vector3(
               end.x + afterDir.x * 30,
-              BALL_Y,
+              TABLE_H + BALL_R,
               end.z + afterDir.y * 30
             );
             targetGeom.setFromPoints([end, tEnd]);
@@ -1419,7 +1390,7 @@ export default function NewSnookerGame() {
           const speed = b.vel.length();
           if (speed < STOP_EPS) b.vel.set(0, 0);
           reflectRails(b);
-          b.mesh.position.set(b.pos.x, BALL_Y, b.pos.y);
+          b.mesh.position.set(b.pos.x, TABLE_H + BALL_R, b.pos.y);
           if (speed > 0) {
             const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
             const angle = speed / BALL_R;
