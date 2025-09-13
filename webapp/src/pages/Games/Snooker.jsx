@@ -256,7 +256,7 @@ function addRugUnderTable(scene, table) {
 
 function addArenaWalls(scene, rug) {
   const wallT = TABLE.WALL;
-  const wallH = TABLE.H * 2; // as tall as two tables along the long side
+  const wallH = TABLE.H * 2 * 0.7; // lower walls by 30%
   const rugWidth = rug.geometry.parameters.width;
   const rugHeight = rug.geometry.parameters.height;
   const wallMat = new THREE.MeshStandardMaterial({
@@ -268,19 +268,35 @@ function addArenaWalls(scene, rug) {
   const wallGeoZ = new THREE.BoxGeometry(wallT, wallH, rugHeight + wallT * 2);
   const walls = new THREE.Group();
   const north = new THREE.Mesh(wallGeoX, wallMat);
-  north.position.set(rug.position.x, wallH / 2, rug.position.z - rugHeight / 2 - wallT / 2);
+  north.position.set(
+    rug.position.x,
+    rug.position.y + wallH / 2,
+    rug.position.z - rugHeight / 2 - wallT / 2
+  );
   const south = new THREE.Mesh(wallGeoX, wallMat);
-  south.position.set(rug.position.x, wallH / 2, rug.position.z + rugHeight / 2 + wallT / 2);
+  south.position.set(
+    rug.position.x,
+    rug.position.y + wallH / 2,
+    rug.position.z + rugHeight / 2 + wallT / 2
+  );
   const west = new THREE.Mesh(wallGeoZ, wallMat);
-  west.position.set(rug.position.x - rugWidth / 2 - wallT / 2, wallH / 2, rug.position.z);
+  west.position.set(
+    rug.position.x - rugWidth / 2 - wallT / 2,
+    rug.position.y + wallH / 2,
+    rug.position.z
+  );
   const east = new THREE.Mesh(wallGeoZ, wallMat);
-  east.position.set(rug.position.x + rugWidth / 2 + wallT / 2, wallH / 2, rug.position.z);
+  east.position.set(
+    rug.position.x + rugWidth / 2 + wallT / 2,
+    rug.position.y + wallH / 2,
+    rug.position.z
+  );
   walls.add(north, south, west, east);
   scene.add(walls);
 
   [north, south, west, east].forEach((w) => {
     const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.25, 0.4, 1);
-    s.position.set(w.position.x, wallH - 0.5, w.position.z);
+    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
