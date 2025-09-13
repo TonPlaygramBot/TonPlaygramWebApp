@@ -280,7 +280,6 @@ function addRugUnderTable(scene, table) {
     box.min.y - 0.05,
     (box.max.z + box.min.z) / 2
   );
-  rug.receiveShadow = true;
   scene.add(rug);
   return rug;
 }
@@ -359,10 +358,7 @@ function makeJawSector(
   const s = new THREE.Shape();
   s.absarc(0, 0, R, start, end, false);
   s.absarc(0, 0, r, end, start, true);
-  const geo = new THREE.ExtrudeGeometry(s, {
-    depth: JAW_H,
-    bevelEnabled: false
-  });
+  const geo = new THREE.ExtrudeGeometry(s, { depth: JAW_H, bevelEnabled: false });
   geo.rotateX(-Math.PI / 2);
   return geo;
 }
@@ -639,7 +635,7 @@ function Table3D(scene) {
     makeColorCanvasFromHeight(clothHeight)
   );
   const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 5.0)
+    heightToNormalCanvas(clothHeight, 4.0)
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
@@ -647,7 +643,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.6, 0.6);
+  clothMat.normalScale.set(0.4, 0.4);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -686,7 +682,6 @@ function Table3D(scene) {
   const cloth = new THREE.Mesh(extrude, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
-  cloth.receiveShadow = true;
   table.add(cloth);
 
   // Markings
@@ -758,8 +753,6 @@ function Table3D(scene) {
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   frame.position.y = -TABLE.THICK + 0.01;
-  frame.castShadow = true;
-  frame.receiveShadow = true;
   table.add(frame);
 
   // Cushions
@@ -801,8 +794,6 @@ function Table3D(scene) {
     const geo = cushionProfile(len);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
     const g = new THREE.Group();
     g.add(mesh);
     g.position.set(x, cushionRaiseY, z);
@@ -895,8 +886,6 @@ function Table3D(scene) {
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
-  skirt.castShadow = true;
-  skirt.receiveShadow = true;
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
@@ -911,8 +900,6 @@ function Table3D(scene) {
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
     leg.position.set(lx, -TABLE.THICK - legH / 2, lz);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
     table.add(leg);
   });
 
@@ -925,16 +912,12 @@ function Table3D(scene) {
   const braceGeoZ = new THREE.BoxGeometry(braceT, braceT, spanZ);
   const braceFront = new THREE.Mesh(braceGeoX, woodMat);
   braceFront.position.set(0, braceY, -outerHalfH2 + FRAME_W * 0.6);
-  braceFront.castShadow = true;
   const braceBack = new THREE.Mesh(braceGeoX, woodMat);
   braceBack.position.set(0, braceY, outerHalfH2 - FRAME_W * 0.6);
-  braceBack.castShadow = true;
   const braceLeft = new THREE.Mesh(braceGeoZ, woodMat);
   braceLeft.position.set(-outerHalfW2 + FRAME_W * 0.6, braceY, 0);
-  braceLeft.castShadow = true;
   const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
   braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
-  braceRight.castShadow = true;
   table.add(braceFront, braceBack, braceLeft, braceRight);
 
   console.assert(
@@ -946,13 +929,6 @@ function Table3D(scene) {
     '[TEST] FRAME_W should be defined once'
   );
 
-  table.traverse((o) => {
-    if (o.isMesh) {
-      o.castShadow = true;
-      o.receiveShadow = true;
-    }
-  });
-  cloth.castShadow = false;
   table.position.y = TABLE_Y;
   scene.add(table);
   return { centers: pocketCenters(), baulkZ, group: table, clothMat };
@@ -1007,25 +983,6 @@ export default function NewSnookerGame() {
       name: getTelegramUsername() || 'Player',
       avatar: getTelegramPhotoUrl()
     });
-  }, []);
-  useEffect(() => {
-    let wakeLock = null;
-    const request = async () => {
-      try {
-        wakeLock = await navigator.wakeLock?.request('screen');
-      } catch (err) {
-        console.warn('wakeLock', err);
-      }
-    };
-    request();
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') request();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      wakeLock?.release();
-    };
   }, []);
   const aiFlag = useMemo(
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
@@ -1210,9 +1167,7 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
 
@@ -1249,7 +1204,7 @@ export default function NewSnookerGame() {
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
           const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 0.6 * fade;
+          const ns = 0.45 * fade;
           clothMat.normalScale.set(ns, ns);
         }
       };
@@ -1378,12 +1333,10 @@ export default function NewSnookerGame() {
       scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1));
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
-      dir.castShadow = true;
-      dir.shadow.mapSize.set(2048, 2048);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
       const lightHeight = TABLE_Y + 4.5;
-      const lightOffset = 30;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1397,8 +1350,6 @@ export default function NewSnookerGame() {
       );
       spot.position.set(lightX, lightHeight, lightZ);
       spot.target.position.set(0, TABLE_Y, 0);
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(2048, 2048);
       scene.add(spot, spot.target);
 
       const spotTop = new THREE.SpotLight(
@@ -1411,8 +1362,6 @@ export default function NewSnookerGame() {
       );
       spotTop.position.set(-lightX, lightHeight, lightZ);
       spotTop.target.position.set(0, TABLE_Y, 0);
-      spotTop.castShadow = true;
-      spotTop.shadow.mapSize.set(2048, 2048);
       scene.add(spotTop, spotTop.target);
 
       const spotBottom = new THREE.SpotLight(
@@ -1425,8 +1374,6 @@ export default function NewSnookerGame() {
       );
       spotBottom.position.set(-lightX, lightHeight, -lightZ);
       spotBottom.target.position.set(0, TABLE_Y, 0);
-      spotBottom.castShadow = true;
-      spotBottom.shadow.mapSize.set(2048, 2048);
       scene.add(spotBottom, spotBottom.target);
 
       const spotExtra = new THREE.SpotLight(
@@ -1439,17 +1386,10 @@ export default function NewSnookerGame() {
       );
       spotExtra.position.set(lightX, lightHeight, -lightZ);
       spotExtra.target.position.set(0, TABLE_Y, 0);
-      spotExtra.castShadow = true;
-      spotExtra.shadow.mapSize.set(2048, 2048);
       scene.add(spotExtra, spotExtra.target);
 
       // Table
-      const {
-        centers,
-        baulkZ,
-        group: table,
-        clothMat: tableCloth
-      } = Table3D(scene);
+      const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
       clothMat = tableCloth;
       addPocketJaws(scene, PLAY_W, PLAY_H);
       const rug = addRugUnderTable(scene, table);
@@ -2169,7 +2109,7 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-16 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
+      <div className="absolute top-10 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
         <div className="font-semibold">Match of the Day</div>
         <div className="mt-2 flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -2180,9 +2120,7 @@ export default function NewSnookerGame() {
             />
             <span>{player.name}</span>
           </div>
-          <div className="text-xl font-bold">
-            {hud.A} - {hud.B}
-          </div>
+          <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
           <div className="flex items-center gap-2">
             <span className="text-3xl leading-none">{aiFlag}</span>
             <span>AI</span>
