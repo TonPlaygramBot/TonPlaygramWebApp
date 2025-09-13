@@ -20,6 +20,23 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 // --------------------------------------------------
 // Procedural emerald cloth texture utilities
 // --------------------------------------------------
+function makeDiagonalWeaveHeightCanvas(size = 512, pattern = 16) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const t = (x + y) % (pattern * 2) < pattern ? 180 : 75;
+      const i = (y * size + x) * 4;
+      img.data[i + 0] = img.data[i + 1] = img.data[i + 2] = t;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
 function makeFbmHeightCanvas(size = 512, octaves = 5) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
@@ -358,7 +375,10 @@ function makeJawSector(
   const s = new THREE.Shape();
   s.absarc(0, 0, R, start, end, false);
   s.absarc(0, 0, r, end, start, true);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: JAW_H, bevelEnabled: false });
+  const geo = new THREE.ExtrudeGeometry(s, {
+    depth: JAW_H,
+    bevelEnabled: false
+  });
   geo.rotateX(-Math.PI / 2);
   return geo;
 }
@@ -377,13 +397,10 @@ function addPocketJaws(scene, playW, playH) {
   const geo = makeJawSector();
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
-    const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.25 : POCKET_VIS_R;
-    const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
     const jaw = new THREE.Mesh(geo.clone(), jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
+    jaw.position.set(p.x, TABLE_Y + 0.01, p.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
     scene.add(jaw);
     jaws.push(jaw);
@@ -626,17 +643,17 @@ function Table3D(scene) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.95,
+    roughness: 0.3,
     sheen: 1.0,
     sheenRoughness: 0.8
   });
-  const clothHeight = makeFbmHeightCanvas(512, 6);
+  const clothHeight = makeDiagonalWeaveHeightCanvas(512, 16);
   const clothColorTex = new THREE.CanvasTexture(
-    makeColorCanvasFromHeight(clothHeight)
+    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0)
   );
-  // Increase normal strength so cloth texture is a bit more visible
+  // subtle normal map for smooth woven cloth
   const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 4.5)
+    heightToNormalCanvas(clothHeight, 1.0)
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
@@ -644,7 +661,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.5, 0.5);
+  clothMat.normalScale.set(0.2, 0.2);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -666,14 +683,7 @@ function Table3D(scene) {
   shape.lineTo(-halfW, -halfH);
   pocketCenters().forEach((p) => {
     const h = new THREE.Path();
-    h.absellipse(
-      p.x,
-      p.y,
-      POCKET_VIS_R * 0.9,
-      POCKET_VIS_R * 0.9,
-      0,
-      Math.PI * 2
-    );
+    h.absellipse(p.x, p.y, POCKET_VIS_R, POCKET_VIS_R, 0, Math.PI * 2);
     shape.holes.push(h);
   });
   const extrude = new THREE.ExtrudeGeometry(shape, {
@@ -1185,7 +1195,9 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
+      renderer.domElement.addEventListener('webglcontextlost', (e) =>
+        e.preventDefault()
+      );
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
 
@@ -1204,7 +1216,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         170 * TABLE_SCALE,
-        1.05 /* slightly lower angle */,
+        1.3 /* lower angle to show legs */,
         Math.PI
       );
       const updateCamera = () => {
@@ -1408,7 +1420,12 @@ export default function NewSnookerGame() {
       scene.add(spotExtra, spotExtra.target);
 
       // Table
-      const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
+      const {
+        centers,
+        baulkZ,
+        group: table,
+        clothMat: tableCloth
+      } = Table3D(scene);
       clothMat = tableCloth;
       addPocketJaws(scene, PLAY_W, PLAY_H);
       const rug = addRugUnderTable(scene, table);
@@ -2128,9 +2145,8 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-16 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
-        <div className="font-semibold">Match of the Day</div>
-        <div className="mt-2 flex items-center gap-4">
+      <div className="absolute top-4 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
+        <div className="bg-gray-800 px-4 py-2 rounded flex items-center gap-2">
           <div className="flex items-center gap-2">
             <img
               src={player.avatar || '/assets/icons/profile.svg'}
@@ -2139,7 +2155,9 @@ export default function NewSnookerGame() {
             />
             <span>{player.name}</span>
           </div>
-          <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
+          <div className="text-xl font-bold">
+            {hud.A} - {hud.B}
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-3xl leading-none">{aiFlag}</span>
             <span>AI</span>
