@@ -110,8 +110,8 @@ function heightToNormalCanvas(heightCanvas, strength = 2.0) {
 
 function makeColorCanvasFromHeight(
   heightCanvas,
-  c0 = '#1a8f2f',
-  c1 = '#23b043',
+  c0 = '#1e8f33',
+  c1 = '#26b54c',
   variation = 0.1
 ) {
   const w = heightCanvas.width,
@@ -375,7 +375,7 @@ const CUSHION_CUT_ANGLE = 30;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x1a6d1a,
+  cloth: 0x1f7d1f,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -587,7 +587,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.3, 0.3);
+  clothMat.normalScale.set(0.35, 0.35);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -854,7 +854,7 @@ function Table3D(scene) {
 
   table.position.y = TABLE_Y;
   scene.add(table);
-  return { centers: pocketCenters(), baulkZ, group: table };
+  return { centers: pocketCenters(), baulkZ, group: table, clothMat };
 }
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
@@ -1097,6 +1097,7 @@ export default function NewSnookerGame() {
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
       let cue;
+      let clothMat;
       let shooting = false; // track when a shot is in progress
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
@@ -1121,6 +1122,12 @@ export default function NewSnookerGame() {
         } else {
           camera.position.setFromSpherical(sph).add(target);
           camera.lookAt(target);
+        }
+        if (clothMat) {
+          const dist = camera.position.distanceTo(target);
+          const fade = THREE.MathUtils.clamp((260 - dist) / 140, 0, 1);
+          const ns = 0.35 * fade;
+          clothMat.normalScale.set(ns, ns);
         }
       };
       const fit = (m = 1.1) => {
@@ -1250,8 +1257,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 2.0;
-      const lightOffset = 30;
+      const lightHeight = TABLE_Y + 2.5;
+      const lightOffset = 35;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1304,7 +1311,8 @@ export default function NewSnookerGame() {
       scene.add(spotExtra, spotExtra.target);
 
       // Table
-      const { centers, baulkZ, group: table } = Table3D(scene);
+      const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
+      clothMat = tableCloth;
       const rug = addRugUnderTable(scene, table);
       const arena = addArenaWalls(scene, rug);
 
