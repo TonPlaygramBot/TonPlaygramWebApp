@@ -1067,22 +1067,22 @@ export default function NewSnookerGame() {
       const lightX = TABLE.W / 2 - 5;
       const lightZ = TABLE.H / 2 - 5;
 
-      const spot = new THREE.SpotLight(0xffffff, 2, 0, fullTableAngle, 0.3, 1);
+      const spot = new THREE.SpotLight(0xffffff, 2.1, 0, fullTableAngle, 0.3, 1);
       spot.position.set(lightX, lightHeight, lightZ);
       spot.target.position.set(0, TABLE_Y, 0);
       scene.add(spot, spot.target);
 
-      const spotTop = new THREE.SpotLight(0xffffff, 1.8, 0, fullTableAngle, 0.4, 1);
+      const spotTop = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
       spotTop.position.set(-lightX, lightHeight, lightZ);
       spotTop.target.position.set(0, TABLE_Y, 0);
       scene.add(spotTop, spotTop.target);
 
-      const spotBottom = new THREE.SpotLight(0xffffff, 1.8, 0, fullTableAngle, 0.4, 1);
+      const spotBottom = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
       spotBottom.position.set(-lightX, lightHeight, -lightZ);
       spotBottom.target.position.set(0, TABLE_Y, 0);
       scene.add(spotBottom, spotBottom.target);
 
-      const spotExtra = new THREE.SpotLight(0xffffff, 1.5, 0, fullTableAngle, 0.4, 1);
+      const spotExtra = new THREE.SpotLight(0xffffff, 1.6, 0, fullTableAngle, 0.4, 1);
       spotExtra.position.set(lightX, lightHeight, -lightZ);
       spotExtra.target.position.set(0, TABLE_Y, 0);
       scene.add(spotExtra, spotExtra.target);
