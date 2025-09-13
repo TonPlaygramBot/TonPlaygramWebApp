@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import * as THREE from 'three';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
@@ -43,7 +49,7 @@ function makeFbmHeightCanvas(size = 512, octaves = 5) {
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let amp = 1,
-        freq = 1 / 24,
+        freq = 1 / 8,
         sum = 0,
         norm = 0;
       for (let o = 0; o < octaves; o++) {
@@ -172,7 +178,13 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   ctx.fillRect(0, 0, Wpx, Hpx);
 
   for (let i = 0; i < 11000; i++) {
-    hairStroke(Math.random() * Wpx, Math.random() * Hpx, 10 + Math.random() * 22, Math.random() * 0.6 - 0.3, 0.18);
+    hairStroke(
+      Math.random() * Wpx,
+      Math.random() * Hpx,
+      10 + Math.random() * 22,
+      Math.random() * 0.6 - 0.3,
+      0.18
+    );
   }
   for (let i = 0; i < 8000; i++) {
     hairStroke(
@@ -189,7 +201,12 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   ctx.lineJoin = 'miter';
   ctx.strokeStyle = '#d4af37';
   ctx.lineWidth = outerGold;
-  ctx.strokeRect(outerGold * 0.5, outerGold * 0.5, Wpx - outerGold, Hpx - outerGold);
+  ctx.strokeRect(
+    outerGold * 0.5,
+    outerGold * 0.5,
+    Wpx - outerGold,
+    Hpx - outerGold
+  );
   const inset = outerGold * 1.8;
   ctx.lineWidth = innerGold;
   ctx.strokeRect(inset, inset, Wpx - 2 * inset, Hpx - 2 * inset);
@@ -253,9 +270,16 @@ function addRugUnderTable(scene, table) {
     roughness: 0.96,
     metalness: 0.05
   });
-  const rug = new THREE.Mesh(new THREE.PlaneGeometry(rugWidth, rugHeight), rugMat);
+  const rug = new THREE.Mesh(
+    new THREE.PlaneGeometry(rugWidth, rugHeight),
+    rugMat
+  );
   rug.rotation.x = -Math.PI / 2;
-  rug.position.set((box.max.x + box.min.x) / 2, box.min.y - 0.05, (box.max.z + box.min.z) / 2);
+  rug.position.set(
+    (box.max.x + box.min.x) / 2,
+    box.min.y - 0.05,
+    (box.max.z + box.min.z) / 2
+  );
   scene.add(rug);
   return rug;
 }
@@ -548,7 +572,7 @@ function Table3D(scene) {
     color: COLORS.cloth,
     roughness: 0.95,
     sheen: 1.0,
-    sheenRoughness: 0.8,
+    sheenRoughness: 0.8
   });
   const clothHeight = makeFbmHeightCanvas(512, 6);
   const clothColorTex = new THREE.CanvasTexture(
@@ -559,19 +583,21 @@ function Table3D(scene) {
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
+  clothColorTex.repeat.set(16, 16);
+  clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.6, 0.6);
+  clothMat.normalScale.set(0.3, 0.3);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.3,
-    roughness: 0.8,
+    roughness: 0.8
   });
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
-    roughness: 0.8,
+    roughness: 0.8
   });
 
   // Cloth with pocket holes
@@ -583,12 +609,19 @@ function Table3D(scene) {
   shape.lineTo(-halfW, -halfH);
   pocketCenters().forEach((p) => {
     const h = new THREE.Path();
-    h.absellipse(p.x, p.y, POCKET_VIS_R * 0.9, POCKET_VIS_R * 0.9, 0, Math.PI * 2);
+    h.absellipse(
+      p.x,
+      p.y,
+      POCKET_VIS_R * 0.9,
+      POCKET_VIS_R * 0.9,
+      0,
+      Math.PI * 2
+    );
     shape.holes.push(h);
   });
   const extrude = new THREE.ExtrudeGeometry(shape, {
     depth: TABLE.THICK,
-    bevelEnabled: false,
+    bevelEnabled: false
   });
   const cloth = new THREE.Mesh(extrude, clothMat);
   cloth.rotation.x = -Math.PI / 2;
@@ -653,7 +686,10 @@ function Table3D(scene) {
   innerRect.lineTo(-halfW - railW, halfH + railW);
   innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
-  const frameGeo = new THREE.ExtrudeGeometry(frameShape, { depth: railH, bevelEnabled: false });
+  const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
+    depth: railH,
+    bevelEnabled: false
+  });
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   frame.position.y = -TABLE.THICK + 0.01;
@@ -674,12 +710,19 @@ function Table3D(scene) {
     s.lineTo(half - cut, frontY);
     s.lineTo(-half + cut, frontY);
     s.lineTo(-half, backY);
-    const geo = new THREE.ExtrudeGeometry(s, { depth: railH, bevelEnabled: false });
+    const geo = new THREE.ExtrudeGeometry(s, {
+      depth: railH,
+      bevelEnabled: false
+    });
     const pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
       const z = pos.getZ(i);
-      const tFront = THREE.MathUtils.clamp((backY - y) / (backY - frontY), 0, 1);
+      const tFront = THREE.MathUtils.clamp(
+        (backY - y) / (backY - frontY),
+        0,
+        1
+      );
       if (tFront > 0) pos.setZ(i, z * (1.0 - tFront));
     }
     pos.needsUpdate = true;
@@ -711,11 +754,35 @@ function Table3D(scene) {
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
   const rightX = halfW + (TABLE.WALL * 0.5) / 2;
   addCushion(0, bottomZ, CUSHION_LEN, true, false);
-  addCushion(leftX, -halfH + POCKET_VIS_R + vertSeg / 2, CUSHION_LEN, false, false);
-  addCushion(rightX, halfH - POCKET_VIS_R - vertSeg / 2, CUSHION_LEN, false, true);
+  addCushion(
+    leftX,
+    -halfH + POCKET_VIS_R + vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    false
+  );
+  addCushion(
+    rightX,
+    halfH - POCKET_VIS_R - vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    true
+  );
   addCushion(0, topZ, CUSHION_LEN, true, true);
-  addCushion(leftX, halfH - POCKET_VIS_R - vertSeg / 2, CUSHION_LEN, false, false);
-  addCushion(rightX, -halfH + POCKET_VIS_R + vertSeg / 2, CUSHION_LEN, false, true);
+  addCushion(
+    leftX,
+    halfH - POCKET_VIS_R - vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    false
+  );
+  addCushion(
+    rightX,
+    -halfH + POCKET_VIS_R + vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    true
+  );
 
   // Skirt & legs
   const skirtH = TABLE_H * 0.4;
@@ -731,13 +798,31 @@ function Table3D(scene) {
   skirtShape.lineTo(-outW, outH);
   skirtShape.lineTo(-outW, -outH);
   const innerS = new THREE.Path();
-  innerS.moveTo(-(halfW + 2 * railW + FRAME_W - railW), -(halfH + 2 * railW + FRAME_W - railW));
-  innerS.lineTo(halfW + 2 * railW + FRAME_W - railW, -(halfH + 2 * railW + FRAME_W - railW));
-  innerS.lineTo(halfW + 2 * railW + FRAME_W - railW, halfH + 2 * railW + FRAME_W - railW);
-  innerS.lineTo(-(halfW + 2 * railW + FRAME_W - railW), halfH + 2 * railW + FRAME_W - railW);
-  innerS.lineTo(-(halfW + 2 * railW + FRAME_W - railW), -(halfH + 2 * railW + FRAME_W - railW));
+  innerS.moveTo(
+    -(halfW + 2 * railW + FRAME_W - railW),
+    -(halfH + 2 * railW + FRAME_W - railW)
+  );
+  innerS.lineTo(
+    halfW + 2 * railW + FRAME_W - railW,
+    -(halfH + 2 * railW + FRAME_W - railW)
+  );
+  innerS.lineTo(
+    halfW + 2 * railW + FRAME_W - railW,
+    halfH + 2 * railW + FRAME_W - railW
+  );
+  innerS.lineTo(
+    -(halfW + 2 * railW + FRAME_W - railW),
+    halfH + 2 * railW + FRAME_W - railW
+  );
+  innerS.lineTo(
+    -(halfW + 2 * railW + FRAME_W - railW),
+    -(halfH + 2 * railW + FRAME_W - railW)
+  );
   skirtShape.holes.push(innerS);
-  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, { depth: skirtH, bevelEnabled: false });
+  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
+    depth: skirtH,
+    bevelEnabled: false
+  });
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
@@ -747,10 +832,10 @@ function Table3D(scene) {
   const legH = TABLE_H;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const legPositions = [
-    [-(outerHalfW2) + FRAME_W * 0.6, -(outerHalfH2) + FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, -(outerHalfH2) + FRAME_W * 0.6],
-    [-(outerHalfW2) + FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6],
+    [-outerHalfW2 + FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
+    [outerHalfW2 - FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
+    [-outerHalfW2 + FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6],
+    [outerHalfW2 - FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6]
   ];
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
@@ -758,8 +843,14 @@ function Table3D(scene) {
     table.add(leg);
   });
 
-  console.assert(typeof railW !== 'undefined', '[TEST] railW should be defined once');
-  console.assert(typeof FRAME_W !== 'undefined', '[TEST] FRAME_W should be defined once');
+  console.assert(
+    typeof railW !== 'undefined',
+    '[TEST] railW should be defined once'
+  );
+  console.assert(
+    typeof FRAME_W !== 'undefined',
+    '[TEST] FRAME_W should be defined once'
+  );
 
   table.position.y = TABLE_Y;
   scene.add(table);
@@ -854,15 +945,7 @@ export default function NewSnookerGame() {
     return sides;
   };
 
-  const drawHudPanel = (
-    ctx,
-    logo,
-    avatarImg,
-    name,
-    score,
-    t,
-    emoji
-  ) => {
+  const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
     const c = ctx.canvas;
     const w = c.width;
     const h = c.height;
@@ -1167,27 +1250,55 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 1.5;
-      const lightOffset = 20;
+      const lightHeight = TABLE_Y + 2.0;
+      const lightOffset = 30;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
-      const spot = new THREE.SpotLight(0xffffff, 2.1, 0, fullTableAngle, 0.3, 1);
+      const spot = new THREE.SpotLight(
+        0xffffff,
+        2.1,
+        0,
+        fullTableAngle,
+        0.3,
+        1
+      );
       spot.position.set(lightX, lightHeight, lightZ);
       spot.target.position.set(0, TABLE_Y, 0);
       scene.add(spot, spot.target);
 
-      const spotTop = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
+      const spotTop = new THREE.SpotLight(
+        0xffffff,
+        1.9,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
       spotTop.position.set(-lightX, lightHeight, lightZ);
       spotTop.target.position.set(0, TABLE_Y, 0);
       scene.add(spotTop, spotTop.target);
 
-      const spotBottom = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
+      const spotBottom = new THREE.SpotLight(
+        0xffffff,
+        1.9,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
       spotBottom.position.set(-lightX, lightHeight, -lightZ);
       spotBottom.target.position.set(0, TABLE_Y, 0);
       scene.add(spotBottom, spotBottom.target);
 
-      const spotExtra = new THREE.SpotLight(0xffffff, 1.6, 0, fullTableAngle, 0.4, 1);
+      const spotExtra = new THREE.SpotLight(
+        0xffffff,
+        1.6,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
       spotExtra.position.set(lightX, lightHeight, -lightZ);
       spotExtra.target.position.set(0, TABLE_Y, 0);
       scene.add(spotExtra, spotExtra.target);
@@ -1863,9 +1974,18 @@ export default function NewSnookerGame() {
     if (!box || !dot) return;
     const move = (e) => {
       const rect = box.getBoundingClientRect();
-      const x = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) / rect.width * 2 - 1;
-      const y = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) / rect.height * 2 - 1;
-      let nx = x, ny = y;
+      const x =
+        (((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) /
+          rect.width) *
+          2 -
+        1;
+      const y =
+        (((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) /
+          rect.height) *
+          2 -
+        1;
+      let nx = x,
+        ny = y;
       const r = Math.hypot(nx, ny);
       if (r > 1) {
         nx /= r;
@@ -1900,6 +2020,29 @@ export default function NewSnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {/* Top HUD */}
+      <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-4 text-white text-xs sm:text-sm pointer-events-none z-50">
+        <div className="flex items-center gap-2">
+          <img
+            src={player.avatar || '/assets/icons/profile.svg'}
+            alt="player"
+            className="w-12 h-12 rounded-full object-cover"
+          />
+          <div className="leading-tight">
+            <div>{player.name}</div>
+            <div>Score: {hud.A}</div>
+          </div>
+        </div>
+        <div className="text-center font-semibold">Time: {timer}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-3xl leading-none">{aiFlag}</div>
+          <div className="leading-tight text-right">
+            <div>AI</div>
+            <div>Score: {hud.B}</div>
+          </div>
+        </div>
+      </div>
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
