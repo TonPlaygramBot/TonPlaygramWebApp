@@ -173,7 +173,11 @@ function addArenaWalls(scene, rug) {
 
   [north, south, west, east].forEach((w) => {
     const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.25, 0.4, 1);
-    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
+    const dir = new THREE.Vector3()
+      .subVectors(w.position, rug.position)
+      .normalize();
+    const pos = w.position.clone().addScaledVector(dir, wallT);
+    s.position.set(pos.x, rug.position.y + wallH - 0.5, pos.z);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
@@ -940,7 +944,7 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const spotHeight = TABLE_Y + 0.15;
+      const spotHeight = TABLE_Y + 0.5;
       pocketCenters().forEach((c) => {
         const s = new THREE.SpotLight(0xffffff, 1.5, 0, fullTableAngle, 0.4, 1);
         s.position.set(c.x, spotHeight, c.y);
