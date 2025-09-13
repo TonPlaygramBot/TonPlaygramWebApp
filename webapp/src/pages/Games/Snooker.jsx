@@ -577,7 +577,11 @@ function Table3D(scene) {
   table.add(cloth);
 
   // Markings
-  const markingMat = new THREE.LineBasicMaterial({ color: COLORS.markings });
+  const markingMat = new THREE.LineBasicMaterial({
+    color: COLORS.markings,
+    depthTest: false,
+    linewidth: 2
+  });
   const baulkZ = -PLAY_H / 4;
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(-halfW, 0.01, baulkZ),
@@ -585,7 +589,7 @@ function Table3D(scene) {
   ]);
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
-  baulkLine.position.y = 0.01;
+  baulkLine.position.y = 0.02;
   table.add(baulkLine);
 
   const dRadius = PLAY_W * 0.15;
@@ -594,7 +598,7 @@ function Table3D(scene) {
   const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
   const dLine = new THREE.Line(dGeom, markingMat);
   dLine.rotation.x = -Math.PI / 2;
-  dLine.position.y = 0.01;
+  dLine.position.y = 0.02;
   table.add(dLine);
 
   const spots = spotPositions(baulkZ);
@@ -983,8 +987,8 @@ export default function NewSnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.2
-            : 1.0
+            ? 1.3
+            : 1.1
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1075,7 +1079,7 @@ export default function NewSnookerGame() {
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
         else return;
-        fit(window.innerHeight > window.innerWidth ? 1.2 : 1.0);
+        fit(window.innerHeight > window.innerWidth ? 1.3 : 1.1);
       };
       window.addEventListener('keydown', keyRot);
 
@@ -1090,22 +1094,22 @@ export default function NewSnookerGame() {
       const lightX = TABLE.W / 2 - 5;
       const lightZ = TABLE.H / 2 - 5;
 
-      const spot = new THREE.SpotLight(0xffffff, 2.1, 0, fullTableAngle, 0.3, 1);
+      const spot = new THREE.SpotLight(0xffffff, 2.5, 0, fullTableAngle, 0.5, 1);
       spot.position.set(lightX, lightHeight, lightZ);
       spot.target.position.set(0, TABLE_Y, 0);
       scene.add(spot, spot.target);
 
-      const spotTop = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
+      const spotTop = new THREE.SpotLight(0xffffff, 2.3, 0, fullTableAngle, 0.5, 1);
       spotTop.position.set(-lightX, lightHeight, lightZ);
       spotTop.target.position.set(0, TABLE_Y, 0);
       scene.add(spotTop, spotTop.target);
 
-      const spotBottom = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
+      const spotBottom = new THREE.SpotLight(0xffffff, 2.3, 0, fullTableAngle, 0.5, 1);
       spotBottom.position.set(-lightX, lightHeight, -lightZ);
       spotBottom.target.position.set(0, TABLE_Y, 0);
       scene.add(spotBottom, spotBottom.target);
 
-      const spotExtra = new THREE.SpotLight(0xffffff, 1.6, 0, fullTableAngle, 0.4, 1);
+      const spotExtra = new THREE.SpotLight(0xffffff, 2.0, 0, fullTableAngle, 0.5, 1);
       spotExtra.position.set(lightX, lightHeight, -lightZ);
       spotExtra.target.position.set(0, TABLE_Y, 0);
       scene.add(spotExtra, spotExtra.target);
@@ -1366,7 +1370,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.theta = Math.PI;
           sph.phi = 0.9;
-          fitRef.current(1.6);
+          fitRef.current(1.8);
           updateCamera();
         }
       };
