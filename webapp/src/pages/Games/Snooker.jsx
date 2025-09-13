@@ -335,6 +335,62 @@ function addArenaWalls(scene, rug) {
   return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
+// --------------------------------------------------
+// Pocket jaws
+// --------------------------------------------------
+const JAW_H = 3.0;
+const JAW_T = 1.25;
+const SECTOR_START = -Math.PI * 0.65;
+const SECTOR_END = Math.PI * 0.65;
+const jawMat = new THREE.MeshPhysicalMaterial({
+  color: 0x111111,
+  roughness: 0.35,
+  metalness: 0.1,
+  clearcoat: 0.4
+});
+function makeJawSector(
+  R = POCKET_VIS_R,
+  T = JAW_T,
+  start = SECTOR_START,
+  end = SECTOR_END
+) {
+  const r = R - T;
+  const s = new THREE.Shape();
+  s.absarc(0, 0, R, start, end, false);
+  s.absarc(0, 0, r, end, start, true);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: JAW_H, bevelEnabled: false });
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+function addPocketJaws(scene, playW, playH) {
+  const HALF_PLAY_W = playW * 0.5;
+  const HALF_PLAY_H = playH * 0.5;
+  const POCKET_MAP = [
+    { id: 'corner_tl', type: 'corner', pos: [-HALF_PLAY_W, -HALF_PLAY_H] },
+    { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
+    { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
+    { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
+    { id: 'side_top', type: 'side', pos: [0, -HALF_PLAY_H] },
+    { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
+  ];
+  const jaws = [];
+  const geo = makeJawSector();
+  for (const entry of POCKET_MAP) {
+    const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
+    const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
+    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.25 : POCKET_VIS_R;
+    const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
+    const jaw = new THREE.Mesh(geo.clone(), jawMat);
+    jaw.castShadow = true;
+    jaw.receiveShadow = true;
+    jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
+    jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
+    scene.add(jaw);
+    jaws.push(jaw);
+  }
+  return jaws;
+}
+
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
  * Per kërkesën tënde:
@@ -847,6 +903,23 @@ function Table3D(scene) {
     table.add(leg);
   });
 
+  // Crossbars connecting table legs
+  const braceT = legR * 0.6;
+  const braceY = -TABLE.THICK - legH + braceT / 2;
+  const spanX = Math.abs(legPositions[0][0] - legPositions[1][0]) + legR * 2;
+  const spanZ = Math.abs(legPositions[0][1] - legPositions[2][1]) + legR * 2;
+  const braceGeoX = new THREE.BoxGeometry(spanX, braceT, braceT);
+  const braceGeoZ = new THREE.BoxGeometry(braceT, braceT, spanZ);
+  const braceFront = new THREE.Mesh(braceGeoX, woodMat);
+  braceFront.position.set(0, braceY, -outerHalfH2 + FRAME_W * 0.6);
+  const braceBack = new THREE.Mesh(braceGeoX, woodMat);
+  braceBack.position.set(0, braceY, outerHalfH2 - FRAME_W * 0.6);
+  const braceLeft = new THREE.Mesh(braceGeoZ, woodMat);
+  braceLeft.position.set(-outerHalfW2 + FRAME_W * 0.6, braceY, 0);
+  const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
+  braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
+  table.add(braceFront, braceBack, braceLeft, braceRight);
+
   console.assert(
     typeof railW !== 'undefined',
     '[TEST] railW should be defined once'
@@ -963,7 +1036,7 @@ export default function NewSnookerGame() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px sans-serif';
-    ctx.fillText('Match of the Day', w / 2, 90);
+    ctx.fillText('Match of the Day', w / 2, 110);
     if (avatarImg && avatarImg.complete)
       ctx.drawImage(avatarImg, 20, 100, 64, 64);
     else if (emoji) {
@@ -1130,8 +1203,8 @@ export default function NewSnookerGame() {
         }
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
-          const fade = THREE.MathUtils.clamp((260 - dist) / 140, 0, 1);
-          const ns = 0.35 * fade;
+          const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
+          const ns = 0.45 * fade;
           clothMat.normalScale.set(ns, ns);
         }
       };
@@ -1262,8 +1335,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 3.5;
-      const lightOffset = 50;
+      const lightHeight = TABLE_Y + 4.5;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1318,6 +1391,7 @@ export default function NewSnookerGame() {
       // Table
       const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
       clothMat = tableCloth;
+      addPocketJaws(scene, PLAY_W, PLAY_H);
       const rug = addRugUnderTable(scene, table);
       const arena = addArenaWalls(scene, rug);
 
@@ -2035,7 +2109,7 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-6 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
+      <div className="absolute top-10 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
         <div className="font-semibold">Match of the Day</div>
         <div className="mt-2 flex items-center gap-4">
           <div className="flex items-center gap-2">
