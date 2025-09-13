@@ -150,29 +150,23 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
     const w = 1 + Math.random() * 0.6;
     const l = len * (0.6 + Math.random() * 0.8);
     const grd = ctx.createLinearGradient(0, 0, l, 0);
-    grd.addColorStop(0, `rgba(50,50,50,0)`);
-    grd.addColorStop(0.25, `rgba(80,80,80,${alpha})`);
-    grd.addColorStop(0.75, `rgba(110,110,110,${alpha})`);
-    grd.addColorStop(1, `rgba(50,50,50,0)`);
+    grd.addColorStop(0, `rgba(30,0,8,0)`);
+    grd.addColorStop(0.25, `rgba(30,0,8,${alpha})`);
+    grd.addColorStop(0.75, `rgba(80,0,18,${alpha})`);
+    grd.addColorStop(1, `rgba(30,0,8,0)`);
     ctx.fillStyle = grd;
     ctx.fillRect(0, -w * 0.5, l, w);
     ctx.restore();
   }
 
   const g = ctx.createLinearGradient(0, 0, Wpx, Hpx);
-  g.addColorStop(0, '#b0b0b0');
-  g.addColorStop(1, '#909090');
+  g.addColorStop(0, '#5a0014');
+  g.addColorStop(1, '#30000b');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, Wpx, Hpx);
 
   for (let i = 0; i < 9000; i++) {
-    hairStroke(
-      Math.random() * Wpx,
-      Math.random() * Hpx,
-      10 + Math.random() * 22,
-      Math.random() * 0.6 - 0.3,
-      0.18
-    );
+    hairStroke(Math.random() * Wpx, Math.random() * Hpx, 10 + Math.random() * 22, Math.random() * 0.6 - 0.3, 0.18);
   }
   for (let i = 0; i < 6000; i++) {
     hairStroke(
@@ -195,36 +189,45 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   ctx.strokeRect(inset, inset, Wpx - 2 * inset, Hpx - 2 * inset);
 
   const motifPad = Math.floor(innerGold * 2.2);
-  const zoneX = inset + motifPad;
+  const zoneX = inset + motifPad + Math.floor(Wpx * 0.03);
   const zoneY = inset + motifPad;
-  const zoneW = Wpx - 2 * (inset + motifPad);
+  const zoneW = Wpx - 2 * (inset + motifPad) - Math.floor(Wpx * 0.03);
   const zoneH = Hpx - 2 * (inset + motifPad);
 
-  const tileSize = Math.floor(Math.min(zoneW, zoneH) * 0.08);
-  const tile = document.createElement('canvas');
-  tile.width = tile.height = tileSize;
-  const tctx = tile.getContext('2d');
-  tctx.fillStyle = '#9a9a9a';
-  tctx.fillRect(0, 0, tileSize, tileSize);
-  tctx.strokeStyle = '#d4af37';
-  tctx.lineWidth = Math.max(2, tileSize * 0.15);
-  tctx.strokeRect(0, 0, tileSize, tileSize);
-  const pattern = ctx.createPattern(tile, 'repeat');
-  ctx.fillStyle = pattern;
-  ctx.fillRect(zoneX, zoneY, zoneW, zoneH);
-
-  ctx.lineWidth = innerGold;
-  ctx.strokeStyle = '#d4af37';
-  ctx.strokeRect(zoneX, zoneY, zoneW, zoneH);
-
-  ctx.strokeStyle = '#666666';
-  ctx.lineWidth = innerGold * 2;
+  ctx.save();
   ctx.beginPath();
-  ctx.moveTo(zoneX + innerGold, zoneY);
-  ctx.lineTo(zoneX + innerGold, zoneY + zoneH);
-  ctx.moveTo(zoneX + zoneW - innerGold, zoneY);
-  ctx.lineTo(zoneX + zoneW - innerGold, zoneY + zoneH);
-  ctx.stroke();
+  ctx.rect(zoneX, zoneY, zoneW, zoneH);
+  ctx.clip();
+  ctx.strokeStyle = '#2f2f2f';
+  ctx.fillStyle = '#2f2f2f';
+  const cell = Math.floor(Math.min(zoneW, zoneH) * 0.06);
+  const pad = Math.floor(cell * 0.25);
+  ctx.globalAlpha = 0.18;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(zoneX, zoneY, zoneW, zoneH);
+  ctx.globalAlpha = 1;
+  const step = cell + pad;
+  for (let x = zoneX + pad; x < zoneX + zoneW - pad - cell; x += step) {
+    const h = Math.max(2, Math.floor(cell * 0.18));
+    ctx.fillRect(x, zoneY + pad, cell, h);
+    ctx.fillRect(x, zoneY + zoneH - pad - h, cell, h);
+  }
+  for (let y = zoneY + pad; y < zoneY + zoneH - pad - cell; y += step) {
+    const w = Math.max(2, Math.floor(cell * 0.18));
+    ctx.fillRect(zoneX + pad, y, w, cell);
+    ctx.fillRect(zoneX + zoneW - pad - w, y, w, cell);
+  }
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#333333';
+  for (let i = 0; i < 10; i++) {
+    const rx = zoneX + zoneW * 0.3 + Math.random() * zoneW * 0.45;
+    const ry = zoneY + zoneH * 0.25 + Math.random() * zoneH * 0.5;
+    const r = cell * 0.9 + Math.random() * cell * 0.7;
+    ctx.beginPath();
+    ctx.ellipse(rx, ry, r, r * 0.78, Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 
   return new THREE.CanvasTexture(c);
 }
@@ -232,8 +235,8 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
 function addRugUnderTable(scene, table) {
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
-  const rugWidth = size.x * 2; // extends 50% beyond table width on each side
-  const rugHeight = size.z * 2; // extends 50% beyond table length on each side
+  const rugWidth = size.x * 2; // 100% larger than table width
+  const rugHeight = size.z * 2; // 100% larger than table length
   const tex = makeRugTexture();
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.anisotropy = 8;
