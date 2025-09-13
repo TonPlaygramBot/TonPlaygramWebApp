@@ -262,7 +262,8 @@ function addArenaWalls(scene, rug) {
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x8b8000,
     roughness: 0.8,
-    metalness: 0.2
+    metalness: 0.2,
+    emissive: 0x8b8000
   });
   const wallGeoX = new THREE.BoxGeometry(rugWidth + wallT * 2, wallH, wallT);
   const wallGeoZ = new THREE.BoxGeometry(wallT, wallH, rugHeight + wallT * 2);
@@ -565,17 +566,17 @@ function Table3D(scene) {
 
   // Markings
   const markingMat = new THREE.LineBasicMaterial({ color: COLORS.markings });
-  const baulkZ = -PLAY_H / 4;
+  const baulkZ = -halfH + PLAY_H * (740 / 3569);
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(-halfW, 0.01, baulkZ),
-    new THREE.Vector3(halfW, 0.01, baulkZ),
+    new THREE.Vector3(halfW, 0.01, baulkZ)
   ]);
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
   baulkLine.position.y = 0.01;
   table.add(baulkLine);
 
-  const dRadius = PLAY_W * 0.15;
+  const dRadius = PLAY_W * (292 / 1778);
   const dCurve = new THREE.ArcCurve(0, baulkZ, dRadius, 0, Math.PI, false);
   const dPoints = dCurve.getPoints(32).map((p) => new THREE.Vector3(p.x, 0.01, p.y));
   const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
@@ -583,6 +584,27 @@ function Table3D(scene) {
   dLine.rotation.x = -Math.PI / 2;
   dLine.position.y = 0.01;
   table.add(dLine);
+
+  const spotRadius = BALL_R * 0.15;
+  const spotGeo = new THREE.CircleGeometry(spotRadius, 16);
+  const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.markings });
+  const addSpot = (x, z) => {
+    const m = new THREE.Mesh(spotGeo, spotMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.011, z);
+    table.add(m);
+  };
+
+  const halfH = PLAY_H / 2;
+  const SPOTS = {
+    yellow: [-dRadius, baulkZ],
+    green: [dRadius, baulkZ],
+    brown: [0, baulkZ],
+    blue: [0, 0],
+    pink: [0, (halfH + 0) / 2],
+    black: [0, halfH - PLAY_H * (324 / 3569)]
+  };
+  Object.values(SPOTS).forEach(([x, z]) => addSpot(x, z));
 
   // Side rails
   const railH = TABLE.THICK * 2.0;
@@ -623,7 +645,7 @@ function Table3D(scene) {
     s.moveTo(-half, backY);
     s.lineTo(half, backY);
     s.lineTo(half - cut, frontY);
-    s.lineTo(-half + cut, frontY);
+    s.lineTo(-half, frontY);
     s.lineTo(-half, backY);
     const geo = new THREE.ExtrudeGeometry(s, { depth: railH, bevelEnabled: false });
     const pos = geo.attributes.position;
@@ -714,7 +736,7 @@ function Table3D(scene) {
 
   table.position.y = TABLE_Y;
   scene.add(table);
-  return { centers: pocketCenters(), baulkZ, group: table };
+  return { centers: pocketCenters(), baulkZ, spots: SPOTS, group: table };
 }
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
@@ -1088,7 +1110,7 @@ export default function NewSnookerGame() {
       scene.add(spotExtra, spotExtra.target);
 
       // Table
-      const { centers, baulkZ, group: table } = Table3D(scene);
+      const { centers, baulkZ, spots, group: table } = Table3D(scene);
       const rug = addRugUnderTable(scene, table);
       addArenaWalls(scene, rug);
 
@@ -1099,28 +1121,22 @@ export default function NewSnookerGame() {
         return b;
       };
       cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      // 15 red balls arranged in triangle
+      // 15 red balls arranged in triangle (apex at pink spot)
       let rid = 0;
+      const [, pz] = spots.pink;
+      const startZ = pz + BALL_R * 2 + 0.01;
+      const rowSpacing = Math.sqrt(3) * BALL_R;
       for (let row = 0; row < 5; row++) {
         for (let i = 0; i <= row; i++) {
           if (rid >= 15) break;
-          const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
-          const z = -PLAY_W * 0.15 + row * (BALL_R * 1.9);
+          const x = (i - row / 2) * (BALL_R * 2);
+          const z = startZ + row * rowSpacing;
           add(`red_${rid++}`, COLORS.red, x, z);
         }
       }
       // colours
-      const halfH = PLAY_H / 2;
-      const SPOTS = {
-        yellow: [-PLAY_W * 0.22, baulkZ],
-        green: [PLAY_W * 0.22, baulkZ],
-        brown: [0, baulkZ],
-        blue: [0, 0],
-        pink: [0, PLAY_H * 0.25],
-        black: [0, halfH - PLAY_H * 0.09]
-      };
       const colors = Object.fromEntries(
-        Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
+        Object.entries(spots).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
 
       cueRef.current = cue;
@@ -1391,7 +1407,7 @@ export default function NewSnookerGame() {
                 gain += val(id);
                 const b = colors[id];
                 if (b) {
-                  const [sx, sy] = SPOTS[id];
+                  const [sx, sy] = spots[id];
                   b.active = true;
                   b.mesh.visible = true;
                   b.pos.set(sx, sy);
