@@ -12,61 +12,126 @@ import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 
 // --------------------------------------------------
-// Bright cloth texture and bump map
+// Procedural emerald cloth texture utilities
 // --------------------------------------------------
-function makeClothTexture() {
-  const w = 2048;
-  const h = 4096;
+function makeFbmHeightCanvas(size = 512, octaves = 5) {
   const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
+  c.width = c.height = size;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#228B22';
-  ctx.fillRect(0, 0, w, h);
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = '#2e7d32';
-  for (let i = 0; i < 60000; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const len = 1 + Math.random() * 7;
-    const a = Math.random() * Math.PI * 2;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(a);
-    ctx.fillRect(0, 0, len, 1);
-    ctx.restore();
+  const img = ctx.createImageData(size, size);
+  function valueNoise(grid, x, y) {
+    const x0 = Math.floor(x),
+      y0 = Math.floor(y);
+    const x1 = x0 + 1,
+      y1 = y0 + 1;
+    const sx = x - x0,
+      sy = y - y0;
+    const v00 = grid[(y0 & 255) * 256 + (x0 & 255)];
+    const v10 = grid[(y0 & 255) * 256 + (x1 & 255)];
+    const v01 = grid[(y1 & 255) * 256 + (x0 & 255)];
+    const v11 = grid[(y1 & 255) * 256 + (x1 & 255)];
+    const cx = (1 - Math.cos(sx * Math.PI)) * 0.5;
+    const cy = (1 - Math.cos(sy * Math.PI)) * 0.5;
+    const ix0 = v00 * (1 - cx) + v10 * cx;
+    const ix1 = v01 * (1 - cx) + v11 * cx;
+    return ix0 * (1 - cy) + ix1 * cy;
   }
-  ctx.globalAlpha = 1;
-  return new THREE.CanvasTexture(c);
+  const grid = new Float32Array(256 * 256);
+  for (let i = 0; i < grid.length; i++) grid[i] = Math.random();
+  const lacunarity = 2.2;
+  const gain = 0.52;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let amp = 1,
+        freq = 1 / 24,
+        sum = 0,
+        norm = 0;
+      for (let o = 0; o < octaves; o++) {
+        const nx = x * freq,
+          ny = y * freq;
+        const v = valueNoise(grid, nx, ny);
+        sum += v * amp;
+        norm += amp;
+        amp *= gain;
+        freq *= lacunarity;
+      }
+      let h = sum / norm;
+      h = Math.pow(h, 1.25);
+      const i = (y * size + x) * 4;
+      img.data[i + 0] = img.data[i + 1] = img.data[i + 2] = Math.floor(h * 255);
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
 }
 
-function makeClothBump() {
-  const w = 2048;
-  const h = 4096;
+function heightToNormalCanvas(heightCanvas, strength = 2.0) {
+  const w = heightCanvas.width,
+    h = heightCanvas.height;
+  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#808080';
-  ctx.fillRect(0, 0, w, h);
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = '#ffffff';
-  for (let i = 0; i < 160000; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    ctx.fillRect(x, y, 1, 1);
+  const out = ctx.createImageData(w, h);
+  const get = (x, y) => src[(((y + h) % h) * w + ((x + w) % w)) << 2];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const hL = get(x - 1, y),
+        hR = get(x + 1, y);
+      const hD = get(x, y + 1),
+        hU = get(x, y - 1);
+      const dx = ((hR - hL) / 255) * strength;
+      const dy = ((hD - hU) / 255) * strength;
+      let nx = -dx,
+        ny = -dy,
+        nz = 1.0;
+      const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+      nx *= invLen;
+      ny *= invLen;
+      nz *= invLen;
+      const i = (y * w + x) * 4;
+      out.data[i + 0] = Math.floor((nx * 0.5 + 0.5) * 255);
+      out.data[i + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
+      out.data[i + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
+      out.data[i + 3] = 255;
+    }
   }
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = '#000000';
-  for (let i = 0; i < 160000; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    ctx.fillRect(x, y, 1, 1);
+  ctx.putImageData(out, 0, 0);
+  return c;
+}
+
+function makeColorCanvasFromHeight(
+  heightCanvas,
+  c0 = '#1a8f2f',
+  c1 = '#23b043',
+  variation = 0.08
+) {
+  const w = heightCanvas.width,
+    h = heightCanvas.height;
+  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(w, h);
+  const ca = new THREE.Color(c0),
+    cb = new THREE.Color(c1);
+  for (let i = 0; i < w * h; i++) {
+    const v = src[i * 4] / 255;
+    const t = Math.min(
+      1,
+      Math.max(0, v * (1 + (Math.random() - 0.5) * variation))
+    );
+    const col = ca.clone().lerp(cb, t);
+    out.data[i * 4 + 0] = Math.floor(col.r * 255);
+    out.data[i * 4 + 1] = Math.floor(col.g * 255);
+    out.data[i * 4 + 2] = Math.floor(col.b * 255);
+    out.data[i * 4 + 3] = 255;
   }
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(14, 28);
-  return t;
+  ctx.putImageData(out, 0, 0);
+  return c;
 }
 
 // --------------------------------------------------
@@ -280,7 +345,7 @@ const CUSHION_CUT_ANGLE = 30;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x228b22,
+  cloth: 0x1a6d1a,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -465,70 +530,6 @@ function Guret(parent, id, color, x, y) {
 }
 
 // --------------------------------------------------
-// Pocket jaws for pockets
-// --------------------------------------------------
-const JAW_H = 3.0; // jaw height
-const JAW_T = 1.25; // jaw thickness
-const SECTOR_START = -Math.PI * 0.65;
-const SECTOR_END = Math.PI * 0.65;
-
-const jawMat = new THREE.MeshPhysicalMaterial({
-  color: 0x111111,
-  roughness: 0.35,
-  metalness: 0.1,
-  clearcoat: 0.4
-});
-
-function makeJawSector(
-  R = POCKET_VIS_R,
-  T = JAW_T,
-  start = SECTOR_START,
-  end = SECTOR_END
-) {
-  const r = R - T;
-  const s = new THREE.Shape();
-  s.absarc(0, 0, R, start, end, false);
-  s.absarc(0, 0, r, end, start, true);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: JAW_H, bevelEnabled: false });
-  geo.rotateX(-Math.PI / 2);
-  return geo;
-}
-
-function addPocketJaws(parent, playW, playH) {
-  const HALF_PLAY_W = playW * 0.5;
-  const HALF_PLAY_H = playH * 0.5;
-
-  const POCKET_MAP = [
-    { id: 'corner_tl', type: 'corner', pos: [-HALF_PLAY_W, -HALF_PLAY_H] },
-    { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
-    { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_top', type: 'side', pos: [0, -HALF_PLAY_H] },
-    { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
-  ];
-
-  const jaws = [];
-  const geo = makeJawSector();
-
-  for (const entry of POCKET_MAP) {
-    const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
-    const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.25 : POCKET_VIS_R * 1.0;
-    const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
-
-    const jaw = new THREE.Mesh(geo.clone(), jawMat);
-    jaw.castShadow = true;
-    jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, 0.01, pShift.y);
-    jaw.lookAt(new THREE.Vector3(0, 0, 0));
-    parent.add(jaw);
-    jaws.push(jaw);
-  }
-
-  return jaws;
-}
-
-// --------------------------------------------------
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
 
@@ -537,16 +538,11 @@ function Table3D(scene) {
   const halfW = PLAY_W / 2,
     halfH = PLAY_H / 2;
 
-  const clothMap = makeClothTexture();
-  const clothBump = makeClothBump();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.78,
+    roughness: 0.95,
     sheen: 1.0,
-    sheenRoughness: 0.45,
-    map: clothMap,
-    bumpMap: clothBump,
-    bumpScale: 0.035
+    sheenRoughness: 0.8,
   });
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
@@ -580,7 +576,6 @@ function Table3D(scene) {
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
   table.add(cloth);
-  addPocketJaws(table, PLAY_W, PLAY_H);
 
   // Markings
   const markingMat = new THREE.LineBasicMaterial({ color: COLORS.markings });
@@ -980,10 +975,9 @@ export default function NewSnookerGame() {
         powerPreference: 'high-performance'
       });
       renderer.useLegacyLights = false;
-      renderer.physicallyCorrectLights = true;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.3;
+      renderer.toneMappingExposure = 1.2;
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1145,13 +1139,36 @@ export default function NewSnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x0b1020, 0.45));
-      const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-      dir.position.set(150, 300, 120);
-      dir.castShadow = true;
-      dir.shadow.mapSize.set(4096, 4096);
-      dir.shadow.bias = -0.0003;
+      scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+      scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1));
+      const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+      dir.position.set(-2.5, 4, 2);
       scene.add(dir);
+      const fullTableAngle = Math.PI / 2;
+      const lightHeight = TABLE_Y + 1;
+      const lightOffset = 15;
+      const lightX = TABLE.W / 2 - lightOffset;
+      const lightZ = TABLE.H / 2 - lightOffset;
+
+      const spot = new THREE.SpotLight(0xffffff, 2.1, 0, fullTableAngle, 0.3, 1);
+      spot.position.set(lightX, lightHeight, lightZ);
+      spot.target.position.set(0, TABLE_Y, 0);
+      scene.add(spot, spot.target);
+
+      const spotTop = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
+      spotTop.position.set(-lightX, lightHeight, lightZ);
+      spotTop.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotTop, spotTop.target);
+
+      const spotBottom = new THREE.SpotLight(0xffffff, 1.9, 0, fullTableAngle, 0.4, 1);
+      spotBottom.position.set(-lightX, lightHeight, -lightZ);
+      spotBottom.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotBottom, spotBottom.target);
+
+      const spotExtra = new THREE.SpotLight(0xffffff, 1.6, 0, fullTableAngle, 0.4, 1);
+      spotExtra.position.set(lightX, lightHeight, -lightZ);
+      spotExtra.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotExtra, spotExtra.target);
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
