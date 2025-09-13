@@ -235,8 +235,8 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
 function addRugUnderTable(scene, table) {
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
-  const rugWidth = size.x * 2; // 100% larger than table width
-  const rugHeight = size.z * 2; // 100% larger than table length
+  const rugWidth = size.x * 4; // extends 150% beyond table width on each side
+  const rugHeight = size.z * 4; // extends 150% beyond table length on each side
   const tex = makeRugTexture();
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.anisotropy = 8;
