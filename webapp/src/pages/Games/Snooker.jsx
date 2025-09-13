@@ -262,7 +262,8 @@ function addArenaWalls(scene, rug) {
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x8b8000,
     roughness: 0.8,
-    metalness: 0.2
+    metalness: 0.2,
+    side: THREE.DoubleSide
   });
   const wallGeoX = new THREE.BoxGeometry(rugWidth + wallT * 2, wallH, wallT);
   const wallGeoZ = new THREE.BoxGeometry(wallT, wallH, rugHeight + wallT * 2);
@@ -295,7 +296,7 @@ function addArenaWalls(scene, rug) {
   scene.add(walls);
 
   [north, south, west, east].forEach((w) => {
-    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.25, 0.4, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
     s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
@@ -356,6 +357,18 @@ const COLORS = Object.freeze({
   pink: 0xff69b4,
   black: 0x000000
 });
+
+function spotPositions(baulkZ) {
+  const halfH = PLAY_H / 2;
+  return {
+    yellow: [-PLAY_W * 0.22, baulkZ],
+    green: [PLAY_W * 0.22, baulkZ],
+    brown: [0, baulkZ],
+    blue: [0, 0],
+    pink: [0, PLAY_H * 0.25],
+    black: [0, halfH - PLAY_H * 0.09]
+  };
+}
 
 // Kamera: lejojmë ulje më të madhe (phi më i vogël), por mos shko kurrë krejt në nivel (limit ~0.5rad)
 const CAMERA = {
@@ -478,9 +491,9 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.18,
+    roughness: 0.32,
     clearcoat: 1,
-    clearcoatRoughness: 0.12
+    clearcoatRoughness: 0.25
   });
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
@@ -583,6 +596,16 @@ function Table3D(scene) {
   dLine.rotation.x = -Math.PI / 2;
   dLine.position.y = 0.01;
   table.add(dLine);
+
+  const spots = spotPositions(baulkZ);
+  const spotGeom = new THREE.CircleGeometry(BALL_R * 0.3, 32);
+  const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.markings });
+  Object.values(spots).forEach(([x, z]) => {
+    const s = new THREE.Mesh(spotGeom, spotMat);
+    s.rotation.x = -Math.PI / 2;
+    s.position.set(x, 0.015, z);
+    table.add(s);
+  });
 
   // Side rails
   const railH = TABLE.THICK * 2.0;
@@ -1099,26 +1122,21 @@ export default function NewSnookerGame() {
         return b;
       };
       cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
-      // 15 red balls arranged in triangle
+      const SPOTS = spotPositions(baulkZ);
+
+      // 15 red balls arranged in triangle behind the pink
+      const startZ = SPOTS.pink[1] + BALL_R * 2;
       let rid = 0;
       for (let row = 0; row < 5; row++) {
         for (let i = 0; i <= row; i++) {
           if (rid >= 15) break;
           const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
-          const z = -PLAY_W * 0.15 + row * (BALL_R * 1.9);
+          const z = startZ + row * (BALL_R * 1.9);
           add(`red_${rid++}`, COLORS.red, x, z);
         }
       }
+
       // colours
-      const halfH = PLAY_H / 2;
-      const SPOTS = {
-        yellow: [-PLAY_W * 0.22, baulkZ],
-        green: [PLAY_W * 0.22, baulkZ],
-        brown: [0, baulkZ],
-        blue: [0, 0],
-        pink: [0, PLAY_H * 0.25],
-        black: [0, halfH - PLAY_H * 0.09]
-      };
       const colors = Object.fromEntries(
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
