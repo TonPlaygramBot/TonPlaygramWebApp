@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -548,153 +547,6 @@ function Table3D(scene) {
   scene.add(table);
   return { centers: pocketCenters(), baulkZ, group: table };
 }
-
-function addArena(scene) {
-  const Wpx = 2048,
-    Hpx = 1400;
-  function hairStroke(ctx, x, y, len, ang, alpha) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(ang);
-    const w = 1 + Math.random() * 0.6;
-    const l = len * (0.6 + Math.random() * 0.8);
-    const grd = ctx.createLinearGradient(0, 0, l, 0);
-    grd.addColorStop(0, `rgba(30,0,8,0)`);
-    grd.addColorStop(0.25, `rgba(30,0,8,${alpha})`);
-    grd.addColorStop(0.75, `rgba(80,0,18,${alpha})`);
-    grd.addColorStop(1, `rgba(30,0,8,0)`);
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, -w * 0.5, l, w);
-    ctx.restore();
-  }
-  function makeRugTexture(w, h) {
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, '#5a0014');
-    g.addColorStop(1, '#30000b');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    for (let i = 0; i < 9000; i++)
-      hairStroke(
-        ctx,
-        Math.random() * w,
-        Math.random() * h,
-        10 + Math.random() * 22,
-        Math.random() * 0.6 - 0.3,
-        0.18
-      );
-    for (let i = 0; i < 6000; i++)
-      hairStroke(
-        ctx,
-        Math.random() * w,
-        Math.random() * h,
-        8 + Math.random() * 18,
-        Math.random() * 0.6 - 0.3 + 0.6,
-        0.12
-      );
-    ctx.lineJoin = 'miter';
-    ctx.strokeStyle = '#d4af37';
-    ctx.lineWidth = 16;
-    ctx.strokeRect(8, 8, w - 16, h - 16);
-    const inset = 28;
-    ctx.lineWidth = 8;
-    ctx.strokeRect(inset, inset, w - 2 * inset, h - 2 * inset);
-    return new THREE.CanvasTexture(c);
-  }
-  const tex = makeRugTexture(Wpx, Hpx);
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.anisotropy = 8;
-  tex.needsUpdate = true;
-  const rugMat = new THREE.MeshStandardMaterial({
-    map: tex,
-    roughness: 0.96,
-    metalness: 0.05
-  });
-  const rugW = TABLE.W * 1.5;
-  const rugL = TABLE.H * 1.5;
-  const floorY = TABLE_Y - TABLE.THICK - 0.05;
-  const rug = new THREE.Mesh(new THREE.PlaneGeometry(rugW, rugL), rugMat);
-  rug.rotation.x = -Math.PI / 2;
-  rug.position.y = floorY;
-  scene.add(rug);
-  const tileW = rugW * 1.2;
-  const tileL = rugL * 1.2;
-  const tileMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2a2a,
-    roughness: 0.9,
-    metalness: 0.05
-  });
-  const tiles = new THREE.Mesh(new THREE.PlaneGeometry(tileW, tileL), tileMat);
-  tiles.rotation.x = -Math.PI / 2;
-  tiles.position.y = floorY - 0.001;
-  scene.add(tiles);
-  const wallH = 6.0;
-  const wallT = 0.05;
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x8b8000,
-    roughness: 0.8,
-    metalness: 0.2
-  });
-  const wallGeoX = new THREE.BoxGeometry(tileW, wallH, wallT);
-  const wallGeoZ = new THREE.BoxGeometry(wallT, wallH, tileL);
-  const walls = new THREE.Group();
-  const wall1 = new THREE.Mesh(wallGeoX, wallMat);
-  wall1.position.set(0, floorY + wallH / 2, -tileL / 2);
-  const wall2 = new THREE.Mesh(wallGeoX, wallMat);
-  wall2.position.set(0, floorY + wallH / 2, tileL / 2);
-  const wall3 = new THREE.Mesh(wallGeoZ, wallMat);
-  wall3.position.set(-tileW / 2, floorY + wallH / 2, 0);
-  const wall4 = new THREE.Mesh(wallGeoZ, wallMat);
-  wall4.position.set(tileW / 2, floorY + wallH / 2, 0);
-  walls.add(wall1, wall2, wall3, wall4);
-  scene.add(walls);
-  [wall1, wall2, wall3, wall4].forEach((wall, idx) => {
-    for (let i = 0; i < 3; i++) {
-      const s = new THREE.SpotLight(
-        0xffffff,
-        0.6,
-        0,
-        Math.PI * 0.25,
-        0.4,
-        1
-      );
-      s.position.set(wall.position.x, floorY + wallH - 0.5, wall.position.z);
-      if (idx < 2) s.target.position.set(0, TABLE_Y, wall.position.z * 0.5);
-      else s.target.position.set(wall.position.x * 0.5, TABLE_Y, 0);
-      scene.add(s);
-      scene.add(s.target);
-    }
-  });
-  const decoMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    metalness: 0.3,
-    roughness: 0.6
-  });
-  const frameGeo = new THREE.BoxGeometry(0.5, 0.7, 0.05);
-  for (let i = 0; i < 4; i++) {
-    const poster = new THREE.Mesh(frameGeo, decoMat);
-    poster.position.set(-tileW / 2 + 0.3 + i * 0.8, floorY + wallH / 2, -tileL / 2 + 0.05);
-    scene.add(poster);
-  }
-  const trophyGeo = new THREE.ConeGeometry(0.05, 0.2, 16);
-  const trophyMat = new THREE.MeshStandardMaterial({
-    color: 0xffd700,
-    metalness: 1,
-    roughness: 0.2
-  });
-  for (let i = 0; i < 5; i++) {
-    const t = new THREE.Mesh(trophyGeo, trophyMat);
-    t.position.set(
-      (Math.random() - 0.5) * tileW * 0.6,
-      floorY + 0.12,
-      (Math.random() - 0.5) * tileL * 0.6
-    );
-    scene.add(t);
-  }
-}
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
@@ -872,7 +724,6 @@ export default function NewSnookerGame() {
         powerPreference: 'high-performance'
       });
       renderer.useLegacyLights = false;
-      renderer.physicallyCorrectLights = true;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
@@ -889,7 +740,6 @@ export default function NewSnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
-      addArena(scene);
       let cue;
       let shooting = false; // track when a shot is in progress
       const camera = new THREE.PerspectiveCamera(
@@ -1038,21 +888,27 @@ export default function NewSnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      RectAreaLightUniformsLib.init();
       scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1));
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      const rectSize = TABLE.W * 1.5;
-      const spacing = TABLE.H / 5;
-      const lightY = TABLE_Y + 30;
-      for (let i = 0; i < 5; i++) {
-        const z = -TABLE.H / 2 + spacing / 2 + i * spacing;
-        const rect = new THREE.RectAreaLight(0xffffff, 60, rectSize, rectSize);
-        rect.position.set(0, lightY, z);
-        rect.lookAt(0, TABLE_Y, z);
-        scene.add(rect);
-      }
+      const fullTableAngle = Math.PI / 2;
+      const spot = new THREE.SpotLight(0xffffff, 2, 0, fullTableAngle, 0.3, 1);
+      spot.position.set(1.3, 3.2, 0.5);
+      spot.target.position.set(0, TABLE_Y, 0);
+      scene.add(spot, spot.target);
+      const spotTop = new THREE.SpotLight(0xffffff, 1.8, 0, fullTableAngle, 0.4, 1);
+      spotTop.position.set(0, 3.8, 0);
+      spotTop.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotTop, spotTop.target);
+      const spotBottom = new THREE.SpotLight(0xffffff, 1.8, 0, fullTableAngle, 0.4, 1);
+      spotBottom.position.set(0, -1.5, 0);
+      spotBottom.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotBottom, spotBottom.target);
+      const spotExtra = new THREE.SpotLight(0xffffff, 1.5, 0, fullTableAngle, 0.4, 1);
+      spotExtra.position.set(2, 2.5, 2);
+      spotExtra.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotExtra, spotExtra.target);
 
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
