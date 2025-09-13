@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
@@ -302,6 +302,7 @@ function addArenaWalls(scene, rug) {
     scene.add(s);
     scene.add(s.target);
   });
+  return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
 /**
@@ -583,13 +584,10 @@ function Table3D(scene) {
     side: THREE.DoubleSide
   });
   const baulkZ = -PLAY_H / 4;
-  const baulkGeom = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfW, 0.01, baulkZ),
-    new THREE.Vector3(halfW, 0.01, baulkZ)
-  ]);
-  const baulkLine = new THREE.Line(baulkGeom, markingMat);
+  const baulkGeom = new THREE.PlaneGeometry(PLAY_W, BALL_R * 0.1);
+  const baulkLine = new THREE.Mesh(baulkGeom, markingMeshMat);
   baulkLine.rotation.x = -Math.PI / 2;
-  baulkLine.position.y = 0.01;
+  baulkLine.position.set(0, 0.01, baulkZ);
   table.add(baulkLine);
 
   const dRadius = PLAY_W * 0.15;
@@ -789,6 +787,7 @@ export default function NewSnookerGame() {
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
+  const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
   useEffect(() => {
     document.title = '3D Snooker';
@@ -837,6 +836,56 @@ export default function NewSnookerGame() {
     return sides;
   };
 
+  const drawHudPanel = (
+    ctx,
+    logo,
+    avatarImg,
+    name,
+    score,
+    t,
+    emoji
+  ) => {
+    const c = ctx.canvas;
+    const w = c.width;
+    const h = c.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(0, 0, w, h);
+    if (logo && logo.complete) ctx.drawImage(logo, w / 2 - 64, 5, 128, 64);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = '28px sans-serif';
+    ctx.fillText('Match of the Day', w / 2, 90);
+    if (avatarImg && avatarImg.complete)
+      ctx.drawImage(avatarImg, 20, 100, 64, 64);
+    else if (emoji) {
+      ctx.font = '48px serif';
+      ctx.fillText(emoji, 52, 150);
+    }
+    ctx.textAlign = 'left';
+    ctx.font = '24px sans-serif';
+    ctx.fillText(name, 100, 120);
+    ctx.fillText(`Score: ${score}`, 100, 160);
+    ctx.fillText(`Time: ${t}`, 100, 200);
+  };
+
+  const updateHudPanels = useCallback(() => {
+    const panels = panelsRef.current;
+    if (!panels) return;
+    const { A, B, logo, playerImg } = panels;
+    drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
+    A.tex.needsUpdate = true;
+    drawHudPanel(B.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
+    B.tex.needsUpdate = true;
+  }, [hud.A, hud.B, timer, player.name, aiFlag]);
+
+  useEffect(() => {
+    updateHudPanels();
+  }, [updateHudPanels]);
+
   // Removed camera rotation helpers previously triggered by UI buttons
 
   const toggleView = () => {
@@ -854,8 +903,8 @@ export default function NewSnookerGame() {
     const targetMargin = next
       ? 1.05
       : window.innerHeight > window.innerWidth
-        ? 1.4
-        : 1.2;
+        ? 1.5
+        : 1.3;
     const target = {
       radius: fitRadius(cam, targetMargin),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -993,8 +1042,8 @@ export default function NewSnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.4
-            : 1.2
+            ? 1.5
+            : 1.3
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1085,7 +1134,7 @@ export default function NewSnookerGame() {
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
         else return;
-        fit(window.innerHeight > window.innerWidth ? 1.4 : 1.2);
+        fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
       };
       window.addEventListener('keydown', keyRot);
 
@@ -1096,8 +1145,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 0.2;
-      const lightOffset = 5;
+      const lightHeight = TABLE_Y + 0.5;
+      const lightOffset = 10;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -1124,7 +1173,60 @@ export default function NewSnookerGame() {
       // Table
       const { centers, baulkZ, group: table } = Table3D(scene);
       const rug = addRugUnderTable(scene, table);
-      addArenaWalls(scene, rug);
+      const arena = addArenaWalls(scene, rug);
+
+      // 3D HUD panels on arena walls
+      const panelW = 20;
+      const panelH = 10;
+      const canvasA = document.createElement('canvas');
+      canvasA.width = 512;
+      canvasA.height = 256;
+      const ctxA = canvasA.getContext('2d');
+      const texA = new THREE.CanvasTexture(canvasA);
+      const meshA = new THREE.Mesh(
+        new THREE.PlaneGeometry(panelW, panelH),
+        new THREE.MeshBasicMaterial({ map: texA, transparent: true })
+      );
+      meshA.position.set(
+        arena.west.position.x + 0.1,
+        rug.position.y + arena.wallH * 0.6,
+        arena.west.position.z
+      );
+      meshA.rotation.y = Math.PI / 2;
+      scene.add(meshA);
+
+      const canvasB = document.createElement('canvas');
+      canvasB.width = 512;
+      canvasB.height = 256;
+      const ctxB = canvasB.getContext('2d');
+      const texB = new THREE.CanvasTexture(canvasB);
+      const meshB = new THREE.Mesh(
+        new THREE.PlaneGeometry(panelW, panelH),
+        new THREE.MeshBasicMaterial({ map: texB, transparent: true })
+      );
+      meshB.position.set(
+        arena.east.position.x - 0.1,
+        rug.position.y + arena.wallH * 0.6,
+        arena.east.position.z
+      );
+      meshB.rotation.y = -Math.PI / 2;
+      scene.add(meshB);
+
+      panelsRef.current = {
+        A: { ctx: ctxA, tex: texA },
+        B: { ctx: ctxB, tex: texB },
+        logo: new Image(),
+        playerImg: new Image()
+      };
+      panelsRef.current.logo.src =
+        '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+      panelsRef.current.logo.onload = () => updateHudPanels();
+      if (player.avatar) {
+        panelsRef.current.playerImg.crossOrigin = 'anonymous';
+        panelsRef.current.playerImg.src = player.avatar;
+        panelsRef.current.playerImg.onload = () => updateHudPanels();
+      }
+      updateHudPanels();
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
@@ -1377,7 +1479,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.theta = Math.PI;
           sph.phi = 0.9;
-          fitRef.current(1.8);
+          fitRef.current(2.0);
           updateCamera();
         }
       };
@@ -1480,7 +1582,7 @@ export default function NewSnookerGame() {
           const sph = sphRef.current;
           sph.radius = fitRadius(cam, 1.25);
           sph.phi = 0.9;
-          fitRef.current(1.4);
+          fitRef.current(1.5);
           updateCamera();
         }
         potted = [];
@@ -1646,8 +1748,8 @@ export default function NewSnookerGame() {
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.4
-              : 1.2
+              ? 1.5
+              : 1.3
         );
       };
       window.addEventListener('resize', onResize);
@@ -1745,47 +1847,6 @@ export default function NewSnookerGame() {
           Init error: {String(err)}
         </div>
       )}
-      <div className="absolute inset-x-0 top-2 flex items-center justify-between px-4 text-xs">
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center overflow-hidden ${hud.turn === 0 ? 'ring-2 ring-yellow-400' : ''}`}
-            style={
-              player.avatar
-                ? {
-                    backgroundImage: `url(${player.avatar})`,
-                    backgroundSize: 'cover'
-                  }
-                : undefined
-            }
-          >
-            {!player.avatar && player.name?.[0]}
-          </div>
-          <div className="text-left">
-            <div className="font-bold leading-none">{player.name}</div>
-            <div className="leading-none">{hud.A}</div>
-          </div>
-        </div>
-        <div className="relative flex items-center justify-center">
-          <div
-            id="turnTimerText"
-            className="text-center text-sm font-bold"
-          >
-            {timer}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-right">
-            <div className="font-bold leading-none">AI</div>
-            <div className="leading-none">{hud.B}</div>
-          </div>
-          <div
-            className={`w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center ${hud.turn === 1 ? 'ring-2 ring-yellow-400' : ''}`}
-          >
-            {aiFlag}
-          </div>
-        </div>
-      </div>
-
       {/* Power Slider */}
       <div
         ref={sliderRef}
