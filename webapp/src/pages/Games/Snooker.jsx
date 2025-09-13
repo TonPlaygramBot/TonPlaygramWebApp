@@ -620,8 +620,8 @@ function addArena(scene) {
   rug.rotation.x = -Math.PI / 2;
   rug.position.y = floorY;
   scene.add(rug);
-  const tileW = rugW * 1.4;
-  const tileL = rugL * 1.4;
+  const tileW = rugW * 1.2;
+  const tileL = rugL * 1.2;
   const tileMat = new THREE.MeshStandardMaterial({
     color: 0x2a2a2a,
     roughness: 0.9,
@@ -631,7 +631,7 @@ function addArena(scene) {
   tiles.rotation.x = -Math.PI / 2;
   tiles.position.y = floorY - 0.001;
   scene.add(tiles);
-  const wallH = 12.0;
+  const wallH = 6.0;
   const wallT = 0.05;
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x8b8000,
@@ -1045,7 +1045,7 @@ export default function NewSnookerGame() {
       scene.add(dir);
       const rectSize = TABLE.W * 1.5;
       const spacing = TABLE.H / 5;
-      const lightY = TABLE_Y + 30 * 3;
+      const lightY = TABLE_Y + 30;
       for (let i = 0; i < 5; i++) {
         const z = -TABLE.H / 2 + spacing / 2 + i * spacing;
         const rect = new THREE.RectAreaLight(0xffffff, 60, rectSize, rectSize);
