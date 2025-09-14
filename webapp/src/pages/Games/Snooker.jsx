@@ -1364,8 +1364,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 4.5;
-      const lightOffset = 15;
+      const lightHeight = TABLE_Y + 3.5;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
@@ -2162,24 +2162,27 @@ export default function NewSnookerGame() {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* Top HUD */}
-      <div className="absolute top-10 left-0 right-0 flex flex-col items-center text-white pointer-events-none z-50">
-        <div className="font-semibold">Match of the Day</div>
-        <div className="mt-2 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <img
-              src={player.avatar || '/assets/icons/profile.svg'}
-              alt="player"
-              className="w-10 h-10 rounded-full object-cover"
-            />
-            <span>{player.name}</span>
+      <div className="absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-50">
+        <div className="bg-gray-800 px-4 py-2 rounded-b flex flex-col items-center text-white">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <img
+                src={player.avatar || '/assets/icons/profile.svg'}
+                alt="player"
+                className="w-10 h-10 rounded-full object-cover border-2 border-yellow-400"
+              />
+              <span className={hud.turn === 0 ? 'text-yellow-400' : ''}>{player.name}</span>
+            </div>
+            <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full border-2 border-yellow-400 flex items-center justify-center">
+                <span className="text-3xl leading-none">{aiFlag}</span>
+              </div>
+              <span className={hud.turn === 1 ? 'text-yellow-400' : ''}>AI</span>
+            </div>
           </div>
-          <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
-          <div className="flex items-center gap-2">
-            <span className="text-3xl leading-none">{aiFlag}</span>
-            <span>AI</span>
-          </div>
+          <div className="mt-1 text-sm">Time: {timer}</div>
         </div>
-        <div className="mt-1 text-sm">Time: {timer}</div>
       </div>
 
       {err && (
