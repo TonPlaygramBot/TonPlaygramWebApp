@@ -272,6 +272,23 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   return new THREE.CanvasTexture(c);
 }
 
+function makeWallTexture(size = 256) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#8b8000';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#9a9220';
+  for (let i = 0; i < 4000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const w = 1 + Math.random() * 3;
+    const h = 1 + Math.random() * 3;
+    ctx.fillRect(x, y, w, h);
+  }
+  return new THREE.CanvasTexture(c);
+}
+
 function addRugUnderTable(scene, table) {
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
@@ -297,6 +314,7 @@ function addRugUnderTable(scene, table) {
     box.min.y - 0.2,
     (box.max.z + box.min.z) / 2
   );
+  rug.receiveShadow = true;
   scene.add(rug);
   return rug;
 }
@@ -306,9 +324,14 @@ function addArenaWalls(scene, rug) {
   const wallH = TABLE.H * 2 * 0.7; // lower walls by 30%
   const rugWidth = rug.geometry.parameters.width;
   const rugHeight = rug.geometry.parameters.height;
+  const wallTex = makeWallTexture();
+  wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+  wallTex.repeat.set(4, 2);
+  wallTex.anisotropy = 4;
   const wallMat = new THREE.MeshStandardMaterial({
+    map: wallTex,
     color: 0x8b8000,
-    roughness: 0.8,
+    roughness: 0.85,
     metalness: 0.2,
     side: THREE.DoubleSide
   });
@@ -339,16 +362,12 @@ function addArenaWalls(scene, rug) {
     rug.position.y + wallH / 2,
     rug.position.z
   );
+  [north, south, west, east].forEach((w) => {
+    w.castShadow = true;
+    w.receiveShadow = true;
+  });
   walls.add(north, south, west, east);
   scene.add(walls);
-
-  [north, south, west, east].forEach((w) => {
-    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
-    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
-    s.target.position.set(rug.position.x, 0, rug.position.z);
-    scene.add(s);
-    scene.add(s.target);
-  });
   return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
@@ -407,8 +426,8 @@ function addPocketJaws(scene, playW, playH) {
     { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
     { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
     { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_top', type: 'side', pos: [0, -HALF_PLAY_H] },
-    { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
+    { id: 'side_left', type: 'side', pos: [-HALF_PLAY_W, 0] },
+    { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
   ];
   const jaws = [];
   const geo = makeJawSector();
@@ -513,7 +532,7 @@ const CAMERA = {
   near: 0.1,
   far: 4000,
   minR: 40 * TABLE_SCALE,
-  maxR: 420 * TABLE_SCALE,
+  maxR: 180 * TABLE_SCALE,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane
   maxPhi: Math.PI / 2 - 0.1
@@ -539,8 +558,8 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
   new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
   new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(0, -PLAY_H / 2),
-  new THREE.Vector2(0, PLAY_H / 2)
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -685,11 +704,11 @@ function Table3D(scene) {
   });
   const clothHeight = makeDiagonalWeaveHeightCanvas(512, 8);
   const clothColorTex = new THREE.CanvasTexture(
-    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.05)
+    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.08)
   );
   // subtle normal map for smooth woven cloth
   const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 1.3)
+    heightToNormalCanvas(clothHeight, 1.8)
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
@@ -697,7 +716,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(24, 24);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.35, 0.35);
+  clothMat.normalScale.set(0.5, 0.5);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -891,7 +910,7 @@ function Table3D(scene) {
     true
   );
 
-  // Skirt & legs
+  // Skirt
   const skirtH = TABLE_H * 0.4;
   const outerHalfW2 = outerHalfW;
   const outerHalfH2 = outerHalfH;
@@ -934,47 +953,6 @@ function Table3D(scene) {
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
   table.add(skirt);
-
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.07;
-  const legH = TABLE_H;
-  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legPositions = [
-    [-outerHalfW2 + FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
-    [-outerHalfW2 + FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6]
-  ];
-  legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(lx, -TABLE.THICK - legH / 2, lz);
-    table.add(leg);
-  });
-
-  // Crossbars connecting table legs
-  const braceT = legR * 0.6;
-  const braceY = -TABLE.THICK - legH + braceT / 2;
-  const spanX = Math.abs(legPositions[0][0] - legPositions[1][0]) + legR * 2;
-  const spanZ = Math.abs(legPositions[0][1] - legPositions[2][1]) + legR * 2;
-  const braceGeoX = new THREE.BoxGeometry(spanX, braceT, braceT);
-  const braceGeoZ = new THREE.BoxGeometry(braceT, braceT, spanZ);
-  const braceFront = new THREE.Mesh(braceGeoX, woodMat);
-  braceFront.position.set(0, braceY, -outerHalfH2 + FRAME_W * 0.6);
-  const braceBack = new THREE.Mesh(braceGeoX, woodMat);
-  braceBack.position.set(0, braceY, outerHalfH2 - FRAME_W * 0.6);
-  const braceLeft = new THREE.Mesh(braceGeoZ, woodMat);
-  braceLeft.position.set(-outerHalfW2 + FRAME_W * 0.6, braceY, 0);
-  const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
-  braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
-  table.add(braceFront, braceBack, braceLeft, braceRight);
-
-  const diagLen = Math.sqrt(spanX * spanX + spanZ * spanZ);
-  const braceDiagGeo = new THREE.BoxGeometry(diagLen, braceT, braceT);
-  const braceDiag1 = new THREE.Mesh(braceDiagGeo, woodMat);
-  braceDiag1.position.set(0, braceY, 0);
-  braceDiag1.rotation.y = Math.atan2(spanZ, spanX);
-  const braceDiag2 = braceDiag1.clone();
-  braceDiag2.rotation.y += Math.PI / 2;
-  table.add(braceDiag1, braceDiag2);
 
   console.assert(
     typeof railW !== 'undefined',
@@ -1416,9 +1394,10 @@ export default function NewSnookerGame() {
       scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1));
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
+      dir.castShadow = true;
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 7;
+      const lightHeight = TABLE_Y + 7 * 0.6; // move lights 40% closer
       pocketCenters().forEach((p) => {
         const s = new THREE.SpotLight(
           0xffffff,
@@ -1428,6 +1407,8 @@ export default function NewSnookerGame() {
           0.4,
           1
         );
+        s.castShadow = true;
+        s.shadow.mapSize.set(512, 512);
         s.position.set(p.x, lightHeight, p.y);
         s.target.position.set(p.x, TABLE_Y, p.y);
         scene.add(s, s.target);
