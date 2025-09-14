@@ -1269,16 +1269,17 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Position spotlights further from the table, toward the sides and higher
-      const lightHeight = TABLE_Y + 30;
+      // Position spotlights further from the table, toward the sides, higher and brighter
+      const lightHeight = TABLE_Y + 40;
       const lightOffset = 20;
       const lightX = TABLE.W / 2 + lightOffset;
       const rectSize = 30;
+      const lightIntensity = 8;
 
-      const makeLight = (x, z, intensity) => {
+      const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
           0xffffff,
-          intensity,
+          lightIntensity,
           rectSize,
           rectSize
         );
@@ -1294,7 +1295,7 @@ function SnookerGame() {
           TABLE.H / 2,
           (i + 0.5) / 3
         );
-        makeLight(lightX, z, 6);
+        makeLight(lightX, z);
       }
 
       // three spotlights mirrored on the left side of the table
@@ -1304,7 +1305,7 @@ function SnookerGame() {
           TABLE.H / 2,
           (i + 0.5) / 3
         );
-        makeLight(-lightX, z, 6);
+        makeLight(-lightX, z);
       }
 
       // Table
