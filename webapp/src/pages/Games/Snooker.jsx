@@ -940,6 +940,21 @@ function SnookerGame() {
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
+  const [hiRes, setHiRes] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('snooker_hiRes') === '1';
+    }
+    return false;
+  });
+  const toggleHiRes = useCallback(() => {
+    setHiRes((v) => {
+      const nv = !v;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('snooker_hiRes', nv ? '1' : '0');
+      }
+      return nv;
+    });
+  }, []);
   useEffect(() => {
     document.title = '3D Snooker';
   }, []);
@@ -1145,7 +1160,10 @@ function SnookerGame() {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      const ratio = hiRes
+        ? window.devicePixelRatio || 1
+        : Math.min(1.5, window.devicePixelRatio || 1);
+      renderer.setPixelRatio(ratio);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -1906,6 +1924,16 @@ function SnookerGame() {
     }
   }, [hud.inHand, hud.over]);
 
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (renderer) {
+      const ratio = hiRes
+        ? window.devicePixelRatio || 1
+        : Math.min(1.5, window.devicePixelRatio || 1);
+      renderer.setPixelRatio(ratio);
+    }
+  }, [hiRes]);
+
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
@@ -1980,6 +2008,14 @@ function SnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {/* Toggle high resolution rendering */}
+      <button
+        onClick={toggleHiRes}
+        className="absolute top-2 right-2 z-50 bg-gray-800 px-2 py-1 rounded text-xs"
+      >
+        {hiRes ? 'HD' : 'SD'}
+      </button>
 
       {/* Top HUD */}
       <div className="absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-50">
