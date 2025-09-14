@@ -1284,9 +1284,9 @@ export default function NewSnookerGame() {
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      // Position lights slightly closer to the table center and surface
-      const lightHeight = TABLE_Y + 3.0;
-      const lightOffset = 20;
+      // Position lights around the table edges and slightly higher
+      const lightHeight = TABLE_Y + 4.5;
+      const lightOffset = 10;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
       const rectSize = 20;
@@ -1303,10 +1303,11 @@ export default function NewSnookerGame() {
         scene.add(rect);
       };
 
-      makeLight(lightX, lightZ, 30);
-      makeLight(-lightX, lightZ, 28);
-      makeLight(-lightX, -lightZ, 28);
-      makeLight(lightX, -lightZ, 26);
+      // one above, one below, one left and one right of the table center
+      makeLight(0, lightZ, 30); // top
+      makeLight(0, -lightZ, 28); // bottom
+      makeLight(-lightX, 0, 28); // left
+      makeLight(lightX, 0, 26); // right
 
       // Table
       const {
