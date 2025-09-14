@@ -326,20 +326,20 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
   const addSpot = (base) => {
-    const s = new THREE.SpotLight(0xffffff, 0.35, 0, Math.PI * 0.45, 0.4, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.2, 0, Math.PI * 0.6, 0.5, 1);
     const dir = new THREE.Vector3()
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(-3));
-    pos.y = rug.position.y + wallH + 4;
+    const pos = base.clone().add(dir.multiplyScalar(-6));
+    pos.y = rug.position.y + wallH + 6;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
   };
 
-  const sideOffset = rugWidth * 0.4;
+  const sideOffset = rugWidth * 0.6;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
@@ -762,6 +762,30 @@ function Table3D(scene) {
   frame.rotation.x = -Math.PI / 2;
   frame.position.y = -TABLE.THICK + 0.01;
   table.add(frame);
+
+  // simple wooden skirt beneath the play surface
+  const skirtGeo = new THREE.BoxGeometry(
+    outerHalfW * 2,
+    TABLE_H * 0.2,
+    outerHalfH * 2
+  );
+  const skirt = new THREE.Mesh(skirtGeo, woodMat);
+  skirt.position.y = -TABLE.THICK - TABLE_H * 0.1;
+  table.add(skirt);
+
+  // tall table legs to raise overall table level
+  const legGeo = new THREE.CylinderGeometry(3, 3, TABLE_H, 12);
+  const legY = -TABLE.THICK - TABLE_H / 2;
+  [
+    [outerHalfW - 6, outerHalfH - 6],
+    [-outerHalfW + 6, outerHalfH - 6],
+    [outerHalfW - 6, -outerHalfH + 6],
+    [-outerHalfW + 6, -outerHalfH + 6]
+  ].forEach(([x, z]) => {
+    const leg = new THREE.Mesh(legGeo, woodMat);
+    leg.position.set(x, legY, z);
+    table.add(leg);
+  });
 
   const cushionRaiseY = -TABLE.THICK + 0.02;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
