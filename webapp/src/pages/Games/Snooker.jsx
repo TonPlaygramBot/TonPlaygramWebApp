@@ -1326,9 +1326,9 @@ export default function NewSnookerGame() {
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      // Position lights farther from center, slightly higher, and dimmer
-      const lightHeight = TABLE_Y + 8;
-      const lightOffset = 8;
+      // Position spotlights further from the table, toward the sides and higher
+      const lightHeight = TABLE_Y + 12;
+      const lightOffset = 12;
       const lightX = TABLE.W / 2 + lightOffset;
       const lightZ = TABLE.H / 2 + lightOffset;
       const rectSize = 30;
