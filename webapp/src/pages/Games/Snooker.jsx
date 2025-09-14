@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -583,9 +584,10 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.32,
+    roughness: 0.2,
     clearcoat: 1,
-    clearcoatRoughness: 0.25
+    clearcoatRoughness: 0.1,
+    specularIntensity: 1
   });
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
@@ -722,8 +724,8 @@ function Table3D(scene) {
   table.add(dMesh);
 
   const spots = spotPositions(baulkZ);
-  const spotSize = BALL_R * 0.8;
-  const spotGeom = new THREE.PlaneGeometry(spotSize, spotSize);
+  const spotRadius = BALL_R * 0.15;
+  const spotGeom = new THREE.CircleGeometry(spotRadius, 32);
   const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.markings });
   Object.values(spots).forEach(([x, z]) => {
     const s = new THREE.Mesh(spotGeom, spotMat);
@@ -1203,6 +1205,7 @@ export default function NewSnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
+      RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
       let shooting = false; // track when a shot is in progress
@@ -1363,84 +1366,26 @@ export default function NewSnookerGame() {
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      const fullTableAngle = Math.PI / 2;
-      // Position spotlights slightly closer to the table center and surface
+      // Position lights slightly closer to the table center and surface
       const lightHeight = TABLE_Y + 3.0;
       const lightOffset = 25;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
+      const rectSize = 20;
 
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        2.1,
-        0,
-        fullTableAngle,
-        0.3,
-        1
-      );
-      spot.position.set(lightX, lightHeight, lightZ);
-      spot.target.position.set(0, TABLE_Y, 0);
-      scene.add(spot, spot.target);
+      const makeLight = (x, z, intensity) => {
+        const rect = new THREE.RectAreaLight(0xffffff, intensity, rectSize, rectSize);
+        rect.position.set(x, lightHeight, z);
+        rect.lookAt(0, TABLE_Y, 0);
+        scene.add(rect);
+      };
 
-      const spotTop = new THREE.SpotLight(
-        0xffffff,
-        1.9,
-        0,
-        fullTableAngle,
-        0.4,
-        1
-      );
-      spotTop.position.set(-lightX, lightHeight, lightZ);
-      spotTop.target.position.set(0, TABLE_Y, 0);
-      scene.add(spotTop, spotTop.target);
-
-      const spotBottom = new THREE.SpotLight(
-        0xffffff,
-        1.9,
-        0,
-        fullTableAngle,
-        0.4,
-        1
-      );
-      spotBottom.position.set(-lightX, lightHeight, -lightZ);
-      spotBottom.target.position.set(0, TABLE_Y, 0);
-      scene.add(spotBottom, spotBottom.target);
-
-      const spotExtra = new THREE.SpotLight(
-        0xffffff,
-        1.6,
-        0,
-        fullTableAngle,
-        0.4,
-        1
-      );
-      spotExtra.position.set(lightX, lightHeight, -lightZ);
-      spotExtra.target.position.set(0, TABLE_Y, 0);
-      scene.add(spotExtra, spotExtra.target);
-
-      const spotMidLeft = new THREE.SpotLight(
-        0xffffff,
-        1.8,
-        0,
-        fullTableAngle,
-        0.4,
-        1
-      );
-      spotMidLeft.position.set(lightX, lightHeight, 0);
-      spotMidLeft.target.position.set(0, TABLE_Y, 0);
-      scene.add(spotMidLeft, spotMidLeft.target);
-
-      const spotMidRight = new THREE.SpotLight(
-        0xffffff,
-        1.8,
-        0,
-        fullTableAngle,
-        0.4,
-        1
-      );
-      spotMidRight.position.set(-lightX, lightHeight, 0);
-      spotMidRight.target.position.set(0, TABLE_Y, 0);
-      scene.add(spotMidRight, spotMidRight.target);
+      makeLight(lightX, lightZ, 35);
+      makeLight(-lightX, lightZ, 30);
+      makeLight(-lightX, -lightZ, 30);
+      makeLight(lightX, -lightZ, 28);
+      makeLight(lightX, 0, 32);
+      makeLight(-lightX, 0, 32);
 
       // Table
       const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
