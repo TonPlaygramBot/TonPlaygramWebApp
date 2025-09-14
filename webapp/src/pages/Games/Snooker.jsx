@@ -402,6 +402,10 @@ function addPocketJaws(scene, playW, playH) {
     jaw.receiveShadow = true;
     jaw.position.set(p.x, TABLE_Y + 0.01, p.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
+    // rotate side pocket jaws so openings point into the table
+    if (entry.type === 'side') {
+      jaw.rotation.y += Math.PI / 2;
+    }
     scene.add(jaw);
     jaws.push(jaw);
   }
@@ -440,7 +444,8 @@ const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const TABLE_Y = -2; // vertical offset to lower entire table
-const TABLE_H = 0.75; // physical height of table used for legs/skirt
+// scale leg height with table size so legs and crossbars remain visible
+const TABLE_H = 0.75 * TABLE_SCALE; // physical height of table used for legs/skirt
 const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -652,7 +657,8 @@ function Table3D(scene) {
   });
   const clothHeight = makeDiagonalWeaveHeightCanvas(512, 16);
   const clothColorTex = new THREE.CanvasTexture(
-    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.05)
+    // slightly increase colour variation for a more visible weave
+    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.07)
   );
   // subtle normal map for smooth woven cloth
   const clothNormalTex = new THREE.CanvasTexture(
@@ -664,7 +670,8 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.3, 0.3);
+  // boost initial normal scale so cloth texture pops a bit more up close
+  clothMat.normalScale.set(0.4, 0.4);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -1067,7 +1074,8 @@ export default function NewSnookerGame() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px sans-serif';
-    ctx.fillText('Match of the Day', w / 2, 150);
+    // move title slightly lower on the panel
+    ctx.fillText('Match of the Day', w / 2, 170);
     if (avatarImg && avatarImg.complete)
       ctx.drawImage(avatarImg, 20, 100, 64, 64);
     else if (emoji) {
@@ -1241,9 +1249,10 @@ export default function NewSnookerGame() {
           const dist = camera.position.distanceTo(target);
           // Fade cloth detail faster so it disappears in distant orbit view
           const fade = THREE.MathUtils.clamp((150 - dist) / 60, 0, 1);
-          const ns = 1.0 * fade;
+          // make weave slightly more pronounced up close but vanish in orbit
+          const ns = 1.2 * fade;
           clothMat.normalScale.set(ns, ns);
-          const rep = THREE.MathUtils.lerp(8, 16, fade);
+          const rep = THREE.MathUtils.lerp(1, 16, fade);
           clothMat.map?.repeat.set(rep, rep);
         }
       };
@@ -1374,8 +1383,9 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 7;
-      const lightOffset = 15;
+      // raise corner spotlights slightly and pull them in toward the centre
+      const lightHeight = TABLE_Y + 8;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
