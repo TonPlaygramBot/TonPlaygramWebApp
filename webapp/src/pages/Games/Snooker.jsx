@@ -722,7 +722,8 @@ function Table3D(scene) {
   table.add(dMesh);
 
   const spots = spotPositions(baulkZ);
-  const spotGeom = new THREE.CircleGeometry(BALL_R * 0.3, 32);
+  const spotSize = BALL_R * 0.6;
+  const spotGeom = new THREE.PlaneGeometry(spotSize, spotSize);
   const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.markings });
   Object.values(spots).forEach(([x, z]) => {
     const s = new THREE.Mesh(spotGeom, spotMat);
