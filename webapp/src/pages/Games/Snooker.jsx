@@ -326,20 +326,20 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
   const addSpot = (base) => {
-    const s = new THREE.SpotLight(0xffffff, 0.35, 0, Math.PI * 0.35, 0.4, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.35, 0, Math.PI * 0.45, 0.4, 1);
     const dir = new THREE.Vector3()
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(-8));
-    pos.y = rug.position.y + wallH + 2;
+    const pos = base.clone().add(dir.multiplyScalar(-3));
+    pos.y = rug.position.y + wallH + 4;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
   };
 
-  const sideOffset = rugWidth * 0.25;
+  const sideOffset = rugWidth * 0.4;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
@@ -453,10 +453,11 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
-const FRICTION = 0.9925;
+const FRICTION = 0.995;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const TABLE_H = 0.75 * 4; // physical height of table used for legs/skirt
+const LEG_SCALE = 4; // scale factor for table leg height
+const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 const TABLE_Y = -2 + (TABLE_H - 0.75); // raise table level with longer legs
 const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
 // angle for cushion cuts guiding balls into pockets
@@ -1284,12 +1285,12 @@ export default function NewSnookerGame() {
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      // Position lights around the table edges and slightly higher
-      const lightHeight = TABLE_Y + 4.5;
-      const lightOffset = 10;
+      // Position lights farther to the sides, higher up, and with a wider spread
+      const lightHeight = TABLE_Y + 6;
+      const lightOffset = 5;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
-      const rectSize = 20;
+      const rectSize = 30;
 
       const makeLight = (x, z, intensity) => {
         const rect = new THREE.RectAreaLight(
