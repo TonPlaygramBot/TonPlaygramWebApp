@@ -194,22 +194,22 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, Wpx, Hpx);
 
-  for (let i = 0; i < 14000; i++) {
+  for (let i = 0; i < 11000; i++) {
     hairStroke(
       Math.random() * Wpx,
       Math.random() * Hpx,
       10 + Math.random() * 22,
       Math.random() * 0.6 - 0.3,
-      0.22
+      0.18
     );
   }
-  for (let i = 0; i < 10000; i++) {
+  for (let i = 0; i < 8000; i++) {
     hairStroke(
       Math.random() * Wpx,
       Math.random() * Hpx,
       8 + Math.random() * 18,
       Math.random() * 0.6 - 0.3 + 0.6,
-      0.16
+      0.12
     );
   }
 
@@ -365,23 +365,6 @@ const jawMat = new THREE.MeshPhysicalMaterial({
   metalness: 0.1,
   clearcoat: 0.4
 });
-
-function makeNumberSprite(text, color = '#ffff00') {
-  const size = 64;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.font = '48px sans-serif';
-  ctx.fillStyle = color;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, size / 2, size / 2);
-  const tex = new THREE.CanvasTexture(canvas);
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(4, 4, 1);
-  return sprite;
-}
 function makeJawSector(
   R = POCKET_VIS_R,
   T = JAW_T,
@@ -412,7 +395,6 @@ function addPocketJaws(scene, playW, playH) {
   ];
   const jaws = [];
   const geo = makeJawSector();
-  let idx = 1;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const jaw = new THREE.Mesh(geo.clone(), jawMat);
@@ -422,21 +404,6 @@ function addPocketJaws(scene, playW, playH) {
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
     scene.add(jaw);
     jaws.push(jaw);
-
-    const dir = p.clone().normalize();
-    const jawLabel = makeNumberSprite(idx, '#ffff00');
-    jawLabel.position.set(
-      p.x + dir.x * (POCKET_VIS_R + 2),
-      TABLE_Y + JAW_H + 0.5,
-      p.y + dir.y * (POCKET_VIS_R + 2)
-    );
-    scene.add(jawLabel);
-
-    const pocketLabel = makeNumberSprite(idx, '#ff0000');
-    pocketLabel.position.set(p.x, TABLE_Y + 0.5, p.y);
-    scene.add(pocketLabel);
-
-    idx++;
   }
   return jaws;
 }
@@ -539,8 +506,8 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
   new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
   new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(0, -PLAY_H / 2),
-  new THREE.Vector2(0, PLAY_H / 2)
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -683,21 +650,21 @@ function Table3D(scene) {
     envMapIntensity: 0,
     specularIntensity: 0
   });
-  const clothHeight = makeDiagonalWeaveHeightCanvas(512, 8);
+  const clothHeight = makeDiagonalWeaveHeightCanvas(512, 16);
   const clothColorTex = new THREE.CanvasTexture(
     makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.05)
   );
   // subtle normal map for smooth woven cloth
   const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 1.3)
+    heightToNormalCanvas(clothHeight, 1.0)
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
-  clothColorTex.repeat.set(24, 24);
-  clothNormalTex.repeat.set(24, 24);
+  clothColorTex.repeat.set(16, 16);
+  clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.35, 0.35);
+  clothMat.normalScale.set(0.3, 0.3);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -935,7 +902,7 @@ function Table3D(scene) {
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
   table.add(skirt);
 
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.07;
+  const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
   const legH = TABLE_H;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const legPositions = [
@@ -966,15 +933,6 @@ function Table3D(scene) {
   const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
   braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
   table.add(braceFront, braceBack, braceLeft, braceRight);
-
-  const diagLen = Math.sqrt(spanX * spanX + spanZ * spanZ);
-  const braceDiagGeo = new THREE.BoxGeometry(diagLen, braceT, braceT);
-  const braceDiag1 = new THREE.Mesh(braceDiagGeo, woodMat);
-  braceDiag1.position.set(0, braceY, 0);
-  braceDiag1.rotation.y = Math.atan2(spanZ, spanX);
-  const braceDiag2 = braceDiag1.clone();
-  braceDiag2.rotation.y += Math.PI / 2;
-  table.add(braceDiag1, braceDiag2);
 
   console.assert(
     typeof railW !== 'undefined',
@@ -1264,7 +1222,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         170 * TABLE_SCALE,
-        1.0, // orbit view angle for break
+        1.45 /* lower angle to show legs */,
         Math.PI
       );
       const updateCamera = () => {
@@ -1281,11 +1239,11 @@ export default function NewSnookerGame() {
         }
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
-          // Stronger detail up close, fade quicker in orbit view
-          const fade = THREE.MathUtils.clamp((120 - dist) / 50, 0, 1);
-          const ns = 1.2 * fade;
+          // Fade cloth detail faster so it disappears in distant orbit view
+          const fade = THREE.MathUtils.clamp((150 - dist) / 60, 0, 1);
+          const ns = 1.0 * fade;
           clothMat.normalScale.set(ns, ns);
-          const rep = THREE.MathUtils.lerp(12, 24, fade);
+          const rep = THREE.MathUtils.lerp(8, 16, fade);
           clothMat.map?.repeat.set(rep, rep);
         }
       };
@@ -1309,8 +1267,6 @@ export default function NewSnookerGame() {
       cameraRef.current = camera;
       sphRef.current = sph;
       fitRef.current = fit;
-      topViewRef.current = false;
-      setTopView(false);
       fit(
         topViewRef.current
           ? 1.05
@@ -1419,19 +1375,57 @@ export default function NewSnookerGame() {
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
       const lightHeight = TABLE_Y + 7;
-      pocketCenters().forEach((p) => {
-        const s = new THREE.SpotLight(
-          0xffffff,
-          1.9,
-          0,
-          fullTableAngle,
-          0.4,
-          1
-        );
-        s.position.set(p.x, lightHeight, p.y);
-        s.target.position.set(p.x, TABLE_Y, p.y);
-        scene.add(s, s.target);
-      });
+      const lightOffset = 15;
+      const lightX = TABLE.W / 2 - lightOffset;
+      const lightZ = TABLE.H / 2 - lightOffset;
+
+      const spot = new THREE.SpotLight(
+        0xffffff,
+        2.1,
+        0,
+        fullTableAngle,
+        0.3,
+        1
+      );
+      spot.position.set(lightX, lightHeight, lightZ);
+      spot.target.position.set(0, TABLE_Y, 0);
+      scene.add(spot, spot.target);
+
+      const spotTop = new THREE.SpotLight(
+        0xffffff,
+        1.9,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
+      spotTop.position.set(-lightX, lightHeight, lightZ);
+      spotTop.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotTop, spotTop.target);
+
+      const spotBottom = new THREE.SpotLight(
+        0xffffff,
+        1.9,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
+      spotBottom.position.set(-lightX, lightHeight, -lightZ);
+      spotBottom.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotBottom, spotBottom.target);
+
+      const spotExtra = new THREE.SpotLight(
+        0xffffff,
+        1.6,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
+      spotExtra.position.set(lightX, lightHeight, -lightZ);
+      spotExtra.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotExtra, spotExtra.target);
 
       // Table
       const {
