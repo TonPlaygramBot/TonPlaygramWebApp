@@ -722,13 +722,15 @@ function Table3D(scene) {
   table.add(dMesh);
 
   const spots = spotPositions(baulkZ);
-  const spotSize = BALL_R * 0.6;
+  const spotSize = BALL_R * 0.8;
   const spotGeom = new THREE.PlaneGeometry(spotSize, spotSize);
   const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.markings });
   Object.values(spots).forEach(([x, z]) => {
     const s = new THREE.Mesh(spotGeom, spotMat);
     s.rotation.x = -Math.PI / 2;
     s.position.set(x, 0.015, z);
+    s.matrixAutoUpdate = false;
+    s.updateMatrix();
     table.add(s);
   });
 
