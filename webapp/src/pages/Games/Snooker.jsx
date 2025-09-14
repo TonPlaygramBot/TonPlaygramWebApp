@@ -194,7 +194,7 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, Wpx, Hpx);
 
-  for (let i = 0; i < 14000; i++) {
+  for (let i = 0; i < 20000; i++) {
     hairStroke(
       Math.random() * Wpx,
       Math.random() * Hpx,
@@ -301,13 +301,31 @@ function addRugUnderTable(scene, table) {
   return rug;
 }
 
+function makeWallTexture(size = 64) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 135 + Math.random() * 20;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return new THREE.CanvasTexture(c);
+}
+
 function addArenaWalls(scene, rug) {
   const wallT = TABLE.WALL;
   const wallH = TABLE.H * 2 * 0.7; // lower walls by 30%
   const rugWidth = rug.geometry.parameters.width;
   const rugHeight = rug.geometry.parameters.height;
+  const wallTex = makeWallTexture();
+  wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+  wallTex.repeat.set((rugWidth + wallT * 2) / 50, wallH / 50);
   const wallMat = new THREE.MeshStandardMaterial({
     color: 0x8b8000,
+    map: wallTex,
     roughness: 0.8,
     metalness: 0.2,
     side: THREE.DoubleSide
@@ -339,12 +357,24 @@ function addArenaWalls(scene, rug) {
     rug.position.y + wallH / 2,
     rug.position.z
   );
+  [north, south, west, east].forEach((w) => {
+    w.castShadow = true;
+    w.receiveShadow = true;
+  });
   walls.add(north, south, west, east);
   scene.add(walls);
 
   [north, south, west, east].forEach((w) => {
     const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
-    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
+    s.position.set(w.position.x, rug.position.y + wallH - 1, w.position.z);
+    s.target.position.set(rug.position.x, 0, rug.position.z);
+    scene.add(s);
+    scene.add(s.target);
+  });
+  const midY = rug.position.y + wallH - 1;
+  [-PLAY_W / 2, PLAY_W / 2].forEach((x) => {
+    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
+    s.position.set(x, midY, rug.position.z);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
@@ -407,8 +437,8 @@ function addPocketJaws(scene, playW, playH) {
     { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
     { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
     { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_top', type: 'side', pos: [0, -HALF_PLAY_H] },
-    { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
+    { id: 'side_left', type: 'side', pos: [-HALF_PLAY_W, 0] },
+    { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
   ];
   const jaws = [];
   const geo = makeJawSector();
@@ -481,7 +511,7 @@ const CUSHION_CUT_ANGLE = 30;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x238b23,
+  cloth: 0x30bf4a,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -513,13 +543,13 @@ const CAMERA = {
   near: 0.1,
   far: 4000,
   minR: 40 * TABLE_SCALE,
-  maxR: 420 * TABLE_SCALE,
-  minPhi: 0.5,
+  maxR: 360 * TABLE_SCALE,
+  minPhi: 0.6,
   // keep the camera slightly above the horizontal plane
   maxPhi: Math.PI / 2 - 0.1
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const fitRadius = (camera, margin = 1.1) => {
+const fitRadius = (camera, margin = 1.05) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
   const halfW = (TABLE.W / 2) * margin,
@@ -539,8 +569,8 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
   new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
   new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(0, -PLAY_H / 2),
-  new THREE.Vector2(0, PLAY_H / 2)
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
@@ -683,21 +713,21 @@ function Table3D(scene) {
     envMapIntensity: 0,
     specularIntensity: 0
   });
-  const clothHeight = makeDiagonalWeaveHeightCanvas(512, 8);
+  const clothHeight = makeDiagonalWeaveHeightCanvas(512, 4);
   const clothColorTex = new THREE.CanvasTexture(
-    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.05)
+    makeColorCanvasFromHeight(clothHeight, '#30bf4a', '#1b7e1b', 0.08)
   );
   // subtle normal map for smooth woven cloth
   const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 1.3)
+    heightToNormalCanvas(clothHeight, 1.5)
   );
   clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
   clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
-  clothColorTex.repeat.set(24, 24);
-  clothNormalTex.repeat.set(24, 24);
+  clothColorTex.repeat.set(32, 32);
+  clothNormalTex.repeat.set(32, 32);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.35, 0.35);
+  clothMat.normalScale.set(0.5, 0.5);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -935,46 +965,6 @@ function Table3D(scene) {
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
   table.add(skirt);
 
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.07;
-  const legH = TABLE_H;
-  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legPositions = [
-    [-outerHalfW2 + FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
-    [-outerHalfW2 + FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6]
-  ];
-  legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(lx, -TABLE.THICK - legH / 2, lz);
-    table.add(leg);
-  });
-
-  // Crossbars connecting table legs
-  const braceT = legR * 0.6;
-  const braceY = -TABLE.THICK - legH + braceT / 2;
-  const spanX = Math.abs(legPositions[0][0] - legPositions[1][0]) + legR * 2;
-  const spanZ = Math.abs(legPositions[0][1] - legPositions[2][1]) + legR * 2;
-  const braceGeoX = new THREE.BoxGeometry(spanX, braceT, braceT);
-  const braceGeoZ = new THREE.BoxGeometry(braceT, braceT, spanZ);
-  const braceFront = new THREE.Mesh(braceGeoX, woodMat);
-  braceFront.position.set(0, braceY, -outerHalfH2 + FRAME_W * 0.6);
-  const braceBack = new THREE.Mesh(braceGeoX, woodMat);
-  braceBack.position.set(0, braceY, outerHalfH2 - FRAME_W * 0.6);
-  const braceLeft = new THREE.Mesh(braceGeoZ, woodMat);
-  braceLeft.position.set(-outerHalfW2 + FRAME_W * 0.6, braceY, 0);
-  const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
-  braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
-  table.add(braceFront, braceBack, braceLeft, braceRight);
-
-  const diagLen = Math.sqrt(spanX * spanX + spanZ * spanZ);
-  const braceDiagGeo = new THREE.BoxGeometry(diagLen, braceT, braceT);
-  const braceDiag1 = new THREE.Mesh(braceDiagGeo, woodMat);
-  braceDiag1.position.set(0, braceY, 0);
-  braceDiag1.rotation.y = Math.atan2(spanZ, spanX);
-  const braceDiag2 = braceDiag1.clone();
-  braceDiag2.rotation.y += Math.PI / 2;
-  table.add(braceDiag1, braceDiag2);
 
   console.assert(
     typeof railW !== 'undefined',
