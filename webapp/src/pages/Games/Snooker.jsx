@@ -17,6 +17,7 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
+import { useIsMobile } from '../../hooks/useIsMobile.js';
 
 // --------------------------------------------------
 // Procedural emerald cloth texture utilities
@@ -905,7 +906,7 @@ function Table3D(scene) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-export default function NewSnookerGame() {
+function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new SnookerRules(), []);
@@ -2035,4 +2036,18 @@ export default function NewSnookerGame() {
       </div>
     </div>
   );
+}
+
+export default function NewSnookerGame() {
+  const isMobile = useIsMobile();
+
+  if (!isMobile) {
+    return (
+      <div className="flex items-center justify-center w-full h-full p-4 text-center">
+        <p>This game is available on mobile devices only.</p>
+      </div>
+    );
+  }
+
+  return <SnookerGame />;
 }
