@@ -326,20 +326,20 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
   const addSpot = (base) => {
-    const s = new THREE.SpotLight(0xffffff, 0.1, 0, Math.PI * 0.6, 0.5, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.05, 0, Math.PI * 0.6, 0.5, 1);
     const dir = new THREE.Vector3()
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(4));
-    pos.y = rug.position.y + wallH + 8;
+    const pos = base.clone().add(dir.multiplyScalar(6));
+    pos.y = rug.position.y + wallH + 10;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
   };
 
-  const sideOffset = rugWidth * 0.7;
+  const sideOffset = rugWidth * 0.9;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
@@ -356,8 +356,23 @@ function addArenaWalls(scene, rug) {
       )
     );
   });
-  addSpot(east.position.clone());
-  addSpot(west.position.clone());
+  const endOffset = rugHeight * 0.4;
+  [-1, 1].forEach((sign) => {
+    addSpot(
+      new THREE.Vector3(
+        east.position.x,
+        east.position.y,
+        east.position.z + sign * endOffset
+      )
+    );
+    addSpot(
+      new THREE.Vector3(
+        west.position.x,
+        west.position.y,
+        west.position.z + sign * endOffset
+      )
+    );
+  });
   return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
@@ -457,7 +472,8 @@ const FRICTION = 0.995;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 // Make the four round legs taller to lift the entire table
-const LEG_SCALE = 4;
+// Increase scale so the table sits roughly twice as high and legs reach the rug
+const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
@@ -1010,7 +1026,6 @@ export default function NewSnookerGame() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px sans-serif';
-    ctx.fillText('Match of the Day', w / 2, 110);
     if (avatarImg && avatarImg.complete)
       ctx.drawImage(avatarImg, 20, 100, 64, 64);
     else if (emoji) {
@@ -1163,7 +1178,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         200 * TABLE_SCALE,
-        1.25 /* slightly lower angle */, 
+        1.25 /* slightly lower angle */,
         Math.PI
       );
       const updateCamera = () => {
@@ -1346,96 +1361,6 @@ export default function NewSnookerGame() {
       clothMat = tableCloth;
       const rug = addRugUnderTable(scene, table);
       const arena = addArenaWalls(scene, rug);
-
-      // 3D HUD panels on arena walls
-      const panelW = 100;
-      const panelH = 50;
-      const panelY = TABLE_Y + arena.wallH * 0.4;
-      const canvasA = document.createElement('canvas');
-      canvasA.width = 512;
-      canvasA.height = 256;
-      const ctxA = canvasA.getContext('2d');
-      const texA = new THREE.CanvasTexture(canvasA);
-      const meshA = new THREE.Mesh(
-        new THREE.PlaneGeometry(panelW, panelH),
-        new THREE.MeshBasicMaterial({ map: texA, transparent: true })
-      );
-      const panelOffset = TABLE.WALL / 2 + 0.1;
-      meshA.position.set(
-        arena.west.position.x + panelOffset,
-        panelY,
-        arena.west.position.z
-      );
-      meshA.rotation.y = Math.PI / 2;
-      scene.add(meshA);
-
-      const canvasB = document.createElement('canvas');
-      canvasB.width = 512;
-      canvasB.height = 256;
-      const ctxB = canvasB.getContext('2d');
-      const texB = new THREE.CanvasTexture(canvasB);
-      const meshB = new THREE.Mesh(
-        new THREE.PlaneGeometry(panelW, panelH),
-        new THREE.MeshBasicMaterial({ map: texB, transparent: true })
-      );
-      meshB.position.set(
-        arena.east.position.x - panelOffset,
-        panelY,
-        arena.east.position.z
-      );
-      meshB.rotation.y = -Math.PI / 2;
-      scene.add(meshB);
-
-      const canvasC = document.createElement('canvas');
-      canvasC.width = 512;
-      canvasC.height = 256;
-      const ctxC = canvasC.getContext('2d');
-      const texC = new THREE.CanvasTexture(canvasC);
-      const meshC = new THREE.Mesh(
-        new THREE.PlaneGeometry(panelW, panelH),
-        new THREE.MeshBasicMaterial({ map: texC, transparent: true })
-      );
-      meshC.position.set(
-        arena.north.position.x,
-        panelY,
-        arena.north.position.z + panelOffset
-      );
-      scene.add(meshC);
-
-      const canvasD = document.createElement('canvas');
-      canvasD.width = 512;
-      canvasD.height = 256;
-      const ctxD = canvasD.getContext('2d');
-      const texD = new THREE.CanvasTexture(canvasD);
-      const meshD = new THREE.Mesh(
-        new THREE.PlaneGeometry(panelW, panelH),
-        new THREE.MeshBasicMaterial({ map: texD, transparent: true })
-      );
-      meshD.position.set(
-        arena.south.position.x,
-        panelY,
-        arena.south.position.z - panelOffset
-      );
-      meshD.rotation.y = Math.PI;
-      scene.add(meshD);
-
-      panelsRef.current = {
-        A: { ctx: ctxA, tex: texA },
-        B: { ctx: ctxB, tex: texB },
-        C: { ctx: ctxC, tex: texC },
-        D: { ctx: ctxD, tex: texD },
-        logo: new Image(),
-        playerImg: new Image()
-      };
-      panelsRef.current.logo.src =
-        '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-      panelsRef.current.logo.onload = () => updateHudPanels();
-      if (player.avatar) {
-        panelsRef.current.playerImg.crossOrigin = 'anonymous';
-        panelsRef.current.playerImg.src = player.avatar;
-        panelsRef.current.playerImg.onload = () => updateHudPanels();
-      }
-      updateHudPanels();
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
