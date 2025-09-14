@@ -278,7 +278,7 @@ function addRugUnderTable(scene, table) {
   rug.rotation.x = -Math.PI / 2;
   rug.position.set(
     (box.max.x + box.min.x) / 2,
-    box.min.y,
+    box.min.y - 0.05,
     (box.max.z + box.min.z) / 2
   );
   scene.add(rug);
@@ -326,23 +326,9 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
 
-  const sideOffsetX = rugWidth * 0.15;
-  const sideOffsetZ = rugHeight * 0.15;
-  [north, south, west, east].forEach((w, i) => {
-    const s = new THREE.SpotLight(0xffffff, 0.5, 0, Math.PI * 0.35, 0.4, 1);
-    const x =
-      i === 0
-        ? w.position.x - sideOffsetX
-        : i === 1
-        ? w.position.x + sideOffsetX
-        : w.position.x;
-    const z =
-      i === 2
-        ? w.position.z - sideOffsetZ
-        : i === 3
-        ? w.position.z + sideOffsetZ
-        : w.position.z;
-    s.position.set(x, rug.position.y + wallH - 0.5, z);
+  [north, south, west, east].forEach((w) => {
+    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
+    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
@@ -1382,7 +1368,7 @@ export default function NewSnookerGame() {
       scene.add(dir);
       // Position lights slightly closer to the table center and surface
       const lightHeight = TABLE_Y + 3.0;
-      const lightOffset = 15;
+      const lightOffset = 25;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
       const rectSize = 20;
@@ -1394,12 +1380,12 @@ export default function NewSnookerGame() {
         scene.add(rect);
       };
 
-      makeLight(lightX, lightZ, 30);
-      makeLight(-lightX, lightZ, 26);
-      makeLight(-lightX, -lightZ, 26);
-      makeLight(lightX, -lightZ, 24);
-      makeLight(lightX, 0, 28);
-      makeLight(-lightX, 0, 28);
+      makeLight(lightX, lightZ, 35);
+      makeLight(-lightX, lightZ, 30);
+      makeLight(-lightX, -lightZ, 30);
+      makeLight(lightX, -lightZ, 28);
+      makeLight(lightX, 0, 32);
+      makeLight(-lightX, 0, 32);
 
       // Table
       const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
