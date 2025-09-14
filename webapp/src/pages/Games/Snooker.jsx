@@ -401,10 +401,9 @@ function addPocketJaws(scene, playW, playH) {
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Apply global 30% reduction and move camera closer to keep visual size
-const SCALE_FACTOR = 0.7;
-const BALL_SCALE = 1 * SCALE_FACTOR;
-const TABLE_SCALE = 1.3 * SCALE_FACTOR;
+// Dimensions enlarged for a roomier snooker table
+const BALL_SCALE = 1;
+const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -422,7 +421,7 @@ const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
-const LEG_SCALE = 6.2 * SCALE_FACTOR;
+const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
@@ -1271,10 +1270,10 @@ function SnookerGame() {
 
       // Lights
       // Position spotlights further from the table, toward the sides and higher
-      const lightHeight = TABLE_Y + 30 * SCALE_FACTOR;
-      const lightOffset = 20 * SCALE_FACTOR;
+      const lightHeight = TABLE_Y + 30;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 + lightOffset;
-      const rectSize = 30 * SCALE_FACTOR;
+      const rectSize = 30;
 
       const makeLight = (x, z, intensity) => {
         const rect = new THREE.RectAreaLight(
