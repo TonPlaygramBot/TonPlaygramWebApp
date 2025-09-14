@@ -652,7 +652,7 @@ function Table3D(scene) {
   });
   const clothHeight = makeDiagonalWeaveHeightCanvas(512, 16);
   const clothColorTex = new THREE.CanvasTexture(
-    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0)
+    makeColorCanvasFromHeight(clothHeight, '#228b22', '#2ec956', 0.05)
   );
   // subtle normal map for smooth woven cloth
   const clothNormalTex = new THREE.CanvasTexture(
@@ -664,7 +664,7 @@ function Table3D(scene) {
   clothNormalTex.repeat.set(16, 16);
   clothMat.map = clothColorTex;
   clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.2, 0.2);
+  clothMat.normalScale.set(0.3, 0.3);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -1067,7 +1067,7 @@ export default function NewSnookerGame() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px sans-serif';
-    ctx.fillText('Match of the Day', w / 2, 130);
+    ctx.fillText('Match of the Day', w / 2, 150);
     if (avatarImg && avatarImg.complete)
       ctx.drawImage(avatarImg, 20, 100, 64, 64);
     else if (emoji) {
@@ -1185,7 +1185,8 @@ export default function NewSnookerGame() {
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
-        powerPreference: 'high-performance'
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: true
       });
       renderer.useLegacyLights = false;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1221,7 +1222,7 @@ export default function NewSnookerGame() {
       // Start behind baulk colours
       const sph = new THREE.Spherical(
         170 * TABLE_SCALE,
-        1.3 /* lower angle to show legs */,
+        1.45 /* lower angle to show legs */,
         Math.PI
       );
       const updateCamera = () => {
@@ -1238,9 +1239,9 @@ export default function NewSnookerGame() {
         }
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
-          // Fade cloth detail as camera moves away so it's subtle in orbit view
-          const fade = THREE.MathUtils.clamp((180 - dist) / 90, 0, 1);
-          const ns = 0.8 * fade;
+          // Fade cloth detail faster so it disappears in distant orbit view
+          const fade = THREE.MathUtils.clamp((150 - dist) / 60, 0, 1);
+          const ns = 1.0 * fade;
           clothMat.normalScale.set(ns, ns);
           const rep = THREE.MathUtils.lerp(8, 16, fade);
           clothMat.map?.repeat.set(rep, rep);
@@ -1373,8 +1374,8 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
-      const lightHeight = TABLE_Y + 6;
-      const lightOffset = 10;
+      const lightHeight = TABLE_Y + 7;
+      const lightOffset = 15;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
