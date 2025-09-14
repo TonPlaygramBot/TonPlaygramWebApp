@@ -327,8 +327,14 @@ function addArenaWalls(scene, rug) {
   scene.add(walls);
 
   [north, south, west, east].forEach((w) => {
-    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
-    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
+    const s = new THREE.SpotLight(0xffffff, 0.45, 0, Math.PI * 0.35, 0.4, 1);
+    const dir = new THREE.Vector3()
+      .subVectors(w.position, rug.position)
+      .setY(0)
+      .normalize();
+    const pos = new THREE.Vector3().copy(w.position).add(dir.multiplyScalar(5));
+    pos.y = rug.position.y + wallH - 0.5;
+    s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
@@ -359,7 +365,10 @@ function makeJawSector(
   const s = new THREE.Shape();
   s.absarc(0, 0, R, start, end, false);
   s.absarc(0, 0, r, end, start, true);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: JAW_H, bevelEnabled: false });
+  const geo = new THREE.ExtrudeGeometry(s, {
+    depth: JAW_H,
+    bevelEnabled: false
+  });
   geo.rotateX(-Math.PI / 2);
   return geo;
 }
@@ -472,7 +481,7 @@ const CAMERA = {
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane
-  maxPhi: Math.PI / 2 - 0.1
+  maxPhi: Math.PI / 2 - 0.05
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -707,7 +716,7 @@ function Table3D(scene) {
   addSpot(0, PLAY_H * 0.5 - PLAY_H * 0.05);
 
   const railH = TABLE.THICK * 2.0;
-  const railW = (TABLE.WALL * 0.9) * 0.5;
+  const railW = TABLE.WALL * 0.9 * 0.5;
   const FRAME_W = railW * 2.5;
   const outerHalfW = halfW + 2 * railW + FRAME_W;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
@@ -780,35 +789,11 @@ function Table3D(scene) {
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
   const rightX = halfW + (TABLE.WALL * 0.5) / 2;
   addCushion(0, bottomZ, CUSHION_LEN, true, false);
-  addCushion(
-    leftX,
-    -halfH + 6 + vertSeg / 2,
-    CUSHION_LEN,
-    false,
-    false
-  );
-  addCushion(
-    rightX,
-    halfH - 6 - vertSeg / 2,
-    CUSHION_LEN,
-    false,
-    true
-  );
+  addCushion(leftX, -halfH + 6 + vertSeg / 2, CUSHION_LEN, false, false);
+  addCushion(rightX, halfH - 6 - vertSeg / 2, CUSHION_LEN, false, true);
   addCushion(0, topZ, CUSHION_LEN, true, true);
-  addCushion(
-    leftX,
-    halfH - 6 - vertSeg / 2,
-    CUSHION_LEN,
-    false,
-    false
-  );
-  addCushion(
-    rightX,
-    -halfH + 6 + vertSeg / 2,
-    CUSHION_LEN,
-    false,
-    true
-  );
+  addCushion(leftX, halfH - 6 - vertSeg / 2, CUSHION_LEN, false, false);
+  addCushion(rightX, -halfH + 6 + vertSeg / 2, CUSHION_LEN, false, true);
 
   if (!table.userData.pockets) table.userData.pockets = [];
   pocketCenters().forEach((p) => {
@@ -1107,7 +1092,9 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
+      renderer.domElement.addEventListener('webglcontextlost', (e) =>
+        e.preventDefault()
+      );
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
 
@@ -1126,8 +1113,8 @@ export default function NewSnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        170 * TABLE_SCALE,
-        1.05 /* slightly lower angle */,
+        190 * TABLE_SCALE,
+        1.15 /* slightly lower angle */,
         Math.PI
       );
       const updateCamera = () => {
@@ -1283,7 +1270,12 @@ export default function NewSnookerGame() {
       const rectSize = 20;
 
       const makeLight = (x, z, intensity) => {
-        const rect = new THREE.RectAreaLight(0xffffff, intensity, rectSize, rectSize);
+        const rect = new THREE.RectAreaLight(
+          0xffffff,
+          intensity,
+          rectSize,
+          rectSize
+        );
         rect.position.set(x, lightHeight, z);
         rect.lookAt(0, TABLE_Y, 0);
         scene.add(rect);
@@ -1295,7 +1287,12 @@ export default function NewSnookerGame() {
       makeLight(lightX, -lightZ, 26);
 
       // Table
-      const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
+      const {
+        centers,
+        baulkZ,
+        group: table,
+        clothMat: tableCloth
+      } = Table3D(scene);
       clothMat = tableCloth;
       addPocketJaws(scene, PLAY_W, PLAY_H);
       const rug = addRugUnderTable(scene, table);
@@ -2024,14 +2021,20 @@ export default function NewSnookerGame() {
                 alt="player"
                 className="w-10 h-10 rounded-full object-cover border-2 border-yellow-400"
               />
-              <span className={hud.turn === 0 ? 'text-yellow-400' : ''}>{player.name}</span>
+              <span className={hud.turn === 0 ? 'text-yellow-400' : ''}>
+                {player.name}
+              </span>
             </div>
-            <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
+            <div className="text-xl font-bold">
+              {hud.A} - {hud.B}
+            </div>
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-full border-2 border-yellow-400 flex items-center justify-center">
                 <span className="text-3xl leading-none">{aiFlag}</span>
               </div>
-              <span className={hud.turn === 1 ? 'text-yellow-400' : ''}>AI</span>
+              <span className={hud.turn === 1 ? 'text-yellow-400' : ''}>
+                AI
+              </span>
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
