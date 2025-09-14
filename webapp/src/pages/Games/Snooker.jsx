@@ -359,10 +359,7 @@ function makeJawSector(
   const s = new THREE.Shape();
   s.absarc(0, 0, R, start, end, false);
   s.absarc(0, 0, r, end, start, true);
-  const geo = new THREE.ExtrudeGeometry(s, {
-    depth: JAW_H,
-    bevelEnabled: false
-  });
+  const geo = new THREE.ExtrudeGeometry(s, { depth: JAW_H, bevelEnabled: false });
   geo.rotateX(-Math.PI / 2);
   return geo;
 }
@@ -1201,9 +1198,7 @@ export default function NewSnookerGame() {
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
 
@@ -1371,40 +1366,29 @@ export default function NewSnookerGame() {
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      // Position lights above pockets along table edges for softer illumination
+      // Position lights slightly closer to the table center and surface
       const lightHeight = TABLE_Y + 3.0;
-      const pocketX = TABLE.W / 2;
-      const pocketZ = TABLE.H / 2;
+      const lightOffset = 25;
+      const lightX = TABLE.W / 2 - lightOffset;
+      const lightZ = TABLE.H / 2 - lightOffset;
       const rectSize = 20;
 
       const makeLight = (x, z, intensity) => {
-        const rect = new THREE.RectAreaLight(
-          0xffffff,
-          intensity,
-          rectSize,
-          rectSize
-        );
+        const rect = new THREE.RectAreaLight(0xffffff, intensity, rectSize, rectSize);
         rect.position.set(x, lightHeight, z);
-        rect.lookAt(x, TABLE_Y, z);
+        rect.lookAt(0, TABLE_Y, 0);
         scene.add(rect);
       };
 
-      // Four corner pockets
-      makeLight(pocketX, pocketZ, 20);
-      makeLight(-pocketX, pocketZ, 18);
-      makeLight(-pocketX, -pocketZ, 18);
-      makeLight(pocketX, -pocketZ, 18);
-      // Side pockets on the long rails
-      makeLight(0, pocketZ, 18);
-      makeLight(0, -pocketZ, 18);
+      makeLight(lightX, lightZ, 35);
+      makeLight(-lightX, lightZ, 30);
+      makeLight(-lightX, -lightZ, 30);
+      makeLight(lightX, -lightZ, 28);
+      makeLight(lightX, 0, 32);
+      makeLight(-lightX, 0, 32);
 
       // Table
-      const {
-        centers,
-        baulkZ,
-        group: table,
-        clothMat: tableCloth
-      } = Table3D(scene);
+      const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
       clothMat = tableCloth;
       addPocketJaws(scene, PLAY_W, PLAY_H);
       const rug = addRugUnderTable(scene, table);
@@ -2133,20 +2117,14 @@ export default function NewSnookerGame() {
                 alt="player"
                 className="w-10 h-10 rounded-full object-cover border-2 border-yellow-400"
               />
-              <span className={hud.turn === 0 ? 'text-yellow-400' : ''}>
-                {player.name}
-              </span>
+              <span className={hud.turn === 0 ? 'text-yellow-400' : ''}>{player.name}</span>
             </div>
-            <div className="text-xl font-bold">
-              {hud.A} - {hud.B}
-            </div>
+            <div className="text-xl font-bold">{hud.A} - {hud.B}</div>
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-full border-2 border-yellow-400 flex items-center justify-center">
                 <span className="text-3xl leading-none">{aiFlag}</span>
               </div>
-              <span className={hud.turn === 1 ? 'text-yellow-400' : ''}>
-                AI
-              </span>
+              <span className={hud.turn === 1 ? 'text-yellow-400' : ''}>AI</span>
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
