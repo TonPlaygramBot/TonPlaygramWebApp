@@ -331,8 +331,8 @@ function addArenaWalls(scene, rug) {
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(6));
-    pos.y = rug.position.y + wallH - 0.5;
+    const pos = base.clone().add(dir.multiplyScalar(-8));
+    pos.y = rug.position.y + wallH + 2;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
@@ -456,8 +456,8 @@ const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.9925;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const TABLE_Y = -2; // vertical offset to lower entire table
-const TABLE_H = 0.75; // physical height of table used for legs/skirt
+const TABLE_H = 0.75 * 4; // physical height of table used for legs/skirt
+const TABLE_Y = -2 + (TABLE_H - 0.75); // raise table level with longer legs
 const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
