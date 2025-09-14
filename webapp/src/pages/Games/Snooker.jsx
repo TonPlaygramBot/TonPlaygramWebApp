@@ -1269,30 +1269,38 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Position spotlights further from the table, toward the sides and higher
+      // Arrange spotlights in a straight line over the middle of the table
       const lightHeight = TABLE_Y + 25;
-      const lightOffset = 20;
-      const lightX = TABLE.W / 2 + lightOffset;
-      const lightZ = TABLE.H / 2 + lightOffset;
       const rectSize = 30;
+      const sideX = TABLE.W / 2;
+      const zSpacing = TABLE.H / 3;
 
-      const makeLight = (x, z, intensity) => {
-        const rect = new THREE.RectAreaLight(
+      const makeSideLights = (z, intensity) => {
+        const left = new THREE.RectAreaLight(
           0xffffff,
           intensity,
           rectSize,
           rectSize
         );
-        rect.position.set(x, lightHeight, z);
-        rect.lookAt(0, TABLE_Y, 0);
-        scene.add(rect);
+        left.position.set(0, lightHeight, z);
+        left.lookAt(-sideX, TABLE_Y, z);
+        scene.add(left);
+
+        const right = new THREE.RectAreaLight(
+          0xffffff,
+          intensity,
+          rectSize,
+          rectSize
+        );
+        right.position.set(0, lightHeight, z);
+        right.lookAt(sideX, TABLE_Y, z);
+        scene.add(right);
       };
 
-      // one above, one below, one left and one right of the table center
-      makeLight(0, lightZ, 6); // top
-      makeLight(0, -lightZ, 6); // bottom
-      makeLight(-lightX, 0, 6); // left
-      makeLight(lightX, 0, 6); // right
+      // three pairs along the length of the table to cover both sides
+      makeSideLights(-zSpacing, 5);
+      makeSideLights(0, 5);
+      makeSideLights(zSpacing, 5);
 
       // Table
       const {
