@@ -374,17 +374,22 @@ function addPocketJaws(scene, playW, playH) {
     { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
   ];
   const jaws = [];
-  const geo = makeJawSector();
+  const geoCorner = makeJawSector();
+  const geoSide = makeJawSector(POCKET_VIS_R, JAW_T * 0.8);
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.25 : POCKET_VIS_R;
+    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.15 : POCKET_VIS_R;
     const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
-    const jaw = new THREE.Mesh(geo.clone(), jawMat);
+    const geom = entry.type === 'side' ? geoSide.clone() : geoCorner.clone();
+    const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
     jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
+    if (entry.type === 'side') {
+      jaw.rotateY(Math.PI / 2);
+    }
     scene.add(jaw);
     jaws.push(jaw);
   }
@@ -984,6 +989,27 @@ export default function NewSnookerGame() {
       avatar: getTelegramPhotoUrl()
     });
   }, []);
+  useEffect(() => {
+    let wakeLock;
+    const request = async () => {
+      try {
+        wakeLock = await navigator.wakeLock?.request('screen');
+      } catch (e) {
+        console.warn('wakeLock request failed', e);
+      }
+    };
+    request();
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') request();
+    };
+    document.addEventListener('visibilitychange', handleVis);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVis);
+      try {
+        wakeLock?.release();
+      } catch {}
+    };
+  }, []);
   const aiFlag = useMemo(
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
@@ -1387,6 +1413,30 @@ export default function NewSnookerGame() {
       spotExtra.position.set(lightX, lightHeight, -lightZ);
       spotExtra.target.position.set(0, TABLE_Y, 0);
       scene.add(spotExtra, spotExtra.target);
+
+      const spotMidLeft = new THREE.SpotLight(
+        0xffffff,
+        1.8,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
+      spotMidLeft.position.set(lightX, lightHeight, 0);
+      spotMidLeft.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotMidLeft, spotMidLeft.target);
+
+      const spotMidRight = new THREE.SpotLight(
+        0xffffff,
+        1.8,
+        0,
+        fullTableAngle,
+        0.4,
+        1
+      );
+      spotMidRight.position.set(-lightX, lightHeight, 0);
+      spotMidRight.target.position.set(0, TABLE_Y, 0);
+      scene.add(spotMidRight, spotMidRight.target);
 
       // Table
       const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
