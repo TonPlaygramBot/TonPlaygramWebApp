@@ -262,13 +262,8 @@ function addRugUnderTable(scene, table) {
   const size = box.getSize(new THREE.Vector3());
   const rugWidth = size.x * 4 * 0.7; // 30% smaller carpet around the table
   const rugHeight = size.z * 4 * 0.7; // 30% smaller carpet around the table
-  const tex = makeRugTexture();
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.anisotropy = 8;
-  tex.center.set(0.5, 0.5);
-  tex.rotation = Math.PI / 2; // align long side with table length
   const rugMat = new THREE.MeshStandardMaterial({
-    map: tex,
+    color: 0x444444,
     roughness: 0.96,
     metalness: 0.05
   });
@@ -292,7 +287,7 @@ function addArenaWalls(scene, rug) {
   const rugWidth = rug.geometry.parameters.width;
   const rugHeight = rug.geometry.parameters.height;
   const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x8b8000,
+    color: 0xcccccc,
     roughness: 0.8,
     metalness: 0.2,
     side: THREE.DoubleSide
@@ -332,15 +327,15 @@ function addArenaWalls(scene, rug) {
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(12));
-    pos.y = rug.position.y + wallH + 15;
+    const pos = base.clone().add(dir.multiplyScalar(20));
+    pos.y = rug.position.y + wallH + 25;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
   };
 
-  const sideOffset = rugWidth * 0.9;
+  const sideOffset = rugWidth * 1.1;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
@@ -357,7 +352,7 @@ function addArenaWalls(scene, rug) {
       )
     );
   });
-  const endOffset = rugHeight * 0.4;
+  const endOffset = rugHeight * 0.55;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
