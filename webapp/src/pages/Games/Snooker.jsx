@@ -321,54 +321,6 @@ function addArenaWalls(scene, rug) {
   );
   walls.add(north, south, west, east);
   scene.add(walls);
-  const addSpot = (base) => {
-    const s = new THREE.SpotLight(0xffffff, 0.003, 0, Math.PI * 0.6, 0.5, 1);
-    const dir = new THREE.Vector3()
-      .subVectors(base, rug.position)
-      .setY(0)
-      .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(80));
-    pos.y = rug.position.y + wallH + 80;
-    s.position.copy(pos);
-    s.target.position.set(rug.position.x, 0, rug.position.z);
-    scene.add(s);
-    scene.add(s.target);
-  };
-
-  const sideOffset = rugWidth * 1.5;
-  [-1, 1].forEach((sign) => {
-    addSpot(
-      new THREE.Vector3(
-        north.position.x + sign * sideOffset,
-        north.position.y,
-        north.position.z
-      )
-    );
-    addSpot(
-      new THREE.Vector3(
-        south.position.x + sign * sideOffset,
-        south.position.y,
-        south.position.z
-      )
-    );
-  });
-  const endOffset = rugHeight * 0.9;
-  [-1, 1].forEach((sign) => {
-    addSpot(
-      new THREE.Vector3(
-        east.position.x,
-        east.position.y,
-        east.position.z + sign * endOffset
-      )
-    );
-    addSpot(
-      new THREE.Vector3(
-        west.position.x,
-        west.position.y,
-        west.position.z + sign * endOffset
-      )
-    );
-  });
   return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
@@ -1317,11 +1269,6 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-      scene.add(new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1));
-      const dir = new THREE.DirectionalLight(0xffffff, 1.4);
-      dir.position.set(-2.5, 4, 2);
-      scene.add(dir);
       // Position spotlights further from the table, toward the sides and higher
       const lightHeight = TABLE_Y + 25;
       const lightOffset = 20;
