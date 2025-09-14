@@ -1275,14 +1275,14 @@ function SnookerGame() {
       const lightX = TABLE.W / 2 + lightOffset;
       const rectSize = 30;
 
-      const makeLight = (z, intensity) => {
+      const makeLight = (x, z, intensity) => {
         const rect = new THREE.RectAreaLight(
           0xffffff,
           intensity,
           rectSize,
           rectSize
         );
-        rect.position.set(lightX, lightHeight, z);
+        rect.position.set(x, lightHeight, z);
         rect.lookAt(0, TABLE_Y, z);
         scene.add(rect);
       };
@@ -1294,7 +1294,17 @@ function SnookerGame() {
           TABLE.H / 2,
           (i + 0.5) / 4
         );
-        makeLight(z, 6);
+        makeLight(lightX, z, 6);
+      }
+
+      // four spotlights mirrored on the left side of the table
+      for (let i = 0; i < 4; i++) {
+        const z = THREE.MathUtils.lerp(
+          -TABLE.H / 2,
+          TABLE.H / 2,
+          (i + 0.5) / 4
+        );
+        makeLight(-lightX, z, 6);
       }
 
       // Table
