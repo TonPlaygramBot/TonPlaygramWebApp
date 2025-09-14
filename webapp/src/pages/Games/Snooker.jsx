@@ -739,9 +739,14 @@ function Table3D(scene) {
   skirt.position.y = -TABLE.THICK - TABLE_H * 0.1;
   table.add(skirt);
 
-  // tall table legs to raise overall table level
-  const legGeo = new THREE.CylinderGeometry(3, 3, TABLE_H, 12);
-  const legY = -TABLE.THICK - TABLE_H / 2;
+  // oversize wooden table legs at the four corners,
+  // sized three times larger than the pocket cylinders
+  const pocketRadius = 6.2 * 0.5; // radius used for pocket holes
+  const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
+  const legRadius = pocketRadius * 3;
+  const legHeight = pocketHeight * 3;
+  const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 12);
+  const legY = -TABLE.THICK - legHeight / 2;
   [
     [outerHalfW - 6, outerHalfH - 6],
     [-outerHalfW + 6, outerHalfH - 6],
@@ -1270,7 +1275,7 @@ function SnookerGame() {
 
       // Lights
       // Place three spotlights centered above the table with a wider beam
-      const lightHeight = TABLE_Y + 40;
+      const lightHeight = TABLE_Y + 50;
       const rectSize = 40;
       const lightIntensity = 8;
 
