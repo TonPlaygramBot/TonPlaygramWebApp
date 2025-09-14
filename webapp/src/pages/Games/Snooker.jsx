@@ -1721,10 +1721,7 @@ function SnookerGame() {
       }
 
       // Loop
-      let lastTime = performance.now();
-      const step = (time) => {
-        const dt = (time - lastTime) / 1000;
-        lastTime = time;
+      const step = () => {
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
         aimDir.lerp(tmpAim, 0.2);
@@ -1792,8 +1789,8 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
-          b.pos.addScaledVector(b.vel, dt);
-          b.vel.multiplyScalar(Math.pow(FRICTION, dt * 60));
+          b.pos.add(b.vel);
+          b.vel.multiplyScalar(FRICTION);
           const speed = b.vel.length();
           if (speed < STOP_EPS) b.vel.set(0, 0);
           reflectRails(b);
@@ -1870,7 +1867,7 @@ function SnookerGame() {
         renderer.render(scene, camera);
         rafRef.current = requestAnimationFrame(step);
       };
-      rafRef.current = requestAnimationFrame(step);
+      step();
 
       // Resize
       const onResize = () => {
