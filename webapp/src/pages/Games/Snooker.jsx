@@ -326,20 +326,20 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
   const addSpot = (base) => {
-    const s = new THREE.SpotLight(0xffffff, 0.2, 0, Math.PI * 0.6, 0.5, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.1, 0, Math.PI * 0.6, 0.5, 1);
     const dir = new THREE.Vector3()
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(-6));
-    pos.y = rug.position.y + wallH + 6;
+    const pos = base.clone().add(dir.multiplyScalar(4));
+    pos.y = rug.position.y + wallH + 8;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
   };
 
-  const sideOffset = rugWidth * 0.6;
+  const sideOffset = rugWidth * 0.7;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
