@@ -456,9 +456,11 @@ const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.995;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const LEG_SCALE = 4; // scale factor for table leg height
+// Make the four round legs taller to lift the entire table
+const LEG_SCALE = 4;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
-const TABLE_Y = -2 + (TABLE_H - 0.75); // raise table level with longer legs
+// raise overall table position so the longer legs are visible
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -1309,11 +1311,11 @@ export default function NewSnookerGame() {
       const dir = new THREE.DirectionalLight(0xffffff, 1.4);
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
-      // Position lights farther to the sides, higher up, and with a wider spread
-      const lightHeight = TABLE_Y + 6;
-      const lightOffset = 5;
-      const lightX = TABLE.W / 2 - lightOffset;
-      const lightZ = TABLE.H / 2 - lightOffset;
+      // Position lights farther from center, slightly higher, and dimmer
+      const lightHeight = TABLE_Y + 8;
+      const lightOffset = 8;
+      const lightX = TABLE.W / 2 + lightOffset;
+      const lightZ = TABLE.H / 2 + lightOffset;
       const rectSize = 30;
 
       const makeLight = (x, z, intensity) => {
@@ -1329,10 +1331,10 @@ export default function NewSnookerGame() {
       };
 
       // one above, one below, one left and one right of the table center
-      makeLight(0, lightZ, 30); // top
-      makeLight(0, -lightZ, 28); // bottom
-      makeLight(-lightX, 0, 28); // left
-      makeLight(lightX, 0, 26); // right
+      makeLight(0, lightZ, 20); // top
+      makeLight(0, -lightZ, 18); // bottom
+      makeLight(-lightX, 0, 18); // left
+      makeLight(lightX, 0, 16); // right
 
       // Table
       const {
