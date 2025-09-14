@@ -628,29 +628,15 @@ function Guret(parent, id, color, x, y) {
 
 function Table3D(scene) {
   const table = new THREE.Group();
-  const halfW = PLAY_W / 2,
-    halfH = PLAY_H / 2;
+  const halfW = PLAY_W / 2;
+  const halfH = PLAY_H / 2;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.95,
-    sheen: 1.0,
-    sheenRoughness: 0.8
+    roughness: 0.97,
+    sheen: 0.6,
+    sheenRoughness: 0.9
   });
-  const clothHeight = makeFbmHeightCanvas(512, 6);
-  const clothColorTex = new THREE.CanvasTexture(
-    makeColorCanvasFromHeight(clothHeight)
-  );
-  const clothNormalTex = new THREE.CanvasTexture(
-    heightToNormalCanvas(clothHeight, 4.0)
-  );
-  clothColorTex.wrapS = clothColorTex.wrapT = THREE.RepeatWrapping;
-  clothNormalTex.wrapS = clothNormalTex.wrapT = THREE.RepeatWrapping;
-  clothColorTex.repeat.set(16, 16);
-  clothNormalTex.repeat.set(16, 16);
-  clothMat.map = clothColorTex;
-  clothMat.normalMap = clothNormalTex;
-  clothMat.normalScale.set(0.4, 0.4);
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -663,7 +649,6 @@ function Table3D(scene) {
     roughness: 0.8
   });
 
-  // Cloth with pocket holes
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
   shape.lineTo(halfW, -halfH);
@@ -672,73 +657,57 @@ function Table3D(scene) {
   shape.lineTo(-halfW, -halfH);
   pocketCenters().forEach((p) => {
     const h = new THREE.Path();
-    h.absellipse(
-      p.x,
-      p.y,
-      POCKET_VIS_R * 0.9,
-      POCKET_VIS_R * 0.9,
-      0,
-      Math.PI * 2
-    );
+    h.absellipse(p.x, p.y, 6, 6, 0, Math.PI * 2);
     shape.holes.push(h);
   });
-  const extrude = new THREE.ExtrudeGeometry(shape, {
+  const clothGeo = new THREE.ExtrudeGeometry(shape, {
     depth: TABLE.THICK,
     bevelEnabled: false
   });
-  const cloth = new THREE.Mesh(extrude, clothMat);
+  const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
   table.add(cloth);
 
-  // Markings
-  const markingMat = new THREE.LineBasicMaterial({ color: COLORS.markings });
-  const markingMeshMat = new THREE.MeshBasicMaterial({
+  const markingMat = new THREE.LineBasicMaterial({
     color: COLORS.markings,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: 1
+    linewidth: 2
   });
   const baulkZ = -PLAY_H / 4;
-  const baulkGeom = new THREE.PlaneGeometry(PLAY_W, BALL_R * 0.1);
-  const baulkLine = new THREE.Mesh(baulkGeom, markingMeshMat);
-  baulkLine.rotation.x = -Math.PI / 2;
-  baulkLine.position.set(0, 0.01, baulkZ);
+  const baulkGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-halfW, 0.02, baulkZ),
+    new THREE.Vector3(halfW, 0.02, baulkZ)
+  ]);
+  const baulkLine = new THREE.Line(baulkGeom, markingMat);
   table.add(baulkLine);
-
   const dRadius = PLAY_W * 0.15;
-  const dThickness = BALL_R * 0.1;
-  const dGeom = new THREE.RingGeometry(
-    dRadius - dThickness,
-    dRadius,
-    32,
-    1,
-    Math.PI,
-    Math.PI
-  );
-  const dMesh = new THREE.Mesh(dGeom, markingMeshMat);
-  dMesh.rotation.x = -Math.PI / 2;
-  dMesh.position.set(0, 0.01, baulkZ);
-  table.add(dMesh);
+  const dCurve = new THREE.ArcCurve(0, baulkZ, dRadius, 0, Math.PI, false);
+  const dPoints = dCurve
+    .getPoints(64)
+    .map((p) => new THREE.Vector3(p.x, 0.02, p.y));
+  const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
+  const dLine = new THREE.Line(dGeom, markingMat);
+  table.add(dLine);
 
-  const spots = spotPositions(baulkZ);
-  const spotRadius = BALL_R * 0.15;
-  const spotGeom = new THREE.CircleGeometry(spotRadius, 32);
-  const spotMat = new THREE.MeshBasicMaterial({ color: COLORS.markings });
-  Object.values(spots).forEach(([x, z]) => {
-    const s = new THREE.Mesh(spotGeom, spotMat);
-    s.rotation.x = -Math.PI / 2;
-    s.position.set(x, 0.015, z);
-    s.matrixAutoUpdate = false;
-    s.updateMatrix();
-    table.add(s);
-  });
+  function addSpot(x, z) {
+    const spotGeo = new THREE.CircleGeometry(0.5, 32);
+    const spotMat = new THREE.MeshBasicMaterial({
+      color: COLORS.markings
+    });
+    const spot = new THREE.Mesh(spotGeo, spotMat);
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(x, 0.021, z);
+    table.add(spot);
+  }
+  addSpot(0, baulkZ);
+  addSpot(-PLAY_W * 0.25, baulkZ);
+  addSpot(PLAY_W * 0.25, baulkZ);
+  addSpot(0, 0);
+  addSpot(0, PLAY_H * 0.25);
+  addSpot(0, PLAY_H * 0.5 - PLAY_H * 0.05);
 
-  // Side rails
   const railH = TABLE.THICK * 2.0;
-  const railW = TABLE.WALL * 0.9;
+  const railW = (TABLE.WALL * 0.9) * 0.5;
   const FRAME_W = railW * 2.5;
   const outerHalfW = halfW + 2 * railW + FRAME_W;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
@@ -765,15 +734,15 @@ function Table3D(scene) {
   frame.position.y = -TABLE.THICK + 0.01;
   table.add(frame);
 
-  // Cushions
   const cushionRaiseY = -TABLE.THICK + 0.02;
-  const cushionExtend = POCKET_VIS_R * 0.85;
+  const cushionW = TABLE.WALL * 0.9 * 1.08;
+  const cushionExtend = 6 * 0.85;
   function cushionProfile(len) {
-    const L = len + cushionExtend;
+    const L = len + cushionExtend + 6;
     const half = L / 2;
-    const backY = railW / 2;
-    const frontY = -railW / 2;
-    const cut = railW / Math.tan(THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE));
+    const backY = cushionW / 2;
+    const frontY = -cushionW / 2;
+    const cut = cushionW / Math.tan(THREE.MathUtils.degToRad(30));
     const s = new THREE.Shape();
     s.moveTo(-half, backY);
     s.lineTo(half, backY);
@@ -784,22 +753,8 @@ function Table3D(scene) {
       depth: railH,
       bevelEnabled: false
     });
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      const tFront = THREE.MathUtils.clamp(
-        (backY - y) / (backY - frontY),
-        0,
-        1
-      );
-      if (tFront > 0) pos.setZ(i, z * (1.0 - tFront));
-    }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
     return geo;
   }
-
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfile(len);
     const mesh = new THREE.Mesh(geo, cushionMat);
@@ -814,10 +769,11 @@ function Table3D(scene) {
       g.rotation.y = Math.PI;
     }
     table.add(g);
+    if (!table.userData.cushions) table.userData.cushions = [];
+    table.userData.cushions.push(g);
   }
-
-  const horizLen = PLAY_W - 2 * POCKET_VIS_R;
-  const vertSeg = PLAY_H / 2 - 2 * POCKET_VIS_R;
+  const horizLen = PLAY_W - 12;
+  const vertSeg = PLAY_H / 2 - 12;
   const CUSHION_LEN = Math.min(horizLen, vertSeg);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
@@ -826,14 +782,14 @@ function Table3D(scene) {
   addCushion(0, bottomZ, CUSHION_LEN, true, false);
   addCushion(
     leftX,
-    -halfH + POCKET_VIS_R + vertSeg / 2,
+    -halfH + 6 + vertSeg / 2,
     CUSHION_LEN,
     false,
     false
   );
   addCushion(
     rightX,
-    halfH - POCKET_VIS_R - vertSeg / 2,
+    halfH - 6 - vertSeg / 2,
     CUSHION_LEN,
     false,
     true
@@ -841,103 +797,56 @@ function Table3D(scene) {
   addCushion(0, topZ, CUSHION_LEN, true, true);
   addCushion(
     leftX,
-    halfH - POCKET_VIS_R - vertSeg / 2,
+    halfH - 6 - vertSeg / 2,
     CUSHION_LEN,
     false,
     false
   );
   addCushion(
     rightX,
-    -halfH + POCKET_VIS_R + vertSeg / 2,
+    -halfH + 6 + vertSeg / 2,
     CUSHION_LEN,
     false,
     true
   );
 
-  // Skirt & legs
-  const skirtH = TABLE_H * 0.4;
-  const outerHalfW2 = outerHalfW;
-  const outerHalfH2 = outerHalfH;
-  const skirtT = railW * 2.5 * 0.8;
-  const skirtShape = new THREE.Shape();
-  const outW = outerHalfW2 + skirtT * 0.2;
-  const outH = outerHalfH2 + skirtT * 0.2;
-  skirtShape.moveTo(-outW, -outH);
-  skirtShape.lineTo(outW, -outH);
-  skirtShape.lineTo(outW, outH);
-  skirtShape.lineTo(-outW, outH);
-  skirtShape.lineTo(-outW, -outH);
-  const innerS = new THREE.Path();
-  innerS.moveTo(
-    -(halfW + 2 * railW + FRAME_W - railW),
-    -(halfH + 2 * railW + FRAME_W - railW)
-  );
-  innerS.lineTo(
-    halfW + 2 * railW + FRAME_W - railW,
-    -(halfH + 2 * railW + FRAME_W - railW)
-  );
-  innerS.lineTo(
-    halfW + 2 * railW + FRAME_W - railW,
-    halfH + 2 * railW + FRAME_W - railW
-  );
-  innerS.lineTo(
-    -(halfW + 2 * railW + FRAME_W - railW),
-    halfH + 2 * railW + FRAME_W - railW
-  );
-  innerS.lineTo(
-    -(halfW + 2 * railW + FRAME_W - railW),
-    -(halfH + 2 * railW + FRAME_W - railW)
-  );
-  skirtShape.holes.push(innerS);
-  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
-    depth: skirtH,
-    bevelEnabled: false
-  });
-  const skirt = new THREE.Mesh(skirtGeo, woodMat);
-  skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = -TABLE.THICK - skirtH * 0.8;
-  table.add(skirt);
-
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
-  const legH = TABLE_H;
-  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legPositions = [
-    [-outerHalfW2 + FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, -outerHalfH2 + FRAME_W * 0.6],
-    [-outerHalfW2 + FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6],
-    [outerHalfW2 - FRAME_W * 0.6, outerHalfH2 - FRAME_W * 0.6]
-  ];
-  legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(lx, -TABLE.THICK - legH / 2, lz);
-    table.add(leg);
+  if (!table.userData.pockets) table.userData.pockets = [];
+  pocketCenters().forEach((p) => {
+    const cut = new THREE.Mesh(
+      new THREE.CylinderGeometry(6.2, 6.2, railH * 3.0, 48),
+      new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
+    );
+    cut.rotation.set(0, 0, 0);
+    cut.position.set(p.x, -TABLE.THICK - 0.004, p.y);
+    cut.scale.set(0.5, 1.15, 0.5);
+    table.add(cut);
+    table.userData.pockets.push(cut);
   });
 
-  // Crossbars connecting table legs
-  const braceT = legR * 0.6;
-  const braceY = -TABLE.THICK - legH + braceT / 2;
-  const spanX = Math.abs(legPositions[0][0] - legPositions[1][0]) + legR * 2;
-  const spanZ = Math.abs(legPositions[0][1] - legPositions[2][1]) + legR * 2;
-  const braceGeoX = new THREE.BoxGeometry(spanX, braceT, braceT);
-  const braceGeoZ = new THREE.BoxGeometry(braceT, braceT, spanZ);
-  const braceFront = new THREE.Mesh(braceGeoX, woodMat);
-  braceFront.position.set(0, braceY, -outerHalfH2 + FRAME_W * 0.6);
-  const braceBack = new THREE.Mesh(braceGeoX, woodMat);
-  braceBack.position.set(0, braceY, outerHalfH2 - FRAME_W * 0.6);
-  const braceLeft = new THREE.Mesh(braceGeoZ, woodMat);
-  braceLeft.position.set(-outerHalfW2 + FRAME_W * 0.6, braceY, 0);
-  const braceRight = new THREE.Mesh(braceGeoZ, woodMat);
-  braceRight.position.set(outerHalfW2 - FRAME_W * 0.6, braceY, 0);
-  table.add(braceFront, braceBack, braceLeft, braceRight);
-
-  console.assert(
-    typeof railW !== 'undefined',
-    '[TEST] railW should be defined once'
-  );
-  console.assert(
-    typeof FRAME_W !== 'undefined',
-    '[TEST] FRAME_W should be defined once'
-  );
+  const degFrom = 30;
+  const degTo = 32;
+  const cot = (d) => 1 / Math.tan(THREE.MathUtils.degToRad(d));
+  const dCutAdjust = cushionW * cot(degTo) - cushionW * cot(degFrom);
+  if (table.userData.cushions) {
+    table.userData.cushions.forEach((g) => {
+      g.traverse((node) => {
+        if (node.isMesh && node.material === cushionMat) {
+          const geo = node.geometry;
+          const pos = geo.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            const y = pos.getY(i);
+            if (y <= -cushionW / 2 + 1e-3) {
+              const x = pos.getX(i);
+              const dir = Math.sign(x) || 1;
+              pos.setX(i, x + dir * dCutAdjust);
+            }
+          }
+          pos.needsUpdate = true;
+          geo.computeVertexNormals();
+        }
+      });
+    });
+  }
 
   table.position.y = TABLE_Y;
   scene.add(table);
@@ -1368,7 +1277,7 @@ export default function NewSnookerGame() {
       scene.add(dir);
       // Position lights slightly closer to the table center and surface
       const lightHeight = TABLE_Y + 3.0;
-      const lightOffset = 25;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
       const rectSize = 20;
@@ -1380,12 +1289,10 @@ export default function NewSnookerGame() {
         scene.add(rect);
       };
 
-      makeLight(lightX, lightZ, 35);
-      makeLight(-lightX, lightZ, 30);
-      makeLight(-lightX, -lightZ, 30);
-      makeLight(lightX, -lightZ, 28);
-      makeLight(lightX, 0, 32);
-      makeLight(-lightX, 0, 32);
+      makeLight(lightX, lightZ, 30);
+      makeLight(-lightX, lightZ, 28);
+      makeLight(-lightX, -lightZ, 28);
+      makeLight(lightX, -lightZ, 26);
 
       // Table
       const { centers, baulkZ, group: table, clothMat: tableCloth } = Table3D(scene);
