@@ -1323,8 +1323,8 @@ function SnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       // Position spotlights further from the table, toward the sides and higher
-      const lightHeight = TABLE_Y + 12;
-      const lightOffset = 12;
+      const lightHeight = TABLE_Y + 15;
+      const lightOffset = 15;
       const lightX = TABLE.W / 2 + lightOffset;
       const lightZ = TABLE.H / 2 + lightOffset;
       const rectSize = 30;
@@ -1342,10 +1342,10 @@ function SnookerGame() {
       };
 
       // one above, one below, one left and one right of the table center
-      makeLight(0, lightZ, 20); // top
-      makeLight(0, -lightZ, 18); // bottom
-      makeLight(-lightX, 0, 18); // left
-      makeLight(lightX, 0, 16); // right
+      makeLight(0, lightZ, 8); // top
+      makeLight(0, -lightZ, 8); // bottom
+      makeLight(-lightX, 0, 8); // left
+      makeLight(lightX, 0, 8); // right
 
       // Table
       const {
