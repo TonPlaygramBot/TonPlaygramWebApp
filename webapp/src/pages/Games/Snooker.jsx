@@ -322,20 +322,20 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
   const addSpot = (base) => {
-    const s = new THREE.SpotLight(0xffffff, 0.005, 0, Math.PI * 0.6, 0.5, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.003, 0, Math.PI * 0.6, 0.5, 1);
     const dir = new THREE.Vector3()
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(60));
-    pos.y = rug.position.y + wallH + 60;
+    const pos = base.clone().add(dir.multiplyScalar(80));
+    pos.y = rug.position.y + wallH + 80;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
   };
 
-  const sideOffset = rugWidth * 1.3;
+  const sideOffset = rugWidth * 1.5;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
@@ -352,7 +352,7 @@ function addArenaWalls(scene, rug) {
       )
     );
   });
-  const endOffset = rugHeight * 0.75;
+  const endOffset = rugHeight * 0.9;
   [-1, 1].forEach((sign) => {
     addSpot(
       new THREE.Vector3(
@@ -1323,8 +1323,8 @@ function SnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       // Position spotlights further from the table, toward the sides and higher
-      const lightHeight = TABLE_Y + 15;
-      const lightOffset = 15;
+      const lightHeight = TABLE_Y + 25;
+      const lightOffset = 20;
       const lightX = TABLE.W / 2 + lightOffset;
       const lightZ = TABLE.H / 2 + lightOffset;
       const rectSize = 30;
@@ -1342,10 +1342,10 @@ function SnookerGame() {
       };
 
       // one above, one below, one left and one right of the table center
-      makeLight(0, lightZ, 8); // top
-      makeLight(0, -lightZ, 8); // bottom
-      makeLight(-lightX, 0, 8); // left
-      makeLight(lightX, 0, 8); // right
+      makeLight(0, lightZ, 6); // top
+      makeLight(0, -lightZ, 6); // bottom
+      makeLight(-lightX, 0, 6); // left
+      makeLight(lightX, 0, 6); // right
 
       // Table
       const {
