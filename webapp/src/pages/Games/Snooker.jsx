@@ -686,12 +686,14 @@ function Table3D(scene) {
 
   function addSpot(x, z) {
     const spotGeo = new THREE.CircleGeometry(0.5, 32);
-    const spotMat = new THREE.MeshBasicMaterial({
-      color: COLORS.markings
+    const spotMat = new THREE.MeshStandardMaterial({
+      color: COLORS.markings,
+      emissive: COLORS.markings,
+      emissiveIntensity: 0.5
     });
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, 0.021, z);
+    spot.position.set(x, 0.03, z);
     table.add(spot);
   }
   addSpot(0, baulkZ);
@@ -1270,7 +1272,7 @@ function SnookerGame() {
 
       // Lights
       // Position spotlights further from the table, toward the sides and higher
-      const lightHeight = TABLE_Y + 30;
+      const lightHeight = TABLE_Y + 40;
       const lightOffset = 20;
       const lightX = TABLE.W / 2 + lightOffset;
       const rectSize = 30;
@@ -1294,7 +1296,7 @@ function SnookerGame() {
           TABLE.H / 2,
           (i + 0.5) / 3
         );
-        makeLight(lightX, z, 6);
+        makeLight(lightX, z, 8);
       }
 
       // three spotlights mirrored on the left side of the table
@@ -1304,7 +1306,7 @@ function SnookerGame() {
           TABLE.H / 2,
           (i + 0.5) / 3
         );
-        makeLight(-lightX, z, 6);
+        makeLight(-lightX, z, 8);
       }
 
       // Table
