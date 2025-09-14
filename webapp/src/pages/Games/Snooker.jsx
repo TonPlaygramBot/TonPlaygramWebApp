@@ -325,20 +325,39 @@ function addArenaWalls(scene, rug) {
   );
   walls.add(north, south, west, east);
   scene.add(walls);
-
-  [north, south, west, east].forEach((w) => {
-    const s = new THREE.SpotLight(0xffffff, 0.45, 0, Math.PI * 0.35, 0.4, 1);
+  const addSpot = (base) => {
+    const s = new THREE.SpotLight(0xffffff, 0.35, 0, Math.PI * 0.35, 0.4, 1);
     const dir = new THREE.Vector3()
-      .subVectors(w.position, rug.position)
+      .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = new THREE.Vector3().copy(w.position).add(dir.multiplyScalar(5));
+    const pos = base.clone().add(dir.multiplyScalar(6));
     pos.y = rug.position.y + wallH - 0.5;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
     scene.add(s.target);
+  };
+
+  const sideOffset = rugWidth * 0.25;
+  [-1, 1].forEach((sign) => {
+    addSpot(
+      new THREE.Vector3(
+        north.position.x + sign * sideOffset,
+        north.position.y,
+        north.position.z
+      )
+    );
+    addSpot(
+      new THREE.Vector3(
+        south.position.x + sign * sideOffset,
+        south.position.y,
+        south.position.z
+      )
+    );
   });
+  addSpot(east.position.clone());
+  addSpot(west.position.clone());
   return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
@@ -797,13 +816,16 @@ function Table3D(scene) {
 
   if (!table.userData.pockets) table.userData.pockets = [];
   pocketCenters().forEach((p) => {
+    const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
-      new THREE.CylinderGeometry(6.2, 6.2, railH * 3.0, 48),
+      new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
       new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
     );
     cut.rotation.set(0, 0, 0);
-    cut.position.set(p.x, -TABLE.THICK - 0.004, p.y);
-    cut.scale.set(0.5, 1.15, 0.5);
+    const scaleY = 1.15;
+    cut.scale.set(0.5, scaleY, 0.5);
+    const half = (cutHeight * scaleY) / 2;
+    cut.position.set(p.x, -half - 0.01, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
   });
@@ -1113,8 +1135,8 @@ export default function NewSnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        190 * TABLE_SCALE,
-        1.15 /* slightly lower angle */,
+        200 * TABLE_SCALE,
+        1.25 /* slightly lower angle */, 
         Math.PI
       );
       const updateCamera = () => {
@@ -1294,7 +1316,6 @@ export default function NewSnookerGame() {
         clothMat: tableCloth
       } = Table3D(scene);
       clothMat = tableCloth;
-      addPocketJaws(scene, PLAY_W, PLAY_H);
       const rug = addRugUnderTable(scene, table);
       const arena = addArenaWalls(scene, rug);
 
