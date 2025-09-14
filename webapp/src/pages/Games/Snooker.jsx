@@ -326,14 +326,13 @@ function addArenaWalls(scene, rug) {
   walls.add(north, south, west, east);
   scene.add(walls);
   const addSpot = (base) => {
-    // Move spotlights farther from the table, raise them higher and widen the cone
-    const s = new THREE.SpotLight(0xffffff, 0.35, 0, Math.PI * 0.6, 0.4, 1);
+    const s = new THREE.SpotLight(0xffffff, 0.35, 0, Math.PI * 0.45, 0.4, 1);
     const dir = new THREE.Vector3()
       .subVectors(base, rug.position)
       .setY(0)
       .normalize();
-    const pos = base.clone().add(dir.multiplyScalar(-5));
-    pos.y = rug.position.y + wallH + 6;
+    const pos = base.clone().add(dir.multiplyScalar(-3));
+    pos.y = rug.position.y + wallH + 4;
     s.position.copy(pos);
     s.target.position.set(rug.position.x, 0, rug.position.z);
     scene.add(s);
@@ -742,21 +741,6 @@ function Table3D(scene) {
   const outerHalfW = halfW + 2 * railW + FRAME_W;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
 
-  // Taller table legs for a higher table level
-  const legSize = 4;
-  const legGeo = new THREE.BoxGeometry(legSize, TABLE_H, legSize);
-  const legY = -TABLE.THICK - TABLE_H / 2;
-  [
-    [outerHalfW - legSize / 2, outerHalfH - legSize / 2],
-    [-outerHalfW + legSize / 2, outerHalfH - legSize / 2],
-    [outerHalfW - legSize / 2, -outerHalfH + legSize / 2],
-    [-outerHalfW + legSize / 2, -outerHalfH + legSize / 2]
-  ].forEach(([x, z]) => {
-    const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(x, legY, z);
-    table.add(leg);
-  });
-
   const frameShape = new THREE.Shape();
   frameShape.moveTo(-outerHalfW, -outerHalfH);
   frameShape.lineTo(outerHalfW, -outerHalfH);
@@ -1116,7 +1100,7 @@ export default function NewSnookerGame() {
       screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
-        antialias: false,
+        antialias: true,
         alpha: false,
         powerPreference: 'high-performance'
       });
@@ -1124,10 +1108,9 @@ export default function NewSnookerGame() {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      // Lower pixel ratio and simplify shadows for better performance
-      renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.BasicShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -1303,11 +1286,11 @@ export default function NewSnookerGame() {
       dir.position.set(-2.5, 4, 2);
       scene.add(dir);
       // Position lights farther to the sides, higher up, and with a wider spread
-      const lightHeight = TABLE_Y + 8;
-      const lightOffset = 7;
+      const lightHeight = TABLE_Y + 6;
+      const lightOffset = 5;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
-      const rectSize = 40;
+      const rectSize = 30;
 
       const makeLight = (x, z, intensity) => {
         const rect = new THREE.RectAreaLight(
