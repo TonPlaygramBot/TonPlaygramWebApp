@@ -325,11 +325,13 @@ function addArenaWalls(scene, rug) {
   );
   walls.add(north, south, west, east);
   scene.add(walls);
-
-  [north, south, west, east].forEach((w) => {
-    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.35, 0.4, 1);
-    s.position.set(w.position.x, rug.position.y + wallH - 0.5, w.position.z);
-    s.target.position.set(rug.position.x, 0, rug.position.z);
+  const lightY = rug.position.y + wallH - 0.5;
+  const tableLength = TABLE.H;
+  const offsets = [-tableLength / 3, 0, tableLength / 3];
+  offsets.forEach((dz) => {
+    const s = new THREE.SpotLight(0xffffff, 0.6, 0, Math.PI * 0.5, 0.4, 1);
+    s.position.set(rug.position.x, lightY, rug.position.z + dz);
+    s.target.position.set(rug.position.x, 0, rug.position.z + dz);
     scene.add(s);
     scene.add(s.target);
   });
