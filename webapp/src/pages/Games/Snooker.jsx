@@ -1365,7 +1365,7 @@ export default function NewSnookerGame() {
       scene.add(dir);
       const fullTableAngle = Math.PI / 2;
       const lightHeight = TABLE_Y + 4.5;
-      const lightOffset = 20;
+      const lightOffset = 15;
       const lightX = TABLE.W / 2 - lightOffset;
       const lightZ = TABLE.H / 2 - lightOffset;
 
