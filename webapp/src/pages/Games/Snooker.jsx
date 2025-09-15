@@ -151,10 +151,10 @@ function makeColorCanvasFromHeight(
 function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
-  // draw tighter diagonal cloth lines for better visibility
-  hctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  hctx.lineWidth = 1.5;
-  const step = 4;
+  // draw more pronounced cloth lines with closer spacing
+  hctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  hctx.lineWidth = 2;
+  const step = 3;
   hctx.save();
   hctx.translate(size / 2, size / 2);
   hctx.rotate(Math.PI / 4);
@@ -459,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 0.5; // pull cue stick farther back so tip and ring are visible
+const CUE_TIP_GAP = BALL_R * 0.8; // pull cue stick farther back so tip and ring are visible
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -516,6 +516,10 @@ const fitRadius = (camera, margin = 1.1) => {
   const r = Math.max(dzH, dzW) * 1.2;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
+
+// preset spherical positions for standing and cue-shot camera views
+const STAND_VIEW = { radius: 420 * TABLE_SCALE, phi: 1.3 };
+const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 
 // --------------------------------------------------
 // Utilities
@@ -945,6 +949,7 @@ function SnookerGame() {
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
+  const cameraModeRef = useRef('stand');
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
@@ -1192,10 +1197,10 @@ function SnookerGame() {
         CAMERA.near,
         CAMERA.far
       );
-      // Start farther back and a touch lower for a wider opening view
+      // default to the standing player view
       const sph = new THREE.Spherical(
-        300 * TABLE_SCALE,
-        0.9 /* slightly lower angle */,
+        STAND_VIEW.radius,
+        STAND_VIEW.phi,
         Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
       // keep orbit camera above the cloth and outside the side rails
@@ -1225,12 +1230,17 @@ function SnookerGame() {
       };
       const fit = (m = 1.2) => {
         camera.aspect = host.clientWidth / host.clientHeight;
-        const baseR = fitRadius(camera, m);
         const maxPhi = Math.min(phiCap, CAMERA.maxPhi);
-        const clampedPhi = clamp(sph.phi, CAMERA.minPhi, maxPhi);
-        sph.phi = clampedPhi;
-        const t = (clampedPhi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
-        const r = THREE.MathUtils.lerp(baseR, minR, t);
+        sph.phi = clamp(sph.phi, CAMERA.minPhi, maxPhi);
+        let baseR;
+        if (cameraModeRef.current === 'cue') baseR = CUE_VIEW.radius;
+        else baseR = fitRadius(camera, m);
+        let r;
+        if (cameraModeRef.current === 'cue') r = baseR;
+        else {
+          const t = (sph.phi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
+          r = THREE.MathUtils.lerp(baseR, minR, t);
+        }
         sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
         updateCamera();
         camera.updateProjectionMatrix();
@@ -1361,7 +1371,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 1.8; // spread lights even farther apart
+      const spacing = 2.4; // spread lights even farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1665,14 +1675,27 @@ function SnookerGame() {
           if (animFrame < animSteps) {
             requestAnimationFrame(animateCue);
           } else {
-            cueStick.visible = false;
-            cueAnimating = false;
-            if (cameraRef.current && sphRef.current) {
-              topViewRef.current = false;
-              const sph = sphRef.current;
-              sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-              updateCamera();
-            }
+            let backFrame = 0;
+            const animateBack = () => {
+              backFrame++;
+              cueStick.position.lerpVectors(
+                endPos,
+                startPos,
+                backFrame / animSteps
+              );
+              if (backFrame < animSteps) requestAnimationFrame(animateBack);
+              else {
+                cueStick.visible = false;
+                cueAnimating = false;
+                if (cameraRef.current && sphRef.current) {
+                  topViewRef.current = false;
+                  const sph = sphRef.current;
+                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                  updateCamera();
+                }
+              }
+            };
+            requestAnimationFrame(animateBack);
           }
         };
         animateCue();
@@ -1926,8 +1949,19 @@ function SnookerGame() {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
         }
+        const mode = cueStick.visible && !shooting ? 'cue' : 'stand';
+        if (cameraModeRef.current !== mode) {
+          cameraModeRef.current = mode;
+          if (mode === 'cue') {
+            sph.radius = CUE_VIEW.radius;
+            sph.phi = CUE_VIEW.phi;
+          } else {
+            sph.radius = STAND_VIEW.radius;
+            sph.phi = STAND_VIEW.phi;
+          }
+        }
         const fit = fitRef.current;
-        if (fit && cue?.active && !shooting) {
+        if (fit && cue?.active && !shooting && cameraModeRef.current === 'stand') {
           const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
           const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
           const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
