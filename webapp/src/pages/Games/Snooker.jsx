@@ -20,25 +20,60 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
 // --------------------------------------------------
-// Simple green cloth texture helper
+// Snooker cloth texture helper (tileable nap + fibres)
 // --------------------------------------------------
-function makeClothTexture(size = 128) {
+function makeClothTexture(size = 2048) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(size, size);
-  const base = [30, 123, 30];
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = (Math.random() - 0.5) * 20;
-    img.data[i] = Math.max(0, Math.min(255, base[0] + v));
-    img.data[i + 1] = Math.max(0, Math.min(255, base[1] + v));
-    img.data[i + 2] = Math.max(0, Math.min(255, base[2] + v));
-    img.data[i + 3] = 255;
+
+  // Base tournament cloth colour
+  ctx.fillStyle = '#0f5f2d';
+  ctx.fillRect(0, 0, size, size);
+
+  // Layer in subtle fibre noise using trigonometric patterns so the
+  // texture remains tileable when repeated across the play field.
+  const baseLayer = ctx.getImageData(0, 0, size, size);
+  const baseData = baseLayer.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const noise =
+        Math.sin(x * 0.08 + y * 0.07) + Math.cos(x * 0.05 - y * 0.06);
+      const fibre = Math.floor(((noise + 2) / 4) * 6);
+      baseData[idx] = Math.max(0, baseData[idx] - fibre);
+      baseData[idx + 1] = Math.max(0, baseData[idx + 1] - fibre);
+      baseData[idx + 2] = Math.max(0, baseData[idx + 2] - fibre);
+    }
   }
-  ctx.putImageData(img, 0, 0);
+  ctx.putImageData(baseLayer, 0, 0);
+
+  // Add a directional nap for a light anisotropic sheen, emulating the
+  // brushed cloth finish that snooker tables use.
+  const napLayer = ctx.getImageData(0, 0, size, size);
+  const napData = napLayer.data;
+  const angle = Math.PI / 2;
+  const vx = Math.cos(angle);
+  const vy = Math.sin(angle);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const nx = x / size - 0.5;
+      const ny = y / size - 0.5;
+      let ramp = nx * vx + ny * vy;
+      ramp = Math.tanh(ramp * 2.2);
+      const glow = ramp * 5;
+      napData[idx] = Math.min(255, napData[idx] + glow);
+      napData[idx + 1] = Math.min(255, napData[idx + 1] + glow);
+      napData[idx + 2] = Math.min(255, napData[idx + 2] + glow);
+    }
+  }
+  ctx.putImageData(napLayer, 0, 0);
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(16, 16);
+  tex.repeat.set(8, 8);
+  tex.anisotropy = 4;
   return tex;
 }
 
@@ -1086,6 +1121,42 @@ function SnookerGame() {
             clothMat.map?.repeat.set(rep, rep);
           }
         };
+        const lerpAngle = (a, b, t) => {
+          const delta =
+            THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) -
+            Math.PI;
+          return a + delta * t;
+        };
+        const animateCamera = ({
+          radius,
+          phi,
+          theta,
+          duration = 600
+        } = {}) => {
+          const start = {
+            radius: sph.radius,
+            phi: sph.phi,
+            theta: sph.theta
+          };
+          const startTime = performance.now();
+          const ease = (k) => k * k * (3 - 2 * k);
+          const step = (now) => {
+            const t = Math.min(1, (now - startTime) / duration);
+            const eased = ease(t);
+            if (radius !== undefined) {
+              sph.radius = THREE.MathUtils.lerp(start.radius, radius, eased);
+            }
+            if (phi !== undefined) {
+              sph.phi = THREE.MathUtils.lerp(start.phi, phi, eased);
+            }
+            if (theta !== undefined) {
+              sph.theta = lerpAngle(start.theta, theta, eased);
+            }
+            updateCamera();
+            if (t < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        };
         const fit = (m = 1.1) => {
           camera.aspect = host.clientWidth / host.clientHeight;
           const baseR = fitRadius(camera, m);
@@ -1214,7 +1285,8 @@ function SnookerGame() {
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
-      const rectSize = 21; // trim spotlights ~30% for a tighter beam
+      const rectSizeBase = 21;
+      const rectSize = rectSizeBase * 0.7; // spotlights about 30% smaller for a tighter beam
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1537,15 +1609,23 @@ function SnookerGame() {
           cue.vel.copy(base).add(sideVec).add(topVec);
 
           // switch camera back to orbit view and pull back to show full table
-          if (cameraRef.current && sphRef.current && fitRef.current) {
+          if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             const cam = cameraRef.current;
-            const sph = sphRef.current;
-            sph.theta = Math.PI;
-            sph.phi = 1.07; // drop the follow camera a little closer to the action
-            fitRef.current(2.5); // pull back and zoom out a touch more
-            sph.radius *= 1.1; // tiny additional pull back
-            updateCamera();
+            const overviewRadius = clamp(
+              fitRadius(cam, 1.35) * 1.05,
+              CAMERA.minR,
+              CAMERA.maxR
+            );
+            const overviewPhi = clamp(0.62, CAMERA.minPhi, CAMERA.maxPhi);
+            const overviewTheta =
+              Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+            animateCamera({
+              radius: overviewRadius,
+              phi: overviewPhi,
+              theta: overviewTheta,
+              duration: 650
+            });
           }
 
           // animate cue stick forward
@@ -1692,13 +1772,15 @@ function SnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
           shooting = false;
-          if (cameraRef.current && sphRef.current && fitRef.current) {
+          if (cameraRef.current && sphRef.current) {
             const cam = cameraRef.current;
-            const sph = sphRef.current;
-            sph.radius = fitRadius(cam, 1.25);
-            sph.phi = 0.95;
-            fitRef.current(1.6);
-            updateCamera();
+            const settleRadius = clamp(
+              fitRadius(cam, 1.25),
+              CAMERA.minR,
+              CAMERA.maxR
+            );
+            const settlePhi = clamp(0.95, CAMERA.minPhi, CAMERA.maxPhi);
+            animateCamera({ radius: settleRadius, phi: settlePhi, duration: 500 });
           }
           potted = [];
           foul = false;
