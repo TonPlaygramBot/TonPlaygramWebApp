@@ -151,10 +151,10 @@ function makeColorCanvasFromHeight(
 function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
-  // draw more pronounced cloth lines with closer spacing
-  hctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  hctx.lineWidth = 2;
-  const step = 3;
+  // draw slightly darker cloth lines with tighter spacing for a denser weave
+  hctx.strokeStyle = 'rgba(0,0,0,0.7)';
+  hctx.lineWidth = 1.8;
+  const step = 2;
   hctx.save();
   hctx.translate(size / 2, size / 2);
   hctx.rotate(Math.PI / 4);
@@ -168,9 +168,9 @@ function makeClothTextures(size = 512) {
   hctx.restore();
   const colorCanvas = makeColorCanvasFromHeight(
     height,
-    '#228b22',
-    '#1e6b1e',
-    0.05
+    '#1e7b1e',
+    '#155a15',
+    0.04
   );
   const map = new THREE.CanvasTexture(colorCanvas);
   const normalCanvas = heightToNormalCanvas(height, 3.0);
@@ -459,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 0.8; // pull cue stick farther back so tip and ring are visible
+const CUE_TIP_GAP = BALL_R * 1.0; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -467,7 +467,7 @@ const CUSHION_CUT_ANGLE = 30;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x238b23,
+  cloth: 0x1e7b1e,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -518,8 +518,11 @@ const fitRadius = (camera, margin = 1.1) => {
 };
 
 // preset spherical positions for standing and cue-shot camera views
-const STAND_VIEW = { radius: 420 * TABLE_SCALE, phi: 1.3 };
+const STAND_VIEW = { radius: 380 * TABLE_SCALE, phi: 1.2 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
+
+// limit downward tilt so the starting angle is the lowest view
+CAMERA.maxPhi = STAND_VIEW.phi;
 
 // --------------------------------------------------
 // Utilities
@@ -1644,9 +1647,14 @@ function SnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // pull camera back to an orbit of the full table during the shot
-        if (cameraRef.current && fitRef.current) {
-          fitRef.current(3.0);
+        // gently lift the camera during the shot without changing zoom
+        if (cameraRef.current) {
+          const step = 0.06 * 3; // roughly three "up" key presses
+          sph.phi = clamp(
+            sph.phi - step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
           updateCamera();
         }
 
@@ -1794,13 +1802,8 @@ function SnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
-        if (cameraRef.current && sphRef.current && fitRef.current) {
+        if (cameraRef.current && sphRef.current) {
           topViewRef.current = false;
-          const cam = cameraRef.current;
-          const sph = sphRef.current;
-          sph.radius = fitRadius(cam, 1.25);
-          sph.phi = Math.min(phiCap, 1.2);
-          fitRef.current(3.0);
           updateCamera();
         }
         potted = [];
