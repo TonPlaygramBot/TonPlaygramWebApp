@@ -40,7 +40,7 @@ function makeClothTexture(size = 2048) {
       const idx = (y * size + x) * 4;
       const noise =
         Math.sin(x * 0.08 + y * 0.07) + Math.cos(x * 0.05 - y * 0.06);
-      const fibre = Math.floor(((noise + 2) / 4) * 7);
+      const fibre = Math.floor(((noise + 2) / 4) * 9);
       baseData[idx] = Math.max(0, baseData[idx] - fibre);
       baseData[idx + 1] = Math.max(0, baseData[idx + 1] - fibre);
       baseData[idx + 2] = Math.max(0, baseData[idx + 2] - fibre);
@@ -62,7 +62,7 @@ function makeClothTexture(size = 2048) {
       const ny = y / size - 0.5;
       let ramp = nx * vx + ny * vy;
       ramp = Math.tanh(ramp * 2.2);
-      const glow = ramp * 6;
+      const glow = ramp * 7;
       napData[idx] = Math.min(255, napData[idx] + glow);
       napData[idx + 1] = Math.min(255, napData[idx + 1] + glow);
       napData[idx + 2] = Math.min(255, napData[idx + 2] + glow);
@@ -1286,7 +1286,7 @@ function SnookerGame() {
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.6; // trim spotlights slightly smaller for softer pools
+      const rectSize = rectSizeBase * 0.54; // trim spotlights slightly smaller for tighter beams
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1608,30 +1608,36 @@ function SnookerGame() {
           const topVec = aimDir.clone().multiplyScalar(spinTop);
           cue.vel.copy(base).add(sideVec).add(topVec);
 
-          // switch camera back to orbit view and pull back to show full table
+          // switch camera back to orbit view, pull back, and lower slightly to frame the whole table
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             const cam = cameraRef.current;
             const sph = sphRef.current;
+            const safeRadius = fitRadius(cam, 1.6);
             const desiredRadius = Math.max(
-              sph.radius * 1.05,
-              fitRadius(cam, 1.45) * 1.05,
-              CAMERA.minR * 1.08
+              safeRadius,
+              sph.radius * 1.12,
+              CAMERA.minR * 1.12
             );
-            const overviewRadius = clamp(
-              desiredRadius,
-              CAMERA.minR,
+            const overviewRadius = Math.min(
+              Math.max(desiredRadius, safeRadius),
               CAMERA.maxR
             );
-            const targetPhi = Math.min(0.72, sph.phi + 0.08);
-            const overviewPhi = clamp(targetPhi, CAMERA.minPhi, CAMERA.maxPhi);
+            const loweredPhi = Math.min(
+              CAMERA.maxPhi - 0.06,
+              Math.max(sph.phi + 0.18, CAMERA.minPhi + 0.4)
+            );
+            const overviewPhi = Math.min(
+              Math.max(loweredPhi, CAMERA.minPhi + 0.4),
+              CAMERA.maxPhi - 0.06
+            );
             const overviewTheta =
               Math.atan2(aimDir.x, aimDir.y) + Math.PI;
             animateCamera({
               radius: overviewRadius,
               phi: overviewPhi,
               theta: overviewTheta,
-              duration: 650
+              duration: 750
             });
           }
 
