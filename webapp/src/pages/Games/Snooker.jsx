@@ -148,6 +148,38 @@ function makeColorCanvasFromHeight(
   return c;
 }
 
+function makeClothTextures(size = 512) {
+  const height = makeFbmHeightCanvas(size, 4);
+  const hctx = height.getContext('2d');
+  hctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  hctx.lineWidth = 1;
+  const step = 8;
+  for (let i = -size; i < size * 2; i += step) {
+    hctx.beginPath();
+    hctx.moveTo(i, 0);
+    hctx.lineTo(i - size, size);
+    hctx.stroke();
+    hctx.beginPath();
+    hctx.moveTo(i, 0);
+    hctx.lineTo(i + size, size);
+    hctx.stroke();
+  }
+  const colorCanvas = makeColorCanvasFromHeight(
+    height,
+    '#228b22',
+    '#1e6b1e',
+    0.05
+  );
+  const map = new THREE.CanvasTexture(colorCanvas);
+  const normalCanvas = heightToNormalCanvas(height, 1.5);
+  const normalMap = new THREE.CanvasTexture(normalCanvas);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(64, 64);
+  normalMap.repeat.set(64, 64);
+  return { map, normalMap };
+}
+
 // --------------------------------------------------
 // Procedural rug texture and floor helper
 // --------------------------------------------------
@@ -425,8 +457,8 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
-const CUE_Y = BALL_R + 0.05; // raise cue stick so tip hits center of cue ball
+const CUE_TIP_GAP = BALL_R * 0.35; // pull cue stick back so tip and ring are visible
+const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
@@ -466,7 +498,7 @@ const CAMERA = {
   far: 4000,
   minR: 40 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
-  minPhi: 0.4,
+  minPhi: 0.35,
   // keep the camera slightly above the horizontal plane
   maxPhi: Math.PI / 2 - 0.05
 };
@@ -633,6 +665,12 @@ function Table3D(scene) {
     sheen: 0.6,
     sheenRoughness: 0.9
   });
+  const clothTex = makeClothTextures();
+  clothMat.map = clothTex.map;
+  clothMat.normalMap = clothTex.normalMap;
+  clothMat.map.anisotropy = 4;
+  clothMat.normalMap.anisotropy = 4;
+  clothMat.needsUpdate = true;
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
@@ -755,7 +793,12 @@ function Table3D(scene) {
   const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
   const legRadius = pocketRadius * 3 * 0.5; // 50% thinner legs
   const legHeight = pocketHeight * 2.25; // 50% taller legs
-  const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 12);
+  const legGeo = new THREE.CylinderGeometry(
+    legRadius,
+    legRadius,
+    legHeight,
+    12
+  );
   const legY = -TABLE.THICK - legHeight / 2;
   [
     [outerHalfW - 6, outerHalfH - 6],
@@ -960,7 +1003,7 @@ function SnookerGame() {
     const balls = ballsRef.current;
     const sides = { left: false, right: false, up: false, down: false };
     if (!cue) return sides;
-    const thresh = BALL_R * 2.05;
+    const thresh = BALL_R * 2 + CUE_TIP_GAP;
     for (const b of balls) {
       if (!b.active || b === cue) continue;
       const dx = b.pos.x - cue.pos.x;
@@ -1146,10 +1189,10 @@ function SnookerGame() {
         CAMERA.near,
         CAMERA.far
       );
-      // Start behind baulk colours
+      // Start behind baulk colours in orbit view showing the whole table
       const sph = new THREE.Spherical(
-        240 * TABLE_SCALE,
-        1.25 /* slightly lower angle */,
+        260 * TABLE_SCALE,
+        0.9 /* elevated angle */,
         Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
       const updateCamera = () => {
@@ -1175,7 +1218,7 @@ function SnookerGame() {
       const fit = (m = 1.2) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         const baseR = fitRadius(camera, m);
-        const railLimit = TABLE.THICK * 2 + 0.4; // stay above side rails
+        const railLimit = TABLE.THICK * 2 + 1.0; // keep camera slightly above side rails
         const sideDist = TABLE.W / 2 + TABLE.THICK; // horizontal distance to rails
         const maxZoom = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
         const phiCap = Math.atan2(sideDist, railLimit);
@@ -1295,10 +1338,10 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place brighter spotlights above the table with more spacing and coverage
-      const lightHeight = TABLE_Y + 80; // raise spotlights slightly higher
-      const rectSize = 40; // widen area lights for broader beams
-      const lightIntensity = 8; // increase intensity for stronger lighting
+      // Place four brighter spotlights above the table with more spacing and coverage
+      const lightHeight = TABLE_Y + 80; // keep all spotlights at the same height
+      const rectSize = 60; // widen area lights for broader beams
+      const lightIntensity = 10; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1312,13 +1355,13 @@ function SnookerGame() {
         scene.add(rect);
       };
 
-      // three spotlights aligned along the center with extra spacing from the ends
-      const spacing = 0.9; // keep lights away from table edges
-      for (let i = 0; i < 3; i++) {
+      // four spotlights aligned along the center with extra spacing from the ends
+      const spacing = 0.85; // keep lights away from table edges
+      for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
           (TABLE.H / 2) * spacing,
-          (i + 0.5) / 3
+          (i + 0.5) / 4
         );
         makeLight(0, z);
       }
