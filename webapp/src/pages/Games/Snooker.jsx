@@ -1955,12 +1955,12 @@ function SnookerGame() {
 }
 
 export default function NewSnookerGame() {
-  const isMobile = useIsMobile();
+  const isMobileOrTablet = useIsMobile(1366);
 
-  if (!isMobile) {
+  if (!isMobileOrTablet) {
     return (
       <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile devices only.</p>
+        <p>This game is available on mobile phones and tablets only.</p>
       </div>
     );
   }
