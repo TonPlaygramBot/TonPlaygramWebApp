@@ -477,8 +477,8 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.95;
+  // Keep the orbit camera slightly farther so more of the table is visible
+  const r = Math.max(dzH, dzW) * 1.05;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1174,15 +1174,18 @@ function SnookerGame() {
         camera.aspect = host.clientWidth / host.clientHeight;
         const baseR = fitRadius(camera, m);
         const railLimit = TABLE.THICK * 2 + 0.4; // stay above side rails
-        const phiCap = Math.acos(
-          THREE.MathUtils.clamp(railLimit / baseR, -1, 1)
-        );
-        sph.phi = clamp(
+        const sideDist = TABLE.W / 2 + TABLE.THICK; // horizontal distance to rails
+        const maxZoom = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
+        const phiCap = Math.atan2(sideDist, railLimit);
+        const clampedPhi = clamp(
           sph.phi,
           CAMERA.minPhi,
           Math.min(phiCap, CAMERA.maxPhi)
         );
-        sph.radius = clamp(baseR, CAMERA.minR, CAMERA.maxR);
+        sph.phi = clampedPhi;
+        const t = (clampedPhi - CAMERA.minPhi) / (phiCap - CAMERA.minPhi);
+        const r = THREE.MathUtils.lerp(baseR, maxZoom, t);
+        sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
         updateCamera();
         camera.updateProjectionMatrix();
       };
@@ -1290,9 +1293,9 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place four dimmer spotlights above the table with more spacing
+      // Place four dimmer spotlights above the table, spaced out and smaller
       const lightHeight = TABLE_Y + 80; // raise spotlights slightly higher
-      const rectSize = 45; // smaller area lights for tighter beams
+      const rectSize = 30; // smaller area lights for tighter beams
       const lightIntensity = 6; // reduce intensity for softer lighting
 
       const makeLight = (x, z) => {
@@ -1307,8 +1310,8 @@ function SnookerGame() {
         scene.add(rect);
       };
 
-      // four spotlights aligned along the center with spacing from the ends
-      const spacing = 0.8; // keep lights away from table edges
+      // four spotlights aligned along the center with extra spacing from the ends
+      const spacing = 0.95; // keep lights away from table edges
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
