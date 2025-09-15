@@ -426,6 +426,7 @@ const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skir
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 0.25; // bring cue stick slightly closer
+const CUE_Y = BALL_R + 0.05; // raise cue stick so tip hits center of cue ball
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
@@ -465,7 +466,7 @@ const CAMERA = {
   far: 4000,
   minR: 40 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
-  minPhi: 0.5,
+  minPhi: 0.4,
   // keep the camera slightly above the horizontal plane
   maxPhi: Math.PI / 2 - 0.05
 };
@@ -478,7 +479,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep the orbit camera slightly farther so more of the table is visible
-  const r = Math.max(dzH, dzW) * 1.05;
+  const r = Math.max(dzH, dzW) * 1.15;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1138,6 +1139,7 @@ function SnookerGame() {
       let clothMat;
       let cushionMat;
       let shooting = false; // track when a shot is in progress
+      let cueAnimating = false; // forward stroke animation state
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         host.clientWidth / host.clientHeight,
@@ -1146,9 +1148,9 @@ function SnookerGame() {
       );
       // Start behind baulk colours
       const sph = new THREE.Spherical(
-        200 * TABLE_SCALE,
+        240 * TABLE_SCALE,
         1.25 /* slightly lower angle */,
-        Math.PI
+        Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
       const updateCamera = () => {
         const target =
@@ -1170,7 +1172,7 @@ function SnookerGame() {
           cushionMat?.normalScale.set(ns, ns);
         }
       };
-      const fit = (m = 1.1) => {
+      const fit = (m = 1.2) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         const baseR = fitRadius(camera, m);
         const railLimit = TABLE.THICK * 2 + 0.4; // stay above side rails
@@ -1293,10 +1295,10 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place four dimmer spotlights above the table, spaced out and smaller
+      // Place brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 80; // raise spotlights slightly higher
-      const rectSize = 30; // smaller area lights for tighter beams
-      const lightIntensity = 6; // reduce intensity for softer lighting
+      const rectSize = 40; // widen area lights for broader beams
+      const lightIntensity = 8; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1310,13 +1312,13 @@ function SnookerGame() {
         scene.add(rect);
       };
 
-      // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 0.95; // keep lights away from table edges
-      for (let i = 0; i < 4; i++) {
+      // three spotlights aligned along the center with extra spacing from the ends
+      const spacing = 0.9; // keep lights away from table edges
+      for (let i = 0; i < 3; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
           (TABLE.H / 2) * spacing,
-          (i + 0.5) / 4
+          (i + 0.5) / 3
         );
         makeLight(0, z);
       }
@@ -1496,7 +1498,7 @@ function SnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, BALL_R, cue.pos.y + 0.8 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 0.8 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -1578,21 +1580,51 @@ function SnookerGame() {
         foul = false;
         firstHit = null;
         clearInterval(timerRef.current);
+        const aimDir = aimDirRef.current.clone();
         const base = aimDir
           .clone()
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // switch camera back to orbit view and pull back to show full table
-        if (cameraRef.current && sphRef.current && fitRef.current) {
-          topViewRef.current = false;
-          const cam = cameraRef.current;
-          const sph = sphRef.current;
-          sph.theta = Math.PI;
-          sph.phi = 0.9;
-          fitRef.current(2.0);
-          updateCamera();
-        }
+        // animate cue stick forward
+        const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+        const backInfo = calcTarget(
+          cue,
+          aimDir.clone().multiplyScalar(-1),
+          balls
+        );
+        const desiredPull = powerRef.current * BALL_R * 10 * 0.5;
+        const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+        const pull = Math.min(desiredPull, maxPull);
+        cueAnimating = true;
+        const startPos = cueStick.position.clone();
+        const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
+        let animFrame = 0;
+        const animSteps = 5;
+        const animateCue = () => {
+          animFrame++;
+          cueStick.position.lerpVectors(
+            startPos,
+            endPos,
+            animFrame / animSteps
+          );
+          if (animFrame < animSteps) {
+            requestAnimationFrame(animateCue);
+          } else {
+            cueStick.visible = false;
+            cueAnimating = false;
+            // switch camera back to orbit view and pull back to show full table
+            if (cameraRef.current && sphRef.current && fitRef.current) {
+              topViewRef.current = false;
+              const sph = sphRef.current;
+              sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+              sph.phi = 0.9;
+              fitRef.current(2.3);
+              updateCamera();
+            }
+          }
+        };
+        animateCue();
       };
       fireRef.current = fire;
 
@@ -1747,7 +1779,7 @@ function SnookerGame() {
           );
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            BALL_R + spinWorld.y,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -1771,7 +1803,7 @@ function SnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
-          cueStick.visible = false;
+          if (!cueAnimating) cueStick.visible = false;
         }
 
         // Fizika
