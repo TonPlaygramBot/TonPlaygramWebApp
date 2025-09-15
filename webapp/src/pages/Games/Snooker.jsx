@@ -296,7 +296,8 @@ function addPocketJaws(parent, playW, playH) {
 // --------------------------------------------------
 // separate scales for table and balls
 // Dimensions enlarged for a roomier snooker table
-const WORLD_SCALE = 0.85;
+const GLOBAL_SIZE_FACTOR = 0.85; // shrink the entire scene by 15%
+const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR;
 const BALL_SCALE = 1;
 const TABLE_SCALE = 1.3;
 const TABLE = {
@@ -359,8 +360,8 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 40 * TABLE_SCALE,
-  maxR: 180 * TABLE_SCALE,
+  minR: 40 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  maxR: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane
   maxPhi: Math.PI / 2 - 0.1
@@ -374,7 +375,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.95;
+  const r = Math.max(dzH, dzW) * 0.95 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1056,7 +1057,7 @@ function SnookerGame() {
         );
         // Start behind baulk colours
         const sph = new THREE.Spherical(
-          180 * TABLE_SCALE,
+          180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
           1.12, // orbit view angle for break slightly lower and pulled down
           Math.PI
         );
