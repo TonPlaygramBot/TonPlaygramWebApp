@@ -151,7 +151,7 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
   return new THREE.CanvasTexture(c);
 }
 
-function addRugUnderTable(scene, table) {
+function addRugUnderTable(parent, table) {
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
   const rugWidth = size.x * 4 * 0.7 * 1.5; // 50% more carpet around the table
@@ -171,11 +171,11 @@ function addRugUnderTable(scene, table) {
     box.min.y - 0.05,
     (box.max.z + box.min.z) / 2
   );
-  scene.add(rug);
+  parent.add(rug);
   return rug;
 }
 
-function addArenaWalls(scene, rug) {
+function addArenaWalls(parent, rug) {
   const wallT = TABLE.WALL;
   const wallH = TABLE.H * 2 * 0.7; // lower walls by 30%
   const rugWidth = rug.geometry.parameters.width;
@@ -214,7 +214,7 @@ function addArenaWalls(scene, rug) {
     rug.position.z
   );
   walls.add(north, south, west, east);
-  scene.add(walls);
+  parent.add(walls);
   return { walls, north, south, west, east, wallH, rugWidth, rugHeight };
 }
 
@@ -248,7 +248,7 @@ function makeJawSector(
   geo.rotateX(-Math.PI / 2);
   return geo;
 }
-function addPocketJaws(scene, playW, playH) {
+function addPocketJaws(parent, playW, playH) {
   const HALF_PLAY_W = playW * 0.5;
   const HALF_PLAY_H = playH * 0.5;
   const POCKET_MAP = [
@@ -276,7 +276,7 @@ function addPocketJaws(scene, playW, playH) {
     if (entry.type === 'side') {
       jaw.rotateY(Math.PI / 2);
     }
-    scene.add(jaw);
+    parent.add(jaw);
     jaws.push(jaw);
   }
   return jaws;
@@ -296,6 +296,7 @@ function addPocketJaws(scene, playW, playH) {
 // --------------------------------------------------
 // separate scales for table and balls
 // Dimensions enlarged for a roomier snooker table
+const WORLD_SCALE = 0.85;
 const BALL_SCALE = 1;
 const TABLE_SCALE = 1.3;
 const TABLE = {
@@ -517,7 +518,7 @@ function Guret(parent, id, color, x, y) {
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
 
-function Table3D(scene) {
+function Table3D(parent) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
@@ -766,7 +767,7 @@ function Table3D(scene) {
   }
 
   table.position.y = TABLE_Y;
-  scene.add(table);
+  parent.add(table);
   return {
     centers: pocketCenters(),
     baulkZ,
@@ -966,7 +967,7 @@ function SnookerGame() {
         playerOffsetRef.current,
         TABLE_Y + 0.05,
         0
-      );
+      ).multiplyScalar(worldScaleFactor);
       cam.position.setFromSpherical(sph).add(targetPos);
       cam.lookAt(targetPos);
       if (k < 1) requestAnimationFrame(anim);
@@ -1038,6 +1039,9 @@ function SnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
+      const world = new THREE.Group();
+      scene.add(world);
+      let worldScaleFactor = 1;
       RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
@@ -1057,10 +1061,11 @@ function SnookerGame() {
           Math.PI
         );
         const updateCamera = () => {
-          const target =
+          const target = (
             cue?.mesh && !topViewRef.current && !shooting
               ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-              : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
+              : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
+          ).multiplyScalar(worldScaleFactor);
           if (topViewRef.current) {
             camera.position.set(target.x, sph.radius, target.z);
             camera.lookAt(target);
@@ -1216,7 +1221,7 @@ function SnookerGame() {
         );
         rect.position.set(x, lightHeight, z);
         rect.lookAt(x, TABLE_Y, z);
-        scene.add(rect);
+        world.add(rect);
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
@@ -1237,15 +1242,19 @@ function SnookerGame() {
         group: table,
         clothMat: tableCloth,
         cushionMat: tableCushion
-      } = Table3D(scene);
+      } = Table3D(world);
       clothMat = tableCloth;
       cushionMat = tableCushion;
-      const rug = addRugUnderTable(scene, table);
-      const arena = addArenaWalls(scene, rug);
+      const rug = addRugUnderTable(world, table);
+      const arena = addArenaWalls(world, rug);
       // prevent the camera from zooming beyond the side walls
-      const maxZoom = Math.min(arena.rugWidth, arena.rugHeight) / 2 - 5;
+      const maxZoom =
+        (Math.min(arena.rugWidth, arena.rugHeight) / 2 - 5) * WORLD_SCALE;
       CAMERA.maxR = Math.min(CAMERA.maxR, maxZoom);
       sph.radius = Math.min(sph.radius, CAMERA.maxR);
+      worldScaleFactor = WORLD_SCALE;
+      world.scale.setScalar(worldScaleFactor);
+      world.updateMatrixWorld(true);
       updateCamera();
 
       // Balls (ONLY Guret)
@@ -1415,7 +1424,10 @@ function SnookerGame() {
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
+      const plane = new THREE.Plane(
+        new THREE.Vector3(0, 1, 0),
+        -TABLE_Y * worldScaleFactor
+      );
       project = (ev) => {
         const r = dom.getBoundingClientRect();
         const cx =
@@ -1431,7 +1443,10 @@ function SnookerGame() {
         ray.setFromCamera(pointer, camera);
         const pt = new THREE.Vector3();
         ray.ray.intersectPlane(plane, pt);
-        return new THREE.Vector2(pt.x, pt.z);
+        return new THREE.Vector2(
+          pt.x / worldScaleFactor,
+          pt.z / worldScaleFactor
+        );
       };
 
       const aimDir = aimDirRef.current;
