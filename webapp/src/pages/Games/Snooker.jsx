@@ -518,10 +518,10 @@ const fitRadius = (camera, margin = 1.1) => {
 // preset spherical positions for standing, cue-shot and post-shot views
 // position the initial camera slightly closer to the table and higher
 // start the game with the camera raised a little for a better overview
-const STAND_VIEW = { radius: 220 * TABLE_SCALE, phi: 0.75 };
+const STAND_VIEW = { radius: 220 * TABLE_SCALE, phi: 0.65 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
-// after a shot, zoom out and lower the camera to show the whole table
-const SHOT_VIEW = { phi: 1.15, margin: 1.4 };
+// after a shot, keep a similar angle but raise the camera slightly and fit the whole table
+const SHOT_VIEW = { phi: 0.6, margin: 1.4 };
 
 
 // --------------------------------------------------
@@ -1214,15 +1214,8 @@ function SnookerGame() {
       const minR = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
       const phiCap = Math.atan2(sideDist, railLimit);
       const updateCamera = () => {
-        let target;
-        if (cue?.mesh && !topViewRef.current) {
-          if (!shooting)
-            cameraTargetRef.current.set(cue.pos.x, BALL_R, cue.pos.y);
-          target = cameraTargetRef.current;
-        } else {
-          cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
-          target = cameraTargetRef.current;
-        }
+        cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
+        const target = cameraTargetRef.current;
         if (topViewRef.current) {
           camera.position.set(target.x, sph.radius, target.z);
           camera.lookAt(target);
