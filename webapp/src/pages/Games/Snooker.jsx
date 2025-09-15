@@ -499,8 +499,10 @@ const CAMERA = {
   near: 0.1,
   far: 4000,
   minR: 40 * TABLE_SCALE,
-  maxR: 420 * TABLE_SCALE,
-  minPhi: 0.35 // keep the camera slightly above the horizontal plane
+  maxR: 180 * TABLE_SCALE,
+  minPhi: 0.5,
+  // keep the camera slightly above the horizontal plane
+  maxPhi: Math.PI / 2 - 0.1
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -510,17 +512,10 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  // Keep the orbit camera slightly farther so more of the table is visible
-  const r = Math.max(dzH, dzW) * 1.2;
+  // Nudge camera closer so the table fills more of the view
+  const r = Math.max(dzH, dzW) * 0.95;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
-
-// preset spherical positions for standing, cue-shot and post-shot views
-// start slightly higher and closer with a fixed margin around the table
-const STAND_VIEW = { phi: 0.55, margin: 1.25 };
-const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
-// for shots, nudge the camera a touch upward and backward to keep the whole table visible
-const SHOT_VIEW = { phi: 0.52, margin: 1.3 };
 
 
 // --------------------------------------------------
@@ -948,15 +943,12 @@ function SnookerGame() {
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const rendererRef = useRef(null);
-  const cameraTargetRef = useRef(new THREE.Vector3(0, TABLE_Y + 0.05, 0));
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
-  const cameraModeRef = useRef('stand');
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
-  const initialBreakRef = useRef(false);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -1094,7 +1086,11 @@ function SnookerGame() {
       theta: sph.theta
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-    const targetMargin = next ? 1.05 : STAND_VIEW.margin;
+      const targetMargin = next
+        ? 1.05
+        : window.innerHeight > window.innerWidth
+          ? 1.5
+          : 1.3;
     const target = {
       radius: fitRadius(cam, targetMargin),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -1190,162 +1186,162 @@ function SnookerGame() {
       let cushionMat;
       let shooting = false; // track when a shot is in progress
       let cueAnimating = false; // forward stroke animation state
-      const camera = new THREE.PerspectiveCamera(
-        CAMERA.fov,
-        host.clientWidth / host.clientHeight,
-        CAMERA.near,
-        CAMERA.far
-      );
-      // default to the standing player view
-      const sph = new THREE.Spherical(
-        fitRadius(camera, STAND_VIEW.margin),
-        STAND_VIEW.phi,
-        Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
-      );
-      // keep orbit camera above the cloth and outside the side rails
-      const railLimit = TABLE.THICK * 2 + 1.0; // slightly above side rails
-      const sideDist = TABLE.W / 2 + TABLE.THICK; // horizontal distance to rails
-      const minR = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
-      const phiCap = Math.atan2(sideDist, railLimit);
-      const updateCamera = () => {
-        cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
-        const target = cameraTargetRef.current;
-        if (topViewRef.current) {
-          camera.position.set(target.x, sph.radius, target.z);
-          camera.lookAt(target);
-        } else {
-          camera.position.setFromSpherical(sph).add(target);
-          camera.lookAt(target);
-        }
-        if (clothMat) {
-          const dist = camera.position.distanceTo(target);
-          const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 0.9 * fade;
-          clothMat.normalScale.set(ns, ns);
-          cushionMat?.normalScale.set(ns, ns);
-        }
-      };
-      const fit = (m = STAND_VIEW.margin) => {
-        camera.aspect = host.clientWidth / host.clientHeight;
-        const maxPhi = Math.min(
-          phiCap,
-          cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
+        const camera = new THREE.PerspectiveCamera(
+          CAMERA.fov,
+          host.clientWidth / host.clientHeight,
+          CAMERA.near,
+          CAMERA.far
         );
-        sph.phi = clamp(sph.phi, CAMERA.minPhi, maxPhi);
-        let baseR;
-        if (cameraModeRef.current === 'cue') baseR = CUE_VIEW.radius;
-        else baseR = fitRadius(camera, m);
-        let r;
-        if (cameraModeRef.current === 'cue') r = baseR;
-        else {
-          const t = (sph.phi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
-          r = THREE.MathUtils.lerp(baseR, minR, t);
-        }
-        sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
-        updateCamera();
-        camera.updateProjectionMatrix();
-      };
-      cameraRef.current = camera;
-      sphRef.current = sph;
-      fitRef.current = fit;
-      fit(topViewRef.current ? 1.05 : STAND_VIEW.margin);
-      const dom = renderer.domElement;
-      dom.style.touchAction = 'none';
-      const balls = [];
-      let project;
-      const drag = { on: false, x: 0, y: 0, moved: false };
-      const pinch = { active: false, dist: 0 };
-      const down = (e) => {
-        if (e.touches?.length === 2) {
-          const [t1, t2] = e.touches;
-          pinch.active = true;
-          pinch.dist = Math.hypot(
-            t1.clientX - t2.clientX,
-            t1.clientY - t2.clientY
+        // Start behind baulk colours
+        const sph = new THREE.Spherical(
+          170 * TABLE_SCALE,
+          1.0, // orbit view angle for break
+          Math.PI
+        );
+        const updateCamera = () => {
+          const target =
+            cue?.mesh && !topViewRef.current && !shooting
+              ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
+              : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
+          if (topViewRef.current) {
+            camera.position.set(target.x, sph.radius, target.z);
+            camera.lookAt(target);
+          } else {
+            camera.position.setFromSpherical(sph).add(target);
+            camera.lookAt(target);
+          }
+          if (clothMat) {
+            const dist = camera.position.distanceTo(target);
+            // Stronger detail up close, fade quicker in orbit view
+            const fade = THREE.MathUtils.clamp((120 - dist) / 50, 0, 1);
+            const ns = 1.2 * fade;
+            clothMat.normalScale.set(ns, ns);
+            cushionMat?.normalScale.set(ns, ns);
+            const rep = THREE.MathUtils.lerp(12, 24, fade);
+            clothMat.map?.repeat.set(rep, rep);
+          }
+        };
+        const fit = (m = 1.1) => {
+          camera.aspect = host.clientWidth / host.clientHeight;
+          const baseR = fitRadius(camera, m);
+          let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
+          let r = baseR * (1 - 0.8 * t);
+          const railLimit = TABLE.THICK + 0.4; // stay above side rails
+          const phiCap = Math.acos(THREE.MathUtils.clamp(railLimit / r, -1, 1));
+          sph.phi = clamp(
+            sph.phi,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
           );
-          return;
-        }
-        if (topViewRef.current) return;
-        drag.on = true;
-        drag.moved = false;
-        drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
-        drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
-      };
-      const move = (e) => {
-        if (pinch.active && e.touches?.length === 2) {
-          const [t1, t2] = e.touches;
-          const d = Math.hypot(
-            t1.clientX - t2.clientX,
-            t1.clientY - t2.clientY
-          );
-          const delta = pinch.dist - d;
-          sph.radius = clamp(sph.radius + delta * 0.5, minR, CAMERA.maxR);
-          pinch.dist = d;
+          t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
+          sph.radius = clamp(baseR * (1 - 0.8 * t), CAMERA.minR, CAMERA.maxR);
           updateCamera();
-          return;
-        }
-        if (topViewRef.current || !drag.on) return;
-        const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
-        const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
-        const dx = x - drag.x;
-        const dy = y - drag.y;
-        if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
-        if (drag.moved) {
-          drag.x = x;
-          drag.y = y;
-          sph.theta -= dx * 0.005;
-          sph.phi = clamp(
-            sph.phi + dy * 0.003,
-            CAMERA.minPhi,
-            Math.min(
-              phiCap,
-              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
-            )
+          camera.updateProjectionMatrix();
+        };
+        cameraRef.current = camera;
+        sphRef.current = sph;
+        fitRef.current = fit;
+        topViewRef.current = false;
+        setTopView(false);
+        fit(
+          topViewRef.current
+            ? 1.05
+            : window.innerHeight > window.innerWidth
+              ? 1.5
+              : 1.3
+        );
+        const dom = renderer.domElement;
+        dom.style.touchAction = 'none';
+        const balls = [];
+        let project;
+        const drag = { on: false, x: 0, y: 0, moved: false };
+        const pinch = { active: false, dist: 0 };
+        const down = (e) => {
+          if (e.touches?.length === 2) {
+            const [t1, t2] = e.touches;
+            pinch.active = true;
+            pinch.dist = Math.hypot(
+              t1.clientX - t2.clientX,
+              t1.clientY - t2.clientY
+            );
+            return;
+          }
+          if (topViewRef.current) return;
+          drag.on = true;
+          drag.moved = false;
+          drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
+          drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
+        };
+        const move = (e) => {
+          if (pinch.active && e.touches?.length === 2) {
+            const [t1, t2] = e.touches;
+            const d = Math.hypot(
+              t1.clientX - t2.clientX,
+              t1.clientY - t2.clientY
+            );
+            const delta = pinch.dist - d;
+            sph.radius = clamp(
+              sph.radius + delta * 0.5,
+              CAMERA.minR,
+              CAMERA.maxR
+            );
+            pinch.dist = d;
+            updateCamera();
+            return;
+          }
+          if (topViewRef.current || !drag.on) return;
+          const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
+          const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
+          const dx = x - drag.x;
+          const dy = y - drag.y;
+          if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
+          if (drag.moved) {
+            drag.x = x;
+            drag.y = y;
+            sph.theta -= dx * 0.005;
+            sph.phi = clamp(sph.phi + dy * 0.003, CAMERA.minPhi, CAMERA.maxPhi);
+            fit(
+              topViewRef.current
+                ? 1.05
+                : window.innerHeight > window.innerWidth
+                  ? 1.2
+                  : 1.0
+            );
+          }
+        };
+        const up = () => {
+          drag.on = false;
+          drag.moved = false;
+          pinch.active = false;
+        };
+        const wheel = (e) => {
+          sph.radius = clamp(
+            sph.radius + e.deltaY * 0.12,
+            CAMERA.minR,
+            CAMERA.maxR
           );
-        }
-      };
-      const up = () => {
-        drag.on = false;
-        drag.moved = false;
-        pinch.active = false;
-      };
-      const wheel = (e) => {
-        sph.radius = clamp(sph.radius + e.deltaY * 0.12, minR, CAMERA.maxR);
-        updateCamera();
-      };
-      dom.addEventListener('mousedown', down);
-      dom.addEventListener('mousemove', move);
-      window.addEventListener('mouseup', up);
-      dom.addEventListener('touchstart', down, { passive: true });
-      dom.addEventListener('touchmove', move, { passive: true });
-      window.addEventListener('touchend', up);
-      dom.addEventListener('wheel', wheel, { passive: true });
-      const keyRot = (e) => {
-        if (topViewRef.current) return;
-        const step = e.shiftKey ? 0.12 : 0.06;
-        if (e.code === 'ArrowLeft') sph.theta += step;
-        else if (e.code === 'ArrowRight') sph.theta -= step;
-        else if (e.code === 'ArrowUp')
-          sph.phi = clamp(
-            sph.phi - step,
-            CAMERA.minPhi,
-            Math.min(
-              phiCap,
-              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
-            )
-          );
-        else if (e.code === 'ArrowDown')
-          sph.phi = clamp(
-            sph.phi + step,
-            CAMERA.minPhi,
-            Math.min(
-              phiCap,
-              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
-            )
-          );
-        else return;
-      };
-      window.addEventListener('keydown', keyRot);
+          updateCamera();
+        };
+        dom.addEventListener('mousedown', down);
+        dom.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+        dom.addEventListener('touchstart', down, { passive: true });
+        dom.addEventListener('touchmove', move, { passive: true });
+        window.addEventListener('touchend', up);
+        dom.addEventListener('wheel', wheel, { passive: true });
+        const keyRot = (e) => {
+          if (topViewRef.current) return;
+          const step = e.shiftKey ? 0.12 : 0.06;
+          if (e.code === 'ArrowLeft') sph.theta += step;
+          else if (e.code === 'ArrowRight') sph.theta -= step;
+          else if (e.code === 'ArrowUp')
+            sph.phi = clamp(sph.phi - step, CAMERA.minPhi, CAMERA.maxPhi);
+          else if (e.code === 'ArrowDown')
+            sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
+          else return;
+          fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
+        };
+        window.addEventListener('keydown', keyRot);
 
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
@@ -1624,80 +1620,83 @@ function SnookerGame() {
       const val = (id) =>
         isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
-      // Fire (slider e thërret në release)
-      const fire = () => {
-        if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
-          return;
-        shooting = true;
-        potted = [];
-        foul = false;
-        firstHit = null;
-        clearInterval(timerRef.current);
-        const aimDir = aimDirRef.current.clone();
-        const base = aimDir
-          .clone()
-          .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
-        cue.vel.copy(base);
+        // Fire (slider e thërret në release)
+        const fire = () => {
+          if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
+            return;
+          shooting = true;
+          potted = [];
+          foul = false;
+          firstHit = null;
+          clearInterval(timerRef.current);
+          const aimDir = aimDirRef.current.clone();
+          const base = aimDir
+            .clone()
+            .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
+          cue.vel.copy(base);
 
-        // switch to a static shot view keeping the whole table visible
-        if (cameraRef.current) {
-          cameraModeRef.current = 'stand';
-          cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
-          sph.phi = SHOT_VIEW.phi;
-          fit(SHOT_VIEW.margin);
-        }
-
-        // animate cue stick forward
-        const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
-        const backInfo = calcTarget(
-          cue,
-          aimDir.clone().multiplyScalar(-1),
-          balls
-        );
-        const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
-        const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-        const pull = Math.min(desiredPull, maxPull);
-        cueAnimating = true;
-        const startPos = cueStick.position.clone();
-        const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
-        let animFrame = 0;
-        const animSteps = 5;
-        const animateCue = () => {
-          animFrame++;
-          cueStick.position.lerpVectors(
-            startPos,
-            endPos,
-            animFrame / animSteps
-          );
-          if (animFrame < animSteps) {
-            requestAnimationFrame(animateCue);
-          } else {
-            let backFrame = 0;
-            const animateBack = () => {
-              backFrame++;
-              cueStick.position.lerpVectors(
-                endPos,
-                startPos,
-                backFrame / animSteps
-              );
-              if (backFrame < animSteps) requestAnimationFrame(animateBack);
-              else {
-                cueStick.visible = false;
-                cueAnimating = false;
-                if (cameraRef.current && sphRef.current) {
-                  topViewRef.current = false;
-                  const sph = sphRef.current;
-                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                  updateCamera();
-                }
-              }
-            };
-            requestAnimationFrame(animateBack);
+          // switch camera back to orbit view and pull back to show full table
+          if (cameraRef.current && sphRef.current && fitRef.current) {
+            topViewRef.current = false;
+            const cam = cameraRef.current;
+            const sph = sphRef.current;
+            sph.theta = Math.PI;
+            sph.phi = 0.9;
+            fitRef.current(2.0);
+            updateCamera();
           }
+
+          // animate cue stick forward
+          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          const backInfo = calcTarget(
+            cue,
+            aimDir.clone().multiplyScalar(-1),
+            balls
+          );
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const pull = Math.min(desiredPull, maxPull);
+          cueAnimating = true;
+          const startPos = cueStick.position.clone();
+          const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
+          let animFrame = 0;
+          const animSteps = 5;
+          const animateCue = () => {
+            animFrame++;
+            cueStick.position.lerpVectors(
+              startPos,
+              endPos,
+              animFrame / animSteps
+            );
+            if (animFrame < animSteps) {
+              requestAnimationFrame(animateCue);
+            } else {
+              let backFrame = 0;
+              const animateBack = () => {
+                backFrame++;
+                cueStick.position.lerpVectors(
+                  endPos,
+                  startPos,
+                  backFrame / animSteps
+                );
+                if (backFrame < animSteps) requestAnimationFrame(animateBack);
+                else {
+                  cueStick.visible = false;
+                  cueAnimating = false;
+                  if (cameraRef.current && sphRef.current) {
+                    topViewRef.current = false;
+                    const sph = sphRef.current;
+                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                    updateCamera();
+                  }
+                }
+              };
+              requestAnimationFrame(animateBack);
+            }
+          };
+          animateCue();
         };
-        animateCue();
-      };
-      fireRef.current = fire;
+        fireRef.current = fire;
 
       // Resolve shot
       function resolve() {
@@ -1790,15 +1789,19 @@ function SnookerGame() {
           setHud((s) => ({ ...s, [me]: s[me] + gain }));
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
-        shooting = false;
-        if (cameraRef.current && sphRef.current) {
-          topViewRef.current = false;
-          updateCamera();
+          shooting = false;
+          if (cameraRef.current && sphRef.current && fitRef.current) {
+            const cam = cameraRef.current;
+            const sph = sphRef.current;
+            sph.radius = fitRadius(cam, 1.25);
+            sph.phi = 0.9;
+            fitRef.current(1.5);
+            updateCamera();
+          }
+          potted = [];
+          foul = false;
+          firstHit = null;
         }
-        potted = [];
-        foul = false;
-        firstHit = null;
-      }
 
       // Loop
       const step = () => {
@@ -1937,34 +1940,38 @@ function SnookerGame() {
           }
         });
         // Fund i goditjes
-        if (shooting) {
-          const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
-          if (!any) resolve();
-        }
-        const mode = cueStick.visible && !shooting ? 'cue' : 'stand';
-        if (cameraModeRef.current !== mode) {
-          cameraModeRef.current = mode;
-          if (mode === 'cue') {
-            sph.radius = CUE_VIEW.radius;
-            sph.phi = CUE_VIEW.phi;
-          } else {
-            sph.phi = STAND_VIEW.phi;
-            fitRef.current?.(STAND_VIEW.margin);
+          if (shooting) {
+            const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
+            if (!any) resolve();
           }
-        }
-        updateCamera();
-        renderer.render(scene, camera);
-        rafRef.current = requestAnimationFrame(step);
-      };
-      step();
+          const fit = fitRef.current;
+          if (fit && cue?.active && !shooting) {
+            const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
+            const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
+            const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
+            const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
+            const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
+            fit(1 + edge * 0.08);
+          }
+          updateCamera();
+          renderer.render(scene, camera);
+          rafRef.current = requestAnimationFrame(step);
+        };
+        step();
 
       // Resize
       const onResize = () => {
         // Update canvas dimensions when the window size changes so the table
         // remains fully visible.
-        renderer.setSize(host.clientWidth, host.clientHeight);
-        fit(topViewRef.current ? 1.05 : STAND_VIEW.margin);
-      };
+          renderer.setSize(host.clientWidth, host.clientHeight);
+          fit(
+            topViewRef.current
+              ? 1.05
+              : window.innerHeight > window.innerWidth
+                ? 1.5
+                : 1.3
+          );
+        };
       window.addEventListener('resize', onResize);
 
       return () => {
