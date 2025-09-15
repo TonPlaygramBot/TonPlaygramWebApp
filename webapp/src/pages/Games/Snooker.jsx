@@ -151,10 +151,10 @@ function makeColorCanvasFromHeight(
 function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
-  // draw tighter, more pronounced diagonal cloth lines for better visibility
-  hctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  hctx.lineWidth = 2.0;
-  const step = 3; // denser line spacing
+  // draw tighter diagonal cloth lines for better visibility
+  hctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  hctx.lineWidth = 1.5;
+  const step = 4;
   hctx.save();
   hctx.translate(size / 2, size / 2);
   hctx.rotate(Math.PI / 4);
@@ -173,12 +173,12 @@ function makeClothTextures(size = 512) {
     0.05
   );
   const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 4.0); // stronger normals
+  const normalCanvas = heightToNormalCanvas(height, 3.0);
   const normalMap = new THREE.CanvasTexture(normalCanvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(48, 48); // tighter texture repetition
-  normalMap.repeat.set(48, 48);
+  map.repeat.set(32, 32);
+  normalMap.repeat.set(32, 32);
   return { map, normalMap };
 }
 
@@ -946,8 +946,6 @@ function SnookerGame() {
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
-  // limit camera to fixed modes: overhead or cue close-up
-  const cameraModeRef = useRef('overhead');
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const initialBreakRef = useRef(false);
@@ -1206,26 +1204,15 @@ function SnookerGame() {
       const minR = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
       const phiCap = Math.atan2(sideDist, railLimit);
       const updateCamera = () => {
-        let target;
-        if (cameraModeRef.current === 'overhead') {
-          target = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
-          const r = fitRadius(camera, 1.2);
-          const over = new THREE.Spherical(r, Math.PI / 4, Math.PI / 4);
-          camera.position.setFromSpherical(over).add(target);
+        const target =
+          cue?.mesh && !shooting && !topViewRef.current
+            ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
+            : new THREE.Vector3(0, TABLE_Y + 0.05, 0);
+        if (topViewRef.current) {
+          camera.position.set(target.x, sph.radius, target.z);
           camera.lookAt(target);
         } else {
-          target =
-            cue?.mesh && !shooting
-              ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-              : new THREE.Vector3(0, TABLE_Y + 0.05, 0);
-          const dir = new THREE.Vector3(
-            aimDirRef.current.x,
-            0,
-            aimDirRef.current.y
-          ).normalize();
-          const offset =
-            dir.clone().multiplyScalar(-20).add(new THREE.Vector3(0, 10, 0));
-          camera.position.copy(target).add(offset);
+          camera.position.setFromSpherical(sph).add(target);
           camera.lookAt(target);
         }
         if (clothMat) {
@@ -1264,20 +1251,96 @@ function SnookerGame() {
       let project;
       const drag = { on: false, x: 0, y: 0, moved: false };
       const pinch = { active: false, dist: 0 };
-      // disable manual orbit/zoom controls - fixed camera modes
-      const down = () => {};
-      const move = () => {};
-      const up = () => {};
-      const wheel = () => {};
-      // allow toggling between overhead and cue camera views
-      const handleKey = (e) => {
-        if (e.code === 'KeyV') {
-          cameraModeRef.current =
-            cameraModeRef.current === 'overhead' ? 'cue' : 'overhead';
+      const down = (e) => {
+        if (e.touches?.length === 2) {
+          const [t1, t2] = e.touches;
+          pinch.active = true;
+          pinch.dist = Math.hypot(
+            t1.clientX - t2.clientX,
+            t1.clientY - t2.clientY
+          );
+          return;
+        }
+        if (topViewRef.current) return;
+        drag.on = true;
+        drag.moved = false;
+        drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
+        drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
+      };
+      const move = (e) => {
+        if (pinch.active && e.touches?.length === 2) {
+          const [t1, t2] = e.touches;
+          const d = Math.hypot(
+            t1.clientX - t2.clientX,
+            t1.clientY - t2.clientY
+          );
+          const delta = pinch.dist - d;
+          sph.radius = clamp(sph.radius + delta * 0.5, minR, CAMERA.maxR);
+          pinch.dist = d;
           updateCamera();
+          return;
+        }
+        if (topViewRef.current || !drag.on) return;
+        const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
+        const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
+        const dx = x - drag.x;
+        const dy = y - drag.y;
+        if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
+        if (drag.moved) {
+          drag.x = x;
+          drag.y = y;
+          sph.theta -= dx * 0.005;
+          sph.phi = clamp(
+            sph.phi + dy * 0.003,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
+          fit(
+            topViewRef.current
+              ? 1.05
+              : window.innerHeight > window.innerWidth
+                ? 1.2
+                : 1.0
+          );
         }
       };
-      window.addEventListener('keydown', handleKey);
+      const up = () => {
+        drag.on = false;
+        drag.moved = false;
+        pinch.active = false;
+      };
+      const wheel = (e) => {
+        sph.radius = clamp(sph.radius + e.deltaY * 0.12, minR, CAMERA.maxR);
+        updateCamera();
+      };
+      dom.addEventListener('mousedown', down);
+      dom.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+      dom.addEventListener('touchstart', down, { passive: true });
+      dom.addEventListener('touchmove', move, { passive: true });
+      window.addEventListener('touchend', up);
+      dom.addEventListener('wheel', wheel, { passive: true });
+      const keyRot = (e) => {
+        if (topViewRef.current) return;
+        const step = e.shiftKey ? 0.12 : 0.06;
+        if (e.code === 'ArrowLeft') sph.theta += step;
+        else if (e.code === 'ArrowRight') sph.theta -= step;
+        else if (e.code === 'ArrowUp')
+          sph.phi = clamp(
+            sph.phi - step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
+        else if (e.code === 'ArrowDown')
+          sph.phi = clamp(
+            sph.phi + step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
+        else return;
+        fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
+      };
+      window.addEventListener('keydown', keyRot);
 
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
@@ -1298,7 +1361,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 2.4; // spread lights farther apart
+      const spacing = 1.8; // spread lights even farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1589,7 +1652,7 @@ function SnookerGame() {
         const pull = Math.min(desiredPull, maxPull);
         cueAnimating = true;
         const startPos = cueStick.position.clone();
-        const endPos = startPos.clone().add(dir.clone().multiplyScalar(-pull));
+        const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
         let animFrame = 0;
         const animSteps = 5;
         const animateCue = () => {
@@ -1767,9 +1830,9 @@ function SnookerGame() {
             perp.z * side
           );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 - pull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 - pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -1906,7 +1969,7 @@ function SnookerGame() {
         dom.removeEventListener('touchmove', move);
         window.removeEventListener('touchend', up);
         dom.removeEventListener('wheel', wheel);
-        window.removeEventListener('keydown', handleKey);
+        window.removeEventListener('keydown', keyRot);
         dom.removeEventListener('pointerdown', onPlace);
       };
     } catch (e) {
