@@ -6,7 +6,6 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -149,11 +148,11 @@ function makeColorCanvasFromHeight(
 }
 
 function makeClothTextures(size = 512) {
-  const height = makeFbmHeightCanvas(size, 4);
+  const height = makeFbmHeightCanvas(size, 2); // reduce noise for straighter weave
   const hctx = height.getContext('2d');
-  // draw slightly darker cloth lines with tighter spacing for a denser weave
-  hctx.strokeStyle = 'rgba(0,0,0,0.7)';
-  hctx.lineWidth = 1.8;
+  // darken and widen cloth lines so the weave is more visible
+  hctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  hctx.lineWidth = 2.2;
   const step = 2;
   hctx.save();
   hctx.translate(size / 2, size / 2);
@@ -170,10 +169,10 @@ function makeClothTextures(size = 512) {
     height,
     '#1e7b1e',
     '#155a15',
-    0.04
+    0.06
   );
   const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 3.0);
+  const normalCanvas = heightToNormalCanvas(height, 1.5); // soften normals to avoid waviness
   const normalMap = new THREE.CanvasTexture(normalCanvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
@@ -459,7 +458,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.0; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -517,9 +516,9 @@ const fitRadius = (camera, margin = 1.1) => {
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
-// preset spherical positions for standing and cue-shot camera views
-const STAND_VIEW = { radius: 380 * TABLE_SCALE, phi: 1.2 };
-const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
+// preset spherical position for standing camera view
+// bring the starting camera slightly closer and higher
+const STAND_VIEW = { radius: 340 * TABLE_SCALE, phi: 1.1 };
 
 // limit downward tilt so the starting angle is the lowest view
 CAMERA.maxPhi = STAND_VIEW.phi;
@@ -1188,7 +1187,6 @@ function SnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
-      RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
       let cushionMat;
@@ -1235,15 +1233,9 @@ function SnookerGame() {
         camera.aspect = host.clientWidth / host.clientHeight;
         const maxPhi = Math.min(phiCap, CAMERA.maxPhi);
         sph.phi = clamp(sph.phi, CAMERA.minPhi, maxPhi);
-        let baseR;
-        if (cameraModeRef.current === 'cue') baseR = CUE_VIEW.radius;
-        else baseR = fitRadius(camera, m);
-        let r;
-        if (cameraModeRef.current === 'cue') r = baseR;
-        else {
-          const t = (sph.phi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
-          r = THREE.MathUtils.lerp(baseR, minR, t);
-        }
+        const baseR = fitRadius(camera, m);
+        const t = (sph.phi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
+        const r = THREE.MathUtils.lerp(baseR, minR, t);
         sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
         updateCamera();
         camera.updateProjectionMatrix();
@@ -1356,25 +1348,27 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place four brighter spotlights above the table with more spacing and coverage
+      // Use circular spotlights that sit closer together and shine brighter
       const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
-      const rectSize = 50; // slightly smaller area lights
-      const lightIntensity = 10; // increase intensity for stronger lighting
+      const lightIntensity = 15; // stronger lighting
+      const lightAngle = Math.PI / 6; // narrower cone for smaller lights
 
       const makeLight = (x, z) => {
-        const rect = new THREE.RectAreaLight(
+        const spot = new THREE.SpotLight(
           0xffffff,
           lightIntensity,
-          rectSize,
-          rectSize
+          0,
+          lightAngle,
+          0.3
         );
-        rect.position.set(x, lightHeight, z);
-        rect.lookAt(x, TABLE_Y, z);
-        scene.add(rect);
+        spot.position.set(x, lightHeight, z);
+        spot.target.position.set(x, TABLE_Y, z);
+        scene.add(spot);
+        scene.add(spot.target);
       };
 
-      // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 2.4; // spread lights even farther apart
+      // four spotlights aligned along the center with reduced spacing
+      const spacing = 1.2; // bring lights closer to each other
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1559,7 +1553,7 @@ function SnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.0 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -1649,7 +1643,7 @@ function SnookerGame() {
 
         // gently lift the camera during the shot without changing zoom
         if (cameraRef.current) {
-          const step = 0.06 * 3; // roughly three "up" key presses
+          const step = 0.03 * 3; // smaller lift to keep view stable
           sph.phi = clamp(
             sph.phi - step,
             CAMERA.minPhi,
@@ -1952,16 +1946,11 @@ function SnookerGame() {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
         }
-        const mode = cueStick.visible && !shooting ? 'cue' : 'stand';
+        const mode = 'stand'; // keep camera in starting position after shots
         if (cameraModeRef.current !== mode) {
           cameraModeRef.current = mode;
-          if (mode === 'cue') {
-            sph.radius = CUE_VIEW.radius;
-            sph.phi = CUE_VIEW.phi;
-          } else {
-            sph.radius = STAND_VIEW.radius;
-            sph.phi = STAND_VIEW.phi;
-          }
+          sph.radius = STAND_VIEW.radius;
+          sph.phi = STAND_VIEW.phi;
         }
         const fit = fitRef.current;
         if (fit && cue?.active && !shooting && cameraModeRef.current === 'stand') {
