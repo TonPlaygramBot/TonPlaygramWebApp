@@ -459,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.0; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.1; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -500,9 +500,7 @@ const CAMERA = {
   far: 4000,
   minR: 40 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
-  minPhi: 0.35,
-  // keep the camera slightly above the horizontal plane
-  maxPhi: Math.PI / 2 - 0.05
+  minPhi: 0.35 // keep the camera slightly above the horizontal plane
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -518,11 +516,9 @@ const fitRadius = (camera, margin = 1.1) => {
 };
 
 // preset spherical positions for standing and cue-shot camera views
-const STAND_VIEW = { radius: 380 * TABLE_SCALE, phi: 1.2 };
+const STAND_VIEW = { radius: 350 * TABLE_SCALE, phi: 1.1 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 
-// limit downward tilt so the starting angle is the lowest view
-CAMERA.maxPhi = STAND_VIEW.phi;
 
 // --------------------------------------------------
 // Utilities
@@ -949,6 +945,7 @@ function SnookerGame() {
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const rendererRef = useRef(null);
+  const cameraTargetRef = useRef(new THREE.Vector3(0, TABLE_Y + 0.05, 0));
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
@@ -1212,10 +1209,15 @@ function SnookerGame() {
       const minR = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
       const phiCap = Math.atan2(sideDist, railLimit);
       const updateCamera = () => {
-        const target =
-          cue?.mesh && !shooting && !topViewRef.current
-            ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-            : new THREE.Vector3(0, TABLE_Y + 0.05, 0);
+        let target;
+        if (cue?.mesh && !topViewRef.current) {
+          if (!shooting)
+            cameraTargetRef.current.set(cue.pos.x, BALL_R, cue.pos.y);
+          target = cameraTargetRef.current;
+        } else {
+          cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
+          target = cameraTargetRef.current;
+        }
         if (topViewRef.current) {
           camera.position.set(target.x, sph.radius, target.z);
           camera.lookAt(target);
@@ -1233,7 +1235,10 @@ function SnookerGame() {
       };
       const fit = (m = 1.2) => {
         camera.aspect = host.clientWidth / host.clientHeight;
-        const maxPhi = Math.min(phiCap, CAMERA.maxPhi);
+        const maxPhi = Math.min(
+          phiCap,
+          cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
+        );
         sph.phi = clamp(sph.phi, CAMERA.minPhi, maxPhi);
         let baseR;
         if (cameraModeRef.current === 'cue') baseR = CUE_VIEW.radius;
@@ -1306,7 +1311,10 @@ function SnookerGame() {
           sph.phi = clamp(
             sph.phi + dy * 0.003,
             CAMERA.minPhi,
-            Math.min(phiCap, CAMERA.maxPhi)
+            Math.min(
+              phiCap,
+              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
+            )
           );
           fit(
             topViewRef.current
@@ -1342,13 +1350,19 @@ function SnookerGame() {
           sph.phi = clamp(
             sph.phi - step,
             CAMERA.minPhi,
-            Math.min(phiCap, CAMERA.maxPhi)
+            Math.min(
+              phiCap,
+              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
+            )
           );
         else if (e.code === 'ArrowDown')
           sph.phi = clamp(
             sph.phi + step,
             CAMERA.minPhi,
-            Math.min(phiCap, CAMERA.maxPhi)
+            Math.min(
+              phiCap,
+              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
+            )
           );
         else return;
         fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
@@ -1358,8 +1372,8 @@ function SnookerGame() {
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
-      const rectSize = 50; // slightly smaller area lights
-      const lightIntensity = 10; // increase intensity for stronger lighting
+      const rectSize = 40; // slightly smaller area lights
+      const lightIntensity = 12; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1649,11 +1663,14 @@ function SnookerGame() {
 
         // gently lift the camera during the shot without changing zoom
         if (cameraRef.current) {
-          const step = 0.06 * 3; // roughly three "up" key presses
+          const step = 0.06; // slight raise for a broader view
           sph.phi = clamp(
             sph.phi - step,
             CAMERA.minPhi,
-            Math.min(phiCap, CAMERA.maxPhi)
+            Math.min(
+              phiCap,
+              cameraModeRef.current === 'cue' ? CUE_VIEW.phi : STAND_VIEW.phi
+            )
           );
           updateCamera();
         }
