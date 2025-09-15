@@ -20,166 +20,26 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
 // --------------------------------------------------
-// Procedural emerald cloth texture utilities
+// Simple green cloth texture helper
 // --------------------------------------------------
-function makeFbmHeightCanvas(size = 512, octaves = 5) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d');
+function makeClothTexture(size = 128) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(size, size);
-  function valueNoise(grid, x, y) {
-    const x0 = Math.floor(x),
-      y0 = Math.floor(y);
-    const x1 = x0 + 1,
-      y1 = y0 + 1;
-    const sx = x - x0,
-      sy = y - y0;
-    const v00 = grid[(y0 & 255) * 256 + (x0 & 255)];
-    const v10 = grid[(y0 & 255) * 256 + (x1 & 255)];
-    const v01 = grid[(y1 & 255) * 256 + (x0 & 255)];
-    const v11 = grid[(y1 & 255) * 256 + (x1 & 255)];
-    const cx = (1 - Math.cos(sx * Math.PI)) * 0.5;
-    const cy = (1 - Math.cos(sy * Math.PI)) * 0.5;
-    const ix0 = v00 * (1 - cx) + v10 * cx;
-    const ix1 = v01 * (1 - cx) + v11 * cx;
-    return ix0 * (1 - cy) + ix1 * cy;
-  }
-  const grid = new Float32Array(256 * 256);
-  for (let i = 0; i < grid.length; i++) grid[i] = Math.random();
-  const lacunarity = 2.2;
-  const gain = 0.52;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let amp = 1,
-        freq = 1 / 8,
-        sum = 0,
-        norm = 0;
-      for (let o = 0; o < octaves; o++) {
-        const nx = x * freq,
-          ny = y * freq;
-        const v = valueNoise(grid, nx, ny);
-        sum += v * amp;
-        norm += amp;
-        amp *= gain;
-        freq *= lacunarity;
-      }
-      let h = sum / norm;
-      h = Math.pow(h, 1.25);
-      const i = (y * size + x) * 4;
-      img.data[i + 0] = img.data[i + 1] = img.data[i + 2] = Math.floor(h * 255);
-      img.data[i + 3] = 255;
-    }
+  const base = [30, 123, 30];
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = (Math.random() - 0.5) * 20;
+    img.data[i] = Math.max(0, Math.min(255, base[0] + v));
+    img.data[i + 1] = Math.max(0, Math.min(255, base[1] + v));
+    img.data[i + 2] = Math.max(0, Math.min(255, base[2] + v));
+    img.data[i + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
-  return c;
-}
-
-function heightToNormalCanvas(heightCanvas, strength = 2.0) {
-  const w = heightCanvas.width,
-    h = heightCanvas.height;
-  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  const out = ctx.createImageData(w, h);
-  const get = (x, y) => src[(((y + h) % h) * w + ((x + w) % w)) << 2];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const hL = get(x - 1, y),
-        hR = get(x + 1, y);
-      const hD = get(x, y + 1),
-        hU = get(x, y - 1);
-      const dx = ((hR - hL) / 255) * strength;
-      const dy = ((hD - hU) / 255) * strength;
-      let nx = -dx,
-        ny = -dy,
-        nz = 1.0;
-      const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
-      nx *= invLen;
-      ny *= invLen;
-      nz *= invLen;
-      const i = (y * w + x) * 4;
-      out.data[i + 0] = Math.floor((nx * 0.5 + 0.5) * 255);
-      out.data[i + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
-      out.data[i + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
-      out.data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(out, 0, 0);
-  return c;
-}
-
-function makeColorCanvasFromHeight(
-  heightCanvas,
-  c0 = '#228b22',
-  c1 = '#2ec956',
-  variation = 0.1
-) {
-  const w = heightCanvas.width,
-    h = heightCanvas.height;
-  const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  const out = ctx.createImageData(w, h);
-  const ca = new THREE.Color(c0),
-    cb = new THREE.Color(c1);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      const v = src[idx * 4] / 255;
-      const t = Math.min(
-        1,
-        Math.max(0, v * (1 + (Math.random() - 0.5) * variation))
-      );
-      const col = ca.clone().lerp(cb, t);
-      const edge =
-        Math.min(x, w - 1 - x, y, h - 1 - y) / (Math.min(w, h) * 0.5);
-      col.multiplyScalar(0.8 + edge * 0.2);
-      out.data[idx * 4 + 0] = Math.floor(col.r * 255);
-      out.data[idx * 4 + 1] = Math.floor(col.g * 255);
-      out.data[idx * 4 + 2] = Math.floor(col.b * 255);
-      out.data[idx * 4 + 3] = 255;
-    }
-  }
-  ctx.putImageData(out, 0, 0);
-  return c;
-}
-
-function makeClothTextures(size = 512) {
-  const height = makeFbmHeightCanvas(size, 4);
-  const hctx = height.getContext('2d');
-  // draw slightly darker cloth lines with tighter spacing for a denser weave
-  hctx.strokeStyle = 'rgba(0,0,0,0.7)';
-  hctx.lineWidth = 1.8;
-  const step = 2;
-  hctx.save();
-  hctx.translate(size / 2, size / 2);
-  hctx.rotate(Math.PI / 4);
-  hctx.translate(-size / 2, -size / 2);
-  for (let y = -size; y < size * 2; y += step) {
-    hctx.beginPath();
-    hctx.moveTo(-size, y);
-    hctx.lineTo(size * 2, y);
-    hctx.stroke();
-  }
-  hctx.restore();
-  const colorCanvas = makeColorCanvasFromHeight(
-    height,
-    '#1e7b1e',
-    '#155a15',
-    0.04
-  );
-  const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 3.0);
-  const normalMap = new THREE.CanvasTexture(normalCanvas);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(32, 32);
-  normalMap.repeat.set(32, 32);
-  return { map, normalMap };
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(16, 16);
+  return tex;
 }
 
 // --------------------------------------------------
@@ -668,11 +528,9 @@ function Table3D(scene) {
     sheen: 0.6,
     sheenRoughness: 0.9
   });
-  const clothTex = makeClothTextures();
-  clothMat.map = clothTex.map;
-  clothMat.normalMap = clothTex.normalMap;
-  clothMat.map.anisotropy = 4;
-  clothMat.normalMap.anisotropy = 4;
+  const clothTex = makeClothTexture();
+  clothMat.map = clothTex;
+  clothMat.map.anisotropy = 1;
   clothMat.needsUpdate = true;
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
@@ -1195,7 +1053,7 @@ function SnookerGame() {
         // Start behind baulk colours
         const sph = new THREE.Spherical(
           180 * TABLE_SCALE,
-          1.15, // orbit view angle for break slightly lower and pulled down
+          1.12, // orbit view angle for break slightly lower and pulled down
           Math.PI
         );
         const updateCamera = () => {
@@ -1212,11 +1070,8 @@ function SnookerGame() {
           }
           if (clothMat) {
             const dist = camera.position.distanceTo(target);
-            // Stronger detail up close, fade quicker in orbit view
+            // Subtle detail up close, fade quicker in orbit view
             const fade = THREE.MathUtils.clamp((120 - dist) / 50, 0, 1);
-            const ns = 1.2 * fade;
-            clothMat.normalScale.set(ns, ns);
-            cushionMat?.normalScale.set(ns, ns);
             const rep = THREE.MathUtils.lerp(12, 24, fade);
             clothMat.map?.repeat.set(rep, rep);
           }
@@ -1350,7 +1205,7 @@ function SnookerGame() {
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSize = 30; // slightly smaller area lights
-      const lightIntensity = 22; // slightly stronger lighting
+      const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1650,9 +1505,9 @@ function SnookerGame() {
             const cam = cameraRef.current;
             const sph = sphRef.current;
             sph.theta = Math.PI;
-            sph.phi = 1.05; // slightly lower during shot
-            fitRef.current(2.3); // pull back and zoom out a touch more
-            sph.radius *= 1.05; // tiny additional pull back
+            sph.phi = 1.02; // slightly lower during shot
+            fitRef.current(2.5); // pull back and zoom out a touch more
+            sph.radius *= 1.08; // tiny additional pull back
             updateCamera();
           }
 
