@@ -516,8 +516,8 @@ const fitRadius = (camera, margin = 1.1) => {
 };
 
 // preset spherical positions for standing, cue-shot and post-shot views
-// start a little closer and higher when the game loads
-const STAND_VIEW = { radius: 260 * TABLE_SCALE, phi: 0.9 };
+// position the initial camera slightly closer to the table and a bit higher
+const STAND_VIEW = { radius: 220 * TABLE_SCALE, phi: 0.8 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 // after a shot, zoom out and lower the camera to show the whole table
 const SHOT_VIEW = { phi: 1.15, margin: 1.4 };
