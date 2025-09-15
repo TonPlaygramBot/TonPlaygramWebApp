@@ -946,6 +946,7 @@ function SnookerGame() {
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
+  const initialBreakRef = useRef(false);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -1195,6 +1196,11 @@ function SnookerGame() {
         0.9 /* elevated angle */,
         Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
+      // keep orbit camera above the cloth and outside the side rails
+      const railLimit = TABLE.THICK * 2 + 1.0; // slightly above side rails
+      const sideDist = TABLE.W / 2 + TABLE.THICK; // horizontal distance to rails
+      const minR = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
+      const phiCap = Math.atan2(sideDist, railLimit);
       const updateCamera = () => {
         const target =
           cue?.mesh && !topViewRef.current && !shooting
@@ -1218,18 +1224,11 @@ function SnookerGame() {
       const fit = (m = 1.2) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         const baseR = fitRadius(camera, m);
-        const railLimit = TABLE.THICK * 2 + 1.0; // keep camera slightly above side rails
-        const sideDist = TABLE.W / 2 + TABLE.THICK; // horizontal distance to rails
-        const maxZoom = Math.sqrt(sideDist * sideDist + railLimit * railLimit);
-        const phiCap = Math.atan2(sideDist, railLimit);
-        const clampedPhi = clamp(
-          sph.phi,
-          CAMERA.minPhi,
-          Math.min(phiCap, CAMERA.maxPhi)
-        );
+        const maxPhi = Math.min(phiCap, CAMERA.maxPhi);
+        const clampedPhi = clamp(sph.phi, CAMERA.minPhi, maxPhi);
         sph.phi = clampedPhi;
-        const t = (clampedPhi - CAMERA.minPhi) / (phiCap - CAMERA.minPhi);
-        const r = THREE.MathUtils.lerp(baseR, maxZoom, t);
+        const t = (clampedPhi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
+        const r = THREE.MathUtils.lerp(baseR, minR, t);
         sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
         updateCamera();
         camera.updateProjectionMatrix();
@@ -1276,7 +1275,7 @@ function SnookerGame() {
           const delta = pinch.dist - d;
           sph.radius = clamp(
             sph.radius + delta * 0.5,
-            CAMERA.minR,
+            minR,
             CAMERA.maxR
           );
           pinch.dist = d;
@@ -1293,7 +1292,11 @@ function SnookerGame() {
           drag.x = x;
           drag.y = y;
           sph.theta -= dx * 0.005;
-          sph.phi = clamp(sph.phi + dy * 0.003, CAMERA.minPhi, CAMERA.maxPhi);
+          sph.phi = clamp(
+            sph.phi + dy * 0.003,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
           fit(
             topViewRef.current
               ? 1.05
@@ -1311,7 +1314,7 @@ function SnookerGame() {
       const wheel = (e) => {
         sph.radius = clamp(
           sph.radius + e.deltaY * 0.12,
-          CAMERA.minR,
+          minR,
           CAMERA.maxR
         );
         updateCamera();
@@ -1329,9 +1332,17 @@ function SnookerGame() {
         if (e.code === 'ArrowLeft') sph.theta += step;
         else if (e.code === 'ArrowRight') sph.theta -= step;
         else if (e.code === 'ArrowUp')
-          sph.phi = clamp(sph.phi - step, CAMERA.minPhi, CAMERA.maxPhi);
+          sph.phi = clamp(
+            sph.phi - step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
         else if (e.code === 'ArrowDown')
-          sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
+          sph.phi = clamp(
+            sph.phi + step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
         else return;
         fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
       };
@@ -1339,8 +1350,8 @@ function SnookerGame() {
 
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
-      const lightHeight = TABLE_Y + 80; // keep all spotlights at the same height
-      const rectSize = 60; // widen area lights for broader beams
+      const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
+      const rectSize = 50; // slightly smaller area lights
       const lightIntensity = 10; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
@@ -1356,7 +1367,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 0.85; // keep lights away from table edges
+      const spacing = 0.9; // spread lights a bit farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1661,8 +1672,14 @@ function SnookerGame() {
               topViewRef.current = false;
               const sph = sphRef.current;
               sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-              sph.phi = 0.9;
-              fitRef.current(2.3);
+              if (!initialBreakRef.current) {
+                sph.phi = Math.min(phiCap, 1.2);
+                fitRef.current(2.8);
+                initialBreakRef.current = true;
+              } else {
+                sph.phi = Math.min(phiCap, 0.9);
+                fitRef.current(2.3);
+              }
               updateCamera();
             }
           }
