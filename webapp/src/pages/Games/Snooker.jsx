@@ -1089,8 +1089,8 @@ function SnookerGame() {
       const targetMargin = next
         ? 1.05
         : window.innerHeight > window.innerWidth
-          ? 1.5
-          : 1.3;
+          ? 1.6
+          : 1.4;
     const target = {
       radius: fitRadius(cam, targetMargin),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -1195,7 +1195,7 @@ function SnookerGame() {
         // Start behind baulk colours
         const sph = new THREE.Spherical(
           180 * TABLE_SCALE,
-          1.05, // orbit view angle for break
+          1.1, // orbit view angle for break slightly lower
           Math.PI
         );
         const updateCamera = () => {
@@ -1247,8 +1247,8 @@ function SnookerGame() {
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.5
-              : 1.3
+              ? 1.6
+              : 1.4
         );
         const dom = renderer.domElement;
         dom.style.touchAction = 'none';
@@ -1339,15 +1339,15 @@ function SnookerGame() {
           else if (e.code === 'ArrowDown')
             sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
           else return;
-          fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
+          fit(window.innerHeight > window.innerWidth ? 1.6 : 1.4);
         };
         window.addEventListener('keydown', keyRot);
 
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
-      const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
-      const rectSize = 40; // slightly smaller area lights
-      const lightIntensity = 14; // slightly stronger lighting
+      const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
+      const rectSize = 30; // slightly smaller area lights
+      const lightIntensity = 18; // slightly stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1633,7 +1633,13 @@ function SnookerGame() {
           const base = aimDir
             .clone()
             .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
-          cue.vel.copy(base);
+          const spinSide = spinRef.current.x * spinRangeRef.current;
+          const spinTop = -spinRef.current.y * spinRangeRef.current;
+          const sideVec = new THREE.Vector2(-aimDir.y, aimDir.x).multiplyScalar(
+            spinSide
+          );
+          const topVec = aimDir.clone().multiplyScalar(spinTop);
+          cue.vel.copy(base).add(sideVec).add(topVec);
 
           // switch camera back to orbit view and pull back to show full table
           if (cameraRef.current && sphRef.current && fitRef.current) {
@@ -1641,8 +1647,8 @@ function SnookerGame() {
             const cam = cameraRef.current;
             const sph = sphRef.current;
             sph.theta = Math.PI;
-            sph.phi = 0.95;
-            fitRef.current(2.1);
+            sph.phi = 1.0;
+            fitRef.current(2.2);
             updateCamera();
           }
 
@@ -1968,8 +1974,8 @@ function SnookerGame() {
             topViewRef.current
               ? 1.05
               : window.innerHeight > window.innerWidth
-                ? 1.5
-                : 1.3
+                ? 1.6
+                : 1.4
           );
         };
       window.addEventListener('resize', onResize);
