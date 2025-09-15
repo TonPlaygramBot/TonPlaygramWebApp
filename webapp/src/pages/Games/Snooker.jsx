@@ -20,62 +20,6 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
 // --------------------------------------------------
-// Snooker cloth texture helper (friendly + lightweight)
-// --------------------------------------------------
-function createClothTexture(size = 256) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) {
-    return null;
-  }
-
-  const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, '#1f7f3b');
-  gradient.addColorStop(0.5, '#166d31');
-  gradient.addColorStop(1, '#0f5426');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1;
-  const spacing = size / 12;
-  ctx.translate(size * -0.25, 0);
-  ctx.rotate((-10 * Math.PI) / 180);
-  for (let i = -size; i < size * 2; i += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(i, -size);
-    ctx.lineTo(i, size * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = 0.05;
-  ctx.strokeStyle = '#002e16';
-  ctx.lineWidth = 1;
-  const spacingDark = size / 10;
-  ctx.translate(size * 0.25, 0);
-  ctx.rotate((12 * Math.PI) / 180);
-  for (let i = -size; i < size * 2; i += spacingDark) {
-    ctx.beginPath();
-    ctx.moveTo(i, -size);
-    ctx.lineTo(i, size * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(6, 6);
-  tex.anisotropy = 2;
-  return tex;
-}
-
-// --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
 const JAW_H = 3.0;
@@ -391,12 +335,6 @@ function Table3D(parent) {
     sheen: 0.6,
     sheenRoughness: 0.9
   });
-  const clothTex = createClothTexture();
-  if (clothTex) {
-    clothMat.map = clothTex;
-    clothMat.map.anisotropy = 1;
-    clothMat.needsUpdate = true;
-  }
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
