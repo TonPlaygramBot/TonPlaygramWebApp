@@ -40,7 +40,7 @@ function makeClothTexture(size = 2048) {
       const idx = (y * size + x) * 4;
       const noise =
         Math.sin(x * 0.08 + y * 0.07) + Math.cos(x * 0.05 - y * 0.06);
-      const fibre = Math.floor(((noise + 2) / 4) * 6);
+      const fibre = Math.floor(((noise + 2) / 4) * 7);
       baseData[idx] = Math.max(0, baseData[idx] - fibre);
       baseData[idx + 1] = Math.max(0, baseData[idx + 1] - fibre);
       baseData[idx + 2] = Math.max(0, baseData[idx + 2] - fibre);
@@ -62,7 +62,7 @@ function makeClothTexture(size = 2048) {
       const ny = y / size - 0.5;
       let ramp = nx * vx + ny * vy;
       ramp = Math.tanh(ramp * 2.2);
-      const glow = ramp * 5;
+      const glow = ramp * 6;
       napData[idx] = Math.min(255, napData[idx] + glow);
       napData[idx + 1] = Math.min(255, napData[idx + 1] + glow);
       napData[idx + 2] = Math.min(255, napData[idx + 2] + glow);
@@ -516,10 +516,10 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.15,
-    clearcoat: 1,
-    clearcoatRoughness: 0.1,
-    specularIntensity: 1.1
+    roughness: 0.2,
+    clearcoat: 0.92,
+    clearcoatRoughness: 0.16,
+    specularIntensity: 1
   });
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
@@ -1286,7 +1286,7 @@ function SnookerGame() {
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.7; // spotlights about 30% smaller for a tighter beam
+      const rectSize = rectSizeBase * 0.6; // trim spotlights slightly smaller for softer pools
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1612,12 +1612,19 @@ function SnookerGame() {
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             const cam = cameraRef.current;
+            const sph = sphRef.current;
+            const desiredRadius = Math.max(
+              sph.radius * 1.05,
+              fitRadius(cam, 1.45) * 1.05,
+              CAMERA.minR * 1.08
+            );
             const overviewRadius = clamp(
-              fitRadius(cam, 1.35) * 1.05,
+              desiredRadius,
               CAMERA.minR,
               CAMERA.maxR
             );
-            const overviewPhi = clamp(0.62, CAMERA.minPhi, CAMERA.maxPhi);
+            const targetPhi = Math.min(0.72, sph.phi + 0.08);
+            const overviewPhi = clamp(targetPhi, CAMERA.minPhi, CAMERA.maxPhi);
             const overviewTheta =
               Math.atan2(aimDir.x, aimDir.y) + Math.PI;
             animateCamera({
