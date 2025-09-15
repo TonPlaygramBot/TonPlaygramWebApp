@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -458,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.3; // position cue stick a bit farther back
+const CUE_TIP_GAP = BALL_R * 1.0; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -517,7 +518,7 @@ const fitRadius = (camera, margin = 1.1) => {
 };
 
 // preset spherical positions for standing and cue-shot camera views
-const STAND_VIEW = { radius: 350 * TABLE_SCALE, phi: 1.1 };
+const STAND_VIEW = { radius: 380 * TABLE_SCALE, phi: 1.2 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 
 // limit downward tilt so the starting angle is the lowest view
@@ -1187,6 +1188,7 @@ function SnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
+      RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
       let cushionMat;
@@ -1354,23 +1356,25 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Use smaller circular spotlights placed closer together with slightly higher intensity
-      const lightHeight = TABLE_Y + 90;
-      const lightIntensity = 12; // a touch brighter
-      const lightAngle = Math.PI / 6; // narrower beams for smaller pools of light
+      // Place four brighter spotlights above the table with more spacing and coverage
+      const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
+      const rectSize = 50; // slightly smaller area lights
+      const lightIntensity = 10; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
-        const spot = new THREE.SpotLight(0xffffff, lightIntensity);
-        spot.position.set(x, lightHeight, z);
-        spot.angle = lightAngle;
-        spot.penumbra = 0.3;
-        spot.target.position.set(x, TABLE_Y, z);
-        scene.add(spot);
-        scene.add(spot.target);
+        const rect = new THREE.RectAreaLight(
+          0xffffff,
+          lightIntensity,
+          rectSize,
+          rectSize
+        );
+        rect.position.set(x, lightHeight, z);
+        rect.lookAt(x, TABLE_Y, z);
+        scene.add(rect);
       };
 
-      // four spotlights aligned along the center with reduced spacing
-      const spacing = 1.0; // bring lights closer together
+      // four spotlights aligned along the center with extra spacing from the ends
+      const spacing = 2.4; // spread lights even farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1555,7 +1559,7 @@ function SnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.3 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.0 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -1645,7 +1649,7 @@ function SnookerGame() {
 
         // gently lift the camera during the shot without changing zoom
         if (cameraRef.current) {
-          const step = 0.06 * 4; // raise camera a bit more
+          const step = 0.06 * 3; // roughly three "up" key presses
           sph.phi = clamp(
             sph.phi - step,
             CAMERA.minPhi,
@@ -1958,6 +1962,15 @@ function SnookerGame() {
             sph.radius = STAND_VIEW.radius;
             sph.phi = STAND_VIEW.phi;
           }
+        }
+        const fit = fitRef.current;
+        if (fit && cue?.active && !shooting && cameraModeRef.current === 'stand') {
+          const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
+          const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
+          const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
+          const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
+          const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
+          fit(1 + edge * 0.08);
         }
         updateCamera();
         renderer.render(scene, camera);
