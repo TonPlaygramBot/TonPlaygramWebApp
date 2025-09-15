@@ -1062,7 +1062,7 @@ function SnookerGame() {
         // Start behind baulk colours
         const sph = new THREE.Spherical(
           180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-          1.12, // orbit view angle for break slightly lower and pulled down
+          1.08, // lift the break view a touch for a clearer overview
           Math.PI
         );
         const updateCamera = () => {
@@ -1115,8 +1115,8 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
-        // give a slightly wider, lower starting view at the break
-        sph.radius *= 1.05;
+        // give a slightly wider, higher starting view at the break
+        sph.radius *= 1.08;
         updateCamera();
         const dom = renderer.domElement;
         dom.style.touchAction = 'none';
@@ -1214,7 +1214,7 @@ function SnookerGame() {
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
-      const rectSize = 30; // slightly smaller area lights
+      const rectSize = 21; // trim spotlights ~30% for a tighter beam
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1351,13 +1351,13 @@ function SnookerGame() {
       cueStick.add(tipGroup);
       tipGroupRef.current = tipGroup;
 
-      // subtle leather-like line texture for the tip
+      // subtle leather-like texture for the tip
       const tipCanvas = document.createElement('canvas');
       tipCanvas.width = tipCanvas.height = 64;
       const tipCtx = tipCanvas.getContext('2d');
-      tipCtx.fillStyle = '#0a4cbf';
+      tipCtx.fillStyle = '#1b3f75';
       tipCtx.fillRect(0, 0, 64, 64);
-      tipCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+      tipCtx.strokeStyle = 'rgba(255,255,255,0.08)';
       tipCtx.lineWidth = 2;
       for (let i = 0; i < 64; i += 8) {
         tipCtx.beginPath();
@@ -1365,14 +1365,31 @@ function SnookerGame() {
         tipCtx.lineTo(i, 64);
         tipCtx.stroke();
       }
+      tipCtx.globalAlpha = 0.2;
+      tipCtx.fillStyle = 'rgba(12, 24, 60, 0.65)';
+      for (let i = 0; i < 80; i++) {
+        const x = Math.random() * 64;
+        const y = Math.random() * 64;
+        const w = 6 + Math.random() * 10;
+        const h = 2 + Math.random() * 4;
+        tipCtx.beginPath();
+        tipCtx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
+        tipCtx.fill();
+      }
+      tipCtx.globalAlpha = 1;
       const tipTex = new THREE.CanvasTexture(tipCanvas);
 
-      const tipLen = 0.03 * SCALE;
+      const tipRadius = 0.006 * SCALE;
+      const tipLen = 0.015 * SCALE;
+      const tipCylinderLen = Math.max(0, tipLen - tipRadius * 2);
       const tip = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.008 * SCALE, tipLen - 0.016 * SCALE, 8, 16),
-        new THREE.MeshPhysicalMaterial({
-          color: 0x0000ff,
-          roughness: 0.9,
+        tipCylinderLen > 0
+          ? new THREE.CapsuleGeometry(tipRadius, tipCylinderLen, 8, 16)
+          : new THREE.SphereGeometry(tipRadius, 16, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x1f3f73,
+          roughness: 1,
+          metalness: 0,
           map: tipTex
         })
       );
@@ -1383,8 +1400,8 @@ function SnookerGame() {
       const connectorHeight = 0.015 * SCALE;
       const connector = new THREE.Mesh(
         new THREE.CylinderGeometry(
-          0.009 * SCALE,
-          0.009 * SCALE,
+          tipRadius,
+          0.008 * SCALE,
           connectorHeight,
           32
         ),
@@ -1525,9 +1542,9 @@ function SnookerGame() {
             const cam = cameraRef.current;
             const sph = sphRef.current;
             sph.theta = Math.PI;
-            sph.phi = 1.02; // slightly lower during shot
+            sph.phi = 1.07; // drop the follow camera a little closer to the action
             fitRef.current(2.5); // pull back and zoom out a touch more
-            sph.radius *= 1.08; // tiny additional pull back
+            sph.radius *= 1.1; // tiny additional pull back
             updateCamera();
           }
 
