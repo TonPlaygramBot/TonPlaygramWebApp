@@ -137,7 +137,7 @@ function makeColorCanvasFromHeight(
       const col = ca.clone().lerp(cb, t);
       const edge =
         Math.min(x, w - 1 - x, y, h - 1 - y) / (Math.min(w, h) * 0.5);
-      col.multiplyScalar(0.7 + edge * 0.2);
+      col.multiplyScalar(0.8 + edge * 0.2);
       out.data[idx * 4 + 0] = Math.floor(col.r * 255);
       out.data[idx * 4 + 1] = Math.floor(col.g * 255);
       out.data[idx * 4 + 2] = Math.floor(col.b * 255);
@@ -152,9 +152,9 @@ function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
   // draw more pronounced cloth lines with closer spacing
-  hctx.strokeStyle = 'rgba(0,0,0,0.8)';
-  hctx.lineWidth = 1.5;
-  const step = 2;
+  hctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  hctx.lineWidth = 2;
+  const step = 3;
   hctx.save();
   hctx.translate(size / 2, size / 2);
   hctx.rotate(Math.PI / 4);
@@ -168,12 +168,12 @@ function makeClothTextures(size = 512) {
   hctx.restore();
   const colorCanvas = makeColorCanvasFromHeight(
     height,
-    '#1b5e1b',
-    '#144d14',
+    '#228b22',
+    '#1e6b1e',
     0.05
   );
   const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 4.0);
+  const normalCanvas = heightToNormalCanvas(height, 3.0);
   const normalMap = new THREE.CanvasTexture(normalCanvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
@@ -459,18 +459,15 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.0; // pull cue stick farther back so tip and ring are visible
+const CUE_TIP_GAP = BALL_R * 0.8; // pull cue stick farther back so tip and ring are visible
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
 
-// minimum stand view radius for initial close view
-const START_RADIUS = 360 * TABLE_SCALE;
-
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x1b5e1b,
+  cloth: 0x238b23,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -501,7 +498,7 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 120 * TABLE_SCALE,
+  minR: 40 * TABLE_SCALE,
   maxR: 420 * TABLE_SCALE,
   minPhi: 0.35,
   // keep the camera slightly above the horizontal plane
@@ -521,8 +518,8 @@ const fitRadius = (camera, margin = 1.1) => {
 };
 
 // preset spherical positions for standing and cue-shot camera views
-const STAND_VIEW = { radius: CAMERA.maxR, phi: 1.3 };
-const CUE_VIEW = { radius: CAMERA.minR, phi: 1.45 };
+const STAND_VIEW = { radius: 420 * TABLE_SCALE, phi: 1.3 };
+const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 
 // --------------------------------------------------
 // Utilities
@@ -1200,9 +1197,9 @@ function SnookerGame() {
         CAMERA.near,
         CAMERA.far
       );
-      // default to a closer standing view
+      // default to the standing player view
       const sph = new THREE.Spherical(
-        START_RADIUS,
+        STAND_VIEW.radius,
         STAND_VIEW.phi,
         Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
@@ -1244,9 +1241,7 @@ function SnookerGame() {
           const t = (sph.phi - CAMERA.minPhi) / (maxPhi - CAMERA.minPhi);
           r = THREE.MathUtils.lerp(baseR, minR, t);
         }
-        const minZoom =
-          cameraModeRef.current === 'stand' ? START_RADIUS : CUE_VIEW.radius;
-        sph.radius = clamp(r, Math.max(minZoom, minR), CAMERA.maxR);
+        sph.radius = clamp(r, CAMERA.minR, CAMERA.maxR);
         updateCamera();
         camera.updateProjectionMatrix();
       };
@@ -1290,13 +1285,7 @@ function SnookerGame() {
             t1.clientY - t2.clientY
           );
           const delta = pinch.dist - d;
-          const minZoom =
-            cameraModeRef.current === 'stand' ? START_RADIUS : CUE_VIEW.radius;
-          sph.radius = clamp(
-            sph.radius + delta * 0.5,
-            Math.max(minZoom, minR),
-            CAMERA.maxR
-          );
+          sph.radius = clamp(sph.radius + delta * 0.5, minR, CAMERA.maxR);
           pinch.dist = d;
           updateCamera();
           return;
@@ -1331,13 +1320,7 @@ function SnookerGame() {
         pinch.active = false;
       };
       const wheel = (e) => {
-        const minZoom =
-          cameraModeRef.current === 'stand' ? START_RADIUS : CUE_VIEW.radius;
-        sph.radius = clamp(
-          sph.radius + e.deltaY * 0.12,
-          Math.max(minZoom, minR),
-          CAMERA.maxR
-        );
+        sph.radius = clamp(sph.radius + e.deltaY * 0.12, minR, CAMERA.maxR);
         updateCamera();
       };
       dom.addEventListener('mousedown', down);
@@ -1370,38 +1353,33 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place three brighter spotlights above the table with more spacing and coverage
+      // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
       const rectSize = 50; // slightly smaller area lights
       const lightIntensity = 10; // increase intensity for stronger lighting
 
-      const makeLight = (x, z, size = rectSize, targetX = x, targetZ = z) => {
+      const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
           0xffffff,
           lightIntensity,
-          size,
-          size
+          rectSize,
+          rectSize
         );
         rect.position.set(x, lightHeight, z);
-        rect.lookAt(targetX, TABLE_Y, targetZ);
+        rect.lookAt(x, TABLE_Y, z);
         scene.add(rect);
       };
 
-      // three spotlights aligned along the center with extra spacing from the ends
+      // four spotlights aligned along the center with extra spacing from the ends
       const spacing = 2.4; // spread lights even farther apart
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
           (TABLE.H / 2) * spacing,
-          (i + 0.5) / 3
+          (i + 0.5) / 4
         );
         makeLight(0, z);
       }
-
-      // two smaller side lights aiming toward the center of the table
-      const sideX = TABLE.W / 2;
-      makeLight(-sideX, 0, rectSize * 0.5, 0, 0);
-      makeLight(sideX, 0, rectSize * 0.5, 0, 0);
 
       // Table
       const {
@@ -1418,7 +1396,7 @@ function SnookerGame() {
       // prevent the camera from zooming beyond the side walls
       const maxZoom = Math.min(arena.rugWidth, arena.rugHeight) / 2 - 5;
       CAMERA.maxR = Math.min(CAMERA.maxR, maxZoom);
-      sph.radius = clamp(sph.radius, START_RADIUS, CAMERA.maxR);
+      sph.radius = Math.min(sph.radius, CAMERA.maxR);
       updateCamera();
 
       // Balls (ONLY Guret)
@@ -1578,7 +1556,7 @@ function SnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.0 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
