@@ -151,21 +151,21 @@ function makeColorCanvasFromHeight(
 function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
-  hctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  // draw tighter diagonal cloth lines for better visibility
+  hctx.strokeStyle = 'rgba(0,0,0,0.4)';
   hctx.lineWidth = 1.5;
-  const step = 8;
+  const step = 4;
+  hctx.save();
+  hctx.translate(size / 2, size / 2);
+  hctx.rotate(Math.PI / 4);
+  hctx.translate(-size / 2, -size / 2);
   for (let y = -size; y < size * 2; y += step) {
-    for (let x = -size; x < size * 2; x += step) {
-      hctx.beginPath();
-      hctx.moveTo(x, y);
-      hctx.lineTo(x + step, y + step);
-      hctx.stroke();
-      hctx.beginPath();
-      hctx.moveTo(x + step, y);
-      hctx.lineTo(x, y + step);
-      hctx.stroke();
-    }
+    hctx.beginPath();
+    hctx.moveTo(-size, y);
+    hctx.lineTo(size * 2, y);
+    hctx.stroke();
   }
+  hctx.restore();
   const colorCanvas = makeColorCanvasFromHeight(
     height,
     '#228b22',
@@ -459,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 0.35; // pull cue stick back so tip and ring are visible
+const CUE_TIP_GAP = BALL_R * 0.5; // pull cue stick farther back so tip and ring are visible
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -1192,10 +1192,10 @@ function SnookerGame() {
         CAMERA.near,
         CAMERA.far
       );
-      // Start behind baulk colours in orbit view showing the whole table
+      // Start farther back and a touch lower for a wider opening view
       const sph = new THREE.Spherical(
-        260 * TABLE_SCALE,
-        1.0 /* slightly lower angle */,
+        300 * TABLE_SCALE,
+        0.9 /* slightly lower angle */,
         Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
       // keep orbit camera above the cloth and outside the side rails
@@ -1205,9 +1205,9 @@ function SnookerGame() {
       const phiCap = Math.atan2(sideDist, railLimit);
       const updateCamera = () => {
         const target =
-          cue?.mesh && !topViewRef.current
+          cue?.mesh && !shooting && !topViewRef.current
             ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-            : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
+            : new THREE.Vector3(0, TABLE_Y + 0.05, 0);
         if (topViewRef.current) {
           camera.position.set(target.x, sph.radius, target.z);
           camera.lookAt(target);
@@ -1275,11 +1275,7 @@ function SnookerGame() {
             t1.clientY - t2.clientY
           );
           const delta = pinch.dist - d;
-          sph.radius = clamp(
-            sph.radius + delta * 0.5,
-            minR,
-            CAMERA.maxR
-          );
+          sph.radius = clamp(sph.radius + delta * 0.5, minR, CAMERA.maxR);
           pinch.dist = d;
           updateCamera();
           return;
@@ -1314,11 +1310,7 @@ function SnookerGame() {
         pinch.active = false;
       };
       const wheel = (e) => {
-        sph.radius = clamp(
-          sph.radius + e.deltaY * 0.12,
-          minR,
-          CAMERA.maxR
-        );
+        sph.radius = clamp(sph.radius + e.deltaY * 0.12, minR, CAMERA.maxR);
         updateCamera();
       };
       dom.addEventListener('mousedown', down);
@@ -1369,7 +1361,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 1.35; // spread lights farther apart
+      const spacing = 1.8; // spread lights even farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1641,6 +1633,12 @@ function SnookerGame() {
           .clone()
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
+
+        // pull camera back to an orbit of the full table during the shot
+        if (cameraRef.current && fitRef.current) {
+          fitRef.current(3.0);
+          updateCamera();
+        }
 
         // animate cue stick forward
         const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
