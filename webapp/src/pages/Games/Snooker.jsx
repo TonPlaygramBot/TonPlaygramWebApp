@@ -517,10 +517,10 @@ const fitRadius = (camera, margin = 1.1) => {
 
 // preset spherical positions for standing, cue-shot and post-shot views
 // slightly elevate and bring the initial camera closer to the table for a better start
-const STAND_VIEW = { radius: 200 * TABLE_SCALE, phi: 0.6 };
+const STAND_VIEW = { radius: 180 * TABLE_SCALE, phi: 0.55 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 // when a shot is taken, lift the camera a touch and pull back just a little
-const SHOT_VIEW = { phi: 0.55, margin: 1.3 };
+const SHOT_VIEW = { phi: 0.5, margin: 1.15 };
 
 
 // --------------------------------------------------
@@ -952,7 +952,6 @@ function SnookerGame() {
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
-  const orbitRef = useRef(false);
   const cameraModeRef = useRef('stand');
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
@@ -1257,8 +1256,8 @@ function SnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.6
-            : 1.4
+            ? 1.4
+            : 1.3
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1658,9 +1657,8 @@ function SnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // switch to an orbit view with the whole table in frame
+        // tilt the camera slightly up and pull back for the shot
         if (cameraRef.current) {
-          orbitRef.current = true;
           cameraModeRef.current = 'stand';
           cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
           sph.phi = SHOT_VIEW.phi;
@@ -1811,7 +1809,6 @@ function SnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
-        orbitRef.current = false;
         if (cameraRef.current && sphRef.current) {
           topViewRef.current = false;
           updateCamera();
@@ -1962,28 +1959,11 @@ function SnookerGame() {
           const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
           if (!any) resolve();
         }
-        const mode = cueStick.visible && !shooting ? 'cue' : 'stand';
+        const mode = 'stand';
         if (cameraModeRef.current !== mode) {
           cameraModeRef.current = mode;
-          if (mode === 'cue') {
-            sph.radius = CUE_VIEW.radius;
-            sph.phi = CUE_VIEW.phi;
-          } else {
-            sph.radius = STAND_VIEW.radius;
-            sph.phi = STAND_VIEW.phi;
-          }
-        }
-        const fit = fitRef.current;
-        if (fit && cue?.active && !shooting && cameraModeRef.current === 'stand') {
-          const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
-          const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
-          const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
-          const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
-          const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
-          fit(1 + edge * 0.08);
-        }
-        if (orbitRef.current) {
-          sph.theta += 0.01;
+          sph.radius = STAND_VIEW.radius;
+          sph.phi = STAND_VIEW.phi;
         }
         updateCamera();
         renderer.render(scene, camera);
@@ -2000,7 +1980,7 @@ function SnookerGame() {
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.5
+              ? 1.4
               : 1.3
         );
       };
