@@ -740,11 +740,11 @@ function Table3D(scene) {
   table.add(skirt);
 
   // oversize wooden table legs at the four corners,
-  // sized three times larger than the pocket cylinders
+  // legs now 50% shorter but retain the oversized radius
   const pocketRadius = 6.2 * 0.5; // radius used for pocket holes
   const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
   const legRadius = pocketRadius * 3;
-  const legHeight = pocketHeight * 3;
+  const legHeight = pocketHeight * 1.5; // 50% shorter legs
   const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 12);
   const legY = -TABLE.THICK - legHeight / 2;
   [
@@ -1158,7 +1158,7 @@ function SnookerGame() {
         const baseR = fitRadius(camera, m);
         let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
         let r = baseR * (1 - 0.8 * t);
-        const railLimit = TABLE.THICK + 0.4; // stay above side rails
+        const railLimit = TABLE.THICK * 2 + 0.4; // stay above side rails
         const phiCap = Math.acos(THREE.MathUtils.clamp(railLimit / r, -1, 1));
         sph.phi = clamp(
           sph.phi,
@@ -1275,7 +1275,7 @@ function SnookerGame() {
 
       // Lights
       // Place three spotlights centered above the table with a wider beam
-      const lightHeight = TABLE_Y + 50;
+      const lightHeight = TABLE_Y + 60; // raise spotlights slightly
       const rectSize = 40;
       const lightIntensity = 8;
 
