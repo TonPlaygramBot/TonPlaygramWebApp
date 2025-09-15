@@ -171,12 +171,12 @@ function makeClothTextures(size = 512) {
     0.05
   );
   const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 1.5);
+  const normalCanvas = heightToNormalCanvas(height, 3.0);
   const normalMap = new THREE.CanvasTexture(normalCanvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(64, 64);
-  normalMap.repeat.set(64, 64);
+  map.repeat.set(32, 32);
+  normalMap.repeat.set(32, 32);
   return { map, normalMap };
 }
 
@@ -511,7 +511,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep the orbit camera slightly farther so more of the table is visible
-  const r = Math.max(dzH, dzW) * 1.15;
+  const r = Math.max(dzH, dzW) * 1.2;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1193,7 +1193,7 @@ function SnookerGame() {
       // Start behind baulk colours in orbit view showing the whole table
       const sph = new THREE.Spherical(
         260 * TABLE_SCALE,
-        0.9 /* elevated angle */,
+        1.0 /* slightly lower angle */,
         Math.atan2(aimDirRef.current.x, aimDirRef.current.y) + Math.PI
       );
       // keep orbit camera above the cloth and outside the side rails
@@ -1216,7 +1216,7 @@ function SnookerGame() {
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
           const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 0.6 * fade;
+          const ns = 0.9 * fade;
           clothMat.normalScale.set(ns, ns);
           cushionMat?.normalScale.set(ns, ns);
         }
@@ -1240,8 +1240,8 @@ function SnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.5
-            : 1.3
+            ? 1.6
+            : 1.4
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1367,7 +1367,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 0.9; // spread lights a bit farther apart
+      const spacing = 1.15; // spread lights farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
