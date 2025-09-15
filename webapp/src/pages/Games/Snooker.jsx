@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -172,7 +173,7 @@ function makeClothTextures(size = 512) {
     0.04
   );
   const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 4.5);
+  const normalCanvas = heightToNormalCanvas(height, 3.0);
   const normalMap = new THREE.CanvasTexture(normalCanvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
@@ -458,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.0; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -517,7 +518,7 @@ const fitRadius = (camera, margin = 1.1) => {
 };
 
 // preset spherical positions for standing and cue-shot camera views
-const STAND_VIEW = { radius: 360 * TABLE_SCALE, phi: 1.1 };
+const STAND_VIEW = { radius: 380 * TABLE_SCALE, phi: 1.2 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
 
 // limit downward tilt so the starting angle is the lowest view
@@ -1187,6 +1188,7 @@ function SnookerGame() {
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
+      RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
       let cushionMat;
@@ -1224,7 +1226,7 @@ function SnookerGame() {
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
           const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 1.2 * fade;
+          const ns = 0.9 * fade;
           clothMat.normalScale.set(ns, ns);
           cushionMat?.normalScale.set(ns, ns);
         }
@@ -1253,8 +1255,8 @@ function SnookerGame() {
         topViewRef.current
           ? 1.05
           : window.innerHeight > window.innerWidth
-            ? 1.4
-            : 1.2
+            ? 1.6
+            : 1.4
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
@@ -1354,21 +1356,25 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Use round spotlights slightly closer together and brighter
-      const lightHeight = TABLE_Y + 80; // position lights a bit lower
-      const lightIntensity = 1.6; // boost intensity for stronger illumination
-      const spotAngle = Math.PI / 5; // smaller, tighter cones
+      // Place four brighter spotlights above the table with more spacing and coverage
+      const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
+      const rectSize = 50; // slightly smaller area lights
+      const lightIntensity = 10; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
-        const spot = new THREE.SpotLight(0xffffff, lightIntensity, 600, spotAngle, 0.5);
-        spot.position.set(x, lightHeight, z);
-        spot.target.position.set(x, TABLE_Y, z);
-        scene.add(spot);
-        scene.add(spot.target);
+        const rect = new THREE.RectAreaLight(
+          0xffffff,
+          lightIntensity,
+          rectSize,
+          rectSize
+        );
+        rect.position.set(x, lightHeight, z);
+        rect.lookAt(x, TABLE_Y, z);
+        scene.add(rect);
       };
 
-      // four spotlights aligned along the center with closer spacing
-      const spacing = 1.6;
+      // four spotlights aligned along the center with extra spacing from the ends
+      const spacing = 2.4; // spread lights even farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1643,8 +1649,9 @@ function SnookerGame() {
 
         // gently lift the camera during the shot without changing zoom
         if (cameraRef.current) {
+          const step = 0.06 * 3; // roughly three "up" key presses
           sph.phi = clamp(
-            STAND_VIEW.phi - 0.08,
+            sph.phi - step,
             CAMERA.minPhi,
             Math.min(phiCap, CAMERA.maxPhi)
           );
