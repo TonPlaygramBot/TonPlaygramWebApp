@@ -294,8 +294,8 @@ function makeRugTexture(Wpx = 2048, Hpx = 1400) {
 function addRugUnderTable(scene, table) {
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
-  const rugWidth = size.x * 4 * 0.7; // 30% smaller carpet around the table
-  const rugHeight = size.z * 4 * 0.7; // 30% smaller carpet around the table
+  const rugWidth = size.x * 4 * 0.7 * 1.5; // 50% more carpet around the table
+  const rugHeight = size.z * 4 * 0.7 * 1.5; // 50% more carpet around the table
   const rugMat = new THREE.MeshStandardMaterial({
     color: 0x444444,
     roughness: 0.96,
@@ -459,7 +459,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.1; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
@@ -1194,8 +1194,8 @@ function SnookerGame() {
         );
         // Start behind baulk colours
         const sph = new THREE.Spherical(
-          170 * TABLE_SCALE,
-          1.0, // orbit view angle for break
+          180 * TABLE_SCALE,
+          1.05, // orbit view angle for break
           Math.PI
         );
         const updateCamera = () => {
@@ -1347,7 +1347,7 @@ function SnookerGame() {
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
       const rectSize = 40; // slightly smaller area lights
-      const lightIntensity = 12; // increase intensity for stronger lighting
+      const lightIntensity = 14; // slightly stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1641,8 +1641,8 @@ function SnookerGame() {
             const cam = cameraRef.current;
             const sph = sphRef.current;
             sph.theta = Math.PI;
-            sph.phi = 0.9;
-            fitRef.current(2.0);
+            sph.phi = 0.95;
+            fitRef.current(2.1);
             updateCamera();
           }
 
@@ -1794,8 +1794,8 @@ function SnookerGame() {
             const cam = cameraRef.current;
             const sph = sphRef.current;
             sph.radius = fitRadius(cam, 1.25);
-            sph.phi = 0.9;
-            fitRef.current(1.5);
+            sph.phi = 0.95;
+            fitRef.current(1.6);
             updateCamera();
           }
           potted = [];
