@@ -151,18 +151,20 @@ function makeColorCanvasFromHeight(
 function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
-  hctx.strokeStyle = 'rgba(0,0,0,0.2)';
-  hctx.lineWidth = 1;
+  hctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  hctx.lineWidth = 1.5;
   const step = 8;
-  for (let i = -size; i < size * 2; i += step) {
-    hctx.beginPath();
-    hctx.moveTo(i, 0);
-    hctx.lineTo(i - size, size);
-    hctx.stroke();
-    hctx.beginPath();
-    hctx.moveTo(i, 0);
-    hctx.lineTo(i + size, size);
-    hctx.stroke();
+  for (let y = -size; y < size * 2; y += step) {
+    for (let x = -size; x < size * 2; x += step) {
+      hctx.beginPath();
+      hctx.moveTo(x, y);
+      hctx.lineTo(x + step, y + step);
+      hctx.stroke();
+      hctx.beginPath();
+      hctx.moveTo(x + step, y);
+      hctx.lineTo(x, y + step);
+      hctx.stroke();
+    }
   }
   const colorCanvas = makeColorCanvasFromHeight(
     height,
@@ -612,10 +614,10 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y) {
   const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.2,
+    roughness: 0.15,
     clearcoat: 1,
     clearcoatRoughness: 0.1,
-    specularIntensity: 1
+    specularIntensity: 1.1
   });
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 64, 48),
@@ -631,8 +633,8 @@ function Guret(parent, id, color, x, y) {
     [
       [BALL_R * 0.7, 0, 0],
       [-BALL_R * 0.7, 0, 0],
-      [0, 0, BALL_R * 0.7],
-      [0, 0, -BALL_R * 0.7]
+      [0, BALL_R * 0.7, 0],
+      [0, -BALL_R * 0.7, 0]
     ].forEach(([dx, dy, dz]) => {
       const d = new THREE.Mesh(dotGeom, dotMat);
       d.position.set(dx, dy, dz);
@@ -1203,7 +1205,7 @@ function SnookerGame() {
       const phiCap = Math.atan2(sideDist, railLimit);
       const updateCamera = () => {
         const target =
-          cue?.mesh && !topViewRef.current && !shooting
+          cue?.mesh && !topViewRef.current
             ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
             : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
         if (topViewRef.current) {
@@ -1367,7 +1369,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 1.15; // spread lights farther apart
+      const spacing = 1.35; // spread lights farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1552,7 +1554,7 @@ function SnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 0.8 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.0 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -1647,7 +1649,7 @@ function SnookerGame() {
           aimDir.clone().multiplyScalar(-1),
           balls
         );
-        const desiredPull = powerRef.current * BALL_R * 10 * 0.5;
+        const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
         const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
         const pull = Math.min(desiredPull, maxPull);
         cueAnimating = true;
@@ -1667,19 +1669,10 @@ function SnookerGame() {
           } else {
             cueStick.visible = false;
             cueAnimating = false;
-            // switch camera back to orbit view and pull back to show full table
-            if (cameraRef.current && sphRef.current && fitRef.current) {
+            if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               const sph = sphRef.current;
               sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-              if (!initialBreakRef.current) {
-                sph.phi = Math.min(phiCap, 1.2);
-                fitRef.current(2.8);
-                initialBreakRef.current = true;
-              } else {
-                sph.phi = Math.min(phiCap, 0.9);
-                fitRef.current(2.3);
-              }
               updateCamera();
             }
           }
@@ -1781,11 +1774,12 @@ function SnookerGame() {
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
         if (cameraRef.current && sphRef.current && fitRef.current) {
+          topViewRef.current = false;
           const cam = cameraRef.current;
           const sph = sphRef.current;
           sph.radius = fitRadius(cam, 1.25);
-          sph.phi = 0.9;
-          fitRef.current(1.5);
+          sph.phi = Math.min(phiCap, 1.2);
+          fitRef.current(3.0);
           updateCamera();
         }
         potted = [];
@@ -1822,7 +1816,7 @@ function SnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.5;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
