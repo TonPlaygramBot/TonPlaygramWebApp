@@ -168,7 +168,7 @@ function addRugUnderTable(parent, table) {
   rug.rotation.x = -Math.PI / 2;
   rug.position.set(
     (box.max.x + box.min.x) / 2,
-    box.min.y - 0.05,
+    box.min.y - scaled(0.05),
     (box.max.z + box.min.z) / 2
   );
   parent.add(rug);
@@ -221,8 +221,8 @@ function addArenaWalls(parent, rug) {
 // --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
-const JAW_H = 3.0;
-const JAW_T = 1.25;
+const JAW_H = scaled(3.0);
+const JAW_T = scaled(1.25);
 const SECTOR_START = -Math.PI * 0.65;
 const SECTOR_END = Math.PI * 0.65;
 const jawMat = new THREE.MeshPhysicalMaterial({
@@ -271,7 +271,7 @@ function addPocketJaws(parent, playW, playH) {
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
+    jaw.position.set(pShift.x, TABLE_Y + scaled(0.01), pShift.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
     if (entry.type === 'side') {
       jaw.rotateY(Math.PI / 2);
@@ -294,11 +294,14 @@ function addPocketJaws(parent, playW, playH) {
 // --------------------------------------------------
 // Config
 // --------------------------------------------------
+// Uniform size factor to shrink every physical element by 25%
+const SIZE_SCALE = 0.75;
+const scaled = (value) => value * SIZE_SCALE;
 // separate scales for table and balls
 // Dimensions enlarged for a roomier snooker table
 const WORLD_SCALE = 0.85;
-const BALL_SCALE = 1;
-const TABLE_SCALE = 1.3;
+const BALL_SCALE = 1 * SIZE_SCALE;
+const TABLE_SCALE = 1.3 * SIZE_SCALE;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -312,14 +315,14 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.995;
-const STOP_EPS = 0.02;
+const STOP_EPS = 0.02 * SIZE_SCALE;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
-const LEG_SCALE = 6.2;
+const LEG_SCALE = 6.2 * SIZE_SCALE;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
+const TABLE_Y = scaled(-2) + (TABLE_H - scaled(0.75)) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
@@ -553,7 +556,7 @@ function Table3D(parent) {
   shape.lineTo(-halfW, -halfH);
   pocketCenters().forEach((p) => {
     const h = new THREE.Path();
-    h.absellipse(p.x, p.y, 6, 6, 0, Math.PI * 2);
+    h.absellipse(p.x, p.y, scaled(6), scaled(6), 0, Math.PI * 2);
     shape.holes.push(h);
   });
   const clothGeo = new THREE.ExtrudeGeometry(shape, {
@@ -571,8 +574,8 @@ function Table3D(parent) {
   });
   const baulkZ = -PLAY_H / 4;
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfW, 0.02, baulkZ),
-    new THREE.Vector3(halfW, 0.02, baulkZ)
+    new THREE.Vector3(-halfW, scaled(0.02), baulkZ),
+    new THREE.Vector3(halfW, scaled(0.02), baulkZ)
   ]);
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
   table.add(baulkLine);
@@ -587,19 +590,19 @@ function Table3D(parent) {
   );
   const dPoints = dCurve
     .getPoints(64)
-    .map((p) => new THREE.Vector3(p.x, 0.02, p.y));
+    .map((p) => new THREE.Vector3(p.x, scaled(0.02), p.y));
   const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
   const dLine = new THREE.Line(dGeom, markingMat);
   table.add(dLine);
 
   function addSpot(x, z) {
-    const spotGeo = new THREE.CircleGeometry(0.5, 32);
+    const spotGeo = new THREE.CircleGeometry(scaled(0.5), 32);
     const spotMat = new THREE.MeshBasicMaterial({
       color: COLORS.markings
     });
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, 0.021, z);
+    spot.position.set(x, scaled(0.021), z);
     table.add(spot);
   }
   addSpot(0, baulkZ);
@@ -637,7 +640,7 @@ function Table3D(parent) {
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   // lower the frame so the top remains aligned with the play field
-  frame.position.y = -TABLE.THICK + 0.01 - railH * 2;
+  frame.position.y = -TABLE.THICK + scaled(0.01) - railH * 2;
   table.add(frame);
 
   // simple wooden skirt beneath the play surface
@@ -651,7 +654,7 @@ function Table3D(parent) {
   table.add(skirt);
 
   // wooden table legs at the four corners, now thinner and taller
-  const pocketRadius = 6.2 * 0.5; // radius used for pocket holes
+  const pocketRadius = scaled(6.2 * 0.5); // radius used for pocket holes
   const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
   const legRadius = pocketRadius * 3 * 0.5; // 50% thinner legs
   const legHeight = pocketHeight * 2.25; // 50% taller legs
@@ -663,21 +666,21 @@ function Table3D(parent) {
   );
   const legY = -TABLE.THICK - legHeight / 2;
   [
-    [outerHalfW - 6, outerHalfH - 6],
-    [-outerHalfW + 6, outerHalfH - 6],
-    [outerHalfW - 6, -outerHalfH + 6],
-    [-outerHalfW + 6, -outerHalfH + 6]
+    [outerHalfW - scaled(6), outerHalfH - scaled(6)],
+    [-outerHalfW + scaled(6), outerHalfH - scaled(6)],
+    [outerHalfW - scaled(6), -outerHalfH + scaled(6)],
+    [-outerHalfW + scaled(6), -outerHalfH + scaled(6)]
   ].forEach(([x, z]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
     leg.position.set(x, legY, z);
     table.add(leg);
   });
 
-  const cushionRaiseY = -TABLE.THICK + 0.02;
+  const cushionRaiseY = -TABLE.THICK + scaled(0.02);
   const cushionW = TABLE.WALL * 0.9 * 1.08;
-  const cushionExtend = 6 * 0.85;
+  const cushionExtend = scaled(6) * 0.85;
   function cushionProfile(len) {
-    const L = len + cushionExtend + 6;
+    const L = len + cushionExtend + scaled(6);
     const half = L / 2;
     const backY = cushionW / 2;
     const frontY = -cushionW / 2;
@@ -711,32 +714,56 @@ function Table3D(parent) {
     if (!table.userData.cushions) table.userData.cushions = [];
     table.userData.cushions.push(g);
   }
-  const horizLen = PLAY_W - 12;
-  const vertSeg = PLAY_H / 2 - 12;
+  const horizLen = PLAY_W - scaled(12);
+  const vertSeg = PLAY_H / 2 - scaled(12);
   const CUSHION_LEN = Math.min(horizLen, vertSeg);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
   const rightX = halfW + (TABLE.WALL * 0.5) / 2;
   addCushion(0, bottomZ, CUSHION_LEN, true, false);
-  addCushion(leftX, -halfH + 6 + vertSeg / 2, CUSHION_LEN, false, false);
-  addCushion(rightX, halfH - 6 - vertSeg / 2, CUSHION_LEN, false, true);
+  addCushion(
+    leftX,
+    -halfH + scaled(6) + vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    false
+  );
+  addCushion(
+    rightX,
+    halfH - scaled(6) - vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    true
+  );
   addCushion(0, topZ, CUSHION_LEN, true, true);
-  addCushion(leftX, halfH - 6 - vertSeg / 2, CUSHION_LEN, false, false);
-  addCushion(rightX, -halfH + 6 + vertSeg / 2, CUSHION_LEN, false, true);
+  addCushion(
+    leftX,
+    halfH - scaled(6) - vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    false
+  );
+  addCushion(
+    rightX,
+    -halfH + scaled(6) + vertSeg / 2,
+    CUSHION_LEN,
+    false,
+    true
+  );
 
   if (!table.userData.pockets) table.userData.pockets = [];
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
-      new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
+      new THREE.CylinderGeometry(scaled(6.2), scaled(6.2), cutHeight, 48),
       new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
     );
     cut.rotation.set(0, 0, 0);
     const scaleY = 1.15;
     cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
-    cut.position.set(p.x, -half - 0.01, p.y);
+    cut.position.set(p.x, -half - scaled(0.01), p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
   });
@@ -965,7 +992,7 @@ function SnookerGame() {
       sph.theta = start.theta + (target.theta - start.theta) * ease;
       const targetPos = new THREE.Vector3(
         playerOffsetRef.current,
-        TABLE_Y + 0.05,
+        TABLE_Y + scaled(0.05),
         0
       ).multiplyScalar(worldScaleFactor);
       cam.position.setFromSpherical(sph).add(targetPos);
@@ -1064,7 +1091,11 @@ function SnookerGame() {
           const target = (
             cue?.mesh && !topViewRef.current && !shooting
               ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-              : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
+              : new THREE.Vector3(
+                  playerOffsetRef.current,
+                  TABLE_Y + scaled(0.05),
+                  0
+                )
           ).multiplyScalar(worldScaleFactor);
           if (topViewRef.current) {
             camera.position.set(target.x, sph.radius, target.z);
@@ -1086,7 +1117,7 @@ function SnookerGame() {
           const baseR = fitRadius(camera, m);
           let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
           let r = baseR * (1 - 0.8 * t);
-          const railLimit = TABLE.THICK + 0.4; // stay above side rails
+          const railLimit = TABLE.THICK + scaled(0.4); // stay above side rails
           const phiCap = Math.acos(THREE.MathUtils.clamp(railLimit / r, -1, 1));
           sph.phi = clamp(
             sph.phi,
@@ -1208,8 +1239,8 @@ function SnookerGame() {
 
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
-      const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
-      const rectSize = 30; // slightly smaller area lights
+      const lightHeight = TABLE_Y + scaled(100); // raise spotlights slightly higher
+      const rectSize = scaled(30); // slightly smaller area lights
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1319,8 +1350,8 @@ function SnookerGame() {
         targetGeom,
         new THREE.LineDashedMaterial({
           color: 0xffffff,
-          dashSize: 1,
-          gapSize: 1,
+          dashSize: SIZE_SCALE,
+          gapSize: SIZE_SCALE,
           transparent: true,
           opacity: 0.5
         })
@@ -1505,7 +1536,9 @@ function SnookerGame() {
           const aimDir = aimDirRef.current.clone();
           const base = aimDir
             .clone()
-            .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
+            .multiplyScalar(
+              4.2 * (0.48 + powerRef.current * 1.52) * 0.5 * SIZE_SCALE
+            );
           const spinSide = spinRef.current.x * spinRangeRef.current;
           const spinTop = -spinRef.current.y * spinRangeRef.current;
           const sideVec = new THREE.Vector2(-aimDir.y, aimDir.x).multiplyScalar(
@@ -1708,8 +1741,8 @@ function SnookerGame() {
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(1.4)),
-            end.clone().add(perp.clone().multiplyScalar(-1.4))
+            end.clone().add(perp.clone().multiplyScalar(1.4 * SIZE_SCALE)),
+            end.clone().add(perp.clone().multiplyScalar(-1.4 * SIZE_SCALE))
           ]);
           tick.visible = true;
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
@@ -1739,9 +1772,9 @@ function SnookerGame() {
           cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
-              end.x + afterDir.x * 30,
+              end.x + afterDir.x * 30 * SIZE_SCALE,
               BALL_R,
-              end.z + afterDir.y * 30
+              end.z + afterDir.y * 30 * SIZE_SCALE
             );
             targetGeom.setFromPoints([end, tEnd]);
             target.visible = true;
@@ -1828,9 +1861,10 @@ function SnookerGame() {
           if (fit && cue?.active && !shooting) {
             const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
             const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
-            const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
-            const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
-            const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
+            const margin = scaled(5);
+            const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - margin));
+            const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - margin));
+            const edge = Math.min(1, Math.max(edgeX, edgeY) / margin);
             fit(1 + edge * 0.08);
           }
           updateCamera();
@@ -1949,7 +1983,10 @@ function SnookerGame() {
 
       {/* Top HUD */}
       <div className="absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-50">
-        <div className="bg-gray-800 px-4 py-2 rounded-b flex flex-col items-center text-white">
+        <div
+          className="bg-gray-800 px-4 py-2 rounded-b flex flex-col items-center text-white"
+          style={{ transform: `scale(${SIZE_SCALE})`, transformOrigin: 'top center' }}
+        >
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <img
@@ -1985,15 +2022,21 @@ function SnookerGame() {
       {/* Power Slider */}
       <div
         ref={sliderRef}
-        className="absolute right-3 top-1/2 -translate-y-1/2"
+        className="absolute right-3 top-1/2 origin-top-right"
+        style={{ transform: `translateY(-50%) scale(${SIZE_SCALE})` }}
       />
 
       {/* Spin controller */}
       <div
         id="spinBox"
-        className="absolute bottom-4 right-4 w-16 h-16 rounded-full bg-white flex items-center justify-center"
+        className="absolute bottom-4 right-4 rounded-full bg-white flex items-center justify-center"
+        style={{ width: `${4 * SIZE_SCALE}rem`, height: `${4 * SIZE_SCALE}rem` }}
       >
-        <div id="spinDot" className="w-2 h-2 rounded-full bg-red-600"></div>
+        <div
+          id="spinDot"
+          className="rounded-full bg-red-600"
+          style={{ width: `${0.5 * SIZE_SCALE}rem`, height: `${0.5 * SIZE_SCALE}rem` }}
+        ></div>
       </div>
     </div>
   );
