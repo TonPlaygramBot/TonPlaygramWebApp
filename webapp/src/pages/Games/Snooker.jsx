@@ -295,8 +295,9 @@ function addPocketJaws(parent, playW, playH) {
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions enlarged for a roomier snooker table
-const GLOBAL_SIZE_FACTOR = 0.85; // shrink the entire scene by 15%
+// Dimensions enlarged for a roomier snooker table but globally reduced by 30%
+const SIZE_REDUCTION = 0.7;
+const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR;
 const BALL_SCALE = 1;
 const TABLE_SCALE = 1.3;
@@ -325,6 +326,9 @@ const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick slightly farther back for a 
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 30;
+
+// shared UI reduction factor so overlays and controls shrink alongside the table
+const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
@@ -1950,7 +1954,13 @@ function SnookerGame() {
 
       {/* Top HUD */}
       <div className="absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-50">
-        <div className="bg-gray-800 px-4 py-2 rounded-b flex flex-col items-center text-white">
+        <div
+          className="bg-gray-800 px-4 py-2 rounded-b flex flex-col items-center text-white"
+          style={{
+            transform: `scale(${UI_SCALE})`,
+            transformOrigin: 'top center'
+          }}
+        >
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <img
@@ -1984,17 +1994,30 @@ function SnookerGame() {
         </div>
       )}
       {/* Power Slider */}
-      <div
-        ref={sliderRef}
-        className="absolute right-3 top-1/2 -translate-y-1/2"
-      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        <div
+          ref={sliderRef}
+          style={{
+            transform: `scale(${UI_SCALE})`,
+            transformOrigin: 'top right'
+          }}
+        />
+      </div>
 
       {/* Spin controller */}
       <div
-        id="spinBox"
-        className="absolute bottom-4 right-4 w-16 h-16 rounded-full bg-white flex items-center justify-center"
+        className="absolute bottom-4 right-4"
+        style={{
+          transform: `scale(${UI_SCALE})`,
+          transformOrigin: 'bottom right'
+        }}
       >
-        <div id="spinDot" className="w-2 h-2 rounded-full bg-red-600"></div>
+        <div
+          id="spinBox"
+          className="w-16 h-16 rounded-full bg-white flex items-center justify-center"
+        >
+          <div id="spinDot" className="w-2 h-2 rounded-full bg-red-600"></div>
+        </div>
       </div>
     </div>
   );
