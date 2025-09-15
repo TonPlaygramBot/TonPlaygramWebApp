@@ -570,7 +570,7 @@ function calcTarget(cue, dir, balls) {
       .sub(n.clone().multiplyScalar(2 * dir.dot(n)))
       .normalize();
   }
-  return { impact, afterDir, targetBall, railNormal };
+  return { impact, afterDir, targetBall, railNormal, tHit };
 }
 
 // --------------------------------------------------
@@ -676,7 +676,14 @@ function Table3D(scene) {
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
   table.add(baulkLine);
   const dRadius = PLAY_W * 0.15;
-  const dCurve = new THREE.ArcCurve(0, baulkZ, dRadius, 0, Math.PI, false);
+  const dCurve = new THREE.ArcCurve(
+    0,
+    baulkZ,
+    dRadius,
+    Math.PI,
+    Math.PI * 2,
+    false
+  );
   const dPoints = dCurve
     .getPoints(64)
     .map((p) => new THREE.Vector3(p.x, 0.02, p.y));
@@ -1166,17 +1173,16 @@ function SnookerGame() {
       const fit = (m = 1.1) => {
         camera.aspect = host.clientWidth / host.clientHeight;
         const baseR = fitRadius(camera, m);
-        let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-        let r = baseR * (1 - 0.8 * t);
         const railLimit = TABLE.THICK * 2 + 0.4; // stay above side rails
-        const phiCap = Math.acos(THREE.MathUtils.clamp(railLimit / r, -1, 1));
+        const phiCap = Math.acos(
+          THREE.MathUtils.clamp(railLimit / baseR, -1, 1)
+        );
         sph.phi = clamp(
           sph.phi,
           CAMERA.minPhi,
           Math.min(phiCap, CAMERA.maxPhi)
         );
-        t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-        sph.radius = clamp(baseR * (1 - 0.8 * t), CAMERA.minR, CAMERA.maxR);
+        sph.radius = clamp(baseR, CAMERA.minR, CAMERA.maxR);
         updateCamera();
         camera.updateProjectionMatrix();
       };
@@ -1284,10 +1290,10 @@ function SnookerGame() {
       window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place three spotlights centered above the table with a wider beam
+      // Place four dimmer spotlights above the table with more spacing
       const lightHeight = TABLE_Y + 80; // raise spotlights slightly higher
-      const rectSize = 60; // broaden coverage
-      const lightIntensity = 8;
+      const rectSize = 45; // smaller area lights for tighter beams
+      const lightIntensity = 6; // reduce intensity for softer lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1301,12 +1307,13 @@ function SnookerGame() {
         scene.add(rect);
       };
 
-      // three spotlights aligned along the center of the table
-      for (let i = 0; i < 3; i++) {
+      // four spotlights aligned along the center with spacing from the ends
+      const spacing = 0.8; // keep lights away from table edges
+      for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
-          -TABLE.H / 2,
-          TABLE.H / 2,
-          (i + 0.5) / 3
+          (-TABLE.H / 2) * spacing,
+          (TABLE.H / 2) * spacing,
+          (i + 0.5) / 4
         );
         makeLight(0, z);
       }
@@ -1720,7 +1727,14 @@ function SnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const pull = powerRef.current * BALL_R * 10 * 0.5;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.5;
+          const backInfo = calcTarget(
+            cue,
+            aimDir.clone().multiplyScalar(-1),
+            balls
+          );
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const pull = Math.min(desiredPull, maxPull);
           const side = spinRef.current.x * spinRangeRef.current;
           const vert = -spinRef.current.y * spinRangeRef.current;
           const spinWorld = new THREE.Vector3(
