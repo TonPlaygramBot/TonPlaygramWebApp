@@ -515,10 +515,12 @@ const fitRadius = (camera, margin = 1.1) => {
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
-// preset spherical positions for standing and cue-shot camera views
-// bring the default camera a bit closer and slightly higher
-const STAND_VIEW = { radius: 300 * TABLE_SCALE, phi: 1.0 };
+// preset spherical positions for standing, cue-shot and post-shot views
+// start a little closer and higher when the game loads
+const STAND_VIEW = { radius: 260 * TABLE_SCALE, phi: 0.9 };
 const CUE_VIEW = { radius: 120 * TABLE_SCALE, phi: 1.45 };
+// after a shot, zoom out and lower the camera to show the whole table
+const SHOT_VIEW = { phi: 1.15, margin: 1.4 };
 
 
 // --------------------------------------------------
@@ -1663,13 +1665,13 @@ function SnookerGame() {
           .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
         cue.vel.copy(base);
 
-        // switch to an orbit view showing the entire table without zooming
+        // switch to an orbit view with the whole table in frame
         if (cameraRef.current) {
           orbitRef.current = true;
           cameraModeRef.current = 'stand';
           cameraTargetRef.current.set(0, TABLE_Y + 0.05, 0);
-          sph.phi = STAND_VIEW.phi;
-          fit();
+          sph.phi = SHOT_VIEW.phi;
+          fit(SHOT_VIEW.margin);
         }
 
         // animate cue stick forward
