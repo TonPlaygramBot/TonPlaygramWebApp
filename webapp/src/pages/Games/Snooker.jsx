@@ -20,60 +20,58 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
 // --------------------------------------------------
-// Snooker cloth texture helper (tileable nap + fibres)
+// Snooker cloth texture helper (friendly + lightweight)
 // --------------------------------------------------
-function makeClothTexture(size = 2048) {
+function createClothTexture(size = 256) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  // Base tournament cloth colour
-  ctx.fillStyle = '#0f5f2d';
+  if (!ctx) {
+    return null;
+  }
+
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, '#1f7f3b');
+  gradient.addColorStop(0.5, '#166d31');
+  gradient.addColorStop(1, '#0f5426');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
-  // Layer in subtle fibre noise using trigonometric patterns so the
-  // texture remains tileable when repeated across the play field.
-  const baseLayer = ctx.getImageData(0, 0, size, size);
-  const baseData = baseLayer.data;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const noise =
-        Math.sin(x * 0.08 + y * 0.07) + Math.cos(x * 0.05 - y * 0.06);
-      const fibre = Math.floor(((noise + 2) / 4) * 9);
-      baseData[idx] = Math.max(0, baseData[idx] - fibre);
-      baseData[idx + 1] = Math.max(0, baseData[idx + 1] - fibre);
-      baseData[idx + 2] = Math.max(0, baseData[idx + 2] - fibre);
-    }
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  const spacing = size / 12;
+  ctx.translate(size * -0.25, 0);
+  ctx.rotate((-10 * Math.PI) / 180);
+  for (let i = -size; i < size * 2; i += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(i, -size);
+    ctx.lineTo(i, size * 2);
+    ctx.stroke();
   }
-  ctx.putImageData(baseLayer, 0, 0);
+  ctx.restore();
 
-  // Add a directional nap for a light anisotropic sheen, emulating the
-  // brushed cloth finish that snooker tables use.
-  const napLayer = ctx.getImageData(0, 0, size, size);
-  const napData = napLayer.data;
-  const angle = Math.PI / 2;
-  const vx = Math.cos(angle);
-  const vy = Math.sin(angle);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const nx = x / size - 0.5;
-      const ny = y / size - 0.5;
-      let ramp = nx * vx + ny * vy;
-      ramp = Math.tanh(ramp * 2.2);
-      const glow = ramp * 7;
-      napData[idx] = Math.min(255, napData[idx] + glow);
-      napData[idx + 1] = Math.min(255, napData[idx + 1] + glow);
-      napData[idx + 2] = Math.min(255, napData[idx + 2] + glow);
-    }
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  ctx.strokeStyle = '#002e16';
+  ctx.lineWidth = 1;
+  const spacingDark = size / 10;
+  ctx.translate(size * 0.25, 0);
+  ctx.rotate((12 * Math.PI) / 180);
+  for (let i = -size; i < size * 2; i += spacingDark) {
+    ctx.beginPath();
+    ctx.moveTo(i, -size);
+    ctx.lineTo(i, size * 2);
+    ctx.stroke();
   }
-  ctx.putImageData(napLayer, 0, 0);
+  ctx.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 8);
-  tex.anisotropy = 4;
+  tex.repeat.set(6, 6);
+  tex.anisotropy = 2;
   return tex;
 }
 
@@ -393,10 +391,12 @@ function Table3D(parent) {
     sheen: 0.6,
     sheenRoughness: 0.9
   });
-  const clothTex = makeClothTexture();
-  clothMat.map = clothTex;
-  clothMat.map.anisotropy = 1;
-  clothMat.needsUpdate = true;
+  const clothTex = createClothTexture();
+  if (clothTex) {
+    clothMat.map = clothTex;
+    clothMat.map.anisotropy = 1;
+    clothMat.needsUpdate = true;
+  }
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
