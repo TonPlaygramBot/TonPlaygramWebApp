@@ -151,8 +151,8 @@ function makeColorCanvasFromHeight(
 function makeClothTextures(size = 512) {
   const height = makeFbmHeightCanvas(size, 4);
   const hctx = height.getContext('2d');
-  hctx.strokeStyle = 'rgba(0,0,0,0.35)';
-  hctx.lineWidth = 1.5;
+  hctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  hctx.lineWidth = 1;
   const step = 8;
   for (let i = -size; i < size * 2; i += step) {
     hctx.beginPath();
@@ -168,15 +168,15 @@ function makeClothTextures(size = 512) {
     height,
     '#228b22',
     '#1e6b1e',
-    0.1
+    0.05
   );
   const map = new THREE.CanvasTexture(colorCanvas);
-  const normalCanvas = heightToNormalCanvas(height, 2.5);
+  const normalCanvas = heightToNormalCanvas(height, 1.5);
   const normalMap = new THREE.CanvasTexture(normalCanvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(32, 32);
-  normalMap.repeat.set(32, 32);
+  map.repeat.set(64, 64);
+  normalMap.repeat.set(64, 64);
   return { map, normalMap };
 }
 
@@ -944,9 +944,9 @@ function SnookerGame() {
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
-  const closeViewRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
+  const initialBreakRef = useRef(false);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -1124,28 +1124,6 @@ function SnookerGame() {
     requestAnimationFrame(anim);
   };
 
-  const toggleCameraDistance = () => {
-    const sph = sphRef.current;
-    const fit = fitRef.current;
-    if (!sph || !fit || topViewRef.current) return;
-    const next = !closeViewRef.current;
-    const target = next
-      ? { phi: 0.35, margin: 1.2 }
-      : { phi: 0.9, margin: 2.4 };
-    const startPhi = sph.phi;
-    const duration = 600;
-    const t0 = performance.now();
-    function anim(t) {
-      const k = Math.min(1, (t - t0) / duration);
-      const ease = k * (2 - k);
-      sph.phi = startPhi + (target.phi - startPhi) * ease;
-      fit(target.margin);
-      if (k < 1) requestAnimationFrame(anim);
-      else closeViewRef.current = next;
-    }
-    requestAnimationFrame(anim);
-  };
-
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
@@ -1238,7 +1216,7 @@ function SnookerGame() {
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
           const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 1.2 * fade + 0.2;
+          const ns = 0.6 * fade;
           clothMat.normalScale.set(ns, ns);
           cushionMat?.normalScale.set(ns, ns);
         }
@@ -1261,23 +1239,49 @@ function SnookerGame() {
       fit(
         topViewRef.current
           ? 1.05
-          : closeViewRef.current
-            ? 1.2
-            : 2.4
+          : window.innerHeight > window.innerWidth
+            ? 1.5
+            : 1.3
       );
       const dom = renderer.domElement;
       dom.style.touchAction = 'none';
       const balls = [];
       let project;
       const drag = { on: false, x: 0, y: 0, moved: false };
+      const pinch = { active: false, dist: 0 };
       const down = (e) => {
-        if (e.touches?.length === 2 || topViewRef.current) return;
+        if (e.touches?.length === 2) {
+          const [t1, t2] = e.touches;
+          pinch.active = true;
+          pinch.dist = Math.hypot(
+            t1.clientX - t2.clientX,
+            t1.clientY - t2.clientY
+          );
+          return;
+        }
+        if (topViewRef.current) return;
         drag.on = true;
         drag.moved = false;
         drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
         drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
       };
       const move = (e) => {
+        if (pinch.active && e.touches?.length === 2) {
+          const [t1, t2] = e.touches;
+          const d = Math.hypot(
+            t1.clientX - t2.clientX,
+            t1.clientY - t2.clientY
+          );
+          const delta = pinch.dist - d;
+          sph.radius = clamp(
+            sph.radius + delta * 0.5,
+            minR,
+            CAMERA.maxR
+          );
+          pinch.dist = d;
+          updateCamera();
+          return;
+        }
         if (topViewRef.current || !drag.on) return;
         const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
         const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
@@ -1288,15 +1292,32 @@ function SnookerGame() {
           drag.x = x;
           drag.y = y;
           sph.theta -= dx * 0.005;
-          fit(closeViewRef.current ? 1.2 : 2.4);
+          sph.phi = clamp(
+            sph.phi + dy * 0.003,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
+          fit(
+            topViewRef.current
+              ? 1.05
+              : window.innerHeight > window.innerWidth
+                ? 1.2
+                : 1.0
+          );
         }
       };
       const up = () => {
         drag.on = false;
         drag.moved = false;
+        pinch.active = false;
       };
-      const wheel = () => {
-        toggleCameraDistance();
+      const wheel = (e) => {
+        sph.radius = clamp(
+          sph.radius + e.deltaY * 0.12,
+          minR,
+          CAMERA.maxR
+        );
+        updateCamera();
       };
       dom.addEventListener('mousedown', down);
       dom.addEventListener('mousemove', move);
@@ -1310,18 +1331,28 @@ function SnookerGame() {
         const step = e.shiftKey ? 0.12 : 0.06;
         if (e.code === 'ArrowLeft') sph.theta += step;
         else if (e.code === 'ArrowRight') sph.theta -= step;
-        else if (e.code === 'ArrowUp' || e.code === 'ArrowDown')
-          toggleCameraDistance();
+        else if (e.code === 'ArrowUp')
+          sph.phi = clamp(
+            sph.phi - step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
+        else if (e.code === 'ArrowDown')
+          sph.phi = clamp(
+            sph.phi + step,
+            CAMERA.minPhi,
+            Math.min(phiCap, CAMERA.maxPhi)
+          );
         else return;
-        fit(closeViewRef.current ? 1.2 : 2.4);
+        fit(window.innerHeight > window.innerWidth ? 1.5 : 1.3);
       };
       window.addEventListener('keydown', keyRot);
 
       // Lights
       // Place four brighter spotlights above the table with more spacing and coverage
-      const lightHeight = TABLE_Y + 100; // raise spotlights higher
-      const rectSize = 60; // larger area lights
-      const lightIntensity = 15; // stronger lighting
+      const lightHeight = TABLE_Y + 90; // raise spotlights slightly higher
+      const rectSize = 50; // slightly smaller area lights
+      const lightIntensity = 10; // increase intensity for stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1336,7 +1367,7 @@ function SnookerGame() {
       };
 
       // four spotlights aligned along the center with extra spacing from the ends
-      const spacing = 1.1; // spread lights farther apart
+      const spacing = 0.9; // spread lights a bit farther apart
       for (let i = 0; i < 4; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1636,14 +1667,19 @@ function SnookerGame() {
           } else {
             cueStick.visible = false;
             cueAnimating = false;
-            // switch camera back to orbit view in far position showing full table
+            // switch camera back to orbit view and pull back to show full table
             if (cameraRef.current && sphRef.current && fitRef.current) {
               topViewRef.current = false;
-              closeViewRef.current = false;
               const sph = sphRef.current;
               sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-              sph.phi = Math.min(phiCap, 0.9);
-              fitRef.current(2.4);
+              if (!initialBreakRef.current) {
+                sph.phi = Math.min(phiCap, 1.2);
+                fitRef.current(2.8);
+                initialBreakRef.current = true;
+              } else {
+                sph.phi = Math.min(phiCap, 0.9);
+                fitRef.current(2.3);
+              }
               updateCamera();
             }
           }
@@ -1745,10 +1781,11 @@ function SnookerGame() {
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
         shooting = false;
         if (cameraRef.current && sphRef.current && fitRef.current) {
+          const cam = cameraRef.current;
           const sph = sphRef.current;
-          closeViewRef.current = false;
+          sph.radius = fitRadius(cam, 1.25);
           sph.phi = 0.9;
-          fitRef.current(2.4);
+          fitRef.current(1.5);
           updateCamera();
         }
         potted = [];
@@ -1904,8 +1941,7 @@ function SnookerGame() {
           const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
           const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
           const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
-          const base = closeViewRef.current ? 1.2 : 2.4;
-          fit(base + edge * 0.08);
+          fit(1 + edge * 0.08);
         }
         updateCamera();
         renderer.render(scene, camera);
@@ -1921,9 +1957,9 @@ function SnookerGame() {
         fit(
           topViewRef.current
             ? 1.05
-            : closeViewRef.current
-              ? 1.2
-              : 2.4
+            : window.innerHeight > window.innerWidth
+              ? 1.5
+              : 1.3
         );
       };
       window.addEventListener('resize', onResize);
@@ -2024,14 +2060,6 @@ function SnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {/* Camera distance toggle */}
-      <button
-        onClick={toggleCameraDistance}
-        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center z-50"
-      >
-        🔍
-      </button>
 
       {/* Top HUD */}
       <div className="absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-50">
