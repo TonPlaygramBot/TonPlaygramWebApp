@@ -1195,7 +1195,7 @@ function SnookerGame() {
         // Start behind baulk colours
         const sph = new THREE.Spherical(
           180 * TABLE_SCALE,
-          1.1, // orbit view angle for break slightly lower
+          1.15, // orbit view angle for break slightly lower and pulled down
           Math.PI
         );
         const updateCamera = () => {
@@ -1250,6 +1250,9 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
+        // give a slightly wider, lower starting view at the break
+        sph.radius *= 1.05;
+        updateCamera();
         const dom = renderer.domElement;
         dom.style.touchAction = 'none';
         const balls = [];
@@ -1347,7 +1350,7 @@ function SnookerGame() {
       // Place four brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSize = 30; // slightly smaller area lights
-      const lightIntensity = 18; // slightly stronger lighting
+      const lightIntensity = 22; // slightly stronger lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1647,8 +1650,9 @@ function SnookerGame() {
             const cam = cameraRef.current;
             const sph = sphRef.current;
             sph.theta = Math.PI;
-            sph.phi = 1.0;
-            fitRef.current(2.2);
+            sph.phi = 1.05; // slightly lower during shot
+            fitRef.current(2.3); // pull back and zoom out a touch more
+            sph.radius *= 1.05; // tiny additional pull back
             updateCamera();
           }
 
@@ -2047,11 +2051,7 @@ function SnookerGame() {
         nx /= r;
         ny /= r;
       }
-      const blocked = getBlockedSides();
-      if (blocked.left && nx < 0) nx = 0;
-      if (blocked.right && nx > 0) nx = 0;
-      if (blocked.down && ny < 0) ny = 0;
-      if (blocked.up && ny > 0) ny = 0;
+      // Allow spin in all directions without blocking
       spinRef.current = { x: nx, y: ny };
       dot.style.transform = `translate(${(nx * rect.width) / 2}px, ${(ny * rect.height) / 2}px)`;
     };
