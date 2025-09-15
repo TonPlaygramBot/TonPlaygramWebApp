@@ -720,13 +720,16 @@ function Table3D(scene) {
   innerRect.lineTo(-halfW - railW, halfH + railW);
   innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
+  // extend the side rails downward without altering the top surface
+  const frameDepth = railH * 3;
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
-    depth: railH,
+    depth: frameDepth,
     bevelEnabled: false
   });
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
-  frame.position.y = -TABLE.THICK + 0.01;
+  // lower the frame so the top remains aligned with the play field
+  frame.position.y = -TABLE.THICK + 0.01 - railH * 2;
   table.add(frame);
 
   // simple wooden skirt beneath the play surface
@@ -739,12 +742,11 @@ function Table3D(scene) {
   skirt.position.y = -TABLE.THICK - TABLE_H * 0.1;
   table.add(skirt);
 
-  // oversize wooden table legs at the four corners,
-  // legs now 50% shorter but retain the oversized radius
+  // wooden table legs at the four corners, now thinner and taller
   const pocketRadius = 6.2 * 0.5; // radius used for pocket holes
   const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
-  const legRadius = pocketRadius * 3;
-  const legHeight = pocketHeight * 1.5; // 50% shorter legs
+  const legRadius = pocketRadius * 3 * 0.5; // 50% thinner legs
+  const legHeight = pocketHeight * 2.25; // 50% taller legs
   const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 12);
   const legY = -TABLE.THICK - legHeight / 2;
   [
@@ -853,7 +855,13 @@ function Table3D(scene) {
 
   table.position.y = TABLE_Y;
   scene.add(table);
-  return { centers: pocketCenters(), baulkZ, group: table, clothMat };
+  return {
+    centers: pocketCenters(),
+    baulkZ,
+    group: table,
+    clothMat,
+    cushionMat
+  };
 }
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
@@ -1121,6 +1129,7 @@ function SnookerGame() {
       RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
+      let cushionMat;
       let shooting = false; // track when a shot is in progress
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
@@ -1149,8 +1158,9 @@ function SnookerGame() {
         if (clothMat) {
           const dist = camera.position.distanceTo(target);
           const fade = THREE.MathUtils.clamp((220 - dist) / 120, 0, 1);
-          const ns = 0.45 * fade;
+          const ns = 0.6 * fade;
           clothMat.normalScale.set(ns, ns);
+          cushionMat?.normalScale.set(ns, ns);
         }
       };
       const fit = (m = 1.1) => {
@@ -1275,8 +1285,8 @@ function SnookerGame() {
 
       // Lights
       // Place three spotlights centered above the table with a wider beam
-      const lightHeight = TABLE_Y + 60; // raise spotlights slightly
-      const rectSize = 40;
+      const lightHeight = TABLE_Y + 80; // raise spotlights slightly higher
+      const rectSize = 60; // broaden coverage
       const lightIntensity = 8;
 
       const makeLight = (x, z) => {
@@ -1306,11 +1316,18 @@ function SnookerGame() {
         centers,
         baulkZ,
         group: table,
-        clothMat: tableCloth
+        clothMat: tableCloth,
+        cushionMat: tableCushion
       } = Table3D(scene);
       clothMat = tableCloth;
+      cushionMat = tableCushion;
       const rug = addRugUnderTable(scene, table);
       const arena = addArenaWalls(scene, rug);
+      // prevent the camera from zooming beyond the side walls
+      const maxZoom = Math.min(arena.rugWidth, arena.rugHeight) / 2 - 5;
+      CAMERA.maxR = Math.min(CAMERA.maxR, maxZoom);
+      sph.radius = Math.min(sph.radius, CAMERA.maxR);
+      updateCamera();
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
