@@ -496,8 +496,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  function cushionProfile(len, options = {}) {
-    const { horizontalUndercut = false, removeLeftSection = false } = options;
+  function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
     const thickness = cushionW + cushionInward;
@@ -538,70 +537,10 @@ function Table3D(parent) {
       depth: railH,
       bevelEnabled: false
     });
-    if (horizontalUndercut) {
-      applyHorizontalUndercut(geo, removeLeftSection);
-    }
     return geo;
   }
-  function applyHorizontalUndercut(geo, removeLeftSection) {
-    const pos = geo.attributes.position;
-    const arr = pos.array;
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
-    for (let i = 0; i < arr.length; i += 3) {
-      const x = arr[i];
-      const y = arr[i + 1];
-      const z = arr[i + 2];
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      if (z < minZ) minZ = z;
-      if (z > maxZ) maxZ = z;
-    }
-    const frontSpan = maxY - minY;
-    const railHeight = Math.max(0.0001, maxZ - minZ);
-    const transition = Math.max(0.0001, frontSpan * 0.35);
-    const frontBoundary = minY + transition;
-    const undercutPush = frontSpan * 0.18;
-    const leftSpan = Math.max(0.0001, (maxX - minX) * 0.22);
-    const removalLift = railHeight * 0.65;
-
-    for (let i = 0; i < arr.length; i += 3) {
-      const x = arr[i];
-      let y = arr[i + 1];
-      let z = arr[i + 2];
-      const heightFactor = 1 - (z - minZ) / railHeight;
-      if (heightFactor <= 0) continue;
-      const frontFactor = THREE.MathUtils.clamp((frontBoundary - y) / transition, 0, 1);
-      if (frontFactor > 0) {
-        const shift = undercutPush * frontFactor * heightFactor;
-        y = Math.min(y + shift, maxY);
-        arr[i + 1] = y;
-      }
-      if (removeLeftSection && frontFactor > 0) {
-        const leftFactor = THREE.MathUtils.clamp((minX + leftSpan - x) / leftSpan, 0, 1);
-        if (leftFactor > 0) {
-          const lift = removalLift * heightFactor * leftFactor;
-          z = Math.min(z + lift, maxZ);
-          arr[i + 2] = z;
-          const extraShift = undercutPush * 0.6 * heightFactor * leftFactor;
-          arr[i + 1] = Math.min(arr[i + 1] + extraShift, maxY);
-        }
-      }
-    }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-  }
   function addCushion(x, z, len, horizontal, flip = false) {
-    const geo = cushionProfile(len, {
-      horizontalUndercut: horizontal,
-      removeLeftSection: horizontal && !flip
-    });
+    const geo = cushionProfile(len);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const g = new THREE.Group();
