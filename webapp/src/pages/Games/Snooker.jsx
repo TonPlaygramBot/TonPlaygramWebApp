@@ -22,15 +22,18 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 // --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
-const JAW_H = 3.0;
-const JAW_T = 1.25;
+const JAW_H = 1.9;
+const JAW_T = 0.95;
 const SECTOR_START = -Math.PI * 0.65;
 const SECTOR_END = Math.PI * 0.65;
 const jawMat = new THREE.MeshPhysicalMaterial({
-  color: 0x111111,
-  roughness: 0.35,
-  metalness: 0.1,
-  clearcoat: 0.4
+  color: 0x174f2d,
+  roughness: 0.48,
+  metalness: 0.08,
+  sheen: 0.72,
+  sheenRoughness: 0.86,
+  clearcoat: 0.18,
+  clearcoatRoughness: 0.8
 });
 function makeJawSector(
   R = POCKET_VIS_R,
@@ -49,7 +52,8 @@ function makeJawSector(
   geo.rotateX(-Math.PI / 2);
   return geo;
 }
-function addPocketJaws(parent, playW, playH) {
+function addPocketJaws(parent, playW, playH, options = {}) {
+  const { y = 0, inward = POCKET_VIS_R * 0.52 } = options;
   const HALF_PLAY_W = playW * 0.5;
   const HALF_PLAY_H = playH * 0.5;
   const POCKET_MAP = [
@@ -61,19 +65,19 @@ function addPocketJaws(parent, playW, playH) {
     { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
   ];
   const jaws = [];
-  const geoCorner = makeJawSector();
-  const geoSide = makeJawSector(POCKET_VIS_R, JAW_T * 0.8);
+  const geoCorner = makeJawSector(POCKET_VIS_R * 0.92, JAW_T);
+  const geoSide = makeJawSector(POCKET_VIS_R * 0.92, JAW_T * 0.75);
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.15 : POCKET_VIS_R;
+    const offset = entry.type === 'side' ? inward * 1.04 : inward;
     const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
     const geom = entry.type === 'side' ? geoSide.clone() : geoCorner.clone();
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
-    jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
+    jaw.position.set(pShift.x, y, pShift.y);
+    jaw.lookAt(new THREE.Vector3(0, y, 0));
     if (entry.type === 'side') {
       jaw.rotateY(Math.PI / 2);
     }
@@ -143,10 +147,11 @@ const UI_SCALE = SIZE_REDUCTION;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
-  cloth: 0x1e7b1e,
+  cloth: 0x1b6b3d,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
+  railSight: 0xf2f5ff,
   cue: 0xffffff,
   red: 0xff0000,
   yellow: 0xffff00,
@@ -339,6 +344,50 @@ function Guret(parent, id, color, x, y) {
   };
 }
 
+function edgeFalloff(value, min, max, width = 0.45) {
+  const span = max - min;
+  if (span <= 0) return 0;
+  const dist = Math.min(value - min, max - value);
+  const half = span * 0.5;
+  const normalized = dist / half;
+  return THREE.MathUtils.clamp(1 - normalized / width, 0, 1);
+}
+
+function makeEdgeToneMesh(
+  geometry,
+  { color = 0x2e8f57, opacity = 0.45, axes = ['x', 'y'], exponent = 1.4 } = {}
+) {
+  const tonedGeo = geometry.clone();
+  tonedGeo.computeBoundingBox();
+  const { min, max } = tonedGeo.boundingBox;
+  const pos = tonedGeo.attributes.position;
+  const count = pos.count;
+  const colors = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    let tone = 0;
+    if (axes.includes('x')) tone = Math.max(tone, edgeFalloff(x, min.x, max.x));
+    if (axes.includes('y')) tone = Math.max(tone, edgeFalloff(y, min.y, max.y));
+    if (axes.includes('z')) tone = Math.max(tone, edgeFalloff(z, min.z, max.z));
+    const strength = Math.pow(tone, exponent);
+    colors[i * 3] = strength;
+    colors[i * 3 + 1] = strength;
+    colors[i * 3 + 2] = strength;
+  }
+  tonedGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(color),
+    transparent: true,
+    opacity,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    vertexColors: true
+  });
+  return new THREE.Mesh(tonedGeo, mat);
+}
+
 // --------------------------------------------------
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
@@ -347,14 +396,22 @@ function Table3D(parent) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
+  const centers = pocketCenters();
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.97,
-    sheen: 0.6,
-    sheenRoughness: 0.9
+    roughness: 0.94,
+    metalness: 0.02,
+    sheen: 0.78,
+    sheenColor: new THREE.Color(0x2d9a58),
+    sheenRoughness: 0.82,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.9
   });
   const cushionMat = clothMat.clone();
+  cushionMat.color = new THREE.Color(COLORS.cloth);
+  cushionMat.roughness = 0.9;
+  cushionMat.sheenColor = new THREE.Color(0x276a43);
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.3,
@@ -372,7 +429,7 @@ function Table3D(parent) {
   shape.lineTo(halfW, halfH);
   shape.lineTo(-halfW, halfH);
   shape.lineTo(-halfW, -halfH);
-  pocketCenters().forEach((p) => {
+  centers.forEach((p) => {
     const h = new THREE.Path();
     h.absellipse(p.x, p.y, 6, 6, 0, Math.PI * 2);
     shape.holes.push(h);
@@ -385,6 +442,15 @@ function Table3D(parent) {
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
   table.add(cloth);
+  const clothTone = makeEdgeToneMesh(clothGeo, {
+    color: 0x2f9c59,
+    opacity: 0.33,
+    axes: ['x', 'y'],
+    exponent: 1.6
+  });
+  clothTone.rotation.copy(cloth.rotation);
+  clothTone.position.copy(cloth.position);
+  table.add(clothTone);
 
   const markingMat = new THREE.LineBasicMaterial({
     color: COLORS.markings,
@@ -501,6 +567,12 @@ function Table3D(parent) {
   const cushionInward = TABLE.WALL * 0.15;
   // push the vertical rail groups slightly outward so angled cuts meet cleanly without overlap
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.075;
+  const railSightGeo = new THREE.CircleGeometry(1.35, 28);
+  const railSightMat = new THREE.MeshStandardMaterial({
+    color: COLORS.railSight,
+    roughness: 0.25,
+    metalness: 0.12
+  });
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -561,22 +633,10 @@ function Table3D(parent) {
     const pos = geo.attributes.position;
     const arr = pos.array;
     const frontRange = backY - frontY;
-    const undercutLift = railH * 0.95;
-    const undercutInset = cushionInward + cushionW * 0.3;
     const tipStart = half - cut; // region where the 32° cushion chamfer begins
     const tipSpan = cut;
     const tipSlope = tipSpan !== 0 ? frontRange / tipSpan : 0;
     for (let i = 0; i < arr.length; i += 3) {
-      const y = arr[i + 1];
-      const z = arr[i + 2];
-      if (z <= 0.001) {
-        const t = frontRange !== 0 ? THREE.MathUtils.clamp((y - frontY) / frontRange, 0, 1) : 1;
-        const frontFactor = 1 - t;
-        const lift = frontFactor * undercutLift;
-        arr[i + 2] = z + lift;
-        const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, frontFactor);
-        arr[i + 1] = targetY;
-      }
       const x = arr[i];
       const currentY = arr[i + 1];
       const absX = Math.abs(x);
@@ -600,6 +660,18 @@ function Table3D(parent) {
     mesh.rotation.x = -Math.PI / 2;
     const g = new THREE.Group();
     g.add(mesh);
+    const tone = makeEdgeToneMesh(geo, {
+      color: 0x38a163,
+      opacity: 0.42,
+      axes: ['y', 'z'],
+      exponent: 1.9
+    });
+    tone.rotation.x = -Math.PI / 2;
+    g.add(tone);
+    const sight = new THREE.Mesh(railSightGeo, railSightMat);
+    sight.rotation.x = -Math.PI / 2;
+    sight.position.set(0, railH - 0.35, 0);
+    g.add(sight);
     g.position.set(x, cushionRaiseY, z);
     const centerNudge = TABLE.WALL * 0.07;
     if (!horizontal) {
@@ -625,7 +697,8 @@ function Table3D(parent) {
     table.userData.cushions.push(g);
   }
   const vertSeg = PLAY_H / 2 - 12;
-  const horizontalLen = PLAY_W - (cushionExtend + 6);
+  const longSideShorten = POCKET_VIS_R * 0.5;
+  const horizontalLen = PLAY_W - (cushionExtend + 6) - longSideShorten;
   const verticalLen = PLAY_H / 2 - (cushionExtend + 6);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
@@ -639,7 +712,7 @@ function Table3D(parent) {
   addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false, true);
 
   if (!table.userData.pockets) table.userData.pockets = [];
-  pocketCenters().forEach((p) => {
+  centers.forEach((p) => {
     const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
       new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
@@ -654,11 +727,40 @@ function Table3D(parent) {
     table.add(cut);
     table.userData.pockets.push(cut);
   });
+  const rimGeo = new THREE.TorusGeometry(POCKET_VIS_R * 1.32, POCKET_VIS_R * 0.28, 20, 48, Math.PI * 0.92);
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0xbfc5cc,
+    metalness: 0.82,
+    roughness: 0.32
+  });
+  const rimHeight = cushionRaiseY + railH - 0.48;
+  const pocketRims = [];
+  centers.forEach((p) => {
+    const rim = new THREE.Mesh(rimGeo, rimMat);
+    const toCenter = new THREE.Vector2(-p.x, -p.y).normalize();
+    const isSide = Math.abs(p.x) < 1e-4;
+    const offsetScale = isSide ? POCKET_VIS_R * 0.36 : POCKET_VIS_R * 0.42;
+    const rimOffset = toCenter.clone().multiplyScalar(offsetScale);
+    const capYaw = Math.atan2(-p.x, -p.y);
+    rim.rotation.set(Math.PI / 2, capYaw, 0);
+    rim.position.set(p.x + rimOffset.x, rimHeight, p.y + rimOffset.y);
+    rim.castShadow = true;
+    rim.receiveShadow = true;
+    table.add(rim);
+    pocketRims.push(rim);
+  });
+  table.userData.pocketRims = pocketRims;
+  const jawY = cushionRaiseY + railH - JAW_H * 0.55;
+  const jaws = addPocketJaws(table, PLAY_W, PLAY_H, {
+    y: jawY,
+    inward: POCKET_VIS_R * 0.6
+  });
+  table.userData.jaws = jaws;
 
   table.position.y = TABLE_Y;
   parent.add(table);
   return {
-    centers: pocketCenters(),
+    centers,
     baulkZ,
     group: table,
     clothMat,
