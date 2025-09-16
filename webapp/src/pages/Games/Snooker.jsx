@@ -133,7 +133,7 @@ const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 30;
+const CUSHION_CUT_ANGLE = 32;
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -494,12 +494,14 @@ function Table3D(parent) {
   const cushionRaiseY = -TABLE.THICK + 0.02;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
+  const cushionInward = TABLE.WALL * 0.15;
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
+    const thickness = cushionW + cushionInward;
     const backY = cushionW / 2;
-    const frontY = -cushionW / 2;
-    const cut = cushionW / Math.tan(THREE.MathUtils.degToRad(30));
+    const frontY = backY - thickness;
+    const cut = thickness / Math.tan(THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE));
     const s = new THREE.Shape();
     s.moveTo(-half, backY);
     s.lineTo(half, backY);
@@ -529,19 +531,19 @@ function Table3D(parent) {
     if (!table.userData.cushions) table.userData.cushions = [];
     table.userData.cushions.push(g);
   }
-  const horizLen = PLAY_W - 12;
   const vertSeg = PLAY_H / 2 - 12;
-  const CUSHION_LEN = Math.min(horizLen, vertSeg);
+  const horizontalLen = PLAY_W - (cushionExtend + 6);
+  const verticalLen = PLAY_H / 2 - (cushionExtend + 6);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
   const rightX = halfW + (TABLE.WALL * 0.5) / 2;
-  addCushion(0, bottomZ, CUSHION_LEN, true, false);
-  addCushion(leftX, -halfH + 6 + vertSeg / 2, CUSHION_LEN, false, false);
-  addCushion(rightX, halfH - 6 - vertSeg / 2, CUSHION_LEN, false, true);
-  addCushion(0, topZ, CUSHION_LEN, true, true);
-  addCushion(leftX, halfH - 6 - vertSeg / 2, CUSHION_LEN, false, false);
-  addCushion(rightX, -halfH + 6 + vertSeg / 2, CUSHION_LEN, false, true);
+  addCushion(0, bottomZ, horizontalLen, true, false);
+  addCushion(leftX, -halfH + 6 + vertSeg / 2, verticalLen, false, false);
+  addCushion(rightX, halfH - 6 - vertSeg / 2, verticalLen, false, true);
+  addCushion(0, topZ, horizontalLen, true, true);
+  addCushion(leftX, halfH - 6 - vertSeg / 2, verticalLen, false, false);
+  addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false, true);
 
   if (!table.userData.pockets) table.userData.pockets = [];
   pocketCenters().forEach((p) => {
@@ -558,31 +560,6 @@ function Table3D(parent) {
     table.add(cut);
     table.userData.pockets.push(cut);
   });
-
-  const degFrom = 30;
-  const degTo = 32;
-  const cot = (d) => 1 / Math.tan(THREE.MathUtils.degToRad(d));
-  const dCutAdjust = cushionW * cot(degTo) - cushionW * cot(degFrom);
-  if (table.userData.cushions) {
-    table.userData.cushions.forEach((g) => {
-      g.traverse((node) => {
-        if (node.isMesh && node.material === cushionMat) {
-          const geo = node.geometry;
-          const pos = geo.attributes.position;
-          for (let i = 0; i < pos.count; i++) {
-            const y = pos.getY(i);
-            if (y <= -cushionW / 2 + 1e-3) {
-              const x = pos.getX(i);
-              const dir = Math.sign(x) || 1;
-              pos.setX(i, x + dir * dCutAdjust);
-            }
-          }
-          pos.needsUpdate = true;
-          geo.computeVertexNormals();
-        }
-      });
-    });
-  }
 
   table.position.y = TABLE_Y;
   parent.add(table);
