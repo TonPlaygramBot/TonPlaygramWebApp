@@ -496,7 +496,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  function cushionProfile(len) {
+  function cushionProfile(len, { undercutLongSide = false } = {}) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
     const thickness = cushionW + cushionInward;
@@ -537,10 +537,50 @@ function Table3D(parent) {
       depth: railH,
       bevelEnabled: false
     });
+    if (undercutLongSide) {
+      geo.computeBoundingBox();
+      const posAttr = geo.attributes.position;
+      const arr = posAttr.array;
+      const bb = geo.boundingBox;
+      const leftX = bb.min.x;
+      const rightX = bb.max.x;
+      const bottomZ = bb.max.z;
+      const xSpan = rightX - leftX || 1;
+      const frontClamp = THREE.MathUtils.lerp(frontY, backY, 0.45);
+      const minBottom = bottomZ * 0.12;
+      for (let i = 0; i < arr.length; i += 3) {
+        const x = arr[i];
+        const y = arr[i + 1];
+        const z = arr[i + 2];
+        if (!(z >= bottomZ - 1e-3)) continue;
+        const along = THREE.MathUtils.clamp((x - leftX) / xSpan, 0, 1);
+        const diag = 1 - along;
+        const targetZ = THREE.MathUtils.lerp(minBottom, bottomZ, along);
+        if (targetZ < z) {
+          arr[i + 2] = targetZ;
+        }
+        if (y < frontClamp) {
+          const push = thickness * 0.35 * diag;
+          const newY = Math.min(y + push, frontClamp);
+          arr[i + 1] = newY;
+        }
+        if (diag > 0.0001 && y > frontClamp && y <= backY) {
+          const fade = diag * Math.max(0, 1 - (y - frontClamp) / (backY - frontClamp));
+          const newZ = THREE.MathUtils.lerp(minBottom, z, 1 - fade * 0.5);
+          if (newZ < arr[i + 2]) {
+            arr[i + 2] = newZ;
+          }
+        }
+      }
+      posAttr.needsUpdate = true;
+      geo.computeVertexNormals();
+      geo.computeBoundingBox();
+      geo.computeBoundingSphere();
+    }
     return geo;
   }
   function addCushion(x, z, len, horizontal, flip = false) {
-    const geo = cushionProfile(len);
+    const geo = cushionProfile(len, { undercutLongSide: horizontal });
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const g = new THREE.Group();
