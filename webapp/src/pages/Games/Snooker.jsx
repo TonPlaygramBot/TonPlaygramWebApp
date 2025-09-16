@@ -1257,11 +1257,11 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place three spotlights above the table with a tighter footprint but extra brightness
+      // Place two spotlights above the table with a slightly larger footprint and extra brightness
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.45; // trim footprint a little more for a crisper highlight
-      const lightIntensity = 31.68 * 1.3; // bump brightness so the cloth pops
+      const rectSize = rectSizeBase * 0.45 * 1.2; // enlarge the footprint a touch for broader coverage
+      const lightIntensity = 31.68 * 1.3 * 1.3; // increase brightness by an additional 30%
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1275,15 +1275,9 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // evenly space three spotlights along the table center line
-      const spacing = 2.0; // keep lights near the rails without overshooting the room
-      const lightCount = 3;
-      for (let i = 0; i < lightCount; i++) {
-        const z = THREE.MathUtils.lerp(
-          (-TABLE.H / 2) * spacing,
-          (TABLE.H / 2) * spacing,
-          (i + 0.5) / lightCount
-        );
+      // evenly space the two spotlights along the table center line
+      const lightPositions = [-TABLE.H * 0.25, TABLE.H * 0.25];
+      for (const z of lightPositions) {
         makeLight(0, z);
       }
 
