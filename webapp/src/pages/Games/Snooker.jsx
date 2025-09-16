@@ -120,9 +120,9 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 2.8,
   dotThreshold: 0.5,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 0.6,
+  minOutside: TABLE.WALL + POCKET_VIS_R * 0.8,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 4
+  heightOffset: BALL_R * 4.5
 });
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
@@ -183,8 +183,9 @@ const BREAK_VIEW = Object.freeze({
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
-  radiusScale: 1.08,
-  phiOffset: -0.04
+  phiOffset: 0,
+  followWeight: 0.35,
+  maxOffset: PLAY_W * 0.18
 });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -945,20 +946,46 @@ function SnookerGame() {
             camera.lookAt(lookTarget);
           } else if (shooting && activeShotView) {
             if (activeShotView.mode === 'followCue') {
-              const cueTarget = new THREE.Vector3(
+              const cuePos2D =
+                activeShotView.lastBallPos ??
+                (activeShotView.lastBallPos = new THREE.Vector2());
+              cuePos2D.set(cue.pos.x, cue.pos.y);
+              shotSph.radius = activeShotView.radius;
+              shotSph.phi = activeShotView.phi;
+              shotSph.theta = activeShotView.theta;
+              const baseTarget =
+                activeShotView.baseTarget ??
+                (activeShotView.baseTarget = new THREE.Vector2(
+                  playerOffsetRef.current,
+                  0
+                ));
+              const offsetVec =
+                activeShotView.offset ??
+                (activeShotView.offset = new THREE.Vector2());
+              offsetVec.copy(cuePos2D).sub(baseTarget);
+              const maxOffset = activeShotView.maxOffset ?? ACTION_VIEW.maxOffset;
+              if (maxOffset > 0) {
+                const len = offsetVec.length();
+                if (len > maxOffset) {
+                  offsetVec.multiplyScalar(maxOffset / len);
+                }
+              }
+              const followWeight =
+                activeShotView.followWeight ?? ACTION_VIEW.followWeight;
+              offsetVec.multiplyScalar(followWeight);
+              const anchor = new THREE.Vector3(
+                baseTarget.x + offsetVec.x,
+                TABLE_Y + 0.05,
+                baseTarget.y + offsetVec.y
+              ).multiplyScalar(worldScaleFactor);
+              const focusTarget = new THREE.Vector3(
                 cue.pos.x,
                 BALL_R,
                 cue.pos.y
               ).multiplyScalar(worldScaleFactor);
-              if (activeShotView.lastBallPos) {
-                activeShotView.lastBallPos.set(cue.pos.x, cue.pos.y);
-              }
-              shotSph.radius = activeShotView.radius;
-              shotSph.phi = activeShotView.phi;
-              shotSph.theta = activeShotView.theta;
-              camera.position.setFromSpherical(shotSph).add(cueTarget);
-              camera.lookAt(cueTarget);
-              lookTarget = cueTarget;
+              camera.position.setFromSpherical(shotSph).add(anchor);
+              camera.lookAt(focusTarget);
+              lookTarget = focusTarget;
             } else if (activeShotView.mode === 'pocket') {
               const ballsList = ballsRef.current || [];
               const focusBall = ballsList.find(
@@ -1081,7 +1108,7 @@ function SnookerGame() {
           if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
           if (best.dist > POCKET_CAM.triggerDist) return null;
           const outsideOffset = THREE.MathUtils.clamp(
-            best.dist * 0.6 + POCKET_VIS_R,
+            best.dist * 0.65 + POCKET_VIS_R + BALL_R * 0.4,
             POCKET_CAM.minOutside,
             POCKET_CAM.maxOutside
           );
@@ -1233,8 +1260,8 @@ function SnookerGame() {
       // Place three spotlights above the table with a tighter footprint but extra brightness
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.6 * 0.9; // shrink footprint ~10%
-      const lightIntensity = 31.68 * 1.1; // boost intensity by ~10%
+      const rectSize = rectSizeBase * 0.45; // trim footprint a little more for a crisper highlight
+      const lightIntensity = 31.68 * 1.3; // bump brightness so the cloth pops
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1567,21 +1594,24 @@ function SnookerGame() {
                 theta: sph.theta
               };
             const followTheta = baseOrbit.theta;
+            const basePhi = clamp(baseOrbit.phi, CAMERA.minPhi, CAMERA.maxPhi);
             const followPhi = clamp(
-              baseOrbit.phi + ACTION_VIEW.phiOffset,
-              CAMERA.minPhi,
+              basePhi + ACTION_VIEW.phiOffset,
+              CAMERA.minPhi + 0.02,
               CAMERA.maxPhi
             );
-            const followRadius = clamp(
-              baseOrbit.radius * ACTION_VIEW.radiusScale,
-              CAMERA.minR,
-              CAMERA.maxR
-            );
+            const baseRadius = clamp(baseOrbit.radius, CAMERA.minR, CAMERA.maxR);
+            const followRadius = baseRadius;
+            const baseTarget = new THREE.Vector2(playerOffsetRef.current, 0);
             activeShotView = {
               mode: 'followCue',
               radius: followRadius,
               phi: followPhi,
               theta: followTheta,
+              baseTarget,
+              offset: new THREE.Vector2(),
+              followWeight: ACTION_VIEW.followWeight,
+              maxOffset: ACTION_VIEW.maxOffset,
               lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y)
             };
             followViewRef.current = activeShotView;
