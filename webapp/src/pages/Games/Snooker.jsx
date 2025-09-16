@@ -134,8 +134,6 @@ const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
-// remove a percentage of the cushion depth from the rail-facing backside
-const CUSHION_BACK_TRIM = 0.35;
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -504,12 +502,9 @@ function Table3D(parent) {
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
-    const rawThickness = cushionW + cushionInward;
-    const trimmedThickness = rawThickness * (1 - CUSHION_BACK_TRIM);
-    const originalBackY = cushionW / 2;
-    const frontY = originalBackY - rawThickness;
-    const backY = frontY + trimmedThickness;
-    const thickness = trimmedThickness;
+    const thickness = cushionW + cushionInward;
+    const backY = cushionW / 2;
+    const frontY = backY - thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const cut = thickness / Math.tan(rad);
     const tipLeft = -half + cut;
