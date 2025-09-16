@@ -165,11 +165,11 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 40 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minR: 36 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   maxR: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
-  // keep the camera slightly above the horizontal plane
-  maxPhi: Math.PI / 2 - 0.1
+  // keep the camera slightly above the horizontal plane but allow a lower sweep
+  maxPhi: Math.PI / 2 - 0.04
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -180,7 +180,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.95 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.92 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -918,8 +918,10 @@ function SnookerGame() {
           Math.PI
         );
         const updateCamera = () => {
+          const followCue =
+            cue?.mesh && !topViewRef.current && cue.active;
           const target = (
-            cue?.mesh && !topViewRef.current && !shooting
+            followCue
               ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
               : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
           ).multiplyScalar(worldScaleFactor);
@@ -1103,8 +1105,8 @@ function SnookerGame() {
       // Place two brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.6 * 1.3; // remaining lights are 30% larger for broader coverage
-      const lightIntensity = 26.4; // 20% brighter lighting
+      const rectSize = rectSizeBase * 0.6 * 1.1; // slightly smaller footprint while keeping coverage
+      const lightIntensity = 31.68; // roughly 20% brighter lighting
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
