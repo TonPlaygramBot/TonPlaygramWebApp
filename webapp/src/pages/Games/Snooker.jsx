@@ -1100,10 +1100,10 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place three brighter spotlights above the table with more spacing and coverage
+      // Place two brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.6; // slightly larger to fill the table with three lights
+      const rectSize = rectSizeBase * 0.6 * 1.3; // remaining lights are 30% larger for broader coverage
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1118,9 +1118,9 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // three spotlights aligned along the center with extra spacing from the ends
+      // two spotlights aligned along the center with extra spacing from the ends
       const spacing = 2.4; // spread lights even farther apart
-      const lightCount = 3;
+      const lightCount = 2;
       for (let i = 0; i < lightCount; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
