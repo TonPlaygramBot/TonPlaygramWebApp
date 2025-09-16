@@ -497,8 +497,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  // push the vertical rail groups slightly outward so angled cuts meet cleanly without overlap
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.075;
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05;
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -558,9 +557,6 @@ function Table3D(parent) {
     const frontRange = backY - frontY;
     const undercutLift = railH * 0.95;
     const undercutInset = cushionInward + cushionW * 0.3;
-    const tipStart = half - cut; // region where the 32° cushion chamfer begins
-    const tipSpan = cut;
-    const tipSlope = tipSpan !== 0 ? frontRange / tipSpan : 0;
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
       const z = arr[i + 2];
@@ -571,16 +567,6 @@ function Table3D(parent) {
         arr[i + 2] = z + lift;
         const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, frontFactor);
         arr[i + 1] = targetY;
-      }
-      const x = arr[i];
-      const currentY = arr[i + 1];
-      const absX = Math.abs(x);
-      if (absX >= tipStart - 1e-4) {
-        // clamp vertices within the chamfer to the ideal straight 32° plane
-        const dist = Math.min(tipSpan, Math.max(0, absX - tipStart));
-        const cutY = frontY + dist * tipSlope;
-        const clampedY = Math.min(backY, Math.max(currentY, cutY));
-        arr[i + 1] = clampedY;
       }
     }
     pos.needsUpdate = true;
