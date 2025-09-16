@@ -176,8 +176,16 @@ const BREAK_VIEW = Object.freeze({
   phi: 1.12
 });
 const SHOT_VIEW_OFFSET = Object.freeze({
-  radiusFactor: 1.05,
-  phiOffset: -0.05
+  radiusFactor: 1,
+  phiOffset: 0.08
+});
+const POCKET_VIEW = Object.freeze({
+  alignThreshold: 0.88,
+  minSpeed: 0.12,
+  height: BALL_R * 10,
+  backoff: Math.max(TABLE.W, TABLE.H) * 0.24,
+  outward: TABLE.WALL * 2.2,
+  lookAhead: BALL_R * 6
 });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
@@ -926,29 +934,105 @@ function SnookerGame() {
         const updateCamera = () => {
           let target = null;
           if (topViewRef.current) {
-            target = new THREE.Vector3(
+            followTargetVec.set(
               playerOffsetRef.current,
               TABLE_Y + 0.05,
               0
-            ).multiplyScalar(worldScaleFactor);
+            );
+            scaledTargetVec
+              .copy(followTargetVec)
+              .multiplyScalar(worldScaleFactor);
+            target = scaledTargetVec;
             camera.position.set(target.x, sph.radius, target.z);
             camera.lookAt(target);
           } else if (shooting && activeShotView) {
-            target = activeShotView.target
-              .clone()
-              .multiplyScalar(worldScaleFactor);
-            shotSph.radius = activeShotView.radius;
-            shotSph.phi = activeShotView.phi;
-            shotSph.theta = activeShotView.theta;
-            camera.position.setFromSpherical(shotSph).add(target);
-            camera.lookAt(target);
+            if (
+              activeShotView.mode === 'followCue' &&
+              activeShotView.ball?.active
+            ) {
+              followTargetVec.set(
+                activeShotView.ball.pos.x,
+                BALL_R,
+                activeShotView.ball.pos.y
+              );
+              scaledTargetVec
+                .copy(followTargetVec)
+                .multiplyScalar(worldScaleFactor);
+              target = scaledTargetVec;
+              shotSph.radius = activeShotView.radius;
+              shotSph.phi = activeShotView.phi;
+              shotSph.theta = activeShotView.theta;
+              camera.position.setFromSpherical(shotSph).add(target);
+              camera.lookAt(target);
+            } else if (
+              activeShotView.mode === 'pocket' &&
+              activeShotView.position
+            ) {
+              if (activeShotView.ball && activeShotView.ball.active) {
+                pocketLookVec.set(
+                  activeShotView.ball.pos.x,
+                  BALL_R,
+                  activeShotView.ball.pos.y
+                );
+              } else {
+                pocketLookVec.copy(activeShotView.pocketCenter);
+              }
+              pocketAheadVec
+                .copy(activeShotView.approach)
+                .multiplyScalar(activeShotView.lookAhead);
+              pocketLookVec.add(pocketAheadVec);
+              scaledTargetVec
+                .copy(pocketLookVec)
+                .multiplyScalar(worldScaleFactor);
+              target = scaledTargetVec;
+              pocketCamVec
+                .copy(activeShotView.position)
+                .multiplyScalar(worldScaleFactor);
+              camera.position.copy(pocketCamVec);
+              camera.lookAt(target);
+            } else if (activeShotView.target) {
+              scaledTargetVec
+                .copy(activeShotView.target)
+                .multiplyScalar(worldScaleFactor);
+              target = scaledTargetVec;
+              shotSph.radius = activeShotView.radius;
+              shotSph.phi = activeShotView.phi;
+              shotSph.theta = activeShotView.theta;
+              camera.position.setFromSpherical(shotSph).add(target);
+              camera.lookAt(target);
+            } else {
+              const followCue = cue?.mesh && cue.active;
+              if (followCue) {
+                followTargetVec.set(cue.pos.x, BALL_R, cue.pos.y);
+              } else {
+                followTargetVec.set(
+                  playerOffsetRef.current,
+                  TABLE_Y + 0.05,
+                  0
+                );
+              }
+              scaledTargetVec
+                .copy(followTargetVec)
+                .multiplyScalar(worldScaleFactor);
+              target = scaledTargetVec;
+              camera.position.setFromSpherical(sph).add(target);
+              camera.lookAt(target);
+            }
           } else {
             const followCue = cue?.mesh && cue.active && !shooting;
-            target = (
-              followCue
-                ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-                : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
-            ).multiplyScalar(worldScaleFactor);
+            if (followCue) {
+              followTargetVec.set(cue.pos.x, BALL_R, cue.pos.y);
+            } else {
+              followTargetVec.set(
+                playerOffsetRef.current,
+                TABLE_Y + 0.05,
+                0
+              );
+            }
+            scaledTargetVec
+              .copy(followTargetVec)
+              .multiplyScalar(worldScaleFactor);
+            target = scaledTargetVec;
             camera.position.setFromSpherical(sph).add(target);
             camera.lookAt(target);
           }
@@ -1382,6 +1466,11 @@ function SnookerGame() {
       const camFwd = new THREE.Vector3();
       const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
+      const followTargetVec = new THREE.Vector3();
+      const scaledTargetVec = new THREE.Vector3();
+      const pocketLookVec = new THREE.Vector3();
+      const pocketCamVec = new THREE.Vector3();
+      const pocketAheadVec = new THREE.Vector3();
 
       // In-hand placement
       const free = (x, z) =>
@@ -1423,10 +1512,79 @@ function SnookerGame() {
       const val = (id) =>
         isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
-        // Fire (slider e thërret në release)
-        const fire = () => {
-          if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
-            return;
+      const selectPocketFocus = () => {
+        const candidates = [];
+        if (firstHit) {
+          const primary = balls.find((b) => b.id === firstHit);
+          if (primary && primary.active) {
+            candidates.push({ ball: primary, priority: 1 });
+          }
+        }
+        for (const b of balls) {
+          if (!b.active || b.id === 'cue') continue;
+          if (firstHit && b.id === firstHit) continue;
+          candidates.push({ ball: b, priority: 0 });
+        }
+        let best = null;
+        for (const { ball, priority } of candidates) {
+          const speed = ball.vel.length();
+          if (speed < POCKET_VIEW.minSpeed) continue;
+          const velDir = ball.vel.clone().normalize();
+          for (const center of centers) {
+            const toPocket = center.clone().sub(ball.pos);
+            const dist = toPocket.length();
+            if (dist < BALL_R * 1.5) continue;
+            const toDir = toPocket.clone().normalize();
+            const alignment = velDir.dot(toDir);
+            if (alignment < POCKET_VIEW.alignThreshold) continue;
+            const score =
+              alignment * 2 +
+              priority * 0.6 +
+              Math.min(speed, 6) * 0.1 -
+              dist * 0.002;
+            if (!best || score > best.score) {
+              best = {
+                ball,
+                pocket: center.clone(),
+                dir: toDir,
+                score
+              };
+            }
+          }
+        }
+        return best;
+      };
+
+      const buildPocketView = (focus) => {
+        const pocketCenter3 = new THREE.Vector3(
+          focus.pocket.x,
+          BALL_R,
+          focus.pocket.y
+        );
+        const approach3 = new THREE.Vector3(focus.dir.x, 0, focus.dir.y);
+        if (approach3.lengthSq() > 0) approach3.normalize();
+        const outward3 = new THREE.Vector3(focus.pocket.x, 0, focus.pocket.y);
+        if (outward3.lengthSq() > 0) outward3.normalize();
+        const position = pocketCenter3
+          .clone()
+          .add(approach3.clone().multiplyScalar(-POCKET_VIEW.backoff))
+          .add(outward3.multiplyScalar(POCKET_VIEW.outward));
+        position.y = pocketCenter3.y + POCKET_VIEW.height;
+        return {
+          mode: 'pocket',
+          ball: focus.ball,
+          pocketCenter: pocketCenter3,
+          approach: approach3,
+          position,
+          lookAhead: POCKET_VIEW.lookAhead,
+          target: pocketCenter3.clone()
+        };
+      };
+
+      // Fire (slider e thërret në release)
+      const fire = () => {
+        if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
+          return;
           shooting = true;
           potted = [];
           foul = false;
@@ -1444,7 +1602,7 @@ function SnookerGame() {
           const topVec = aimDir.clone().multiplyScalar(spinTop);
           cue.vel.copy(base).add(sideVec).add(topVec);
 
-          // lock the camera to the shooter's view without following the balls mid-shot
+          // lock the camera to the shooter's view while following the cue ball until impact
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             const sph = sphRef.current;
@@ -1460,6 +1618,8 @@ function SnookerGame() {
               CAMERA.maxR
             );
             activeShotView = {
+              mode: 'followCue',
+              ball: cue,
               radius: shotRadius,
               phi: shotPhi,
               theta: shotTheta,
@@ -1769,6 +1929,15 @@ function SnookerGame() {
               }
             }
           }
+        if (
+          shooting &&
+          activeShotView &&
+          activeShotView.mode === 'followCue' &&
+          firstHit
+        ) {
+          const focus = selectPocketFocus();
+          if (focus) activeShotView = buildPocketView(focus);
+        }
         // Kapje në xhepa
         balls.forEach((b) => {
           if (!b.active) return;
