@@ -166,11 +166,19 @@ const CAMERA = {
   near: 0.1,
   far: 4000,
   minR: 36 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  maxR: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: Math.PI / 2 - 0.04
 };
+const BREAK_VIEW = Object.freeze({
+  radius: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  phi: 1.12
+});
+const SHOT_VIEW_OFFSET = Object.freeze({
+  radiusFactor: 1.05,
+  phiOffset: -0.05
+});
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
@@ -849,18 +857,20 @@ function SnookerGame() {
       let clothMat;
       let cushionMat;
       let shooting = false; // track when a shot is in progress
+      let activeShotView = null;
       let cueAnimating = false; // forward stroke animation state
       const legHeight = TABLE.THICK * 2 * 3 * 1.15 * 2.25;
       const floorY = TABLE_Y - TABLE.THICK - legHeight + 0.3;
-      const carpetRadius = Math.max(TABLE.W, TABLE.H) * 1.45;
+      const roomWidth = TABLE.W * 3.2;
+      const roomDepth = TABLE.H * 3.6;
+      const wallThickness = 1.2;
+      const wallHeight = legHeight + TABLE.THICK + 40;
       const carpetThickness = 1.2;
+      const carpetInset = wallThickness * 0.02;
+      const carpetWidth = roomWidth - wallThickness + carpetInset;
+      const carpetDepth = roomDepth - wallThickness + carpetInset;
       const carpet = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          carpetRadius,
-          carpetRadius,
-          carpetThickness,
-          64
-        ),
+        new THREE.BoxGeometry(carpetWidth, carpetThickness, carpetDepth),
         new THREE.MeshStandardMaterial({
           color: 0x8c2f2f,
           roughness: 0.9,
@@ -873,14 +883,10 @@ function SnookerGame() {
       world.add(carpet);
 
       const wallMat = new THREE.MeshStandardMaterial({
-        color: 0xd8d8d8,
-        roughness: 0.92,
-        metalness: 0.08
+        color: 0xeeeeee,
+        roughness: 0.88,
+        metalness: 0.06
       });
-      const roomWidth = TABLE.W * 3.2;
-      const roomDepth = TABLE.H * 3.6;
-      const wallHeight = legHeight + TABLE.THICK + 28;
-      const wallThickness = 1.2;
 
       const makeWall = (width, height, depth) => {
         const wall = new THREE.Mesh(
@@ -913,26 +919,40 @@ function SnookerGame() {
         );
         // Start behind baulk colours
         const sph = new THREE.Spherical(
-          180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-          1.12, // drop the break view slightly lower for a tighter angle
+          BREAK_VIEW.radius,
+          BREAK_VIEW.phi, // drop the break view slightly lower for a tighter angle
           Math.PI
         );
         const updateCamera = () => {
-          const followCue =
-            cue?.mesh && !topViewRef.current && cue.active;
-          const target = (
-            followCue
-              ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-              : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
-          ).multiplyScalar(worldScaleFactor);
+          let target = null;
           if (topViewRef.current) {
+            target = new THREE.Vector3(
+              playerOffsetRef.current,
+              TABLE_Y + 0.05,
+              0
+            ).multiplyScalar(worldScaleFactor);
             camera.position.set(target.x, sph.radius, target.z);
             camera.lookAt(target);
+          } else if (shooting && activeShotView) {
+            target = activeShotView.target
+              .clone()
+              .multiplyScalar(worldScaleFactor);
+            shotSph.radius = activeShotView.radius;
+            shotSph.phi = activeShotView.phi;
+            shotSph.theta = activeShotView.theta;
+            camera.position.setFromSpherical(shotSph).add(target);
+            camera.lookAt(target);
           } else {
+            const followCue = cue?.mesh && cue.active && !shooting;
+            target = (
+              followCue
+                ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
+                : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
+            ).multiplyScalar(worldScaleFactor);
             camera.position.setFromSpherical(sph).add(target);
             camera.lookAt(target);
           }
-          if (clothMat) {
+          if (clothMat && target) {
             const dist = camera.position.distanceTo(target);
             // Subtle detail up close, fade quicker in orbit view
             const fade = THREE.MathUtils.clamp((120 - dist) / 50, 0, 1);
@@ -1102,11 +1122,11 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place two brighter spotlights above the table with more spacing and coverage
+      // Place three spotlights above the table with a tighter footprint but extra brightness
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.6 * 1.1; // slightly smaller footprint while keeping coverage
-      const lightIntensity = 31.68; // roughly 20% brighter lighting
+      const rectSize = rectSizeBase * 0.6 * 0.9; // shrink footprint ~10%
+      const lightIntensity = 31.68 * 1.1; // boost intensity by ~10%
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1120,9 +1140,9 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // two spotlights aligned along the center with extra spacing from the ends
-      const spacing = 2.4; // spread lights even farther apart
-      const lightCount = 2;
+      // evenly space three spotlights along the table center line
+      const spacing = 2.0; // keep lights near the rails without overshooting the room
+      const lightCount = 3;
       for (let i = 0; i < lightCount; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
@@ -1360,6 +1380,7 @@ function SnookerGame() {
 
       const aimDir = aimDirRef.current;
       const camFwd = new THREE.Vector3();
+      const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
@@ -1423,37 +1444,31 @@ function SnookerGame() {
           const topVec = aimDir.clone().multiplyScalar(spinTop);
           cue.vel.copy(base).add(sideVec).add(topVec);
 
-          // switch camera back to orbit view, pull back, and lower slightly to frame the whole table
+          // lock the camera to the shooter's view without following the balls mid-shot
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
-            const cam = cameraRef.current;
             const sph = sphRef.current;
-            const safeRadius = fitRadius(cam, 1.6);
-            const desiredRadius = Math.max(
-              safeRadius,
-              sph.radius * 1.12,
-              CAMERA.minR * 1.12
+            const shotTheta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+            const shotPhi = clamp(
+              BREAK_VIEW.phi + SHOT_VIEW_OFFSET.phiOffset,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
             );
-            const overviewRadius = Math.min(
-              Math.max(desiredRadius, safeRadius),
+            const shotRadius = clamp(
+              BREAK_VIEW.radius * SHOT_VIEW_OFFSET.radiusFactor,
+              CAMERA.minR,
               CAMERA.maxR
             );
-            const loweredPhi = Math.min(
-              CAMERA.maxPhi - 0.06,
-              Math.max(sph.phi + 0.18, CAMERA.minPhi + 0.4)
-            );
-            const overviewPhi = Math.min(
-              Math.max(loweredPhi, CAMERA.minPhi + 0.4),
-              CAMERA.maxPhi - 0.06
-            );
-            const overviewTheta =
-              Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-            animateCamera({
-              radius: overviewRadius,
-              phi: overviewPhi,
-              theta: overviewTheta,
-              duration: 750
-            });
+            activeShotView = {
+              radius: shotRadius,
+              phi: shotPhi,
+              theta: shotTheta,
+              target: new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
+            };
+            sph.theta = shotTheta;
+            sph.phi = shotPhi;
+            sph.radius = shotRadius;
+            updateCamera();
           }
 
           // animate cue stick forward
@@ -1600,15 +1615,31 @@ function SnookerGame() {
         }
         if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
           shooting = false;
+          activeShotView = null;
           if (cameraRef.current && sphRef.current) {
-            const cam = cameraRef.current;
-            const settleRadius = clamp(
-              fitRadius(cam, 1.25),
+            const cuePos = cue?.pos
+              ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+              : new THREE.Vector2();
+            const toCenter = new THREE.Vector2(-cuePos.x, -cuePos.y);
+            if (toCenter.lengthSq() < 1e-4) toCenter.set(0, 1);
+            else toCenter.normalize();
+            const behindTheta = Math.atan2(toCenter.x, toCenter.y) + Math.PI;
+            const behindPhi = clamp(
+              BREAK_VIEW.phi,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
+            const behindRadius = clamp(
+              BREAK_VIEW.radius,
               CAMERA.minR,
               CAMERA.maxR
             );
-            const settlePhi = clamp(0.95, CAMERA.minPhi, CAMERA.maxPhi);
-            animateCamera({ radius: settleRadius, phi: settlePhi, duration: 500 });
+            animateCamera({
+              radius: behindRadius,
+              phi: behindPhi,
+              theta: behindTheta,
+              duration: 600
+            });
           }
           potted = [];
           foul = false;
