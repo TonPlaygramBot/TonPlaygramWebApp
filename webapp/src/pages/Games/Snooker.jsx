@@ -118,8 +118,8 @@ const FRICTION = 0.995;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 2.8,
-  dotThreshold: 0.5,
+  triggerDist: CAPTURE_R * 3.4,
+  dotThreshold: 0.35,
   minOutside: TABLE.WALL + POCKET_VIS_R * 0.8,
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 4.5
@@ -130,7 +130,7 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.2; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
@@ -183,7 +183,8 @@ const BREAK_VIEW = Object.freeze({
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
-  phiOffset: 0,
+  phiOffset: 0.08,
+  radiusFactor: 1.05,
   followWeight: 0.35,
   maxOffset: PLAY_W * 0.18
 });
@@ -508,6 +509,30 @@ function Table3D(parent) {
     s.lineTo(half - cut, frontY);
     s.lineTo(-half + cut, frontY);
     s.lineTo(-half, backY);
+    const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
+    const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
+    let innerStart = -half + cut;
+    let innerEnd = half - cut;
+    if (!(innerEnd > innerStart)) {
+      innerStart = -half * 0.6;
+      innerEnd = half * 0.6;
+    }
+    let leftX = innerStart + (innerEnd - innerStart) * 0.2;
+    let rightX = innerStart + (innerEnd - innerStart) * 0.8;
+    leftX = Math.max(-half + 0.6, leftX);
+    rightX = Math.min(half - 0.6, rightX);
+    if (!(rightX > leftX)) {
+      const span = Math.max(2, len * 0.3);
+      leftX = -span / 2;
+      rightX = span / 2;
+    }
+    const midX = (leftX + rightX) / 2;
+    const hollow = new THREE.Path();
+    hollow.moveTo(leftX, hollowTop);
+    hollow.lineTo(midX, hollowPeak);
+    hollow.lineTo(rightX, hollowTop);
+    hollow.lineTo(leftX, hollowTop);
+    s.holes.push(hollow);
     const geo = new THREE.ExtrudeGeometry(s, {
       depth: railH,
       bevelEnabled: false
@@ -521,11 +546,19 @@ function Table3D(parent) {
     const g = new THREE.Group();
     g.add(mesh);
     g.position.set(x, cushionRaiseY, z);
+    const centerNudge = TABLE.WALL * 0.07;
     if (!horizontal) {
       g.rotation.y = Math.PI / 2;
       if (flip) g.rotation.y += Math.PI;
+      if (x > 0) g.position.x -= centerNudge;
+      else if (x < 0) g.position.x += centerNudge;
     } else if (flip) {
       g.rotation.y = Math.PI;
+      if (z > 0) g.position.z -= centerNudge;
+      else if (z < 0) g.position.z += centerNudge;
+    } else {
+      if (z > 0) g.position.z -= centerNudge;
+      else if (z < 0) g.position.z += centerNudge;
     }
     table.add(g);
     if (!table.userData.cushions) table.userData.cushions = [];
@@ -968,25 +1001,43 @@ function SnookerGame() {
               const focusBall = ballsList.find(
                 (b) => b.id === activeShotView.ballId
               );
+              let ballPos2D = activeShotView.lastBallPos;
               if (focusBall?.active) {
-                activeShotView.lastBallPos.set(
+                ballPos2D = activeShotView.lastBallPos.set(
                   focusBall.pos.x,
                   focusBall.pos.y
                 );
               }
               const pocketCenter = activeShotView.pocketCenter;
-              const pocketApproach = activeShotView.approach.clone();
-              const offsetVec = pocketApproach.multiplyScalar(
-                activeShotView.outsideOffset
+              const toPocket = pocketCenter.clone().sub(ballPos2D);
+              const distToPocket = toPocket.length();
+              const approachDir = activeShotView.approach;
+              if (distToPocket > 1e-4) {
+                toPocket.multiplyScalar(1 / distToPocket);
+                approachDir.copy(toPocket);
+              }
+              const minOutside =
+                activeShotView.minOutside ?? POCKET_CAM.minOutside;
+              const maxOutside =
+                activeShotView.maxOutside ?? POCKET_CAM.maxOutside;
+              const dynamicOffset = THREE.MathUtils.clamp(
+                distToPocket + BALL_R * 2.4,
+                minOutside,
+                maxOutside
               );
+              activeShotView.outsideOffset = dynamicOffset;
+              const offsetVec = approachDir
+                .clone()
+                .multiplyScalar(dynamicOffset);
               const basePoint = pocketCenter.clone().add(offsetVec);
-              const camPos = new THREE.Vector3(
-                basePoint.x * worldScaleFactor,
+              const camHeight =
                 (TABLE_Y + TABLE.THICK + activeShotView.heightOffset) *
-                  worldScaleFactor,
+                worldScaleFactor;
+              camera.position.set(
+                basePoint.x * worldScaleFactor,
+                camHeight,
                 basePoint.y * worldScaleFactor
               );
-              camera.position.copy(camPos);
               const focusTarget = focusBall?.active
                 ? new THREE.Vector3(
                     focusBall.pos.x,
@@ -1056,6 +1107,38 @@ function SnookerGame() {
           };
           requestAnimationFrame(step);
         };
+        const restoreOrbitCamera = (view, immediate = false) => {
+          if (!view) return;
+          const sph = sphRef.current;
+          if (!sph) return;
+          const orbit =
+            view.resumeOrbit ??
+            view.orbitSnapshot ??
+            initialOrbitRef.current ?? {
+              radius: sph.radius,
+              phi: sph.phi,
+              theta: sph.theta
+            };
+          const radius = clamp(
+            orbit.radius ?? sph.radius,
+            CAMERA.minR,
+            CAMERA.maxR
+          );
+          const phi = clamp(
+            orbit.phi ?? sph.phi,
+            CAMERA.minPhi,
+            CAMERA.maxPhi
+          );
+          const theta = orbit.theta ?? sph.theta;
+          if (immediate) {
+            sph.radius = radius;
+            sph.phi = phi;
+            sph.theta = theta;
+            updateCamera();
+          } else {
+            animateCamera({ radius, phi, theta, duration: 500 });
+          }
+        };
         const makePocketCameraView = (ballId, followView) => {
           if (!followView) return null;
           const ballsList = ballsRef.current || [];
@@ -1090,15 +1173,25 @@ function SnookerGame() {
             POCKET_CAM.maxOutside
           );
           const heightOffset = POCKET_CAM.heightOffset;
+          const resumeOrbit = followView?.orbitSnapshot
+            ? {
+                radius: followView.orbitSnapshot.radius,
+                phi: followView.orbitSnapshot.phi,
+                theta: followView.orbitSnapshot.theta
+              }
+            : null;
           return {
             mode: 'pocket',
             ballId,
             pocketCenter: best.center.clone(),
             approach: best.pocketDir.clone(),
             outsideOffset,
+            minOutside: POCKET_CAM.minOutside,
+            maxOutside: POCKET_CAM.maxOutside,
             heightOffset,
             lastBallPos: pos.clone(),
-            resume: followView
+            resume: followView,
+            resumeOrbit
           };
         };
         const fit = (m = 1.1) => {
@@ -1564,6 +1657,11 @@ function SnookerGame() {
                 phi: sph.phi,
                 theta: sph.theta
               };
+            const orbitSnapshot = {
+              radius: sph.radius,
+              phi: sph.phi,
+              theta: sph.theta
+            };
             const followTheta = baseOrbit.theta;
             const basePhi = clamp(baseOrbit.phi, CAMERA.minPhi, CAMERA.maxPhi);
             const followPhi = clamp(
@@ -1572,7 +1670,11 @@ function SnookerGame() {
               CAMERA.maxPhi
             );
             const baseRadius = clamp(baseOrbit.radius, CAMERA.minR, CAMERA.maxR);
-            const followRadius = baseRadius;
+            const followRadius = clamp(
+              baseRadius * ACTION_VIEW.radiusFactor,
+              CAMERA.minR,
+              CAMERA.maxR
+            );
             const baseTarget = new THREE.Vector2(playerOffsetRef.current, 0);
             activeShotView = {
               mode: 'followCue',
@@ -1583,7 +1685,8 @@ function SnookerGame() {
               offset: new THREE.Vector2(),
               followWeight: ACTION_VIEW.followWeight,
               maxOffset: ACTION_VIEW.maxOffset,
-              lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y)
+              lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y),
+              orbitSnapshot
             };
             followViewRef.current = activeShotView;
             sph.theta = followTheta;
@@ -1918,16 +2021,37 @@ function SnookerGame() {
                 activeShotView?.mode === 'pocket' &&
                 activeShotView.ballId === b.id
               ) {
-                const resumeView = activeShotView.resume;
-                activeShotView = resumeView || null;
-                if (resumeView) {
-                  followViewRef.current = resumeView;
-                }
+                const pocketView = activeShotView;
+                activeShotView = null;
+                followViewRef.current = null;
+                restoreOrbitCamera(pocketView);
               }
               break;
             }
           }
         });
+        if (activeShotView?.mode === 'pocket') {
+          const pocketView = activeShotView;
+          const focusBall = balls.find((b) => b.id === pocketView.ballId);
+          if (!focusBall?.active) {
+            activeShotView = null;
+            followViewRef.current = null;
+            restoreOrbitCamera(pocketView);
+          } else {
+            const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
+            const dist = toPocket.length();
+            if (dist > 1e-4) {
+              const approachDir = toPocket.clone().normalize();
+              pocketView.approach.copy(approachDir);
+              const speedAlong = focusBall.vel.dot(approachDir);
+              if (speedAlong < -STOP_EPS) {
+                activeShotView = null;
+                followViewRef.current = null;
+                restoreOrbitCamera(pocketView);
+              }
+            }
+          }
+        }
         // Fund i goditjes
           if (shooting) {
             const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
