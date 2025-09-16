@@ -1100,35 +1100,48 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place two brighter spotlights above the table with more spacing and coverage
+      // Keep a single brighter spotlight above the table and enlarge it for fuller coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.6 * 1.3; // remaining lights are 30% larger for broader coverage
+      const previousRectSize = rectSizeBase * 0.6 * 1.3; // size used for the paired lights
+      const centralRectSize = previousRectSize * 1.3; // remaining light is 30% bigger
       const lightIntensity = 26.4; // 20% brighter lighting
 
-      const makeLight = (x, z) => {
-        const rect = new THREE.RectAreaLight(
-          0xffffff,
-          lightIntensity,
-          rectSize,
-          rectSize
-        );
-        rect.position.set(x, lightHeight, z);
-        rect.lookAt(x, TABLE_Y, z);
-        world.add(rect);
-      };
+      const centralLight = new THREE.RectAreaLight(
+        0xffffff,
+        lightIntensity,
+        centralRectSize,
+        centralRectSize
+      );
+      centralLight.position.set(0, lightHeight, 0);
+      centralLight.lookAt(0, TABLE_Y, 0);
+      world.add(centralLight);
 
-      // two spotlights aligned along the center with extra spacing from the ends
-      const spacing = 2.4; // spread lights even farther apart
-      const lightCount = 2;
-      for (let i = 0; i < lightCount; i++) {
-        const z = THREE.MathUtils.lerp(
-          (-TABLE.H / 2) * spacing,
-          (TABLE.H / 2) * spacing,
-          (i + 0.5) / lightCount
+      // Add four hemisphere-style spotlights above the corner pockets at the same height
+      const hemisphereIntensity = lightIntensity * 0.5;
+      const hemisphereDistance = centralRectSize * 0.5;
+      const pocketLightAngle = Math.PI / 2; // wide coverage to emulate a hemisphere
+      const pocketLightPenumbra = 0.45;
+      const cornerPocketPositions = pocketCenters().slice(0, 4);
+
+      cornerPocketPositions.forEach((pos) => {
+        const hemisphereSpot = new THREE.SpotLight(
+          0xffffff,
+          hemisphereIntensity,
+          hemisphereDistance,
+          pocketLightAngle,
+          pocketLightPenumbra,
+          1
         );
-        makeLight(0, z);
-      }
+        hemisphereSpot.position.set(pos.x, lightHeight, pos.y);
+        hemisphereSpot.target.position.set(pos.x, TABLE_Y, pos.y);
+        hemisphereSpot.castShadow = true;
+        hemisphereSpot.shadow.mapSize.set(512, 512);
+        hemisphereSpot.shadow.bias = -0.00015;
+        hemisphereSpot.decay = 2;
+        world.add(hemisphereSpot);
+        world.add(hemisphereSpot.target);
+      });
 
       // Table
       const {
