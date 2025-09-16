@@ -499,9 +499,8 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = PLAY_W * 0.005;
   // push the vertical rail groups slightly outward so angled cuts meet cleanly without overlap
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.12;
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.075;
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -568,27 +567,19 @@ function Table3D(parent) {
     const tipSpan = cut;
     const tipSlope = tipSpan !== 0 ? frontRange / tipSpan : 0;
     for (let i = 0; i < arr.length; i += 3) {
-      const x = arr[i];
-      const absX = Math.abs(x);
       const y = arr[i + 1];
       const z = arr[i + 2];
       if (z <= 0.001) {
         const t = frontRange !== 0 ? THREE.MathUtils.clamp((y - frontY) / frontRange, 0, 1) : 1;
-        let frontFactor = 1 - t;
-        const tipBlend =
-          tipSpan > 0
-            ? Math.pow(
-                THREE.MathUtils.clamp((absX - tipStart) / tipSpan, 0, 1),
-                0.75
-              )
-            : 0;
-        frontFactor = THREE.MathUtils.lerp(frontFactor, 1, tipBlend);
+        const frontFactor = 1 - t;
         const lift = frontFactor * undercutLift;
         arr[i + 2] = z + lift;
         const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, frontFactor);
         arr[i + 1] = targetY;
       }
+      const x = arr[i];
       const currentY = arr[i + 1];
+      const absX = Math.abs(x);
       if (absX >= tipStart - 1e-4) {
         // clamp vertices within the chamfer to the ideal straight 32° plane
         const dist = Math.min(tipSpan, Math.max(0, absX - tipStart));
@@ -634,7 +625,7 @@ function Table3D(parent) {
     table.userData.cushions.push(g);
   }
   const vertSeg = PLAY_H / 2 - 12;
-  const horizontalLen = PLAY_W - (cushionExtend + 6) - LONG_CUSHION_TRIM;
+  const horizontalLen = PLAY_W - (cushionExtend + 6);
   const verticalLen = PLAY_H / 2 - (cushionExtend + 6);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
