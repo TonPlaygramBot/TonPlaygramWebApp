@@ -497,6 +497,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05;
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -505,22 +506,23 @@ function Table3D(parent) {
     const frontY = backY - thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const cut = thickness / Math.tan(rad);
-    const slope = Math.tan(rad);
     const tipLeft = -half + cut;
     const tipRight = half - cut;
-    const angleBlend = Math.min(cut * 0.2, 1.1);
-    const backCurve = Math.min(angleBlend * 0.65, 0.7);
-    const rightBlendX = half - angleBlend;
-    const rightBlendY = backY - slope * angleBlend;
-    const leftBlendX = -half + angleBlend;
-    const leftBlendY = backY - slope * angleBlend;
+    const baseCurve = thickness * 0.18;
+    const maxCurve = Math.min(cut * 0.6, 0.7);
+    const topCurve = Math.max(0, Math.min(Math.max(baseCurve, 0.25), maxCurve));
     const s = new THREE.Shape();
     s.moveTo(tipLeft, frontY);
     s.lineTo(tipRight, frontY);
-    s.lineTo(rightBlendX, rightBlendY);
-    s.quadraticCurveTo(half, backY, half - backCurve, backY);
-    s.lineTo(-half + backCurve, backY);
-    s.quadraticCurveTo(-half, backY, leftBlendX, leftBlendY);
+    s.lineTo(half, backY);
+    if (topCurve > 0.001) {
+      const controlBlend = topCurve * 0.25;
+      s.quadraticCurveTo(half - controlBlend, backY, half - topCurve, backY);
+      s.lineTo(-half + topCurve, backY);
+      s.quadraticCurveTo(-half + controlBlend, backY, -half, backY);
+    } else {
+      s.lineTo(-half, backY);
+    }
     s.lineTo(tipLeft, frontY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
@@ -584,8 +586,13 @@ function Table3D(parent) {
     if (!horizontal) {
       g.rotation.y = Math.PI / 2;
       if (flip) g.rotation.y += Math.PI;
-      if (x > 0) g.position.x -= centerNudge;
-      else if (x < 0) g.position.x += centerNudge;
+      if (x > 0) {
+        g.position.x -= centerNudge;
+        g.position.x += SIDE_RAIL_OUTWARD;
+      } else if (x < 0) {
+        g.position.x += centerNudge;
+        g.position.x -= SIDE_RAIL_OUTWARD;
+      }
     } else if (flip) {
       g.rotation.y = Math.PI;
       if (z > 0) g.position.z -= centerNudge;
