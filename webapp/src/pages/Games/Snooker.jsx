@@ -433,7 +433,6 @@ function Table3D(parent) {
   const FRAME_W = railW * 2.5;
   const outerHalfW = halfW + 2 * railW + FRAME_W;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
-  const railInnerInset = (TABLE.WALL * 0.5) / 2 + cushionW / 2;
 
   const frameShape = new THREE.Shape();
   frameShape.moveTo(-outerHalfW, -outerHalfH);
@@ -442,11 +441,11 @@ function Table3D(parent) {
   frameShape.lineTo(-outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, -outerHalfH);
   const innerRect = new THREE.Path();
-  innerRect.moveTo(-halfW - railInnerInset, -halfH - railInnerInset);
-  innerRect.lineTo(halfW + railInnerInset, -halfH - railInnerInset);
-  innerRect.lineTo(halfW + railInnerInset, halfH + railInnerInset);
-  innerRect.lineTo(-halfW - railInnerInset, halfH + railInnerInset);
-  innerRect.lineTo(-halfW - railInnerInset, -halfH - railInnerInset);
+  innerRect.moveTo(-halfW - railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
   // extend the side rails downward without altering the top surface
   const frameDepth = railH * 3;
@@ -504,18 +503,10 @@ function Table3D(parent) {
     const backY = cushionW / 2;
     const frontY = backY - thickness;
     const cut = thickness / Math.tan(THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE));
-    const undercutDepth = THREE.MathUtils.clamp(thickness * 0.42, 0.6, thickness * 0.75);
-    const availableInset = Math.max(0.4, half - cut - 0.25);
-    let undercutInset = Math.min(cut * 0.62, availableInset);
-    if (!(undercutInset > 0)) {
-      undercutInset = availableInset * 0.5;
-    }
     const s = new THREE.Shape();
     s.moveTo(-half, backY);
     s.lineTo(half, backY);
     s.lineTo(half - cut, frontY);
-    s.lineTo(half - cut - undercutInset, frontY - undercutDepth);
-    s.lineTo(-half + cut + undercutInset, frontY - undercutDepth);
     s.lineTo(-half + cut, frontY);
     s.lineTo(-half, backY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
@@ -542,52 +533,10 @@ function Table3D(parent) {
     hollow.lineTo(rightX, hollowTop);
     hollow.lineTo(leftX, hollowTop);
     s.holes.push(hollow);
-    const extruded = new THREE.ExtrudeGeometry(s, {
+    const geo = new THREE.ExtrudeGeometry(s, {
       depth: railH,
       bevelEnabled: false
     });
-    const posAttr = extruded.getAttribute('position');
-    if (posAttr) {
-      const depth = railH;
-      for (let i = 0; i < posAttr.count; i++) {
-        const z = posAttr.getZ(i);
-        if (z <= 0) continue;
-        const t = THREE.MathUtils.clamp(z / depth, 0, 1);
-        const shrink = THREE.MathUtils.lerp(1, 0.32, Math.pow(t, 0.85));
-        posAttr.setY(i, posAttr.getY(i) * shrink);
-      }
-    }
-    const stripped = extruded.toNonIndexed();
-    const srcPos = stripped.getAttribute('position');
-    const srcUv = stripped.getAttribute('uv');
-    const keptPos = [];
-    const keptUv = [];
-    const epsilon = 1e-4;
-    for (let i = 0; i < srcPos.count; i += 3) {
-      const z0 = srcPos.getZ(i);
-      const z1 = srcPos.getZ(i + 1);
-      const z2 = srcPos.getZ(i + 2);
-      const avg = (z0 + z1 + z2) / 3;
-      if (avg > railH - epsilon) continue;
-      for (let j = 0; j < 3; j++) {
-        keptPos.push(
-          srcPos.getX(i + j),
-          srcPos.getY(i + j),
-          srcPos.getZ(i + j)
-        );
-        if (srcUv) {
-          keptUv.push(srcUv.getX(i + j), srcUv.getY(i + j));
-        }
-      }
-    }
-    stripped.dispose();
-    extruded.dispose();
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(keptPos, 3));
-    if (keptUv.length) {
-      geo.setAttribute('uv', new THREE.Float32BufferAttribute(keptUv, 2));
-    }
-    geo.computeVertexNormals();
     return geo;
   }
   function addCushion(x, z, len, horizontal, flip = false) {
@@ -630,61 +579,17 @@ function Table3D(parent) {
   addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false, true);
 
   if (!table.userData.pockets) table.userData.pockets = [];
-  const pocketMat = new THREE.MeshBasicMaterial({
-    color: 0x0b0f1a,
-    side: THREE.DoubleSide
-  });
-  const openEpsilon = 1e-5;
-  function makePocketGeometry(towardCenter) {
-    const height = pocketHeight;
-    const full = new THREE.CylinderGeometry(pocketRadius, pocketRadius, height, 48, 1, false);
-    const nonIndexed = full.toNonIndexed();
-    const srcPos = nonIndexed.getAttribute('position');
-    const srcUv = nonIndexed.getAttribute('uv');
-    const keptPos = [];
-    const keptUv = [];
-    const normal = new THREE.Vector3(towardCenter.x, 0, towardCenter.y).normalize();
-    for (let i = 0; i < srcPos.count; i += 3) {
-      let hasOpen = false;
-      let hasClosed = false;
-      for (let j = 0; j < 3; j++) {
-        const vx = srcPos.getX(i + j);
-        const vz = srcPos.getZ(i + j);
-        const dot = normal.x * vx + normal.z * vz;
-        if (dot > openEpsilon) {
-          hasOpen = true;
-          break;
-        }
-        if (dot < -openEpsilon) {
-          hasClosed = true;
-        }
-      }
-      if (hasOpen || !hasClosed) {
-        continue;
-      }
-      for (let j = 0; j < 3; j++) {
-        keptPos.push(srcPos.getX(i + j), srcPos.getY(i + j), srcPos.getZ(i + j));
-        if (srcUv) {
-          keptUv.push(srcUv.getX(i + j), srcUv.getY(i + j));
-        }
-      }
-    }
-    nonIndexed.dispose();
-    full.dispose();
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(keptPos, 3));
-    if (keptUv.length) {
-      geo.setAttribute('uv', new THREE.Float32BufferAttribute(keptUv, 2));
-    }
-    geo.computeVertexNormals();
-    return { geometry: geo, height };
-  }
   pocketCenters().forEach((p) => {
-    const towardCenter = new THREE.Vector2(p.x, p.y).multiplyScalar(-1).normalize();
-    const { geometry, height } = makePocketGeometry(towardCenter);
-    const cut = new THREE.Mesh(geometry, pocketMat);
-    const centerY = cushionRaiseY - height / 2;
-    cut.position.set(p.x, centerY, p.y);
+    const cutHeight = railH * 3.0;
+    const cut = new THREE.Mesh(
+      new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
+      new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
+    );
+    cut.rotation.set(0, 0, 0);
+    const scaleY = 1.15;
+    cut.scale.set(0.5, scaleY, 0.5);
+    const half = (cutHeight * scaleY) / 2;
+    cut.position.set(p.x, -half - 0.01, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
   });
