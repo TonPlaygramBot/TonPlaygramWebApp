@@ -850,6 +850,61 @@ function SnookerGame() {
       let cushionMat;
       let shooting = false; // track when a shot is in progress
       let cueAnimating = false; // forward stroke animation state
+      const legHeight = TABLE.THICK * 2 * 3 * 1.15 * 2.25;
+      const floorY = TABLE_Y - TABLE.THICK - legHeight + 0.3;
+      const carpetRadius = Math.max(TABLE.W, TABLE.H) * 1.45;
+      const carpetThickness = 1.2;
+      const carpet = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          carpetRadius,
+          carpetRadius,
+          carpetThickness,
+          64
+        ),
+        new THREE.MeshStandardMaterial({
+          color: 0x8c2f2f,
+          roughness: 0.9,
+          metalness: 0.05
+        })
+      );
+      carpet.castShadow = false;
+      carpet.receiveShadow = true;
+      carpet.position.set(0, floorY - carpetThickness / 2, 0);
+      world.add(carpet);
+
+      const wallMat = new THREE.MeshStandardMaterial({
+        color: 0xd8d8d8,
+        roughness: 0.92,
+        metalness: 0.08
+      });
+      const roomWidth = TABLE.W * 3.2;
+      const roomDepth = TABLE.H * 3.6;
+      const wallHeight = legHeight + TABLE.THICK + 28;
+      const wallThickness = 1.2;
+
+      const makeWall = (width, height, depth) => {
+        const wall = new THREE.Mesh(
+          new THREE.BoxGeometry(width, height, depth),
+          wallMat
+        );
+        wall.castShadow = false;
+        wall.receiveShadow = true;
+        wall.position.y = floorY + height / 2;
+        world.add(wall);
+        return wall;
+      };
+
+      const backWall = makeWall(roomWidth, wallHeight, wallThickness);
+      backWall.position.z = roomDepth / 2;
+
+      const frontWall = makeWall(roomWidth, wallHeight, wallThickness);
+      frontWall.position.z = -roomDepth / 2;
+
+      const leftWall = makeWall(wallThickness, wallHeight, roomDepth);
+      leftWall.position.x = -roomWidth / 2;
+
+      const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
+      rightWall.position.x = roomWidth / 2;
         const camera = new THREE.PerspectiveCamera(
           CAMERA.fov,
           host.clientWidth / host.clientHeight,
@@ -859,7 +914,7 @@ function SnookerGame() {
         // Start behind baulk colours
         const sph = new THREE.Spherical(
           180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-          1.08, // lift the break view a touch for a clearer overview
+          1.12, // drop the break view slightly lower for a tighter angle
           Math.PI
         );
         const updateCamera = () => {
@@ -1045,10 +1100,10 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place four brighter spotlights above the table with more spacing and coverage
+      // Place three brighter spotlights above the table with more spacing and coverage
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.54; // trim spotlights slightly smaller for tighter beams
+      const rectSize = rectSizeBase * 0.6; // slightly larger to fill the table with three lights
       const lightIntensity = 26.4; // 20% brighter lighting
 
       const makeLight = (x, z) => {
@@ -1063,13 +1118,14 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // four spotlights aligned along the center with extra spacing from the ends
+      // three spotlights aligned along the center with extra spacing from the ends
       const spacing = 2.4; // spread lights even farther apart
-      for (let i = 0; i < 4; i++) {
+      const lightCount = 3;
+      for (let i = 0; i < lightCount; i++) {
         const z = THREE.MathUtils.lerp(
           (-TABLE.H / 2) * spacing,
           (TABLE.H / 2) * spacing,
-          (i + 0.5) / 4
+          (i + 0.5) / lightCount
         );
         makeLight(0, z);
       }
