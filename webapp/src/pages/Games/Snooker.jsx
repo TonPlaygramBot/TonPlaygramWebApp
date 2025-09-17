@@ -161,11 +161,11 @@ const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion nose
 const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
-// includes tones for the cloth, unified rails/base wood and cloth markings
+// includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
   cloth: 0x1e7b1e,
-  rail: 0x4b2f1a,
-  base: 0x4b2f1a,
+  rail: 0xc7a47a,
+  base: 0x5b3a1a,
   markings: 0xffffff,
   cue: 0xffffff,
   red: 0xff0000,
@@ -371,7 +371,6 @@ function Table3D(parent) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
-  const cushionTopY = -TABLE.THICK + 0.02;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
@@ -382,13 +381,13 @@ function Table3D(parent) {
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
-    metalness: 0.2,
-    roughness: 0.62
+    metalness: 0.25,
+    roughness: 0.55
   });
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
-    roughness: 0.62
+    roughness: 0.8
   });
 
   const shape = new THREE.Shape();
@@ -486,8 +485,8 @@ function Table3D(parent) {
   });
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
-  // keep the visible rail top flush with the cushion height so bounces read correctly
-  frame.position.y = cushionTopY - 0.02;
+  // lower the frame so the top remains aligned with the play field
+  frame.position.y = -TABLE.THICK + 0.01 - railH * 2;
   table.add(frame);
 
   // simple wooden skirt beneath the play surface
@@ -523,12 +522,12 @@ function Table3D(parent) {
     table.add(leg);
   });
 
-  const cushionRaiseY = cushionTopY;
+  const cushionRaiseY = -TABLE.THICK + 0.02;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
-  const SIDE_RAIL_OUTWARD = 0; // align the cushion face flush with the physics rails
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
   const STRAIGHT_CUT_SAFETY = 0.01; // prevent the chamfer from collapsing when lengths get very short
   const TOP_BEVEL_CLEARANCE = 0.9; // keep the top groove clear of the 32° bevel so the edge remains perfectly straight
