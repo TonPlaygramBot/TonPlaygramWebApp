@@ -135,7 +135,6 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.995;
 const STOP_EPS = 0.02;
-const CUSHION_BOUNCE = 0.94;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.4,
@@ -164,7 +163,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
   cloth: 0x1e7b1e,
-  rail: 0xcaa375,
+  rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
   cue: 0xffffff,
@@ -176,70 +175,6 @@ const COLORS = Object.freeze({
   pink: 0xff69b4,
   black: 0x000000
 });
-
-let cachedRailTexture = null;
-function createLuxuryRailTexture() {
-  if (cachedRailTexture) return cachedRailTexture;
-  if (typeof document === 'undefined') return null;
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, '#efd7b4');
-  gradient.addColorStop(0.45, '#d7b185');
-  gradient.addColorStop(1, '#b58b5b');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  const bandCount = 14;
-  for (let i = 0; i <= bandCount; i++) {
-    const baseY = (i / bandCount) * size;
-    const amplitude = size * 0.018 + Math.random() * size * 0.01;
-    const thickness = size * 0.006 + Math.random() * size * 0.004;
-    ctx.beginPath();
-    ctx.lineWidth = thickness;
-    ctx.strokeStyle = `rgba(125, 83, 46, ${0.15 + Math.random() * 0.1})`;
-    for (let x = 0; x <= size; x += 8) {
-      const wave = Math.sin((x / size) * Math.PI * 2 * (0.6 + Math.random() * 0.4));
-      const offset = wave * amplitude;
-      const y = baseY + offset;
-      if (x === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
-  }
-
-  const knotCount = 18;
-  for (let i = 0; i < knotCount; i++) {
-    const radius = size * (0.018 + Math.random() * 0.012);
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const radialGradient = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
-    radialGradient.addColorStop(0, 'rgba(120, 82, 52, 0.35)');
-    radialGradient.addColorStop(0.6, 'rgba(153, 110, 70, 0.18)');
-    radialGradient.addColorStop(1, 'rgba(239, 215, 180, 0)');
-    ctx.fillStyle = radialGradient;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2.75, 1.6);
-  texture.anisotropy = 8;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  cachedRailTexture = texture;
-  return texture;
-}
 
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
@@ -308,24 +243,21 @@ function reflectRails(ball) {
     (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
   );
   if (nearPocket) return;
-  const bounce = (axis) => {
-    ball.vel[axis] *= -CUSHION_BOUNCE;
-  };
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     ball.pos.x = -limX;
-    bounce('x');
+    ball.vel.x *= -1;
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     ball.pos.x = limX;
-    bounce('x');
+    ball.vel.x *= -1;
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     ball.pos.y = -limY;
-    bounce('y');
+    ball.vel.y *= -1;
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     ball.pos.y = limY;
-    bounce('y');
+    ball.vel.y *= -1;
   }
 }
 
@@ -442,16 +374,11 @@ function Table3D(parent) {
     sheenRoughness: 0.9
   });
   const cushionMat = clothMat.clone();
-  const railWoodTexture = createLuxuryRailTexture();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
-    metalness: 0.18,
-    roughness: 0.48
+    metalness: 0.3,
+    roughness: 0.8
   });
-  if (railWoodTexture) {
-    railWoodMat.map = railWoodTexture;
-    railWoodMat.needsUpdate = true;
-  }
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -528,17 +455,13 @@ function Table3D(parent) {
   const SIDE_RAIL_EXPAND = railW * 0.55; // push the wooden rails farther from the cushions
   const outerHalfW = halfW + 2 * railW + FRAME_W + SIDE_RAIL_EXPAND;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
-  const FRAME_OUTER_EXTRA_W = railW * 0.45;
-  const FRAME_OUTER_EXTRA_H = railW * 0.3;
-  const frameOuterHalfW = outerHalfW + FRAME_OUTER_EXTRA_W;
-  const frameOuterHalfH = outerHalfH + FRAME_OUTER_EXTRA_H;
 
   const frameShape = new THREE.Shape();
-  frameShape.moveTo(-frameOuterHalfW, -frameOuterHalfH);
-  frameShape.lineTo(frameOuterHalfW, -frameOuterHalfH);
-  frameShape.lineTo(frameOuterHalfW, frameOuterHalfH);
-  frameShape.lineTo(-frameOuterHalfW, frameOuterHalfH);
-  frameShape.lineTo(-frameOuterHalfW, -frameOuterHalfH);
+  frameShape.moveTo(-outerHalfW, -outerHalfH);
+  frameShape.lineTo(outerHalfW, -outerHalfH);
+  frameShape.lineTo(outerHalfW, outerHalfH);
+  frameShape.lineTo(-outerHalfW, outerHalfH);
+  frameShape.lineTo(-outerHalfW, -outerHalfH);
   const innerRect = new THREE.Path();
   innerRect.moveTo(-halfW - railW, -halfH - railW);
   innerRect.lineTo(halfW + railW, -halfH - railW);
@@ -552,29 +475,6 @@ function Table3D(parent) {
     depth: frameDepth,
     bevelEnabled: false
   });
-  const framePos = frameGeo.attributes.position;
-  const frameArr = framePos.array;
-  const outerTol = railW * 0.2;
-  for (let i = 0; i < frameArr.length; i += 3) {
-    const x = frameArr[i];
-    const y = frameArr[i + 1];
-    const z = frameArr[i + 2];
-    if (z <= 0) continue;
-    const depthT = THREE.MathUtils.clamp(z / frameDepth, 0, 1);
-    if (depthT <= 0) continue;
-    const flareT = THREE.MathUtils.smoothstep(depthT, 0.25, 1);
-    if (Math.abs(Math.abs(x) - frameOuterHalfW) < outerTol) {
-      frameArr[i] = x + Math.sign(x) * FRAME_OUTER_EXTRA_W * 0.35 * flareT;
-    }
-    if (Math.abs(Math.abs(y) - frameOuterHalfH) < outerTol) {
-      frameArr[i + 1] =
-        y + Math.sign(y) * FRAME_OUTER_EXTRA_H * 0.4 * flareT;
-    }
-  }
-  framePos.needsUpdate = true;
-  frameGeo.computeVertexNormals();
-  frameGeo.computeBoundingBox();
-  frameGeo.computeBoundingSphere();
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   // lower the frame so the top remains aligned with the play field
@@ -660,15 +560,10 @@ function Table3D(parent) {
     const leftX = -notchHalf;
     const rightX = notchHalf;
     const hollow = new THREE.Path();
-    const flatHalf = notchHalf * 0.6;
-    const cornerRadius = Math.max(notchHalf - flatHalf, railW * 0.12);
-    const archPeak = hollowPeak + railH * 0.04;
-    hollow.moveTo(-notchHalf, hollowTop);
-    hollow.lineTo(-flatHalf, hollowTop);
-    hollow.quadraticCurveTo(-flatHalf + cornerRadius, hollowPeak, 0, archPeak);
-    hollow.quadraticCurveTo(flatHalf - cornerRadius, hollowPeak, flatHalf, hollowTop);
-    hollow.lineTo(notchHalf, hollowTop);
-    hollow.lineTo(-notchHalf, hollowTop);
+    hollow.moveTo(leftX, hollowTop);
+    hollow.lineTo(0, hollowPeak);
+    hollow.lineTo(rightX, hollowTop);
+    hollow.lineTo(leftX, hollowTop);
     s.holes.push(hollow);
     const geo = new THREE.ExtrudeGeometry(s, {
       depth: railH,
@@ -679,24 +574,15 @@ function Table3D(parent) {
     const frontRange = backY - frontY;
     const undercutLift = railH * 0.95;
     const undercutInset = cushionInward + cushionW * 0.3;
-    const plateauStart = 0.55;
     for (let i = 0; i < arr.length; i += 3) {
-      const x = arr[i];
       const y = arr[i + 1];
       const z = arr[i + 2];
       if (z <= 0.001) {
         const t = frontRange !== 0 ? THREE.MathUtils.clamp((y - frontY) / frontRange, 0, 1) : 1;
         const frontFactor = 1 - t;
-        const plateauBlend = frontFactor > plateauStart ? (frontFactor - plateauStart) / (1 - plateauStart) : 0;
-        const plateauEase = THREE.MathUtils.smoothstep(plateauBlend, 0, 1);
-        const edgeT = THREE.MathUtils.clamp(Math.abs(x) / Math.max(half, 1), 0, 1);
-        const edgeEase = Math.pow(THREE.MathUtils.smoothstep(edgeT, 0.35, 1), 1.4);
-        const liftStrength = THREE.MathUtils.lerp(0.52, 0.9, plateauEase) * THREE.MathUtils.lerp(1, 0.82, edgeEase);
-        const lift = undercutLift * liftStrength;
+        const lift = frontFactor * undercutLift;
         arr[i + 2] = z + lift;
-        const insetBlend = THREE.MathUtils.lerp(frontFactor, 1, 0.35 * (1 - edgeEase));
-        const pull = THREE.MathUtils.lerp(undercutInset * 0.28, undercutInset, plateauEase);
-        const targetY = THREE.MathUtils.lerp(y, frontY - pull, insetBlend);
+        const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, frontFactor);
         arr[i + 1] = targetY;
       }
     }
