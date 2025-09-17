@@ -143,6 +143,10 @@ const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const POCKET_JAW_LIP_HEIGHT = 0.003; // keep pocket rings barely above the cloth
 const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
+const CLOTH_THICKNESS = TABLE.THICK * 0.18; // render a much thinner cloth lip along the pocket edges
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
+const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
+const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 0.9;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.4,
   dotThreshold: 0.35,
@@ -150,6 +154,8 @@ const POCKET_CAM = Object.freeze({
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 4.5
 });
+const SPIN_STRENGTH = BALL_R * 0.65;
+const SPIN_DECAY = 0.58;
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
 const LEG_SCALE = 6.2;
@@ -201,7 +207,7 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 32 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minR: 26 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -213,17 +219,18 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 150 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0.06,
-  fitMargin: 1.08,
+  fitMargin: 1.02,
   followWeight: 0.25,
   maxOffset: PLAY_W * 0.14
 });
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const TMP_SPIN = new THREE.Vector2();
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
@@ -232,7 +239,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.88 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.8 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -300,9 +307,9 @@ function makeClothTexture() {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const repeatScale = 38;
+  const repeatScale = 22;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
-  texture.anisotropy = 8;
+  texture.anisotropy = 12;
   texture.needsUpdate = true;
   return texture;
 }
@@ -313,27 +320,45 @@ function reflectRails(ball) {
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
   );
-  if (nearPocket) return;
+  if (nearPocket) return false;
+  let collided = false;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
+    collided = true;
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
+    collided = true;
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
+    collided = true;
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
+    collided = true;
   }
+  return collided;
+}
+
+function applySpinImpulse(ball, scale = 1) {
+  if (!ball?.spin) return false;
+  if (ball.spin.lengthSq() < 1e-6) return false;
+  TMP_SPIN.copy(ball.spin).multiplyScalar(SPIN_STRENGTH * scale);
+  ball.vel.add(TMP_SPIN);
+  ball.spin.multiplyScalar(SPIN_DECAY);
+  if (ball.spin.lengthSq() < 1e-6) {
+    ball.spin.set(0, 0);
+  }
+  return true;
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -429,6 +454,8 @@ function Guret(parent, id, color, x, y) {
     mesh,
     pos: new THREE.Vector2(x, y),
     vel: new THREE.Vector2(),
+    spin: new THREE.Vector2(),
+    impacted: false,
     active: true
   };
 }
@@ -497,7 +524,7 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.05;
+    clothMat.bumpScale = 0.08;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
@@ -526,21 +553,42 @@ function Table3D(parent) {
   shape.lineTo(-halfW, -halfH);
   pocketCenters().forEach((p) => {
     const h = new THREE.Path();
-    h.absellipse(p.x, p.y, 6, 6, 0, Math.PI * 2);
+    h.absellipse(p.x, p.y, POCKET_CLOTH_TOP_RADIUS, POCKET_CLOTH_TOP_RADIUS, 0, Math.PI * 2);
     shape.holes.push(h);
   });
   const clothGeo = new THREE.ExtrudeGeometry(shape, {
-    depth: TABLE.THICK,
+    depth: CLOTH_THICKNESS,
     bevelEnabled: true,
-    bevelThickness: 0.35,
-    bevelSize: 0.35,
+    bevelThickness: CLOTH_THICKNESS * 0.45,
+    bevelSize: CLOTH_THICKNESS * 0.45,
     bevelSegments: 3
   });
+  clothGeo.translate(0, 0, TABLE.THICK - CLOTH_THICKNESS);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
   cloth.renderOrder = 0;
   table.add(cloth);
+
+  const pocketClothMat = clothMat.clone();
+  pocketClothMat.side = THREE.DoubleSide;
+  pocketClothMat.needsUpdate = true;
+  pocketCenters().forEach((p) => {
+    const sleeveGeo = new THREE.CylinderGeometry(
+      POCKET_CLOTH_TOP_RADIUS,
+      POCKET_CLOTH_BOTTOM_RADIUS,
+      POCKET_CLOTH_DEPTH,
+      48,
+      1,
+      true
+    );
+    sleeveGeo.translate(0, -POCKET_CLOTH_DEPTH / 2, 0);
+    const sleeve = new THREE.Mesh(sleeveGeo, pocketClothMat);
+    sleeve.position.set(p.x, 0, p.y);
+    sleeve.castShadow = false;
+    sleeve.receiveShadow = true;
+    table.add(sleeve);
+  });
 
   const toneCanvas = document.createElement('canvas');
   toneCanvas.width = 1024;
@@ -1606,7 +1654,7 @@ function SnookerGame() {
               : 1.4
         );
         // bring the starting view a touch closer to the action
-        sph.radius *= 0.9;
+        sph.radius *= 0.85;
         updateCamera();
         if (!initialOrbitRef.current) {
           initialOrbitRef.current = {
@@ -1730,7 +1778,7 @@ function SnookerGame() {
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
       const rectSize = rectSizeBase * 0.45 * 1.2 * 0.5; // halve the previous footprint for crisper highlights
-      const lightIntensity = 31.68 * 1.3 * 1.3; // increase brightness by an additional 30%
+      const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35; // brighten pot lights further for stronger table highlights
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2052,11 +2100,15 @@ function SnookerGame() {
             .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
           const spinSide = spinRef.current.x * spinRangeRef.current;
           const spinTop = -spinRef.current.y * spinRangeRef.current;
-          const sideVec = new THREE.Vector2(-aimDir.y, aimDir.x).multiplyScalar(
-            spinSide
-          );
-          const topVec = aimDir.clone().multiplyScalar(spinTop);
-          cue.vel.copy(base).add(sideVec).add(topVec);
+          const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(
+              perp.x * spinSide + aimDir.x * spinTop,
+              perp.y * spinSide + aimDir.y * spinTop
+            );
+          }
+          cue.impacted = false;
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -2251,6 +2303,8 @@ function SnookerGame() {
           cue.active = false;
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
+          cue.spin?.set(0, 0);
+          cue.impacted = false;
         } else if (gain > 0) {
           setHud((s) => ({ ...s, [me]: s[me] + gain }));
         }
@@ -2368,8 +2422,16 @@ function SnookerGame() {
           b.pos.add(b.vel);
           b.vel.multiplyScalar(FRICTION);
           const speed = b.vel.length();
-          if (speed < STOP_EPS) b.vel.set(0, 0);
-          reflectRails(b);
+          if (speed < STOP_EPS) {
+            b.vel.set(0, 0);
+            if (b.spin) b.spin.set(0, 0);
+            if (b.id === 'cue') b.impacted = false;
+          }
+          const hitRail = reflectRails(b);
+          if (hitRail && b.spin?.lengthSq() > 0) {
+            if (b.id === 'cue') b.impacted = true;
+            applySpinImpulse(b, 1);
+          }
           b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
           if (speed > 0) {
             const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
@@ -2406,9 +2468,14 @@ function SnookerGame() {
                 .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
               a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
               b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+              const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
               if (!firstHit) {
                 if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                 else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
+              }
+              if (cueBall && cueBall.spin?.lengthSq() > 0) {
+                cueBall.impacted = true;
+                applySpinImpulse(cueBall, 1.1);
               }
             }
           }
@@ -2443,6 +2510,8 @@ function SnookerGame() {
               b.active = false;
               b.mesh.visible = false;
               b.vel.set(0, 0);
+              if (b.spin) b.spin.set(0, 0);
+              if (b.id === 'cue') b.impacted = false;
               if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
               if (
                 activeShotView?.mode === 'pocket' &&
