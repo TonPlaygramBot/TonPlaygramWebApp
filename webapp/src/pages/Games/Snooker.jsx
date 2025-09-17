@@ -153,7 +153,7 @@ const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 28;
+const CUSHION_CUT_ANGLE = 33;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
 
@@ -572,7 +572,7 @@ function Table3D(parent) {
     table.add(leg);
   });
 
-  const cushionRaiseY = -TABLE.THICK + 0.02;
+  const cushionRaiseY = -TABLE.THICK + 0.05;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
@@ -594,7 +594,7 @@ function Table3D(parent) {
     const noseThickness = trimmedThickness * CUSHION_NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = noseThickness / Math.tan(rad); // enforce a true 28° chamfer with no additional tapering
+    const straightCut = noseThickness / Math.tan(rad); // enforce a true 33° chamfer with no additional tapering
     const tipLeft = -half + straightCut;
     const tipRight = half - straightCut;
     const s = new THREE.Shape();
@@ -630,6 +630,32 @@ function Table3D(parent) {
       if (z < minAllowedZ) {
         arr[i + 2] = minAllowedZ;
       }
+    }
+    const pocketArcRadius = POCKET_VIS_R * 0.98;
+    const pocketArcBlend = Math.min(pocketArcRadius * 0.42, half);
+    const pocketArcCenterOffset = Math.min(pocketArcRadius * 0.54, pocketArcRadius - 1e-3);
+    const protectedFieldRatio = 0.32;
+    const arcBlendDenom = Math.max(pocketArcBlend, 1e-6);
+    for (let i = 0; i < arr.length; i += stride) {
+      const x = arr[i];
+      const y = arr[i + 1];
+      const absX = Math.abs(x);
+      const distToEnd = half - absX;
+      if (distToEnd < 0 || distToEnd > pocketArcBlend) continue;
+      const centerX = half + pocketArcCenterOffset;
+      const dx = centerX - absX;
+      if (dx <= 0 || dx >= pocketArcRadius) continue;
+      const circleYOffset = Math.sqrt(Math.max(0, pocketArcRadius * pocketArcRadius - dx * dx));
+      const targetY = Math.max(frontY, backY - circleYOffset);
+      if (targetY >= y - 1e-6) continue;
+      const fieldWeight = THREE.MathUtils.clamp((y - frontY) / Math.max(backY - frontY, 1e-6), 0, 1);
+      const fieldInfluence = THREE.MathUtils.smoothstep(fieldWeight, protectedFieldRatio, 1);
+      if (fieldInfluence <= 0) continue;
+      const edgeProgress = THREE.MathUtils.clamp(1 - distToEnd / arcBlendDenom, 0, 1);
+      const edgeInfluence = THREE.MathUtils.smoothstep(edgeProgress, 0, 1);
+      const influence = fieldInfluence * edgeInfluence;
+      if (influence <= 0) continue;
+      arr[i + 1] = THREE.MathUtils.lerp(y, targetY, influence);
     }
     positions.needsUpdate = true;
     geo.computeVertexNormals();
