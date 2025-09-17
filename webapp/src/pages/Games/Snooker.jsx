@@ -592,13 +592,6 @@ function Table3D(parent) {
     const geo = cushionProfile(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    if (horizontal) {
-      // Flip the cushion face so its thin "nose" always points toward the play field
-      mesh.rotation.y = Math.PI;
-    } else if (x < 0) {
-      // Left-hand cushions need the same flip; right-hand ones already face inward
-      mesh.rotation.y = Math.PI;
-    }
     const g = new THREE.Group();
     g.add(mesh);
     g.position.set(x, cushionRaiseY, z);
