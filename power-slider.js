@@ -15,6 +15,7 @@ export class PowerSlider {
 
     if (!mount) throw new Error('mount required');
 
+    this.theme = theme;
     this.min = min;
     this.max = max;
     this.step = step;
@@ -57,6 +58,11 @@ export class PowerSlider {
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'ps-tooltip';
     this.el.appendChild(this.tooltip);
+
+    if (this.theme === 'snooker') {
+      this.handle.style.left = '50%';
+      this.tooltip.style.left = '50%';
+    }
 
     if (labels) {
       const wrap = document.createElement('div');
@@ -143,9 +149,10 @@ export class PowerSlider {
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
     const y = ratio * (trackH - handleH);
-    this.handle.style.transform = `translate(0, ${y}px)`;
+    const translateX = this.theme === 'snooker' ? '-50%' : '0';
+    this.handle.style.transform = `translate(${translateX}, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
-    this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
+    this.tooltip.style.transform = `translate(${translateX}, ${y - ttH - 8}px)`;
     const pct = ratio * 100;
     this.powerFill.style.clipPath = `inset(0 0 ${100 - pct}% 0)`;
     this._updateHandleColor(ratio);

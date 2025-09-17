@@ -94,7 +94,7 @@ function addPocketJaws(parent, playW, playH) {
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
+    jaw.position.set(pShift.x, TABLE_Y + POCKET_JAW_LIP_HEIGHT, pShift.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
     parent.add(jaw);
     jaws.push(jaw);
@@ -135,11 +135,14 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
+const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
+const POCKET_JAW_LIP_HEIGHT = 0.003; // keep pocket rings barely above the cloth
+const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.4,
   dotThreshold: 0.35,
@@ -153,8 +156,8 @@ const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
-const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
-const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
+const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
+const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -202,7 +205,7 @@ const CAMERA = {
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
-  maxPhi: Math.PI / 2 - 0.04
+  maxPhi: Math.PI / 2 - 0.12
 };
 const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
@@ -214,10 +217,10 @@ const BREAK_VIEW = Object.freeze({
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
-  phiOffset: 0.08,
-  radiusFactor: 1.05,
-  followWeight: 0.35,
-  maxOffset: PLAY_W * 0.18
+  phiOffset: 0.06,
+  fitMargin: 1.08,
+  followWeight: 0.25,
+  maxOffset: PLAY_W * 0.14
 });
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -401,7 +404,7 @@ function Guret(parent, id, color, x, y) {
     new THREE.SphereGeometry(BALL_R, 64, 48),
     material
   );
-  mesh.position.set(x, BALL_R, y);
+  mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   if (id === 'cue') {
@@ -914,6 +917,7 @@ function Table3D(parent) {
 
   if (!table.userData.pockets) table.userData.pockets = [];
   const pocketLipTop = cushionTopLocal - 0.002;
+  const pocketRecess = POCKET_RECESS_DEPTH;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
@@ -924,7 +928,7 @@ function Table3D(parent) {
     const scaleY = 1.15;
     cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
-    cut.position.set(p.x, pocketLipTop - half, p.y);
+    cut.position.set(p.x, pocketLipTop - half - pocketRecess, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
   });
@@ -935,7 +939,7 @@ function Table3D(parent) {
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
-  table.userData.cushionLipClearance = pocketLipTop;
+  table.userData.cushionLipClearance = pocketLipTop - pocketRecess;
   parent.add(table);
   return {
     centers: pocketCenters(),
@@ -1335,7 +1339,7 @@ function SnookerGame() {
               ).multiplyScalar(worldScaleFactor);
               const focusTarget = new THREE.Vector3(
                 cue.pos.x,
-                BALL_R,
+                BALL_CENTER_Y,
                 cue.pos.y
               ).multiplyScalar(worldScaleFactor);
               camera.position.setFromSpherical(shotSph).add(anchor);
@@ -1386,12 +1390,12 @@ function SnookerGame() {
             const focusTarget = focusBall?.active
               ? new THREE.Vector3(
                   focusBall.pos.x,
-                  BALL_R,
+                  BALL_CENTER_Y,
                   focusBall.pos.y
                 )
               : new THREE.Vector3(
                   activeShotView.lastBallPos.x,
-                  BALL_R,
+                  BALL_CENTER_Y,
                   activeShotView.lastBallPos.y
                 );
             focusTarget.multiplyScalar(worldScaleFactor);
@@ -1402,9 +1406,9 @@ function SnookerGame() {
             let focusTarget;
             if (shooting && followViewRef.current?.lastBallPos) {
               const last = followViewRef.current.lastBallPos;
-              focusTarget = new THREE.Vector3(last.x, BALL_R, last.y);
+              focusTarget = new THREE.Vector3(last.x, BALL_CENTER_Y, last.y);
             } else if (followCue) {
-              focusTarget = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
+              focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
               focusTarget = new THREE.Vector3(
                 playerOffsetRef.current,
@@ -1565,7 +1569,7 @@ function SnookerGame() {
           camera.aspect = host.clientWidth / host.clientHeight;
           const baseR = fitRadius(camera, m);
           let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-          let r = baseR * (1 - 0.8 * t);
+          let r = baseR * (1 - 0.6 * t);
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
             cushionHeightRef.current
@@ -1579,7 +1583,7 @@ function SnookerGame() {
             Math.min(phiCap, CAMERA.maxPhi)
           );
           t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-          sph.radius = clamp(baseR * (1 - 0.8 * t), CAMERA.minR, CAMERA.maxR);
+          sph.radius = clamp(baseR * (1 - 0.6 * t), CAMERA.minR, CAMERA.maxR);
           const radiusPhiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
           );
@@ -1948,7 +1952,7 @@ function SnookerGame() {
         cueStick.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.0 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -2007,7 +2011,7 @@ function SnookerGame() {
           cue.active = true;
           cue.mesh.visible = true;
           cue.pos.set(p.x, p.y);
-          cue.mesh.position.set(p.x, BALL_R, p.y);
+          cue.mesh.position.set(p.x, BALL_CENTER_Y, p.y);
           setHud((s) => ({ ...s, inHand: false }));
         }
       };
@@ -2073,11 +2077,10 @@ function SnookerGame() {
             const followPhi = clamp(
               basePhi + ACTION_VIEW.phiOffset,
               CAMERA.minPhi + 0.02,
-              CAMERA.maxPhi
+              CAMERA.maxPhi - 0.02
             );
-            const baseRadius = clamp(baseOrbit.radius, CAMERA.minR, CAMERA.maxR);
             const followRadius = clamp(
-              baseRadius * ACTION_VIEW.radiusFactor,
+              fitRadius(camera, ACTION_VIEW.fitMargin),
               CAMERA.minR,
               CAMERA.maxR
             );
@@ -2202,7 +2205,7 @@ function SnookerGame() {
                   b.active = true;
                   b.mesh.visible = true;
                   b.pos.set(sx, sy);
-                  b.mesh.position.set(sx, BALL_R, sy);
+                  b.mesh.position.set(sx, BALL_CENTER_Y, sy);
                 }
               });
               setHud((s) => ({ ...s, next: 'red' }));
@@ -2298,8 +2301,8 @@ function SnookerGame() {
             aimDir,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_R, impact.y);
+          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -2367,7 +2370,7 @@ function SnookerGame() {
           const speed = b.vel.length();
           if (speed < STOP_EPS) b.vel.set(0, 0);
           reflectRails(b);
-          b.mesh.position.set(b.pos.x, BALL_R, b.pos.y);
+          b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
           if (speed > 0) {
             const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
             const angle = speed / BALL_R;
@@ -2549,8 +2552,7 @@ function SnookerGame() {
       onCommit: () => fireRef.current?.()
     });
     return () => {
-      mount.innerHTML = '';
-      slider.el?.remove?.();
+      slider.destroy();
     };
   }, []);
 
@@ -2559,43 +2561,107 @@ function SnookerGame() {
     const box = document.getElementById('spinBox');
     const dot = document.getElementById('spinDot');
     if (!box || !dot) return;
-    const move = (e) => {
-      const rect = box.getBoundingClientRect();
-      const x =
-        (((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) /
-          rect.width) *
-          2 -
-        1;
-      const y =
-        (((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) /
-          rect.height) *
-          2 -
-        1;
-      let nx = x,
-        ny = y;
-      const r = Math.hypot(nx, ny);
-      if (r > 1) {
-        nx /= r;
-        ny /= r;
-      }
-      // Allow spin in all directions without blocking
+
+    box.style.transition = 'transform 0.18s ease';
+    box.style.transformOrigin = '50% 50%';
+    box.style.touchAction = 'none';
+
+    let revertTimer = null;
+    let activePointer = null;
+    let moved = false;
+
+    const setSpin = (nx, ny) => {
       spinRef.current = { x: nx, y: ny };
-      dot.style.transform = `translate(${(nx * rect.width) / 2}px, ${(ny * rect.height) / 2}px)`;
+      dot.style.left = `${50 + nx * 50}%`;
+      dot.style.top = `${50 + ny * 50}%`;
     };
-    const up = () => {
-      box.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+    setSpin(0, 0);
+
+    const updateSpin = (clientX, clientY) => {
+      const rect = box.getBoundingClientRect();
+      const cx = clientX ?? rect.left + rect.width / 2;
+      const cy = clientY ?? rect.top + rect.height / 2;
+      let nx = ((cx - rect.left) / rect.width) * 2 - 1;
+      let ny = ((cy - rect.top) / rect.height) * 2 - 1;
+      const L = Math.hypot(nx, ny) || 1;
+      if (L > 1) {
+        nx /= L;
+        ny /= L;
+      }
+      setSpin(nx, ny);
     };
-    const down = (e) => {
-      move(e);
-      box.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
+
+    const scaleBox = (value) => {
+      box.style.transform = `scale(${value})`;
     };
-    box.addEventListener('pointerdown', down);
+    scaleBox(1);
+
+    const clearTimer = () => {
+      if (revertTimer) {
+        clearTimeout(revertTimer);
+        revertTimer = null;
+      }
+    };
+
+    const releasePointer = () => {
+      if (activePointer !== null) {
+        try {
+          box.releasePointerCapture(activePointer);
+        } catch {}
+        activePointer = null;
+      }
+    };
+
+    const handlePointerDown = (e) => {
+      if (activePointer !== null) releasePointer();
+      activePointer = e.pointerId;
+      moved = false;
+      clearTimer();
+      scaleBox(1.35);
+      updateSpin(e.clientX, e.clientY);
+      box.setPointerCapture(activePointer);
+      revertTimer = window.setTimeout(() => {
+        if (!moved) scaleBox(1);
+      }, 1500);
+    };
+
+    const handlePointerMove = (e) => {
+      if (activePointer !== e.pointerId) return;
+      if (e.pointerType === 'mouse' && e.buttons === 0) return;
+      updateSpin(e.clientX, e.clientY);
+      moved = true;
+    };
+
+    const finishInteraction = (restoreDelay = 60) => {
+      releasePointer();
+      clearTimer();
+      revertTimer = window.setTimeout(() => scaleBox(1), restoreDelay);
+    };
+
+    const handlePointerUp = (e) => {
+      if (activePointer !== e.pointerId) return;
+      finishInteraction(50);
+    };
+
+    const handlePointerCancel = (e) => {
+      if (activePointer !== e.pointerId) return;
+      releasePointer();
+      clearTimer();
+      scaleBox(1);
+    };
+
+    box.addEventListener('pointerdown', handlePointerDown);
+    box.addEventListener('pointermove', handlePointerMove);
+    box.addEventListener('pointerup', handlePointerUp);
+    box.addEventListener('pointercancel', handlePointerCancel);
+
     return () => {
-      box.removeEventListener('pointerdown', down);
-      box.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+      releasePointer();
+      clearTimer();
+      box.removeEventListener('pointerdown', handlePointerDown);
+      box.removeEventListener('pointermove', handlePointerMove);
+      box.removeEventListener('pointerup', handlePointerUp);
+      box.removeEventListener('pointercancel', handlePointerCancel);
     };
   }, []);
 
@@ -2666,9 +2732,13 @@ function SnookerGame() {
       >
         <div
           id="spinBox"
-          className="w-16 h-16 rounded-full bg-white flex items-center justify-center"
+          className="relative w-32 h-32 rounded-full bg-white shadow-lg"
         >
-          <div id="spinDot" className="w-2 h-2 rounded-full bg-red-600"></div>
+          <div
+            id="spinDot"
+            className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
+            style={{ left: '50%', top: '50%' }}
+          ></div>
         </div>
       </div>
     </div>
