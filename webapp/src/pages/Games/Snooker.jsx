@@ -153,7 +153,7 @@ const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 36;
+const CUSHION_CUT_ANGLE = 28;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
 
@@ -578,7 +578,7 @@ function Table3D(parent) {
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
-  const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
+  const LONG_CUSHION_FACE_SHRINK = 0.99; // leave the long cushions only the slightest bit slimmer toward the play field
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32; // pull the lower edge upward so the cushion sits higher off the cloth
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54; // taper the underside more aggressively to form a clear triangular pocket beneath the rail
@@ -594,7 +594,7 @@ function Table3D(parent) {
     const noseThickness = trimmedThickness * CUSHION_NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = noseThickness / Math.tan(rad); // enforce a true 36° chamfer with no additional tapering
+    const straightCut = noseThickness / Math.tan(rad); // enforce a true 28° chamfer with no additional tapering
     const tipLeft = -half + straightCut;
     const tipRight = half - straightCut;
     const s = new THREE.Shape();
