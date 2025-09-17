@@ -154,6 +154,7 @@ const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
+const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -235,8 +236,8 @@ const pocketCenters = () => [
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
-  const limX = TABLE.W / 2 - BALL_R - TABLE.WALL;
-  const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
+  const limX = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
+  const limY = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
   // If the ball is near any pocket, skip rail reflections so it can drop in
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
@@ -267,8 +268,8 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
-  const limX = TABLE.W / 2 - BALL_R - TABLE.WALL;
-  const limY = TABLE.H / 2 - BALL_R - TABLE.WALL;
+  const limX = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
+  const limY = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -451,7 +452,7 @@ function Table3D(parent) {
   const railH = TABLE.THICK * 2.0;
   const railW = TABLE.WALL * 0.9 * 0.5;
   const FRAME_W = railW * 2.5;
-  const SIDE_RAIL_EXPAND = railW * 0.25;
+  const SIDE_RAIL_EXPAND = railW * 0.55; // push the wooden rails farther from the cushions
   const outerHalfW = halfW + 2 * railW + FRAME_W + SIDE_RAIL_EXPAND;
   const outerHalfH = halfH + 2 * railW + FRAME_W;
 
@@ -518,7 +519,7 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.19; // push side cushions outward a little farther to emphasize the jut
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
   const STRAIGHT_CUT_SAFETY = 0.01; // prevent the chamfer from collapsing when lengths get very short
   const TOP_BEVEL_CLEARANCE = 0.9; // keep the top groove clear of the 32° bevel so the edge remains perfectly straight
@@ -598,20 +599,16 @@ function Table3D(parent) {
     const g = new THREE.Group();
     g.add(mesh);
     g.position.set(x, cushionRaiseY, z);
-    const centerNudge = TABLE.WALL * 0.07;
+    const centerNudge = CUSHION_FACE_INSET;
     if (!horizontal) {
-      g.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
-      if (x > 0) {
-        g.position.x -= centerNudge;
-        g.position.x += SIDE_RAIL_OUTWARD;
-      } else if (x < 0) {
-        g.position.x += centerNudge;
-        g.position.x -= SIDE_RAIL_OUTWARD;
-      }
+      const side = Math.sign(x) || 1;
+      g.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+      g.position.x += -side * centerNudge;
+      g.position.x += side * SIDE_RAIL_OUTWARD;
     } else {
-      g.rotation.y = z > 0 ? Math.PI : 0;
-      if (z > 0) g.position.z -= centerNudge;
-      else if (z < 0) g.position.z += centerNudge;
+      const side = Math.sign(z) || -1;
+      g.rotation.y = side > 0 ? Math.PI : 0;
+      g.position.z += -side * centerNudge;
     }
     table.add(g);
     if (!table.userData.cushions) table.userData.cushions = [];
@@ -761,8 +758,8 @@ function SnookerGame() {
         if (dz < 0) sides.down = true;
       }
     }
-    const halfW = PLAY_W / 2;
-    const halfH = PLAY_H / 2;
+    const halfW = PLAY_W / 2 - CUSHION_FACE_INSET;
+    const halfH = PLAY_H / 2 - CUSHION_FACE_INSET;
     if (cue.pos.x + BALL_R >= halfW) sides.right = true;
     if (cue.pos.x - BALL_R <= -halfW) sides.left = true;
     if (cue.pos.y + BALL_R >= halfH) sides.up = true;
