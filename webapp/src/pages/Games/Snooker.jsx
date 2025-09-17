@@ -545,38 +545,22 @@ function Table3D(parent) {
     s.lineTo(-half, backY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
-    let innerStart = tipLeft;
-    let innerEnd = tipRight;
-    if (!(innerEnd > innerStart)) {
-      innerStart = -half * 0.6;
-      innerEnd = half * 0.6;
+    const frontSpan = Math.max(TOP_BEVEL_CLEARANCE, half - adjustedCut);
+    let notchHalf = frontSpan - TOP_BEVEL_CLEARANCE;
+    if (!(notchHalf > TOP_BEVEL_CLEARANCE)) {
+      notchHalf = Math.max(TOP_BEVEL_CLEARANCE * 1.1, len * 0.25);
     }
-    let safeStart = innerStart + TOP_BEVEL_CLEARANCE;
-    let safeEnd = innerEnd - TOP_BEVEL_CLEARANCE;
-    safeStart = Math.max(safeStart, -half + TOP_BEVEL_CLEARANCE);
-    safeEnd = Math.min(safeEnd, half - TOP_BEVEL_CLEARANCE);
-    if (!(safeEnd > safeStart)) {
-      safeStart = -half * 0.45;
-      safeEnd = half * 0.45;
+    const maxNotch = Math.max(TOP_BEVEL_CLEARANCE, frontSpan - STRAIGHT_CUT_SAFETY);
+    if (maxNotch > TOP_BEVEL_CLEARANCE) {
+      notchHalf = THREE.MathUtils.clamp(notchHalf, TOP_BEVEL_CLEARANCE, maxNotch);
+    } else {
+      notchHalf = TOP_BEVEL_CLEARANCE;
     }
-    let leftX = THREE.MathUtils.lerp(safeStart, safeEnd, 0.2);
-    let rightX = THREE.MathUtils.lerp(safeStart, safeEnd, 0.8);
-    leftX = Math.max(-half + TOP_BEVEL_CLEARANCE, leftX);
-    rightX = Math.min(half - TOP_BEVEL_CLEARANCE, rightX);
-    if (!(rightX > leftX)) {
-      const span = Math.max(2, len * 0.3);
-      leftX = -span / 2;
-      rightX = span / 2;
-    }
-    leftX = Math.max(-half + TOP_BEVEL_CLEARANCE, leftX);
-    rightX = Math.min(half - TOP_BEVEL_CLEARANCE, rightX);
-    if (!(rightX > leftX)) {
-      rightX = leftX + Math.max(0.5, TOP_BEVEL_CLEARANCE * 0.5);
-    }
-    const midX = (leftX + rightX) / 2;
+    const leftX = -notchHalf;
+    const rightX = notchHalf;
     const hollow = new THREE.Path();
     hollow.moveTo(leftX, hollowTop);
-    hollow.lineTo(midX, hollowPeak);
+    hollow.lineTo(0, hollowPeak);
     hollow.lineTo(rightX, hollowTop);
     hollow.lineTo(leftX, hollowTop);
     s.holes.push(hollow);
