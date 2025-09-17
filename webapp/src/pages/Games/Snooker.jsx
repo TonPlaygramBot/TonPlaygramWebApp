@@ -579,7 +579,7 @@ function Table3D(parent) {
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.5; // remove the lower 50% of the cushion toward the play field side
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.5; // remove the lower 50% of the cushion underside toward the play field side
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -620,9 +620,9 @@ function Table3D(parent) {
       const z = arr[i + 2];
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
       if (frontFactor <= 0) continue;
-      const maxAllowedZ = maxZ - depth * CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
-      if (z > maxAllowedZ) {
-        arr[i + 2] = maxAllowedZ;
+      const minAllowedZ = minZ + depth * CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
+      if (z < minAllowedZ) {
+        arr[i + 2] = minAllowedZ;
       }
     }
     positions.needsUpdate = true;
