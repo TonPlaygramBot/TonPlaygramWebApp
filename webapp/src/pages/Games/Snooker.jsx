@@ -218,6 +218,7 @@ const ACTION_VIEW = Object.freeze({
   followWeight: 0.35,
   maxOffset: PLAY_W * 0.18
 });
+const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
@@ -455,12 +456,163 @@ function Table3D(parent) {
   });
   const clothGeo = new THREE.ExtrudeGeometry(shape, {
     depth: TABLE.THICK,
-    bevelEnabled: false
+    bevelEnabled: true,
+    bevelThickness: 0.35,
+    bevelSize: 0.35,
+    bevelSegments: 3
   });
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = -TABLE.THICK;
+  cloth.renderOrder = 0;
   table.add(cloth);
+
+  const toneCanvas = document.createElement('canvas');
+  toneCanvas.width = 1024;
+  toneCanvas.height = 2048;
+  const toneCtx = toneCanvas.getContext('2d');
+  if (toneCtx) {
+    toneCtx.clearRect(0, 0, toneCanvas.width, toneCanvas.height);
+
+    const edgeFalloffX = toneCanvas.width * 0.08;
+    const edgeFalloffY = toneCanvas.height * 0.05;
+    const deepShadow = 'rgba(0, 0, 0, 0.32)';
+    const fade = 'rgba(0, 0, 0, 0)';
+
+    let grad = toneCtx.createLinearGradient(0, 0, edgeFalloffX, 0);
+    grad.addColorStop(0, deepShadow);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(0, 0, edgeFalloffX, toneCanvas.height);
+
+    grad = toneCtx.createLinearGradient(
+      toneCanvas.width,
+      0,
+      toneCanvas.width - edgeFalloffX,
+      0
+    );
+    grad.addColorStop(0, deepShadow);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(
+      toneCanvas.width - edgeFalloffX,
+      0,
+      edgeFalloffX,
+      toneCanvas.height
+    );
+
+    grad = toneCtx.createLinearGradient(0, 0, 0, edgeFalloffY);
+    grad.addColorStop(0, deepShadow);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(0, 0, toneCanvas.width, edgeFalloffY);
+
+    grad = toneCtx.createLinearGradient(
+      0,
+      toneCanvas.height,
+      0,
+      toneCanvas.height - edgeFalloffY
+    );
+    grad.addColorStop(0, deepShadow);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(0, toneCanvas.height - edgeFalloffY, toneCanvas.width, edgeFalloffY);
+
+    const highlightX = edgeFalloffX * 0.35;
+    const highlightY = edgeFalloffY * 0.35;
+    const highlightTint = 'rgba(255, 255, 255, 0.08)';
+
+    grad = toneCtx.createLinearGradient(edgeFalloffX, 0, edgeFalloffX + highlightX, 0);
+    grad.addColorStop(0, highlightTint);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(edgeFalloffX, 0, highlightX, toneCanvas.height);
+
+    grad = toneCtx.createLinearGradient(
+      toneCanvas.width - edgeFalloffX,
+      0,
+      toneCanvas.width - edgeFalloffX - highlightX,
+      0
+    );
+    grad.addColorStop(0, highlightTint);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(
+      toneCanvas.width - edgeFalloffX - highlightX,
+      0,
+      highlightX,
+      toneCanvas.height
+    );
+
+    grad = toneCtx.createLinearGradient(0, edgeFalloffY, 0, edgeFalloffY + highlightY);
+    grad.addColorStop(0, highlightTint);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(0, edgeFalloffY, toneCanvas.width, highlightY);
+
+    grad = toneCtx.createLinearGradient(
+      0,
+      toneCanvas.height - edgeFalloffY,
+      0,
+      toneCanvas.height - edgeFalloffY - highlightY
+    );
+    grad.addColorStop(0, highlightTint);
+    grad.addColorStop(1, fade);
+    toneCtx.fillStyle = grad;
+    toneCtx.fillRect(
+      0,
+      toneCanvas.height - edgeFalloffY - highlightY,
+      toneCanvas.width,
+      highlightY
+    );
+
+    const toCanvas = (p) => ({
+      x: ((p.x + halfW) / (halfW * 2)) * toneCanvas.width,
+      y: ((p.y + halfH) / (halfH * 2)) * toneCanvas.height
+    });
+    const pocketRadius = Math.max(toneCanvas.width, toneCanvas.height) * 0.06;
+    const pocketCore = pocketRadius * 0.3;
+    pocketCenters().forEach((p) => {
+      const { x, y } = toCanvas(p);
+      const pocketGrad = toneCtx.createRadialGradient(
+        x,
+        y,
+        pocketCore,
+        x,
+        y,
+        pocketRadius
+      );
+      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
+      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
+      pocketGrad.addColorStop(1, fade);
+      toneCtx.fillStyle = pocketGrad;
+      toneCtx.beginPath();
+      toneCtx.arc(x, y, pocketRadius, 0, Math.PI * 2);
+      toneCtx.closePath();
+      toneCtx.fill();
+    });
+  }
+
+  const toneTexture = new THREE.CanvasTexture(toneCanvas);
+  toneTexture.needsUpdate = true;
+  toneTexture.encoding = THREE.sRGBEncoding;
+  toneTexture.wrapS = THREE.ClampToEdgeWrapping;
+  toneTexture.wrapT = THREE.ClampToEdgeWrapping;
+
+  const toneMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    map: toneTexture,
+    depthWrite: false
+  });
+
+  const toneMesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), toneMat);
+  toneMesh.rotation.x = -Math.PI / 2;
+  toneMesh.position.y = cloth.position.y + TABLE.THICK + 0.02;
+  toneMesh.renderOrder = 1;
+  toneMesh.castShadow = false;
+  toneMesh.receiveShadow = false;
+  table.add(toneMesh);
 
   const markingMat = new THREE.LineBasicMaterial({
     color: COLORS.markings,
@@ -1058,8 +1210,11 @@ function SnookerGame() {
             ).multiplyScalar(worldScaleFactor);
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
-          } else if (shooting && activeShotView) {
-            if (activeShotView.mode === 'followCue') {
+          } else if (
+            shooting &&
+            activeShotView?.mode === 'followCue' &&
+            !activeShotView.freeOrbit
+          ) {
               const cuePos2D =
                 activeShotView.lastBallPos ??
                 (activeShotView.lastBallPos = new THREE.Vector2());
@@ -1100,70 +1255,79 @@ function SnookerGame() {
               camera.position.setFromSpherical(shotSph).add(anchor);
               camera.lookAt(focusTarget);
               lookTarget = focusTarget;
-            } else if (activeShotView.mode === 'pocket') {
-              const ballsList = ballsRef.current || [];
-              const focusBall = ballsList.find(
-                (b) => b.id === activeShotView.ballId
+          } else if (shooting && activeShotView?.mode === 'pocket') {
+            const ballsList = ballsRef.current || [];
+            const focusBall = ballsList.find(
+              (b) => b.id === activeShotView.ballId
+            );
+            let ballPos2D = activeShotView.lastBallPos;
+            if (focusBall?.active) {
+              ballPos2D = activeShotView.lastBallPos.set(
+                focusBall.pos.x,
+                focusBall.pos.y
               );
-              let ballPos2D = activeShotView.lastBallPos;
-              if (focusBall?.active) {
-                ballPos2D = activeShotView.lastBallPos.set(
-                  focusBall.pos.x,
-                  focusBall.pos.y
-                );
-              }
-              const pocketCenter = activeShotView.pocketCenter;
-              const toPocket = pocketCenter.clone().sub(ballPos2D);
-              const distToPocket = toPocket.length();
-              const approachDir = activeShotView.approach;
-              if (distToPocket > 1e-4) {
-                toPocket.multiplyScalar(1 / distToPocket);
-                approachDir.copy(toPocket);
-              }
-              const minOutside =
-                activeShotView.minOutside ?? POCKET_CAM.minOutside;
-              const maxOutside =
-                activeShotView.maxOutside ?? POCKET_CAM.maxOutside;
-              const dynamicOffset = THREE.MathUtils.clamp(
-                distToPocket + BALL_R * 2.4,
-                minOutside,
-                maxOutside
-              );
-              activeShotView.outsideOffset = dynamicOffset;
-              const offsetVec = approachDir
-                .clone()
-                .multiplyScalar(dynamicOffset);
-              const basePoint = pocketCenter.clone().add(offsetVec);
-              const camHeight =
-                (TABLE_Y + TABLE.THICK + activeShotView.heightOffset) *
-                worldScaleFactor;
-              camera.position.set(
-                basePoint.x * worldScaleFactor,
-                camHeight,
-                basePoint.y * worldScaleFactor
-              );
-              const focusTarget = focusBall?.active
-                ? new THREE.Vector3(
-                    focusBall.pos.x,
-                    BALL_R,
-                    focusBall.pos.y
-                  )
-                : new THREE.Vector3(
-                    activeShotView.lastBallPos.x,
-                    BALL_R,
-                    activeShotView.lastBallPos.y
-                  );
-              focusTarget.multiplyScalar(worldScaleFactor);
-              camera.lookAt(focusTarget);
-              lookTarget = focusTarget;
             }
+            const pocketCenter = activeShotView.pocketCenter;
+            const toPocket = pocketCenter.clone().sub(ballPos2D);
+            const distToPocket = toPocket.length();
+            const approachDir = activeShotView.approach;
+            if (distToPocket > 1e-4) {
+              toPocket.multiplyScalar(1 / distToPocket);
+              approachDir.copy(toPocket);
+            }
+            const minOutside =
+              activeShotView.minOutside ?? POCKET_CAM.minOutside;
+            const maxOutside =
+              activeShotView.maxOutside ?? POCKET_CAM.maxOutside;
+            const dynamicOffset = THREE.MathUtils.clamp(
+              distToPocket + BALL_R * 2.4,
+              minOutside,
+              maxOutside
+            );
+            activeShotView.outsideOffset = dynamicOffset;
+            const offsetVec = approachDir
+              .clone()
+              .multiplyScalar(dynamicOffset);
+            const basePoint = pocketCenter.clone().add(offsetVec);
+            const camHeight =
+              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset) *
+              worldScaleFactor;
+            camera.position.set(
+              basePoint.x * worldScaleFactor,
+              camHeight,
+              basePoint.y * worldScaleFactor
+            );
+            const focusTarget = focusBall?.active
+              ? new THREE.Vector3(
+                  focusBall.pos.x,
+                  BALL_R,
+                  focusBall.pos.y
+                )
+              : new THREE.Vector3(
+                  activeShotView.lastBallPos.x,
+                  BALL_R,
+                  activeShotView.lastBallPos.y
+                );
+            focusTarget.multiplyScalar(worldScaleFactor);
+            camera.lookAt(focusTarget);
+            lookTarget = focusTarget;
           } else {
             const followCue = cue?.mesh && cue.active && !shooting;
-            lookTarget = (
-              followCue
-                ? new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y)
-                : new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0)
-            ).multiplyScalar(worldScaleFactor);
+            let focusTarget;
+            if (shooting && followViewRef.current?.lastBallPos) {
+              const last = followViewRef.current.lastBallPos;
+              focusTarget = new THREE.Vector3(last.x, BALL_R, last.y);
+            } else if (followCue) {
+              focusTarget = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
+            } else {
+              focusTarget = new THREE.Vector3(
+                playerOffsetRef.current,
+                TABLE_Y + 0.05,
+                0
+              );
+            }
+            focusTarget.multiplyScalar(worldScaleFactor);
+            lookTarget = focusTarget;
             camera.position.setFromSpherical(sph).add(lookTarget);
             camera.lookAt(lookTarget);
           }
@@ -1327,8 +1491,8 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
-        // give a slightly wider, higher starting view at the break
-        sph.radius *= 1.08;
+        // bring the starting view a touch closer to the action
+        sph.radius *= 0.94;
         updateCamera();
         if (!initialOrbitRef.current) {
           initialOrbitRef.current = {
@@ -1343,7 +1507,19 @@ function SnookerGame() {
         let project;
         const drag = { on: false, x: 0, y: 0, moved: false };
         const pinch = { active: false, dist: 0 };
+        let lastInteraction = performance.now();
+        const registerInteraction = (didAdjust = false) => {
+          const now = performance.now();
+          lastInteraction = now;
+          if (shooting && activeShotView?.mode === 'followCue') {
+            activeShotView.lastInteraction = now;
+            if (didAdjust) {
+              activeShotView.userAdjusted = true;
+            }
+          }
+        };
         const down = (e) => {
+          registerInteraction();
           if (e.touches?.length === 2) {
             const [t1, t2] = e.touches;
             pinch.active = true;
@@ -1374,6 +1550,7 @@ function SnookerGame() {
             );
             pinch.dist = d;
             updateCamera();
+            registerInteraction(true);
             return;
           }
           if (topViewRef.current || !drag.on) return;
@@ -1394,9 +1571,11 @@ function SnookerGame() {
                   ? 1.2
                   : 1.0
             );
+            registerInteraction(true);
           }
         };
         const up = () => {
+          registerInteraction();
           drag.on = false;
           drag.moved = false;
           pinch.active = false;
@@ -1408,6 +1587,7 @@ function SnookerGame() {
             CAMERA.maxR
           );
           updateCamera();
+          registerInteraction(true);
         };
         dom.addEventListener('mousedown', down);
         dom.addEventListener('mousemove', move);
@@ -1426,15 +1606,16 @@ function SnookerGame() {
           else if (e.code === 'ArrowDown')
             sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
           else return;
+          registerInteraction(true);
           fit(window.innerHeight > window.innerWidth ? 1.6 : 1.4);
         };
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place two spotlights above the table with a slightly larger footprint and extra brightness
+      // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.45 * 1.2; // enlarge the footprint a touch for broader coverage
+      const rectSize = rectSizeBase * 0.45 * 1.2 * 0.5; // halve the previous footprint for crisper highlights
       const lightIntensity = 31.68 * 1.3 * 1.3; // increase brightness by an additional 30%
 
       const makeLight = (x, z) => {
@@ -1449,8 +1630,8 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // evenly space the two spotlights along the table center line
-      const lightPositions = [-TABLE.H * 0.25, TABLE.H * 0.25];
+      // evenly space the three pot lights along the table center line
+      const lightPositions = [-TABLE.H * 0.25, 0, TABLE.H * 0.25];
       for (const z of lightPositions) {
         makeLight(0, z);
       }
@@ -1780,6 +1961,8 @@ function SnookerGame() {
               CAMERA.maxR
             );
             const baseTarget = new THREE.Vector2(playerOffsetRef.current, 0);
+            const shotStart = performance.now();
+            lastInteraction = shotStart;
             activeShotView = {
               mode: 'followCue',
               radius: followRadius,
@@ -1790,13 +1973,19 @@ function SnookerGame() {
               followWeight: ACTION_VIEW.followWeight,
               maxOffset: ACTION_VIEW.maxOffset,
               lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y),
-              orbitSnapshot
+              orbitSnapshot,
+              pendingPocket: null,
+              lastInteraction: shotStart,
+              startedAt: shotStart,
+              userAdjusted: false,
+              freeOrbit: false
             };
             followViewRef.current = activeShotView;
             sph.theta = followTheta;
             sph.phi = followPhi;
             sph.radius = followRadius;
             updateCamera();
+            activeShotView.freeOrbit = true;
           }
 
           // animate cue stick forward
@@ -2099,16 +2288,26 @@ function SnookerGame() {
               }
             }
           }
-        if (
-          shooting &&
-          activeShotView?.mode === 'followCue' &&
-          firstHit
-        ) {
-          const pocketView = makePocketCameraView(firstHit, activeShotView);
-          if (pocketView) {
-            activeShotView = pocketView;
-            if (pocketView.resume) {
-              followViewRef.current = pocketView.resume;
+        if (shooting && activeShotView?.mode === 'followCue') {
+          const followView = activeShotView;
+          if (!followView.pendingPocket && firstHit) {
+            const pocketView = makePocketCameraView(firstHit, followView);
+            if (pocketView) {
+              followView.pendingPocket = pocketView;
+            }
+          }
+          if (followView.pendingPocket && !followView.userAdjusted) {
+            const now = performance.now();
+            const idleOrigin =
+              followView.lastInteraction ?? followView.startedAt ?? lastInteraction;
+            const idleFor = now - idleOrigin;
+            if (idleFor >= POCKET_IDLE_SWITCH_MS && !drag.on) {
+              const pocketView = followView.pendingPocket;
+              followView.pendingPocket = null;
+              activeShotView = pocketView;
+              if (pocketView.resume) {
+                followViewRef.current = pocketView.resume;
+              }
             }
           }
         }
