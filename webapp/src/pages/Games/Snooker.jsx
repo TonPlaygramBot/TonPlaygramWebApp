@@ -580,7 +580,8 @@ function Table3D(parent) {
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
   const CUSHION_NOSE_REDUCTION = 0.72; // shorten the visible nose so the rail that touches the cloth is lower
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.68; // carve out more of the underside so a triangular gap appears beneath the rail
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.32; // pull the lower edge upward so the cushion sits higher off the cloth
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54; // taper the underside more aggressively to form a clear triangular pocket beneath the rail
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -623,7 +624,9 @@ function Table3D(parent) {
       const z = arr[i + 2];
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
       if (frontFactor <= 0) continue;
-      const minAllowedZ = minZ + depth * CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
+      const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
+      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
+      const minAllowedZ = minZ + depth * lift;
       if (z < minAllowedZ) {
         arr[i + 2] = minAllowedZ;
       }
