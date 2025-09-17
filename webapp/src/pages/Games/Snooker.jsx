@@ -498,8 +498,9 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 1.6;
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.12;
+  const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.16; // push side cushions outward a little farther to emphasize the jut
+  const STRAIGHT_CUT_BUFFER = 0.12; // keep a hairline of flat before the 32° bevel so the face remains perfectly straight
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -510,20 +511,20 @@ function Table3D(parent) {
     const backY = frontY + thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const cut = thickness / Math.tan(rad);
-    const maxCut = Math.max(half - 0.75, half * 0.2);
+    const maxCut = Math.max(half - STRAIGHT_CUT_BUFFER, half * 0.18);
     const adjustedCut = Math.min(cut, maxCut);
     const tipLeft = -half + adjustedCut;
     const tipRight = half - adjustedCut;
     const s = new THREE.Shape();
-    s.moveTo(tipLeft, frontY);
+    s.moveTo(-half, backY);
+    s.lineTo(tipLeft, frontY);
     s.lineTo(tipRight, frontY);
     s.lineTo(half, backY);
     s.lineTo(-half, backY);
-    s.lineTo(tipLeft, frontY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
-    let innerStart = -half + adjustedCut;
-    let innerEnd = half - adjustedCut;
+    let innerStart = tipLeft;
+    let innerEnd = tipRight;
     if (!(innerEnd > innerStart)) {
       innerStart = -half * 0.6;
       innerEnd = half * 0.6;
