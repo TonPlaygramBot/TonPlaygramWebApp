@@ -498,7 +498,8 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05;
+  const LONG_CUSHION_TRIM = 1;
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.08;
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -511,21 +512,11 @@ function Table3D(parent) {
     const cut = thickness / Math.tan(rad);
     const tipLeft = -half + cut;
     const tipRight = half - cut;
-    const baseCurve = thickness * 0.18;
-    const maxCurve = Math.min(cut * 0.6, 0.7);
-    const topCurve = Math.max(0, Math.min(Math.max(baseCurve, 0.25), maxCurve));
     const s = new THREE.Shape();
     s.moveTo(tipLeft, frontY);
     s.lineTo(tipRight, frontY);
     s.lineTo(half, backY);
-    if (topCurve > 0.001) {
-      const controlBlend = topCurve * 0.25;
-      s.quadraticCurveTo(half - controlBlend, backY, half - topCurve, backY);
-      s.lineTo(-half + topCurve, backY);
-      s.quadraticCurveTo(-half + controlBlend, backY, -half, backY);
-    } else {
-      s.lineTo(-half, backY);
-    }
+    s.lineTo(-half, backY);
     s.lineTo(tipLeft, frontY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
@@ -605,7 +596,7 @@ function Table3D(parent) {
     table.userData.cushions.push(g);
   }
   const vertSeg = PLAY_H / 2 - 12;
-  const horizontalLen = PLAY_W - (cushionExtend + 6);
+  const horizontalLen = PLAY_W - (cushionExtend + 6) - LONG_CUSHION_TRIM;
   const verticalLen = PLAY_H / 2 - (cushionExtend + 6);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
