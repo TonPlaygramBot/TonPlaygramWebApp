@@ -499,20 +499,23 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.16; // push side cushions outward a little farther to emphasize the jut
-  const STRAIGHT_CUT_BUFFER = 0.12; // keep a hairline of flat before the 32° bevel so the face remains perfectly straight
-  function cushionProfile(len) {
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.19; // push side cushions outward a little farther to emphasize the jut
+  const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
+  const STRAIGHT_CUT_SAFETY = 0.01; // prevent the chamfer from collapsing when lengths get very short
+  const TOP_BEVEL_CLEARANCE = 0.9; // keep the top groove clear of the 32° bevel so the edge remains perfectly straight
+  function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
-    const baseThickness = cushionW + cushionInward;
+    const thicknessScale = horizontal ? LONG_CUSHION_FACE_SHRINK : 1;
+    const baseThickness = (cushionW + cushionInward) * thicknessScale;
     const originalBackY = cushionW / 2;
     const frontY = originalBackY - baseThickness;
     const thickness = baseThickness * CUSHION_BACK_TRIM;
     const backY = frontY + thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const cut = thickness / Math.tan(rad);
-    const maxCut = Math.max(half - STRAIGHT_CUT_BUFFER, half * 0.18);
-    const adjustedCut = Math.min(cut, maxCut);
+    const maxCut = Math.max(half - STRAIGHT_CUT_SAFETY, STRAIGHT_CUT_SAFETY);
+    const adjustedCut = THREE.MathUtils.clamp(cut, STRAIGHT_CUT_SAFETY, maxCut);
     const tipLeft = -half + adjustedCut;
     const tipRight = half - adjustedCut;
     const s = new THREE.Shape();
@@ -529,14 +532,27 @@ function Table3D(parent) {
       innerStart = -half * 0.6;
       innerEnd = half * 0.6;
     }
-    let leftX = innerStart + (innerEnd - innerStart) * 0.2;
-    let rightX = innerStart + (innerEnd - innerStart) * 0.8;
-    leftX = Math.max(-half + 0.6, leftX);
-    rightX = Math.min(half - 0.6, rightX);
+    let safeStart = innerStart + TOP_BEVEL_CLEARANCE;
+    let safeEnd = innerEnd - TOP_BEVEL_CLEARANCE;
+    safeStart = Math.max(safeStart, -half + TOP_BEVEL_CLEARANCE);
+    safeEnd = Math.min(safeEnd, half - TOP_BEVEL_CLEARANCE);
+    if (!(safeEnd > safeStart)) {
+      safeStart = -half * 0.45;
+      safeEnd = half * 0.45;
+    }
+    let leftX = THREE.MathUtils.lerp(safeStart, safeEnd, 0.2);
+    let rightX = THREE.MathUtils.lerp(safeStart, safeEnd, 0.8);
+    leftX = Math.max(-half + TOP_BEVEL_CLEARANCE, leftX);
+    rightX = Math.min(half - TOP_BEVEL_CLEARANCE, rightX);
     if (!(rightX > leftX)) {
       const span = Math.max(2, len * 0.3);
       leftX = -span / 2;
       rightX = span / 2;
+    }
+    leftX = Math.max(-half + TOP_BEVEL_CLEARANCE, leftX);
+    rightX = Math.min(half - TOP_BEVEL_CLEARANCE, rightX);
+    if (!(rightX > leftX)) {
+      rightX = leftX + Math.max(0.5, TOP_BEVEL_CLEARANCE * 0.5);
     }
     const midX = (leftX + rightX) / 2;
     const hollow = new THREE.Path();
@@ -573,7 +589,7 @@ function Table3D(parent) {
     return geo;
   }
   function addCushion(x, z, len, horizontal) {
-    const geo = cushionProfile(len);
+    const geo = cushionProfile(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const g = new THREE.Group();
