@@ -602,24 +602,6 @@ function Table3D(parent) {
       depth: railH,
       bevelEnabled: false
     });
-    const pos = geo.attributes.position;
-    const arr = pos.array;
-    const frontRange = backY - frontY;
-    const undercutLift = railH * 0.95;
-    const undercutInset = cushionInward + cushionW * 0.3;
-    for (let i = 0; i < arr.length; i += 3) {
-      const y = arr[i + 1];
-      const z = arr[i + 2];
-      if (z <= 0.001) {
-        const t = frontRange !== 0 ? THREE.MathUtils.clamp((y - frontY) / frontRange, 0, 1) : 1;
-        const frontFactor = 1 - t;
-        const lift = frontFactor * undercutLift;
-        arr[i + 2] = z + lift;
-        const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, frontFactor);
-        arr[i + 1] = targetY;
-      }
-    }
-    pos.needsUpdate = true;
     geo.computeVertexNormals();
     geo.computeBoundingBox();
     geo.computeBoundingSphere();
