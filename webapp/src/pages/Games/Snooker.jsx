@@ -153,7 +153,7 @@ const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 28;
+const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
 
@@ -594,7 +594,7 @@ function Table3D(parent) {
     const noseThickness = trimmedThickness * CUSHION_NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = noseThickness / Math.tan(rad); // enforce a true 28° chamfer with no additional tapering
+    const straightCut = noseThickness / Math.tan(rad); // enforce a true 29° chamfer with no additional tapering
     const tipLeft = -half + straightCut;
     const tipRight = half - straightCut;
     const s = new THREE.Shape();
