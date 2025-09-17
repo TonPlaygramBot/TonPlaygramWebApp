@@ -579,11 +579,7 @@ function Table3D(parent) {
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
-  const CUSHION_UNDERCUT_RATIO = 0.68; // carve a deeper diagonal recess beneath the cushions without moving their noses
-  const CUSHION_UNDERCUT_CURVE = 0.85; // ease factor so the undercut blends smoothly into the rear edge
-  const CUSHION_UNDERCUT_LENGTH_POWER = 1.4; // taper the undercut toward the pocket chamfers so the existing cuts remain crisp
-  const CUSHION_UNDERCUT_CHAMFER_POWER = 1.1; // ease-out across the 32.5° chamfer so the new recess follows the angle cut
-  const CUSHION_UNDERCUT_POINTINESS = 1.25; // bias the recess toward a pointy < shape floating over the play field
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.5; // remove the lower 50% of the cushion toward the play field side
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -617,37 +613,16 @@ function Table3D(parent) {
       if (z > maxZ) maxZ = z;
       if (z < minZ) minZ = z;
     }
-    const undercutHeight = (maxZ - minZ) * CUSHION_UNDERCUT_RATIO;
+    const depth = Math.max(maxZ - minZ, 1e-6);
     const frontSpan = Math.max(backY - frontY, 1e-6);
-    const interiorLimit = Math.max(tipRight, 1e-6);
-    const chamferSpan = Math.max(half - tipRight, 1e-6);
     for (let i = 0; i < arr.length; i += stride) {
-      const x = arr[i];
       const y = arr[i + 1];
       const z = arr[i + 2];
-      let frontFactor = (backY - y) / frontSpan;
+      const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
       if (frontFactor <= 0) continue;
-      if (frontFactor > 1) frontFactor = 1;
-
-      const absX = Math.abs(x);
-      let lengthFactor;
-      if (absX <= interiorLimit) {
-        const interiorRatio = absX / interiorLimit;
-        lengthFactor = 1 - Math.pow(interiorRatio, CUSHION_UNDERCUT_LENGTH_POWER);
-      } else if (absX <= half) {
-        const chamferRatio = (absX - interiorLimit) / chamferSpan;
-        const easedChamfer = 1 - Math.pow(Math.min(Math.max(chamferRatio, 0), 1), CUSHION_UNDERCUT_CHAMFER_POWER);
-        lengthFactor = Math.max(easedChamfer, 0);
-      } else {
-        lengthFactor = 0;
-      }
-      if (lengthFactor <= 0) continue;
-
-      const curvedFront = Math.pow(frontFactor, CUSHION_UNDERCUT_CURVE);
-      const pointBias = Math.pow(lengthFactor, CUSHION_UNDERCUT_POINTINESS);
-      const target = minZ + undercutHeight * curvedFront * pointBias;
-      if (z < target) {
-        arr[i + 2] = target;
+      const maxAllowedZ = maxZ - depth * CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
+      if (z > maxAllowedZ) {
+        arr[i + 2] = maxAllowedZ;
       }
     }
     positions.needsUpdate = true;
