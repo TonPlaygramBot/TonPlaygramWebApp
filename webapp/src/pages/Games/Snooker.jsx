@@ -134,6 +134,7 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
 const FRICTION = 0.995;
+const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const POCKET_CAM = Object.freeze({
@@ -163,7 +164,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
   cloth: 0x1e7b1e,
-  rail: 0x3a2a1a,
+  rail: 0xc7a47a,
   base: 0x5b3a1a,
   markings: 0xffffff,
   cue: 0xffffff,
@@ -244,20 +245,24 @@ function reflectRails(ball) {
   );
   if (nearPocket) return;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
-    ball.pos.x = -limX;
-    ball.vel.x *= -1;
+    const overshoot = -limX - ball.pos.x;
+    ball.pos.x = -limX + overshoot;
+    ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
-    ball.pos.x = limX;
-    ball.vel.x *= -1;
+    const overshoot = ball.pos.x - limX;
+    ball.pos.x = limX - overshoot;
+    ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
-    ball.pos.y = -limY;
-    ball.vel.y *= -1;
+    const overshoot = -limY - ball.pos.y;
+    ball.pos.y = -limY + overshoot;
+    ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
-    ball.pos.y = limY;
-    ball.vel.y *= -1;
+    const overshoot = ball.pos.y - limY;
+    ball.pos.y = limY - overshoot;
+    ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
   }
 }
 
@@ -376,8 +381,8 @@ function Table3D(parent) {
   const cushionMat = clothMat.clone();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
-    metalness: 0.3,
-    roughness: 0.8
+    metalness: 0.25,
+    roughness: 0.55
   });
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
@@ -452,9 +457,12 @@ function Table3D(parent) {
   const railH = TABLE.THICK * 2.0;
   const railW = TABLE.WALL * 0.9 * 0.5;
   const FRAME_W = railW * 2.5;
-  const SIDE_RAIL_EXPAND = railW * 0.55; // push the wooden rails farther from the cushions
-  const outerHalfW = halfW + 2 * railW + FRAME_W + SIDE_RAIL_EXPAND;
-  const outerHalfH = halfH + 2 * railW + FRAME_W;
+  const baseOuterHalfW = halfW + 2 * railW + FRAME_W;
+  const baseOuterHalfH = halfH + 2 * railW + FRAME_W;
+  const SIDE_RAIL_EXPAND_X = railW * 0.8; // widen only the wooden side rails without moving cushions
+  const END_RAIL_EXPAND_Z = railW * 0.25;
+  const outerHalfW = baseOuterHalfW + SIDE_RAIL_EXPAND_X;
+  const outerHalfH = baseOuterHalfH + END_RAIL_EXPAND_Z;
 
   const frameShape = new THREE.Shape();
   frameShape.moveTo(-outerHalfW, -outerHalfH);
@@ -470,7 +478,7 @@ function Table3D(parent) {
   innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
   // extend the side rails downward without altering the top surface
-  const frameDepth = railH * 3;
+  const frameDepth = railH * 3.4;
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
     depth: frameDepth,
     bevelEnabled: false
@@ -483,9 +491,9 @@ function Table3D(parent) {
 
   // simple wooden skirt beneath the play surface
   const skirtGeo = new THREE.BoxGeometry(
-    outerHalfW * 2,
+    baseOuterHalfW * 2,
     TABLE_H * 0.2,
-    outerHalfH * 2
+    baseOuterHalfH * 2
   );
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.position.y = -TABLE.THICK - TABLE_H * 0.1;
@@ -504,10 +512,10 @@ function Table3D(parent) {
   );
   const legY = -TABLE.THICK - legHeight / 2;
   [
-    [outerHalfW - 6, outerHalfH - 6],
-    [-outerHalfW + 6, outerHalfH - 6],
-    [outerHalfW - 6, -outerHalfH + 6],
-    [-outerHalfW + 6, -outerHalfH + 6]
+    [baseOuterHalfW - 6, baseOuterHalfH - 6],
+    [-baseOuterHalfW + 6, baseOuterHalfH - 6],
+    [baseOuterHalfW - 6, -baseOuterHalfH + 6],
+    [-baseOuterHalfW + 6, -baseOuterHalfH + 6]
   ].forEach(([x, z]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
     leg.position.set(x, legY, z);
