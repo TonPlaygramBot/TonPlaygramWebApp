@@ -162,10 +162,11 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
+const DARK_WOOD = 0x593517;
 const COLORS = Object.freeze({
   cloth: 0x1e7b1e,
-  rail: 0xc7a47a,
-  base: 0x5b3a1a,
+  rail: DARK_WOOD,
+  base: DARK_WOOD,
   markings: 0xffffff,
   cue: 0xffffff,
   red: 0xff0000,
@@ -200,6 +201,11 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: Math.PI / 2 - 0.04
 };
+const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
+const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
+let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
+let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
+const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
   radius: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: 1.12
@@ -237,8 +243,8 @@ const pocketCenters = () => [
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function reflectRails(ball) {
-  const limX = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
-  const limY = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
   // If the ball is near any pocket, skip rail reflections so it can drop in
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
@@ -273,8 +279,8 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
-  const limX = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
-  const limY = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -361,6 +367,50 @@ function Guret(parent, id, color, x, y) {
     vel: new THREE.Vector2(),
     active: true
   };
+}
+
+function alignRailsToCushions(table, frame) {
+  if (!frame || !table?.userData?.cushions?.length) return;
+  table.updateMatrixWorld(true);
+  const sampleCushion = table.userData.cushions[0];
+  if (!sampleCushion) return;
+  const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
+  const frameBox = new THREE.Box3().setFromObject(frame);
+  const diff = frameBox.max.y - cushionBox.max.y;
+  if (diff > 0.001) {
+    frame.position.y -= diff;
+  }
+}
+
+function updateRailLimitsFromTable(table) {
+  if (!table?.userData?.cushions?.length) return;
+  table.updateMatrixWorld(true);
+  let minAbsX = Infinity;
+  let minAbsZ = Infinity;
+  for (const cushion of table.userData.cushions) {
+    const data = cushion.userData || {};
+    if (typeof data.horizontal !== 'boolean' || !data.side) continue;
+    const box = new THREE.Box3().setFromObject(cushion);
+    if (data.horizontal) {
+      const inner = data.side < 0 ? box.max.z : box.min.z;
+      minAbsZ = Math.min(minAbsZ, Math.abs(inner));
+    } else {
+      const inner = data.side < 0 ? box.max.x : box.min.x;
+      minAbsX = Math.min(minAbsX, Math.abs(inner));
+    }
+  }
+  if (minAbsX !== Infinity) {
+    const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
+    if (computedX > 0) {
+      RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
+    }
+  }
+  if (minAbsZ !== Infinity) {
+    const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
+    if (computedZ > 0) {
+      RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
+    }
+  }
 }
 
 // --------------------------------------------------
@@ -608,16 +658,18 @@ function Table3D(parent) {
     g.add(mesh);
     g.position.set(x, cushionRaiseY, z);
     const centerNudge = CUSHION_FACE_INSET;
+    const side = horizontal ? Math.sign(z) || -1 : Math.sign(x) || 1;
     if (!horizontal) {
-      const side = Math.sign(x) || 1;
       g.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
       g.position.x += -side * centerNudge;
       g.position.x += side * SIDE_RAIL_OUTWARD;
     } else {
-      const side = Math.sign(z) || -1;
       g.rotation.y = side > 0 ? Math.PI : 0;
       g.position.z += -side * centerNudge;
     }
+    g.userData = g.userData || {};
+    g.userData.horizontal = horizontal;
+    g.userData.side = side >= 0 ? 1 : -1;
     table.add(g);
     if (!table.userData.cushions) table.userData.cushions = [];
     table.userData.cushions.push(g);
@@ -652,6 +704,10 @@ function Table3D(parent) {
     table.add(cut);
     table.userData.pockets.push(cut);
   });
+
+  alignRailsToCushions(table, frame);
+  table.updateMatrixWorld(true);
+  updateRailLimitsFromTable(table);
 
   table.position.y = TABLE_Y;
   parent.add(table);
