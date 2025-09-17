@@ -134,6 +134,7 @@ const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
+const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -501,9 +502,11 @@ function Table3D(parent) {
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
-    const thickness = cushionW + cushionInward;
-    const backY = cushionW / 2;
-    const frontY = backY - thickness;
+    const baseThickness = cushionW + cushionInward;
+    const originalBackY = cushionW / 2;
+    const frontY = originalBackY - baseThickness;
+    const thickness = baseThickness * CUSHION_BACK_TRIM;
+    const backY = frontY + thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const cut = thickness / Math.tan(rad);
     const tipLeft = -half + cut;
@@ -575,7 +578,7 @@ function Table3D(parent) {
     geo.computeBoundingSphere();
     return geo;
   }
-  function addCushion(x, z, len, horizontal, flip = false) {
+  function addCushion(x, z, len, horizontal) {
     const geo = cushionProfile(len);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
@@ -584,8 +587,7 @@ function Table3D(parent) {
     g.position.set(x, cushionRaiseY, z);
     const centerNudge = TABLE.WALL * 0.07;
     if (!horizontal) {
-      g.rotation.y = Math.PI / 2;
-      if (flip) g.rotation.y += Math.PI;
+      g.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
       if (x > 0) {
         g.position.x -= centerNudge;
         g.position.x += SIDE_RAIL_OUTWARD;
@@ -593,11 +595,8 @@ function Table3D(parent) {
         g.position.x += centerNudge;
         g.position.x -= SIDE_RAIL_OUTWARD;
       }
-    } else if (flip) {
-      g.rotation.y = Math.PI;
-      if (z > 0) g.position.z -= centerNudge;
-      else if (z < 0) g.position.z += centerNudge;
     } else {
+      g.rotation.y = z > 0 ? Math.PI : 0;
       if (z > 0) g.position.z -= centerNudge;
       else if (z < 0) g.position.z += centerNudge;
     }
@@ -612,12 +611,12 @@ function Table3D(parent) {
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
   const rightX = halfW + (TABLE.WALL * 0.5) / 2;
-  addCushion(0, bottomZ, horizontalLen, true, false);
-  addCushion(leftX, -halfH + 6 + vertSeg / 2, verticalLen, false, false);
-  addCushion(rightX, halfH - 6 - vertSeg / 2, verticalLen, false, true);
-  addCushion(0, topZ, horizontalLen, true, true);
-  addCushion(leftX, halfH - 6 - vertSeg / 2, verticalLen, false, false);
-  addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false, true);
+  addCushion(0, bottomZ, horizontalLen, true);
+  addCushion(leftX, -halfH + 6 + vertSeg / 2, verticalLen, false);
+  addCushion(rightX, halfH - 6 - vertSeg / 2, verticalLen, false);
+  addCushion(0, topZ, horizontalLen, true);
+  addCushion(leftX, halfH - 6 - vertSeg / 2, verticalLen, false);
+  addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false);
 
   if (!table.userData.pockets) table.userData.pockets = [];
   pocketCenters().forEach((p) => {
