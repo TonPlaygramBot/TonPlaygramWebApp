@@ -153,7 +153,7 @@ const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 32;
+const CUSHION_CUT_ANGLE = 32.5;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
 
@@ -580,7 +580,7 @@ function Table3D(parent) {
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
   const STRAIGHT_CUT_SAFETY = 0.01; // prevent the chamfer from collapsing when lengths get very short
-  const TOP_BEVEL_CLEARANCE = 0.9; // keep the top groove clear of the 32° bevel so the edge remains perfectly straight
+  const TOP_BEVEL_CLEARANCE = 0.9; // keep the top groove clear of the 32.5° bevel so the edge remains perfectly straight
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -591,11 +591,9 @@ function Table3D(parent) {
     const thickness = baseThickness * CUSHION_BACK_TRIM;
     const backY = frontY + thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const cut = thickness / Math.tan(rad);
-    const maxCut = Math.max(half - STRAIGHT_CUT_SAFETY, STRAIGHT_CUT_SAFETY);
-    const adjustedCut = THREE.MathUtils.clamp(cut, STRAIGHT_CUT_SAFETY, maxCut);
-    const tipLeft = -half + adjustedCut;
-    const tipRight = half - adjustedCut;
+    const straightCut = thickness / Math.tan(rad); // enforce a true 32.5° chamfer with no additional tapering
+    const tipLeft = -half + straightCut;
+    const tipRight = half - straightCut;
     const s = new THREE.Shape();
     s.moveTo(-half, backY);
     s.lineTo(tipLeft, frontY);
@@ -604,7 +602,7 @@ function Table3D(parent) {
     s.lineTo(-half, backY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
-    const frontSpan = Math.max(TOP_BEVEL_CLEARANCE, half - adjustedCut);
+    const frontSpan = Math.max(TOP_BEVEL_CLEARANCE, half - straightCut);
     let notchHalf = frontSpan - TOP_BEVEL_CLEARANCE;
     if (!(notchHalf > TOP_BEVEL_CLEARANCE)) {
       notchHalf = Math.max(TOP_BEVEL_CLEARANCE * 1.1, len * 0.25);
