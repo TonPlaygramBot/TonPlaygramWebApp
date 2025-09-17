@@ -579,6 +579,8 @@ function Table3D(parent) {
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
+  const LONG_CUSHION_UNDERCUT_RATIO = 0.45; // carve a diagonal recess beneath the long cushions without moving their noses
+  const LONG_CUSHION_UNDERCUT_CURVE = 0.85; // ease factor so the undercut blends smoothly into the rear edge
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -602,6 +604,31 @@ function Table3D(parent) {
       depth: railH,
       bevelEnabled: false
     });
+    if (horizontal) {
+      const positions = geo.attributes.position;
+      const arr = positions.array;
+      const stride = 3;
+      let maxZ = -Infinity;
+      for (let i = 0; i < arr.length; i += stride) {
+        if (arr[i + 2] > maxZ) maxZ = arr[i + 2];
+      }
+      const undercutHeight = railH * LONG_CUSHION_UNDERCUT_RATIO;
+      const frontSpan = Math.max(backY - frontY, 1e-6);
+      for (let i = 0; i < arr.length; i += stride) {
+        const y = arr[i + 1];
+        const z = arr[i + 2];
+        if (z <= 0) continue;
+        let frontFactor = (backY - y) / frontSpan;
+        if (frontFactor <= 0) continue;
+        if (frontFactor > 1) frontFactor = 1;
+        const eased = Math.pow(frontFactor, LONG_CUSHION_UNDERCUT_CURVE);
+        const plane = maxZ - undercutHeight * eased;
+        if (z > plane) {
+          arr[i + 2] = plane;
+        }
+      }
+      positions.needsUpdate = true;
+    }
     geo.computeVertexNormals();
     geo.computeBoundingBox();
     geo.computeBoundingSphere();
