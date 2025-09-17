@@ -141,9 +141,9 @@ const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const POCKET_JAW_LIP_HEIGHT = -0.001; // sink pocket rings so they sit flush with the cloth
+const POCKET_JAW_LIP_HEIGHT = -0.006; // drop pocket rings so their lip lines up with the cloth surface
 const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
-const CLOTH_THICKNESS = TABLE.THICK * 0.18; // render a much thinner cloth lip along the pocket edges
+const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 0.9;
@@ -220,11 +220,11 @@ let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
   radius: 150 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: 1.12
+  phi: 1.05
 });
 const ACTION_VIEW = Object.freeze({
-  phiOffset: 0.02,
-  fitMargin: 1.08,
+  phiOffset: -0.015,
+  fitMargin: 1.03,
   followWeight: 0.25,
   maxOffset: PLAY_W * 0.14
 });
@@ -964,7 +964,7 @@ function Table3D(parent) {
   table.userData.cushionTopLocal = cushionTopLocal;
 
   if (!table.userData.pockets) table.userData.pockets = [];
-  const pocketLipTop = cushionTopLocal - 0.002;
+  const pocketLipTop = cushionTopLocal - CLOTH_THICKNESS * 0.85;
   const pocketRecess = POCKET_RECESS_DEPTH;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
@@ -1335,7 +1335,7 @@ function SnookerGame() {
         // Start behind baulk colours
         const sph = new THREE.Spherical(
           BREAK_VIEW.radius,
-          BREAK_VIEW.phi, // drop the break view slightly lower for a tighter angle
+          BREAK_VIEW.phi, // keep the break view a touch higher for clearer break alignment
           Math.PI
         );
         const updateCamera = () => {
@@ -1724,8 +1724,12 @@ function SnookerGame() {
           if (drag.moved) {
             drag.x = x;
             drag.y = y;
-            sph.theta -= dx * 0.005;
-            sph.phi = clamp(sph.phi + dy * 0.003, CAMERA.minPhi, CAMERA.maxPhi);
+            sph.theta -= dx * 0.0035;
+            sph.phi = clamp(
+              sph.phi + dy * 0.0025,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
             fit(
               topViewRef.current
                 ? 1.05
@@ -1760,7 +1764,7 @@ function SnookerGame() {
         dom.addEventListener('wheel', wheel, { passive: true });
         const keyRot = (e) => {
           if (topViewRef.current) return;
-          const step = e.shiftKey ? 0.12 : 0.06;
+          const step = e.shiftKey ? 0.08 : 0.035;
           if (e.code === 'ArrowLeft') sph.theta += step;
           else if (e.code === 'ArrowRight') sph.theta -= step;
           else if (e.code === 'ArrowUp')
@@ -1777,7 +1781,7 @@ function SnookerGame() {
       // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.72; // widen each spotlight footprint for broader coverage
+      const rectSize = rectSizeBase * 0.72 * 0.7; // shrink each spotlight footprint by ~30% for a tighter beam
       const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25; // push more light down onto the cloth
 
       const makeLight = (x, z) => {
