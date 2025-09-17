@@ -579,18 +579,21 @@ function Table3D(parent) {
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.5; // remove the lower 50% of the cushion underside toward the play field side
+  const CUSHION_NOSE_REDUCTION = 0.72; // shorten the visible nose so the rail that touches the cloth is lower
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.68; // carve out more of the underside so a triangular gap appears beneath the rail
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
     const thicknessScale = horizontal ? LONG_CUSHION_FACE_SHRINK : 1;
     const baseThickness = (cushionW + cushionInward) * thicknessScale;
     const originalBackY = cushionW / 2;
-    const frontY = originalBackY - baseThickness;
-    const thickness = baseThickness * CUSHION_BACK_TRIM;
-    const backY = frontY + thickness;
+    const rawFrontY = originalBackY - baseThickness;
+    const trimmedThickness = baseThickness * CUSHION_BACK_TRIM;
+    const backY = rawFrontY + trimmedThickness;
+    const noseThickness = trimmedThickness * CUSHION_NOSE_REDUCTION;
+    const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = thickness / Math.tan(rad); // enforce a true 32.5° chamfer with no additional tapering
+    const straightCut = noseThickness / Math.tan(rad); // enforce a true 32.5° chamfer with no additional tapering
     const tipLeft = -half + straightCut;
     const tipRight = half - straightCut;
     const s = new THREE.Shape();
