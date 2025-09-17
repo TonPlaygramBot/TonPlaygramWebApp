@@ -24,8 +24,12 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 // --------------------------------------------------
 const JAW_H = 3.0;
 const JAW_T = 1.25;
-const SECTOR_START = -Math.PI * 0.65;
-const SECTOR_END = Math.PI * 0.65;
+const JAW_INNER_SCALE = 0.04;
+const JAW_CORNER_OFFSET_SCALE = 0.03;
+const JAW_SIDE_OFFSET_SCALE = 0.028;
+const SECTOR_SWEEP = Math.PI * 0.6;
+const SECTOR_START = -SECTOR_SWEEP;
+const SECTOR_END = SECTOR_SWEEP;
 const jawMat = new THREE.MeshPhysicalMaterial({
   color: 0x111111,
   roughness: 0.35,
@@ -38,15 +42,31 @@ function makeJawSector(
   start = SECTOR_START,
   end = SECTOR_END
 ) {
-  const r = R - T;
+  const outer = R + T;
+  const inner = R + Math.max(T * 0.25, R * JAW_INNER_SCALE);
+  const chamfer = Math.min((end - start) * 0.35, Math.PI * 0.18);
+  const innerStart = end - chamfer;
+  const innerEnd = start + chamfer;
   const s = new THREE.Shape();
-  s.absarc(0, 0, R, start, end, false);
-  s.absarc(0, 0, r, end, start, true);
+  s.absarc(0, 0, outer, start, end, false);
+  const innerStartVec = new THREE.Vector2(
+    inner * Math.cos(innerStart),
+    inner * Math.sin(innerStart)
+  );
+  s.lineTo(innerStartVec.x, innerStartVec.y);
+  s.absarc(0, 0, inner, innerStart, innerEnd, true);
+  const outerStartVec = new THREE.Vector2(
+    outer * Math.cos(start),
+    outer * Math.sin(start)
+  );
+  s.lineTo(outerStartVec.x, outerStartVec.y);
   const geo = new THREE.ExtrudeGeometry(s, {
     depth: JAW_H,
     bevelEnabled: false
   });
   geo.rotateX(-Math.PI / 2);
+  geo.rotateY(Math.PI / 2);
+  geo.computeVertexNormals();
   return geo;
 }
 function addPocketJaws(parent, playW, playH) {
@@ -63,10 +83,12 @@ function addPocketJaws(parent, playW, playH) {
   const jaws = [];
   const geoCorner = makeJawSector();
   const geoSide = makeJawSector(POCKET_VIS_R, JAW_T * 0.8);
+  const cornerOffset = POCKET_VIS_R * JAW_CORNER_OFFSET_SCALE;
+  const sideOffset = POCKET_VIS_R * JAW_SIDE_OFFSET_SCALE;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const offset = entry.type === 'side' ? POCKET_VIS_R * 1.15 : POCKET_VIS_R;
+    const offset = entry.type === 'side' ? sideOffset : cornerOffset;
     const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
     const geom = entry.type === 'side' ? geoSide.clone() : geoCorner.clone();
     const jaw = new THREE.Mesh(geom, jawMat);
@@ -74,9 +96,6 @@ function addPocketJaws(parent, playW, playH) {
     jaw.receiveShadow = true;
     jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
-    if (entry.type === 'side') {
-      jaw.rotateY(Math.PI / 2);
-    }
     parent.add(jaw);
     jaws.push(jaw);
   }
