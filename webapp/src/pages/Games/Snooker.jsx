@@ -162,7 +162,6 @@ const UI_SCALE = SIZE_REDUCTION;
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
   cloth: 0x1e7b1e,
-  cushion: 0x1f6f1f,
   rail: 0x3a2a1a,
   base: 0x5b3a1a,
   markings: 0xffffff,
@@ -374,7 +373,6 @@ function Table3D(parent) {
     sheenRoughness: 0.9
   });
   const cushionMat = clothMat.clone();
-  cushionMat.color.setHex(COLORS.cushion);
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.3,
@@ -575,20 +573,16 @@ function Table3D(parent) {
     const frontRange = backY - frontY;
     const undercutLift = railH * 0.95;
     const undercutInset = cushionInward + cushionW * 0.3;
-    const frontEdgeTolerance = 1e-4;
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
       const z = arr[i + 2];
       if (z <= 0.001) {
         const t = frontRange !== 0 ? THREE.MathUtils.clamp((y - frontY) / frontRange, 0, 1) : 1;
         const frontFactor = 1 - t;
-        const eased = THREE.MathUtils.smoothstep(0, 1, frontFactor);
-        if (y > frontY + frontEdgeTolerance) {
-          const lift = eased * undercutLift;
-          arr[i + 2] = z + lift;
-          const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, eased);
-          arr[i + 1] = targetY;
-        }
+        const lift = frontFactor * undercutLift;
+        arr[i + 2] = z + lift;
+        const targetY = THREE.MathUtils.lerp(y, frontY - undercutInset, frontFactor);
+        arr[i + 1] = targetY;
       }
     }
     pos.needsUpdate = true;
