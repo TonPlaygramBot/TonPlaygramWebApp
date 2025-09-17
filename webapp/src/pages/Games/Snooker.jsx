@@ -22,13 +22,8 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 // --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
-const TABLE_SCALE = 1.3;
-const TARGET_TABLE_WIDTH = 1.42;
-const TARGET_TABLE_LENGTH = 2.84;
-const DIMENSION_SCALE = TARGET_TABLE_WIDTH / (66 * TABLE_SCALE);
-
-const JAW_H = 3.0 * DIMENSION_SCALE;
-const JAW_T = 1.25 * DIMENSION_SCALE;
+const JAW_H = 3.0;
+const JAW_T = 1.25;
 const JAW_INNER_SCALE = 0.04;
 const JAW_CORNER_OFFSET_SCALE = 0.03;
 const JAW_SIDE_OFFSET_SCALE = 0.028;
@@ -99,7 +94,7 @@ function addPocketJaws(parent, playW, playH) {
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + 0.01 * DIMENSION_SCALE, pShift.y);
+    jaw.position.set(pShift.x, TABLE_Y + 0.01, pShift.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
     parent.add(jaw);
     jaws.push(jaw);
@@ -124,12 +119,13 @@ function addPocketJaws(parent, playW, playH) {
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR;
-const BALL_SCALE = DIMENSION_SCALE;
+const BALL_SCALE = 1;
+const TABLE_SCALE = 1.3;
 const TABLE = {
-  W: TARGET_TABLE_WIDTH,
-  H: TARGET_TABLE_LENGTH,
-  THICK: 1.8 * TABLE_SCALE * DIMENSION_SCALE,
-  WALL: 2.6 * TABLE_SCALE * DIMENSION_SCALE
+  W: 66 * TABLE_SCALE,
+  H: 132 * TABLE_SCALE,
+  THICK: 1.8 * TABLE_SCALE,
+  WALL: 2.6 * TABLE_SCALE
 };
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
@@ -150,11 +146,10 @@ const POCKET_CAM = Object.freeze({
 });
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
-const LEG_SCALE = 6.2 * DIMENSION_SCALE;
+const LEG_SCALE = 6.2;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible
-const TABLE_Y =
-  -2 * DIMENSION_SCALE + (TABLE_H - 0.75 * DIMENSION_SCALE) + TABLE_H;
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
 const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
@@ -200,8 +195,8 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 36 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * DIMENSION_SCALE,
-  maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * DIMENSION_SCALE,
+  minR: 36 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: Math.PI / 2 - 0.04
@@ -212,7 +207,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * DIMENSION_SCALE,
+  radius: 180 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
@@ -453,7 +448,7 @@ function Table3D(parent) {
   shape.lineTo(-halfW, -halfH);
   pocketCenters().forEach((p) => {
     const h = new THREE.Path();
-    h.absellipse(p.x, p.y, POCKET_VIS_R, POCKET_VIS_R, 0, Math.PI * 2);
+    h.absellipse(p.x, p.y, 6, 6, 0, Math.PI * 2);
     shape.holes.push(h);
   });
   const clothGeo = new THREE.ExtrudeGeometry(shape, {
@@ -471,8 +466,8 @@ function Table3D(parent) {
   });
   const baulkZ = -PLAY_H / 4;
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfW, 0.02 * DIMENSION_SCALE, baulkZ),
-    new THREE.Vector3(halfW, 0.02 * DIMENSION_SCALE, baulkZ)
+    new THREE.Vector3(-halfW, 0.02, baulkZ),
+    new THREE.Vector3(halfW, 0.02, baulkZ)
   ]);
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
   table.add(baulkLine);
@@ -487,19 +482,19 @@ function Table3D(parent) {
   );
   const dPoints = dCurve
     .getPoints(64)
-    .map((p) => new THREE.Vector3(p.x, 0.02 * DIMENSION_SCALE, p.y));
+    .map((p) => new THREE.Vector3(p.x, 0.02, p.y));
   const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
   const dLine = new THREE.Line(dGeom, markingMat);
   table.add(dLine);
 
   function addSpot(x, z) {
-    const spotGeo = new THREE.CircleGeometry(BALL_R * 0.25, 32);
+    const spotGeo = new THREE.CircleGeometry(0.5, 32);
     const spotMat = new THREE.MeshBasicMaterial({
       color: COLORS.markings
     });
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, 0.021 * DIMENSION_SCALE, z);
+    spot.position.set(x, 0.021, z);
     table.add(spot);
   }
   addSpot(0, baulkZ);
@@ -541,7 +536,7 @@ function Table3D(parent) {
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   // lower the frame so the top remains aligned with the play field
-  frame.position.y = -TABLE.THICK + 0.01 * DIMENSION_SCALE - railH * 2;
+  frame.position.y = -TABLE.THICK + 0.01 - railH * 2;
   table.add(frame);
 
   // simple wooden skirt beneath the play surface
@@ -555,7 +550,7 @@ function Table3D(parent) {
   table.add(skirt);
 
   // wooden table legs at the four corners, now thinner and taller
-  const pocketRadius = BALL_R * 1.55; // radius used for pocket holes
+  const pocketRadius = 6.2 * 0.5; // radius used for pocket holes
   const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
   const legRadius = pocketRadius * 3 * 0.5; // 50% thinner legs
   const legHeight = pocketHeight * 2.25; // 50% taller legs
@@ -567,28 +562,28 @@ function Table3D(parent) {
   );
   const legY = -TABLE.THICK - legHeight / 2;
   [
-    [baseOuterHalfW - BALL_R * 3, baseOuterHalfH - BALL_R * 3],
-    [-baseOuterHalfW + BALL_R * 3, baseOuterHalfH - BALL_R * 3],
-    [baseOuterHalfW - BALL_R * 3, -baseOuterHalfH + BALL_R * 3],
-    [-baseOuterHalfW + BALL_R * 3, -baseOuterHalfH + BALL_R * 3]
+    [baseOuterHalfW - 6, baseOuterHalfH - 6],
+    [-baseOuterHalfW + 6, baseOuterHalfH - 6],
+    [baseOuterHalfW - 6, -baseOuterHalfH + 6],
+    [-baseOuterHalfW + 6, -baseOuterHalfH + 6]
   ].forEach(([x, z]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
     leg.position.set(x, legY, z);
     table.add(leg);
   });
 
-  const cushionRaiseY = -TABLE.THICK + 0.02 * DIMENSION_SCALE;
+  const cushionRaiseY = -TABLE.THICK + 0.02;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
-  const cushionExtend = BALL_R * 3 * 0.85;
+  const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = BALL_R * 1.125; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.99; // leave the long cushions only the slightest bit slimmer toward the play field
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.32 * DIMENSION_SCALE; // pull the lower edge upward so the cushion sits higher off the cloth
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54 * DIMENSION_SCALE; // taper the underside more aggressively to form a clear triangular pocket beneath the rail
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.32; // pull the lower edge upward so the cushion sits higher off the cloth
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54; // taper the underside more aggressively to form a clear triangular pocket beneath the rail
   function cushionProfile(len, horizontal) {
-    const L = len + cushionExtend + BALL_R * 3;
+    const L = len + cushionExtend + 6;
     const half = L / 2;
     const thicknessScale = horizontal ? LONG_CUSHION_FACE_SHRINK : 1;
     const baseThickness = (cushionW + cushionInward) * thicknessScale;
@@ -666,38 +661,32 @@ function Table3D(parent) {
     if (!table.userData.cushions) table.userData.cushions = [];
     table.userData.cushions.push(g);
   }
-  const vertSeg = PLAY_H / 2 - BALL_R * 6;
-  const horizontalLen =
-    PLAY_W - (cushionExtend + BALL_R * 3) - LONG_CUSHION_TRIM;
-  const verticalLen = PLAY_H / 2 - (cushionExtend + BALL_R * 3);
+  const vertSeg = PLAY_H / 2 - 12;
+  const horizontalLen = PLAY_W - (cushionExtend + 6) - LONG_CUSHION_TRIM;
+  const verticalLen = PLAY_H / 2 - (cushionExtend + 6);
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
   const rightX = halfW + (TABLE.WALL * 0.5) / 2;
   addCushion(0, bottomZ, horizontalLen, true);
-  addCushion(leftX, -halfH + BALL_R * 3 + vertSeg / 2, verticalLen, false);
-  addCushion(rightX, halfH - BALL_R * 3 - vertSeg / 2, verticalLen, false);
+  addCushion(leftX, -halfH + 6 + vertSeg / 2, verticalLen, false);
+  addCushion(rightX, halfH - 6 - vertSeg / 2, verticalLen, false);
   addCushion(0, topZ, horizontalLen, true);
-  addCushion(leftX, halfH - BALL_R * 3 - vertSeg / 2, verticalLen, false);
-  addCushion(rightX, -halfH + BALL_R * 3 + vertSeg / 2, verticalLen, false);
+  addCushion(leftX, halfH - 6 - vertSeg / 2, verticalLen, false);
+  addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false);
 
   if (!table.userData.pockets) table.userData.pockets = [];
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        BALL_R * 3.1,
-        BALL_R * 3.1,
-        cutHeight,
-        48
-      ),
+      new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
       new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
     );
     cut.rotation.set(0, 0, 0);
     const scaleY = 1.15;
     cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
-    const pocketLipLift = 0.08 * DIMENSION_SCALE;
+    const pocketLipLift = 0.08;
     cut.position.set(p.x, -half + pocketLipLift, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
@@ -994,7 +983,7 @@ function SnookerGame() {
       let shotPrediction = null;
       let cueAnimating = false; // forward stroke animation state
       const legHeight = TABLE.THICK * 2 * 3 * 1.15 * 2.25;
-      const floorY = TABLE_Y - TABLE.THICK - legHeight + 0.3 * DIMENSION_SCALE;
+      const floorY = TABLE_Y - TABLE.THICK - legHeight + 0.3;
       const roomWidth = TABLE.W * 3.2;
       const roomDepth = TABLE.H * 3.6;
       const wallThickness = 1.2;
@@ -1441,8 +1430,8 @@ function SnookerGame() {
 
       // Lights
       // Place two spotlights above the table with a slightly larger footprint and extra brightness
-      const lightHeight = TABLE_Y + 100 * DIMENSION_SCALE; // raise spotlights slightly higher
-      const rectSizeBase = 21 * DIMENSION_SCALE;
+      const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
+      const rectSizeBase = 21;
       const rectSize = rectSizeBase * 0.45 * 1.2; // enlarge the footprint a touch for broader coverage
       const lightIntensity = 31.68 * 1.3 * 1.3; // increase brightness by an additional 30%
 
