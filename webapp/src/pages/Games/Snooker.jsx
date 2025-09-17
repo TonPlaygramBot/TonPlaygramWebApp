@@ -498,8 +498,8 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 1;
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.08;
+  const LONG_CUSHION_TRIM = 1.6;
+  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.12;
   function cushionProfile(len) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -510,8 +510,10 @@ function Table3D(parent) {
     const backY = frontY + thickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const cut = thickness / Math.tan(rad);
-    const tipLeft = -half + cut;
-    const tipRight = half - cut;
+    const maxCut = Math.max(half - 0.75, half * 0.2);
+    const adjustedCut = Math.min(cut, maxCut);
+    const tipLeft = -half + adjustedCut;
+    const tipRight = half - adjustedCut;
     const s = new THREE.Shape();
     s.moveTo(tipLeft, frontY);
     s.lineTo(tipRight, frontY);
@@ -520,8 +522,8 @@ function Table3D(parent) {
     s.lineTo(tipLeft, frontY);
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
-    let innerStart = -half + cut;
-    let innerEnd = half - cut;
+    let innerStart = -half + adjustedCut;
+    let innerEnd = half - adjustedCut;
     if (!(innerEnd > innerStart)) {
       innerStart = -half * 0.6;
       innerEnd = half * 0.6;
