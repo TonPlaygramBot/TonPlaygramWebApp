@@ -579,8 +579,6 @@ function Table3D(parent) {
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // make the long cushions just a touch slimmer toward the play field
-  const STRAIGHT_CUT_SAFETY = 0.01; // prevent the chamfer from collapsing when lengths get very short
-  const TOP_BEVEL_CLEARANCE = 0.9; // keep the top groove clear of the 32.5° bevel so the edge remains perfectly straight
   function cushionProfile(len, horizontal) {
     const L = len + cushionExtend + 6;
     const half = L / 2;
@@ -600,27 +598,6 @@ function Table3D(parent) {
     s.lineTo(tipRight, frontY);
     s.lineTo(half, backY);
     s.lineTo(-half, backY);
-    const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
-    const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
-    const frontSpan = Math.max(TOP_BEVEL_CLEARANCE, half - straightCut);
-    let notchHalf = frontSpan - TOP_BEVEL_CLEARANCE;
-    if (!(notchHalf > TOP_BEVEL_CLEARANCE)) {
-      notchHalf = Math.max(TOP_BEVEL_CLEARANCE * 1.1, len * 0.25);
-    }
-    const maxNotch = Math.max(TOP_BEVEL_CLEARANCE, frontSpan - STRAIGHT_CUT_SAFETY);
-    if (maxNotch > TOP_BEVEL_CLEARANCE) {
-      notchHalf = THREE.MathUtils.clamp(notchHalf, TOP_BEVEL_CLEARANCE, maxNotch);
-    } else {
-      notchHalf = TOP_BEVEL_CLEARANCE;
-    }
-    const leftX = -notchHalf;
-    const rightX = notchHalf;
-    const hollow = new THREE.Path();
-    hollow.moveTo(leftX, hollowTop);
-    hollow.lineTo(0, hollowPeak);
-    hollow.lineTo(rightX, hollowTop);
-    hollow.lineTo(leftX, hollowTop);
-    s.holes.push(hollow);
     const geo = new THREE.ExtrudeGeometry(s, {
       depth: railH,
       bevelEnabled: false
