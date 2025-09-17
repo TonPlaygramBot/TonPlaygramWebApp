@@ -135,7 +135,8 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
-const FRICTION = 0.995;
+// Slightly faster surface to keep balls rolling realistically on the snooker cloth
+const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -166,7 +167,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // includes separate tones for rails, base wood and cloth markings
 const DARK_WOOD = 0x593517;
 const COLORS = Object.freeze({
-  cloth: 0x1e7b1e,
+  cloth: 0x176b32,
   rail: DARK_WOOD,
   base: DARK_WOOD,
   markings: 0xffffff,
@@ -197,7 +198,7 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 36 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minR: 32 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -228,7 +229,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.92 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.88 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -245,6 +246,63 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
+
+function makeClothTexture() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#155c2c';
+  ctx.fillRect(0, 0, size, size);
+
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+  gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.09)');
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'source-over';
+
+  const spacing = 14;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+  for (let i = -size; i <= size * 2; i += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(i, -size);
+    ctx.lineTo(i - size, size * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  for (let i = -size; i <= size * 2; i += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(-size, i);
+    ctx.lineTo(size * 2, i - size);
+    ctx.stroke();
+  }
+
+  const noise = ctx.getImageData(0, 0, size, size);
+  const { data } = noise;
+  const samples = Math.floor(size * size * 0.035);
+  for (let i = 0; i < samples; i++) {
+    const idx = Math.floor(Math.random() * size * size) * 4;
+    const delta = (Math.random() - 0.5) * 28;
+    data[idx] = THREE.MathUtils.clamp(data[idx] + delta, 0, 255);
+    data[idx + 1] = THREE.MathUtils.clamp(data[idx + 1] + delta * 0.9, 0, 255);
+    data[idx + 2] = THREE.MathUtils.clamp(data[idx + 2] + delta * 0.6, 0, 255);
+  }
+  ctx.putImageData(noise, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  const repeatScale = 38;
+  texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
+}
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
@@ -427,11 +485,25 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.97,
-    sheen: 0.6,
-    sheenRoughness: 0.9
+    roughness: 0.93,
+    sheen: 0.62,
+    sheenRoughness: 0.85,
+    clearcoat: 0.08
   });
+  const clothTexture = makeClothTexture();
+  if (clothTexture) {
+    clothMat.map = clothTexture;
+    clothMat.bumpMap = clothTexture;
+    clothMat.bumpScale = 0.05;
+    clothMat.needsUpdate = true;
+  }
   const cushionMat = clothMat.clone();
+  if (clothTexture) {
+    cushionMat.map = clothTexture;
+    cushionMat.bumpMap = clothTexture;
+    cushionMat.bumpScale = clothMat.bumpScale;
+    cushionMat.needsUpdate = true;
+  }
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.25,
@@ -732,7 +804,7 @@ function Table3D(parent) {
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
-  const LONG_CUSHION_FACE_SHRINK = 0.99; // leave the long cushions only the slightest bit slimmer toward the play field
+  const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32; // pull the lower edge upward so the cushion sits higher off the cloth
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54; // taper the underside more aggressively to form a clear triangular pocket beneath the rail
@@ -829,7 +901,19 @@ function Table3D(parent) {
   addCushion(leftX, halfH - 6 - vertSeg / 2, verticalLen, false);
   addCushion(rightX, -halfH + 6 + vertSeg / 2, verticalLen, false);
 
+  table.updateMatrixWorld(true);
+  let cushionTopLocal = TABLE.THICK;
+  if (table.userData.cushions?.length) {
+    const cushionBox = new THREE.Box3();
+    for (const cushion of table.userData.cushions) {
+      cushionBox.setFromObject(cushion);
+      cushionTopLocal = Math.max(cushionTopLocal, cushionBox.max.y);
+    }
+  }
+  table.userData.cushionTopLocal = cushionTopLocal;
+
   if (!table.userData.pockets) table.userData.pockets = [];
+  const pocketLipTop = cushionTopLocal - 0.002;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
@@ -840,8 +924,7 @@ function Table3D(parent) {
     const scaleY = 1.15;
     cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
-    const pocketLipLift = 0.08;
-    cut.position.set(p.x, -half + pocketLipLift, p.y);
+    cut.position.set(p.x, pocketLipTop - half, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
   });
@@ -851,6 +934,8 @@ function Table3D(parent) {
   updateRailLimitsFromTable(table);
 
   table.position.y = TABLE_Y;
+  table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
+  table.userData.cushionLipClearance = pocketLipTop;
   parent.add(table);
   return {
     centers: pocketCenters(),
@@ -889,6 +974,7 @@ function SnookerGame() {
   const followViewRef = useRef(null);
   const rendererRef = useRef(null);
   const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
+  const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
@@ -1398,13 +1484,26 @@ function SnookerGame() {
             CAMERA.maxPhi
           );
           const theta = orbit.theta ?? sph.theta;
+          const cushionLimit = Math.max(
+            TABLE.THICK * 0.5,
+            cushionHeightRef.current
+          );
+          const phiCap = Math.acos(
+            THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
+          );
+          const safePhi = Math.min(phi, phiCap);
           if (immediate) {
             sph.radius = radius;
-            sph.phi = phi;
+            sph.phi = Math.max(CAMERA.minPhi, safePhi);
             sph.theta = theta;
             updateCamera();
           } else {
-            animateCamera({ radius, phi, theta, duration: 500 });
+            animateCamera({
+              radius,
+              phi: Math.max(CAMERA.minPhi, safePhi),
+              theta,
+              duration: 500
+            });
           }
         };
         const makePocketCameraView = (ballId, followView) => {
@@ -1467,8 +1566,13 @@ function SnookerGame() {
           const baseR = fitRadius(camera, m);
           let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
           let r = baseR * (1 - 0.8 * t);
-          const railLimit = TABLE.THICK + 0.4; // stay above side rails
-          const phiCap = Math.acos(THREE.MathUtils.clamp(railLimit / r, -1, 1));
+          const cushionLimit = Math.max(
+            TABLE.THICK * 0.5,
+            cushionHeightRef.current
+          );
+          const phiCap = Math.acos(
+            THREE.MathUtils.clamp(cushionLimit / r, -1, 1)
+          );
           sph.phi = clamp(
             sph.phi,
             CAMERA.minPhi,
@@ -1476,6 +1580,12 @@ function SnookerGame() {
           );
           t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
           sph.radius = clamp(baseR * (1 - 0.8 * t), CAMERA.minR, CAMERA.maxR);
+          const radiusPhiCap = Math.acos(
+            THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
+          );
+          if (sph.phi > radiusPhiCap) {
+            sph.phi = Math.max(CAMERA.minPhi, radiusPhiCap);
+          }
           updateCamera();
           camera.updateProjectionMatrix();
         };
@@ -1492,7 +1602,7 @@ function SnookerGame() {
               : 1.4
         );
         // bring the starting view a touch closer to the action
-        sph.radius *= 0.94;
+        sph.radius *= 0.9;
         updateCamera();
         if (!initialOrbitRef.current) {
           initialOrbitRef.current = {
@@ -1646,12 +1756,23 @@ function SnookerGame() {
       } = Table3D(world);
       clothMat = tableCloth;
       cushionMat = tableCushion;
+      if (table?.userData) {
+        const cushionLip = table.userData.cushionTopLocal ?? TABLE.THICK;
+        cushionHeightRef.current = Math.max(TABLE.THICK + 0.1, cushionLip - 0.02);
+      }
       // ensure the camera respects the configured zoom limits
       sph.radius = Math.min(sph.radius, CAMERA.maxR);
       worldScaleFactor = WORLD_SCALE;
       world.scale.setScalar(worldScaleFactor);
       world.updateMatrixWorld(true);
       updateCamera();
+      fit(
+        topViewRef.current
+          ? 1.05
+          : window.innerHeight > window.innerWidth
+            ? 1.6
+            : 1.4
+      );
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
