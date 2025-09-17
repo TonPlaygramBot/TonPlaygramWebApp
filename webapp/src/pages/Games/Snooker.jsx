@@ -155,6 +155,7 @@ const CUE_Y = BALL_R; // keep cue stick level with the cue ball center
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
+const CUSHION_RESTITUTION = 0.94; // lively bounce when balls meet the cushions
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -163,7 +164,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // includes separate tones for rails, base wood and cloth markings
 const COLORS = Object.freeze({
   cloth: 0x1e7b1e,
-  rail: 0x3a2a1a,
+  rail: 0xb48753,
   base: 0x5b3a1a,
   markings: 0xffffff,
   cue: 0xffffff,
@@ -175,6 +176,54 @@ const COLORS = Object.freeze({
   pink: 0xff69b4,
   black: 0x000000
 });
+
+let cachedRailWoodTexture = null;
+function getRailWoodTexture() {
+  if (cachedRailWoodTexture) return cachedRailWoodTexture;
+  if (typeof document === 'undefined') return null;
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const base = ctx.createLinearGradient(0, 0, size, size);
+  base.addColorStop(0, '#f4d6a5');
+  base.addColorStop(0.5, '#d2a474');
+  base.addColorStop(1, '#b07b47');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  const bandCount = 90;
+  for (let i = 0; i < bandCount; i++) {
+    const y = (i / bandCount) * size;
+    const amplitude = size * 0.01 + Math.random() * size * 0.01;
+    const offset = Math.sin((i / bandCount) * Math.PI * 2) * size * 0.015;
+    ctx.beginPath();
+    ctx.moveTo(0, y + offset);
+    for (let x = 0; x <= size; x += 16) {
+      const noise = Math.sin((x / size) * Math.PI * 4 + i * 0.4) * amplitude;
+      ctx.lineTo(x, y + offset + noise);
+    }
+    ctx.strokeStyle = `rgba(102, 63, 33, ${0.15 + Math.random() * 0.1})`;
+    ctx.lineWidth = 3 + Math.random() * 2;
+    ctx.stroke();
+  }
+  ctx.restore();
+  const highlight = ctx.createLinearGradient(0, 0, 0, size);
+  highlight.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+  highlight.addColorStop(0.25, 'rgba(255, 255, 255, 0)');
+  highlight.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
+  ctx.fillStyle = highlight;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  texture.repeat.set(3, 1.2);
+  cachedRailWoodTexture = texture;
+  return cachedRailWoodTexture;
+}
 
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
@@ -245,19 +294,19 @@ function reflectRails(ball) {
   if (nearPocket) return;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     ball.pos.x = -limX;
-    ball.vel.x *= -1;
+    ball.vel.x *= -CUSHION_RESTITUTION;
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     ball.pos.x = limX;
-    ball.vel.x *= -1;
+    ball.vel.x *= -CUSHION_RESTITUTION;
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     ball.pos.y = -limY;
-    ball.vel.y *= -1;
+    ball.vel.y *= -CUSHION_RESTITUTION;
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     ball.pos.y = limY;
-    ball.vel.y *= -1;
+    ball.vel.y *= -CUSHION_RESTITUTION;
   }
 }
 
@@ -374,11 +423,16 @@ function Table3D(parent) {
     sheenRoughness: 0.9
   });
   const cushionMat = clothMat.clone();
+  const railWoodTexture = getRailWoodTexture();
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
-    metalness: 0.3,
-    roughness: 0.8
+    metalness: 0.25,
+    roughness: 0.55,
+    map: railWoodTexture || null
   });
+  if (railWoodTexture) {
+    railWoodTexture.needsUpdate = true;
+  }
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -475,6 +529,27 @@ function Table3D(parent) {
     depth: frameDepth,
     bevelEnabled: false
   });
+  const framePos = frameGeo.attributes.position;
+  const frameArr = framePos.array;
+  const innerThresholdX = halfW + railW + 1e-3;
+  const innerThresholdY = halfH + railW + 1e-3;
+  const topExpand = railW * 0.25;
+  const bottomExpand = railW * 0.55;
+  for (let i = 0; i < frameArr.length; i += 3) {
+    const x = frameArr[i];
+    const y = frameArr[i + 1];
+    const z = frameArr[i + 2];
+    const t = THREE.MathUtils.clamp(z / frameDepth, 0, 1);
+    const expand = topExpand + (bottomExpand - topExpand) * t;
+    if (Math.abs(x) > innerThresholdX) {
+      frameArr[i] = x + Math.sign(x) * expand;
+    }
+    if (Math.abs(y) > innerThresholdY) {
+      frameArr[i + 1] = y + Math.sign(y) * expand * 0.85;
+    }
+  }
+  framePos.needsUpdate = true;
+  frameGeo.computeVertexNormals();
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   // lower the frame so the top remains aligned with the play field
@@ -539,11 +614,14 @@ function Table3D(parent) {
     const tipLeft = -half + adjustedCut;
     const tipRight = half - adjustedCut;
     const s = new THREE.Shape();
+    const noseLift = baseThickness * 0.12;
+    const noseDepth = baseThickness * 0.28;
     s.moveTo(-half, backY);
-    s.lineTo(tipLeft, frontY);
-    s.lineTo(tipRight, frontY);
+    s.lineTo(tipLeft, frontY + noseLift);
+    s.quadraticCurveTo(0, frontY - noseDepth, tipRight, frontY + noseLift);
     s.lineTo(half, backY);
     s.lineTo(-half, backY);
+    s.closePath();
     const hollowTop = THREE.MathUtils.lerp(frontY, backY, 0.55);
     const hollowPeak = THREE.MathUtils.lerp(frontY, backY, 0.82);
     const frontSpan = Math.max(TOP_BEVEL_CLEARANCE, half - adjustedCut);
