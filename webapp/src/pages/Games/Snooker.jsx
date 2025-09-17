@@ -141,7 +141,7 @@ const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const POCKET_JAW_LIP_HEIGHT = 0.003; // keep pocket rings barely above the cloth
+const POCKET_JAW_LIP_HEIGHT = -0.001; // sink pocket rings so they sit flush with the cloth
 const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
 const CLOTH_THICKNESS = TABLE.THICK * 0.18; // render a much thinner cloth lip along the pocket edges
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
@@ -223,8 +223,8 @@ const BREAK_VIEW = Object.freeze({
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
-  phiOffset: 0.06,
-  fitMargin: 1.02,
+  phiOffset: 0.02,
+  fitMargin: 1.08,
   followWeight: 0.25,
   maxOffset: PLAY_W * 0.14
 });
@@ -1777,8 +1777,8 @@ function SnookerGame() {
       // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.45 * 1.2 * 0.5; // halve the previous footprint for crisper highlights
-      const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35; // brighten pot lights further for stronger table highlights
+      const rectSize = rectSizeBase * 0.72; // widen each spotlight footprint for broader coverage
+      const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25; // push more light down onto the cloth
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -1793,7 +1793,7 @@ function SnookerGame() {
       };
 
       // evenly space the three pot lights along the table center line
-      const lightPositions = [-TABLE.H * 0.25, 0, TABLE.H * 0.25];
+      const lightPositions = [-TABLE.H * 0.32, 0, TABLE.H * 0.32];
       for (const z of lightPositions) {
         makeLight(0, z);
       }
