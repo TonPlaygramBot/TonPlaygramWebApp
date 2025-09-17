@@ -200,7 +200,7 @@ const CAMERA = {
   far: 4000,
   minR: 32 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  minPhi: 0.56,
+  minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: Math.PI / 2 - 0.04
 };
@@ -214,11 +214,10 @@ const BREAK_VIEW = Object.freeze({
   phi: 1.12
 });
 const ACTION_VIEW = Object.freeze({
-  phiOffset: 0.04,
-  radiusFactor: 1.15,
-  followWeight: 0.28,
-  maxOffset: PLAY_W * 0.18,
-  lookCenterBlend: 0.3
+  phiOffset: 0.08,
+  radiusFactor: 1.05,
+  followWeight: 0.35,
+  maxOffset: PLAY_W * 0.18
 });
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -692,7 +691,6 @@ function Table3D(parent) {
     linewidth: 2
   });
   const baulkZ = -PLAY_H / 4;
-  const SPOTS = spotPositions(baulkZ);
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(-halfW, 0.02, baulkZ),
     new THREE.Vector3(halfW, 0.02, baulkZ)
@@ -915,73 +913,20 @@ function Table3D(parent) {
   table.userData.cushionTopLocal = cushionTopLocal;
 
   if (!table.userData.pockets) table.userData.pockets = [];
-  if (!table.userData.pocketRims) table.userData.pocketRims = [];
   const pocketLipTop = cushionTopLocal - 0.002;
-  const rimMat = new THREE.MeshStandardMaterial({
-    color: 0x362515,
-    metalness: 0.2,
-    roughness: 0.45,
-    side: THREE.DoubleSide
-  });
-  const entryTargets = [
-    new THREE.Vector2(...SPOTS.brown),
-    new THREE.Vector2(...SPOTS.brown),
-    new THREE.Vector2(...SPOTS.pink),
-    new THREE.Vector2(...SPOTS.pink),
-    new THREE.Vector2(...SPOTS.blue),
-    new THREE.Vector2(...SPOTS.blue)
-  ];
-  pocketCenters().forEach((p, idx) => {
-    const target = entryTargets[idx] ?? new THREE.Vector2(0, 0);
-    const entryDir = p.clone().sub(target);
-    if (entryDir.lengthSq() < 1e-4) {
-      entryDir.set(p.x, p.y);
-    }
-    entryDir.normalize();
-    const entryAngle = Math.atan2(entryDir.y, entryDir.x);
-    const thetaStart = entryAngle + Math.PI / 2;
+  pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
-    const cutGeo = new THREE.CylinderGeometry(
-      6.2,
-      6.2,
-      cutHeight,
-      48,
-      1,
-      true,
-      thetaStart,
-      Math.PI
-    );
     const cut = new THREE.Mesh(
-      cutGeo,
+      new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
       new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
     );
+    cut.rotation.set(0, 0, 0);
     const scaleY = 1.15;
     cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
     cut.position.set(p.x, pocketLipTop - half, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
-
-    const rimInner = POCKET_VIS_R * 0.82;
-    const rimOuter = POCKET_VIS_R * 1.05;
-    const rimArc = Math.PI * 1.35;
-    const backAngle = entryAngle + Math.PI;
-    const rimStart = backAngle - rimArc / 2;
-    const rimGeo = new THREE.RingGeometry(
-      rimInner,
-      rimOuter,
-      48,
-      1,
-      rimStart,
-      rimArc
-    );
-    rimGeo.rotateX(-Math.PI / 2);
-    const rim = new THREE.Mesh(rimGeo, rimMat);
-    rim.position.set(p.x, pocketLipTop + 0.01, p.y);
-    rim.castShadow = true;
-    rim.receiveShadow = true;
-    table.add(rim);
-    table.userData.pocketRims.push(rim);
   });
 
   alignRailsToCushions(table, frame);
@@ -1388,27 +1333,11 @@ function SnookerGame() {
                 TABLE_Y + 0.05,
                 baseTarget.y + offsetVec.y
               ).multiplyScalar(worldScaleFactor);
-              const focusTargetLocal = new THREE.Vector3(
+              const focusTarget = new THREE.Vector3(
                 cue.pos.x,
                 BALL_R,
                 cue.pos.y
-              );
-              const centerTargetLocal = new THREE.Vector3(
-                baseTarget.x,
-                BALL_R,
-                baseTarget.y
-              );
-              const lookBlend = THREE.MathUtils.clamp(
-                activeShotView.lookCenterBlend ?? ACTION_VIEW.lookCenterBlend ?? 0,
-                0,
-                1
-              );
-              const blendedLocal = lookBlend
-                ? focusTargetLocal.clone().lerp(centerTargetLocal, lookBlend)
-                : focusTargetLocal;
-              const focusTarget = blendedLocal.clone().multiplyScalar(
-                worldScaleFactor
-              );
+              ).multiplyScalar(worldScaleFactor);
               camera.position.setFromSpherical(shotSph).add(anchor);
               camera.lookAt(focusTarget);
               lookTarget = focusTarget;
@@ -1470,46 +1399,20 @@ function SnookerGame() {
             lookTarget = focusTarget;
           } else {
             const followCue = cue?.mesh && cue.active && !shooting;
-            let focusTargetLocal;
+            let focusTarget;
             if (shooting && followViewRef.current?.lastBallPos) {
               const last = followViewRef.current.lastBallPos;
-              focusTargetLocal = new THREE.Vector3(last.x, BALL_R, last.y);
+              focusTarget = new THREE.Vector3(last.x, BALL_R, last.y);
             } else if (followCue) {
-              focusTargetLocal = new THREE.Vector3(
-                cue.pos.x,
-                BALL_R,
-                cue.pos.y
-              );
+              focusTarget = new THREE.Vector3(cue.pos.x, BALL_R, cue.pos.y);
             } else {
-              focusTargetLocal = new THREE.Vector3(
+              focusTarget = new THREE.Vector3(
                 playerOffsetRef.current,
                 TABLE_Y + 0.05,
                 0
               );
             }
-            if (!shooting) {
-              const zoomRange = CAMERA.maxR - CAMERA.minR;
-              const zoomT =
-                zoomRange > 0
-                  ? (sph.radius - CAMERA.minR) / zoomRange
-                  : 0;
-              if (zoomT > 0.92) {
-                const blend = THREE.MathUtils.clamp(
-                  (zoomT - 0.92) / 0.08,
-                  0,
-                  1
-                );
-                const centerLocal = new THREE.Vector3(
-                  playerOffsetRef.current,
-                  focusTargetLocal.y,
-                  0
-                );
-                focusTargetLocal.lerp(centerLocal, blend);
-              }
-            }
-            const focusTarget = focusTargetLocal.multiplyScalar(
-              worldScaleFactor
-            );
+            focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
             camera.position.setFromSpherical(sph).add(lookTarget);
             camera.lookAt(lookTarget);
@@ -1878,6 +1781,7 @@ function SnookerGame() {
         return b;
       };
       cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
+      const SPOTS = spotPositions(baulkZ);
 
       // 15 red balls arranged in triangle behind the pink
       const startZ = SPOTS.pink[1] + BALL_R * 2;
@@ -2172,12 +2076,8 @@ function SnookerGame() {
               CAMERA.maxPhi
             );
             const baseRadius = clamp(baseOrbit.radius, CAMERA.minR, CAMERA.maxR);
-            const cameraForFit = cameraRef.current;
-            const fullTableRadius = cameraForFit
-              ? fitRadius(cameraForFit, 1.08)
-              : baseRadius;
             const followRadius = clamp(
-              Math.max(baseRadius * ACTION_VIEW.radiusFactor, fullTableRadius),
+              baseRadius * ACTION_VIEW.radiusFactor,
               CAMERA.minR,
               CAMERA.maxR
             );
@@ -2193,7 +2093,6 @@ function SnookerGame() {
               offset: new THREE.Vector2(),
               followWeight: ACTION_VIEW.followWeight,
               maxOffset: ACTION_VIEW.maxOffset,
-              lookCenterBlend: ACTION_VIEW.lookCenterBlend,
               lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y),
               orbitSnapshot,
               pendingPocket: null,
