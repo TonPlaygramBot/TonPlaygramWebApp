@@ -178,8 +178,8 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-// Reduce the base shot energy slightly so strokes start 25% softer.
-const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.85 * 0.75;
+// Boost base shot speed so the power slider delivers ~20% more energy.
+const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.85;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -194,13 +194,8 @@ const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
-const CUSHION_CUT_RAD = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.07; // align physics with cushion noses
-const ANGLED_CUT_INSET = POCKET_VIS_R * 0.65;
-const ANGLED_CUT_PADDING = BALL_R * 0.5;
-const ANGLED_CUT_SPEED_SCALE = 0.2; // retain 20% of the impact energy on angled jaws
-const POCKET_ENTRY_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.92;
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -260,7 +255,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.88,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
@@ -290,8 +285,6 @@ const ACTION_CAMERA_MIN_PHI = Math.min(
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
-const TMP_VEC2A = new THREE.Vector2();
-const TMP_VEC2B = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
 const lerpAngle = (a, b, t) => {
   const delta = THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) - Math.PI;
@@ -342,29 +335,22 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#1a7b36';
+  ctx.fillStyle = '#176b32';
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 3;
-  const radius = 0.6;
+  const spacing = 2;
+  const radius = 0.45;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const useLight = (x + y) % (spacing * 2) === 0;
       ctx.fillStyle = useLight
-        ? 'rgba(255,255,255,0.75)'
-        : 'rgba(0,0,0,0.65)';
+        ? 'rgba(255,255,255,0.6)'
+        : 'rgba(0,0,0,0.55)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
-
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  for (let y = -spacing; y < size; y += spacing * 5) {
-    ctx.fillRect(0, y, size, spacing * 0.6);
-  }
-  ctx.globalAlpha = 1;
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
   sheen.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
@@ -376,19 +362,11 @@ function makeClothTexture() {
   ctx.globalCompositeOperation = 'source-over';
 
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.lineWidth = 0.4;
+  ctx.lineWidth = 0.5;
   for (let y = -size; y < size; y += spacing * 6) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(size, y + size);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
-  for (let x = -size; x < size; x += spacing * 6) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + size, size);
     ctx.stroke();
   }
 
@@ -404,82 +382,36 @@ function makeClothTexture() {
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
-  let minPocketDist = Infinity;
-  for (const center of pocketCenters()) {
-    minPocketDist = Math.min(minPocketDist, ball.pos.distanceTo(center));
-  }
-  if (minPocketDist < POCKET_ENTRY_RADIUS) return false;
+  // If the ball is near any pocket, skip rail reflections so it can drop in
+  const nearPocket = pocketCenters().some(
+    (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
+  );
+  if (nearPocket) return false;
   let collided = false;
-  let collidedX = false;
-  let collidedY = false;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = true;
-    collidedX = true;
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = true;
-    collidedX = true;
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = true;
-    collidedY = true;
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = true;
-    collidedY = true;
   }
-  ball.pos.x = THREE.MathUtils.clamp(ball.pos.x, -limX, limX);
-  ball.pos.y = THREE.MathUtils.clamp(ball.pos.y, -limY, limY);
-
-  const cutLimitX = Math.max(0, limX - ANGLED_CUT_INSET + ANGLED_CUT_PADDING);
-  const cutLimitY = Math.max(0, limY - ANGLED_CUT_INSET + ANGLED_CUT_PADDING);
-  if (
-    Math.abs(ball.pos.x) > cutLimitX &&
-    Math.abs(ball.pos.y) > cutLimitY &&
-    minPocketDist > POCKET_ENTRY_RADIUS
-  ) {
-    const signX = ball.pos.x >= 0 ? 1 : -1;
-    const signY = ball.pos.y >= 0 ? 1 : -1;
-    const anchorX = signX * (limX - ANGLED_CUT_INSET);
-    const anchorY = signY * (limY - ANGLED_CUT_INSET);
-    TMP_VEC2A.set(ball.pos.x - anchorX, ball.pos.y - anchorY);
-    TMP_VEC2B.set(
-      -signX * Math.sin(CUSHION_CUT_RAD),
-      -signY * Math.cos(CUSHION_CUT_RAD)
-    ).normalize();
-    const dist = TMP_VEC2A.dot(TMP_VEC2B);
-    const outwardSpeed = ball.vel.dot(TMP_VEC2B);
-    if (dist > 0 || outwardSpeed > 0 || (collidedX && collidedY)) {
-      if (dist > 0) {
-        ball.pos.x -= TMP_VEC2B.x * dist;
-        ball.pos.y -= TMP_VEC2B.y * dist;
-      }
-      if (outwardSpeed > 0) {
-        const bounce = outwardSpeed * (1 + CUSHION_RESTITUTION);
-        ball.vel.addScaledVector(TMP_VEC2B, -bounce);
-      }
-      if (ball.vel.lengthSq() > 0) {
-        ball.vel.multiplyScalar(ANGLED_CUT_SPEED_SCALE);
-      }
-      collided = true;
-      if (ball.spin?.lengthSq() > 0) {
-        applySpinImpulse(ball, 0.6);
-      }
-    }
-  }
-
   return collided;
 }
 
@@ -663,7 +595,7 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.18;
+    clothMat.bumpScale = 0.12;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
@@ -673,9 +605,6 @@ function Table3D(parent) {
     cushionMat.bumpScale = clothMat.bumpScale;
     cushionMat.needsUpdate = true;
   }
-  cushionMat.color.offsetHSL(0, 0, 0.05);
-  cushionMat.roughness = 0.82;
-  cushionMat.envMapIntensity = 0.32;
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.25,
@@ -726,7 +655,7 @@ function Table3D(parent) {
     );
     sleeveGeo.translate(0, -POCKET_CLOTH_DEPTH / 2, 0);
     const sleeve = new THREE.Mesh(sleeveGeo, pocketClothMat);
-    sleeve.position.set(p.x, POCKET_JAW_LIP_HEIGHT + BALL_R * 0.05, p.y);
+    sleeve.position.set(p.x, POCKET_JAW_LIP_HEIGHT, p.y);
     sleeve.castShadow = false;
     sleeve.receiveShadow = true;
     table.add(sleeve);
@@ -741,7 +670,7 @@ function Table3D(parent) {
 
     const edgeFalloffX = toneCanvas.width * 0.08;
     const edgeFalloffY = toneCanvas.height * 0.05;
-    const deepShadow = 'rgba(0, 0, 0, 0.26)';
+    const deepShadow = 'rgba(0, 0, 0, 0.32)';
     const fade = 'rgba(0, 0, 0, 0)';
 
     let grad = toneCtx.createLinearGradient(0, 0, edgeFalloffX, 0);
@@ -785,7 +714,7 @@ function Table3D(parent) {
 
     const highlightX = edgeFalloffX * 0.35;
     const highlightY = edgeFalloffY * 0.35;
-    const highlightTint = 'rgba(255, 255, 255, 0.1)';
+    const highlightTint = 'rgba(255, 255, 255, 0.08)';
 
     grad = toneCtx.createLinearGradient(edgeFalloffX, 0, edgeFalloffX + highlightX, 0);
     grad.addColorStop(0, highlightTint);
@@ -831,30 +760,12 @@ function Table3D(parent) {
       highlightY
     );
 
-    const shelfWidth = toneCanvas.height * 0.018;
-    const shelfTint = 'rgba(255, 255, 255, 0.05)';
-    toneCtx.fillStyle = shelfTint;
-    toneCtx.fillRect(0, edgeFalloffY, toneCanvas.width, shelfWidth);
-    toneCtx.fillRect(
-      0,
-      toneCanvas.height - edgeFalloffY - shelfWidth,
-      toneCanvas.width,
-      shelfWidth
-    );
-    toneCtx.fillRect(edgeFalloffX, 0, shelfWidth, toneCanvas.height);
-    toneCtx.fillRect(
-      toneCanvas.width - edgeFalloffX - shelfWidth,
-      0,
-      shelfWidth,
-      toneCanvas.height
-    );
-
     const toCanvas = (p) => ({
       x: ((p.x + halfW) / (halfW * 2)) * toneCanvas.width,
       y: ((p.y + halfH) / (halfH * 2)) * toneCanvas.height
     });
     const pocketRadius = Math.max(toneCanvas.width, toneCanvas.height) * 0.06;
-    const pocketCore = pocketRadius * 0.34;
+    const pocketCore = pocketRadius * 0.3;
     pocketCenters().forEach((p) => {
       const { x, y } = toCanvas(p);
       const pocketGrad = toneCtx.createRadialGradient(
@@ -865,33 +776,14 @@ function Table3D(parent) {
         y,
         pocketRadius
       );
-      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.32)');
-      pocketGrad.addColorStop(0.55, 'rgba(0, 0, 0, 0.12)');
-      pocketGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.06)');
+      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
+      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
       pocketGrad.addColorStop(1, fade);
       toneCtx.fillStyle = pocketGrad;
       toneCtx.beginPath();
       toneCtx.arc(x, y, pocketRadius, 0, Math.PI * 2);
       toneCtx.closePath();
       toneCtx.fill();
-
-      const rimHighlight = toneCtx.createRadialGradient(
-        x,
-        y,
-        pocketRadius * 0.72,
-        x,
-        y,
-        pocketRadius
-      );
-      rimHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-      rimHighlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      toneCtx.globalCompositeOperation = 'lighter';
-      toneCtx.fillStyle = rimHighlight;
-      toneCtx.beginPath();
-      toneCtx.arc(x, y, pocketRadius, 0, Math.PI * 2);
-      toneCtx.closePath();
-      toneCtx.fill();
-      toneCtx.globalCompositeOperation = 'source-over';
     });
   }
 
