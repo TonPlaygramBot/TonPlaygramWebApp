@@ -144,7 +144,9 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 );
 const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-const FRICTION = 0.995;
+// Slightly reduce per-frame friction so rolls feel livelier on high refresh
+// rate displays (e.g. 90 Hz) instead of drifting into slow motion.
+const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.05;
 const TARGET_FPS = 90;
@@ -168,7 +170,8 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3;
+// Boost base shot speed so the power slider delivers ~20% more energy.
+const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -222,13 +225,13 @@ function spotPositions(baulkZ) {
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
 const STANDING_VIEW_PHI = 1.16;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
-const STANDING_VIEW_MARGIN = 0.84;
+const STANDING_VIEW_MARGIN = 0.78;
 const STANDING_VIEW_FOV = 62;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 1.05,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.95,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -244,7 +247,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 118 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
@@ -282,7 +285,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.74 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -2444,7 +2447,7 @@ function SnookerGame() {
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
           cueAnimating = true;
@@ -2621,7 +2624,8 @@ function SnookerGame() {
       const step = (now) => {
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
-        const frameScale = deltaMs / TARGET_FRAME_TIME_MS || 1;
+        const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS || 1;
+        const frameScale = Math.max(frameScaleBase, 1);
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
@@ -2650,7 +2654,7 @@ function SnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
