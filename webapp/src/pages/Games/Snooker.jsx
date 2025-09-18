@@ -219,10 +219,10 @@ function spotPositions(baulkZ) {
   };
 }
 
-// Kamera: lejojmë ulje më të madhe (phi më i vogël), por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 0.92;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.46;
-const STANDING_VIEW_MARGIN = 1.08;
+// Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
+const STANDING_VIEW_PHI = 1.08;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.25;
+const STANDING_VIEW_MARGIN = 1.02;
 const STANDING_VIEW_FOV = 65;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -244,7 +244,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 150 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 138 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
@@ -265,9 +265,9 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 1;
-const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.35;
-const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi;
+const ACTION_CAMERA_RADIUS_SCALE = 0.9;
+const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.2;
+const ACTION_CAMERA_MIN_PHI = STANDING_VIEW_PHI;
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
@@ -1529,8 +1529,9 @@ function SnookerGame() {
                 cueBall.pos.x,
                 cueBall.pos.y
               );
+              const scaledRadius = sph.radius * ACTION_CAMERA_RADIUS_SCALE;
               const orbitRadius = clampOrbitRadius(
-                Math.max(sph.radius, ACTION_CAMERA_MIN_RADIUS)
+                Math.max(scaledRadius, ACTION_CAMERA_MIN_RADIUS)
               );
               const clampedPhi = clamp(
                 sph.phi,
