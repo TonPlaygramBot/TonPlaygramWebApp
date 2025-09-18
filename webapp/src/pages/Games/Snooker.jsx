@@ -154,9 +154,9 @@ const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.9975;
-const CUSHION_RESTITUTION = 0.99;
-const STOP_EPS = 0.05;
+const FRICTION = 0.992;
+const CUSHION_RESTITUTION = 0.96;
+const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
@@ -298,7 +298,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -335,17 +335,17 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#176b32';
+  ctx.fillStyle = '#1b7f3d';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const radius = 0.45;
+  const radius = 0.5;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const useLight = (x + y) % (spacing * 2) === 0;
       ctx.fillStyle = useLight
-        ? 'rgba(255,255,255,0.6)'
-        : 'rgba(0,0,0,0.55)';
+        ? 'rgba(220, 255, 220, 0.65)'
+        : 'rgba(10, 50, 26, 0.6)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -353,16 +353,16 @@ function makeClothTexture() {
   }
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
-  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
-  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
-  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.lineWidth = 0.45;
   for (let y = -size; y < size; y += spacing * 6) {
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -485,13 +485,14 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
   if (!BALL_MATERIAL_CACHE.has(color)) {
+    const baseColor = new THREE.Color(color);
     BALL_MATERIAL_CACHE.set(
       color,
-      new THREE.MeshStandardMaterial({
-        color,
-        roughness: 0.28,
-        metalness: 0.35,
-        envMapIntensity: 0.6
+      new THREE.MeshPhongMaterial({
+        color: baseColor,
+        specular: new THREE.Color(0xffffff).multiplyScalar(0.6),
+        shininess: 90,
+        reflectivity: 0.4
       })
     );
   }
@@ -587,24 +588,31 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.9,
-    metalness: 0.08,
-    envMapIntensity: 0.25
+    roughness: 0.82,
+    metalness: 0.05,
+    envMapIntensity: 0.35,
+    emissive: new THREE.Color(0x0a4523),
+    emissiveIntensity: 0.08
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.16;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.15;
     cushionMat.needsUpdate = true;
   }
+  const cushionColor = new THREE.Color(COLORS.cloth);
+  cushionColor.offsetHSL(0, 0, 0.08);
+  cushionMat.color.copy(cushionColor);
+  cushionMat.emissive = new THREE.Color(0x0b3f21);
+  cushionMat.emissiveIntensity = 0.12;
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.25,
@@ -670,8 +678,9 @@ function Table3D(parent) {
 
     const edgeFalloffX = toneCanvas.width * 0.08;
     const edgeFalloffY = toneCanvas.height * 0.05;
-    const deepShadow = 'rgba(0, 0, 0, 0.32)';
+    const deepShadow = 'rgba(8, 30, 18, 0.28)';
     const fade = 'rgba(0, 0, 0, 0)';
+    const seamTint = 'rgba(34, 110, 62, 0.22)';
 
     let grad = toneCtx.createLinearGradient(0, 0, edgeFalloffX, 0);
     grad.addColorStop(0, deepShadow);
@@ -714,7 +723,26 @@ function Table3D(parent) {
 
     const highlightX = edgeFalloffX * 0.35;
     const highlightY = edgeFalloffY * 0.35;
-    const highlightTint = 'rgba(255, 255, 255, 0.08)';
+    const highlightTint = 'rgba(255, 255, 255, 0.14)';
+
+    toneCtx.save();
+    toneCtx.globalCompositeOperation = 'overlay';
+    toneCtx.fillStyle = seamTint;
+    toneCtx.fillRect(0, 0, toneCanvas.width, edgeFalloffY * 1.4);
+    toneCtx.fillRect(
+      0,
+      toneCanvas.height - edgeFalloffY * 1.4,
+      toneCanvas.width,
+      edgeFalloffY * 1.4
+    );
+    toneCtx.fillRect(0, 0, edgeFalloffX * 1.2, toneCanvas.height);
+    toneCtx.fillRect(
+      toneCanvas.width - edgeFalloffX * 1.2,
+      0,
+      edgeFalloffX * 1.2,
+      toneCanvas.height
+    );
+    toneCtx.restore();
 
     grad = toneCtx.createLinearGradient(edgeFalloffX, 0, edgeFalloffX + highlightX, 0);
     grad.addColorStop(0, highlightTint);
@@ -776,8 +804,8 @@ function Table3D(parent) {
         y,
         pocketRadius
       );
-      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
-      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
+      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.26)');
+      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.08)');
       pocketGrad.addColorStop(1, fade);
       toneCtx.fillStyle = pocketGrad;
       toneCtx.beginPath();
@@ -2070,8 +2098,8 @@ function SnookerGame() {
 
       const cushionFill = new THREE.HemisphereLight(
         0xf4f1e7,
-        0x1a2218,
-        0.22
+        0x243625,
+        0.28
       );
       cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       world.add(cushionFill);
@@ -2786,11 +2814,13 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
+          const preStepVel = b.vel.clone();
+          const preFrictionSpeed = preStepVel.length();
           b.pos.addScaledVector(b.vel, frameScale);
-          b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
+          const frictionScale = Math.pow(FRICTION, frameScale);
+          b.vel.multiplyScalar(frictionScale);
           const speed = b.vel.length();
-          const scaledSpeed = speed * frameScale;
-          if (scaledSpeed < STOP_EPS) {
+          if (speed < STOP_EPS) {
             b.vel.set(0, 0);
             if (b.spin) b.spin.set(0, 0);
             if (b.id === 'cue') b.impacted = false;
@@ -2801,9 +2831,10 @@ function SnookerGame() {
             applySpinImpulse(b, 1);
           }
           b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-          if (scaledSpeed > 0) {
-            const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
-            const angle = scaledSpeed / BALL_R;
+          const travel = preFrictionSpeed * frameScale;
+          if (travel > 0) {
+            const axis = new THREE.Vector3(preStepVel.y, 0, -preStepVel.x).normalize();
+            const angle = travel / BALL_R;
             b.mesh.rotateOnWorldAxis(axis, angle);
           }
         });
