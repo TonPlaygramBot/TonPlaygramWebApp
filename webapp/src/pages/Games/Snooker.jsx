@@ -136,8 +136,15 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
+const BALL_SEGMENTS = Object.freeze({ width: 36, height: 24 });
+const BALL_GEOMETRY = new THREE.SphereGeometry(
+  BALL_R,
+  BALL_SEGMENTS.width,
+  BALL_SEGMENTS.height
+);
+const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-const FRICTION = 0.992;
+const FRICTION = 0.995;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.05;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -158,7 +165,7 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-const SHOT_BASE_SPEED = 8.2;
+const SHOT_BASE_SPEED = 12.5;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -227,7 +234,7 @@ let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
   radius: 150 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: CAMERA.maxPhi
+  phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -240,13 +247,16 @@ const ACTION_CAMERA = Object.freeze({
   phiLift: 0.12,
   thetaLerp: 0.25,
   switchDelay: 280,
-  minSwitchInterval: 340,
-  focusBlend: 0.45
+  minSwitchInterval: 260,
+  focusBlend: 0.45,
+  focusClampRatio: 0.18,
+  railMargin: TABLE.WALL * 0.65,
+  verticalLift: TABLE.THICK * 2.6,
+  switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 1.18;
-const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.1;
+const ACTION_CAMERA_RADIUS_SCALE = 1;
+const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.35;
 const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi + 0.08;
-const ACTION_CAMERA_SIDE_CLEARANCE = 1.12;
 const ACTION_CAMERA_SIDES = Object.freeze([
   { id: 'north', dir: new THREE.Vector2(0, 1), theta: 0 },
   {
@@ -455,17 +465,20 @@ function calcTarget(cue, dir, balls) {
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
-  const material = new THREE.MeshPhysicalMaterial({
-    color,
-    roughness: 0.2,
-    clearcoat: 0.92,
-    clearcoatRoughness: 0.16,
-    specularIntensity: 1
-  });
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(BALL_R, 64, 48),
-    material
-  );
+  if (!BALL_MATERIAL_CACHE.has(color)) {
+    BALL_MATERIAL_CACHE.set(
+      color,
+      new THREE.MeshPhysicalMaterial({
+        color,
+        roughness: 0.22,
+        clearcoat: 0.9,
+        clearcoatRoughness: 0.18,
+        specularIntensity: 1
+      })
+    );
+  }
+  const material = BALL_MATERIAL_CACHE.get(color);
+  const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -1424,10 +1437,17 @@ function SnookerGame() {
         const clampOrbitRadius = (value) =>
           clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
-        const selectActionCamera = (aimVec2, cuePos2, targetPos2, distance) => {
+        const selectActionCamera = (aimVec2, cuePos2, targetPos2) => {
           let best = null;
+          const scores = new Map();
           ACTION_CAMERA_SIDES.forEach((side) => {
-            const cameraPos2 = side.dir.clone().multiplyScalar(distance);
+            const sideDistance =
+              (Math.abs(side.dir.x) > Math.abs(side.dir.y)
+                ? PLAY_W / 2
+                : PLAY_H / 2) +
+              TABLE.WALL +
+              ACTION_CAMERA.railMargin;
+            const cameraPos2 = side.dir.clone().multiplyScalar(sideDistance);
             const toCue = cuePos2.clone().sub(cameraPos2);
             const cueLen = toCue.length() || 1;
             toCue.multiplyScalar(1 / cueLen);
@@ -1440,45 +1460,69 @@ function SnookerGame() {
             }
             const aimScore = side.dir.dot(aimVec2);
             const score = aimScore * 0.7 + dualScore * 0.3;
+            scores.set(side.id, score);
             if (!best || score > best.score) {
               best = { side, score, position2D: cameraPos2 };
             }
           });
-          return best;
+          return { best, scores };
         };
 
-        const alignActionCameraToSide = (camera, worldFocus, sideDir, view) => {
+        const clampFocusToRails = (focusPoint, sideDir) => {
+          if (!focusPoint || !sideDir) return focusPoint;
+          const axis = sideDir.clone();
+          if (axis.lengthSq() < 1e-6) return focusPoint;
+          axis.normalize();
+          const focus2D = new THREE.Vector2(focusPoint.x, focusPoint.z);
+          const along = focus2D.dot(axis);
+          const extent =
+            (Math.abs(axis.x) > Math.abs(axis.y) ? PLAY_W : PLAY_H) *
+            ACTION_CAMERA.focusClampRatio;
+          const clampedAlong = clamp(along, -extent, extent);
+          const alongVec = axis.clone().multiplyScalar(clampedAlong);
+          const railAxis = new THREE.Vector2(-axis.y, axis.x);
+          const across = focus2D.dot(railAxis);
+          const result2D = railAxis.multiplyScalar(across).add(alongVec);
+          focusPoint.x = result2D.x;
+          focusPoint.z = result2D.y;
+          return focusPoint;
+        };
+
+        const alignActionCameraToSide = (camera, worldFocus, sideDir) => {
           if (!camera || !worldFocus || !sideDir) return;
           const normalizedDir = sideDir.clone();
           if (normalizedDir.lengthSq() < 1e-6) return;
           normalizedDir.normalize();
-          const desiredRadius = Math.max(
-            view.cameraOrbit?.radius ?? CAMERA.minR,
-            ACTION_CAMERA_MIN_RADIUS
-          );
-          const minPhi = Math.min(
-            CAMERA.maxPhi,
-            Math.max(view.cameraOrbit?.phi ?? CAMERA.maxPhi, ACTION_CAMERA_MIN_PHI)
-          );
-          const minSideDistance =
-            ACTION_CAMERA_SIDE_CLEARANCE *
-            (Math.max(PLAY_W, PLAY_H) * 0.5 + TABLE.WALL * 0.6) *
-            worldScaleFactor;
-          const baseHorizontal = Math.sin(minPhi) * desiredRadius;
-          const clearance = Math.max(baseHorizontal, minSideDistance);
-          const backPadding = TABLE.WALL * 0.5 * worldScaleFactor;
-          const finalHorizontal = clearance + backPadding;
-          const horizVector = normalizedDir.multiplyScalar(finalHorizontal);
-          const minVertical = Math.cos(minPhi) * desiredRadius;
-          const verticalPadding =
-            Math.max(BALL_R * 1.6, TABLE.THICK * 0.45) * worldScaleFactor;
+          const lateralExtent =
+            (Math.abs(normalizedDir.x) > Math.abs(normalizedDir.y)
+              ? PLAY_W / 2
+              : PLAY_H / 2) +
+            TABLE.WALL +
+            ACTION_CAMERA.railMargin;
           const offset = new THREE.Vector3(
-            horizVector.x,
-            Math.max(minVertical + verticalPadding, camera.position.y - worldFocus.y),
-            horizVector.y
+            normalizedDir.x * lateralExtent * worldScaleFactor,
+            0,
+            normalizedDir.y * lateralExtent * worldScaleFactor
           );
-          camera.position.copy(worldFocus).add(offset);
-          camera.lookAt(worldFocus);
+          const minimumHeight =
+            (TABLE_Y + ACTION_CAMERA.verticalLift) * worldScaleFactor;
+          const followHeight = Math.max(
+            minimumHeight,
+            worldFocus.y + BALL_R * 6 * worldScaleFactor
+          );
+          const cameraPos = new THREE.Vector3(
+            worldFocus.x + offset.x,
+            followHeight,
+            worldFocus.z + offset.z
+          );
+          camera.position.copy(cameraPos);
+          const lookBackOffset = new THREE.Vector3(
+            normalizedDir.x * TABLE.WALL * 0.4 * worldScaleFactor,
+            0,
+            normalizedDir.y * TABLE.WALL * 0.4 * worldScaleFactor
+          );
+          const lookTarget = worldFocus.clone().sub(lookBackOffset);
+          camera.lookAt(lookTarget);
         };
 
         const updateCamera = () => {
@@ -1567,29 +1611,30 @@ function SnookerGame() {
                   baseOrbit.theta
                 );
               }
-              const distance =
-                (view.cameraOrbit?.radius ?? orbitRadius) /
-                (worldScaleFactor || 1);
-              const best = selectActionCamera(
+              const { best: bestCamera, scores } = selectActionCamera(
                 aimVec2,
                 cuePos2,
-                targetVec2,
-                distance
+                targetVec2
               );
-              if (best) {
+              if (bestCamera) {
+                const { side: bestSide, score: bestScore } = bestCamera;
                 const sinceSwitch = now - (view.lastCameraSwitch ?? 0);
-                if (
+                const activeScore = view.currentCameraId
+                  ? scores.get(view.currentCameraId) ?? -Infinity
+                  : -Infinity;
+                const shouldSwitch =
                   !view.currentCameraId ||
-                  (best.side.id !== view.currentCameraId &&
-                    sinceSwitch >= ACTION_CAMERA.minSwitchInterval)
-                ) {
-                  view.currentCameraId = best.side.id;
+                  bestSide.id === view.currentCameraId ||
+                  bestScore - activeScore > ACTION_CAMERA.switchThreshold ||
+                  sinceSwitch >= ACTION_CAMERA.minSwitchInterval;
+                if (shouldSwitch) {
+                  view.currentCameraId = bestSide.id;
                   view.lastCameraSwitch = now;
                 }
                 const activeSide =
                   ACTION_CAMERA_SIDES.find(
                     (side) => side.id === view.currentCameraId
-                  ) || best.side;
+                  ) || bestSide;
                 const cueFocus = new THREE.Vector3(
                   cueBall.pos.x,
                   BALL_CENTER_Y,
@@ -1608,7 +1653,12 @@ function SnookerGame() {
                 view.focusPoint =
                   view.focusPoint ?? focusPoint.clone();
                 view.focusPoint.lerp(focusPoint, 0.35);
-                const worldFocus = view.focusPoint
+                const clampedFocus = clampFocusToRails(
+                  view.focusPoint.clone(),
+                  activeSide.dir
+                );
+                view.focusPoint.copy(clampedFocus);
+                const worldFocus = clampedFocus
                   .clone()
                   .multiplyScalar(worldScaleFactor);
                 const desiredTheta =
@@ -1621,17 +1671,10 @@ function SnookerGame() {
                   desiredTheta,
                   ACTION_CAMERA.thetaLerp
                 );
-                const cameraOffset = new THREE.Vector3().setFromSpherical(
-                  view.cameraOrbit
-                );
-                const worldPos = worldFocus.clone().add(cameraOffset);
-                camera.position.copy(worldPos);
-                camera.lookAt(worldFocus);
                 alignActionCameraToSide(
                   camera,
                   worldFocus,
-                  activeSide.dir,
-                  view
+                  activeSide.dir
                 );
                 lookTarget = worldFocus;
               } else {
@@ -2052,9 +2095,9 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.85; // trim the beam so the spots feel tighter overhead
+      const rectSize = rectSizeBase * 0.85 * 0.5; // shrink to 50% footprint for softer, tighter beams
       const baseRectIntensity = 31.68;
-      const lightIntensity = baseRectIntensity * 0.82; // soften so ambient fill is noticeable
+      const lightIntensity = baseRectIntensity * 0.82 * 2; // keep brightness after reducing the beam area
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
