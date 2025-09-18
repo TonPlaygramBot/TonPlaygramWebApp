@@ -131,9 +131,9 @@ const TABLE = {
 };
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.82;
-const ACTION_CAMERA_VERTICAL_CURVE = 0.6;
+const ACTION_CAMERA_START_BLEND = 0;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.88;
+const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
   Math.max(0.65, PLAY_W / PLAY_H)
@@ -154,16 +154,17 @@ const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.992;
-const CUSHION_RESTITUTION = 0.96;
-const STOP_EPS = 0.02;
+const FRICTION = 0.9975;
+const CUSHION_RESTITUTION = 0.99;
+const STOP_EPS = 0.05;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const POCKET_JAW_LIP_HEIGHT = 0; // keep the jaw trim flush with the cloth plane
+const POCKET_JAW_LIP_HEIGHT =
+  -CLOTH_THICKNESS * 0.25; // keep the jaw trim flush with the cloth plane
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
@@ -179,7 +180,7 @@ const POCKET_CAM = Object.freeze({
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
 // Boost base shot speed so the power slider delivers ~20% more energy.
-const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.85;
+const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -232,7 +233,7 @@ function spotPositions(baulkZ) {
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
 const STANDING_VIEW_PHI = 1.16;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.15;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
 const STANDING_VIEW_MARGIN = 0.78;
 const STANDING_VIEW_FOV = 62;
 const CAMERA = {
@@ -286,10 +287,6 @@ const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
-const lerpAngle = (a, b, t) => {
-  const delta = THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) - Math.PI;
-  return a + delta * t;
-};
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
@@ -298,7 +295,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -335,17 +332,17 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#1b7f3d';
+  ctx.fillStyle = '#176b32';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const radius = 0.5;
+  const radius = 0.3;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const useLight = (x + y) % (spacing * 2) === 0;
       ctx.fillStyle = useLight
-        ? 'rgba(220, 255, 220, 0.65)'
-        : 'rgba(10, 50, 26, 0.6)';
+        ? 'rgba(255,255,255,0.45)'
+        : 'rgba(0,0,0,0.45)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -353,28 +350,20 @@ function makeClothTexture() {
   }
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
-  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
-  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.015)');
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-  ctx.lineWidth = 0.45;
-  for (let y = -size; y < size; y += spacing * 6) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(size, y + size);
-    ctx.stroke();
-  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const repeatScale = 9;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
   texture.anisotropy = 8;
+  texture.needsUpdate = true;
   texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
@@ -485,14 +474,13 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 function Guret(parent, id, color, x, y) {
   if (!BALL_MATERIAL_CACHE.has(color)) {
-    const baseColor = new THREE.Color(color);
     BALL_MATERIAL_CACHE.set(
       color,
-      new THREE.MeshPhongMaterial({
-        color: baseColor,
-        specular: new THREE.Color(0xffffff).multiplyScalar(0.6),
-        shininess: 90,
-        reflectivity: 0.4
+      new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.28,
+        metalness: 0.35,
+        envMapIntensity: 0.6
       })
     );
   }
@@ -588,31 +576,24 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.82,
-    metalness: 0.05,
-    envMapIntensity: 0.35,
-    emissive: new THREE.Color(0x0a4523),
-    emissiveIntensity: 0.08
+    roughness: 0.9,
+    metalness: 0.08,
+    envMapIntensity: 0.25
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.16;
+    clothMat.bumpScale = 0.08;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.15;
+    cushionMat.bumpScale = clothMat.bumpScale;
     cushionMat.needsUpdate = true;
   }
-  const cushionColor = new THREE.Color(COLORS.cloth);
-  cushionColor.offsetHSL(0, 0, 0.08);
-  cushionMat.color.copy(cushionColor);
-  cushionMat.emissive = new THREE.Color(0x0b3f21);
-  cushionMat.emissiveIntensity = 0.12;
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.25,
@@ -678,9 +659,8 @@ function Table3D(parent) {
 
     const edgeFalloffX = toneCanvas.width * 0.08;
     const edgeFalloffY = toneCanvas.height * 0.05;
-    const deepShadow = 'rgba(8, 30, 18, 0.28)';
+    const deepShadow = 'rgba(0, 0, 0, 0.32)';
     const fade = 'rgba(0, 0, 0, 0)';
-    const seamTint = 'rgba(34, 110, 62, 0.22)';
 
     let grad = toneCtx.createLinearGradient(0, 0, edgeFalloffX, 0);
     grad.addColorStop(0, deepShadow);
@@ -723,26 +703,7 @@ function Table3D(parent) {
 
     const highlightX = edgeFalloffX * 0.35;
     const highlightY = edgeFalloffY * 0.35;
-    const highlightTint = 'rgba(255, 255, 255, 0.14)';
-
-    toneCtx.save();
-    toneCtx.globalCompositeOperation = 'overlay';
-    toneCtx.fillStyle = seamTint;
-    toneCtx.fillRect(0, 0, toneCanvas.width, edgeFalloffY * 1.4);
-    toneCtx.fillRect(
-      0,
-      toneCanvas.height - edgeFalloffY * 1.4,
-      toneCanvas.width,
-      edgeFalloffY * 1.4
-    );
-    toneCtx.fillRect(0, 0, edgeFalloffX * 1.2, toneCanvas.height);
-    toneCtx.fillRect(
-      toneCanvas.width - edgeFalloffX * 1.2,
-      0,
-      edgeFalloffX * 1.2,
-      toneCanvas.height
-    );
-    toneCtx.restore();
+    const highlightTint = 'rgba(255, 255, 255, 0.08)';
 
     grad = toneCtx.createLinearGradient(edgeFalloffX, 0, edgeFalloffX + highlightX, 0);
     grad.addColorStop(0, highlightTint);
@@ -804,8 +765,8 @@ function Table3D(parent) {
         y,
         pocketRadius
       );
-      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.26)');
-      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.08)');
+      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
+      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
       pocketGrad.addColorStop(1, fade);
       toneCtx.fillStyle = pocketGrad;
       toneCtx.beginPath();
@@ -1581,12 +1542,8 @@ function SnookerGame() {
               }
               const aimVec2 = (view.aimDir
                 ? view.aimDir.clone()
-                : aimDirRef.current.clone());
-              if (aimVec2.lengthSq() < 1e-6) {
-                aimVec2.set(0, 1);
-              } else {
-                aimVec2.normalize();
-              }
+                : aimDirRef.current.clone()
+              ).normalize();
               view.aimDir = view.aimDir || aimVec2.clone();
               let targetVec2 = null;
               if (targetBall) {
@@ -1616,14 +1573,7 @@ function SnookerGame() {
                 ACTION_CAMERA_MIN_PHI,
                 CAMERA.maxPhi
               );
-              const targetTheta = Math.atan2(-aimVec2.x, -aimVec2.y);
-              const previousTheta = view.cameraOrbit?.theta ?? sph.theta;
-              const orbitTheta = lerpAngle(
-                previousTheta,
-                targetTheta,
-                ACTION_CAMERA.thetaLerp
-              );
-              sph.theta = orbitTheta;
+              const orbitTheta = sph.theta;
               const tableFocus = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
               const worldFocus = tableFocus
                 .clone()
@@ -1751,9 +1701,15 @@ function SnookerGame() {
             const dist = camera.position.distanceTo(lookTarget);
             // Subtle detail up close, fade quicker in orbit view
             const fade = THREE.MathUtils.clamp((130 - dist) / 55, 0, 1);
-            const rep = THREE.MathUtils.lerp(12, 28, fade);
+            const rep = THREE.MathUtils.lerp(18, 36, fade);
             clothMat.map?.repeat.set(rep, rep);
           }
+        };
+        const lerpAngle = (a, b, t) => {
+          const delta =
+            THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) -
+            Math.PI;
+          return a + delta * t;
         };
         const animateCamera = ({
           radius,
@@ -2098,8 +2054,8 @@ function SnookerGame() {
 
       const cushionFill = new THREE.HemisphereLight(
         0xf4f1e7,
-        0x243625,
-        0.28
+        0x1a2218,
+        0.22
       );
       cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       world.add(cushionFill);
@@ -2814,13 +2770,11 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
-          const preStepVel = b.vel.clone();
-          const preFrictionSpeed = preStepVel.length();
           b.pos.addScaledVector(b.vel, frameScale);
-          const frictionScale = Math.pow(FRICTION, frameScale);
-          b.vel.multiplyScalar(frictionScale);
+          b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
           const speed = b.vel.length();
-          if (speed < STOP_EPS) {
+          const scaledSpeed = speed * frameScale;
+          if (scaledSpeed < STOP_EPS) {
             b.vel.set(0, 0);
             if (b.spin) b.spin.set(0, 0);
             if (b.id === 'cue') b.impacted = false;
@@ -2831,10 +2785,9 @@ function SnookerGame() {
             applySpinImpulse(b, 1);
           }
           b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-          const travel = preFrictionSpeed * frameScale;
-          if (travel > 0) {
-            const axis = new THREE.Vector3(preStepVel.y, 0, -preStepVel.x).normalize();
-            const angle = travel / BALL_R;
+          if (scaledSpeed > 0) {
+            const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
+            const angle = scaledSpeed / BALL_R;
             b.mesh.rotateOnWorldAxis(axis, angle);
           }
         });
