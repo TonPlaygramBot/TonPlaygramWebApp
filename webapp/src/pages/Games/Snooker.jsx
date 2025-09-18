@@ -136,7 +136,7 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.85;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
-const BALL_SEGMENTS = Object.freeze({ width: 36, height: 24 });
+const BALL_SEGMENTS = Object.freeze({ width: 28, height: 18 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
@@ -251,7 +251,7 @@ const ACTION_CAMERA = Object.freeze({
   focusBlend: 0.45,
   focusClampRatio: 0.18,
   railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 2.6,
+  verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
 const ACTION_CAMERA_RADIUS_SCALE = 1;
@@ -305,7 +305,7 @@ const pocketCenters = () => [
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
 function makeClothTexture() {
-  const size = 512;
+  const size = 384;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
@@ -356,7 +356,7 @@ function makeClothTexture() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const repeatScale = 22;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
-  texture.anisotropy = 12;
+  texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
 }
@@ -468,12 +468,11 @@ function Guret(parent, id, color, x, y) {
   if (!BALL_MATERIAL_CACHE.has(color)) {
     BALL_MATERIAL_CACHE.set(
       color,
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.22,
-        clearcoat: 0.9,
-        clearcoatRoughness: 0.18,
-        specularIntensity: 1
+        roughness: 0.28,
+        metalness: 0.35,
+        envMapIntensity: 0.6
       })
     );
   }
@@ -567,12 +566,11 @@ function Table3D(parent) {
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
 
-  const clothMat = new THREE.MeshPhysicalMaterial({
+  const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.93,
-    sheen: 0.62,
-    sheenRoughness: 0.85,
-    clearcoat: 0.08
+    roughness: 0.9,
+    metalness: 0.08,
+    envMapIntensity: 0.25
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
@@ -1022,17 +1020,14 @@ function Table3D(parent) {
   const clothPlane = cushionTopLocal - CLOTH_THICKNESS;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
-    const cut = new THREE.Mesh(
-      new THREE.CylinderGeometry(6.2, 6.2, cutHeight, 48),
-      new THREE.MeshBasicMaterial({ color: 0x0b0f1a, side: THREE.DoubleSide })
-    );
-    cut.rotation.set(0, 0, 0);
     const scaleY = 1.15;
-    cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
-    cut.position.set(p.x, clothPlane - half, p.y);
-    table.add(cut);
-    table.userData.pockets.push(cut);
+    const pocketMarker = new THREE.Object3D();
+    pocketMarker.position.set(p.x, clothPlane - half, p.y);
+    pocketMarker.scale.set(0.5, scaleY, 0.5);
+    pocketMarker.userData.captureRadius = CAPTURE_R;
+    table.add(pocketMarker);
+    table.userData.pockets.push(pocketMarker);
   });
 
   alignRailsToCushions(table, frame);
@@ -2131,6 +2126,14 @@ function SnookerGame() {
 
       const ambientBoost = new THREE.AmbientLight(ambientColor, 0.35);
       world.add(ambientBoost);
+
+      const cushionFill = new THREE.HemisphereLight(
+        0xf4f1e7,
+        0x1a2218,
+        0.22
+      );
+      cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+      world.add(cushionFill);
 
       const addAmbientFill = (x, z) => {
         const light = new THREE.SpotLight(
