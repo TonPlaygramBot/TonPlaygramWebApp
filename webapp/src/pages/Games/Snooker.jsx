@@ -137,18 +137,18 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const POCKET_VIS_R = POCKET_R / 0.85;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-const FRICTION = 0.9975;
-const CUSHION_RESTITUTION = 0.96;
-const STOP_EPS = 0.02;
+const FRICTION = 0.985;
+const CUSHION_RESTITUTION = 0.99;
+const STOP_EPS = 0.05;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
-  -CLOTH_THICKNESS - BALL_R * 0.08; // drop the jaws slightly deeper into the slate cut
+  -CLOTH_THICKNESS * 0.25; // keep the jaw trim flush with the cloth plane
 const POCKET_RECESS_DEPTH =
-  BALL_R * 0.32; // sink pockets further so the mouth sits just below the cloth
+  BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
-const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.18;
+const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.4,
   dotThreshold: 0.35,
@@ -158,6 +158,9 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
+const SHOT_BASE_SPEED = 6.8;
+const SHOT_MIN_FACTOR = 0.25;
+const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
 const LEG_SCALE = 6.2;
@@ -240,7 +243,10 @@ const ACTION_CAMERA = Object.freeze({
   minSwitchInterval: 340,
   focusBlend: 0.45
 });
-const ACTION_CAMERA_HEIGHT_LIFT = 0.08;
+const ACTION_CAMERA_RADIUS_SCALE = 1.18;
+const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.1;
+const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi + 0.08;
+const ACTION_CAMERA_SIDE_CLEARANCE = 1.12;
 const ACTION_CAMERA_SIDES = Object.freeze([
   { id: 'north', dir: new THREE.Vector2(0, 1), theta: 0 },
   {
@@ -619,7 +625,7 @@ function Table3D(parent) {
     );
     sleeveGeo.translate(0, -POCKET_CLOTH_DEPTH / 2, 0);
     const sleeve = new THREE.Mesh(sleeveGeo, pocketClothMat);
-    sleeve.position.set(p.x, 0, p.y);
+    sleeve.position.set(p.x, POCKET_JAW_LIP_HEIGHT, p.y);
     sleeve.castShadow = false;
     sleeve.receiveShadow = true;
     table.add(sleeve);
@@ -1446,30 +1452,31 @@ function SnookerGame() {
           const normalizedDir = sideDir.clone();
           if (normalizedDir.lengthSq() < 1e-6) return;
           normalizedDir.normalize();
-          const offset = camera.position.clone().sub(worldFocus);
-          const horizontal = new THREE.Vector2(offset.x, offset.z);
+          const desiredRadius = Math.max(
+            view.cameraOrbit?.radius ?? CAMERA.minR,
+            ACTION_CAMERA_MIN_RADIUS
+          );
+          const minPhi = Math.min(
+            CAMERA.maxPhi,
+            Math.max(view.cameraOrbit?.phi ?? CAMERA.maxPhi, ACTION_CAMERA_MIN_PHI)
+          );
           const minSideDistance =
+            ACTION_CAMERA_SIDE_CLEARANCE *
             (Math.max(PLAY_W, PLAY_H) * 0.5 + TABLE.WALL * 0.6) *
             worldScaleFactor;
-          const backPadding = TABLE.WALL * 0.35 * worldScaleFactor;
-          let horizontalLen = horizontal.length();
-          if (horizontalLen < 1e-4) horizontalLen = minSideDistance;
-          const targetHorizontal = Math.max(horizontalLen, minSideDistance);
-          const finalHorizontal = targetHorizontal + backPadding;
+          const baseHorizontal = Math.sin(minPhi) * desiredRadius;
+          const clearance = Math.max(baseHorizontal, minSideDistance);
+          const backPadding = TABLE.WALL * 0.5 * worldScaleFactor;
+          const finalHorizontal = clearance + backPadding;
           const horizVector = normalizedDir.multiplyScalar(finalHorizontal);
-          offset.x = horizVector.x;
-          offset.z = horizVector.y;
-          const phiBase = view.cameraOrbit?.phi ?? CAMERA.maxPhi;
-          const desiredPhi = Math.max(
-            CAMERA.minPhi,
-            Math.min(phiBase, CAMERA.maxPhi) - ACTION_CAMERA_HEIGHT_LIFT
-          );
-          const tanPhi = Math.tan(desiredPhi);
-          const baseVertical =
-            tanPhi > 1e-3 ? finalHorizontal / tanPhi : Math.abs(offset.y);
-          const heightPadding =
+          const minVertical = Math.cos(minPhi) * desiredRadius;
+          const verticalPadding =
             Math.max(BALL_R * 1.6, TABLE.THICK * 0.45) * worldScaleFactor;
-          offset.y = Math.max(offset.y, baseVertical + heightPadding);
+          const offset = new THREE.Vector3(
+            horizVector.x,
+            Math.max(minVertical + verticalPadding, camera.position.y - worldFocus.y),
+            horizVector.y
+          );
           camera.position.copy(worldFocus).add(offset);
           camera.lookAt(worldFocus);
         };
@@ -1539,10 +1546,18 @@ function SnookerGame() {
                   phi: sph.phi,
                   theta: sph.theta
                 };
-              const orbitRadius = clampOrbitRadius(baseOrbit.radius);
+              const orbitRadius = clampOrbitRadius(
+                Math.max(
+                  baseOrbit.radius * ACTION_CAMERA_RADIUS_SCALE,
+                  ACTION_CAMERA_MIN_RADIUS
+                )
+              );
               const orbitPhi = clamp(
-                baseOrbit.phi - ACTION_CAMERA.phiLift,
-                CAMERA.minPhi,
+                Math.max(
+                  ACTION_CAMERA_MIN_PHI,
+                  baseOrbit.phi - ACTION_CAMERA.phiLift
+                ),
+                ACTION_CAMERA_MIN_PHI,
                 CAMERA.maxPhi
               );
               if (!view.cameraOrbit) {
@@ -2435,9 +2450,12 @@ function SnookerGame() {
             ballId: prediction.targetBall?.id ?? null,
             dir: prediction.afterDir ? prediction.afterDir.clone() : null
           };
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const powerScale =
+            SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const base = aimDir
             .clone()
-            .multiplyScalar(4.2 * (0.48 + powerRef.current * 1.52) * 0.5);
+            .multiplyScalar(SHOT_BASE_SPEED * powerScale);
           const spinSide = spinRef.current.x * spinRangeRef.current;
           const spinTop = -spinRef.current.y * spinRangeRef.current;
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
@@ -2473,15 +2491,23 @@ function SnookerGame() {
               CAMERA.minPhi + 0.02,
               CAMERA.maxPhi
             );
-            const followRadius = clampOrbitRadius(baseOrbit.radius);
-            const shotStart = performance.now();
-            lastInteraction = shotStart;
-            const actionRadius = clampOrbitRadius(baseOrbit.radius);
-            const actionPhi = clamp(
-              baseOrbit.phi - ACTION_CAMERA.phiLift,
-              CAMERA.minPhi,
-              CAMERA.maxPhi
-            );
+              const followRadius = clampOrbitRadius(baseOrbit.radius);
+              const shotStart = performance.now();
+              lastInteraction = shotStart;
+              const actionRadius = clampOrbitRadius(
+                Math.max(
+                  baseOrbit.radius * ACTION_CAMERA_RADIUS_SCALE,
+                  ACTION_CAMERA_MIN_RADIUS
+                )
+              );
+              const actionPhi = clamp(
+                Math.max(
+                  ACTION_CAMERA_MIN_PHI,
+                  baseOrbit.phi - ACTION_CAMERA.phiLift
+                ),
+                ACTION_CAMERA_MIN_PHI,
+                CAMERA.maxPhi
+              );
             activeShotView = {
               mode: 'action',
               radius: followRadius,
