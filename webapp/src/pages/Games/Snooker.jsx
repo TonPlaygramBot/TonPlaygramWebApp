@@ -137,7 +137,7 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const POCKET_VIS_R = POCKET_R / 0.85;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-const FRICTION = 0.9975;
+const FRICTION = 0.9935;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -211,11 +211,11 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.92,
+  minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 1.05,
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.56,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
-  maxPhi: Math.PI / 2 - 0.39
+  maxPhi: Math.PI / 2 - 0.46
 };
 const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
@@ -240,6 +240,7 @@ const ACTION_CAMERA = Object.freeze({
   minSwitchInterval: 340,
   focusBlend: 0.45
 });
+const ACTION_CAMERA_HEIGHT_LIFT = 0.08;
 const ACTION_CAMERA_SIDES = Object.freeze([
   { id: 'north', dir: new THREE.Vector2(0, 1), theta: 0 },
   {
@@ -1440,6 +1441,39 @@ function SnookerGame() {
           return best;
         };
 
+        const alignActionCameraToSide = (camera, worldFocus, sideDir, view) => {
+          if (!camera || !worldFocus || !sideDir) return;
+          const normalizedDir = sideDir.clone();
+          if (normalizedDir.lengthSq() < 1e-6) return;
+          normalizedDir.normalize();
+          const offset = camera.position.clone().sub(worldFocus);
+          const horizontal = new THREE.Vector2(offset.x, offset.z);
+          const minSideDistance =
+            (Math.max(PLAY_W, PLAY_H) * 0.5 + TABLE.WALL * 0.6) *
+            worldScaleFactor;
+          const backPadding = TABLE.WALL * 0.35 * worldScaleFactor;
+          let horizontalLen = horizontal.length();
+          if (horizontalLen < 1e-4) horizontalLen = minSideDistance;
+          const targetHorizontal = Math.max(horizontalLen, minSideDistance);
+          const finalHorizontal = targetHorizontal + backPadding;
+          const horizVector = normalizedDir.multiplyScalar(finalHorizontal);
+          offset.x = horizVector.x;
+          offset.z = horizVector.y;
+          const phiBase = view.cameraOrbit?.phi ?? CAMERA.maxPhi;
+          const desiredPhi = Math.max(
+            CAMERA.minPhi,
+            Math.min(phiBase, CAMERA.maxPhi) - ACTION_CAMERA_HEIGHT_LIFT
+          );
+          const tanPhi = Math.tan(desiredPhi);
+          const baseVertical =
+            tanPhi > 1e-3 ? finalHorizontal / tanPhi : Math.abs(offset.y);
+          const heightPadding =
+            Math.max(BALL_R * 1.6, TABLE.THICK * 0.45) * worldScaleFactor;
+          offset.y = Math.max(offset.y, baseVertical + heightPadding);
+          camera.position.copy(worldFocus).add(offset);
+          camera.lookAt(worldFocus);
+        };
+
         const updateCamera = () => {
           let lookTarget = null;
           if (topViewRef.current) {
@@ -1578,6 +1612,12 @@ function SnookerGame() {
                 const worldPos = worldFocus.clone().add(cameraOffset);
                 camera.position.copy(worldPos);
                 camera.lookAt(worldFocus);
+                alignActionCameraToSide(
+                  camera,
+                  worldFocus,
+                  activeSide.dir,
+                  view
+                );
                 lookTarget = worldFocus;
               } else {
                 const store = ensureOrbitFocus();
@@ -1997,7 +2037,8 @@ function SnookerGame() {
       // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8; // reduce spotlight footprint and shrink fixtures by another 20%
+      const rectSize =
+        rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8 * 1.1; // boost footprint by 10% for broader coverage
       const baseRectIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25;
       const lightIntensity = baseRectIntensity * 1.08; // gently boost spotlight brightness
 
@@ -2014,10 +2055,42 @@ function SnookerGame() {
       };
 
       // evenly space the three pot lights along the table center line
-      const lightPositions = [-TABLE.H * 0.38, 0, TABLE.H * 0.38];
+      const lightPositions = [-TABLE.H * 0.42, 0, TABLE.H * 0.42];
       for (const z of lightPositions) {
         makeLight(0, z);
       }
+
+      const ambientWallDistanceX =
+        TABLE.W / 2 + sideClearance * 0.55 - wallThickness * 0.5;
+      const ambientWallDistanceZ =
+        TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.25;
+      const ambientIntensity = 0.85;
+      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.55;
+      const ambientAngle = Math.PI * 0.52;
+      const ambientPenumbra = 0.48;
+      const ambientColor = 0xf7f1e4;
+
+      const addAmbientFill = (x, z) => {
+        const light = new THREE.SpotLight(
+          ambientColor,
+          ambientIntensity,
+          ambientDistance,
+          ambientAngle,
+          ambientPenumbra,
+          1
+        );
+        light.position.set(x, ambientHeight, z);
+        light.target.position.set(0, TABLE_Y - TABLE.THICK * 0.75, 0);
+        light.castShadow = false;
+        world.add(light);
+        world.add(light.target);
+      };
+
+      addAmbientFill(ambientWallDistanceX, 0);
+      addAmbientFill(-ambientWallDistanceX, 0);
+      addAmbientFill(0, ambientWallDistanceZ);
+      addAmbientFill(0, -ambientWallDistanceZ);
 
       // Table
       const {
