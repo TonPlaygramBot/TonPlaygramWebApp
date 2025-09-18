@@ -157,8 +157,8 @@ const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 3.4,
-  dotThreshold: 0.35,
+  triggerDist: CAPTURE_R * 4.6,
+  dotThreshold: 0.32,
   minOutside: TABLE.WALL + POCKET_VIS_R * 0.8,
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 4.5
@@ -251,12 +251,15 @@ const ACTION_CAMERA = Object.freeze({
   focusBlend: 0.45,
   focusClampRatio: 0.18,
   railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 3.15,
-  switchThreshold: 0.08
+  verticalLift: TABLE.THICK * 3.9,
+  switchThreshold: 0.08,
+  anchorLerp: 0.18,
+  panDistance: Math.min(PLAY_W, PLAY_H) * 0.18
 });
-const ACTION_CAMERA_RADIUS_SCALE = 1;
-const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.35;
-const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi + 0.08;
+const ACTION_CAMERA_TABLE_ANCHOR = new THREE.Vector3(0, BALL_CENTER_Y, 0);
+const ACTION_CAMERA_RADIUS_SCALE = 1.12;
+const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.5;
+const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi + 0.02;
 const ACTION_CAMERA_SIDES = Object.freeze([
   { id: 'north', dir: new THREE.Vector2(0, 1), theta: 0 },
   {
@@ -468,11 +471,10 @@ function Guret(parent, id, color, x, y) {
   if (!BALL_MATERIAL_CACHE.has(color)) {
     BALL_MATERIAL_CACHE.set(
       color,
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshPhongMaterial({
         color,
-        roughness: 0.28,
-        metalness: 0.35,
-        envMapIntensity: 0.6
+        shininess: 36,
+        specular: new THREE.Color(0xbcbcbc)
       })
     );
   }
@@ -1635,7 +1637,15 @@ function SnookerGame() {
                   BALL_CENTER_Y,
                   cueBall.pos.y
                 );
-                let focusPoint = cueFocus.clone();
+                const anchorFocus = ACTION_CAMERA_TABLE_ANCHOR.clone();
+                const panDir =
+                  aimVec2.lengthSq() > 1e-4 ? aimVec2 : new THREE.Vector2(0, 1);
+                const panOffset = new THREE.Vector3(
+                  panDir.x * ACTION_CAMERA.panDistance,
+                  0,
+                  panDir.y * ACTION_CAMERA.panDistance
+                );
+                let focusPoint = anchorFocus.add(panOffset);
                 if (targetVec2) {
                   const targetHeight = targetBall ? BALL_CENTER_Y : cueFocus.y;
                   const targetFocus = new THREE.Vector3(
@@ -1646,8 +1656,8 @@ function SnookerGame() {
                   focusPoint.lerp(targetFocus, ACTION_CAMERA.focusBlend);
                 }
                 view.focusPoint =
-                  view.focusPoint ?? focusPoint.clone();
-                view.focusPoint.lerp(focusPoint, 0.35);
+                  view.focusPoint ?? ACTION_CAMERA_TABLE_ANCHOR.clone();
+                view.focusPoint.lerp(focusPoint, ACTION_CAMERA.anchorLerp);
                 const clampedFocus = clampFocusToRails(
                   view.focusPoint.clone(),
                   activeSide.dir
