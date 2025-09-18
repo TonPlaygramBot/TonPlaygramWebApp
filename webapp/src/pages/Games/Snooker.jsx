@@ -332,38 +332,22 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#176134';
+  ctx.fillStyle = '#176b32';
   ctx.fillRect(0, 0, size, size);
 
-  const weave = ctx.getImageData(0, 0, size, size);
-  const { data } = weave;
-  const spacing = 6;
-  const thread = 3;
-  const brightLift = 14;
-  const darkLift = -12;
-  for (let y = 0; y < size; y++) {
-    const rowGroup = Math.floor(y / spacing);
-    const rowOffset = rowGroup % 2 === 0 ? 0 : spacing / 2;
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const onWarp = ((x + rowOffset) % spacing) < thread;
-      const onWeft = (y % spacing) < thread;
-      let lift = 0;
-      if (onWarp && !onWeft) lift = brightLift;
-      else if (!onWarp && onWeft) lift = darkLift;
-      else if (onWarp && onWeft) lift = brightLift * 0.5;
-
-      const baseR = 23;
-      const baseG = 108;
-      const baseB = 54;
-      const variation = (Math.random() - 0.5) * 6;
-      data[idx] = THREE.MathUtils.clamp(baseR + lift + variation, 0, 255);
-      data[idx + 1] = THREE.MathUtils.clamp(baseG + lift + variation, 0, 255);
-      data[idx + 2] = THREE.MathUtils.clamp(baseB + lift * 0.6 + variation * 0.6, 0, 255);
-      data[idx + 3] = 255;
+  const spacing = 2;
+  const radius = 0.3;
+  for (let y = 0; y < size; y += spacing) {
+    for (let x = 0; x < size; x += spacing) {
+      const useLight = (x + y) % (spacing * 2) === 0;
+      ctx.fillStyle = useLight
+        ? 'rgba(255,255,255,0.45)'
+        : 'rgba(0,0,0,0.45)';
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
-  ctx.putImageData(weave, 0, 0);
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
   sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
