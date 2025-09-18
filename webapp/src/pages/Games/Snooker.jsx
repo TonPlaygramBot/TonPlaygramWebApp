@@ -131,6 +131,14 @@ const TABLE = {
 };
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
+const ACTION_CAMERA_START_BLEND = 0;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.88;
+const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
+const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
+  1,
+  Math.max(0.65, PLAY_W / PLAY_H)
+);
+const ACTION_CAMERA_LONG_SIDE_CURVE = 2;
 const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
@@ -277,6 +285,7 @@ const ACTION_CAMERA_MIN_PHI = Math.min(
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
+const TMP_SPH = new THREE.Spherical();
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
@@ -287,6 +296,18 @@ const fitRadius = (camera, margin = 1.1) => {
   // Nudge camera closer so the table fills more of the view
   const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
+};
+
+const verticalZoomForBlend = (blend = 1) => {
+  const t = THREE.MathUtils.clamp(blend ?? 1, 0, 1);
+  const eased = Math.pow(t, ACTION_CAMERA_VERTICAL_CURVE);
+  return THREE.MathUtils.lerp(ACTION_CAMERA_VERTICAL_MIN_SCALE, 1, eased);
+};
+
+const orientationScaleForTheta = (theta = 0) => {
+  const bias = Math.abs(Math.sin(theta ?? 0));
+  const eased = Math.pow(bias, ACTION_CAMERA_LONG_SIDE_CURVE);
+  return THREE.MathUtils.lerp(1, ACTION_CAMERA_LONG_SIDE_SCALE, eased);
 };
 
 
@@ -1072,7 +1093,7 @@ function SnookerGame() {
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const followViewRef = useRef(null);
-  const cameraBlendRef = useRef(1);
+  const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const cameraBoundsRef = useRef({
     cueShot: { phi: CAMERA.maxPhi, radius: BREAK_VIEW.radius },
     standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
@@ -1438,6 +1459,19 @@ function SnookerGame() {
         const clampOrbitRadius = (value) =>
           clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
+        const getDynamicOrbitRadius = (
+          baseRadius,
+          theta,
+          blend,
+          minRadius = CAMERA.minR
+        ) => {
+          const orientation = orientationScaleForTheta(theta);
+          const vertical = verticalZoomForBlend(blend);
+          const scaled = baseRadius * orientation * vertical;
+          const min = Math.max(minRadius, CAMERA.minR);
+          return clampOrbitRadius(Math.max(scaled, min));
+        };
+
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
@@ -1503,7 +1537,14 @@ function SnookerGame() {
                 .clone()
                 .multiplyScalar(worldScaleFactor);
               lookTarget = fallback;
-              camera.position.setFromSpherical(sph).add(lookTarget);
+              const dynamicRadius = getDynamicOrbitRadius(
+                sph.radius,
+                sph.theta,
+                cameraBlendRef.current
+              );
+              TMP_SPH.copy(sph);
+              TMP_SPH.radius = dynamicRadius;
+              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
               camera.lookAt(lookTarget);
             } else {
               let targetBall = null;
@@ -1561,7 +1602,17 @@ function SnookerGame() {
               view.focusPoint = tableFocus.clone();
               view.currentCameraId = null;
               lookTarget = worldFocus;
-              camera.position.setFromSpherical(view.cameraOrbit).add(worldFocus);
+              const blendValue = cameraBlendRef.current;
+              const adjustedRadius = getDynamicOrbitRadius(
+                fullTableRadius,
+                orbitTheta,
+                blendValue,
+                ACTION_CAMERA_MIN_RADIUS
+              );
+              view.cameraOrbit.radius = adjustedRadius;
+              TMP_SPH.copy(view.cameraOrbit);
+              TMP_SPH.radius = adjustedRadius;
+              camera.position.setFromSpherical(TMP_SPH).add(worldFocus);
               camera.lookAt(worldFocus);
             }
           } else if (shooting && activeShotView?.mode === 'pocket') {
@@ -1648,7 +1699,14 @@ function SnookerGame() {
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
-            camera.position.setFromSpherical(sph).add(lookTarget);
+            const dynamicRadius = getDynamicOrbitRadius(
+              sph.radius,
+              sph.theta,
+              cameraBlendRef.current
+            );
+            TMP_SPH.copy(sph);
+            TMP_SPH.radius = dynamicRadius;
+            camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
           }
           if (clothMat && lookTarget) {
