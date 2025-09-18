@@ -220,9 +220,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.08;
+const STANDING_VIEW_PHI = 1.18;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.25;
-const STANDING_VIEW_MARGIN = 1.02;
+const STANDING_VIEW_MARGIN = 0.97;
 const STANDING_VIEW_FOV = 65;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -244,7 +244,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 138 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 118 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
@@ -265,9 +265,12 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.9;
-const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.2;
-const ACTION_CAMERA_MIN_PHI = STANDING_VIEW_PHI;
+const ACTION_CAMERA_RADIUS_SCALE = 0.82;
+const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.05;
+const ACTION_CAMERA_MIN_PHI = Math.min(
+  CAMERA.maxPhi - 0.02,
+  STANDING_VIEW_PHI + 0.05
+);
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
