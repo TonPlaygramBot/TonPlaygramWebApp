@@ -326,58 +326,61 @@ const pocketCenters = () => [
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
 function makeClothTexture() {
-  const size = 384;
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#155c2c';
+  ctx.fillStyle = '#176134';
   ctx.fillRect(0, 0, size, size);
 
-  const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
-  gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.09)');
+  const weave = ctx.getImageData(0, 0, size, size);
+  const { data } = weave;
+  const spacing = 6;
+  const thread = 3;
+  const brightLift = 14;
+  const darkLift = -12;
+  for (let y = 0; y < size; y++) {
+    const rowGroup = Math.floor(y / spacing);
+    const rowOffset = rowGroup % 2 === 0 ? 0 : spacing / 2;
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const onWarp = ((x + rowOffset) % spacing) < thread;
+      const onWeft = (y % spacing) < thread;
+      let lift = 0;
+      if (onWarp && !onWeft) lift = brightLift;
+      else if (!onWarp && onWeft) lift = darkLift;
+      else if (onWarp && onWeft) lift = brightLift * 0.5;
+
+      const baseR = 23;
+      const baseG = 108;
+      const baseB = 54;
+      const variation = (Math.random() - 0.5) * 6;
+      data[idx] = THREE.MathUtils.clamp(baseR + lift + variation, 0, 255);
+      data[idx + 1] = THREE.MathUtils.clamp(baseG + lift + variation, 0, 255);
+      data[idx + 2] = THREE.MathUtils.clamp(baseB + lift * 0.6 + variation * 0.6, 0, 255);
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(weave, 0, 0);
+
+  const sheen = ctx.createLinearGradient(0, 0, size, size);
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.015)');
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
   ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = gradient;
+  ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
 
-  const spacing = 14;
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
-  for (let i = -size; i <= size * 2; i += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(i, -size);
-    ctx.lineTo(i - size, size * 2);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
-  for (let i = -size; i <= size * 2; i += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(-size, i);
-    ctx.lineTo(size * 2, i - size);
-    ctx.stroke();
-  }
-
-  const noise = ctx.getImageData(0, 0, size, size);
-  const { data } = noise;
-  const samples = Math.floor(size * size * 0.035);
-  for (let i = 0; i < samples; i++) {
-    const idx = Math.floor(Math.random() * size * size) * 4;
-    const delta = (Math.random() - 0.5) * 28;
-    data[idx] = THREE.MathUtils.clamp(data[idx] + delta, 0, 255);
-    data[idx + 1] = THREE.MathUtils.clamp(data[idx + 1] + delta * 0.9, 0, 255);
-    data[idx + 2] = THREE.MathUtils.clamp(data[idx + 2] + delta * 0.6, 0, 255);
-  }
-  ctx.putImageData(noise, 0, 0);
-
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const repeatScale = 22;
+  const repeatScale = 9;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
-  texture.anisotropy = 4;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
 }
@@ -1713,8 +1716,8 @@ function SnookerGame() {
           if (clothMat && lookTarget) {
             const dist = camera.position.distanceTo(lookTarget);
             // Subtle detail up close, fade quicker in orbit view
-            const fade = THREE.MathUtils.clamp((120 - dist) / 50, 0, 1);
-            const rep = THREE.MathUtils.lerp(12, 24, fade);
+            const fade = THREE.MathUtils.clamp((130 - dist) / 55, 0, 1);
+            const rep = THREE.MathUtils.lerp(18, 36, fade);
             clothMat.map?.repeat.set(rep, rep);
           }
         };
@@ -1901,7 +1904,30 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
+        const shouldPrimeActionView = !initialOrbitRef.current;
         fit(margin);
+        if (shouldPrimeActionView) {
+          const bounds = cameraBoundsRef.current;
+          if (bounds) {
+            const { cueShot, standing } = bounds;
+            const baseRadius = Math.min(cueShot.radius, standing.radius);
+            const preferredRadius = clampOrbitRadius(
+              Math.max(
+                baseRadius * ACTION_CAMERA_RADIUS_SCALE,
+                ACTION_CAMERA_MIN_RADIUS
+              )
+            );
+            const preferredPhi = clamp(
+              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
+            sph.radius = preferredRadius;
+            sph.phi = preferredPhi;
+            syncBlendToSpherical();
+            updateCamera();
+          }
+        }
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
         if (!initialOrbitRef.current) {
@@ -2007,7 +2033,7 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.85 * 0.5; // shrink to 50% footprint for softer, tighter beams
       const baseRectIntensity = 31.68;
-      const lightIntensity = baseRectIntensity * 0.82 * 2; // keep brightness after reducing the beam area
+      const lightIntensity = baseRectIntensity * 0.82 * 3; // compensate for removing the third fixture
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2021,9 +2047,9 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // evenly space the three pot lights along the table center line
-      const spotlightSpread = 0.54; // push the end lights farther from center for better separation
-      const lightPositions = [-TABLE.H * spotlightSpread, 0, TABLE.H * spotlightSpread];
+      // evenly space the ceiling lights along the table centre line
+      const spotlightSpread = 0.46;
+      const lightPositions = [-TABLE.H * spotlightSpread, TABLE.H * spotlightSpread];
       for (const z of lightPositions) {
         makeLight(0, z);
       }
