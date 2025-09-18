@@ -1,5 +1,3 @@
-Ky duhet te jet paragrafi i pare ne read me . KY ËSHTË PARAGRAFI I KALIBRIMIT – LEXOJE PARA ÇDO DETYRE.
-
 Platforma & Orientimi:
 - Target gjithmonë: MOBILE (orientim PORTRAIT), përveç kur e specifikoj ndryshe.
 - Nëse përmendet landscape, shkruaj qartë “ORIENTIM: landscape” dhe zbato të njëjtat rregulla.

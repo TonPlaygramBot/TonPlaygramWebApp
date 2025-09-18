@@ -137,7 +137,7 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const POCKET_VIS_R = POCKET_R / 0.85;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-const FRICTION = 0.9935;
+const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -228,7 +228,7 @@ const BREAK_VIEW = Object.freeze({
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
-  lockedPhi: CAMERA.maxPhi,
+  lockedPhi: null,
   fitMargin: 1.03,
   followWeight: 0.25,
   maxOffset: PLAY_W * 0.14
@@ -2034,13 +2034,12 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place three pot lights above the table with a slightly tighter footprint for a focused beam
-      const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
-      const rectSizeBase = 21;
-      const rectSize =
-        rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8 * 1.1; // boost footprint by 10% for broader coverage
-      const baseRectIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25;
-      const lightIntensity = baseRectIntensity * 1.08; // gently boost spotlight brightness
+      // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
+      const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
+      const rectSizeBase = 24;
+      const rectSize = rectSizeBase * 0.9; // keep a wider beam so the light spreads softly
+      const baseRectIntensity = 31.68;
+      const lightIntensity = baseRectIntensity * 0.82; // soften so ambient fill is noticeable
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2055,7 +2054,7 @@ function SnookerGame() {
       };
 
       // evenly space the three pot lights along the table center line
-      const lightPositions = [-TABLE.H * 0.42, 0, TABLE.H * 0.42];
+      const lightPositions = [-TABLE.H * 0.48, 0, TABLE.H * 0.48];
       for (const z of lightPositions) {
         makeLight(0, z);
       }
@@ -2065,11 +2064,14 @@ function SnookerGame() {
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientHeight = TABLE_Y + TABLE.THICK * 1.25;
-      const ambientIntensity = 0.85;
-      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.55;
-      const ambientAngle = Math.PI * 0.52;
-      const ambientPenumbra = 0.48;
-      const ambientColor = 0xf7f1e4;
+      const ambientIntensity = 1.45;
+      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
+      const ambientAngle = Math.PI * 0.6;
+      const ambientPenumbra = 0.42;
+      const ambientColor = 0xf8f1e2;
+
+      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.35);
+      world.add(ambientBoost);
 
       const addAmbientFill = (x, z) => {
         const light = new THREE.SpotLight(
@@ -2471,9 +2473,7 @@ function SnookerGame() {
               CAMERA.minPhi + 0.02,
               CAMERA.maxPhi
             );
-            const followRadius = clampOrbitRadius(
-              fitRadius(camera, ACTION_VIEW.fitMargin)
-            );
+            const followRadius = clampOrbitRadius(baseOrbit.radius);
             const shotStart = performance.now();
             lastInteraction = shotStart;
             const actionRadius = clampOrbitRadius(baseOrbit.radius);
