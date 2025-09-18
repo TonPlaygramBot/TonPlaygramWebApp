@@ -115,12 +115,13 @@ function addPocketJaws(parent, playW, playH) {
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions enlarged for a roomier snooker table but globally reduced by 30%
+// Dimensions enlarged for a roomier snooker table but globally reduced by 70%
 const SIZE_REDUCTION = 0.7;
-const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
-// shrink the entire 3D world to ~70% of its previous footprint while preserving
+const WORLD_SHRINK = 0.3;
+const GLOBAL_SIZE_FACTOR = WORLD_SHRINK; // uniform world shrink while keeping HUD sizing untouched
+// shrink the entire 3D world to 30% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
-const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+const WORLD_SCALE = WORLD_SHRINK;
 const BALL_SCALE = 1;
 const TABLE_SCALE = 1.3;
 const TABLE = {
@@ -176,7 +177,7 @@ const TABLE_LIFT = 3.0;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible and the playfield sits higher off the floor
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
-const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.6; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
@@ -239,22 +240,24 @@ const BREAK_VIEW = Object.freeze({
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
-  fitMargin: 1.03,
+  fitMargin: 1.12,
   followWeight: 0.25,
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.12,
+  phiLift: 0.18,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
   focusBlend: 0.45,
   focusClampRatio: 0.18,
+  radiusLerp: 0.25,
+  tableMargin: 0.14,
   railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 3.15,
+  verticalLift: TABLE.THICK * 3.6,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 1;
+const ACTION_CAMERA_RADIUS_SCALE = 1.15;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.35;
 const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi + 0.08;
 const ACTION_CAMERA_SIDES = Object.freeze([
@@ -1585,9 +1588,11 @@ function SnookerGame() {
                   phi: sph.phi,
                   theta: sph.theta
                 };
-              const orbitRadius = clampOrbitRadius(
+              const scaledBaseRadius = baseOrbit.radius * ACTION_CAMERA_RADIUS_SCALE;
+              const tableFitRadius = clampOrbitRadius(
                 Math.max(
-                  baseOrbit.radius * ACTION_CAMERA_RADIUS_SCALE,
+                  fitRadius(camera, ACTION_VIEW.fitMargin + ACTION_CAMERA.tableMargin),
+                  scaledBaseRadius,
                   ACTION_CAMERA_MIN_RADIUS
                 )
               );
@@ -1601,7 +1606,7 @@ function SnookerGame() {
               );
               if (!view.cameraOrbit) {
                 view.cameraOrbit = new THREE.Spherical(
-                  orbitRadius,
+                  tableFitRadius,
                   orbitPhi,
                   baseOrbit.theta
                 );
@@ -1630,48 +1635,49 @@ function SnookerGame() {
                   ACTION_CAMERA_SIDES.find(
                     (side) => side.id === view.currentCameraId
                   ) || bestSide;
-                const cueFocus = new THREE.Vector3(
-                  cueBall.pos.x,
-                  BALL_CENTER_Y,
-                  cueBall.pos.y
-                );
-                let focusPoint = cueFocus.clone();
-                if (targetVec2) {
-                  const targetHeight = targetBall ? BALL_CENTER_Y : cueFocus.y;
-                  const targetFocus = new THREE.Vector3(
-                    targetVec2.x,
-                    targetHeight,
-                    targetVec2.y
+                if (view.userAdjusted) {
+                  const store = ensureOrbitFocus();
+                  const manualTarget = store.target
+                    .clone()
+                    .multiplyScalar(worldScaleFactor);
+                  lookTarget = manualTarget;
+                  camera.position.setFromSpherical(sph).add(lookTarget);
+                  camera.lookAt(lookTarget);
+                } else {
+                  const tableFocus = new THREE.Vector3(
+                    playerOffsetRef.current,
+                    TABLE_Y + BALL_CENTER_Y,
+                    0
                   );
-                  focusPoint.lerp(targetFocus, ACTION_CAMERA.focusBlend);
+                  const worldFocus = tableFocus
+                    .clone()
+                    .multiplyScalar(worldScaleFactor);
+                  const desiredTheta =
+                    activeSide.theta ??
+                    Math.atan2(activeSide.dir.x, activeSide.dir.y);
+                  view.cameraOrbit.radius = THREE.MathUtils.lerp(
+                    view.cameraOrbit.radius,
+                    tableFitRadius,
+                    ACTION_CAMERA.radiusLerp
+                  );
+                  view.cameraOrbit.phi = THREE.MathUtils.lerp(
+                    view.cameraOrbit.phi,
+                    orbitPhi,
+                    ACTION_CAMERA.radiusLerp
+                  );
+                  view.cameraOrbit.theta = lerpAngle(
+                    view.cameraOrbit.theta,
+                    desiredTheta,
+                    ACTION_CAMERA.thetaLerp
+                  );
+                  alignActionCameraToSide(
+                    camera,
+                    worldFocus,
+                    activeSide.dir
+                  );
+                  view.focusPoint = worldFocus.clone();
+                  lookTarget = worldFocus;
                 }
-                view.focusPoint =
-                  view.focusPoint ?? focusPoint.clone();
-                view.focusPoint.lerp(focusPoint, 0.35);
-                const clampedFocus = clampFocusToRails(
-                  view.focusPoint.clone(),
-                  activeSide.dir
-                );
-                view.focusPoint.copy(clampedFocus);
-                const worldFocus = clampedFocus
-                  .clone()
-                  .multiplyScalar(worldScaleFactor);
-                const desiredTheta =
-                  activeSide.theta ??
-                  Math.atan2(activeSide.dir.x, activeSide.dir.y);
-                view.cameraOrbit.radius = orbitRadius;
-                view.cameraOrbit.phi = orbitPhi;
-                view.cameraOrbit.theta = lerpAngle(
-                  view.cameraOrbit.theta,
-                  desiredTheta,
-                  ACTION_CAMERA.thetaLerp
-                );
-                alignActionCameraToSide(
-                  camera,
-                  worldFocus,
-                  activeSide.dir
-                );
-                lookTarget = worldFocus;
               } else {
                 const store = ensureOrbitFocus();
                 const fallback = store.target
@@ -1937,6 +1943,12 @@ function SnookerGame() {
           );
           if (sph.phi > radiusPhiCap) {
             sph.phi = Math.max(CAMERA.minPhi, radiusPhiCap);
+          }
+          if (!topViewRef.current) {
+            orbitRadiusLimitRef.current = Math.min(
+              orbitRadiusLimitRef.current ?? Infinity,
+              sph.radius
+            );
           }
           updateCamera();
           camera.updateProjectionMatrix();
