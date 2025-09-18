@@ -163,7 +163,7 @@ const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of c
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const POCKET_JAW_LIP_HEIGHT = 0; // keep the jaw trim flush with the cloth plane
+const POCKET_JAW_LIP_HEIGHT = BALL_R * 0.08; // lift jaws so the pocket rims sit level with the cushions
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
@@ -176,8 +176,12 @@ const POCKET_CAM = Object.freeze({
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 4.5
 });
-const SPIN_STRENGTH = BALL_R * 0.65;
-const SPIN_DECAY = 0.58;
+const PLAYER_OFFSET_LIMIT = PLAY_W * 0.28;
+const SPIN_STRENGTH = BALL_R * 1.6;
+const SPIN_DECAY = 0.82;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.22;
+const SPIN_ROLL_DECAY = 0.9;
+const SPIN_CURVE_STRENGTH = BALL_R * 0.18;
 // Reduce the base shot energy slightly so strokes start 25% softer.
 const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.85 * 0.75;
 const SHOT_MIN_FACTOR = 0.25;
@@ -190,6 +194,7 @@ const TABLE_LIFT = 3.0;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 // raise overall table position so the longer legs are visible and the playfield sits higher off the floor
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
+const CUE_TIP_RADIUS = BALL_R * ((0.006 * 1.5) / 0.0525);
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
@@ -207,11 +212,12 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
-const DARK_WOOD = 0x593517;
+const DARK_WOOD = 0x3b2414;
+const DARK_WOOD_BASE = 0x2a180e;
 const COLORS = Object.freeze({
   cloth: 0x176b32,
   rail: DARK_WOOD,
-  base: DARK_WOOD,
+  base: DARK_WOOD_BASE,
   markings: 0xffffff,
   cue: 0xffffff,
   red: 0xff0000,
@@ -260,7 +266,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.88,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.62,
   phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
@@ -305,7 +311,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.56 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -342,26 +348,40 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#1a7b36';
+  const baseGrad = ctx.createLinearGradient(0, 0, size, size);
+  baseGrad.addColorStop(0, '#135028');
+  baseGrad.addColorStop(0.55, '#1b6c37');
+  baseGrad.addColorStop(1, '#0f3f1f');
+  ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 3;
-  const radius = 0.6;
+  const radius = 1.05;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const useLight = (x + y) % (spacing * 2) === 0;
       ctx.fillStyle = useLight
-        ? 'rgba(255,255,255,0.75)'
-        : 'rgba(0,0,0,0.65)';
+        ? 'rgba(255,255,255,0.95)'
+        : 'rgba(0,0,0,0.85)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  for (let y = -spacing; y < size; y += spacing * 5) {
+  const grain = ctx.createImageData(size, size);
+  for (let i = 0; i < grain.data.length; i += 4) {
+    const v = 34 - Math.random() * 18;
+    grain.data[i] = v;
+    grain.data[i + 1] = v;
+    grain.data[i + 2] = v;
+    grain.data[i + 3] = 26;
+  }
+  ctx.putImageData(grain, 0, 0);
+
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+  for (let y = -spacing; y < size; y += spacing * 4) {
     ctx.fillRect(0, y, size, spacing * 0.6);
   }
   ctx.globalAlpha = 1;
@@ -394,10 +414,63 @@ function makeClothTexture() {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const repeatScale = 9;
+  const repeatScale = 6.5;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
-  texture.anisotropy = 8;
+  texture.anisotropy = 12;
   texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function makeWoodTexture() {
+  const size = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, '#2c170c');
+  grad.addColorStop(0.4, '#452711');
+  grad.addColorStop(0.75, '#3a1f0d');
+  grad.addColorStop(1, '#221107');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  const rings = 12;
+  for (let i = 0; i < rings; i++) {
+    const offset = (i / rings) * size;
+    const stripe = ctx.createLinearGradient(0, offset, size, offset + size * 0.04);
+    stripe.addColorStop(0, 'rgba(255, 196, 136, 0.12)');
+    stripe.addColorStop(1, 'rgba(70, 40, 18, 0.04)');
+    ctx.fillStyle = stripe;
+    ctx.fillRect(0, offset, size, size * 0.04);
+  }
+
+  const grains = ctx.getImageData(0, 0, size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const noise = (Math.random() - 0.5) * 22;
+      grains.data[idx] = Math.min(255, Math.max(0, grains.data[idx] + noise));
+      grains.data[idx + 1] = Math.min(
+        255,
+        Math.max(0, grains.data[idx + 1] + noise * 0.7)
+      );
+      grains.data[idx + 2] = Math.min(
+        255,
+        Math.max(0, grains.data[idx + 2] + noise * 0.4)
+      );
+    }
+  }
+  ctx.putImageData(grains, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2, 2);
+  texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
 }
@@ -486,13 +559,59 @@ function reflectRails(ball) {
 function applySpinImpulse(ball, scale = 1) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
-  TMP_SPIN.copy(ball.spin).multiplyScalar(SPIN_STRENGTH * scale);
-  ball.vel.add(TMP_SPIN);
+  TMP_SPIN.copy(ball.spin);
+  let forward = null;
+  if (ball.spinBasis && ball.spinBasis.lengthSq() > 0) {
+    forward = ball.spinBasis.clone().normalize();
+  } else if (ball.vel.lengthSq() > 1e-6) {
+    forward = ball.vel.clone().normalize();
+  }
+  if (!forward) forward = new THREE.Vector2(0, 1);
+  const side = new THREE.Vector2(-forward.y, forward.x);
+  const forwardImpulse = TMP_SPIN.dot(forward) * SPIN_STRENGTH * scale;
+  const sideImpulse = TMP_SPIN.dot(side) * SPIN_CURVE_STRENGTH * 1.6 * scale;
+  ball.vel.addScaledVector(forward, forwardImpulse);
+  ball.vel.addScaledVector(side, sideImpulse);
   ball.spin.multiplyScalar(SPIN_DECAY);
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
+    ball.spinBasis = null;
   }
   return true;
+}
+
+function applyRollingSpin(ball, frameScale = 1) {
+  if (!ball?.spin) return;
+  if (ball.spin.lengthSq() < 1e-6) return;
+  const decay = Math.pow(SPIN_ROLL_DECAY, frameScale);
+  let forward = null;
+  if (ball.vel.lengthSq() > 1e-6) {
+    forward = ball.vel.clone().normalize();
+    ball.spinBasis = forward.clone();
+  } else if (ball.spinBasis && ball.spinBasis.lengthSq() > 0) {
+    forward = ball.spinBasis.clone().normalize();
+  }
+  if (!forward) forward = new THREE.Vector2(0, 1);
+  const side = new THREE.Vector2(-forward.y, forward.x);
+  const forwardMag = ball.spin.dot(forward);
+  const sideMag = ball.spin.dot(side);
+  if (Math.abs(forwardMag) > 1e-6) {
+    ball.vel.addScaledVector(
+      forward,
+      forwardMag * SPIN_ROLL_STRENGTH * frameScale
+    );
+  }
+  if (Math.abs(sideMag) > 1e-6) {
+    ball.vel.addScaledVector(
+      side,
+      sideMag * SPIN_CURVE_STRENGTH * frameScale
+    );
+  }
+  ball.spin.multiplyScalar(decay);
+  if (ball.spin.lengthSq() < 1e-6) {
+    ball.spin.set(0, 0);
+    ball.spinBasis = null;
+  }
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -569,18 +688,25 @@ function Guret(parent, id, color, x, y) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   if (id === 'cue') {
-    const dotSize = BALL_R * 0.15;
-    const dotGeom = new THREE.SphereGeometry(dotSize, 16, 8);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    [
-      [BALL_R * 0.7, 0, 0],
-      [-BALL_R * 0.7, 0, 0],
-      [0, BALL_R * 0.7, 0],
-      [0, -BALL_R * 0.7, 0]
-    ].forEach(([dx, dy, dz]) => {
-      const d = new THREE.Mesh(dotGeom, dotMat);
-      d.position.set(dx, dy, dz);
-      mesh.add(d);
+    const dotRadius = CUE_TIP_RADIUS;
+    const dotGeom = new THREE.CircleGeometry(dotRadius, 48);
+    const dotMat = new THREE.MeshBasicMaterial({
+      color: 0xff3030,
+      side: THREE.DoubleSide
+    });
+    const placements = [
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, -1, 0)
+    ];
+    const align = new THREE.Vector3();
+    placements.forEach((normal) => {
+      const dot = new THREE.Mesh(dotGeom, dotMat);
+      align.copy(normal).normalize();
+      dot.position.copy(align.clone().multiplyScalar(BALL_R - 0.002));
+      dot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), align);
+      mesh.add(dot);
     });
   }
   mesh.traverse((node) => {
@@ -595,6 +721,7 @@ function Guret(parent, id, color, x, y) {
     pos: new THREE.Vector2(x, y),
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
+    spinBasis: null,
     impacted: false,
     active: true
   };
@@ -663,7 +790,7 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.18;
+    clothMat.bumpScale = 0.32;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
@@ -686,6 +813,22 @@ function Table3D(parent) {
     metalness: 0.2,
     roughness: 0.8
   });
+  const woodTexture = makeWoodTexture();
+  if (woodTexture) {
+    const railTexture = woodTexture.clone();
+    railTexture.repeat.set(3.5, 1.5);
+    railWoodMat.map = railTexture;
+    railWoodMat.bumpMap = railTexture;
+    railWoodMat.bumpScale = 0.1;
+    railWoodMat.needsUpdate = true;
+
+    const baseTexture = woodTexture.clone();
+    baseTexture.repeat.set(1.4, 1.4);
+    woodMat.map = baseTexture;
+    woodMat.bumpMap = baseTexture;
+    woodMat.bumpScale = 0.08;
+    woodMat.needsUpdate = true;
+  }
 
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -715,6 +858,7 @@ function Table3D(parent) {
   const pocketClothMat = clothMat.clone();
   pocketClothMat.side = THREE.DoubleSide;
   pocketClothMat.needsUpdate = true;
+  const pocketSleeves = [];
   pocketCenters().forEach((p) => {
     const sleeveGeo = new THREE.CylinderGeometry(
       POCKET_CLOTH_TOP_RADIUS,
@@ -726,10 +870,11 @@ function Table3D(parent) {
     );
     sleeveGeo.translate(0, -POCKET_CLOTH_DEPTH / 2, 0);
     const sleeve = new THREE.Mesh(sleeveGeo, pocketClothMat);
-    sleeve.position.set(p.x, POCKET_JAW_LIP_HEIGHT + BALL_R * 0.05, p.y);
+    sleeve.position.set(p.x, POCKET_JAW_LIP_HEIGHT + BALL_R * 0.08, p.y);
     sleeve.castShadow = false;
     sleeve.receiveShadow = true;
     table.add(sleeve);
+    pocketSleeves.push(sleeve);
   });
 
   const toneCanvas = document.createElement('canvas');
@@ -918,14 +1063,18 @@ function Table3D(parent) {
 
   const markingMat = new THREE.LineBasicMaterial({
     color: COLORS.markings,
-    linewidth: 2
+    linewidth: 2,
+    transparent: true,
+    opacity: 0.95,
+    depthTest: false
   });
   const baulkZ = -PLAY_H / 4;
   const baulkGeom = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfW, 0.02, baulkZ),
-    new THREE.Vector3(halfW, 0.02, baulkZ)
+    new THREE.Vector3(-halfW, 0.08, baulkZ),
+    new THREE.Vector3(halfW, 0.08, baulkZ)
   ]);
   const baulkLine = new THREE.Line(baulkGeom, markingMat);
+  baulkLine.renderOrder = 2;
   table.add(baulkLine);
   const dRadius = PLAY_W * 0.15;
   const dCurve = new THREE.ArcCurve(
@@ -938,9 +1087,10 @@ function Table3D(parent) {
   );
   const dPoints = dCurve
     .getPoints(64)
-    .map((p) => new THREE.Vector3(p.x, 0.02, p.y));
+    .map((p) => new THREE.Vector3(p.x, 0.08, p.y));
   const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
   const dLine = new THREE.Line(dGeom, markingMat);
+  dLine.renderOrder = 2;
   table.add(dLine);
 
   function addSpot(x, z) {
@@ -950,7 +1100,7 @@ function Table3D(parent) {
     });
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, 0.021, z);
+    spot.position.set(x, 0.041, z);
     table.add(spot);
   }
   addSpot(0, baulkZ);
@@ -1033,7 +1183,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const LONG_CUSHION_TRIM = 3.1; // shave a touch more from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1141,6 +1291,12 @@ function Table3D(parent) {
       cushionTopLocal = Math.max(cushionTopLocal, cushionBox.max.y);
     }
   }
+  if (pocketSleeves.length) {
+    const lipLocal = cushionTopLocal - CLOTH_THICKNESS * 0.02;
+    pocketSleeves.forEach((sleeve) => {
+      sleeve.position.y = lipLocal;
+    });
+  }
   table.userData.cushionTopLocal = cushionTopLocal;
 
   if (!table.userData.pockets) table.userData.pockets = [];
@@ -1221,6 +1377,7 @@ function SnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
+  const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const spinRangeRef = useRef(0);
   const cueRef = useRef(null);
@@ -1831,8 +1988,13 @@ function SnookerGame() {
             const dist = camera.position.distanceTo(lookTarget);
             // Subtle detail up close, fade quicker in orbit view
             const fade = THREE.MathUtils.clamp((130 - dist) / 55, 0, 1);
-            const rep = THREE.MathUtils.lerp(12, 28, fade);
+            const rep = THREE.MathUtils.lerp(10, 34, fade);
             clothMat.map?.repeat.set(rep, rep);
+            const bump = THREE.MathUtils.lerp(0.16, 0.32, fade);
+            if (Math.abs((clothMat.bumpScale ?? 0) - bump) > 0.005) {
+              clothMat.bumpScale = bump;
+              clothMat.needsUpdate = true;
+            }
           }
         };
         const animateCamera = ({
@@ -2049,7 +2211,7 @@ function SnookerGame() {
         dom.style.touchAction = 'none';
         const balls = [];
         let project;
-        const drag = { on: false, x: 0, y: 0, moved: false };
+        const drag = { on: false, x: 0, y: 0, moved: false, id: null, mode: 'orbit' };
         let lastInteraction = performance.now();
         const registerInteraction = (didAdjust = false) => {
           const now = performance.now();
@@ -2066,41 +2228,116 @@ function SnookerGame() {
             }
           }
         };
+        const adjustOrbitPan = (dx) => {
+          if (!dom) return;
+          const width = dom.clientWidth || window.innerWidth || 1;
+          if (Math.abs(width) < 1e-3) return;
+          const ratio = dx / width;
+          if (Math.abs(ratio) < 1e-6) return;
+          const delta = -ratio * PLAY_W * 0.7;
+          const next = THREE.MathUtils.clamp(
+            playerOffsetRef.current + delta,
+            -PLAYER_OFFSET_LIMIT,
+            PLAYER_OFFSET_LIMIT
+          );
+          if (Math.abs(next - playerOffsetRef.current) < 1e-5) return;
+          playerOffsetRef.current = next;
+          setOrbitFocusToDefault();
+          updateCamera();
+          registerInteraction(true);
+        };
+        const panTouch = { active: false, lastX: 0 };
+        const handleTouchStart = (e) => {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            panTouch.active = true;
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            panTouch.lastX = (t0.clientX + t1.clientX) / 2;
+            drag.on = false;
+            drag.moved = false;
+            setOrbitFocusToDefault();
+            registerInteraction(true);
+          }
+        };
+        const handleTouchMove = (e) => {
+          if (!panTouch.active) return;
+          if (e.touches.length < 2) return;
+          e.preventDefault();
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          const cx = (t0.clientX + t1.clientX) / 2;
+          const dx = cx - panTouch.lastX;
+          panTouch.lastX = cx;
+          adjustOrbitPan(dx);
+        };
+        const handleTouchEnd = (e) => {
+          if (e.touches.length < 2) {
+            panTouch.active = false;
+          }
+        };
+        const preventContextMenu = (ev) => ev.preventDefault();
         const down = (e) => {
-          registerInteraction();
+          if (panTouch.active) return;
+          const secondaryButton = e.button === 2 || e.button === 1;
+          if (e.button !== undefined && e.button !== 0 && !secondaryButton) return;
+          if (e.pointerType === 'touch' && e.isPrimary === false) return;
           if (e.touches?.length === 2) return;
           if (topViewRef.current) return;
+          registerInteraction();
           drag.on = true;
           drag.moved = false;
+          drag.mode = secondaryButton || e.shiftKey ? 'pan' : 'orbit';
+          drag.id = e.pointerId ?? null;
           drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
           drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
+          if (drag.mode === 'pan') {
+            if (typeof e.preventDefault === 'function') e.preventDefault();
+            setOrbitFocusToDefault();
+          }
         };
         const move = (e) => {
           if (topViewRef.current || !drag.on) return;
+          if (panTouch.active) return;
+          if (drag.id !== null && e.pointerId !== undefined && e.pointerId !== drag.id)
+            return;
           const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
           const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
+          if (e.pointerType === 'mouse' && e.buttons === 0) return;
           const dx = x - drag.x;
           const dy = y - drag.y;
           if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
           if (drag.moved) {
             drag.x = x;
             drag.y = y;
-            sph.theta -= dx * 0.0035;
-            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const phiDelta = dy * 0.0025;
-            const blendDelta =
-              phiRange > 1e-5 ? phiDelta / phiRange : 0;
-            applyCameraBlend(cameraBlendRef.current - blendDelta);
-            updateCamera();
-            registerInteraction(true);
+            if (drag.mode === 'pan') {
+              adjustOrbitPan(dx);
+            } else {
+              sph.theta -= dx * 0.0035;
+              const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
+              const phiDelta = dy * 0.0025;
+              const blendDelta =
+                phiRange > 1e-5 ? phiDelta / phiRange : 0;
+              applyCameraBlend(cameraBlendRef.current - blendDelta);
+              updateCamera();
+              registerInteraction(true);
+            }
           }
         };
         const up = (e) => {
-          registerInteraction();
+          if (drag.id !== null && e.pointerId !== undefined && e.pointerId !== drag.id)
+            return;
+          const isCancel = e?.type === 'pointercancel';
+          if (!isCancel) {
+            registerInteraction();
+          }
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
+          drag.id = null;
+          drag.mode = 'orbit';
           if (
+            !isCancel &&
             !moved &&
             !topViewRef.current &&
             !hud.inHand &&
@@ -2110,22 +2347,30 @@ function SnookerGame() {
             pickOrbitFocus(e);
           }
         };
-        dom.addEventListener('mousedown', down);
-        dom.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', up);
-        dom.addEventListener('touchstart', down, { passive: true });
-        dom.addEventListener('touchmove', move, { passive: true });
-        window.addEventListener('touchend', up);
+        dom.addEventListener('pointerdown', down);
+        dom.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+        dom.addEventListener('pointercancel', up);
+        dom.addEventListener('touchstart', handleTouchStart, { passive: false });
+        dom.addEventListener('touchmove', handleTouchMove, { passive: false });
+        dom.addEventListener('touchend', handleTouchEnd);
+        dom.addEventListener('touchcancel', handleTouchEnd);
+        dom.addEventListener('contextmenu', preventContextMenu);
         const keyRot = (e) => {
           if (topViewRef.current) return;
           const step = e.shiftKey ? 0.08 : 0.035;
-          if (e.code === 'ArrowLeft') {
+          const code = e.code;
+          const left = code === 'ArrowLeft' || code === 'KeyA';
+          const right = code === 'ArrowRight' || code === 'KeyD';
+          const upKey = code === 'ArrowUp' || code === 'KeyW';
+          const downKey = code === 'ArrowDown' || code === 'KeyS';
+          if (left) {
             sph.theta += step;
-          } else if (e.code === 'ArrowRight') {
+          } else if (right) {
             sph.theta -= step;
-          } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+          } else if (upKey || downKey) {
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const dir = e.code === 'ArrowUp' ? -1 : 1;
+            const dir = upKey ? -1 : 1;
             const blendDelta =
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
@@ -2351,7 +2596,7 @@ function SnookerGame() {
       const tipTex = new THREE.CanvasTexture(tipCanvas);
 
       const connectorHeight = 0.015 * SCALE;
-      const tipRadius = 0.006 * SCALE * 1.5;
+      const tipRadius = CUE_TIP_RADIUS;
       const tipLen = 0.015 * SCALE * 1.5;
       const tipCylinderLen = Math.max(0, tipLen - tipRadius * 2);
       const tip = new THREE.Mesh(
@@ -2563,7 +2808,9 @@ function SnookerGame() {
               perp.x * spinSide + aimDir.x * spinTop,
               perp.y * spinSide + aimDir.y * spinTop
             );
+            cue.spinBasis = aimDir.clone().normalize();
           }
+          resetSpinRef.current?.();
           cue.impacted = false;
 
           if (cameraRef.current && sphRef.current) {
@@ -2772,7 +3019,10 @@ function SnookerGame() {
           cue.active = false;
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
-          cue.spin?.set(0, 0);
+          if (cue.spin) {
+            cue.spin.set(0, 0);
+            cue.spinBasis = null;
+          }
           cue.impacted = false;
         } else if (gain > 0) {
           setHud((s) => ({ ...s, [me]: s[me] + gain }));
@@ -2894,13 +3144,17 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
+          applyRollingSpin(b, frameScale);
           b.pos.addScaledVector(b.vel, frameScale);
           b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
           const speed = b.vel.length();
           const scaledSpeed = speed * frameScale;
           if (scaledSpeed < STOP_EPS) {
             b.vel.set(0, 0);
-            if (b.spin) b.spin.set(0, 0);
+            if (b.spin) {
+              b.spin.set(0, 0);
+              b.spinBasis = null;
+            }
             if (b.id === 'cue') b.impacted = false;
           }
           const hitRail = reflectRails(b);
@@ -3005,7 +3259,10 @@ function SnookerGame() {
               b.active = false;
               b.mesh.visible = false;
               b.vel.set(0, 0);
-              if (b.spin) b.spin.set(0, 0);
+              if (b.spin) {
+                b.spin.set(0, 0);
+                b.spinBasis = null;
+              }
               if (b.id === 'cue') b.impacted = false;
               if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
               if (
@@ -3088,12 +3345,15 @@ function SnookerGame() {
         try {
           host.removeChild(renderer.domElement);
         } catch {}
-        dom.removeEventListener('mousedown', down);
-        dom.removeEventListener('mousemove', move);
-        window.removeEventListener('mouseup', up);
-        dom.removeEventListener('touchstart', down);
-        dom.removeEventListener('touchmove', move);
-        window.removeEventListener('touchend', up);
+        dom.removeEventListener('pointerdown', down);
+        dom.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        dom.removeEventListener('pointercancel', up);
+        dom.removeEventListener('touchstart', handleTouchStart);
+        dom.removeEventListener('touchmove', handleTouchMove);
+        dom.removeEventListener('touchend', handleTouchEnd);
+        dom.removeEventListener('touchcancel', handleTouchEnd);
+        dom.removeEventListener('contextmenu', preventContextMenu);
         window.removeEventListener('keydown', keyRot);
         dom.removeEventListener('pointerdown', onPlace);
       };
@@ -3138,11 +3398,22 @@ function SnookerGame() {
     let moved = false;
 
     const setSpin = (nx, ny) => {
-      spinRef.current = { x: nx, y: ny };
+      spinRef.current.x = nx;
+      spinRef.current.y = ny;
       dot.style.left = `${50 + nx * 50}%`;
       dot.style.top = `${50 + ny * 50}%`;
     };
-    setSpin(0, 0);
+
+    const scaleBox = (value) => {
+      box.style.transform = `scale(${value})`;
+    };
+
+    const centerSpin = () => {
+      setSpin(0, 0);
+      scaleBox(1);
+    };
+    centerSpin();
+    resetSpinRef.current = centerSpin;
 
     const updateSpin = (clientX, clientY) => {
       const rect = box.getBoundingClientRect();
@@ -3157,11 +3428,6 @@ function SnookerGame() {
       }
       setSpin(nx, ny);
     };
-
-    const scaleBox = (value) => {
-      box.style.transform = `scale(${value})`;
-    };
-    scaleBox(1);
 
     const clearTimer = () => {
       if (revertTimer) {
@@ -3229,6 +3495,7 @@ function SnookerGame() {
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
+      resetSpinRef.current = () => {};
     };
   }, []);
 
