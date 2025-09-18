@@ -141,9 +141,9 @@ const FRICTION = 0.9975;
 const CUSHION_RESTITUTION = 0.96;
 const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const POCKET_JAW_LIP_HEIGHT = -0.006; // drop pocket rings so their lip lines up with the cloth surface
-const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
+const POCKET_JAW_LIP_HEIGHT = -CLOTH_THICKNESS; // align pocket lips flush with the cloth plane
+const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 0.9;
@@ -1781,7 +1781,7 @@ function SnookerGame() {
       // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.72 * 0.7; // shrink each spotlight footprint by ~30% for a tighter beam
+      const rectSize = rectSizeBase * 0.72 * 0.7 * 0.7; // reduce spotlight footprint by an additional 30%
       const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25; // push more light down onto the cloth
 
       const makeLight = (x, z) => {
