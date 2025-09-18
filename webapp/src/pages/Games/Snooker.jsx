@@ -1287,8 +1287,9 @@ function SnookerGame() {
       const wallThickness = 1.2;
       const wallHeight = legHeight + TABLE.THICK + 40;
       const carpetThickness = 1.2;
-      const carpetWidth = roomWidth + wallThickness;
-      const carpetDepth = roomDepth + wallThickness;
+      const carpetInset = wallThickness * 0.02;
+      const carpetWidth = roomWidth - wallThickness + carpetInset;
+      const carpetDepth = roomDepth - wallThickness + carpetInset;
       const carpet = new THREE.Mesh(
         new THREE.BoxGeometry(carpetWidth, carpetThickness, carpetDepth),
         new THREE.MeshStandardMaterial({
@@ -1784,11 +1785,10 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Place four pot lights above the table corners with a slightly tighter footprint for a focused beam
+      // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize =
-        rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8 * 0.8; // reduce spotlight footprint and shrink fixtures by another 20%
+      const rectSize = rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8; // reduce spotlight footprint and shrink fixtures by another 20%
       const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25; // push more light down onto the cloth
 
       const makeLight = (x, z) => {
@@ -1803,17 +1803,10 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // anchor the four pot lights above the inner corners of the surrounding walls
-      const halfRoomWidth = roomWidth / 2 - wallThickness * 0.5;
-      const halfRoomDepth = roomDepth / 2 - wallThickness * 0.5;
-      const lightPositions = [
-        [-halfRoomWidth, -halfRoomDepth],
-        [halfRoomWidth, -halfRoomDepth],
-        [-halfRoomWidth, halfRoomDepth],
-        [halfRoomWidth, halfRoomDepth]
-      ];
-      for (const [x, z] of lightPositions) {
-        makeLight(x, z);
+      // evenly space the three pot lights along the table center line
+      const lightPositions = [-TABLE.H * 0.38, 0, TABLE.H * 0.38];
+      for (const z of lightPositions) {
+        makeLight(0, z);
       }
 
       // Table
