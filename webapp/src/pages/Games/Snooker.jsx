@@ -147,6 +147,9 @@ const BALL_MATERIAL_CACHE = new Map();
 const FRICTION = 0.995;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.05;
+const TARGET_FPS = 60;
+const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
+const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
@@ -1302,7 +1305,9 @@ function SnookerGame() {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -2774,11 +2779,9 @@ function SnookerGame() {
       // Loop
       let lastStepTime = performance.now();
       const step = (now) => {
-        const deltaMs = Math.min(
-          Math.max(now - lastStepTime, 0),
-          1000 / 20
-        );
-        const frameScale = deltaMs / (1000 / 60) || 1;
+        const rawDelta = Math.max(now - lastStepTime, 0);
+        const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
+        const frameScale = deltaMs / TARGET_FRAME_TIME_MS || 1;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
