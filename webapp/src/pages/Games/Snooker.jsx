@@ -2772,7 +2772,14 @@ function SnookerGame() {
         }
 
       // Loop
-      const step = () => {
+      let lastStepTime = performance.now();
+      const step = (now) => {
+        const deltaMs = Math.min(
+          Math.max(now - lastStepTime, 0),
+          1000 / 20
+        );
+        const frameScale = deltaMs / (1000 / 60) || 1;
+        lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
         aimDir.lerp(tmpAim, 0.2);
@@ -2847,10 +2854,11 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
-          b.pos.add(b.vel);
-          b.vel.multiplyScalar(FRICTION);
+          b.pos.addScaledVector(b.vel, frameScale);
+          b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
           const speed = b.vel.length();
-          if (speed < STOP_EPS) {
+          const scaledSpeed = speed * frameScale;
+          if (scaledSpeed < STOP_EPS) {
             b.vel.set(0, 0);
             if (b.spin) b.spin.set(0, 0);
             if (b.id === 'cue') b.impacted = false;
@@ -2861,9 +2869,9 @@ function SnookerGame() {
             applySpinImpulse(b, 1);
           }
           b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-          if (speed > 0) {
+          if (scaledSpeed > 0) {
             const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
-            const angle = speed / BALL_R;
+            const angle = scaledSpeed / BALL_R;
             b.mesh.rotateOnWorldAxis(axis, angle);
           }
         });
@@ -2987,7 +2995,7 @@ function SnookerGame() {
               const approachDir = toPocket.clone().normalize();
               pocketView.approach.copy(approachDir);
               const speedAlong = focusBall.vel.dot(approachDir);
-              if (speedAlong < -STOP_EPS) {
+              if (speedAlong * frameScale < -STOP_EPS) {
                 activeShotView = null;
                 followViewRef.current = null;
                 restoreOrbitCamera(pocketView);
@@ -2997,7 +3005,9 @@ function SnookerGame() {
         }
         // Fund i goditjes
           if (shooting) {
-            const any = balls.some((b) => b.active && b.vel.length() >= STOP_EPS);
+            const any = balls.some(
+              (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+            );
             if (!any) resolve();
           }
           const fit = fitRef.current;
@@ -3013,7 +3023,7 @@ function SnookerGame() {
           renderer.render(scene, camera);
           rafRef.current = requestAnimationFrame(step);
         };
-        step();
+        step(performance.now());
 
       // Resize
       const onResize = () => {
