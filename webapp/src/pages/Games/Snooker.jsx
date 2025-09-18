@@ -131,9 +131,9 @@ const TABLE = {
 };
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_START_BLEND = 0;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.88;
-const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
+const ACTION_CAMERA_START_BLEND = 1;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.82;
+const ACTION_CAMERA_VERTICAL_CURVE = 0.6;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
   Math.max(0.65, PLAY_W / PLAY_H)
@@ -163,8 +163,7 @@ const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of c
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const POCKET_JAW_LIP_HEIGHT =
-  -CLOTH_THICKNESS * 0.25; // keep the jaw trim flush with the cloth plane
+const POCKET_JAW_LIP_HEIGHT = 0; // keep the jaw trim flush with the cloth plane
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
@@ -180,7 +179,7 @@ const POCKET_CAM = Object.freeze({
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
 // Boost base shot speed so the power slider delivers ~20% more energy.
-const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2;
+const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.85;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -233,7 +232,7 @@ function spotPositions(baulkZ) {
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
 const STANDING_VIEW_PHI = 1.16;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.15;
 const STANDING_VIEW_MARGIN = 0.78;
 const STANDING_VIEW_FOV = 62;
 const CAMERA = {
@@ -287,6 +286,10 @@ const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
+const lerpAngle = (a, b, t) => {
+  const delta = THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) - Math.PI;
+  return a + delta * t;
+};
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
@@ -336,13 +339,13 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const radius = 0.3;
+  const radius = 0.45;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const useLight = (x + y) % (spacing * 2) === 0;
       ctx.fillStyle = useLight
-        ? 'rgba(255,255,255,0.45)'
-        : 'rgba(0,0,0,0.45)';
+        ? 'rgba(255,255,255,0.6)'
+        : 'rgba(0,0,0,0.55)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -350,20 +353,28 @@ function makeClothTexture() {
   }
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
-  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
-  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.015)');
-  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 0.5;
+  for (let y = -size; y < size; y += spacing * 6) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(size, y + size);
+    ctx.stroke();
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const repeatScale = 9;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
   texture.anisotropy = 8;
-  texture.needsUpdate = true;
   texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
@@ -584,7 +595,7 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.08;
+    clothMat.bumpScale = 0.12;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
@@ -1542,8 +1553,12 @@ function SnookerGame() {
               }
               const aimVec2 = (view.aimDir
                 ? view.aimDir.clone()
-                : aimDirRef.current.clone()
-              ).normalize();
+                : aimDirRef.current.clone());
+              if (aimVec2.lengthSq() < 1e-6) {
+                aimVec2.set(0, 1);
+              } else {
+                aimVec2.normalize();
+              }
               view.aimDir = view.aimDir || aimVec2.clone();
               let targetVec2 = null;
               if (targetBall) {
@@ -1573,7 +1588,14 @@ function SnookerGame() {
                 ACTION_CAMERA_MIN_PHI,
                 CAMERA.maxPhi
               );
-              const orbitTheta = sph.theta;
+              const targetTheta = Math.atan2(-aimVec2.x, -aimVec2.y);
+              const previousTheta = view.cameraOrbit?.theta ?? sph.theta;
+              const orbitTheta = lerpAngle(
+                previousTheta,
+                targetTheta,
+                ACTION_CAMERA.thetaLerp
+              );
+              sph.theta = orbitTheta;
               const tableFocus = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
               const worldFocus = tableFocus
                 .clone()
@@ -1701,15 +1723,9 @@ function SnookerGame() {
             const dist = camera.position.distanceTo(lookTarget);
             // Subtle detail up close, fade quicker in orbit view
             const fade = THREE.MathUtils.clamp((130 - dist) / 55, 0, 1);
-            const rep = THREE.MathUtils.lerp(18, 36, fade);
+            const rep = THREE.MathUtils.lerp(12, 28, fade);
             clothMat.map?.repeat.set(rep, rep);
           }
-        };
-        const lerpAngle = (a, b, t) => {
-          const delta =
-            THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) -
-            Math.PI;
-          return a + delta * t;
         };
         const animateCamera = ({
           radius,
