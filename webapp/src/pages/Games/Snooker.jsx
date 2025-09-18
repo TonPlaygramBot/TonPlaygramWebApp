@@ -160,6 +160,7 @@ const STOP_EPS = 0.05;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
+const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
@@ -2683,7 +2684,7 @@ function SnookerGame() {
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
         const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS || 1;
-        const frameScale = Math.max(frameScaleBase, 1);
+        const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
