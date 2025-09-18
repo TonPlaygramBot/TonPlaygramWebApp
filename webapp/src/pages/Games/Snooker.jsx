@@ -220,10 +220,10 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.08;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.25;
-const STANDING_VIEW_MARGIN = 0.9;
-const STANDING_VIEW_FOV = 65;
+const STANDING_VIEW_PHI = 1.16;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
+const STANDING_VIEW_MARGIN = 0.84;
+const STANDING_VIEW_FOV = 62;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
@@ -282,7 +282,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.8 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.74 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
