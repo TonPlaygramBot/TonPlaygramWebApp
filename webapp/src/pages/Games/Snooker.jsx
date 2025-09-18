@@ -147,7 +147,7 @@ const BALL_MATERIAL_CACHE = new Map();
 const FRICTION = 0.995;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.05;
-const TARGET_FPS = 60;
+const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -168,7 +168,7 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-const SHOT_BASE_SPEED = 12.5;
+const SHOT_BASE_SPEED = 12.5 * 0.7;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -220,16 +220,24 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë ulje më të madhe (phi më i vogël), por mos shko kurrë krejt në nivel (limit ~0.5rad)
+const STANDING_VIEW_PHI = 0.92;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.46;
+const STANDING_VIEW_MARGIN = 1.08;
+const STANDING_VIEW_FOV = 65;
 const CAMERA = {
-  fov: 44,
+  fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
   minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 1.05,
-  maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  minPhi: 0.56,
+  maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
-  maxPhi: Math.PI / 2 - 0.46
+  maxPhi: CUE_SHOT_PHI
 };
+const STANDING_VIEW = Object.freeze({
+  phi: STANDING_VIEW_PHI,
+  margin: STANDING_VIEW_MARGIN
+});
 const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
@@ -259,7 +267,7 @@ const ACTION_CAMERA = Object.freeze({
 });
 const ACTION_CAMERA_RADIUS_SCALE = 1;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.35;
-const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi + 0.08;
+const ACTION_CAMERA_MIN_PHI = CAMERA.minPhi;
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
@@ -1058,6 +1066,11 @@ function SnookerGame() {
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const followViewRef = useRef(null);
+  const cameraBlendRef = useRef(1);
+  const cameraBoundsRef = useRef({
+    cueShot: { phi: CAMERA.maxPhi, radius: BREAK_VIEW.radius },
+    standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
+  });
   const rendererRef = useRef(null);
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
@@ -1419,6 +1432,44 @@ function SnookerGame() {
         const clampOrbitRadius = (value) =>
           clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
+        const syncBlendToSpherical = () => {
+          const bounds = cameraBoundsRef.current;
+          if (!bounds) return;
+          const { standing, cueShot } = bounds;
+          const phiRange = standing.phi - cueShot.phi;
+          if (Math.abs(phiRange) > 1e-5) {
+            const normalized = (sph.phi - cueShot.phi) / phiRange;
+            cameraBlendRef.current = THREE.MathUtils.clamp(
+              normalized,
+              0,
+              1
+            );
+          } else {
+            cameraBlendRef.current = 0;
+          }
+        };
+
+        const applyCameraBlend = (nextBlend) => {
+          const bounds = cameraBoundsRef.current;
+          if (!bounds) return;
+          const { standing, cueShot } = bounds;
+          const blend = THREE.MathUtils.clamp(
+            nextBlend ?? cameraBlendRef.current,
+            0,
+            1
+          );
+          cameraBlendRef.current = blend;
+          const phi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
+          const radius = THREE.MathUtils.lerp(
+            cueShot.radius,
+            standing.radius,
+            blend
+          );
+          sph.phi = clamp(phi, CAMERA.minPhi, CAMERA.maxPhi);
+          sph.radius = clampOrbitRadius(radius);
+          syncBlendToSpherical();
+        };
+
         const updateCamera = () => {
           let lookTarget = null;
           if (topViewRef.current) {
@@ -1635,6 +1686,7 @@ function SnookerGame() {
             if (theta !== undefined) {
               sph.theta = lerpAngle(start.theta, theta, eased);
             }
+            syncBlendToSpherical();
             updateCamera();
             if (t < 1) requestAnimationFrame(step);
           };
@@ -1647,11 +1699,18 @@ function SnookerGame() {
           const orbit =
             view.resumeOrbit ??
             view.orbitSnapshot ??
-            initialOrbitRef.current ?? {
-              radius: sph.radius,
-              phi: sph.phi,
-              theta: sph.theta
-            };
+            initialOrbitRef.current ??
+            (cameraBoundsRef.current?.standing
+              ? {
+                  radius: cameraBoundsRef.current.standing.radius,
+                  phi: cameraBoundsRef.current.standing.phi,
+                  theta: sph.theta
+                }
+              : {
+                  radius: sph.radius,
+                  phi: sph.phi,
+                  theta: sph.theta
+                });
           const radius = clampOrbitRadius(orbit.radius ?? sph.radius);
           const phi = clamp(
             orbit.phi ?? sph.phi,
@@ -1671,6 +1730,7 @@ function SnookerGame() {
             sph.radius = radius;
             sph.phi = Math.max(CAMERA.minPhi, safePhi);
             sph.theta = theta;
+            syncBlendToSpherical();
             updateCamera();
           } else {
             animateCamera({
@@ -1736,31 +1796,28 @@ function SnookerGame() {
             resumeOrbit
           };
         };
-        const fit = (m = 1.1) => {
+        const fit = (m = STANDING_VIEW.margin) => {
           camera.aspect = host.clientWidth / host.clientHeight;
-          const baseR = fitRadius(camera, m);
-          const zoomBias = 0.7;
-          let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-          let r = clampOrbitRadius(baseR * (1 - zoomBias * t));
+          const standingRadiusRaw = fitRadius(camera, m);
+          const cueRadius = clampOrbitRadius(BREAK_VIEW.radius);
+          const standingRadius = clampOrbitRadius(
+            Math.max(standingRadiusRaw, cueRadius)
+          );
+          cameraBoundsRef.current = {
+            cueShot: { phi: CAMERA.maxPhi, radius: cueRadius },
+            standing: { phi: CAMERA.minPhi, radius: standingRadius }
+          };
+          applyCameraBlend();
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
             cushionHeightRef.current
           );
           const phiCap = Math.acos(
-            THREE.MathUtils.clamp(cushionLimit / r, -1, 1)
-          );
-          sph.phi = clamp(
-            sph.phi,
-            CAMERA.minPhi,
-            Math.min(phiCap, CAMERA.maxPhi)
-          );
-          t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-          sph.radius = clampOrbitRadius(baseR * (1 - zoomBias * t));
-          const radiusPhiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
           );
-          if (sph.phi > radiusPhiCap) {
-            sph.phi = Math.max(CAMERA.minPhi, radiusPhiCap);
+          if (sph.phi > phiCap) {
+            sph.phi = Math.max(CAMERA.minPhi, phiCap);
+            syncBlendToSpherical();
           }
           updateCamera();
           camera.updateProjectionMatrix();
@@ -1770,16 +1827,15 @@ function SnookerGame() {
         fitRef.current = fit;
         topViewRef.current = false;
         setTopView(false);
-        fit(
+        const margin = Math.max(
+          STANDING_VIEW.margin,
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
               ? 1.6
               : 1.4
         );
-        // ease the starting view slightly farther from the side rail for a fuller table frame
-        sph.radius *= 0.85;
-        updateCamera();
+        fit(margin);
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
         if (!initialOrbitRef.current) {
@@ -1794,7 +1850,6 @@ function SnookerGame() {
         const balls = [];
         let project;
         const drag = { on: false, x: 0, y: 0, moved: false };
-        const pinch = { active: false, dist: 0 };
         let lastInteraction = performance.now();
         const registerInteraction = (didAdjust = false) => {
           const now = performance.now();
@@ -1813,15 +1868,7 @@ function SnookerGame() {
         };
         const down = (e) => {
           registerInteraction();
-          if (e.touches?.length === 2) {
-            const [t1, t2] = e.touches;
-            pinch.active = true;
-            pinch.dist = Math.hypot(
-              t1.clientX - t2.clientX,
-              t1.clientY - t2.clientY
-            );
-            return;
-          }
+          if (e.touches?.length === 2) return;
           if (topViewRef.current) return;
           drag.on = true;
           drag.moved = false;
@@ -1829,19 +1876,6 @@ function SnookerGame() {
           drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
         };
         const move = (e) => {
-          if (pinch.active && e.touches?.length === 2) {
-            const [t1, t2] = e.touches;
-            const d = Math.hypot(
-              t1.clientX - t2.clientX,
-              t1.clientY - t2.clientY
-            );
-            const delta = pinch.dist - d;
-            sph.radius = clampOrbitRadius(sph.radius + delta * 0.5);
-            pinch.dist = d;
-            updateCamera();
-            registerInteraction(true);
-            return;
-          }
           if (topViewRef.current || !drag.on) return;
           const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
           const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
@@ -1852,18 +1886,12 @@ function SnookerGame() {
             drag.x = x;
             drag.y = y;
             sph.theta -= dx * 0.0035;
-            sph.phi = clamp(
-              sph.phi + dy * 0.0025,
-              CAMERA.minPhi,
-              CAMERA.maxPhi
-            );
-            fit(
-              topViewRef.current
-                ? 1.05
-                : window.innerHeight > window.innerWidth
-                  ? 1.2
-                  : 1.0
-            );
+            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
+            const phiDelta = dy * 0.0025;
+            const blendDelta =
+              phiRange > 1e-5 ? phiDelta / phiRange : 0;
+            applyCameraBlend(cameraBlendRef.current - blendDelta);
+            updateCamera();
             registerInteraction(true);
           }
         };
@@ -1872,7 +1900,6 @@ function SnookerGame() {
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
-          pinch.active = false;
           if (
             !moved &&
             !topViewRef.current &&
@@ -1883,30 +1910,28 @@ function SnookerGame() {
             pickOrbitFocus(e);
           }
         };
-        const wheel = (e) => {
-          sph.radius = clampOrbitRadius(sph.radius + e.deltaY * 0.12);
-          updateCamera();
-          registerInteraction(true);
-        };
         dom.addEventListener('mousedown', down);
         dom.addEventListener('mousemove', move);
         window.addEventListener('mouseup', up);
         dom.addEventListener('touchstart', down, { passive: true });
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
-        dom.addEventListener('wheel', wheel, { passive: true });
         const keyRot = (e) => {
           if (topViewRef.current) return;
           const step = e.shiftKey ? 0.08 : 0.035;
-          if (e.code === 'ArrowLeft') sph.theta += step;
-          else if (e.code === 'ArrowRight') sph.theta -= step;
-          else if (e.code === 'ArrowUp')
-            sph.phi = clamp(sph.phi - step, CAMERA.minPhi, CAMERA.maxPhi);
-          else if (e.code === 'ArrowDown')
-            sph.phi = clamp(sph.phi + step, CAMERA.minPhi, CAMERA.maxPhi);
-          else return;
+          if (e.code === 'ArrowLeft') {
+            sph.theta += step;
+          } else if (e.code === 'ArrowRight') {
+            sph.theta -= step;
+          } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
+            const dir = e.code === 'ArrowUp' ? -1 : 1;
+            const blendDelta =
+              phiRange > 1e-5 ? (step * dir) / phiRange : 0;
+            applyCameraBlend(cameraBlendRef.current - blendDelta);
+          } else return;
           registerInteraction(true);
-          fit(window.innerHeight > window.innerWidth ? 1.6 : 1.4);
+          updateCamera();
         };
         window.addEventListener('keydown', keyRot);
 
@@ -2310,6 +2335,8 @@ function SnookerGame() {
         const fire = () => {
           if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
             return;
+          applyCameraBlend(1);
+          updateCamera();
           shooting = true;
           potted = [];
           foul = false;
@@ -2354,31 +2381,22 @@ function SnookerGame() {
               theta: sph.theta
             };
             const followTheta = baseOrbit.theta;
-            const basePhi = clamp(baseOrbit.phi, CAMERA.minPhi, CAMERA.maxPhi);
-            const followPhiTarget =
-              ACTION_VIEW.lockedPhi ?? basePhi + ACTION_VIEW.phiOffset;
-            const followPhi = clamp(
-              followPhiTarget,
-              CAMERA.minPhi + 0.02,
+            const bounds = cameraBoundsRef.current;
+            const standingView = bounds?.standing;
+            const followPhi = standingView?.phi ?? CAMERA.minPhi;
+            const followRadius = clampOrbitRadius(
+              standingView?.radius ?? baseOrbit.radius
+            );
+            const shotStart = performance.now();
+            lastInteraction = shotStart;
+            const actionRadius = clampOrbitRadius(
+              standingView?.radius ?? followRadius
+            );
+            const actionPhi = clamp(
+              standingView?.phi ?? followPhi,
+              CAMERA.minPhi,
               CAMERA.maxPhi
             );
-              const followRadius = clampOrbitRadius(baseOrbit.radius);
-              const shotStart = performance.now();
-              lastInteraction = shotStart;
-              const actionRadius = clampOrbitRadius(
-                Math.max(
-                  baseOrbit.radius * ACTION_CAMERA_RADIUS_SCALE,
-                  ACTION_CAMERA_MIN_RADIUS
-                )
-              );
-              const actionPhi = clamp(
-                Math.max(
-                  ACTION_CAMERA_MIN_PHI,
-                  baseOrbit.phi - ACTION_CAMERA.phiLift
-                ),
-                ACTION_CAMERA_MIN_PHI,
-                CAMERA.maxPhi
-              );
             activeShotView = {
               mode: 'action',
               radius: followRadius,
@@ -2411,8 +2429,7 @@ function SnookerGame() {
             };
             followViewRef.current = activeShotView;
             sph.theta = followTheta;
-            sph.phi = followPhi;
-            sph.radius = clampOrbitRadius(sph.radius);
+            applyCameraBlend(1);
             updateCamera();
           }
 
@@ -2573,16 +2590,16 @@ function SnookerGame() {
             if (toCenter.lengthSq() < 1e-4) toCenter.set(0, 1);
             else toCenter.normalize();
             const behindTheta = Math.atan2(toCenter.x, toCenter.y) + Math.PI;
+            const standingView = cameraBoundsRef.current?.standing;
             const behindPhi = clamp(
-              BREAK_VIEW.phi,
+              standingView?.phi ?? CAMERA.minPhi,
               CAMERA.minPhi,
               CAMERA.maxPhi
             );
-            const behindRadius = clamp(
-              BREAK_VIEW.radius,
-              CAMERA.minR,
-              CAMERA.maxR
+            const behindRadius = clampOrbitRadius(
+              standingView?.radius ?? BREAK_VIEW.radius
             );
+            applyCameraBlend(1);
             animateCamera({
               radius: behindRadius,
               phi: behindPhi,
@@ -2851,15 +2868,17 @@ function SnookerGame() {
       const onResize = () => {
         // Update canvas dimensions when the window size changes so the table
         // remains fully visible.
-          renderer.setSize(host.clientWidth, host.clientHeight);
-          fit(
-            topViewRef.current
-              ? 1.05
-              : window.innerHeight > window.innerWidth
-                ? 1.6
-                : 1.4
-          );
-        };
+        renderer.setSize(host.clientWidth, host.clientHeight);
+        const margin = Math.max(
+          STANDING_VIEW.margin,
+          topViewRef.current
+            ? 1.05
+            : window.innerHeight > window.innerWidth
+              ? 1.6
+              : 1.4
+        );
+        fit(margin);
+      };
       window.addEventListener('resize', onResize);
 
       return () => {
@@ -2874,7 +2893,6 @@ function SnookerGame() {
         dom.removeEventListener('touchstart', down);
         dom.removeEventListener('touchmove', move);
         window.removeEventListener('touchend', up);
-        dom.removeEventListener('wheel', wheel);
         window.removeEventListener('keydown', keyRot);
         dom.removeEventListener('pointerdown', onPlace);
       };
