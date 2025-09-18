@@ -143,10 +143,10 @@ const STOP_EPS = 0.02;
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT = -CLOTH_THICKNESS; // align pocket lips flush with the cloth plane
-const POCKET_RECESS_DEPTH = BALL_R * 0.18; // sink pockets into the cloth so the cut looks clean
+const POCKET_RECESS_DEPTH = BALL_R * 0.24; // sink pockets further so the mouth sits flush with the cloth
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
-const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 0.9;
+const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.4,
   dotThreshold: 0.35,
@@ -209,11 +209,11 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.92,
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  minPhi: 0.5,
+  minPhi: 0.56,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
-  maxPhi: Math.PI / 2 - 0.2
+  maxPhi: Math.PI / 2 - 0.39
 };
 const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
@@ -222,10 +222,11 @@ let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
   radius: 150 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: 1.05
+  phi: CAMERA.maxPhi
 });
 const ACTION_VIEW = Object.freeze({
-  phiOffset: -0.015,
+  phiOffset: 0,
+  lockedPhi: CAMERA.maxPhi,
   fitMargin: 1.03,
   followWeight: 0.25,
   maxOffset: PLAY_W * 0.14
@@ -967,8 +968,7 @@ function Table3D(parent) {
   table.userData.cushionTopLocal = cushionTopLocal;
 
   if (!table.userData.pockets) table.userData.pockets = [];
-  const pocketLipTop = cushionTopLocal - CLOTH_THICKNESS * 0.85;
-  const pocketRecess = POCKET_RECESS_DEPTH;
+  const clothPlane = cushionTopLocal - CLOTH_THICKNESS;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const cut = new THREE.Mesh(
@@ -979,7 +979,7 @@ function Table3D(parent) {
     const scaleY = 1.15;
     cut.scale.set(0.5, scaleY, 0.5);
     const half = (cutHeight * scaleY) / 2;
-    cut.position.set(p.x, pocketLipTop - half - pocketRecess, p.y);
+    cut.position.set(p.x, clothPlane - half, p.y);
     table.add(cut);
     table.userData.pockets.push(cut);
   });
@@ -990,7 +990,7 @@ function Table3D(parent) {
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
-  table.userData.cushionLipClearance = pocketLipTop - pocketRecess;
+  table.userData.cushionLipClearance = clothPlane;
   parent.add(table);
   return {
     centers: pocketCenters(),
@@ -1028,7 +1028,7 @@ function SnookerGame() {
   const initialOrbitRef = useRef(null);
   const followViewRef = useRef(null);
   const rendererRef = useRef(null);
-  const last3DRef = useRef({ phi: 1.05, theta: Math.PI });
+  const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
@@ -1789,7 +1789,8 @@ function SnookerGame() {
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
       const rectSize = rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8; // reduce spotlight footprint and shrink fixtures by another 20%
-      const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25; // push more light down onto the cloth
+      const baseRectIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25;
+      const lightIntensity = baseRectIntensity * 1.08; // gently boost spotlight brightness
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2137,10 +2138,12 @@ function SnookerGame() {
             };
             const followTheta = baseOrbit.theta;
             const basePhi = clamp(baseOrbit.phi, CAMERA.minPhi, CAMERA.maxPhi);
+            const followPhiTarget =
+              ACTION_VIEW.lockedPhi ?? basePhi + ACTION_VIEW.phiOffset;
             const followPhi = clamp(
-              basePhi + ACTION_VIEW.phiOffset,
+              followPhiTarget,
               CAMERA.minPhi + 0.02,
-              CAMERA.maxPhi - 0.02
+              CAMERA.maxPhi
             );
             const followRadius = clamp(
               fitRadius(camera, ACTION_VIEW.fitMargin),
