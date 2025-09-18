@@ -168,7 +168,7 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-const SHOT_BASE_SPEED = 12.5 * 0.7;
+const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -220,15 +220,15 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.18;
+const STANDING_VIEW_PHI = 1.08;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.25;
-const STANDING_VIEW_MARGIN = 0.97;
+const STANDING_VIEW_MARGIN = 0.9;
 const STANDING_VIEW_FOV = 65;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 1.05,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 1.05,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -255,7 +255,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.12,
+  phiLift: 0.08,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -265,11 +265,11 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.82;
-const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR * 1.05;
+const ACTION_CAMERA_RADIUS_SCALE = 0.72;
+const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - 0.02,
-  STANDING_VIEW_PHI + 0.05
+  STANDING_VIEW_PHI + 0.02
 );
 const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
