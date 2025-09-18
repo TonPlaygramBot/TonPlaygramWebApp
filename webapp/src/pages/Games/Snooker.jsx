@@ -159,9 +159,11 @@ const SPIN_DECAY = 0.58;
 // Make the four round legs taller to lift the entire table
 // Increase scale so the table sits roughly twice as high and legs reach the rug
 const LEG_SCALE = 6.2;
+const LEG_HEIGHT_MULTIPLIER = 2.25;
+const TABLE_LIFT = 3.0;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
-// raise overall table position so the longer legs are visible
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H;
+// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 // angle for cushion cuts guiding balls into pockets
@@ -207,11 +209,11 @@ const CAMERA = {
   fov: 44,
   near: 0.1,
   far: 4000,
-  minR: 26 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minR: 24 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   maxR: 200 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: 0.5,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
-  maxPhi: Math.PI / 2 - 0.12
+  maxPhi: Math.PI / 2 - 0.2
 };
 const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
@@ -830,7 +832,8 @@ function Table3D(parent) {
   const pocketRadius = 6.2 * 0.5; // radius used for pocket holes
   const pocketHeight = railH * 3.0 * 1.15; // height of pocket cylinders
   const legRadius = pocketRadius * 3 * 0.5; // 50% thinner legs
-  const legHeight = pocketHeight * 2.25; // 50% taller legs
+  const baseLegHeight = pocketHeight * LEG_HEIGHT_MULTIPLIER;
+  const legHeight = baseLegHeight + TABLE_LIFT; // extend legs further so the table sits higher
   const legGeo = new THREE.CylinderGeometry(
     legRadius,
     legRadius,
@@ -1274,10 +1277,13 @@ function SnookerGame() {
       let activeShotView = null;
       let shotPrediction = null;
       let cueAnimating = false; // forward stroke animation state
-      const legHeight = TABLE.THICK * 2 * 3 * 1.15 * 2.25;
+      const baseLegHeight =
+        TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
+      const legHeight = baseLegHeight + TABLE_LIFT;
       const floorY = TABLE_Y - TABLE.THICK - legHeight + 0.3;
-      const roomWidth = TABLE.W * 3.2;
       const roomDepth = TABLE.H * 3.6;
+      const sideClearance = roomDepth / 2 - TABLE.H / 2;
+      const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
       const wallHeight = legHeight + TABLE.THICK + 40;
       const carpetThickness = 1.2;
@@ -1616,8 +1622,9 @@ function SnookerGame() {
         const fit = (m = 1.1) => {
           camera.aspect = host.clientWidth / host.clientHeight;
           const baseR = fitRadius(camera, m);
+          const zoomBias = 0.7;
           let t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-          let r = baseR * (1 - 0.6 * t);
+          let r = baseR * (1 - zoomBias * t);
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
             cushionHeightRef.current
@@ -1631,7 +1638,7 @@ function SnookerGame() {
             Math.min(phiCap, CAMERA.maxPhi)
           );
           t = (sph.phi - CAMERA.minPhi) / (CAMERA.maxPhi - CAMERA.minPhi);
-          sph.radius = clamp(baseR * (1 - 0.6 * t), CAMERA.minR, CAMERA.maxR);
+          sph.radius = clamp(baseR * (1 - zoomBias * t), CAMERA.minR, CAMERA.maxR);
           const radiusPhiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
           );
@@ -1653,8 +1660,8 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
-        // bring the starting view a touch closer to the action
-        sph.radius *= 0.85;
+        // bring the starting view noticeably closer to the action
+        sph.radius *= 0.78;
         updateCamera();
         if (!initialOrbitRef.current) {
           initialOrbitRef.current = {
@@ -1781,7 +1788,7 @@ function SnookerGame() {
       // Place three pot lights above the table with a slightly tighter footprint for a focused beam
       const lightHeight = TABLE_Y + 100; // raise spotlights slightly higher
       const rectSizeBase = 21;
-      const rectSize = rectSizeBase * 0.72 * 0.7 * 0.7; // reduce spotlight footprint by an additional 30%
+      const rectSize = rectSizeBase * 0.72 * 0.7 * 0.7 * 0.8; // reduce spotlight footprint and shrink fixtures by another 20%
       const lightIntensity = 31.68 * 1.3 * 1.3 * 1.35 * 1.25; // push more light down onto the cloth
 
       const makeLight = (x, z) => {
@@ -1797,7 +1804,7 @@ function SnookerGame() {
       };
 
       // evenly space the three pot lights along the table center line
-      const lightPositions = [-TABLE.H * 0.32, 0, TABLE.H * 0.32];
+      const lightPositions = [-TABLE.H * 0.38, 0, TABLE.H * 0.38];
       for (const z of lightPositions) {
         makeLight(0, z);
       }
