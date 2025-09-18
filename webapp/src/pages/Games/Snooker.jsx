@@ -137,7 +137,7 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 const POCKET_VIS_R = POCKET_R / 0.85;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-const FRICTION = 0.985;
+const FRICTION = 0.992;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.05;
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -158,7 +158,7 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-const SHOT_BASE_SPEED = 6.8;
+const SHOT_BASE_SPEED = 8.2;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -2052,7 +2052,7 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.9; // keep a wider beam so the light spreads softly
+      const rectSize = rectSizeBase * 0.85; // trim the beam so the spots feel tighter overhead
       const baseRectIntensity = 31.68;
       const lightIntensity = baseRectIntensity * 0.82; // soften so ambient fill is noticeable
 
@@ -2069,7 +2069,8 @@ function SnookerGame() {
       };
 
       // evenly space the three pot lights along the table center line
-      const lightPositions = [-TABLE.H * 0.48, 0, TABLE.H * 0.48];
+      const spotlightSpread = 0.54; // push the end lights farther from center for better separation
+      const lightPositions = [-TABLE.H * spotlightSpread, 0, TABLE.H * spotlightSpread];
       for (const z of lightPositions) {
         makeLight(0, z);
       }

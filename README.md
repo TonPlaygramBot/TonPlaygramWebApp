@@ -1,4 +1,5 @@
 
+> 📱 **Mobile parity requirement:** All gameplay, UI and configuration updates must be validated against the mobile layout so the experience shown on a phone exactly matches the client's requests.
 
 # System Prompt (for Codex)
 
