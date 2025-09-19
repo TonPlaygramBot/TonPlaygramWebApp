@@ -218,7 +218,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x239c4a,
+  cloth: 0x228b22,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -458,71 +458,42 @@ const pocketCenters = () => [
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
 function makeClothTexture() {
-  const size = 512;
+  const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#208b43';
+  ctx.fillStyle = '#228b22';
   ctx.fillRect(0, 0, size, size);
 
-  const weaveStep = 4;
-  const strandAlpha = 0.22;
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = strandAlpha;
-  ctx.strokeStyle = '#ffffff';
-  for (let y = 0; y <= size; y += weaveStep) {
-    ctx.beginPath();
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(size, y + 0.5);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = '#061006';
-  for (let x = 0; x <= size; x += weaveStep) {
-    ctx.beginPath();
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, size);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const dotSpacing = 5;
-  const dotRadius = 1.1;
-  for (let y = 0; y < size; y += dotSpacing) {
-    for (let x = 0; x < size; x += dotSpacing) {
-      const light = ((x + y) / dotSpacing) % 2 === 0;
-      ctx.fillStyle = light ? 'rgba(255,255,255,0.82)' : 'rgba(8,12,8,0.88)';
-      const jitterX = (light ? 0.45 : -0.45) * dotRadius;
-      const jitterY = (!light ? 0.45 : -0.45) * dotRadius;
+  const spacing = 2;
+  for (let y = 0; y < size; y += spacing) {
+    for (let x = 0; x < size; x += spacing) {
+      ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
       ctx.beginPath();
-      ctx.arc(x + jitterX, y + jitterY, dotRadius, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = 'rgba(48, 142, 80, 0.24)';
-  ctx.fillRect(0, 0, size, size);
-  ctx.globalCompositeOperation = 'source-over';
-
-  const noiseImage = ctx.createImageData(size, size);
-  for (let i = 0; i < noiseImage.data.length; i += 4) {
-    const value = 220 + Math.random() * 35;
-    noiseImage.data[i] = value;
-    noiseImage.data[i + 1] = value;
-    noiseImage.data[i + 2] = value;
-    noiseImage.data[i + 3] = Math.random() * 24;
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  for (let i = 0; i < 25000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const angle = Math.random() * Math.PI * 2;
+    const length = Math.random() * 5 + 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    ctx.stroke();
   }
-  ctx.putImageData(noiseImage, 0, 0);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseWidth = 10;
-  const baseDepth = 5;
-  const baseRepeat = 3.0;
-  const repeatX = (PLAY_W / baseWidth) * baseRepeat;
-  const repeatY = (PLAY_H / baseDepth) * baseRepeat;
+  const baseRepeat = 8;
+  const repeatX = baseRepeat * (PLAY_W / TABLE.W);
+  const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 32;
   if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
@@ -1491,7 +1462,7 @@ function Table3D(parent) {
   const FRAME_W = railW * 2.5;
   const baseOuterHalfW = halfW + 2 * railW + FRAME_W;
   const baseOuterHalfH = halfH + 2 * railW + FRAME_W;
-  const SIDE_RAIL_EXPAND_X = railW * 0.8; // widen only the wooden side rails without moving cushions
+  const SIDE_RAIL_EXPAND_X = railW * 1.05; // pull the wooden side rails slightly farther from the cushions
   const END_RAIL_EXPAND_Z = railW * 0.25;
   const outerHalfW = baseOuterHalfW + SIDE_RAIL_EXPAND_X;
   const outerHalfH = baseOuterHalfH + END_RAIL_EXPAND_Z;
@@ -1565,8 +1536,8 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 6.1; // trim the long rails further so the corner pieces stop short of the pocket throat
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.03; // pull cushions closer to the pocket rings without touching
-  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.26; // shorten long cushions so they stop before the pocket throat
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.1; // trim the side-pocket noses so they no longer crowd the pocket lips
+  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.3; // shorten long cushions so they stop before the pocket throat
   const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.18; // mirror the pocket clearance on the four short cushions
   const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.06; // tug long cushions toward the playfield so they meet the rails cleanly
   const END_RAIL_CENTER_PULL = TABLE.WALL * 0.045; // pull the short-end cushions into line with the pockets
