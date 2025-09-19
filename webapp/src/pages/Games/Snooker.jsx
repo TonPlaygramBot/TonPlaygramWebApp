@@ -163,7 +163,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_EDGE_GROWTH = TABLE.WALL * 0.18; // extend the visual cloth toward the rails to eliminate the outer gap
 const POCKET_JAW_LIP_HEIGHT =
-  -TABLE.THICK + 0.025; // raise pocket rims so they sit level with the cushions
+  -TABLE.THICK + 0.11; // lift pocket rims slightly higher so the openings read from distance
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
@@ -218,7 +218,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x368f52,
+  cloth: 0x3ea861,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -460,38 +460,38 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const baseCloth = '#368f52';
+  const baseCloth = '#3ea861';
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.09)');
-  shading.addColorStop(0.6, 'rgba(0,0,0,0.2)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.34)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.06)');
+  shading.addColorStop(0.6, 'rgba(0,0,0,0.16)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.26)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.05)');
-  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.14)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.04)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.04)');
+  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.12)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.035)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 1;
-  const lightWeave = 'rgba(255,255,255,0.55)';
-  const darkWeave = 'rgba(0,0,0,0.46)';
+  const lightWeave = 'rgba(255,255,255,0.7)';
+  const darkWeave = 'rgba(0,0,0,0.28)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
       ctx.beginPath();
-      ctx.arc(x, y, 0.55, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.65, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  for (let i = 0; i < 600000; i++) {
+  ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+  for (let i = 0; i < 450000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const angle = Math.random() * Math.PI * 2;
@@ -502,7 +502,7 @@ function makeClothTexture() {
     ctx.stroke();
 
     if (i % 6 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
@@ -510,26 +510,13 @@ function makeClothTexture() {
         y + Math.sin(angle + Math.PI / 2) * length * 0.6
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.34)';
     }
   }
 
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = 'rgba(0,0,0,0.48)';
-  for (let i = -size; i < size * 2; i += spacing * 48) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + size, size);
-    ctx.lineTo(i + size * 0.9, size);
-    ctx.lineTo(i - size * 0.1, 0);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 8;
+  const baseRepeat = 6;
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
@@ -889,14 +876,14 @@ function Table3D(parent) {
     roughness: 0.7,
     metalness: 0.05,
     envMapIntensity: 0.32,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.05),
-    emissiveIntensity: 0.88
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.06),
+    emissiveIntensity: 0.92
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.32;
+    clothMat.bumpScale = 0.42;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
@@ -1498,7 +1485,8 @@ function Table3D(parent) {
       pocketRingMat
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(p.x, markingY, p.y);
+    const ringHeight = markingY + CLOTH_THICKNESS * 0.3;
+    ring.position.set(p.x, ringHeight, p.y);
     ring.renderOrder = 2;
     table.add(ring);
   });
