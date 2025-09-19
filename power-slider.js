@@ -52,11 +52,7 @@ export class PowerSlider {
     this.cueImg.alt = '';
     if (cueSrc) this.cueImg.src = cueSrc;
 
-    const cueWrap = document.createElement('div');
-    cueWrap.className = 'ps-cue';
-    cueWrap.appendChild(this.cueImg);
-
-    this.handle.append(this.handleText, cueWrap, this.powerBar);
+    this.handle.append(this.cueImg, this.handleText, this.powerBar);
     this.el.appendChild(this.handle);
 
     this.tooltip = document.createElement('div');
@@ -166,8 +162,9 @@ export class PowerSlider {
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
     if (this.theme === 'snooker') {
-      const tilt = -6 - ratio * 6;
-      this.cueImg.style.transform = `rotate(${tilt}deg)`;
+      const drop = ratio * 28;
+      const tilt = -8 - ratio * 10;
+      this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;
     }
   }
 
