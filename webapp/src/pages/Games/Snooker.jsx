@@ -152,7 +152,7 @@ const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.999;
+const FRICTION = 0.993;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
@@ -163,7 +163,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_EDGE_GROWTH = TABLE.WALL * 0.18; // extend the visual cloth toward the rails to eliminate the outer gap
 const POCKET_JAW_LIP_HEIGHT =
-  -TABLE.THICK + 0.11; // lift pocket rims slightly higher so the openings read from distance
+  -TABLE.THICK + 0.02; // align pocket rims flush with the cushion tops
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
@@ -176,12 +176,15 @@ const POCKET_CAM = Object.freeze({
   maxOutside: BALL_R * 32,
   heightOffset: BALL_R * 5.1
 });
-const SPIN_STRENGTH = BALL_R * 0.9;
-const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.06;
-const SPIN_ROLL_DECAY = 0.982;
+const SPIN_STRENGTH = BALL_R * 0.5;
+const SPIN_DECAY = 0.88;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
+const SPIN_ROLL_DECAY = 0.978;
+const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
+const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_BASE_SPEED = 3.3;
+const SHOT_BASE_SPEED = 3.3 * 0.3; // reduce force by 70% for gentler strikes
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -208,7 +211,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = TABLE.WALL * 0.075; // align physics with cushion noses and tuck cushions a touch further in
+const CUSHION_FACE_INSET = TABLE.WALL * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -465,32 +468,32 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.06)');
-  shading.addColorStop(0.6, 'rgba(0,0,0,0.16)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.26)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.1)');
+  shading.addColorStop(0.6, 'rgba(0,0,0,0.2)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.32)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.04)');
-  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.12)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.035)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.08)');
+  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.14)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.06)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 1;
-  const lightWeave = 'rgba(255,255,255,0.7)';
-  const darkWeave = 'rgba(0,0,0,0.28)';
+  const lightWeave = 'rgba(255,255,255,0.9)';
+  const darkWeave = 'rgba(0,0,0,0.42)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
       ctx.beginPath();
-      ctx.arc(x, y, 0.65, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
   for (let i = 0; i < 450000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -502,7 +505,7 @@ function makeClothTexture() {
     ctx.stroke();
 
     if (i % 6 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.36)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
@@ -510,9 +513,14 @@ function makeClothTexture() {
         y + Math.sin(angle + Math.PI / 2) * length * 0.6
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
     }
   }
+
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -687,6 +695,9 @@ function applySpinImpulse(ball, scale = 1) {
   if (ball.spin.lengthSq() < 1e-6) return false;
   TMP_SPIN.copy(ball.spin).multiplyScalar(SPIN_STRENGTH * scale);
   ball.vel.add(TMP_SPIN);
+  if (ball.id === 'cue' && ball.spinMode === 'swerve') {
+    ball.spinMode = 'standard';
+  }
   const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
   ball.spin.multiplyScalar(decayFactor);
   if (ball.spin.lengthSq() < 1e-6) {
@@ -810,6 +821,7 @@ function Guret(parent, id, color, x, y) {
     pos: new THREE.Vector2(x, y),
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
+    spinMode: 'standard',
     impacted: false,
     active: true
   };
@@ -883,14 +895,14 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.42;
+    clothMat.bumpScale = 0.6;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.35;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.15;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -1408,7 +1420,7 @@ function Table3D(parent) {
   table.add(toneMesh);
 
   const baulkZ = -PLAY_H / 4;
-  const lineThickness = 0.42;
+  const lineThickness = 0.48;
   const markingMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
     side: THREE.DoubleSide,
@@ -1419,8 +1431,8 @@ function Table3D(parent) {
   markingMat.depthTest = true;
   markingMat.polygonOffset = true;
   markingMat.polygonOffsetFactor = -1;
-  markingMat.polygonOffsetUnits = -3;
-  const markingY = CLOTH_THICKNESS * 0.16;
+  markingMat.polygonOffsetUnits = -5;
+  const markingY = CLOTH_THICKNESS * 0.24;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
@@ -1455,7 +1467,7 @@ function Table3D(parent) {
     spotMat.depthTest = true;
     spotMat.polygonOffset = true;
     spotMat.polygonOffsetFactor = -1;
-    spotMat.polygonOffsetUnits = -3;
+    spotMat.polygonOffsetUnits = -5;
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingY, z);
@@ -1569,12 +1581,12 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 6.1; // trim the long rails further so the corner pieces stop short of the pocket throat
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.1; // trim the side-pocket noses so they no longer crowd the pocket lips
-  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.3; // shorten long cushions so they stop before the pocket throat
-  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.18; // mirror the pocket clearance on the four short cushions
-  const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.06; // tug long cushions toward the playfield so they meet the rails cleanly
-  const END_RAIL_CENTER_PULL = TABLE.WALL * 0.045; // pull the short-end cushions into line with the pockets
+  const LONG_CUSHION_TRIM = 5.4; // let the long rails reach further toward each pocket mouth
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.05; // keep a slim gap so the pocket lips stay readable without shortening the noses
+  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.18; // allow the long cushions to sit closer to the pocket openings
+  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.12; // mirror the tighter clearance on the end cushions
+  const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.085; // pull long cushions inward slightly so they hug the play field
+  const END_RAIL_CENTER_PULL = TABLE.WALL * 0.065; // nudge the short-end cushions toward the table centre
   const LONG_CUSHION_FACE_SHRINK = 0.955; // trim the long cushions a touch more so the tops appear slightly slimmer
   const SHORT_CUSHION_FACE_SHRINK = 0.97; // match the cut profile of the long cushions on the short ends
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1793,7 +1805,7 @@ function SnookerGame() {
     offsetVertical: 0
   });
   const spinLimitsRef = useRef({ ...DEFAULT_SPIN_LIMITS });
-  const spinAppliedRef = useRef({ x: 0, y: 0 });
+  const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
   const updateSpinDotPosition = useCallback((value) => {
     if (!value) value = { x: 0, y: 0 };
@@ -1803,6 +1815,9 @@ function SnookerGame() {
     const y = clamp(value.y ?? 0, -1, 1);
     dot.style.left = `${50 + x * 50}%`;
     dot.style.top = `${50 + y * 50}%`;
+    const magnitude = Math.hypot(x, y);
+    dot.style.backgroundColor =
+      magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
@@ -2647,7 +2662,9 @@ function SnookerGame() {
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls);
           }
           const applied = clampSpinToLimits(updateUi);
-          spinAppliedRef.current = applied;
+          const magnitude = Math.hypot(applied.x ?? 0, applied.y ?? 0);
+          const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
+          spinAppliedRef.current = { ...applied, magnitude, mode };
           return applied;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
@@ -3193,6 +3210,8 @@ function SnookerGame() {
               perp.y * spinSide + aimDir.y * spinTop
             );
           }
+          cue.spinMode =
+            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           resetSpinRef.current?.();
           cue.impacted = false;
 
@@ -3357,6 +3376,8 @@ function SnookerGame() {
                   b.mesh.visible = true;
                   b.pos.set(sx, sy);
                   b.mesh.position.set(sx, BALL_CENTER_Y, sy);
+                  if (b.spin) b.spin.set(0, 0);
+                  b.spinMode = 'standard';
                 }
               });
               setHud((s) => ({ ...s, next: 'red' }));
@@ -3403,6 +3424,7 @@ function SnookerGame() {
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
+          cue.spinMode = 'standard';
           cue.impacted = false;
         } else if (gain > 0) {
           setHud((s) => ({ ...s, [me]: s[me] + gain }));
@@ -3529,26 +3551,40 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
-          if (b.spin?.lengthSq() > 1e-6) {
-            TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
-              SPIN_ROLL_STRENGTH * frameScale
-            );
-            b.vel.add(TMP_VEC2_SPIN);
-            const rollDecay = Math.pow(SPIN_ROLL_DECAY, frameScale);
-            b.spin.multiplyScalar(rollDecay);
+          const isCue = b.id === 'cue';
+          const hasSpin = b.spin?.lengthSq() > 1e-6;
+          if (hasSpin) {
+            const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
+            const allowRoll = !isCue || b.impacted || swerveTravel;
+            if (allowRoll) {
+              const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
+              TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                SPIN_ROLL_STRENGTH * rollMultiplier * frameScale
+              );
+              b.vel.add(TMP_VEC2_SPIN);
+              const rollDecay = Math.pow(SPIN_ROLL_DECAY, frameScale);
+              b.spin.multiplyScalar(rollDecay);
+            } else {
+              const airDecay = Math.pow(SPIN_AIR_DECAY, frameScale);
+              b.spin.multiplyScalar(airDecay);
+            }
             if (b.spin.lengthSq() < 1e-6) {
               b.spin.set(0, 0);
+              if (isCue) b.spinMode = 'standard';
             }
           }
           b.pos.addScaledVector(b.vel, frameScale);
           b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
           const speed = b.vel.length();
           const scaledSpeed = speed * frameScale;
-          const hasSpin = b.spin?.lengthSq() > 1e-6;
+          const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
           if (scaledSpeed < STOP_EPS) {
             b.vel.set(0, 0);
-            if (!hasSpin && b.spin) b.spin.set(0, 0);
-            if (b.id === 'cue' && !hasSpin) b.impacted = false;
+            if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
+            if (isCue && !hasSpinAfter) {
+              b.impacted = false;
+              b.spinMode = 'standard';
+            }
           }
           const hitRail = reflectRails(b);
           if (hitRail && b.id === 'cue') b.impacted = true;
@@ -3656,6 +3692,7 @@ function SnookerGame() {
               b.mesh.visible = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
+              b.spinMode = 'standard';
               if (b.id === 'cue') b.impacted = false;
               if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
               if (
@@ -3963,7 +4000,11 @@ function SnookerGame() {
       >
         <div
           id="spinBox"
-          className="relative w-32 h-32 rounded-full bg-white shadow-lg"
+          className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
+          style={{
+            background:
+              'radial-gradient(circle, #ffffff 0%, #ffffff 85%, #facc15 85%, #facc15 100%)'
+          }}
         >
           <div
             id="spinDot"
