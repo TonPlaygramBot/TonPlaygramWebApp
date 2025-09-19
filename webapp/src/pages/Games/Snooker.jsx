@@ -327,8 +327,10 @@ const POCKET_JAW_LIP_HEIGHT =
   -TABLE.THICK + CUSHION_LIP_OFFSET; // align pocket rims flush with the cushion tops
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
-const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
+const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
+const POCKET_DROP_TOP_SCALE = 0.82;
+const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
@@ -344,7 +346,7 @@ const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.12; // limit sideways drift before contact so the cue ball tracks along the aiming line
+const PRE_IMPACT_SPIN_DRIFT = 0.12; // limit sideways drift for swerve cues while the cue ball tracks along the aiming line
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65; // boost base strike speed by ~65% for a livelier hit
 const SHOT_MIN_FACTOR = 0.25;
@@ -632,23 +634,23 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.22)');
-  shading.addColorStop(0.45, 'rgba(0,0,0,0.18)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.34)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.28)');
+  shading.addColorStop(0.45, 'rgba(0,0,0,0.22)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.4)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.2)');
-  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.18)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.16)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.26)');
+  crossSheen.addColorStop(0.52, 'rgba(0,0,0,0.22)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.2)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 3;
-  const weaveSize = 2.4;
-  const lightWeave = 'rgba(255,255,255,0.7)';
-  const darkWeave = 'rgba(0,0,0,0.55)';
+  const spacing = 2;
+  const weaveSize = 1.8;
+  const lightWeave = 'rgba(255,255,255,0.82)';
+  const darkWeave = 'rgba(0,0,0,0.68)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
@@ -656,31 +658,31 @@ function makeClothTexture() {
     }
   }
 
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.globalAlpha = 0.45;
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
   for (let y = 0; y < size; y += spacing * 4) {
-    ctx.fillRect(0, y, size, 0.75);
+    ctx.fillRect(0, y, size, 0.9);
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
   for (let x = 0; x < size; x += spacing * 4) {
-    ctx.fillRect(x, 0, 0.75, size);
+    ctx.fillRect(x, 0, 0.9, size);
   }
   ctx.globalAlpha = 1;
 
-  ctx.lineWidth = 0.8;
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  for (let i = 0; i < 320000; i++) {
+  ctx.lineWidth = 1.1;
+  ctx.strokeStyle = 'rgba(0,0,0,0.62)';
+  for (let i = 0; i < 340000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 0.75 + 0.25;
+    const length = Math.random() * 0.85 + 0.35;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
     ctx.stroke();
 
     if (i % 5 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.58)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
@@ -688,23 +690,23 @@ function makeClothTexture() {
         y + Math.sin(angle + Math.PI / 2) * length * 0.55
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.62)';
     }
   }
 
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = 'rgba(255,255,255,0.14)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.globalAlpha = 0.32;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 6;
+  const baseRepeat = 7.2;
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
@@ -948,9 +950,9 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.28,
-        metalness: 0.35,
-        envMapIntensity: 0.6
+        roughness: 0.42,
+        metalness: 0.2,
+        envMapIntensity: 0.42
       })
     );
   }
@@ -1066,9 +1068,9 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.62,
-    metalness: 0.04,
-    envMapIntensity: 0.42,
+    roughness: 0.66,
+    metalness: 0.035,
+    envMapIntensity: 0.36,
     emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.08),
     emissiveIntensity: 1
   });
@@ -1076,19 +1078,20 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 2.6;
+    clothMat.bumpScale = 3.4;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.6;
+    cushionMat.bumpScale = clothMat.bumpScale * 2.1;
     cushionMat.needsUpdate = true;
   }
-  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.08);
-  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.08);
-  cushionMat.metalness = Math.max(0.04, clothMat.metalness * 0.75);
+  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.12);
+  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.04);
+  cushionMat.metalness = Math.max(0.04, clothMat.metalness * 0.7);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 0.92;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: Math.min(1, clothMat.roughness * 1.15),
@@ -1186,9 +1189,15 @@ function Table3D(parent) {
     const baseY = POCKET_JAW_LIP_HEIGHT;
     const lipDepth = CLOTH_THICKNESS * 0.6;
     const sleeveDepth = Math.max(POCKET_CLOTH_DEPTH - lipDepth, 0);
+    const dropTopRadius = POCKET_CLOTH_TOP_RADIUS * POCKET_DROP_TOP_SCALE;
+    const lipOuterRadius = dropTopRadius * 1.05;
+    const lipInnerRadius = lipOuterRadius * 0.95;
+    const sleeveTopRadius = lipInnerRadius;
+    const sleeveBottomRadius = dropTopRadius * 0.88;
+    const dropBottomRadius = POCKET_CLOTH_BOTTOM_RADIUS * POCKET_DROP_BOTTOM_SCALE;
     const lipGeo = new THREE.CylinderGeometry(
-      POCKET_CLOTH_TOP_RADIUS,
-      POCKET_CLOTH_TOP_RADIUS * 0.94,
+      lipOuterRadius,
+      lipInnerRadius,
       lipDepth,
       48,
       1,
@@ -1203,8 +1212,8 @@ function Table3D(parent) {
 
     if (sleeveDepth > 0.001) {
       const sleeveGeo = new THREE.CylinderGeometry(
-        POCKET_CLOTH_TOP_RADIUS * 0.94,
-        POCKET_CLOTH_BOTTOM_RADIUS,
+        sleeveTopRadius,
+        sleeveBottomRadius,
         sleeveDepth,
         48,
         1,
@@ -1220,8 +1229,8 @@ function Table3D(parent) {
 
     const dropDepth = POCKET_CLOTH_DEPTH * 2.2;
     const dropGeo = new THREE.CylinderGeometry(
-      POCKET_CLOTH_TOP_RADIUS * 0.7,
-      POCKET_CLOTH_BOTTOM_RADIUS * 0.4,
+      dropTopRadius,
+      dropBottomRadius,
       dropDepth,
       40,
       1,
@@ -1235,7 +1244,7 @@ function Table3D(parent) {
     table.add(drop);
 
     const dropCap = new THREE.Mesh(
-      new THREE.CircleGeometry(POCKET_CLOTH_BOTTOM_RADIUS * 0.5, 40),
+      new THREE.CircleGeometry(dropBottomRadius * 0.9, 40),
       pocketInteriorMat
     );
     dropCap.rotation.x = -Math.PI / 2;
@@ -1766,7 +1775,7 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 5.4; // let the long rails reach further toward each pocket mouth
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.015; // extend cushion noses so they meet the pocket perimeter cleanly
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.005; // extend cushion noses so they meet the pocket perimeter cleanly
   const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.1; // allow the long cushions to sit closer to the pocket openings
   const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.08; // mirror the tighter clearance on the end cushions
   const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.085; // pull long cushions inward slightly so they hug the play field
@@ -3773,13 +3782,19 @@ function SnookerGame() {
                 SPIN_ROLL_STRENGTH * rollMultiplier * frameScale
               );
               if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
-                TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                const forwardMag = TMP_VEC2_SPIN.dot(TMP_VEC2_FORWARD);
-                TMP_VEC2_FORWARD.multiplyScalar(forwardMag);
-                TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_FORWARD);
-                b.vel.add(TMP_VEC2_FORWARD);
-                if (TMP_VEC2_LATERAL.lengthSq() > 0) {
-                  b.vel.addScaledVector(TMP_VEC2_LATERAL, PRE_IMPACT_SPIN_DRIFT);
+                const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
+                const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
+                TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
+                b.vel.add(TMP_VEC2_AXIS);
+                if (b.spinMode === 'swerve') {
+                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
+                  if (TMP_VEC2_LATERAL.lengthSq() > 0) {
+                    b.vel.addScaledVector(TMP_VEC2_LATERAL, PRE_IMPACT_SPIN_DRIFT);
+                  }
+                } else {
+                  const alignedSpeed = b.vel.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                  b.vel.copy(TMP_VEC2_AXIS);
                 }
               } else {
                 b.vel.add(TMP_VEC2_SPIN);
