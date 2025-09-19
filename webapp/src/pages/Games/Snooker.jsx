@@ -25,8 +25,7 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 const JAW_H = 3.0;
 const JAW_T = 1.25;
 const JAW_INNER_SCALE = 0.04;
-const JAW_CORNER_OFFSET_SCALE = 0.03;
-const JAW_SIDE_OFFSET_SCALE = 0.028;
+const JAW_CENTER_PULL_SCALE = 0.045;
 const SECTOR_SWEEP = Math.PI * 0.6;
 const SECTOR_START = -SECTOR_SWEEP;
 const SECTOR_END = SECTOR_SWEEP;
@@ -81,16 +80,13 @@ function addPocketJaws(parent, playW, playH) {
     { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
   ];
   const jaws = [];
-  const geoCorner = makeJawSector();
-  const geoSide = makeJawSector(POCKET_VIS_R, JAW_T * 0.8);
-  const cornerOffset = POCKET_VIS_R * JAW_CORNER_OFFSET_SCALE;
-  const sideOffset = POCKET_VIS_R * JAW_SIDE_OFFSET_SCALE;
+  const jawGeo = makeJawSector();
+  const centerOffset = POCKET_VIS_R * JAW_CENTER_PULL_SCALE;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const offset = entry.type === 'side' ? sideOffset : cornerOffset;
-    const pShift = p.clone().add(towardCenter2.multiplyScalar(offset));
-    const geom = entry.type === 'side' ? geoSide.clone() : geoCorner.clone();
+    const pShift = p.clone().add(towardCenter2.multiplyScalar(centerOffset));
+    const geom = jawGeo.clone();
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
@@ -472,7 +468,7 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const weaveStep = 4;
-  const strandAlpha = 0.18;
+  const strandAlpha = 0.22;
   ctx.lineWidth = 1;
   ctx.globalAlpha = strandAlpha;
   ctx.strokeStyle = '#ffffff';
@@ -491,14 +487,14 @@ function makeClothTexture() {
   }
   ctx.globalAlpha = 1;
 
-  const dotSpacing = 4;
-  const dotRadius = 0.7;
+  const dotSpacing = 5;
+  const dotRadius = 1.1;
   for (let y = 0; y < size; y += dotSpacing) {
     for (let x = 0; x < size; x += dotSpacing) {
       const light = ((x + y) / dotSpacing) % 2 === 0;
       ctx.fillStyle = light ? 'rgba(255,255,255,0.82)' : 'rgba(8,12,8,0.88)';
-      const jitterX = (light ? 0.35 : -0.35) * dotRadius;
-      const jitterY = (!light ? 0.35 : -0.35) * dotRadius;
+      const jitterX = (light ? 0.45 : -0.45) * dotRadius;
+      const jitterY = (!light ? 0.45 : -0.45) * dotRadius;
       ctx.beginPath();
       ctx.arc(x + jitterX, y + jitterY, dotRadius, 0, Math.PI * 2);
       ctx.fill();
@@ -524,7 +520,7 @@ function makeClothTexture() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const baseWidth = 10;
   const baseDepth = 5;
-  const baseRepeat = 3.6;
+  const baseRepeat = 3.0;
   const repeatX = (PLAY_W / baseWidth) * baseRepeat;
   const repeatY = (PLAY_H / baseDepth) * baseRepeat;
   texture.repeat.set(repeatX, repeatY);
