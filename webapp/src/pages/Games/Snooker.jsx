@@ -22,7 +22,7 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 // --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
-const JAW_H = 1.6;
+const JAW_BASE_DEPTH = 1.6;
 const JAW_T = 0.78;
 const JAW_INNER_SCALE = 0.03;
 const JAW_CENTER_PULL_SCALE = 0.02;
@@ -61,11 +61,30 @@ function makeJawSector(
   );
   s.lineTo(outerStartVec.x, outerStartVec.y);
   const geo = new THREE.ExtrudeGeometry(s, {
-    depth: JAW_H,
+    depth: Math.max(
+      CLOTH_THICKNESS + Math.max(CLOTH_THICKNESS * 0.45, POCKET_CLOTH_DEPTH * 0.85),
+      JAW_BASE_DEPTH * 0.6
+    ),
     bevelEnabled: false
   });
   geo.rotateX(-Math.PI / 2);
   geo.rotateY(Math.PI / 2);
+  geo.computeBoundingBox();
+  const bbox = geo.boundingBox;
+  if (bbox) {
+    const height = Math.max(bbox.max.y - bbox.min.y, 1e-6);
+    const targetHeight = Math.max(
+      CLOTH_THICKNESS + Math.max(CLOTH_THICKNESS * 0.45, POCKET_CLOTH_DEPTH * 0.9),
+      JAW_BASE_DEPTH
+    );
+    const scaleY = targetHeight / height;
+    geo.scale(1, scaleY, 1);
+    geo.computeBoundingBox();
+    const aligned = geo.boundingBox;
+    if (aligned) {
+      geo.translate(0, -aligned.max.y, 0);
+    }
+  }
   geo.computeVertexNormals();
   return geo;
 }
@@ -105,7 +124,7 @@ function addPocketJaws(parent, playW, playH) {
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + POCKET_JAW_LIP_HEIGHT, pShift.y);
+    jaw.position.set(pShift.x, POCKET_JAW_LIP_HEIGHT, pShift.y);
     const lookTarget = (() => {
       if (entry.type === 'side') {
         const dir = entry.pos[0] >= 0 ? -1 : 1;
@@ -357,7 +376,7 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -376,6 +395,8 @@ const BREAK_VIEW = Object.freeze({
   radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.76,
   phi: CAMERA.maxPhi - 0.09
 });
+const ORBIT_RAIL_MARGIN = TABLE.WALL * 0.35;
+const ORBIT_VERTICAL_MARGIN = TABLE.WALL * 0.12;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -571,31 +592,31 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.14)');
-  shading.addColorStop(0.55, 'rgba(0,0,0,0.18)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.34)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.18)');
+  shading.addColorStop(0.55, 'rgba(0,0,0,0.22)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.38)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.12)');
-  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.18)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.08)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.16)');
+  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.2)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.12)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const lightWeave = 'rgba(255,255,255,0.78)';
-  const darkWeave = 'rgba(0,0,0,0.58)';
+  const lightWeave = 'rgba(255,255,255,0.9)';
+  const darkWeave = 'rgba(0,0,0,0.7)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
-      ctx.fillRect(x, y, 1.35, 1.35);
+      ctx.fillRect(x, y, 1.5, 1.5);
     }
   }
 
-  ctx.lineWidth = 0.6;
-  ctx.strokeStyle = 'rgba(0,0,0,0.48)';
+  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
   for (let i = 0; i < 320000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -607,7 +628,7 @@ function makeClothTexture() {
     ctx.stroke();
 
     if (i % 5 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.42)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
@@ -615,18 +636,18 @@ function makeClothTexture() {
         y + Math.sin(angle + Math.PI / 2) * length * 0.55
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.48)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     }
   }
 
-  ctx.globalAlpha = 0.38;
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.globalAlpha = 0.26;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 6;
+  const baseRepeat = 7.5;
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
@@ -998,14 +1019,14 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 1.45;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.25;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.2;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -1826,6 +1847,25 @@ function Table3D(parent) {
 
   if (!table.userData.pockets) table.userData.pockets = [];
   const clothPlane = cushionTopLocal - CLOTH_THICKNESS;
+  if (table.userData.jaws?.length) {
+    const cushionTop = clothPlane + CLOTH_THICKNESS;
+    const targetDepth = cushionTop - clothPlane;
+    for (const jaw of table.userData.jaws) {
+      jaw.position.y = cushionTop;
+      if (jaw.geometry) {
+        jaw.geometry.computeBoundingBox();
+        const bbox = jaw.geometry.boundingBox;
+        if (bbox) {
+          const currentDepth = Math.abs(bbox.min.y);
+          if (currentDepth > 1e-6 && Math.abs(currentDepth - targetDepth) > 1e-3) {
+            const scale = targetDepth / currentDepth;
+            jaw.scale.y = scale;
+            jaw.updateMatrix();
+          }
+        }
+      }
+    }
+  }
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const scaleY = 1.15;
@@ -2281,6 +2321,31 @@ function SnookerGame() {
           return clampOrbitRadius(Math.max(scaled, min));
         };
 
+        const applyOrbitClearance = (spherical) => {
+          if (!spherical) return;
+          const phi = spherical.phi;
+          const sin = Math.sin(phi);
+          const cos = Math.cos(phi);
+          const minHorizontal = Math.max(PLAY_W, PLAY_H) * 0.5 + ORBIT_RAIL_MARGIN;
+          if (sin > 1e-4) {
+            const horizontal = spherical.radius * sin;
+            if (horizontal < minHorizontal) {
+              spherical.radius = Math.max(spherical.radius, minHorizontal / sin);
+            }
+          }
+          const cushionLimit = Math.max(
+            TABLE.THICK * 0.5,
+            cushionHeightRef.current ?? TABLE.THICK
+          );
+          const minVertical = cushionLimit + ORBIT_VERTICAL_MARGIN;
+          if (cos > 1e-4) {
+            const vertical = spherical.radius * cos;
+            if (vertical < minVertical) {
+              spherical.radius = Math.max(spherical.radius, minVertical / cos);
+            }
+          }
+        };
+
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
@@ -2353,6 +2418,7 @@ function SnookerGame() {
               );
               TMP_SPH.copy(sph);
               TMP_SPH.radius = dynamicRadius;
+              applyOrbitClearance(TMP_SPH);
               camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
               camera.lookAt(lookTarget);
             } else {
@@ -2415,6 +2481,8 @@ function SnookerGame() {
               view.cameraOrbit.radius = adjustedRadius;
               TMP_SPH.copy(view.cameraOrbit);
               TMP_SPH.radius = adjustedRadius;
+              applyOrbitClearance(TMP_SPH);
+              view.cameraOrbit.radius = TMP_SPH.radius;
               camera.position.setFromSpherical(TMP_SPH).add(worldFocus);
               camera.lookAt(worldFocus);
             }
@@ -2516,6 +2584,7 @@ function SnookerGame() {
             );
             TMP_SPH.copy(sph);
             TMP_SPH.radius = dynamicRadius;
+            applyOrbitClearance(TMP_SPH);
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
           }
