@@ -218,7 +218,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x228b22,
+  cloth: 0x55dd66,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -464,25 +464,25 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#228b22';
+  ctx.fillStyle = '#55dd66';
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 2;
+  const spacing = 1;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+      ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
       ctx.beginPath();
-      ctx.arc(x, y, 0.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.25, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  for (let i = 0; i < 25000; i++) {
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  for (let i = 0; i < 600000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 5 + 1;
+    const length = Math.random() * 0.6 + 0.2;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
@@ -840,8 +840,9 @@ function updateRailLimitsFromTable(table) {
 
 function Table3D(parent) {
   const table = new THREE.Group();
-  const halfW = PLAY_W / 2;
-  const halfH = PLAY_H / 2;
+  const clothBevel = CLOTH_THICKNESS * 0.45;
+  const halfW = PLAY_W / 2 + clothBevel;
+  const halfH = PLAY_H / 2 + clothBevel;
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
@@ -928,8 +929,8 @@ function Table3D(parent) {
   const clothGeo = new THREE.ExtrudeGeometry(shape, {
     depth: CLOTH_THICKNESS,
     bevelEnabled: true,
-    bevelThickness: CLOTH_THICKNESS * 0.45,
-    bevelSize: CLOTH_THICKNESS * 0.45,
+    bevelThickness: clothBevel,
+    bevelSize: clothBevel,
     bevelSegments: 3
   });
   clothGeo.translate(0, 0, TABLE.THICK - CLOTH_THICKNESS);
