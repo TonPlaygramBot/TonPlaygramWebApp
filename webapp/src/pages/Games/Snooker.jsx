@@ -132,7 +132,7 @@ const TABLE = {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 0;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.86;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.82;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
@@ -241,7 +241,7 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.08;
+const STANDING_VIEW_PHI = 1.05;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
@@ -332,7 +332,8 @@ const orientationScaleForTheta = (theta = 0) => {
   const base = THREE.MathUtils.lerp(1, ACTION_CAMERA_LONG_SIDE_SCALE, longSideBias);
   const cornerBias = Math.pow(sin * cos, ACTION_CAMERA_CORNER_CURVE);
   const cornerScale = 1 + ACTION_CAMERA_CORNER_PULLBACK * cornerBias;
-  return base * cornerScale;
+  const scaled = base * cornerScale;
+  return Math.max(1, scaled);
 };
 
 
@@ -360,15 +361,22 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 3;
-  const radius = 1.4;
+  const radius = 1.05;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.98)'
-        : 'rgba(0,0,0,0.72)';
+      const even = (x + y) % (spacing * 2) === 0;
+      ctx.fillStyle = even
+        ? 'rgba(255,255,255,0.9)'
+        : 'rgba(12,18,12,0.78)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
+      if (even) {
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.beginPath();
+        ctx.arc(x - radius * 0.4, y - radius * 0.4, radius * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 
@@ -816,10 +824,12 @@ function Table3D(parent) {
   cloth.renderOrder = 0;
   table.add(cloth);
 
-  const pocketLipMat = clothMat.clone();
-  pocketLipMat.side = THREE.DoubleSide;
-  pocketLipMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(0.84);
-  pocketLipMat.roughness = Math.min(1, clothMat.roughness * 1.1);
+  const pocketLipMat = new THREE.MeshStandardMaterial({
+    color: 0x0f0f0f,
+    roughness: Math.min(1, clothMat.roughness * 1.1),
+    metalness: Math.max(0.05, clothMat.metalness * 0.4),
+    side: THREE.DoubleSide
+  });
   pocketLipMat.needsUpdate = true;
   const pocketInteriorMat = new THREE.MeshStandardMaterial({
     color: 0x050505,
@@ -830,7 +840,7 @@ function Table3D(parent) {
   pocketInteriorMat.needsUpdate = true;
   pocketCenters().forEach((p) => {
     const baseY = POCKET_JAW_LIP_HEIGHT;
-    const lipDepth = CLOTH_THICKNESS * 0.6;
+    const lipDepth = CLOTH_THICKNESS * 0.5;
     const sleeveDepth = Math.max(POCKET_CLOTH_DEPTH - lipDepth, 0);
     const lipGeo = new THREE.CylinderGeometry(
       POCKET_CLOTH_TOP_RADIUS,
@@ -1161,7 +1171,7 @@ function Table3D(parent) {
   table.add(toneMesh);
 
   const baulkZ = -PLAY_H / 4;
-  const lineThickness = 0.28;
+  const lineThickness = 0.34;
   const markingMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
     side: THREE.DoubleSide,
@@ -1172,7 +1182,7 @@ function Table3D(parent) {
   markingMat.polygonOffset = true;
   markingMat.polygonOffsetFactor = -1;
   markingMat.polygonOffsetUnits = -2;
-  const markingY = 0.012;
+  const markingY = 0.018;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
@@ -1319,7 +1329,7 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 3.35; // shave a touch from the long rails so they sit tighter to the pocket jaw
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.18; // keep a clear reveal between pocket rings and cushion noses
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.12; // keep a clear reveal between pocket rings and cushion noses
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1868,7 +1878,8 @@ function SnookerGame() {
           const orientation = orientationScaleForTheta(theta);
           const vertical = verticalZoomForBlend(blend);
           const scaled = baseRadius * orientation * vertical;
-          const min = Math.max(minRadius, CAMERA.minR);
+          const safeRadius = fitRadius(camera, 1.04);
+          const min = Math.max(minRadius, CAMERA.minR, safeRadius);
           return clampOrbitRadius(Math.max(scaled, min));
         };
 
@@ -2308,14 +2319,14 @@ function SnookerGame() {
           if (bounds) {
             const { cueShot, standing } = bounds;
             const baseRadius = Math.min(cueShot.radius, standing.radius);
+            const safeRadius = fitRadius(camera, 1.04);
+            const closerRadius =
+              baseRadius * ACTION_CAMERA_RADIUS_SCALE * 0.97;
             const preferredRadius = clampOrbitRadius(
-              Math.max(
-                baseRadius * ACTION_CAMERA_RADIUS_SCALE,
-                ACTION_CAMERA_MIN_RADIUS
-              )
+              Math.max(closerRadius, ACTION_CAMERA_MIN_RADIUS, safeRadius)
             );
             const preferredPhi = clamp(
-              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
+              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.35,
               CAMERA.minPhi,
               CAMERA.maxPhi
             );
