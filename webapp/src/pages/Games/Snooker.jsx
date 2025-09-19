@@ -215,6 +215,7 @@ const COLORS = Object.freeze({
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
+  spot: 0xb11818,
   cue: 0xffffff,
   red: 0xff0000,
   yellow: 0xffff00,
@@ -238,15 +239,15 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.16;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
+const STANDING_VIEW_PHI = 1.1;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.23;
 const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.95,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -262,8 +263,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
-  phi: CAMERA.maxPhi - 0.07
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.78,
+  phi: CAMERA.maxPhi - 0.1
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -349,16 +350,16 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#2fb552';
+  ctx.fillStyle = '#29a44c';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 4;
-  const radius = 1.15;
+  const radius = 1.35;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.86)'
-        : 'rgba(0,0,0,0.82)';
+        ? 'rgba(255,255,255,0.95)'
+        : 'rgba(0,0,0,0.9)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -1128,7 +1129,7 @@ function Table3D(parent) {
   table.add(toneMesh);
 
   const baulkZ = -PLAY_H / 4;
-  const lineThickness = 0.18;
+  const lineThickness = 0.22;
   const markingMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
     side: THREE.DoubleSide,
@@ -1139,7 +1140,9 @@ function Table3D(parent) {
   markingMat.polygonOffset = true;
   markingMat.polygonOffsetFactor = -1;
   markingMat.polygonOffsetUnits = -1.5;
-  const markingY = 0.004;
+  markingMat.opacity = 1;
+  markingMat.needsUpdate = true;
+  const markingY = 0.007;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
@@ -1165,9 +1168,9 @@ function Table3D(parent) {
   table.add(dMesh);
 
   function addSpot(x, z) {
-    const spotGeo = new THREE.CircleGeometry(0.65, 32);
+    const spotGeo = new THREE.CircleGeometry(0.72, 32);
     const spotMat = new THREE.MeshBasicMaterial({
-      color: COLORS.markings
+      color: COLORS.spot
     });
     spotMat.depthTest = true;
     spotMat.polygonOffset = true;
@@ -1194,6 +1197,15 @@ function Table3D(parent) {
   pocketRingMat.polygonOffset = true;
   pocketRingMat.polygonOffsetFactor = -1;
   pocketRingMat.polygonOffsetUnits = -2;
+  const pocketCutMat = new THREE.MeshBasicMaterial({
+    color: 0x060606,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  pocketCutMat.depthTest = true;
+  pocketCutMat.polygonOffset = true;
+  pocketCutMat.polygonOffsetFactor = -1;
+  pocketCutMat.polygonOffsetUnits = -1.8;
   pocketCenters().forEach((p) => {
     const inner = POCKET_CLOTH_TOP_RADIUS * 0.78;
     const outer = POCKET_CLOTH_TOP_RADIUS * 0.94;
@@ -1205,6 +1217,17 @@ function Table3D(parent) {
     ring.position.set(p.x, markingY, p.y);
     ring.renderOrder = 2;
     table.add(ring);
+    const cutRadius = inner - 0.1;
+    if (cutRadius > 0) {
+      const cut = new THREE.Mesh(
+        new THREE.CircleGeometry(cutRadius, 48),
+        pocketCutMat
+      );
+      cut.rotation.x = -Math.PI / 2;
+      cut.position.set(p.x, markingY - 0.0005, p.y);
+      cut.renderOrder = 1.8;
+      table.add(cut);
+    }
   });
 
   const railH = TABLE.THICK * 2.0;
@@ -1285,7 +1308,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 2.75; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const LONG_CUSHION_TRIM = 3.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1951,7 +1974,30 @@ function SnookerGame() {
                 CAMERA.maxPhi
               );
               const orbitTheta = sph.theta;
-              const tableFocus = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
+              const focus2D = cuePos2.clone();
+              if (targetVec2) {
+                focus2D.lerp(targetVec2, ACTION_CAMERA.focusBlend);
+              } else {
+                focus2D.add(
+                  TMP_VEC2_A.copy(aimVec2).multiplyScalar(BALL_R * 6)
+                );
+              }
+              if (view.baseTarget) {
+                focus2D.add(view.baseTarget);
+              }
+              const clampX = PLAY_W / 2 - ACTION_CAMERA.railMargin;
+              const clampZ = PLAY_H / 2 - ACTION_CAMERA.railMargin;
+              if (clampX > 0) {
+                focus2D.x = THREE.MathUtils.clamp(focus2D.x, -clampX, clampX);
+              }
+              if (clampZ > 0) {
+                focus2D.y = THREE.MathUtils.clamp(focus2D.y, -clampZ, clampZ);
+              }
+              const tableFocus = new THREE.Vector3(
+                focus2D.x,
+                TABLE_Y + 0.05,
+                focus2D.y
+              );
               const worldFocus = tableFocus
                 .clone()
                 .multiplyScalar(worldScaleFactor);
