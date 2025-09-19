@@ -349,63 +349,35 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#15592d';
+  ctx.fillStyle = '#228B22';
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 2;
-  const radius = 0.6;
+  const spacing = 4;
+  const radius = 0.8;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      const checker = (x / spacing + y / spacing) % 2 === 0;
-      ctx.fillStyle = checker
-        ? 'rgba(255,255,255,0.42)'
-        : 'rgba(0,0,0,0.38)';
+      ctx.fillStyle = (x + y) % (spacing * 2) === 0
+        ? 'rgba(255,255,255,0.6)'
+        : 'rgba(0,0,0,0.6)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // add subtle warp/weft strokes to make the weave read more clearly
-  ctx.lineWidth = 0.75;
-  ctx.globalAlpha = 0.22;
-  ctx.strokeStyle = 'rgba(40, 130, 70, 0.45)';
-  for (let y = 0; y < size; y += spacing * 2) {
-    const wobble = Math.sin(y * 0.025) * 1.2;
-    ctx.beginPath();
-    ctx.moveTo(0, y + spacing * 0.5 + wobble);
-    ctx.lineTo(size, y + spacing * 0.5 - wobble);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-  for (let x = 0; x < size; x += spacing * 2) {
-    const wobble = Math.cos(x * 0.025) * 1.2;
-    ctx.beginPath();
-    ctx.moveTo(x + spacing * 0.5 + wobble, 0);
-    ctx.lineTo(x + spacing * 0.5 - wobble, size);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const sheen = ctx.createLinearGradient(0, 0, size, size);
-  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.07)');
-  sheen.addColorStop(0.55, 'rgba(255, 255, 255, 0.02)');
-  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = sheen;
-  ctx.fillRect(0, 0, size, size);
-  ctx.globalCompositeOperation = 'source-over';
-
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const repeatScale = 5;
-  texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
+  const baseWidth = 10;
+  const baseDepth = 5;
+  const baseRepeat = 4;
+  const repeatX = (PLAY_W / baseWidth) * baseRepeat;
+  const repeatY = (PLAY_H / baseDepth) * baseRepeat;
+  texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 16;
   if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
   else texture.encoding = THREE.sRGBEncoding;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
   texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
@@ -1942,10 +1914,17 @@ function SnookerGame() {
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
+            const scaledOrbitBase = clampOrbitRadius(
+              Math.max(
+                sph.radius * ACTION_CAMERA_RADIUS_SCALE,
+                ACTION_CAMERA_MIN_RADIUS
+              )
+            );
             const dynamicRadius = getDynamicOrbitRadius(
-              sph.radius,
+              scaledOrbitBase,
               sph.theta,
-              cameraBlendRef.current
+              cameraBlendRef.current,
+              ACTION_CAMERA_MIN_RADIUS
             );
             TMP_SPH.copy(sph);
             TMP_SPH.radius = dynamicRadius;
