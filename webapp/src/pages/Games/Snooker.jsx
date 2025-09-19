@@ -218,7 +218,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x55dd66,
+  cloth: 0x3fa85a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -464,20 +464,30 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#55dd66';
+  const baseCloth = '#3fa85a';
+  ctx.fillStyle = baseCloth;
+  ctx.fillRect(0, 0, size, size);
+
+  const shading = ctx.createLinearGradient(0, 0, size, size);
+  shading.addColorStop(0, 'rgba(255,255,255,0.08)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 1;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
+      ctx.fillStyle =
+        (x + y) % (spacing * 2) === 0
+          ? 'rgba(255,255,255,0.3)'
+          : 'rgba(0,0,0,0.26)';
       ctx.beginPath();
-      ctx.arc(x, y, 0.25, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.32, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
   for (let i = 0; i < 600000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -487,6 +497,18 @@ function makeClothTexture() {
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
     ctx.stroke();
+
+    if (i % 6 === 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(
+        x + Math.cos(angle + Math.PI / 2) * length * 0.6,
+        y + Math.sin(angle + Math.PI / 2) * length * 0.6
+      );
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    }
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -856,7 +878,7 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.18;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
