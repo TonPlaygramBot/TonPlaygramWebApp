@@ -37,12 +37,12 @@ const jawMat = new THREE.MeshPhysicalMaterial({
   clearcoat: 0.45
 });
 const jawCapMat = new THREE.MeshPhysicalMaterial({
-  color: 0xd9dee5,
-  roughness: 0.18,
-  metalness: 0.92,
-  clearcoat: 0.72,
-  clearcoatRoughness: 0.18,
-  envMapIntensity: 1.4
+  color: 0x050505,
+  roughness: 0.32,
+  metalness: 0.65,
+  clearcoat: 0.25,
+  clearcoatRoughness: 0.32,
+  envMapIntensity: 0.9
 });
 function makeJawSector(
   R = POCKET_VIS_R,
@@ -91,9 +91,9 @@ function addPocketJaws(parent, playW, playH) {
   ];
   const jaws = [];
   const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
-  const jawDepthTarget = CLOTH_THICKNESS * 1.06;
-  const capHeight = CLOTH_THICKNESS * 0.42;
-  const capLift = CLOTH_THICKNESS * 0.02;
+  const jawDepthTarget = CLOTH_THICKNESS;
+  const capHeight = CLOTH_THICKNESS * 0.36;
+  const capLift = CLOTH_THICKNESS * 0.012;
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -102,17 +102,17 @@ function addPocketJaws(parent, playW, playH) {
     SIDE_SECTOR_SWEEP
   );
   const cornerCapGeo = makeJawSector(
-    POCKET_VIS_R * 0.99,
-    JAW_T * 0.62,
+    POCKET_VIS_R,
+    JAW_T,
     SECTOR_START,
     SECTOR_END,
     capHeight
   );
   const sideCapGeo = makeJawSector(
-    POCKET_VIS_R * 0.95,
-    JAW_T * 0.68,
-    -SIDE_SECTOR_SWEEP * 1.05,
-    SIDE_SECTOR_SWEEP * 1.05,
+    POCKET_VIS_R,
+    JAW_T * 0.82,
+    -SIDE_SECTOR_SWEEP,
+    SIDE_SECTOR_SWEEP,
     capHeight
   );
   for (const entry of POCKET_MAP) {
@@ -175,7 +175,7 @@ function addPocketJaws(parent, playW, playH) {
     const cap = new THREE.Mesh(capGeo, jawCapMat);
     cap.castShadow = false;
     cap.receiveShadow = true;
-    cap.position.y = capHeight + capLift;
+    cap.position.y = capLift;
     jaw.add(cap);
     jaw.userData = {
       ...(jaw.userData || {}),
@@ -383,7 +383,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x3ea861,
+  cloth: 0x1f8a3d,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -627,28 +627,28 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const baseCloth = '#3ea861';
+  const baseCloth = '#1f8a3d';
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.18)');
-  shading.addColorStop(0.55, 'rgba(0,0,0,0.2)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.36)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.22)');
+  shading.addColorStop(0.45, 'rgba(0,0,0,0.18)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.34)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.16)');
-  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.22)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.12)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.2)');
+  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.18)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.16)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 2;
-  const weaveSize = 1.9;
-  const lightWeave = 'rgba(255,255,255,0.96)';
-  const darkWeave = 'rgba(0,0,0,0.72)';
+  const spacing = 3;
+  const weaveSize = 2.4;
+  const lightWeave = 'rgba(255,255,255,0.7)';
+  const darkWeave = 'rgba(0,0,0,0.55)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
@@ -656,14 +656,14 @@ function makeClothTexture() {
     }
   }
 
-  ctx.globalAlpha = 0.24;
+  ctx.globalAlpha = 0.35;
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   for (let y = 0; y < size; y += spacing * 4) {
-    ctx.fillRect(0, y, size, 0.6);
+    ctx.fillRect(0, y, size, 0.75);
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
   for (let x = 0; x < size; x += spacing * 4) {
-    ctx.fillRect(x, 0, 0.6, size);
+    ctx.fillRect(x, 0, 0.75, size);
   }
   ctx.globalAlpha = 1;
 
@@ -693,12 +693,12 @@ function makeClothTexture() {
   }
 
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
@@ -1066,28 +1066,28 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.7,
-    metalness: 0.05,
-    envMapIntensity: 0.32,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.06),
-    emissiveIntensity: 0.92
+    roughness: 0.62,
+    metalness: 0.04,
+    envMapIntensity: 0.42,
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.08),
+    emissiveIntensity: 1
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 1.95;
+    clothMat.bumpScale = 2.6;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.55;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.6;
     cushionMat.needsUpdate = true;
   }
-  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
-  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.05);
+  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.08);
+  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.08);
   cushionMat.metalness = Math.max(0.04, clothMat.metalness * 0.75);
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
