@@ -167,15 +167,15 @@ const POCKET_JAW_LIP_HEIGHT =
   -TABLE.THICK + 0.025; // raise pocket rims so they sit level with the cushions
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 3.4,
-  dotThreshold: 0.35,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 0.8,
-  maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 4.5
+  triggerDist: CAPTURE_R * 3.8,
+  dotThreshold: 0.3,
+  minOutside: TABLE.WALL + POCKET_VIS_R * 0.95,
+  maxOutside: BALL_R * 32,
+  heightOffset: BALL_R * 5.1
 });
 const SPIN_STRENGTH = BALL_R * 0.9;
 const SPIN_DECAY = 0.78;
@@ -198,6 +198,7 @@ const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS;
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
+const CUE_BUTT_LIFT = BALL_R * 0.3;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -211,7 +212,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x1f8c45,
+  cloth: 0x1a7d3b,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -238,15 +239,15 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.16;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
+const STANDING_VIEW_PHI = 1.12;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
 const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.95,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -262,7 +263,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.8,
   phi: CAMERA.maxPhi - 0.07
 });
 const ACTION_VIEW = Object.freeze({
@@ -283,7 +284,7 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.72;
+const ACTION_CAMERA_RADIUS_SCALE = 0.78;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - 0.02,
@@ -312,7 +313,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.6 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -349,16 +350,16 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#2fb552';
+  ctx.fillStyle = '#18723a';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 4;
-  const radius = 1.15;
+  const radius = 1.25;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.86)'
-        : 'rgba(0,0,0,0.82)';
+        ? 'rgba(255,255,255,0.94)'
+        : 'rgba(0,0,0,0.88)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -811,6 +812,8 @@ function Table3D(parent) {
 
   const pocketClothMat = clothMat.clone();
   pocketClothMat.side = THREE.DoubleSide;
+  pocketClothMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(0.82);
+  pocketClothMat.roughness = Math.min(1, clothMat.roughness * 1.1);
   pocketClothMat.needsUpdate = true;
   const pocketInteriorMat = new THREE.MeshStandardMaterial({
     color: 0x050505,
@@ -1128,7 +1131,7 @@ function Table3D(parent) {
   table.add(toneMesh);
 
   const baulkZ = -PLAY_H / 4;
-  const lineThickness = 0.18;
+  const lineThickness = 0.22;
   const markingMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
     side: THREE.DoubleSide,
@@ -1138,8 +1141,8 @@ function Table3D(parent) {
   markingMat.depthTest = true;
   markingMat.polygonOffset = true;
   markingMat.polygonOffsetFactor = -1;
-  markingMat.polygonOffsetUnits = -1.5;
-  const markingY = 0.004;
+  markingMat.polygonOffsetUnits = -2;
+  const markingY = 0.007;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
@@ -1149,7 +1152,7 @@ function Table3D(parent) {
   baulkPlane.renderOrder = 3;
   table.add(baulkPlane);
   const dRadius = PLAY_W * 0.15;
-  const dThickness = lineThickness * 0.9;
+  const dThickness = lineThickness * 0.95;
   const dGeom = new THREE.RingGeometry(
     dRadius - dThickness / 2,
     dRadius + dThickness / 2,
@@ -1165,7 +1168,7 @@ function Table3D(parent) {
   table.add(dMesh);
 
   function addSpot(x, z) {
-    const spotGeo = new THREE.CircleGeometry(0.65, 32);
+    const spotGeo = new THREE.CircleGeometry(0.75, 32);
     const spotMat = new THREE.MeshBasicMaterial({
       color: COLORS.markings
     });
@@ -1285,7 +1288,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 2.75; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const LONG_CUSHION_TRIM = 3.35; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1937,10 +1940,6 @@ function SnookerGame() {
                   cueBall.pos.y + dir.y * BALL_R * 12
                 );
               }
-              const cuePos2 = new THREE.Vector2(
-                cueBall.pos.x,
-                cueBall.pos.y
-              );
               const scaledRadius = sph.radius * ACTION_CAMERA_RADIUS_SCALE;
               const orbitRadius = clampOrbitRadius(
                 Math.max(scaledRadius, ACTION_CAMERA_MIN_RADIUS)
@@ -1951,7 +1950,11 @@ function SnookerGame() {
                 CAMERA.maxPhi
               );
               const orbitTheta = sph.theta;
-              const tableFocus = new THREE.Vector3(0, TABLE_Y + 0.05, 0);
+              const tableFocus = new THREE.Vector3(
+                playerOffsetRef.current,
+                TABLE_Y + 0.05,
+                PLAY_H * 0.12
+              );
               const worldFocus = tableFocus
                 .clone()
                 .multiplyScalar(worldScaleFactor);
@@ -1967,13 +1970,7 @@ function SnookerGame() {
               view.focusPoint = tableFocus.clone();
               view.currentCameraId = null;
               lookTarget = worldFocus;
-              const blendValue = cameraBlendRef.current;
-              const adjustedRadius = getDynamicOrbitRadius(
-                fullTableRadius,
-                orbitTheta,
-                blendValue,
-                ACTION_CAMERA_MIN_RADIUS
-              );
+              const adjustedRadius = fullTableRadius;
               view.cameraOrbit.radius = adjustedRadius;
               TMP_SPH.copy(view.cameraOrbit);
               TMP_SPH.radius = adjustedRadius;
@@ -2568,6 +2565,17 @@ function SnookerGame() {
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE;
       const cueStick = new THREE.Group();
+      const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
+      const buttTilt = Math.asin(
+        Math.min(1, buttLift / Math.max(cueLen, 1e-4))
+      );
+      const buttTipComp = Math.sin(buttTilt) * cueLen * 0.5;
+      const applyCueButtTilt = (group) => {
+        if (!group) return;
+        group.rotation.x = buttTilt;
+        group.position.y += buttTipComp;
+      };
+      cueStick.userData.buttTilt = { angle: buttTilt, tipCompensation: buttTipComp };
 
       const shaft = new THREE.Mesh(
         new THREE.CylinderGeometry(0.008 * SCALE, 0.025 * SCALE, cueLen, 32),
@@ -2668,6 +2676,7 @@ function SnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
+      applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -2841,7 +2850,7 @@ function SnookerGame() {
               phi: sph.phi,
               theta: sph.theta
             };
-            const followTheta = baseOrbit.theta;
+            const followTheta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
             const followPhi = standingView?.phi ?? CAMERA.minPhi;
@@ -3128,6 +3137,7 @@ function SnookerGame() {
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
+          applyCueButtTilt(cueStick);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
