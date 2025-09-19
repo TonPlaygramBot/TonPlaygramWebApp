@@ -222,7 +222,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x1a7d3b,
+  cloth: 0x239c4a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -468,19 +468,19 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#156f36';
+  ctx.fillStyle = '#1f8f45';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const radius = 0.92;
-  const jitter = radius * 0.75;
+  const radius = 1.05;
+  const jitter = radius * 0.8;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const offsetX = ((x + y) % (spacing * 4) === 0 ? 1 : -1) * jitter;
       const offsetY = ((x - y) % (spacing * 4) === 0 ? -1 : 1) * jitter;
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.95)'
-        : 'rgba(0,0,0,0.82)';
+        ? 'rgba(255,255,255,0.98)'
+        : 'rgba(6,12,6,0.9)';
       ctx.beginPath();
       ctx.arc(x + offsetX * 0.45, y + offsetY * 0.45, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -488,9 +488,22 @@ function makeClothTexture() {
   }
 
   ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = 'rgba(35, 120, 65, 0.45)';
+  ctx.fillStyle = 'rgba(55, 150, 88, 0.32)';
   ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = 'rgba(15, 40, 22, 0.18)';
+  ctx.fillStyle = 'rgba(20, 50, 30, 0.22)';
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'multiply';
+  const vignette = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    size * 0.18,
+    size / 2,
+    size / 2,
+    size / 2
+  );
+  vignette.addColorStop(0, 'rgba(255,255,255,1)');
+  vignette.addColorStop(1, 'rgba(24,40,28,0.88)');
+  ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'source-over';
 
@@ -852,24 +865,24 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.74,
+    roughness: 0.72,
     metalness: 0.08,
     envMapIntensity: 0.38,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.08),
-    emissiveIntensity: 0.92
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.09),
+    emissiveIntensity: 0.94
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.42;
+    clothMat.bumpScale = 0.18;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.28;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.32;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -1472,8 +1485,10 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 3.9; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const LONG_CUSHION_TRIM = 5.2; // trim the long rails further so they reveal more of the pocket jaw
   const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.035; // pull cushions closer to the pocket rings without touching
+  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.22; // shorten long cushions so they stop before the pocket throat
+  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.18; // mirror the pocket clearance on the four short cushions
   const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.05; // tug long cushions toward the playfield so they meet the rails cleanly
   const END_RAIL_CENTER_PULL = TABLE.WALL * 0.045; // pull the short-end cushions into line with the pockets
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
@@ -1566,10 +1581,18 @@ function Table3D(parent) {
     if (!table.userData.cushions) table.userData.cushions = [];
     table.userData.cushions.push(g);
   }
-  const vertSeg = PLAY_H / 2 - 12 - CUSHION_POCKET_GAP;
+  const vertSeg = PLAY_H / 2 - 12 - CUSHION_POCKET_GAP - END_RAIL_EXTRA_CLEARANCE;
   const horizontalLen =
-    PLAY_W - (cushionExtend + 6) - LONG_CUSHION_TRIM - CUSHION_POCKET_GAP * 2;
-  const verticalLen = PLAY_H / 2 - (cushionExtend + 6) - CUSHION_POCKET_GAP;
+    PLAY_W -
+    (cushionExtend + 6) -
+    LONG_CUSHION_TRIM -
+    CUSHION_POCKET_GAP * 2 -
+    LONG_RAIL_EXTRA_CLEARANCE * 2;
+  const verticalLen =
+    PLAY_H / 2 -
+    (cushionExtend + 6) -
+    CUSHION_POCKET_GAP -
+    END_RAIL_EXTRA_CLEARANCE;
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
