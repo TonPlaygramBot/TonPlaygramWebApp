@@ -202,7 +202,13 @@ const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS;
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.3;
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(5.5);
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.72;
+const MAX_SPIN_FORWARD = BALL_R * 0.88;
+const MAX_SPIN_SIDE = BALL_R * 0.62;
+const MAX_SPIN_VERTICAL = BALL_R * 0.48;
+const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -267,8 +273,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.72,
-  phi: CAMERA.maxPhi - 0.14
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.68,
+  phi: CAMERA.maxPhi - 0.22
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -303,6 +309,8 @@ const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
+const TMP_VEC2_LIMIT = new THREE.Vector2();
+const TMP_VEC2_AXIS = new THREE.Vector2();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -345,6 +353,104 @@ const orientationScaleForTheta = (theta = 0) => {
 // --------------------------------------------------
 // Utilities
 // --------------------------------------------------
+const DEFAULT_SPIN_LIMITS = Object.freeze({
+  minX: -1,
+  maxX: 1,
+  minY: -1,
+  maxY: 1
+});
+const clampSpinValue = (value) => clamp(value, -1, 1);
+
+function distanceToTableEdge(pos, dir) {
+  let minT = Infinity;
+  if (Math.abs(dir.x) > 1e-6) {
+    const boundX = dir.x > 0 ? RAIL_LIMIT_X : -RAIL_LIMIT_X;
+    const tx = (boundX - pos.x) / dir.x;
+    if (tx > 0) minT = Math.min(minT, tx);
+  }
+  if (Math.abs(dir.y) > 1e-6) {
+    const boundY = dir.y > 0 ? RAIL_LIMIT_Y : -RAIL_LIMIT_Y;
+    const ty = (boundY - pos.y) / dir.y;
+    if (ty > 0) minT = Math.min(minT, ty);
+  }
+  return minT;
+}
+
+function applyAxisClearance(limits, key, positive, clearance) {
+  if (!Number.isFinite(clearance)) return;
+  const safeClearance = clearance - SPIN_TIP_MARGIN;
+  if (safeClearance <= 0) {
+    if (positive) {
+      if (key === 'maxX') limits.maxX = Math.min(limits.maxX, 0);
+      if (key === 'maxY') limits.maxY = Math.min(limits.maxY, 0);
+    } else {
+      if (key === 'minX') limits.minX = Math.max(limits.minX, 0);
+      if (key === 'minY') limits.minY = Math.max(limits.minY, 0);
+    }
+    return;
+  }
+  const normalized = clamp(safeClearance / MAX_SPIN_CONTACT_OFFSET, 0, 1);
+  if (positive) {
+    if (key === 'maxX') limits.maxX = Math.min(limits.maxX, normalized);
+    if (key === 'maxY') limits.maxY = Math.min(limits.maxY, normalized);
+  } else {
+    const limit = -normalized;
+    if (key === 'minX') limits.minX = Math.max(limits.minX, limit);
+    if (key === 'minY') limits.minY = Math.max(limits.minY, limit);
+  }
+}
+
+function computeSpinLimits(cueBall, aimDir, balls = []) {
+  if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
+  TMP_VEC2_AXIS.set(aimDir.x, aimDir.y);
+  if (TMP_VEC2_AXIS.lengthSq() < 1e-8) TMP_VEC2_AXIS.set(0, 1);
+  else TMP_VEC2_AXIS.normalize();
+  TMP_VEC2_LIMIT.set(-TMP_VEC2_AXIS.y, TMP_VEC2_AXIS.x);
+  if (TMP_VEC2_LIMIT.lengthSq() < 1e-8) TMP_VEC2_LIMIT.set(1, 0);
+  else TMP_VEC2_LIMIT.normalize();
+  const axes = [
+    { key: 'maxX', dir: TMP_VEC2_LIMIT.clone(), positive: true },
+    { key: 'minX', dir: TMP_VEC2_LIMIT.clone().multiplyScalar(-1), positive: false },
+    { key: 'minY', dir: TMP_VEC2_AXIS.clone(), positive: false },
+    { key: 'maxY', dir: TMP_VEC2_AXIS.clone().multiplyScalar(-1), positive: true }
+  ];
+  const limits = { ...DEFAULT_SPIN_LIMITS };
+
+  for (const axis of axes) {
+    const centerToEdge = distanceToTableEdge(cueBall.pos, axis.dir);
+    if (centerToEdge !== Infinity) {
+      const clearance = centerToEdge - BALL_R;
+      applyAxisClearance(limits, axis.key, axis.positive, clearance);
+    }
+  }
+
+  for (const ball of balls) {
+    if (!ball || ball === cueBall) continue;
+    if (ball.active === false) continue;
+    TMP_VEC2_SPIN.copy(ball.pos).sub(cueBall.pos);
+    const distSq = TMP_VEC2_SPIN.lengthSq();
+    if (distSq < 1e-6) continue;
+    const dist = Math.sqrt(distSq);
+    for (const axis of axes) {
+      const along = TMP_VEC2_SPIN.dot(axis.dir);
+      if (along <= 0) continue;
+      const lateralSq = distSq - along * along;
+      const lateral = Math.sqrt(Math.max(lateralSq, 0));
+      if (lateral >= BALL_R + SPIN_CLEARANCE_MARGIN) continue;
+      const clearance = along - BALL_R * 2;
+      applyAxisClearance(limits, axis.key, axis.positive, clearance);
+    }
+  }
+
+  limits.minX = clampSpinValue(limits.minX);
+  limits.maxX = clampSpinValue(limits.maxX);
+  limits.minY = clampSpinValue(limits.minY);
+  limits.maxY = clampSpinValue(limits.maxY);
+  if (limits.minX > limits.maxX) limits.minX = limits.maxX = 0;
+  if (limits.minY > limits.maxY) limits.minY = limits.maxY = 0;
+  return limits;
+}
+
 const pocketCenters = () => [
   new THREE.Vector2(-PLAY_W / 2, -PLAY_H / 2),
   new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
@@ -362,16 +468,16 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#166d35';
+  ctx.fillStyle = '#177538';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const radius = 0.85;
+  const radius = 0.55;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.9)'
-        : 'rgba(0,0,0,0.55)';
+        ? 'rgba(255,255,255,0.95)'
+        : 'rgba(0,0,0,0.7)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -900,6 +1006,25 @@ function Table3D(parent) {
     );
     dropCap.renderOrder = 1;
     table.add(dropCap);
+
+    const clothMask = new THREE.Mesh(
+      new THREE.CircleGeometry(POCKET_CLOTH_TOP_RADIUS * 0.94, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0x020202,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false
+      })
+    );
+    clothMask.rotation.x = -Math.PI / 2;
+    clothMask.position.set(p.x, baseY + CLOTH_THICKNESS * 0.02, p.y);
+    clothMask.renderOrder = 5;
+    clothMask.material.depthTest = true;
+    clothMask.material.polygonOffset = true;
+    clothMask.material.polygonOffsetFactor = -1;
+    clothMask.material.polygonOffsetUnits = -6;
+    table.add(clothMask);
   });
 
   const toneCanvas = document.createElement('canvas');
@@ -1169,18 +1294,19 @@ function Table3D(parent) {
   table.add(toneMesh);
 
   const baulkZ = -PLAY_H / 4;
-  const lineThickness = 0.32;
+  const lineThickness = 0.42;
   const markingMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
     side: THREE.DoubleSide,
     transparent: true,
-    depthWrite: false
+    depthWrite: false,
+    opacity: 0.98
   });
   markingMat.depthTest = true;
   markingMat.polygonOffset = true;
   markingMat.polygonOffsetFactor = -1;
-  markingMat.polygonOffsetUnits = -2;
-  const markingY = CLOTH_THICKNESS * 0.08;
+  markingMat.polygonOffsetUnits = -3;
+  const markingY = CLOTH_THICKNESS * 0.16;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
@@ -1208,12 +1334,14 @@ function Table3D(parent) {
   function addSpot(x, z) {
     const spotGeo = new THREE.CircleGeometry(0.75, 32);
     const spotMat = new THREE.MeshBasicMaterial({
-      color: COLORS.markings
+      color: COLORS.markings,
+      transparent: true,
+      opacity: 0.95
     });
     spotMat.depthTest = true;
     spotMat.polygonOffset = true;
     spotMat.polygonOffsetFactor = -1;
-    spotMat.polygonOffsetUnits = -1.5;
+    spotMat.polygonOffsetUnits = -3;
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingY, z);
@@ -1327,7 +1455,7 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 3.35; // shave a touch from the long rails so they sit tighter to the pocket jaw
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.1; // pull cushions closer to the pocket rings without touching
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.035; // pull cushions closer to the pocket rings without touching
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1523,7 +1651,24 @@ function SnookerGame() {
   const spinRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
-  const spinRangeRef = useRef(0);
+  const spinRangeRef = useRef({
+    side: 0,
+    forward: 0,
+    offsetSide: 0,
+    offsetVertical: 0
+  });
+  const spinLimitsRef = useRef({ ...DEFAULT_SPIN_LIMITS });
+  const spinAppliedRef = useRef({ x: 0, y: 0 });
+  const spinDotElRef = useRef(null);
+  const updateSpinDotPosition = useCallback((value) => {
+    if (!value) value = { x: 0, y: 0 };
+    const dot = spinDotElRef.current;
+    if (!dot) return;
+    const x = clamp(value.x ?? 0, -1, 1);
+    const y = clamp(value.y ?? 0, -1, 1);
+    dot.style.left = `${50 + x * 50}%`;
+    dot.style.top = `${50 + y * 50}%`;
+  }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
@@ -2346,6 +2491,30 @@ function SnookerGame() {
         dom.style.touchAction = 'none';
         const balls = [];
         let project;
+        const clampSpinToLimits = (updateUi = false) => {
+          const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
+          const current = spinRef.current || { x: 0, y: 0 };
+          const clamped = {
+            x: clamp(current.x ?? 0, limits.minX, limits.maxX),
+            y: clamp(current.y ?? 0, limits.minY, limits.maxY)
+          };
+          if (clamped.x !== current.x || clamped.y !== current.y) {
+            spinRef.current = clamped;
+            if (updateUi) updateSpinDotPosition(clamped);
+          } else if (updateUi) {
+            updateSpinDotPosition(clamped);
+          }
+          return spinRef.current;
+        };
+        const applySpinConstraints = (aimVec, updateUi = false) => {
+          const cueBall = cueRef.current || cue;
+          if (cueBall && aimVec) {
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls);
+          }
+          const applied = clampSpinToLimits(updateUi);
+          spinAppliedRef.current = applied;
+          return applied;
+        };
         const drag = { on: false, x: 0, y: 0, moved: false };
         let lastInteraction = performance.now();
         const registerInteraction = (didAdjust = false) => {
@@ -2730,7 +2899,12 @@ function SnookerGame() {
       cueStick.visible = false;
       table.add(cueStick);
 
-      spinRangeRef.current = CUE_TIP_RADIUS * 5.5;
+      spinRangeRef.current = {
+        side: MAX_SPIN_SIDE,
+        forward: MAX_SPIN_FORWARD,
+        offsetSide: MAX_SPIN_CONTACT_OFFSET,
+        offsetVertical: MAX_SPIN_VERTICAL
+      };
 
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
@@ -2872,8 +3046,10 @@ function SnookerGame() {
           const base = aimDir
             .clone()
             .multiplyScalar(SHOT_BASE_SPEED * powerScale);
-          const spinSide = spinRef.current.x * spinRangeRef.current;
-          const spinTop = -spinRef.current.y * spinRangeRef.current;
+          const appliedSpin = applySpinConstraints(aimDir, true);
+          const ranges = spinRangeRef.current || {};
+          const spinSide = appliedSpin.x * (ranges.side ?? 0);
+          const spinTop = -appliedSpin.y * (ranges.forward ?? 0);
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
           cue.vel.copy(base);
           if (cue.spin) {
@@ -3142,6 +3318,8 @@ function SnookerGame() {
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
         aimDir.lerp(tmpAim, 0.2);
+        const appliedSpin = applySpinConstraints(aimDir, true);
+        const ranges = spinRangeRef.current || {};
         // Aiming vizual
         if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
@@ -3174,8 +3352,8 @@ function SnookerGame() {
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
-          const side = spinRef.current.x * spinRangeRef.current;
-          const vert = -spinRef.current.y * spinRangeRef.current;
+          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
+          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
@@ -3186,8 +3364,8 @@ function SnookerGame() {
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const backspin = Math.max(0, spinRef.current.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * backspin;
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -3464,6 +3642,7 @@ function SnookerGame() {
     const box = document.getElementById('spinBox');
     const dot = document.getElementById('spinDot');
     if (!box || !dot) return;
+    spinDotElRef.current = dot;
 
     box.style.transition = 'transform 0.18s ease';
     box.style.transformOrigin = '50% 50%';
@@ -3473,10 +3652,18 @@ function SnookerGame() {
     let activePointer = null;
     let moved = false;
 
+    const clampToLimits = (nx, ny) => {
+      const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
+      return {
+        x: clamp(nx, limits.minX, limits.maxX),
+        y: clamp(ny, limits.minY, limits.maxY)
+      };
+    };
+
     const setSpin = (nx, ny) => {
-      spinRef.current = { x: nx, y: ny };
-      dot.style.left = `${50 + nx * 50}%`;
-      dot.style.top = `${50 + ny * 50}%`;
+      const limited = clampToLimits(nx, ny);
+      spinRef.current = limited;
+      updateSpinDotPosition(limited);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -3493,7 +3680,8 @@ function SnookerGame() {
         nx /= L;
         ny /= L;
       }
-      setSpin(nx, ny);
+      const limited = clampToLimits(nx, ny);
+      setSpin(limited.x, limited.y);
     };
 
     const scaleBox = (value) => {
@@ -3561,6 +3749,7 @@ function SnookerGame() {
     box.addEventListener('pointercancel', handlePointerCancel);
 
     return () => {
+      spinDotElRef.current = null;
       releasePointer();
       clearTimer();
       resetSpinRef.current = () => {};
@@ -3569,7 +3758,7 @@ function SnookerGame() {
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, []);
+  }, [updateSpinDotPosition]);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
