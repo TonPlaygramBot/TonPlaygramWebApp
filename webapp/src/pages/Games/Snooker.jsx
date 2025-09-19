@@ -262,8 +262,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
-  phi: CAMERA.maxPhi - 0.04
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
+  phi: CAMERA.maxPhi - 0.07
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -289,7 +289,7 @@ const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - 0.02,
   STANDING_VIEW_PHI + 0.02
 );
-const POCKET_IDLE_SWITCH_MS = 1600;
+const POCKET_IDLE_SWITCH_MS = 0;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -353,12 +353,12 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 4;
-  const radius = 0.8;
+  const radius = 0.9;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.6)'
-        : 'rgba(0,0,0,0.6)';
+        ? 'rgba(255,255,255,0.72)'
+        : 'rgba(0,0,0,0.68)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -638,7 +638,9 @@ function Guret(parent, id, color, x, y) {
       new THREE.Vector3(1, 0, 0),
       new THREE.Vector3(-1, 0, 0),
       new THREE.Vector3(0, 1, 0),
-      new THREE.Vector3(0, -1, 0)
+      new THREE.Vector3(0, -1, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(0, 0, -1)
     ].forEach((normal) => {
       const marker = new THREE.Mesh(markerGeom, markerMat);
       marker.position.copy(normal).multiplyScalar(markerOffset);
@@ -721,24 +723,24 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.78,
-    metalness: 0.06,
-    envMapIntensity: 0.32,
+    roughness: 0.74,
+    metalness: 0.08,
+    envMapIntensity: 0.38,
     emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.08),
-    emissiveIntensity: 0.85
+    emissiveIntensity: 0.92
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.16;
+    clothMat.bumpScale = 0.22;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.3;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.2;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -952,6 +954,80 @@ function Table3D(parent) {
     });
     toneCtx.globalCompositeOperation = 'source-over';
 
+    const curveShade = 'rgba(8, 28, 16, 0.24)';
+    const curveFade = 'rgba(0, 0, 0, 0)';
+    const horizontalThickness = toneCanvas.height * 0.042;
+    const horizontalDepth = horizontalThickness * 0.45;
+    const verticalThickness = toneCanvas.width * 0.042;
+    const verticalDepth = verticalThickness * 0.45;
+
+    const drawHorizontalVCurve = (offset, flip = false) => {
+      toneCtx.save();
+      if (flip) {
+        toneCtx.translate(0, toneCanvas.height);
+        toneCtx.scale(1, -1);
+      }
+      toneCtx.translate(0, offset);
+      const grad = toneCtx.createLinearGradient(0, 0, 0, horizontalThickness);
+      grad.addColorStop(0, curveShade);
+      grad.addColorStop(1, curveFade);
+      toneCtx.fillStyle = grad;
+      toneCtx.beginPath();
+      toneCtx.moveTo(0, 0);
+      toneCtx.quadraticCurveTo(
+        toneCanvas.width / 2,
+        horizontalDepth,
+        toneCanvas.width,
+        0
+      );
+      toneCtx.lineTo(toneCanvas.width, horizontalThickness);
+      toneCtx.quadraticCurveTo(
+        toneCanvas.width / 2,
+        horizontalThickness + horizontalDepth * 0.4,
+        0,
+        horizontalThickness
+      );
+      toneCtx.closePath();
+      toneCtx.fill();
+      toneCtx.restore();
+    };
+
+    const drawVerticalVCurve = (offset, flip = false) => {
+      toneCtx.save();
+      if (flip) {
+        toneCtx.translate(toneCanvas.width, 0);
+        toneCtx.scale(-1, 1);
+      }
+      toneCtx.translate(offset, 0);
+      const grad = toneCtx.createLinearGradient(0, 0, verticalThickness, 0);
+      grad.addColorStop(0, curveShade);
+      grad.addColorStop(1, curveFade);
+      toneCtx.fillStyle = grad;
+      toneCtx.beginPath();
+      toneCtx.moveTo(0, 0);
+      toneCtx.quadraticCurveTo(
+        verticalDepth,
+        toneCanvas.height / 2,
+        0,
+        toneCanvas.height
+      );
+      toneCtx.lineTo(verticalThickness, toneCanvas.height);
+      toneCtx.quadraticCurveTo(
+        verticalThickness + verticalDepth * 0.4,
+        toneCanvas.height / 2,
+        verticalThickness,
+        0
+      );
+      toneCtx.closePath();
+      toneCtx.fill();
+      toneCtx.restore();
+    };
+
+    drawHorizontalVCurve(edgeFalloffY * 0.35);
+    drawHorizontalVCurve(edgeFalloffY * 0.35, true);
+    drawVerticalVCurve(edgeFalloffX * 0.35);
+    drawVerticalVCurve(edgeFalloffX * 0.35, true);
+
     // Brand-new strip tucked below the cushions that never sees play
     const stripDepth = toneCanvas.height * 0.022;
     const stripTint = 'rgba(60, 170, 100, 0.22)';
@@ -1025,15 +1101,19 @@ function Table3D(parent) {
     color: COLORS.markings,
     side: THREE.DoubleSide,
     transparent: true,
-    depthWrite: false,
-    depthTest: false
+    depthWrite: false
   });
+  markingMat.depthTest = true;
+  markingMat.polygonOffset = true;
+  markingMat.polygonOffsetFactor = -1;
+  markingMat.polygonOffsetUnits = -1.5;
+  const markingY = 0.002;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
   );
   baulkPlane.rotation.x = -Math.PI / 2;
-  baulkPlane.position.set(0, 0.021, baulkZ);
+  baulkPlane.position.set(0, markingY, baulkZ);
   baulkPlane.renderOrder = 3;
   table.add(baulkPlane);
   const dRadius = PLAY_W * 0.15;
@@ -1048,7 +1128,7 @@ function Table3D(parent) {
   );
   const dMesh = new THREE.Mesh(dGeom, markingMat.clone());
   dMesh.rotation.x = -Math.PI / 2;
-  dMesh.position.set(0, 0.021, baulkZ);
+  dMesh.position.set(0, markingY, baulkZ);
   dMesh.renderOrder = 3;
   table.add(dMesh);
 
@@ -1057,9 +1137,13 @@ function Table3D(parent) {
     const spotMat = new THREE.MeshBasicMaterial({
       color: COLORS.markings
     });
+    spotMat.depthTest = true;
+    spotMat.polygonOffset = true;
+    spotMat.polygonOffsetFactor = -1;
+    spotMat.polygonOffsetUnits = -1.5;
     const spot = new THREE.Mesh(spotGeo, spotMat);
     spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, 0.021, z);
+    spot.position.set(x, markingY, z);
     table.add(spot);
   }
   addSpot(0, baulkZ);
@@ -1068,6 +1152,28 @@ function Table3D(parent) {
   addSpot(0, 0);
   addSpot(0, PLAY_H * 0.25);
   addSpot(0, PLAY_H * 0.5 - PLAY_H * 0.05);
+
+  const pocketRingMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  pocketRingMat.depthTest = true;
+  pocketRingMat.polygonOffset = true;
+  pocketRingMat.polygonOffsetFactor = -1;
+  pocketRingMat.polygonOffsetUnits = -2;
+  pocketCenters().forEach((p) => {
+    const inner = POCKET_CLOTH_TOP_RADIUS * 0.78;
+    const outer = POCKET_CLOTH_TOP_RADIUS * 0.94;
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(inner, outer, 64, 1),
+      pocketRingMat
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(p.x, markingY, p.y);
+    ring.renderOrder = 2;
+    table.add(ring);
+  });
 
   const railH = TABLE.THICK * 2.0;
   const railW = TABLE.WALL * 0.9 * 0.5;
@@ -3121,7 +3227,10 @@ function SnookerGame() {
             const idleOrigin =
               followView.lastInteraction ?? followView.startedAt ?? lastInteraction;
             const idleFor = now - idleOrigin;
-            if (idleFor >= POCKET_IDLE_SWITCH_MS && !drag.on) {
+            if (
+              !drag.on &&
+              (POCKET_IDLE_SWITCH_MS <= 0 || idleFor >= POCKET_IDLE_SWITCH_MS)
+            ) {
               const pocketView = followView.pendingPocket;
               followView.pendingPocket = null;
               activeShotView = pocketView;
