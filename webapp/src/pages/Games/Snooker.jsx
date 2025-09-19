@@ -1664,18 +1664,25 @@ function Table3D(parent) {
     if (!table.userData.cushions) table.userData.cushions = [];
     table.userData.cushions.push(g);
   }
-  const vertSeg = PLAY_H / 2 - 12 - CUSHION_POCKET_GAP - END_RAIL_EXTRA_CLEARANCE;
   const horizontalLen =
     PLAY_W -
     (cushionExtend + 6) -
     LONG_CUSHION_TRIM -
     CUSHION_POCKET_GAP * 2 -
     LONG_RAIL_EXTRA_CLEARANCE * 2;
-  const verticalLen =
-    PLAY_H / 2 -
-    (cushionExtend + 6) -
-    CUSHION_POCKET_GAP -
-    END_RAIL_EXTRA_CLEARANCE;
+  const horizontalHalfSpan = (horizontalLen + (cushionExtend + 6)) / 2;
+  // Match the corner clearance of the vertical cushions to the adjoining horizontals
+  // so the angled cuts stop before the pocket rings instead of overlapping them.
+  const cornerClearance = Math.max(0, PLAY_W / 2 - horizontalHalfSpan);
+  const verticalTopTip = -halfH + cornerClearance;
+  const verticalBottomTip = -CUSHION_POCKET_GAP - END_RAIL_EXTRA_CLEARANCE;
+  const verticalHalfSpan = (verticalBottomTip - verticalTopTip) / 2;
+  const verticalLen = Math.max(
+    0,
+    verticalHalfSpan * 2 - (cushionExtend + 6)
+  );
+  const verticalCenterTop = (verticalTopTip + verticalBottomTip) / 2;
+  const vertSeg = Math.max(0, 2 * (verticalCenterTop + halfH - 6));
   const bottomZ = -halfH - (TABLE.WALL * 0.5) / 2;
   const topZ = halfH + (TABLE.WALL * 0.5) / 2;
   const leftX = -halfW - (TABLE.WALL * 0.5) / 2;
