@@ -128,9 +128,8 @@ const TABLE = {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 0;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.82;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.86;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
-const ACTION_CAMERA_VERTICAL_MAX_SCALE = 1.08;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
   Math.max(0.62, PLAY_W / PLAY_H)
@@ -218,7 +217,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x3fa85a,
+  cloth: 0x2f7c48,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -245,7 +244,7 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.04;
+const STANDING_VIEW_PHI = 1.08;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
@@ -253,7 +252,7 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: STANDING_VIEW_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -269,8 +268,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.68,
-  phi: CAMERA.maxPhi - 0.22
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.76,
+  phi: CAMERA.maxPhi - 0.09
 });
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -328,11 +327,7 @@ const fitRadius = (camera, margin = 1.1) => {
 const verticalZoomForBlend = (blend = 1) => {
   const t = THREE.MathUtils.clamp(blend ?? 1, 0, 1);
   const eased = Math.pow(t, ACTION_CAMERA_VERTICAL_CURVE);
-  return THREE.MathUtils.lerp(
-    ACTION_CAMERA_VERTICAL_MIN_SCALE,
-    ACTION_CAMERA_VERTICAL_MAX_SCALE,
-    eased
-  );
+  return THREE.MathUtils.lerp(ACTION_CAMERA_VERTICAL_MIN_SCALE, 1, eased);
 };
 
 const orientationScaleForTheta = (theta = 0) => {
@@ -464,30 +459,37 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const baseCloth = '#3fa85a';
+  const baseCloth = '#2f7c48';
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.08)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.18)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.06)');
+  shading.addColorStop(0.6, 'rgba(0,0,0,0.18)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.32)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
+  const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.03)');
+  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.12)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.02)');
+  ctx.fillStyle = crossSheen;
+  ctx.fillRect(0, 0, size, size);
+
   const spacing = 1;
+  const lightWeave = 'rgba(255,255,255,0.42)';
+  const darkWeave = 'rgba(0,0,0,0.34)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      ctx.fillStyle =
-        (x + y) % (spacing * 2) === 0
-          ? 'rgba(255,255,255,0.3)'
-          : 'rgba(0,0,0,0.26)';
+      ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
       ctx.beginPath();
-      ctx.arc(x, y, 0.32, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.42, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.36)';
   for (let i = 0; i < 600000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -499,7 +501,7 @@ function makeClothTexture() {
     ctx.stroke();
 
     if (i % 6 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
@@ -507,9 +509,22 @@ function makeClothTexture() {
         y + Math.sin(angle + Math.PI / 2) * length * 0.6
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.36)';
     }
   }
+
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  for (let i = -size; i < size * 2; i += spacing * 48) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + size, size);
+    ctx.lineTo(i + size * 0.9, size);
+    ctx.lineTo(i - size * 0.1, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -868,17 +883,17 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.68,
-    metalness: 0.06,
-    envMapIntensity: 0.35,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.09),
-    emissiveIntensity: 0.94
+    roughness: 0.7,
+    metalness: 0.05,
+    envMapIntensity: 0.32,
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.05),
+    emissiveIntensity: 0.88
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.18;
+    clothMat.bumpScale = 0.26;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
