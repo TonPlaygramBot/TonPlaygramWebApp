@@ -22,11 +22,12 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 // --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
-const JAW_H = 3.0;
-const JAW_T = 1.25;
-const JAW_INNER_SCALE = 0.04;
-const JAW_CENTER_PULL_SCALE = 0.035;
-const SECTOR_SWEEP = Math.PI * 0.6;
+const JAW_H = 1.6;
+const JAW_T = 0.78;
+const JAW_INNER_SCALE = 0.03;
+const JAW_CENTER_PULL_SCALE = 0.02;
+const SECTOR_SWEEP = Math.PI * 0.48;
+const SIDE_SECTOR_SWEEP = Math.PI * 0.28;
 const SECTOR_START = -SECTOR_SWEEP;
 const SECTOR_END = SECTOR_SWEEP;
 const jawMat = new THREE.MeshPhysicalMaterial({
@@ -76,22 +77,52 @@ function addPocketJaws(parent, playW, playH) {
     { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
     { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
     { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_top', type: 'side', pos: [0, -HALF_PLAY_H] },
-    { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
+    { id: 'side_left', type: 'side', pos: [-HALF_PLAY_W, 0] },
+    { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
   ];
   const jaws = [];
-  const jawGeo = makeJawSector();
-  const centerOffset = POCKET_VIS_R * JAW_CENTER_PULL_SCALE;
+  const cornerJawGeo = makeJawSector();
+  const sideJawGeo = makeJawSector(
+    POCKET_VIS_R * 0.92,
+    JAW_T * 0.68,
+    -SIDE_SECTOR_SWEEP,
+    SIDE_SECTOR_SWEEP
+  );
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
-    const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
-    const pShift = p.clone().add(towardCenter2.multiplyScalar(centerOffset));
-    const geom = jawGeo.clone();
+    const centerPull =
+      entry.type === 'corner' ? POCKET_VIS_R * JAW_CENTER_PULL_SCALE : 0;
+    const pullDir =
+      entry.type === 'side'
+        ? new THREE.Vector2(entry.pos[0] >= 0 ? -1 : 1, 0)
+        : p.clone().multiplyScalar(-1);
+    const pShift = p.clone();
+    if (centerPull > 0 && pullDir.lengthSq() > 1e-6) {
+      pullDir.normalize();
+      pShift.add(pullDir.multiplyScalar(centerPull));
+    }
+    const geom = (entry.type === 'side' ? sideJawGeo : cornerJawGeo).clone();
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
     jaw.position.set(pShift.x, TABLE_Y + POCKET_JAW_LIP_HEIGHT, pShift.y);
-    jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
+    const lookTarget = (() => {
+      if (entry.type === 'side') {
+        const dir = entry.pos[0] >= 0 ? -1 : 1;
+        return new THREE.Vector3(
+          jaw.position.x + dir * POCKET_VIS_R * 1.5,
+          jaw.position.y - 0.05,
+          jaw.position.z
+        );
+      }
+      const towardCenter = new THREE.Vector3(
+        pShift.x * 0.35,
+        jaw.position.y - 0.08,
+        pShift.y * 0.35
+      );
+      return towardCenter;
+    })();
+    jaw.lookAt(lookTarget);
     parent.add(jaw);
     jaws.push(jaw);
   }
@@ -1795,8 +1826,6 @@ function Table3D(parent) {
 
   if (!table.userData.pockets) table.userData.pockets = [];
   const clothPlane = cushionTopLocal - CLOTH_THICKNESS;
-  const pocketCuts = addPocketCuts(table, clothPlane);
-  if (pocketCuts.length) table.userData.pocketCuts = pocketCuts;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const scaleY = 1.15;
