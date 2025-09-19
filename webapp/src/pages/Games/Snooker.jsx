@@ -157,9 +157,9 @@ const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.9975;
+const FRICTION = 0.999;
 const CUSHION_RESTITUTION = 0.99;
-const STOP_EPS = 0.05;
+const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
@@ -181,11 +181,11 @@ const POCKET_CAM = Object.freeze({
   heightOffset: BALL_R * 5.1
 });
 const SPIN_STRENGTH = BALL_R * 0.9;
-const SPIN_DECAY = 0.78;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.045;
-const SPIN_ROLL_DECAY = 0.965;
-// Trim the base shot speed so full power hits are roughly 25% softer.
-const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.75;
+const SPIN_DECAY = 0.9;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.06;
+const SPIN_ROLL_DECAY = 0.982;
+// Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
+const SHOT_BASE_SPEED = 3.3;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -468,21 +468,29 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#177538';
+  ctx.fillStyle = '#156f36';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const radius = 0.55;
+  const radius = 0.72;
+  const jitter = radius * 0.6;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
+      const offsetX = ((x + y) % (spacing * 4) === 0 ? 1 : -1) * jitter;
+      const offsetY = ((x - y) % (spacing * 4) === 0 ? -1 : 1) * jitter;
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.95)'
-        : 'rgba(0,0,0,0.7)';
+        ? 'rgba(255,255,255,0.9)'
+        : 'rgba(0,0,0,0.75)';
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.arc(x + offsetX * 0.35, y + offsetY * 0.35, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
+
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = 'rgba(30, 110, 60, 0.35)';
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'source-over';
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -492,7 +500,7 @@ function makeClothTexture() {
   const repeatX = (PLAY_W / baseWidth) * baseRepeat;
   const repeatY = (PLAY_H / baseDepth) * baseRepeat;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 16;
+  texture.anisotropy = 32;
   if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
   else texture.encoding = THREE.sRGBEncoding;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
@@ -522,14 +530,14 @@ function makeWoodTexture({
   ctx.fillStyle = horizontal;
   ctx.fillRect(0, 0, size, size);
 
-  ctx.globalAlpha = 0.2;
+  ctx.globalAlpha = 0.28;
   ctx.fillStyle = highlight;
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
   const tint = ctx.createLinearGradient(0, 0, 0, size);
-  tint.addColorStop(0, 'rgba(255,255,255,0.05)');
-  tint.addColorStop(1, 'rgba(0,0,0,0.25)');
+  tint.addColorStop(0, 'rgba(255,255,255,0.08)');
+  tint.addColorStop(1, 'rgba(0,0,0,0.32)');
   ctx.fillStyle = tint;
   ctx.fillRect(0, 0, size, size);
 
@@ -537,7 +545,7 @@ function makeWoodTexture({
   for (let y = 0; y < size; y += size / 64) {
     const wave = Math.sin(y * 0.045) * size * 0.012;
     const secondary = Math.cos(y * 0.11) * size * 0.008;
-    ctx.strokeStyle = 'rgba(145, 95, 52, 0.18)';
+    ctx.strokeStyle = 'rgba(145, 95, 52, 0.28)';
     ctx.beginPath();
     ctx.moveTo(-wave, y + secondary);
     ctx.bezierCurveTo(
@@ -550,7 +558,7 @@ function makeWoodTexture({
     );
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(35, 20, 10, 0.14)';
+    ctx.strokeStyle = 'rgba(35, 20, 10, 0.22)';
     ctx.beginPath();
     ctx.moveTo(-wave * 0.5, y + size / 128 + secondary * 0.5);
     ctx.bezierCurveTo(
@@ -574,8 +582,8 @@ function makeWoodTexture({
     const cy = pseudoRandom(i * 78.233) * size;
     const r = size * (0.015 + pseudoRandom(i * 3.7) * 0.035);
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    grad.addColorStop(0, 'rgba(70, 40, 20, 0.45)');
-    grad.addColorStop(0.65, 'rgba(70, 40, 20, 0.2)');
+    grad.addColorStop(0, 'rgba(70, 40, 20, 0.55)');
+    grad.addColorStop(0.65, 'rgba(70, 40, 20, 0.26)');
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = grad;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
@@ -852,14 +860,14 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.26;
+    clothMat.bumpScale = 0.34;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.2;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.35;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -1036,7 +1044,7 @@ function Table3D(parent) {
 
     const edgeFalloffX = toneCanvas.width * 0.08;
     const edgeFalloffY = toneCanvas.height * 0.05;
-    const deepShadow = 'rgba(0, 0, 0, 0.22)';
+    const deepShadow = 'rgba(0, 0, 0, 0.32)';
     const fade = 'rgba(0, 0, 0, 0)';
 
     let grad = toneCtx.createLinearGradient(0, 0, edgeFalloffX, 0);
@@ -1152,7 +1160,7 @@ function Table3D(parent) {
     });
     toneCtx.globalCompositeOperation = 'source-over';
 
-    const curveShade = 'rgba(8, 28, 16, 0.24)';
+    const curveShade = 'rgba(8, 28, 16, 0.32)';
     const curveFade = 'rgba(0, 0, 0, 0)';
     const horizontalThickness = toneCanvas.height * 0.042;
     const horizontalDepth = horizontalThickness * 0.45;
@@ -1261,8 +1269,8 @@ function Table3D(parent) {
         y,
         pocketRadius
       );
-      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
-      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
+      pocketGrad.addColorStop(0, 'rgba(0, 0, 0, 0.48)');
+      pocketGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.18)');
       pocketGrad.addColorStop(1, fade);
       toneCtx.fillStyle = pocketGrad;
       toneCtx.beginPath();
@@ -1456,7 +1464,7 @@ function Table3D(parent) {
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 3.35; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.035; // pull cushions closer to the pocket rings without touching
-  const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
+  const SIDE_RAIL_CENTER_PULL = TABLE.WALL * 0.04; // tug side cushions toward the playfield so they meet the rails cleanly
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32; // pull the lower edge upward so the cushion sits higher off the cloth
@@ -1533,7 +1541,7 @@ function Table3D(parent) {
     if (!horizontal) {
       g.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
       g.position.x += -side * centerNudge;
-      g.position.x += side * SIDE_RAIL_OUTWARD;
+      g.position.x -= side * SIDE_RAIL_CENTER_PULL;
     } else {
       g.rotation.y = side > 0 ? Math.PI : 0;
       g.position.z += -side * centerNudge;
@@ -3409,10 +3417,11 @@ function SnookerGame() {
           b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
           const speed = b.vel.length();
           const scaledSpeed = speed * frameScale;
+          const hasSpin = b.spin?.lengthSq() > 1e-6;
           if (scaledSpeed < STOP_EPS) {
             b.vel.set(0, 0);
-            if (b.spin) b.spin.set(0, 0);
-            if (b.id === 'cue') b.impacted = false;
+            if (!hasSpin && b.spin) b.spin.set(0, 0);
+            if (b.id === 'cue' && !hasSpin) b.impacted = false;
           }
           const hitRail = reflectRails(b);
           if (hitRail && b.id === 'cue') b.impacted = true;
