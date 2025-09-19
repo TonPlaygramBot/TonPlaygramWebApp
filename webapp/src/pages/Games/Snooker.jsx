@@ -26,16 +26,19 @@ const JAW_H = 3.0;
 const JAW_T = 1.25;
 const JAW_INNER_SCALE = 0.04;
 const JAW_CENTER_PULL_SCALE = 0.045;
+const JAW_LIP_FLARE = 0.18;
 const SECTOR_SWEEP = Math.PI * 0.6;
 const SECTOR_START = -SECTOR_SWEEP;
 const SECTOR_END = SECTOR_SWEEP;
 const jawMat = new THREE.MeshPhysicalMaterial({
   color: 0x111111,
-  roughness: 0.35,
-  metalness: 0.1,
-  clearcoat: 0.4
+  roughness: 0.32,
+  metalness: 0.12,
+  clearcoat: 0.55,
+  clearcoatRoughness: 0.35,
+  sheen: 0.2
 });
-function makeJawSector(
+function makeJawShape(
   R = POCKET_VIS_R,
   T = JAW_T,
   start = SECTOR_START,
@@ -59,19 +62,78 @@ function makeJawSector(
     outer * Math.sin(start)
   );
   s.lineTo(outerStartVec.x, outerStartVec.y);
+  s.closePath();
+  return { shape: s, outer, inner };
+}
+function makeJawMaskShape(
+  R = POCKET_VIS_R,
+  T = JAW_T,
+  start = SECTOR_START,
+  end = SECTOR_END
+) {
+  const { outer, inner } = makeJawShape(R, T, start, end);
+  const maskOuter = outer * 0.98;
+  const maskInner = inner * 0.75;
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, maskOuter, start, end, false);
+  const innerStartVec = new THREE.Vector2(
+    maskInner * Math.cos(end),
+    maskInner * Math.sin(end)
+  );
+  shape.lineTo(innerStartVec.x, innerStartVec.y);
+  shape.absarc(0, 0, maskInner, end, start, true);
+  const outerStartVec = new THREE.Vector2(
+    maskOuter * Math.cos(start),
+    maskOuter * Math.sin(start)
+  );
+  shape.lineTo(outerStartVec.x, outerStartVec.y);
+  shape.closePath();
+  return shape;
+}
+function makeJawSector(
+  R = POCKET_VIS_R,
+  T = JAW_T,
+  start = SECTOR_START,
+  end = SECTOR_END
+) {
+  const { shape: s, outer } = makeJawShape(R, T, start, end);
   const geo = new THREE.ExtrudeGeometry(s, {
     depth: JAW_H,
-    bevelEnabled: false
+    bevelEnabled: true,
+    bevelSegments: 3,
+    bevelThickness: Math.min(T * 0.45, 0.8),
+    bevelSize: Math.min(T * 0.65, 1.1),
+    steps: 1
   });
+  const pos = geo.attributes.position;
+  const arr = pos.array;
+  const lipThreshold = -JAW_H * 0.35;
+  for (let i = 0; i < arr.length; i += 3) {
+    const x = arr[i];
+    const y = arr[i + 1];
+    const z = arr[i + 2];
+    if (z >= lipThreshold) {
+      const radius = Math.hypot(x, y);
+      if (radius > outer * 0.92) {
+        const t = (z - lipThreshold) / (0 - lipThreshold);
+        const scale = 1 + t * JAW_LIP_FLARE;
+        arr[i] = x * scale;
+        arr[i + 1] = y * scale;
+        arr[i + 2] += t * T * 0.25;
+      }
+    }
+  }
+  pos.needsUpdate = true;
+  geo.translate(0, 0, -JAW_H);
   geo.rotateX(-Math.PI / 2);
   geo.rotateY(Math.PI / 2);
   geo.computeVertexNormals();
   return geo;
 }
-function addPocketJaws(parent, playW, playH) {
+function getPocketEntries(playW, playH) {
   const HALF_PLAY_W = playW * 0.5;
   const HALF_PLAY_H = playH * 0.5;
-  const POCKET_MAP = [
+  return [
     { id: 'corner_tl', type: 'corner', pos: [-HALF_PLAY_W, -HALF_PLAY_H] },
     { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
     { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
@@ -79,10 +141,12 @@ function addPocketJaws(parent, playW, playH) {
     { id: 'side_top', type: 'side', pos: [0, -HALF_PLAY_H] },
     { id: 'side_bottom', type: 'side', pos: [0, HALF_PLAY_H] }
   ];
+}
+function addPocketJaws(parent, playW, playH) {
   const jaws = [];
   const jawGeo = makeJawSector();
   const centerOffset = POCKET_VIS_R * JAW_CENTER_PULL_SCALE;
-  for (const entry of POCKET_MAP) {
+  for (const entry of getPocketEntries(playW, playH)) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const towardCenter2 = p.clone().multiplyScalar(-1).normalize();
     const pShift = p.clone().add(towardCenter2.multiplyScalar(centerOffset));
@@ -90,8 +154,9 @@ function addPocketJaws(parent, playW, playH) {
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + POCKET_JAW_LIP_HEIGHT, pShift.y);
+    jaw.position.set(pShift.x, POCKET_JAW_LIP_HEIGHT, pShift.y);
     jaw.lookAt(new THREE.Vector3(0, TABLE_Y, 0));
+    jaw.userData = { type: 'pocketJaw', pocketId: entry.id };
     parent.add(jaw);
     jaws.push(jaw);
   }
@@ -166,8 +231,8 @@ const POCKET_JAW_LIP_HEIGHT =
   -TABLE.THICK + 0.02; // align pocket rims flush with the cushion tops
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
-const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.6;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
+const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.58;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
@@ -481,31 +546,51 @@ function makeClothTexture() {
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 1;
-  const lightWeave = 'rgba(255,255,255,0.9)';
-  const darkWeave = 'rgba(0,0,0,0.42)';
+  const spacing = 2;
+  const lightWeave = 'rgba(255,255,255,0.45)';
+  const darkWeave = 'rgba(0,0,0,0.35)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
       ctx.beginPath();
-      ctx.arc(x, y, 0.8, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.95, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  for (let i = 0; i < 450000; i++) {
+  const prevComposite = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'overlay';
+  if (ctx.globalCompositeOperation !== 'overlay') {
+    ctx.globalCompositeOperation = 'lighter';
+  }
+  const threadSpan = spacing * 6;
+  for (let y = 0; y < size; y += threadSpan) {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(0, y, size, spacing);
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(0, y + spacing * 0.6, size, spacing * 0.8);
+  }
+  for (let x = 0; x < size; x += threadSpan) {
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(x, 0, spacing, size);
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(x + spacing * 0.6, 0, spacing * 0.8, size);
+  }
+  ctx.globalCompositeOperation = prevComposite;
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.42)';
+  for (let i = 0; i < 420000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 0.6 + 0.2;
+    const length = Math.random() * 0.9 + 0.25;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
     ctx.stroke();
 
     if (i % 6 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
@@ -513,12 +598,12 @@ function makeClothTexture() {
         y + Math.sin(angle + Math.PI / 2) * length * 0.6
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.42)';
     }
   }
 
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = 'rgba(255,255,255,0.045)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
@@ -895,14 +980,14 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.6;
+    clothMat.bumpScale = 0.95;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.15;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.05;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -960,10 +1045,30 @@ function Table3D(parent) {
   clothShape.lineTo(clothHalfW, clothHalfH);
   clothShape.lineTo(-clothHalfW, clothHalfH);
   clothShape.lineTo(-clothHalfW, -clothHalfH);
-  pocketCenters().forEach((p) => {
-    const h = new THREE.Path();
-    h.absellipse(p.x, p.y, POCKET_CLOTH_TOP_RADIUS, POCKET_CLOTH_TOP_RADIUS, 0, Math.PI * 2);
-    clothShape.holes.push(h);
+  const jawHoleShape = makeJawMaskShape(POCKET_VIS_R * 1.02, JAW_T * 1.35);
+  const jawHoleOffset = POCKET_VIS_R * JAW_CENTER_PULL_SCALE;
+  getPocketEntries(PLAY_W, PLAY_H).forEach((entry) => {
+    const center = new THREE.Vector2(entry.pos[0], entry.pos[1]);
+    const circle = new THREE.Path();
+    circle.absellipse(
+      center.x,
+      center.y,
+      POCKET_CLOTH_TOP_RADIUS,
+      POCKET_CLOTH_TOP_RADIUS,
+      0,
+      Math.PI * 2
+    );
+    clothShape.holes.push(circle);
+    const wedge = jawHoleShape.clone();
+    const towardCenter = center.clone().multiplyScalar(-1).normalize();
+    const shift = center.clone().add(towardCenter.multiplyScalar(jawHoleOffset));
+    const rotation = new THREE.Matrix4().makeRotationZ(
+      Math.atan2(towardCenter.y, towardCenter.x)
+    );
+    const translation = new THREE.Matrix4().makeTranslation(shift.x, shift.y, 0);
+    wedge.applyMatrix4(rotation);
+    wedge.applyMatrix4(translation);
+    clothShape.holes.push(wedge);
   });
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
@@ -1113,6 +1218,42 @@ function Table3D(parent) {
     clothMask.material.polygonOffsetFactor = -1;
     clothMask.material.polygonOffsetUnits = -6;
     table.add(clothMask);
+  });
+
+  const jaws = addPocketJaws(table, PLAY_W, PLAY_H);
+  if (jaws.length) {
+    table.userData.jaws = jaws;
+  }
+
+  const jawMaskShape = makeJawMaskShape();
+  const jawMaskGeo = new THREE.ShapeGeometry(jawMaskShape);
+  const jawMaskMat = new THREE.MeshBasicMaterial({
+    color: 0x020202,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.98,
+    depthWrite: false
+  });
+  jawMaskMat.depthTest = true;
+  jawMaskMat.polygonOffset = true;
+  jawMaskMat.polygonOffsetFactor = -1;
+  jawMaskMat.polygonOffsetUnits = -5;
+  const jawCenterOffset = POCKET_VIS_R * JAW_CENTER_PULL_SCALE;
+  getPocketEntries(PLAY_W, PLAY_H).forEach((entry) => {
+    const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
+    const towardCenter = p.clone().multiplyScalar(-1).normalize();
+    const pShift = p.clone().add(towardCenter.multiplyScalar(jawCenterOffset));
+    const pivot = new THREE.Object3D();
+    pivot.position.set(pShift.x, POCKET_JAW_LIP_HEIGHT + 0.002, pShift.y);
+    pivot.lookAt(new THREE.Vector3(0, pivot.position.y, 0));
+    const mask = new THREE.Mesh(jawMaskGeo, jawMaskMat.clone());
+    mask.rotation.x = -Math.PI / 2;
+    mask.position.y = -0.001;
+    mask.renderOrder = 4;
+    mask.castShadow = false;
+    mask.receiveShadow = false;
+    pivot.add(mask);
+    table.add(pivot);
   });
 
   const toneCanvas = document.createElement('canvas');
@@ -1579,12 +1720,12 @@ function Table3D(parent) {
 
   const cushionRaiseY = -TABLE.THICK + 0.02;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
-  const cushionExtend = 6 * 0.85;
+  const cushionExtend = 6 * 0.8;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 5.4; // let the long rails reach further toward each pocket mouth
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.05; // keep a slim gap so the pocket lips stay readable without shortening the noses
-  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.18; // allow the long cushions to sit closer to the pocket openings
-  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.12; // mirror the tighter clearance on the end cushions
+  const LONG_CUSHION_TRIM = 3.6; // extend the long rails closer to each pocket mouth
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.025; // keep a slim gap so the pocket lips stay readable without shortening the noses
+  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.12; // allow the long cushions to sit closer to the pocket openings
+  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.08; // mirror the tighter clearance on the end cushions
   const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.085; // pull long cushions inward slightly so they hug the play field
   const END_RAIL_CENTER_PULL = TABLE.WALL * 0.065; // nudge the short-end cushions toward the table centre
   const LONG_CUSHION_FACE_SHRINK = 0.955; // trim the long cushions a touch more so the tops appear slightly slimmer
