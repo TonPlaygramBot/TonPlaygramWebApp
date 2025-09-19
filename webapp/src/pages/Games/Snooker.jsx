@@ -25,15 +25,15 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 const JAW_H = 3.0;
 const JAW_T = 1.25;
 const JAW_INNER_SCALE = 0.04;
-const JAW_CENTER_PULL_SCALE = 0.045;
+const JAW_CENTER_PULL_SCALE = 0.035;
 const SECTOR_SWEEP = Math.PI * 0.6;
 const SECTOR_START = -SECTOR_SWEEP;
 const SECTOR_END = SECTOR_SWEEP;
 const jawMat = new THREE.MeshPhysicalMaterial({
-  color: 0x111111,
-  roughness: 0.35,
-  metalness: 0.1,
-  clearcoat: 0.4
+  color: 0x1c1c1c,
+  roughness: 0.42,
+  metalness: 0.12,
+  clearcoat: 0.45
 });
 function makeJawSector(
   R = POCKET_VIS_R,
@@ -96,6 +96,75 @@ function addPocketJaws(parent, playW, playH) {
     jaws.push(jaw);
   }
   return jaws;
+}
+
+function addPocketCuts(parent, clothPlane) {
+  const cuts = [];
+  const cornerDepth = POCKET_VIS_R * 1.35;
+  const cornerCurve = cornerDepth * 0.45;
+  const sideDepth = POCKET_VIS_R * 1.12;
+  const sideHalfWidth = POCKET_VIS_R * 0.92;
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x040404,
+    roughness: 0.88,
+    metalness: 0.12,
+    side: THREE.DoubleSide
+  });
+  mat.polygonOffset = true;
+  mat.polygonOffsetFactor = -1;
+  mat.polygonOffsetUnits = -6;
+  mat.depthWrite = false;
+  mat.depthTest = true;
+  const cornerShape = (() => {
+    const s = new THREE.Shape();
+    s.moveTo(0, 0);
+    s.lineTo(cornerDepth, 0);
+    s.quadraticCurveTo(
+      cornerDepth + cornerCurve * 0.2,
+      cornerCurve * 0.25,
+      cornerDepth * 0.92,
+      cornerDepth * 0.7
+    );
+    s.lineTo(cornerDepth * 0.35, cornerDepth);
+    s.lineTo(0, cornerDepth);
+    s.closePath();
+    return s;
+  })();
+  const sideShape = (() => {
+    const s = new THREE.Shape();
+    s.moveTo(-sideHalfWidth, 0);
+    s.lineTo(sideHalfWidth, 0);
+    s.lineTo(sideHalfWidth * 0.82, sideDepth);
+    s.quadraticCurveTo(0, sideDepth * 1.18, -sideHalfWidth * 0.82, sideDepth);
+    s.closePath();
+    return s;
+  })();
+  const cornerGeo = new THREE.ShapeGeometry(cornerShape);
+  const sideGeo = new THREE.ShapeGeometry(sideShape);
+  pocketCenters().forEach((p) => {
+    const isCorner =
+      Math.abs(Math.abs(p.x) - PLAY_W / 2) < 1e-3 &&
+      Math.abs(Math.abs(p.y) - PLAY_H / 2) < 1e-3;
+    const geom = isCorner ? cornerGeo.clone() : sideGeo.clone();
+    const mesh = new THREE.Mesh(geom, mat.clone());
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.set(p.x, clothPlane + CLOTH_THICKNESS * 0.02, p.y);
+    mesh.renderOrder = 4;
+    if (isCorner) {
+      const sx = Math.sign(p.x) || 1;
+      const sy = Math.sign(p.y) || 1;
+      mesh.scale.x = sx >= 0 ? -1 : 1;
+      mesh.scale.z = sy >= 0 ? -1 : 1;
+    } else {
+      const sy = Math.sign(p.y) || 1;
+      mesh.scale.z = sy >= 0 ? -1 : 1;
+    }
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    cuts.push(mesh);
+  });
+  return cuts;
 }
 
 /**
@@ -183,8 +252,9 @@ const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
+const PRE_IMPACT_SPIN_DRIFT = 0.12; // limit sideways drift before contact so the cue ball tracks along the aiming line
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_BASE_SPEED = 3.3 * 0.3; // reduce force by 70% for gentler strikes
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65; // boost base strike speed by ~65% for a livelier hit
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -308,6 +378,8 @@ const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
+const TMP_VEC2_FORWARD = new THREE.Vector2();
+const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const CORNER_SIGNS = [
@@ -468,57 +540,56 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.1)');
-  shading.addColorStop(0.6, 'rgba(0,0,0,0.2)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.32)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.14)');
+  shading.addColorStop(0.55, 'rgba(0,0,0,0.18)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.34)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.08)');
-  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.14)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.06)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.12)');
+  crossSheen.addColorStop(0.5, 'rgba(0,0,0,0.18)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.08)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 1;
-  const lightWeave = 'rgba(255,255,255,0.9)';
-  const darkWeave = 'rgba(0,0,0,0.42)';
+  const spacing = 2;
+  const lightWeave = 'rgba(255,255,255,0.78)';
+  const darkWeave = 'rgba(0,0,0,0.58)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
-      ctx.beginPath();
-      ctx.arc(x, y, 0.8, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(x, y, 1.35, 1.35);
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  for (let i = 0; i < 450000; i++) {
+  ctx.lineWidth = 0.6;
+  ctx.strokeStyle = 'rgba(0,0,0,0.48)';
+  for (let i = 0; i < 320000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 0.6 + 0.2;
+    const length = Math.random() * 0.75 + 0.25;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
     ctx.stroke();
 
-    if (i % 6 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+    if (i % 5 === 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.42)';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(
-        x + Math.cos(angle + Math.PI / 2) * length * 0.6,
-        y + Math.sin(angle + Math.PI / 2) * length * 0.6
+        x + Math.cos(angle + Math.PI / 2) * length * 0.55,
+        y + Math.sin(angle + Math.PI / 2) * length * 0.55
       );
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.48)';
     }
   }
 
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.globalAlpha = 0.38;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
@@ -823,6 +894,7 @@ function Guret(parent, id, color, x, y) {
     spin: new THREE.Vector2(),
     spinMode: 'standard',
     impacted: false,
+    launchDir: null,
     active: true
   };
 }
@@ -895,14 +967,14 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.6;
+    clothMat.bumpScale = 1.05;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.15;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.25;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -1114,6 +1186,9 @@ function Table3D(parent) {
     clothMask.material.polygonOffsetUnits = -6;
     table.add(clothMask);
   });
+
+  const pocketJaws = addPocketJaws(table, PLAY_W, PLAY_H);
+  if (pocketJaws.length) table.userData.jaws = pocketJaws;
 
   const toneCanvas = document.createElement('canvas');
   toneCanvas.width = 1024;
@@ -1582,9 +1657,9 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 5.4; // let the long rails reach further toward each pocket mouth
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.05; // keep a slim gap so the pocket lips stay readable without shortening the noses
-  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.18; // allow the long cushions to sit closer to the pocket openings
-  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.12; // mirror the tighter clearance on the end cushions
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.015; // extend cushion noses so they meet the pocket perimeter cleanly
+  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.1; // allow the long cushions to sit closer to the pocket openings
+  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.08; // mirror the tighter clearance on the end cushions
   const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.085; // pull long cushions inward slightly so they hug the play field
   const END_RAIL_CENTER_PULL = TABLE.WALL * 0.065; // nudge the short-end cushions toward the table centre
   const LONG_CUSHION_FACE_SHRINK = 0.955; // trim the long cushions a touch more so the tops appear slightly slimmer
@@ -1720,6 +1795,8 @@ function Table3D(parent) {
 
   if (!table.userData.pockets) table.userData.pockets = [];
   const clothPlane = cushionTopLocal - CLOTH_THICKNESS;
+  const pocketCuts = addPocketCuts(table, clothPlane);
+  if (pocketCuts.length) table.userData.pocketCuts = pocketCuts;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const scaleY = 1.15;
@@ -3214,6 +3291,7 @@ function SnookerGame() {
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           resetSpinRef.current?.();
           cue.impacted = false;
+          cue.launchDir = aimDir.clone().normalize();
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -3556,12 +3634,24 @@ function SnookerGame() {
           if (hasSpin) {
             const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
             const allowRoll = !isCue || b.impacted || swerveTravel;
+            const preImpact = isCue && !b.impacted;
             if (allowRoll) {
               const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
               TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
                 SPIN_ROLL_STRENGTH * rollMultiplier * frameScale
               );
-              b.vel.add(TMP_VEC2_SPIN);
+              if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
+                TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
+                const forwardMag = TMP_VEC2_SPIN.dot(TMP_VEC2_FORWARD);
+                TMP_VEC2_FORWARD.multiplyScalar(forwardMag);
+                TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_FORWARD);
+                b.vel.add(TMP_VEC2_FORWARD);
+                if (TMP_VEC2_LATERAL.lengthSq() > 0) {
+                  b.vel.addScaledVector(TMP_VEC2_LATERAL, PRE_IMPACT_SPIN_DRIFT);
+                }
+              } else {
+                b.vel.add(TMP_VEC2_SPIN);
+              }
               const rollDecay = Math.pow(SPIN_ROLL_DECAY, frameScale);
               b.spin.multiplyScalar(rollDecay);
             } else {
@@ -3585,6 +3675,7 @@ function SnookerGame() {
               b.impacted = false;
               b.spinMode = 'standard';
             }
+            b.launchDir = null;
           }
           const hitRail = reflectRails(b);
           if (hitRail && b.id === 'cue') b.impacted = true;
@@ -3693,6 +3784,7 @@ function SnookerGame() {
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
               b.spinMode = 'standard';
+              b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
               if (
@@ -3803,7 +3895,12 @@ function SnookerGame() {
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
-      onCommit: () => fireRef.current?.()
+      onCommit: () => {
+        fireRef.current?.();
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+        });
+      }
     });
     return () => {
       slider.destroy();
