@@ -52,7 +52,7 @@ export class PowerSlider {
     this.cueImg.alt = '';
     if (cueSrc) this.cueImg.src = cueSrc;
 
-    this.handle.append(this.handleText, this.powerBar, this.cueImg);
+    this.handle.append(this.cueImg, this.handleText, this.powerBar);
     this.el.appendChild(this.handle);
 
     this.tooltip = document.createElement('div');
@@ -146,6 +146,7 @@ export class PowerSlider {
   _update(animate = true) {
     const range = this.max - this.min || 1;
     const ratio = (this.value - this.min) / range;
+    this.el.style.setProperty('--ps-ratio', String(ratio));
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
     const y = ratio * (trackH - handleH);
@@ -160,6 +161,11 @@ export class PowerSlider {
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
+    if (this.theme === 'snooker') {
+      const drop = ratio * 28;
+      const tilt = -8 - ratio * 10;
+      this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;
+    }
   }
 
   _updateHandleColor(ratio) {
@@ -193,15 +199,20 @@ export class PowerSlider {
     if (this.locked) return;
     e.preventDefault();
     this.dragging = true;
+    this.dragMoved = false;
+    this.dragStartValue = this.value;
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
-    this._updateFromClientY(e.clientY);
+    this.pointerStartY = e.clientY;
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
   }
 
   _pointerMove(e) {
     if (!this.dragging) return;
+    if (!this.dragMoved && Math.abs(e.clientY - this.pointerStartY) > 1) {
+      this.dragMoved = true;
+    }
     this._updateFromClientY(e.clientY);
   }
 
@@ -212,6 +223,11 @@ export class PowerSlider {
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
+    const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
+    if (!moved) {
+      this.set(this.dragStartValue, { animate: true });
+      return;
+    }
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
   }
 
