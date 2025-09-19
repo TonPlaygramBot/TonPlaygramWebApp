@@ -164,7 +164,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
-  -CLOTH_THICKNESS * 0.25; // keep the jaw trim flush with the cloth plane
+  -TABLE.THICK + 0.025; // raise pocket rims so they sit level with the cushions
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.92;
@@ -177,8 +177,10 @@ const POCKET_CAM = Object.freeze({
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 4.5
 });
-const SPIN_STRENGTH = BALL_R * 0.65;
-const SPIN_DECAY = 0.58;
+const SPIN_STRENGTH = BALL_R * 0.9;
+const SPIN_DECAY = 0.78;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.045;
+const SPIN_ROLL_DECAY = 0.965;
 // Trim the base shot speed so full power hits are roughly 25% softer.
 const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.75;
 const SHOT_MIN_FACTOR = 0.25;
@@ -193,6 +195,9 @@ const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skir
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
+const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS;
+const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -203,11 +208,12 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
-const DARK_WOOD = 0x593517;
+const RAIL_WOOD_COLOR = 0x4a2c18;
+const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
   cloth: 0x176b32,
-  rail: DARK_WOOD,
-  base: DARK_WOOD,
+  rail: RAIL_WOOD_COLOR,
+  base: BASE_WOOD_COLOR,
   markings: 0xffffff,
   cue: 0xffffff,
   red: 0xff0000,
@@ -291,6 +297,7 @@ const TMP_VEC2_A = new THREE.Vector2();
 const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
+const TMP_VEC2_SPIN = new THREE.Vector2();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -345,14 +352,14 @@ function makeClothTexture() {
   ctx.fillStyle = '#15592d';
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 3;
-  const radius = 0.45;
+  const spacing = 2;
+  const radius = 0.6;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       const checker = (x / spacing + y / spacing) % 2 === 0;
       ctx.fillStyle = checker
-        ? 'rgba(255,255,255,0.32)'
-        : 'rgba(0,0,0,0.32)';
+        ? 'rgba(255,255,255,0.42)'
+        : 'rgba(0,0,0,0.38)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -360,28 +367,30 @@ function makeClothTexture() {
   }
 
   // add subtle warp/weft strokes to make the weave read more clearly
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.12;
-  ctx.strokeStyle = '#1f7f3f';
+  ctx.lineWidth = 0.75;
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = 'rgba(40, 130, 70, 0.45)';
   for (let y = 0; y < size; y += spacing * 2) {
+    const wobble = Math.sin(y * 0.025) * 1.2;
     ctx.beginPath();
-    ctx.moveTo(0, y + spacing * 0.5);
-    ctx.lineTo(size, y + spacing * 0.5);
+    ctx.moveTo(0, y + spacing * 0.5 + wobble);
+    ctx.lineTo(size, y + spacing * 0.5 - wobble);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
   for (let x = 0; x < size; x += spacing * 2) {
+    const wobble = Math.cos(x * 0.025) * 1.2;
     ctx.beginPath();
-    ctx.moveTo(x + spacing * 0.5, 0);
-    ctx.lineTo(x + spacing * 0.5, size);
+    ctx.moveTo(x + spacing * 0.5 + wobble, 0);
+    ctx.lineTo(x + spacing * 0.5 - wobble, size);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
-  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
-  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.015)');
-  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.07)');
+  sheen.addColorStop(0.55, 'rgba(255, 255, 255, 0.02)');
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, size, size);
@@ -389,13 +398,104 @@ function makeClothTexture() {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const repeatScale = 7;
+  const repeatScale = 5;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
-  texture.anisotropy = 12;
+  texture.anisotropy = 16;
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
   texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function makeWoodTexture({
+  base = '#2d1a0f',
+  mid = '#4b2c16',
+  highlight = '#7a4a24',
+  repeatX = 3,
+  repeatY = 1.5
+} = {}) {
+  const size = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const horizontal = ctx.createLinearGradient(0, 0, size, 0);
+  horizontal.addColorStop(0, base);
+  horizontal.addColorStop(0.5, mid);
+  horizontal.addColorStop(1, base);
+  ctx.fillStyle = horizontal;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = highlight;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
+
+  const tint = ctx.createLinearGradient(0, 0, 0, size);
+  tint.addColorStop(0, 'rgba(255,255,255,0.05)');
+  tint.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.lineWidth = size / 320;
+  for (let y = 0; y < size; y += size / 64) {
+    const wave = Math.sin(y * 0.045) * size * 0.012;
+    const secondary = Math.cos(y * 0.11) * size * 0.008;
+    ctx.strokeStyle = 'rgba(145, 95, 52, 0.18)';
+    ctx.beginPath();
+    ctx.moveTo(-wave, y + secondary);
+    ctx.bezierCurveTo(
+      size * 0.3,
+      y + wave,
+      size * 0.7,
+      y - wave,
+      size + wave,
+      y + secondary
+    );
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(35, 20, 10, 0.14)';
+    ctx.beginPath();
+    ctx.moveTo(-wave * 0.5, y + size / 128 + secondary * 0.5);
+    ctx.bezierCurveTo(
+      size * 0.3,
+      y + wave * 0.5,
+      size * 0.7,
+      y - wave * 0.5,
+      size + wave * 0.5,
+      y + size / 128 + secondary * 0.5
+    );
+    ctx.stroke();
+  }
+
+  const pseudoRandom = (seed) => {
+    const x = Math.sin(seed) * 43758.5453;
+    return x - Math.floor(x);
+  };
+
+  for (let i = 0; i < 16; i++) {
+    const cx = pseudoRandom(i * 12.9898) * size;
+    const cy = pseudoRandom(i * 78.233) * size;
+    const r = size * (0.015 + pseudoRandom(i * 3.7) * 0.035);
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, 'rgba(70, 40, 20, 0.45)');
+    grad.addColorStop(0.65, 'rgba(70, 40, 20, 0.2)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeatX, repeatY);
+  texture.anisotropy = 8;
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.needsUpdate = true;
   return texture;
 }
@@ -468,7 +568,8 @@ function applySpinImpulse(ball, scale = 1) {
   if (ball.spin.lengthSq() < 1e-6) return false;
   TMP_SPIN.copy(ball.spin).multiplyScalar(SPIN_STRENGTH * scale);
   ball.vel.add(TMP_SPIN);
-  ball.spin.multiplyScalar(SPIN_DECAY);
+  const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
+  ball.spin.multiplyScalar(decayFactor);
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
   }
@@ -549,18 +650,31 @@ function Guret(parent, id, color, x, y) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   if (id === 'cue') {
-    const dotSize = BALL_R * 0.15;
-    const dotGeom = new THREE.SphereGeometry(dotSize, 16, 8);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const markerGeom = new THREE.CircleGeometry(CUE_MARKER_RADIUS, 48);
+    const markerMat = new THREE.MeshStandardMaterial({
+      color: 0xc02b2b,
+      emissive: 0x220000,
+      roughness: 0.28,
+      metalness: 0.05,
+      side: THREE.DoubleSide
+    });
+    markerMat.depthWrite = false;
+    markerMat.needsUpdate = true;
+    const markerOffset = BALL_R - CUE_MARKER_DEPTH * 0.5;
+    const localForward = new THREE.Vector3(0, 0, 1);
     [
-      [BALL_R * 0.7, 0, 0],
-      [-BALL_R * 0.7, 0, 0],
-      [0, BALL_R * 0.7, 0],
-      [0, -BALL_R * 0.7, 0]
-    ].forEach(([dx, dy, dz]) => {
-      const d = new THREE.Mesh(dotGeom, dotMat);
-      d.position.set(dx, dy, dz);
-      mesh.add(d);
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, -1, 0)
+    ].forEach((normal) => {
+      const marker = new THREE.Mesh(markerGeom, markerMat);
+      marker.position.copy(normal).multiplyScalar(markerOffset);
+      marker.quaternion.setFromUnitVectors(localForward, normal);
+      marker.castShadow = false;
+      marker.receiveShadow = false;
+      marker.renderOrder = 2;
+      mesh.add(marker);
     });
   }
   mesh.traverse((node) => {
@@ -635,22 +749,22 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.88,
-    metalness: 0.06,
+    roughness: 0.82,
+    metalness: 0.05,
     envMapIntensity: 0.25
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.08;
+    clothMat.bumpScale = 0.12;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.35;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.4;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -666,6 +780,33 @@ function Table3D(parent) {
     metalness: 0.2,
     roughness: 0.8
   });
+
+  const railWoodTexture = makeWoodTexture({
+    base: '#3b2212',
+    mid: '#553218',
+    highlight: '#8d5a2d',
+    repeatX: 4,
+    repeatY: 1.6
+  });
+  if (railWoodTexture) {
+    railWoodMat.map = railWoodTexture;
+    railWoodMat.roughness = 0.48;
+    railWoodMat.metalness = 0.2;
+    railWoodMat.needsUpdate = true;
+  }
+  const baseWoodTexture = makeWoodTexture({
+    base: '#251409',
+    mid: '#3b2110',
+    highlight: '#6f4523',
+    repeatX: 2.6,
+    repeatY: 1.4
+  });
+  if (baseWoodTexture) {
+    woodMat.map = baseWoodTexture;
+    woodMat.roughness = 0.6;
+    woodMat.metalness = 0.18;
+    woodMat.needsUpdate = true;
+  }
 
   const shape = new THREE.Shape();
   shape.moveTo(-halfW, -halfH);
@@ -904,32 +1045,38 @@ function Table3D(parent) {
   toneMesh.receiveShadow = false;
   table.add(toneMesh);
 
-  const markingMat = new THREE.LineBasicMaterial({
-    color: COLORS.markings,
-    linewidth: 2
-  });
   const baulkZ = -PLAY_H / 4;
-  const baulkGeom = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-halfW, 0.02, baulkZ),
-    new THREE.Vector3(halfW, 0.02, baulkZ)
-  ]);
-  const baulkLine = new THREE.Line(baulkGeom, markingMat);
-  table.add(baulkLine);
-  const dRadius = PLAY_W * 0.15;
-  const dCurve = new THREE.ArcCurve(
-    0,
-    baulkZ,
-    dRadius,
-    Math.PI,
-    Math.PI * 2,
-    false
+  const lineThickness = 0.12;
+  const markingMat = new THREE.MeshBasicMaterial({
+    color: COLORS.markings,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false
+  });
+  const baulkPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(halfW * 2, lineThickness),
+    markingMat
   );
-  const dPoints = dCurve
-    .getPoints(64)
-    .map((p) => new THREE.Vector3(p.x, 0.02, p.y));
-  const dGeom = new THREE.BufferGeometry().setFromPoints(dPoints);
-  const dLine = new THREE.Line(dGeom, markingMat);
-  table.add(dLine);
+  baulkPlane.rotation.x = -Math.PI / 2;
+  baulkPlane.position.set(0, 0.021, baulkZ);
+  baulkPlane.renderOrder = 3;
+  table.add(baulkPlane);
+  const dRadius = PLAY_W * 0.15;
+  const dThickness = lineThickness * 0.85;
+  const dGeom = new THREE.RingGeometry(
+    dRadius - dThickness / 2,
+    dRadius + dThickness / 2,
+    128,
+    1,
+    Math.PI,
+    Math.PI
+  );
+  const dMesh = new THREE.Mesh(dGeom, markingMat.clone());
+  dMesh.rotation.x = -Math.PI / 2;
+  dMesh.position.set(0, 0.021, baulkZ);
+  dMesh.renderOrder = 3;
+  table.add(dMesh);
 
   function addSpot(x, z) {
     const spotGeo = new THREE.CircleGeometry(0.5, 32);
@@ -1021,7 +1168,7 @@ function Table3D(parent) {
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
-  const LONG_CUSHION_TRIM = 2.25; // shave a touch from the long rails so they sit tighter to the pocket jaw
+  const LONG_CUSHION_TRIM = 2.75; // shave a touch from the long rails so they sit tighter to the pocket jaw
   const SIDE_RAIL_OUTWARD = TABLE.WALL * 0.05; // keep a slight jut without pulling cushions off the playfield
   const LONG_CUSHION_FACE_SHRINK = 0.97; // trim the long cushions a touch more so the tops appear slightly slimmer
   const CUSHION_NOSE_REDUCTION = 0.75; // allow a slightly fuller nose so the rail projects a bit more into the cloth
@@ -1209,6 +1356,7 @@ function SnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
+  const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const spinRangeRef = useRef(0);
   const cueRef = useRef(null);
@@ -2334,7 +2482,7 @@ function SnookerGame() {
       const tipTex = new THREE.CanvasTexture(tipCanvas);
 
       const connectorHeight = 0.015 * SCALE;
-      const tipRadius = 0.006 * SCALE * 1.5;
+      const tipRadius = CUE_TIP_RADIUS;
       const tipLen = 0.015 * SCALE * 1.5;
       const tipCylinderLen = Math.max(0, tipLen - tipRadius * 2);
       const tip = new THREE.Mesh(
@@ -2395,7 +2543,7 @@ function SnookerGame() {
       cueStick.visible = false;
       table.add(cueStick);
 
-      spinRangeRef.current = 0.05 * SCALE;
+      spinRangeRef.current = CUE_TIP_RADIUS * 5.5;
 
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
@@ -2547,6 +2695,7 @@ function SnookerGame() {
               perp.y * spinSide + aimDir.y * spinTop
             );
           }
+          resetSpinRef.current?.();
           cue.impacted = false;
 
           if (cameraRef.current && sphRef.current) {
@@ -2877,6 +3026,17 @@ function SnookerGame() {
         // Fizika
         balls.forEach((b) => {
           if (!b.active) return;
+          if (b.spin?.lengthSq() > 1e-6) {
+            TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+              SPIN_ROLL_STRENGTH * frameScale
+            );
+            b.vel.add(TMP_VEC2_SPIN);
+            const rollDecay = Math.pow(SPIN_ROLL_DECAY, frameScale);
+            b.spin.multiplyScalar(rollDecay);
+            if (b.spin.lengthSq() < 1e-6) {
+              b.spin.set(0, 0);
+            }
+          }
           b.pos.addScaledVector(b.vel, frameScale);
           b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
           const speed = b.vel.length();
@@ -3125,7 +3285,9 @@ function SnookerGame() {
       dot.style.left = `${50 + nx * 50}%`;
       dot.style.top = `${50 + ny * 50}%`;
     };
-    setSpin(0, 0);
+    const resetSpin = () => setSpin(0, 0);
+    resetSpin();
+    resetSpinRef.current = resetSpin;
 
     const updateSpin = (clientX, clientY) => {
       const rect = box.getBoundingClientRect();
@@ -3208,6 +3370,7 @@ function SnookerGame() {
     return () => {
       releasePointer();
       clearTimer();
+      resetSpinRef.current = () => {};
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
