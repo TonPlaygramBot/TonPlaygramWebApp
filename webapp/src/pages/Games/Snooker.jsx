@@ -81,6 +81,8 @@ function addPocketJaws(parent, playW, playH) {
     { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
   ];
   const jaws = [];
+  const jawTopWorld = TABLE_Y + POCKET_JAW_LIP_HEIGHT;
+  const jawDepthTarget = CLOTH_THICKNESS * 1.05;
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.92,
@@ -102,10 +104,28 @@ function addPocketJaws(parent, playW, playH) {
       pShift.add(pullDir.multiplyScalar(centerPull));
     }
     const geom = (entry.type === 'side' ? sideJawGeo : cornerJawGeo).clone();
+    geom.computeBoundingBox();
+    const bbox = geom.boundingBox;
+    const topShift = bbox ? -bbox.max.y : 0;
+    if (Math.abs(topShift) > 1e-6) {
+      geom.translate(0, topShift, 0);
+      geom.computeBoundingBox();
+    }
+    const adjustedBox = geom.boundingBox;
+    const currentDepth = adjustedBox
+      ? Math.abs(adjustedBox.min.y)
+      : jawDepthTarget;
+    if (currentDepth > 1e-6 && Math.abs(currentDepth - jawDepthTarget) > 1e-6) {
+      const depthScale = jawDepthTarget / currentDepth;
+      geom.scale(1, depthScale, 1);
+    }
+    geom.computeVertexNormals();
+    geom.computeBoundingBox();
+    geom.computeBoundingSphere();
     const jaw = new THREE.Mesh(geom, jawMat);
     jaw.castShadow = true;
     jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, TABLE_Y + POCKET_JAW_LIP_HEIGHT, pShift.y);
+    jaw.position.set(pShift.x, jawTopWorld, pShift.y);
     const lookTarget = (() => {
       if (entry.type === 'side') {
         const dir = entry.pos[0] >= 0 ? -1 : 1;
@@ -228,7 +248,7 @@ const TABLE = {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 0;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.86;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.82;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
@@ -262,8 +282,9 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_EDGE_GROWTH = TABLE.WALL * 0.18; // extend the visual cloth toward the rails to eliminate the outer gap
+const CUSHION_LIP_OFFSET = 0.05;
 const POCKET_JAW_LIP_HEIGHT =
-  -TABLE.THICK + 0.02; // align pocket rims flush with the cushion tops
+  -TABLE.THICK + CUSHION_LIP_OFFSET; // align pocket rims flush with the cushion tops
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
@@ -585,12 +606,12 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
-  const lightWeave = 'rgba(255,255,255,0.78)';
-  const darkWeave = 'rgba(0,0,0,0.58)';
+  const lightWeave = 'rgba(255,255,255,0.88)';
+  const darkWeave = 'rgba(0,0,0,0.68)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
-      ctx.fillRect(x, y, 1.35, 1.35);
+      ctx.fillRect(x, y, 1.6, 1.6);
     }
   }
 
@@ -619,7 +640,7 @@ function makeClothTexture() {
     }
   }
 
-  ctx.globalAlpha = 0.38;
+  ctx.globalAlpha = 0.24;
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
@@ -998,14 +1019,14 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 1.45;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.25;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.3;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -1683,7 +1704,7 @@ function Table3D(parent) {
     table.add(leg);
   });
 
-  const cushionRaiseY = -TABLE.THICK + 0.02;
+  const cushionRaiseY = POCKET_JAW_LIP_HEIGHT;
   const cushionW = TABLE.WALL * 0.9 * 1.08;
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
