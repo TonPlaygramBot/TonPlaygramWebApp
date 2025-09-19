@@ -211,7 +211,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x228b22,
+  cloth: 0x176b32,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -349,31 +349,57 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#228B22';
+  ctx.fillStyle = '#15592d';
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 4;
-  const radius = 0.8;
+  const spacing = 2;
+  const radius = 0.6;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      const even = (x + y) % (spacing * 2) === 0;
-      ctx.fillStyle = even
-        ? 'rgba(255,255,255,0.6)'
-        : 'rgba(0,0,0,0.6)';
+      const checker = (x / spacing + y / spacing) % 2 === 0;
+      ctx.fillStyle = checker
+        ? 'rgba(255,255,255,0.42)'
+        : 'rgba(0,0,0,0.38)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
+  // add subtle warp/weft strokes to make the weave read more clearly
+  ctx.lineWidth = 0.75;
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = 'rgba(40, 130, 70, 0.45)';
+  for (let y = 0; y < size; y += spacing * 2) {
+    const wobble = Math.sin(y * 0.025) * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, y + spacing * 0.5 + wobble);
+    ctx.lineTo(size, y + spacing * 0.5 - wobble);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  for (let x = 0; x < size; x += spacing * 2) {
+    const wobble = Math.cos(x * 0.025) * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x + spacing * 0.5 + wobble, 0);
+    ctx.lineTo(x + spacing * 0.5 - wobble, size);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const sheen = ctx.createLinearGradient(0, 0, size, size);
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.07)');
+  sheen.addColorStop(0.55, 'rgba(255, 255, 255, 0.02)');
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'source-over';
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const BASE_TABLE_W = 10;
-  const BASE_TABLE_H = 5;
-  const BASE_REPEAT = 4;
-  const repeatX = (PLAY_W / BASE_TABLE_W) * BASE_REPEAT;
-  const repeatY = (PLAY_H / BASE_TABLE_H) * BASE_REPEAT;
-  texture.repeat.set(repeatX, repeatY);
+  const repeatScale = 5;
+  texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
   texture.anisotropy = 16;
   if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
   else texture.encoding = THREE.sRGBEncoding;
@@ -2119,19 +2145,27 @@ function SnookerGame() {
         );
         const shouldPrimeActionView = !initialOrbitRef.current;
         fit(margin);
-        if (shouldPrimeActionView && cameraBoundsRef.current) {
-          const actionRadius = clampOrbitRadius(
-            Math.max(fitRadius(camera, 1.12), ACTION_CAMERA_MIN_RADIUS)
-          );
-          const preferredPhi = clamp(
-            ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
-            CAMERA.minPhi,
-            CAMERA.maxPhi
-          );
-          sph.radius = actionRadius;
-          sph.phi = preferredPhi;
-          syncBlendToSpherical();
-          updateCamera();
+        if (shouldPrimeActionView) {
+          const bounds = cameraBoundsRef.current;
+          if (bounds) {
+            const { cueShot, standing } = bounds;
+            const baseRadius = Math.min(cueShot.radius, standing.radius);
+            const preferredRadius = clampOrbitRadius(
+              Math.max(
+                baseRadius * ACTION_CAMERA_RADIUS_SCALE,
+                ACTION_CAMERA_MIN_RADIUS
+              )
+            );
+            const preferredPhi = clamp(
+              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
+            sph.radius = preferredRadius;
+            sph.phi = preferredPhi;
+            syncBlendToSpherical();
+            updateCamera();
+          }
         }
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
