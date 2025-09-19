@@ -211,7 +211,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x176b32,
+  cloth: 0x1f8c45,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -349,16 +349,16 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#228B22';
+  ctx.fillStyle = '#2fb552';
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 4;
-  const radius = 0.9;
+  const radius = 1.15;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.72)'
-        : 'rgba(0,0,0,0.68)';
+        ? 'rgba(255,255,255,0.86)'
+        : 'rgba(0,0,0,0.82)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -624,8 +624,8 @@ function Guret(parent, id, color, x, y) {
   if (id === 'cue') {
     const markerGeom = new THREE.CircleGeometry(CUE_MARKER_RADIUS, 48);
     const markerMat = new THREE.MeshStandardMaterial({
-      color: 0xc02b2b,
-      emissive: 0x220000,
+      color: 0xff2f2f,
+      emissive: 0x550000,
       roughness: 0.28,
       metalness: 0.05,
       side: THREE.DoubleSide
@@ -812,6 +812,13 @@ function Table3D(parent) {
   const pocketClothMat = clothMat.clone();
   pocketClothMat.side = THREE.DoubleSide;
   pocketClothMat.needsUpdate = true;
+  const pocketInteriorMat = new THREE.MeshStandardMaterial({
+    color: 0x050505,
+    roughness: 0.92,
+    metalness: 0.08,
+    side: THREE.DoubleSide
+  });
+  pocketInteriorMat.needsUpdate = true;
   pocketCenters().forEach((p) => {
     const sleeveGeo = new THREE.CylinderGeometry(
       POCKET_CLOTH_TOP_RADIUS,
@@ -827,6 +834,31 @@ function Table3D(parent) {
     sleeve.castShadow = false;
     sleeve.receiveShadow = true;
     table.add(sleeve);
+
+    const dropDepth = POCKET_CLOTH_DEPTH * 2.2;
+    const dropGeo = new THREE.CylinderGeometry(
+      POCKET_CLOTH_TOP_RADIUS * 0.7,
+      POCKET_CLOTH_BOTTOM_RADIUS * 0.4,
+      dropDepth,
+      40,
+      1,
+      true
+    );
+    dropGeo.translate(0, -dropDepth / 2, 0);
+    const drop = new THREE.Mesh(dropGeo, pocketInteriorMat);
+    drop.position.set(p.x, POCKET_JAW_LIP_HEIGHT, p.y);
+    drop.castShadow = false;
+    drop.receiveShadow = true;
+    table.add(drop);
+
+    const dropCap = new THREE.Mesh(
+      new THREE.CircleGeometry(POCKET_CLOTH_BOTTOM_RADIUS * 0.5, 40),
+      pocketInteriorMat
+    );
+    dropCap.rotation.x = -Math.PI / 2;
+    dropCap.position.set(p.x, POCKET_JAW_LIP_HEIGHT - dropDepth, p.y);
+    dropCap.renderOrder = 1;
+    table.add(dropCap);
   });
 
   const toneCanvas = document.createElement('canvas');
@@ -1096,7 +1128,7 @@ function Table3D(parent) {
   table.add(toneMesh);
 
   const baulkZ = -PLAY_H / 4;
-  const lineThickness = 0.12;
+  const lineThickness = 0.18;
   const markingMat = new THREE.MeshBasicMaterial({
     color: COLORS.markings,
     side: THREE.DoubleSide,
@@ -1107,7 +1139,7 @@ function Table3D(parent) {
   markingMat.polygonOffset = true;
   markingMat.polygonOffsetFactor = -1;
   markingMat.polygonOffsetUnits = -1.5;
-  const markingY = 0.002;
+  const markingY = 0.004;
   const baulkPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(halfW * 2, lineThickness),
     markingMat
@@ -1117,7 +1149,7 @@ function Table3D(parent) {
   baulkPlane.renderOrder = 3;
   table.add(baulkPlane);
   const dRadius = PLAY_W * 0.15;
-  const dThickness = lineThickness * 0.85;
+  const dThickness = lineThickness * 0.9;
   const dGeom = new THREE.RingGeometry(
     dRadius - dThickness / 2,
     dRadius + dThickness / 2,
@@ -1133,7 +1165,7 @@ function Table3D(parent) {
   table.add(dMesh);
 
   function addSpot(x, z) {
-    const spotGeo = new THREE.CircleGeometry(0.5, 32);
+    const spotGeo = new THREE.CircleGeometry(0.65, 32);
     const spotMat = new THREE.MeshBasicMaterial({
       color: COLORS.markings
     });
