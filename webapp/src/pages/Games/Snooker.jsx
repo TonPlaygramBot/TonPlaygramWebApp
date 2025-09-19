@@ -262,7 +262,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   phi: CAMERA.maxPhi - 0.04
 });
 const ACTION_VIEW = Object.freeze({
@@ -721,22 +721,24 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.82,
-    metalness: 0.05,
-    envMapIntensity: 0.25
+    roughness: 0.78,
+    metalness: 0.06,
+    envMapIntensity: 0.32,
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.08),
+    emissiveIntensity: 0.85
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.16;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 1.4;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.3;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
@@ -926,8 +928,8 @@ function Table3D(parent) {
 
     // Subtle inward bend tone where the cloth rolls into the cushions
     const bendDepth = toneCanvas.height * 0.035;
-    const bendTint = 'rgba(10, 45, 26, 0.25)';
-    const bendHighlight = 'rgba(40, 120, 70, 0.2)';
+    const bendTint = 'rgba(20, 70, 40, 0.2)';
+    const bendHighlight = 'rgba(60, 160, 100, 0.16)';
     const edges = [
       { x: 0, y: 0, w: toneCanvas.width, h: bendDepth },
       { x: 0, y: toneCanvas.height - bendDepth, w: toneCanvas.width, h: bendDepth },
@@ -952,7 +954,7 @@ function Table3D(parent) {
 
     // Brand-new strip tucked below the cushions that never sees play
     const stripDepth = toneCanvas.height * 0.022;
-    const stripTint = 'rgba(54, 160, 92, 0.28)';
+    const stripTint = 'rgba(60, 170, 100, 0.22)';
     toneCtx.fillStyle = stripTint;
     toneCtx.fillRect(0, stripDepth, toneCanvas.width, stripDepth * 0.65);
     toneCtx.fillRect(
@@ -1092,9 +1094,14 @@ function Table3D(parent) {
   frameShape.holes.push(innerRect);
   // extend the side rails downward without altering the top surface
   const frameDepth = railH * 3.4;
+  const bevelSpan = Math.min(railW, railH) * 0.18;
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
     depth: frameDepth,
-    bevelEnabled: false
+    bevelEnabled: true,
+    bevelThickness: bevelSpan * 0.6,
+    bevelSize: bevelSpan,
+    bevelSegments: 3,
+    curveSegments: 6
   });
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
@@ -1167,9 +1174,14 @@ function Table3D(parent) {
     s.lineTo(tipRight, frontY);
     s.lineTo(half, backY);
     s.lineTo(-half, backY);
+    const cushionBevel = Math.min(railH, baseThickness) * 0.12;
     const geo = new THREE.ExtrudeGeometry(s, {
       depth: railH,
-      bevelEnabled: false
+      bevelEnabled: true,
+      bevelThickness: cushionBevel * 0.6,
+      bevelSize: cushionBevel,
+      bevelSegments: 2,
+      curveSegments: 6
     });
     const positions = geo.attributes.position;
     const arr = positions.array;
