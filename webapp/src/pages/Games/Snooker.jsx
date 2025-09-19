@@ -179,8 +179,8 @@ const POCKET_CAM = Object.freeze({
 });
 const SPIN_STRENGTH = BALL_R * 0.65;
 const SPIN_DECAY = 0.58;
-// Boost base shot speed so the power slider delivers ~20% more energy.
-const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2;
+// Trim the base shot speed so full power hits are roughly 25% softer.
+const SHOT_BASE_SPEED = 12.5 * 0.7 * 0.3 * 1.2 * 0.75;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs taller to lift the entire table
@@ -234,7 +234,7 @@ function spotPositions(baulkZ) {
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
 const STANDING_VIEW_PHI = 1.16;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
-const STANDING_VIEW_MARGIN = 0.78;
+const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -287,6 +287,16 @@ const POCKET_IDLE_SWITCH_MS = 1600;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
+const TMP_VEC2_A = new THREE.Vector2();
+const TMP_VEC2_B = new THREE.Vector2();
+const TMP_VEC2_C = new THREE.Vector2();
+const TMP_VEC2_D = new THREE.Vector2();
+const CORNER_SIGNS = [
+  { sx: -1, sy: -1 },
+  { sx: 1, sy: -1 },
+  { sx: -1, sy: 1 },
+  { sx: 1, sy: 1 }
+];
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
@@ -295,7 +305,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -332,22 +342,41 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.fillStyle = '#176b32';
+  ctx.fillStyle = '#15592d';
   ctx.fillRect(0, 0, size, size);
 
-  const spacing = 2;
-  const radius = 0.3;
+  const spacing = 3;
+  const radius = 0.45;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
-      const useLight = (x + y) % (spacing * 2) === 0;
-      ctx.fillStyle = useLight
-        ? 'rgba(255,255,255,0.45)'
-        : 'rgba(0,0,0,0.45)';
+      const checker = (x / spacing + y / spacing) % 2 === 0;
+      ctx.fillStyle = checker
+        ? 'rgba(255,255,255,0.32)'
+        : 'rgba(0,0,0,0.32)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
+
+  // add subtle warp/weft strokes to make the weave read more clearly
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = '#1f7f3f';
+  for (let y = 0; y < size; y += spacing * 2) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + spacing * 0.5);
+    ctx.lineTo(size, y + spacing * 0.5);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  for (let x = 0; x < size; x += spacing * 2) {
+    ctx.beginPath();
+    ctx.moveTo(x + spacing * 0.5, 0);
+    ctx.lineTo(x + spacing * 0.5, size);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 
   const sheen = ctx.createLinearGradient(0, 0, size, size);
   sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
@@ -360,9 +389,11 @@ function makeClothTexture() {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const repeatScale = 9;
+  const repeatScale = 7;
   texture.repeat.set(PLAY_W / repeatScale, PLAY_H / repeatScale);
-  texture.anisotropy = 8;
+  texture.anisotropy = 12;
+  texture.minFilter = THREE.LinearMipMapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
   texture.generateMipmaps = true;
   texture.needsUpdate = true;
@@ -371,35 +402,63 @@ function makeClothTexture() {
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
-  // If the ball is near any pocket, skip rail reflections so it can drop in
+  const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const pocketGuard = POCKET_VIS_R * 0.85;
+  const cornerDepthLimit = POCKET_VIS_R * 1.45;
+  for (const { sx, sy } of CORNER_SIGNS) {
+    TMP_VEC2_C.set(sx * limX, sy * limY);
+    TMP_VEC2_B.set(-sx * cos, -sy * sin);
+    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+    if (distNormal >= BALL_R) continue;
+    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    if (lateral < pocketGuard) continue;
+    if (distNormal < -cornerDepthLimit) continue;
+    const push = BALL_R - distNormal;
+    ball.pos.addScaledVector(TMP_VEC2_B, push);
+    const vn = ball.vel.dot(TMP_VEC2_B);
+    if (vn < 0) {
+      ball.vel.addScaledVector(TMP_VEC2_B, -2 * vn);
+    }
+    ball.vel.multiplyScalar(0.2);
+    if (ball.spin?.lengthSq() > 0) {
+      applySpinImpulse(ball, 0.6);
+    }
+    return 'corner';
+  }
+
+  // If the ball is entering a pocket capture zone, skip straight rail reflections
   const nearPocket = pocketCenters().some(
-    (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R
+    (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R * 0.5
   );
-  if (nearPocket) return false;
-  let collided = false;
+  if (nearPocket) return null;
+  let collided = null;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    collided = true;
+    collided = 'rail';
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    collided = true;
+    collided = 'rail';
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    collided = true;
+    collided = 'rail';
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    collided = true;
+    collided = 'rail';
   }
   return collided;
 }
@@ -576,8 +635,8 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.9,
-    metalness: 0.08,
+    roughness: 0.88,
+    metalness: 0.06,
     envMapIntensity: 0.25
   });
   const clothTexture = makeClothTexture();
@@ -591,9 +650,12 @@ function Table3D(parent) {
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale;
+    cushionMat.bumpScale = clothMat.bumpScale * 1.35;
     cushionMat.needsUpdate = true;
   }
+  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.05);
+  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.05);
+  cushionMat.metalness = Math.max(0.04, clothMat.metalness * 0.75);
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.25,
@@ -659,7 +721,7 @@ function Table3D(parent) {
 
     const edgeFalloffX = toneCanvas.width * 0.08;
     const edgeFalloffY = toneCanvas.height * 0.05;
-    const deepShadow = 'rgba(0, 0, 0, 0.32)';
+    const deepShadow = 'rgba(0, 0, 0, 0.22)';
     const fade = 'rgba(0, 0, 0, 0)';
 
     let grad = toneCtx.createLinearGradient(0, 0, edgeFalloffX, 0);
@@ -703,7 +765,7 @@ function Table3D(parent) {
 
     const highlightX = edgeFalloffX * 0.35;
     const highlightY = edgeFalloffY * 0.35;
-    const highlightTint = 'rgba(255, 255, 255, 0.08)';
+    const highlightTint = 'rgba(255, 255, 255, 0.12)';
 
     grad = toneCtx.createLinearGradient(edgeFalloffX, 0, edgeFalloffX + highlightX, 0);
     grad.addColorStop(0, highlightTint);
@@ -747,6 +809,51 @@ function Table3D(parent) {
       toneCanvas.height - edgeFalloffY - highlightY,
       toneCanvas.width,
       highlightY
+    );
+
+    // Subtle inward bend tone where the cloth rolls into the cushions
+    const bendDepth = toneCanvas.height * 0.035;
+    const bendTint = 'rgba(10, 45, 26, 0.25)';
+    const bendHighlight = 'rgba(40, 120, 70, 0.2)';
+    const edges = [
+      { x: 0, y: 0, w: toneCanvas.width, h: bendDepth },
+      { x: 0, y: toneCanvas.height - bendDepth, w: toneCanvas.width, h: bendDepth },
+      { x: 0, y: 0, w: bendDepth, h: toneCanvas.height },
+      {
+        x: toneCanvas.width - bendDepth,
+        y: 0,
+        w: bendDepth,
+        h: toneCanvas.height
+      }
+    ];
+    toneCtx.fillStyle = bendTint;
+    edges.forEach((edge) => {
+      toneCtx.fillRect(edge.x, edge.y, edge.w, edge.h);
+    });
+    toneCtx.globalCompositeOperation = 'screen';
+    toneCtx.fillStyle = bendHighlight;
+    edges.forEach((edge) => {
+      toneCtx.fillRect(edge.x, edge.y, edge.w, edge.h);
+    });
+    toneCtx.globalCompositeOperation = 'source-over';
+
+    // Brand-new strip tucked below the cushions that never sees play
+    const stripDepth = toneCanvas.height * 0.022;
+    const stripTint = 'rgba(54, 160, 92, 0.28)';
+    toneCtx.fillStyle = stripTint;
+    toneCtx.fillRect(0, stripDepth, toneCanvas.width, stripDepth * 0.65);
+    toneCtx.fillRect(
+      0,
+      toneCanvas.height - stripDepth * 1.65,
+      toneCanvas.width,
+      stripDepth * 0.65
+    );
+    toneCtx.fillRect(stripDepth, 0, stripDepth * 0.65, toneCanvas.height);
+    toneCtx.fillRect(
+      toneCanvas.width - stripDepth * 1.65,
+      0,
+      stripDepth * 0.65,
+      toneCanvas.height
     );
 
     const toCanvas = (p) => ({
@@ -2780,8 +2887,8 @@ function SnookerGame() {
             if (b.id === 'cue') b.impacted = false;
           }
           const hitRail = reflectRails(b);
-          if (hitRail && b.spin?.lengthSq() > 0) {
-            if (b.id === 'cue') b.impacted = true;
+          if (hitRail && b.id === 'cue') b.impacted = true;
+          if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
             applySpinImpulse(b, 1);
           }
           b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
