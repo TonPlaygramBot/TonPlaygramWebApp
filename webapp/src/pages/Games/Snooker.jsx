@@ -300,7 +300,7 @@ const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
-const POCKET_VIS_R = POCKET_R / 0.85;
+const POCKET_VIS_R = POCKET_R / 0.9;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 const BALL_SEGMENTS = Object.freeze({ width: 28, height: 18 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -346,7 +346,7 @@ const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.12; // limit sideways drift for swerve cues while the cue ball tracks along the aiming line
+const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65; // boost base strike speed by ~65% for a livelier hit
 const SHOT_MIN_FACTOR = 0.25;
@@ -884,6 +884,7 @@ function applySpinImpulse(ball, scale = 1) {
   ball.spin.multiplyScalar(decayFactor);
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
+    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
   }
   return true;
 }
@@ -950,9 +951,11 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.42,
-        metalness: 0.2,
-        envMapIntensity: 0.42
+        roughness: 0.24,
+        metalness: 0.42,
+        envMapIntensity: 0.68,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.12
       })
     );
   }
@@ -1006,6 +1009,7 @@ function Guret(parent, id, color, x, y) {
     spinMode: 'standard',
     impacted: false,
     launchDir: null,
+    pendingSpin: new THREE.Vector2(),
     active: true
   };
 }
@@ -1068,17 +1072,17 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.66,
-    metalness: 0.035,
-    envMapIntensity: 0.36,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.08),
-    emissiveIntensity: 1
+    roughness: 0.56,
+    metalness: 0.06,
+    envMapIntensity: 0.48,
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.12),
+    emissiveIntensity: 1.12
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 3.4;
+    clothMat.bumpScale = 4.2;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
@@ -1089,9 +1093,9 @@ function Table3D(parent) {
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.12);
-  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.04);
-  cushionMat.metalness = Math.max(0.04, clothMat.metalness * 0.7);
-  cushionMat.envMapIntensity = clothMat.envMapIntensity * 0.92;
+  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.08);
+  cushionMat.metalness = Math.max(0.05, clothMat.metalness * 0.72);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 0.88;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: Math.min(1, clothMat.roughness * 1.15),
@@ -3428,6 +3432,7 @@ function SnookerGame() {
               perp.y * spinSide + aimDir.y * spinTop
             );
           }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           resetSpinRef.current?.();
@@ -3596,6 +3601,7 @@ function SnookerGame() {
                   b.pos.set(sx, sy);
                   b.mesh.position.set(sx, BALL_CENTER_Y, sy);
                   if (b.spin) b.spin.set(0, 0);
+                  if (b.pendingSpin) b.pendingSpin.set(0, 0);
                   b.spinMode = 'standard';
                 }
               });
@@ -3786,18 +3792,24 @@ function SnookerGame() {
                 const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
                 TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                 b.vel.add(TMP_VEC2_AXIS);
-                if (b.spinMode === 'swerve') {
-                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                  if (TMP_VEC2_LATERAL.lengthSq() > 0) {
-                    b.vel.addScaledVector(TMP_VEC2_LATERAL, PRE_IMPACT_SPIN_DRIFT);
-                  }
-                } else {
-                  const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
+                TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
+                if (b.spinMode === 'swerve' && b.pendingSpin) {
+                  b.pendingSpin.add(TMP_VEC2_LATERAL);
                 }
+                const alignedSpeed = b.vel.dot(launchDir);
+                TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                b.vel.copy(TMP_VEC2_AXIS);
               } else {
                 b.vel.add(TMP_VEC2_SPIN);
+                if (
+                  isCue &&
+                  b.spinMode === 'swerve' &&
+                  b.pendingSpin &&
+                  b.pendingSpin.lengthSq() > 0
+                ) {
+                  b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
+                  b.pendingSpin.multiplyScalar(0);
+                }
               }
               const rollDecay = Math.pow(SPIN_ROLL_DECAY, frameScale);
               b.spin.multiplyScalar(rollDecay);
@@ -3807,6 +3819,7 @@ function SnookerGame() {
             }
             if (b.spin.lengthSq() < 1e-6) {
               b.spin.set(0, 0);
+              if (b.pendingSpin) b.pendingSpin.set(0, 0);
               if (isCue) b.spinMode = 'standard';
             }
           }
@@ -3818,6 +3831,7 @@ function SnookerGame() {
           if (scaledSpeed < STOP_EPS) {
             b.vel.set(0, 0);
             if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
+            if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
             if (isCue && !hasSpinAfter) {
               b.impacted = false;
               b.spinMode = 'standard';
@@ -3930,6 +3944,7 @@ function SnookerGame() {
               b.mesh.visible = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
+              if (b.pendingSpin) b.pendingSpin.set(0, 0);
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
