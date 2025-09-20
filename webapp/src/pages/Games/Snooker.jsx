@@ -2996,7 +2996,7 @@ function SnookerGame() {
         const hemisphere = new THREE.HemisphereLight(
           0xf9fbff,
           0x1b1f27,
-          0.816 * 1.3
+          0.816 * 1.3 * 1.3
         );
         hemisphere.color.lerp(new THREE.Color(0xffffff), 0.3);
         hemisphere.position.set(0, hemisphereY, 0);
@@ -3004,28 +3004,28 @@ function SnookerGame() {
 
         const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const ceilingY = floorY + wallHeight - wallThickness * 0.5;
-        const spotlightHeight = targetY + (ceilingY - targetY) * 0.18;
-        const maxDistance = Math.max(roomWidth, roomDepth) * 1.15;
-        const spotlightAngle = (Math.PI / 4.1) * 1.5;
+        const spotlightHeight = targetY + (ceilingY - targetY) * 0.12;
+        const maxDistance = Math.max(roomWidth, roomDepth) * 1.15 * 1.5;
+        const baseSpotlightAngle = Math.PI / 4.1;
+        const spotlightAngle = Math.min(Math.PI / 2, baseSpotlightAngle * 2.25);
         const spotlightPenumbra = 0.48;
-        const spotlightIntensity = 2.46;
+        const spotlightIntensity = 2.46 * 1.5;
         const spotlightColor = new THREE.Color(0xfff1d0);
 
         const spotlightTargetY = targetY + CLOTH_THICKNESS * 0.25;
-        const spotlightOffsetX = PLAY_W * 0.24;
-        const spotlightOffsetZ = PLAY_H * 0.36;
+        const spotlightOffsetZ = PLAY_H * 0.25;
         [
           {
-            x: -spotlightOffsetX,
+            x: 0,
             z: -spotlightOffsetZ,
-            targetX: -PLAY_W * 0.12,
-            targetZ: -PLAY_H * 0.1
+            targetX: 0,
+            targetZ: -PLAY_H * 0.25
           },
           {
-            x: spotlightOffsetX,
+            x: 0,
             z: spotlightOffsetZ,
-            targetX: PLAY_W * 0.12,
-            targetZ: PLAY_H * 0.1
+            targetX: 0,
+            targetZ: PLAY_H * 0.25
           }
         ].forEach(({ x, z, targetX, targetZ }) => {
           const spotlight = new THREE.SpotLight(
@@ -3039,7 +3039,7 @@ function SnookerGame() {
           spotlight.position.set(x, spotlightHeight, z);
           spotlight.target.position.set(targetX, spotlightTargetY, targetZ);
           spotlight.castShadow = true;
-          spotlight.shadow.mapSize.set(1536, 1536);
+          spotlight.shadow.mapSize.set(2048, 2048);
           spotlight.shadow.bias = -0.0002;
           spotlight.shadow.radius = 2.8;
           spotlight.shadow.camera.near = 10;
