@@ -638,26 +638,43 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.04)');
-  diagonalShade.addColorStop(0.55, 'rgba(0,0,0,0.06)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.12)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.08)');
+  diagonalShade.addColorStop(0.55, 'rgba(0,0,0,0.12)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.2)');
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
+
+  const threadStep = 4; // emphasise the primary warp/weft directions
+  ctx.lineWidth = 0.6;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  for (let x = -threadStep; x < size + threadStep; x += threadStep) {
+    ctx.beginPath();
+    ctx.moveTo(x + threadStep * 0.35, 0);
+    ctx.lineTo(x + threadStep * 0.35, size);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  for (let y = -threadStep; y < size + threadStep; y += threadStep) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + threadStep * 0.6);
+    ctx.lineTo(size, y + threadStep * 0.6);
+    ctx.stroke();
+  }
 
   const spacing = 1;
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.14)'
-        : 'rgba(0,0,0,0.14)';
+        ? 'rgba(255,255,255,0.22)'
+        : 'rgba(0,0,0,0.22)';
       ctx.beginPath();
-      ctx.arc(x, y, 0.25, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.35, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  ctx.lineWidth = 0.35;
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 0.48;
+  ctx.strokeStyle = 'rgba(0,0,0,0.32)';
   for (let i = 0; i < 450000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -669,7 +686,7 @@ function makeClothTexture() {
     ctx.stroke();
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
   for (let i = 0; i < 220000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -681,8 +698,8 @@ function makeClothTexture() {
     ctx.stroke();
   }
 
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.globalAlpha = 0.24;
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
   for (let i = 0; i < 36000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -1073,14 +1090,14 @@ function Table3D(parent) {
     clothMat.map = clothTexture;
     clothTexture.anisotropy = Math.max(clothTexture.anisotropy ?? 1, 32);
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.024;
+    clothMat.bumpScale = 0.038;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = 0.015;
+    cushionMat.bumpScale = 0.022;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.2);
@@ -3003,7 +3020,7 @@ function SnookerGame() {
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
       const ambientTableOffset = TABLE.THICK * 1.25; // push the ambient fixtures farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 2.7; // lift the ambient fixtures higher for a softer spill
+      const ambientHeight = TABLE_Y + TABLE.THICK * 2.25; // drop the ambient fixtures closer to the table surface
       const ambientIntensityBase = 1.32;
       const ambientIntensity = ambientIntensityBase * 1.65; // brighten the ambient lights and expand their reach
       const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
@@ -3047,7 +3064,6 @@ function SnookerGame() {
       };
 
       const ambientX = ambientWallDistanceX + ambientTableOffset + POCKET_VIS_R * 0.35;
-      const ambientZ = ambientWallDistanceZ + ambientTableOffset + POCKET_VIS_R * 0.35;
       const pocketAimOffset = POCKET_VIS_R * 0.55;
 
       const aimTowardPocketRim = (targetX, targetZ) => {
@@ -3056,11 +3072,10 @@ function SnookerGame() {
         return [targetX + offsetX, targetZ + offsetZ];
       };
 
+      // mount a pair of ambient accents along the long rails opposite the overhead spots
       [
-        [ambientX, ambientZ, PLAY_W / 2, PLAY_H / 2],
-        [-ambientX, ambientZ, -PLAY_W / 2, PLAY_H / 2],
-        [ambientX, -ambientZ, PLAY_W / 2, -PLAY_H / 2],
-        [-ambientX, -ambientZ, -PLAY_W / 2, -PLAY_H / 2]
+        [ambientX, 0, PLAY_W / 2, 0],
+        [-ambientX, 0, -PLAY_W / 2, 0]
       ].forEach(([x, z, targetX, targetZ]) => {
         const [aimX, aimZ] = aimTowardPocketRim(targetX, targetZ);
         addAmbientFill(x, z, aimX, aimZ);
