@@ -1752,11 +1752,6 @@ function Table3D(parent) {
   const outerHalfH = baseOuterHalfH + END_RAIL_EXPAND_Z;
 
   const frameShape = new THREE.Shape();
-  frameShape.moveTo(-outerHalfW, -outerHalfH);
-  frameShape.lineTo(outerHalfW, -outerHalfH);
-  frameShape.lineTo(outerHalfW, outerHalfH);
-  frameShape.lineTo(-outerHalfW, outerHalfH);
-  frameShape.lineTo(-outerHalfW, -outerHalfH);
 
   const innerLeft = -halfW - railW;
   const innerRight = halfW + railW;
@@ -1870,6 +1865,77 @@ function Table3D(parent) {
     0,
     inwardShift(bottomCenter.y, sideControlOffset)
   );
+
+  const outerLeft = -outerHalfW;
+  const outerRight = outerHalfW;
+  const outerTop = -outerHalfH;
+  const outerBottom = outerHalfH;
+  const sideOuterRadius = sideRadius + (outerHalfH - halfH);
+  const topOuterIntersections = circleLineIntersections(
+    topCenter,
+    sideOuterRadius,
+    'horizontal',
+    outerTop
+  ).sort((a, b) => a - b);
+  const bottomOuterIntersections = circleLineIntersections(
+    bottomCenter,
+    sideOuterRadius,
+    'horizontal',
+    outerBottom
+  ).sort((a, b) => a - b);
+  const spanGrow = railW * 0.85 + FRAME_W * 0.15;
+  let outerTopSideLeft = Math.max(
+    outerLeft,
+    (topOuterIntersections[0] ?? topSideLeft) - spanGrow
+  );
+  let outerTopSideRight = Math.min(
+    outerRight,
+    (topOuterIntersections[topOuterIntersections.length - 1] ?? topSideRight) +
+      spanGrow
+  );
+  let outerBottomSideLeft = Math.max(
+    outerLeft,
+    (bottomOuterIntersections[0] ?? bottomSideLeft) - spanGrow
+  );
+  let outerBottomSideRight = Math.min(
+    outerRight,
+    (bottomOuterIntersections[bottomOuterIntersections.length - 1] ??
+      bottomSideRight) +
+      spanGrow
+  );
+  if (outerTopSideLeft >= outerTopSideRight) {
+    const mid = (outerTopSideLeft + outerTopSideRight) / 2;
+    outerTopSideLeft = mid - railW;
+    outerTopSideRight = mid + railW;
+  }
+  if (outerBottomSideLeft >= outerBottomSideRight) {
+    const mid = (outerBottomSideLeft + outerBottomSideRight) / 2;
+    outerBottomSideLeft = mid - railW;
+    outerBottomSideRight = mid + railW;
+  }
+  const outerArcDepth = POCKET_VIS_R * 0.65 + railW * 0.85;
+  const topOuterControl = new THREE.Vector2(0, outerTop - outerArcDepth);
+  const bottomOuterControl = new THREE.Vector2(0, outerBottom + outerArcDepth);
+  frameShape.moveTo(outerLeft, outerTop);
+  frameShape.lineTo(outerTopSideLeft, outerTop);
+  frameShape.quadraticCurveTo(
+    topOuterControl.x,
+    topOuterControl.y,
+    outerTopSideRight,
+    outerTop
+  );
+  frameShape.lineTo(outerRight, outerTop);
+  frameShape.lineTo(outerRight, outerBottom);
+  frameShape.lineTo(outerBottomSideRight, outerBottom);
+  frameShape.quadraticCurveTo(
+    bottomOuterControl.x,
+    bottomOuterControl.y,
+    outerBottomSideLeft,
+    outerBottom
+  );
+  frameShape.lineTo(outerLeft, outerBottom);
+  frameShape.lineTo(outerLeft, outerTop);
+  frameShape.closePath();
 
   const innerRect = new THREE.Path();
   innerRect.moveTo(cornerTL.verticalPoint.x, cornerTL.verticalPoint.y);
@@ -3172,11 +3238,12 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const baseRectIntensity = 29.5;
-      const fixtureScale = 1.08 * 0.5; // shrink spotlight footprint by 50% while keeping brightness compensation
+      const baseFixtureScale = 1.08;
+      const fixtureScale = baseFixtureScale * 0.5; // shrink spotlight footprint by 50%
       const rectWidth = PLAY_W * 0.94 * fixtureScale;
       const rectHeight = PLAY_H * 0.98 * fixtureScale;
       const lightIntensity =
-        (baseRectIntensity * 0.54) / (fixtureScale * fixtureScale); // maintain perceived illumination
+        baseRectIntensity * Math.pow(baseFixtureScale / fixtureScale, 2); // keep overall illumination consistent
 
       const makeLight = () => {
         const rect = new THREE.RectAreaLight(
@@ -3196,7 +3263,7 @@ function SnookerGame() {
         TABLE.W / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.15;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.25;
       const ambientIntensityBase = 1.32;
       const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65;
       const ambientAngleBase = Math.PI * 0.6;
