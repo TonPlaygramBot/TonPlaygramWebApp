@@ -3002,10 +3002,11 @@ function SnookerGame() {
         TABLE.W / 2 + sideClearance * 0.45 - wallThickness * 0.5; // pull the wall lights slightly closer to the table
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.45 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 0.85; // hang the ambient fixtures a little lower
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.05; // raise the ambient fixtures slightly higher
       const ambientIntensity = 1.32;
       const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
-      const ambientAngle = Math.PI * 0.6;
+      const ambientAngleBase = Math.PI * 0.6;
+      const ambientAngle = Math.min(Math.PI / 2, ambientAngleBase * 1.5); // widen the ambient cones by 50%
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
