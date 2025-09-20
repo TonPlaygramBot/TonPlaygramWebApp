@@ -300,7 +300,7 @@ const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
-const POCKET_VIS_R = POCKET_R / 0.94;
+const POCKET_VIS_R = POCKET_R / 0.97;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 const BALL_SEGMENTS = Object.freeze({ width: 28, height: 18 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -951,11 +951,11 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.14,
-        metalness: 0.62,
-        envMapIntensity: 0.82,
-        clearcoat: 0.52,
-        clearcoatRoughness: 0.08
+        roughness: 0.09,
+        metalness: 0.75,
+        envMapIntensity: 0.92,
+        clearcoat: 0.68,
+        clearcoatRoughness: 0.05
       })
     );
   }
@@ -1072,30 +1072,30 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.48,
-    metalness: 0.1,
-    envMapIntensity: 0.56,
+    roughness: 0.42,
+    metalness: 0.14,
+    envMapIntensity: 0.66,
     emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.12),
-    emissiveIntensity: 1.18
+    emissiveIntensity: 1.22
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 5.6;
+    clothMat.bumpScale = 6.4;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 2.6;
+    cushionMat.bumpScale = clothMat.bumpScale * 3.2;
     cushionMat.needsUpdate = true;
   }
-  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.12);
-  cushionMat.roughness = Math.max(0.2, clothMat.roughness * 0.88);
-  cushionMat.metalness = Math.max(0.08, clothMat.metalness * 1.25);
-  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.1;
+  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.16);
+  cushionMat.roughness = Math.max(0.18, clothMat.roughness * 0.78);
+  cushionMat.metalness = Math.max(0.12, clothMat.metalness * 1.25);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.2;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: Math.min(1, clothMat.roughness * 1.15),
@@ -2979,9 +2979,9 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.85 * 0.5; // shrink to 50% footprint for softer, tighter beams
-      const baseRectIntensity = 31.68;
-      const lightIntensity = baseRectIntensity * 0.82 * 3; // compensate for removing the third fixture
+      const rectSize = rectSizeBase * 0.82 * 0.5; // shrink to 50% footprint for softer, tighter beams
+      const baseRectIntensity = 29.5;
+      const lightIntensity = baseRectIntensity * 0.78 * 3; // compensate for removing the third fixture
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2996,7 +2996,7 @@ function SnookerGame() {
       };
 
       // evenly space the ceiling lights along the table centre line
-      const spotlightSpread = 0.46;
+      const spotlightSpread = 0.52;
       const lightPositions = [-TABLE.H * spotlightSpread, TABLE.H * spotlightSpread];
       for (const z of lightPositions) {
         makeLight(0, z);
@@ -3006,20 +3006,20 @@ function SnookerGame() {
         TABLE.W / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.25;
-      const ambientIntensity = 1.45;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.15;
+      const ambientIntensity = 1.32;
       const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
       const ambientAngle = Math.PI * 0.6;
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
-      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.35);
+      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26);
       world.add(ambientBoost);
 
       const cushionFill = new THREE.HemisphereLight(
         0xf4f1e7,
         0x1a2218,
-        0.22
+        0.18
       );
       cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       world.add(cushionFill);
