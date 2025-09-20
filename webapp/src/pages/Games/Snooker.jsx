@@ -1053,18 +1053,22 @@ function Table3D(parent) {
   const clothHalfW = halfW + CLOTH_EDGE_GROWTH;
   const clothHalfH = halfH + CLOTH_EDGE_GROWTH;
 
-  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.02);
-  const clothMat = new THREE.MeshStandardMaterial({
+  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.08);
+  const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothBaseColor,
-    roughness: 0.36,
-    metalness: 0.18,
-    envMapIntensity: 0.88,
-    emissive: clothBaseColor.clone().multiplyScalar(0.18),
-    emissiveIntensity: 1.4
+    roughness: 0.32,
+    metalness: 0.16,
+    envMapIntensity: 1.05,
+    emissive: clothBaseColor.clone().multiplyScalar(0.22),
+    emissiveIntensity: 1.65,
+    sheen: 0.45,
+    sheenColor: clothBaseColor.clone().multiplyScalar(1.1),
+    sheenRoughness: 0.68
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
+    clothTexture.anisotropy = 8;
     clothMat.bumpMap = null;
     clothMat.bumpScale = 0;
     clothMat.needsUpdate = true;
@@ -3014,7 +3018,9 @@ function SnookerGame() {
       cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       world.add(cushionFill);
 
-      const addAmbientFill = (x, z) => {
+      const pocketTargetHeight = TABLE_Y + CLOTH_THICKNESS * 0.5;
+
+      const addAmbientFill = (x, z, targetX, targetZ) => {
         const light = new THREE.SpotLight(
           ambientColor,
           ambientIntensity,
@@ -3024,16 +3030,21 @@ function SnookerGame() {
           1
         );
         light.position.set(x, ambientHeight, z);
-        light.target.position.set(0, TABLE_Y - TABLE.THICK * 0.75, 0);
+        light.target.position.set(targetX, pocketTargetHeight, targetZ);
         light.castShadow = false;
         world.add(light);
         world.add(light.target);
       };
 
-      addAmbientFill(ambientWallDistanceX + ambientTableOffset, 0);
-      addAmbientFill(-(ambientWallDistanceX + ambientTableOffset), 0);
-      addAmbientFill(0, ambientWallDistanceZ + ambientTableOffset);
-      addAmbientFill(0, -(ambientWallDistanceZ + ambientTableOffset));
+      const ambientX = ambientWallDistanceX + ambientTableOffset;
+      const ambientZ = ambientWallDistanceZ + ambientTableOffset;
+
+      [
+        [ambientX, ambientZ, PLAY_W / 2, PLAY_H / 2],
+        [-ambientX, ambientZ, -PLAY_W / 2, PLAY_H / 2],
+        [ambientX, -ambientZ, PLAY_W / 2, -PLAY_H / 2],
+        [-ambientX, -ambientZ, -PLAY_W / 2, -PLAY_H / 2]
+      ].forEach(([x, z, targetX, targetZ]) => addAmbientFill(x, z, targetX, targetZ));
 
       // Table
       const {
