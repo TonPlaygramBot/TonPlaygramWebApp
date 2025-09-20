@@ -1053,14 +1053,14 @@ function Table3D(parent) {
   const clothHalfW = halfW + CLOTH_EDGE_GROWTH;
   const clothHalfH = halfH + CLOTH_EDGE_GROWTH;
 
-  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(0.94);
+  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.02);
   const clothMat = new THREE.MeshStandardMaterial({
     color: clothBaseColor,
-    roughness: 0.42,
-    metalness: 0.14,
-    envMapIntensity: 0.66,
-    emissive: clothBaseColor.clone().multiplyScalar(0.12),
-    emissiveIntensity: 1.22
+    roughness: 0.36,
+    metalness: 0.18,
+    envMapIntensity: 0.88,
+    emissive: clothBaseColor.clone().multiplyScalar(0.18),
+    emissiveIntensity: 1.4
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
@@ -2965,7 +2965,7 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
       const baseRectIntensity = 29.5;
-      const spotlightIntensityBoost = 1.15; // apply a 15% intensity increase to the spotlight
+      const spotlightIntensityBoost = 1.2; // apply a 20% intensity increase to the spotlight
       const lightIntensity =
         baseRectIntensity * 0.78 * 3 * spotlightIntensityBoost;
 
@@ -2984,13 +2984,13 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
-      const ambientWallOffsetFactor = 1.16; // spread wall-mounted ambient lights farther apart
+      const ambientWallOffsetFactor = 1.28; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
-      const ambientTableOffset = TABLE.THICK * 1.05; // push the ambient fixtures farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 2.35; // lift the ambient fixtures higher for a softer spill
+      const ambientTableOffset = TABLE.THICK * 1.25; // push the ambient fixtures farther from the playing surface
+      const ambientHeight = TABLE_Y + TABLE.THICK * 2.7; // lift the ambient fixtures higher for a softer spill
       const ambientIntensityBase = 1.32;
       const ambientIntensity = ambientIntensityBase * 1.3; // brighten the ambient lights by 30%
       const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
@@ -3003,7 +3003,7 @@ function SnookerGame() {
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
-      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26 * 1.2);
+      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26 * 1.3);
       world.add(ambientBoost);
 
       const cushionFill = new THREE.HemisphereLight(
