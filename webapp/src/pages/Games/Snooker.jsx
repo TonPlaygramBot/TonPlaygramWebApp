@@ -2973,7 +2973,7 @@ function SnookerGame() {
       // Lights
       // Pull the pot lights higher and stretch them so each fixture floods half the table
       const lightHeight = TABLE_Y + 150; // raise spotlights further from the table
-      const spotlightScale = 0.25;
+      const spotlightScale = 0.125;
       const rectWidth = PLAY_W * 0.88 * spotlightScale;
       const rectHeight = PLAY_H * 0.48 * spotlightScale;
       const baseRectIntensity = 18;
