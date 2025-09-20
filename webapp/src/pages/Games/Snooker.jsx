@@ -2991,7 +2991,8 @@ function SnookerGame() {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const hemisphereY = TABLE_Y + TABLE.THICK + CLOTH_THICKNESS * 1.5;
+        const hemisphereY =
+          TABLE_Y + TABLE.THICK * 0.85 + CLOTH_THICKNESS * 0.6;
         const hemisphere = new THREE.HemisphereLight(
           0xf9fbff,
           0x1b1f27,
@@ -3003,6 +3004,7 @@ function SnookerGame() {
 
         const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const ceilingY = floorY + wallHeight - wallThickness * 0.5;
+        const spotlightHeight = targetY + (ceilingY - targetY) * 0.4;
         const maxDistance = Math.max(roomWidth, roomDepth) * 1.15;
         const spotlightAngle = Math.PI / 4.1;
         const spotlightPenumbra = 0.48;
@@ -3034,7 +3036,7 @@ function SnookerGame() {
             spotlightPenumbra,
             1.1
           );
-          spotlight.position.set(x, ceilingY, z);
+          spotlight.position.set(x, spotlightHeight, z);
           spotlight.target.position.set(targetX, spotlightTargetY, targetZ);
           spotlight.castShadow = true;
           spotlight.shadow.mapSize.set(1536, 1536);
