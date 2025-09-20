@@ -2981,7 +2981,8 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
       const baseRectIntensity = 29.5;
-      const lightIntensity = baseRectIntensity * 0.78 * 3; // keep the same output with the single fixture
+      const lightIntensity =
+        baseRectIntensity * 0.78 * 3 * 1.2; // boost the spotlight output by roughly 20%
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2998,11 +2999,13 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
+      const ambientWallOffsetFactor = 0.68;
       const ambientWallDistanceX =
-        TABLE.W / 2 + sideClearance * 0.52 - wallThickness * 0.5; // nudge wall lights further from each other and the table
+        TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
-        TABLE.H / 2 + sideClearance * 0.52 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.32; // lift the ambient fixtures slightly higher for a softer spill
+        TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
+      const ambientTableOffset = TABLE.THICK * 0.45; // push the ambient fixtures a touch farther from the playing surface
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.48; // lift the ambient fixtures slightly higher for a softer spill
       const ambientIntensity = 1.32;
       const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65 * 0.7; // shrink the ambient cones by roughly 30%
       const ambientAngleBase = Math.PI * 0.6;
@@ -3040,10 +3043,10 @@ function SnookerGame() {
         world.add(light.target);
       };
 
-      addAmbientFill(ambientWallDistanceX, 0);
-      addAmbientFill(-ambientWallDistanceX, 0);
-      addAmbientFill(0, ambientWallDistanceZ);
-      addAmbientFill(0, -ambientWallDistanceZ);
+      addAmbientFill(ambientWallDistanceX + ambientTableOffset, 0);
+      addAmbientFill(-(ambientWallDistanceX + ambientTableOffset), 0);
+      addAmbientFill(0, ambientWallDistanceZ + ambientTableOffset);
+      addAmbientFill(0, -(ambientWallDistanceZ + ambientTableOffset));
 
       // Table
       const {
