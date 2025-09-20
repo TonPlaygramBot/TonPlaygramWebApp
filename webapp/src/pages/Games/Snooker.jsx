@@ -951,11 +951,11 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.09,
-        metalness: 0.75,
-        envMapIntensity: 0.92,
-        clearcoat: 0.68,
-        clearcoatRoughness: 0.05
+        roughness: 0.045,
+        metalness: 0.82,
+        envMapIntensity: 1.08,
+        clearcoat: 0.78,
+        clearcoatRoughness: 0.025
       })
     );
   }
@@ -1072,73 +1072,74 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.42,
-    metalness: 0.14,
-    envMapIntensity: 0.66,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.12),
-    emissiveIntensity: 1.22
+    roughness: 0.34,
+    metalness: 0.1,
+    envMapIntensity: 0.74,
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.1),
+    emissiveIntensity: 1.08
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 6.4;
+    clothMat.bumpScale = 3.4;
+    clothMat.roughnessMap = clothTexture;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 3.2;
+    cushionMat.bumpScale = clothMat.bumpScale * 2.6;
     cushionMat.needsUpdate = true;
   }
-  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.16);
-  cushionMat.roughness = Math.max(0.18, clothMat.roughness * 0.78);
-  cushionMat.metalness = Math.max(0.12, clothMat.metalness * 1.25);
-  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.2;
+  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.22);
+  cushionMat.roughness = Math.max(0.16, clothMat.roughness * 0.72);
+  cushionMat.metalness = Math.max(0.16, clothMat.metalness * 1.35);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.3;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
-    roughness: Math.min(1, clothMat.roughness * 1.15),
-    metalness: Math.max(0.04, clothMat.metalness * 0.4),
+    roughness: Math.min(1, clothMat.roughness * 1.05),
+    metalness: Math.max(0.04, clothMat.metalness * 0.32),
     side: THREE.DoubleSide
   });
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
-    metalness: 0.25,
-    roughness: 0.55
+    metalness: 0.3,
+    roughness: 0.48
   });
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
-    metalness: 0.2,
-    roughness: 0.8
+    metalness: 0.24,
+    roughness: 0.72
   });
 
   const railWoodTexture = makeWoodTexture({
     base: '#3b2212',
-    mid: '#553218',
-    highlight: '#8d5a2d',
+    mid: '#5f371b',
+    highlight: '#b07036',
     repeatX: 4,
     repeatY: 1.6
   });
   if (railWoodTexture) {
     railWoodMat.map = railWoodTexture;
-    railWoodMat.roughness = 0.48;
-    railWoodMat.metalness = 0.2;
+    railWoodMat.roughness = 0.42;
+    railWoodMat.metalness = 0.26;
     railWoodMat.needsUpdate = true;
   }
   const baseWoodTexture = makeWoodTexture({
-    base: '#1d1007',
-    mid: '#3f2211',
-    highlight: '#8a562a',
+    base: '#211108',
+    mid: '#462410',
+    highlight: '#a0642f',
     repeatX: 2.4,
     repeatY: 1.35
   });
   if (baseWoodTexture) {
     woodMat.map = baseWoodTexture;
     woodMat.bumpMap = baseWoodTexture;
-    woodMat.bumpScale = 0.32;
-    woodMat.roughness = 0.56;
-    woodMat.metalness = 0.17;
+    woodMat.bumpScale = 0.4;
+    woodMat.roughness = 0.52;
+    woodMat.metalness = 0.22;
     woodMat.needsUpdate = true;
   }
 
@@ -1687,8 +1688,8 @@ function Table3D(parent) {
   pocketRingMat.polygonOffsetFactor = -1;
   pocketRingMat.polygonOffsetUnits = -2;
   pocketCenters().forEach((p) => {
-    const inner = POCKET_CLOTH_TOP_RADIUS * 0.78;
-    const outer = POCKET_CLOTH_TOP_RADIUS * 0.94;
+    const inner = POCKET_CLOTH_TOP_RADIUS * 0.7;
+    const outer = POCKET_CLOTH_TOP_RADIUS * 0.9;
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(inner, outer, 64, 1),
       pocketRingMat
@@ -1716,13 +1717,80 @@ function Table3D(parent) {
   frameShape.lineTo(outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, -outerHalfH);
-  const innerRect = new THREE.Path();
-  innerRect.moveTo(-halfW - railW, -halfH - railW);
-  innerRect.lineTo(halfW + railW, -halfH - railW);
-  innerRect.lineTo(halfW + railW, halfH + railW);
-  innerRect.lineTo(-halfW - railW, halfH + railW);
-  innerRect.lineTo(-halfW - railW, -halfH - railW);
-  frameShape.holes.push(innerRect);
+
+  const innerX = halfW + railW;
+  const innerZ = halfH + railW;
+  const cornerRadiusBase = POCKET_VIS_R * 0.85 + railW * 0.52;
+  const maxCornerRadius = Math.max(railW * 0.35, Math.min(innerX, innerZ) - railW * 0.2);
+  const cornerRadius = Math.min(cornerRadiusBase, maxCornerRadius);
+  const sideOffset = innerX - PLAY_W / 2;
+  const sideRadiusBase = POCKET_VIS_R * 0.78 + railW * 0.62;
+  const minSideRadius = Math.abs(sideOffset) + railW * 0.2;
+  const sideRadius = Math.max(sideRadiusBase, minSideRadius);
+  const sideExtentSq = sideRadius * sideRadius - sideOffset * sideOffset;
+  const sideExtent = Math.sqrt(Math.max(sideExtentSq, railW * railW * 0.04));
+  const sideStartRight = Math.atan2(-sideExtent, sideOffset);
+  const sideEndRight = Math.atan2(sideExtent, sideOffset);
+  const sideStartLeft = Math.atan2(sideExtent, -sideOffset);
+  const sideEndLeft = Math.atan2(-sideExtent, -sideOffset);
+
+  const innerShape = new THREE.Shape();
+  innerShape.moveTo(-innerX + cornerRadius, -innerZ);
+  innerShape.lineTo(innerX - cornerRadius, -innerZ);
+  innerShape.absarc(
+    innerX - cornerRadius,
+    -innerZ + cornerRadius,
+    cornerRadius,
+    -Math.PI / 2,
+    0,
+    false
+  );
+  innerShape.lineTo(innerX, -sideExtent);
+  innerShape.absarc(
+    PLAY_W / 2,
+    0,
+    sideRadius,
+    sideStartRight,
+    sideEndRight,
+    false
+  );
+  innerShape.lineTo(innerX - cornerRadius, innerZ);
+  innerShape.absarc(
+    innerX - cornerRadius,
+    innerZ - cornerRadius,
+    cornerRadius,
+    0,
+    Math.PI / 2,
+    false
+  );
+  innerShape.lineTo(-innerX + cornerRadius, innerZ);
+  innerShape.absarc(
+    -innerX + cornerRadius,
+    innerZ - cornerRadius,
+    cornerRadius,
+    Math.PI / 2,
+    Math.PI,
+    false
+  );
+  innerShape.lineTo(-innerX, sideExtent);
+  innerShape.absarc(
+    -PLAY_W / 2,
+    0,
+    sideRadius,
+    sideStartLeft,
+    sideEndLeft,
+    true
+  );
+  innerShape.lineTo(-innerX + cornerRadius, -innerZ + cornerRadius);
+  innerShape.absarc(
+    -innerX + cornerRadius,
+    -innerZ + cornerRadius,
+    cornerRadius,
+    Math.PI,
+    Math.PI * 1.5,
+    false
+  );
+  frameShape.holes.push(innerShape);
   // extend the side rails downward without altering the top surface
   const frameDepth = railH * 3.4;
   const bevelSpan = Math.min(railW, railH) * 0.18;
@@ -2981,7 +3049,7 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.82 * 0.5; // shrink to 50% footprint for softer, tighter beams
       const baseRectIntensity = 29.5;
-      const lightIntensity = baseRectIntensity * 0.78 * 3; // compensate for removing the third fixture
+      const lightIntensity = baseRectIntensity * 0.85 * 3; // compensate for removing the third fixture
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2996,7 +3064,7 @@ function SnookerGame() {
       };
 
       // evenly space the ceiling lights along the table centre line
-      const spotlightSpread = 0.52;
+      const spotlightSpread = 0.62;
       const lightPositions = [-TABLE.H * spotlightSpread, TABLE.H * spotlightSpread];
       for (const z of lightPositions) {
         makeLight(0, z);
@@ -3006,20 +3074,20 @@ function SnookerGame() {
         TABLE.W / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.15;
-      const ambientIntensity = 1.32;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 0.98;
+      const ambientIntensity = 1.08;
       const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
       const ambientAngle = Math.PI * 0.6;
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
-      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26);
+      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.18);
       world.add(ambientBoost);
 
       const cushionFill = new THREE.HemisphereLight(
         0xf4f1e7,
         0x1a2218,
-        0.18
+        0.14
       );
       cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       world.add(cushionFill);
