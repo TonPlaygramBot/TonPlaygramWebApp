@@ -300,7 +300,7 @@ const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
-const POCKET_VIS_R = POCKET_R / 0.9;
+const POCKET_VIS_R = POCKET_R / 0.94;
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
 const BALL_SEGMENTS = Object.freeze({ width: 28, height: 18 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -951,11 +951,11 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.24,
-        metalness: 0.42,
-        envMapIntensity: 0.68,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.12
+        roughness: 0.14,
+        metalness: 0.62,
+        envMapIntensity: 0.82,
+        clearcoat: 0.52,
+        clearcoatRoughness: 0.08
       })
     );
   }
@@ -1072,30 +1072,30 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.56,
-    metalness: 0.06,
-    envMapIntensity: 0.48,
+    roughness: 0.48,
+    metalness: 0.1,
+    envMapIntensity: 0.56,
     emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.12),
-    emissiveIntensity: 1.12
+    emissiveIntensity: 1.18
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 4.2;
+    clothMat.bumpScale = 5.6;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 2.1;
+    cushionMat.bumpScale = clothMat.bumpScale * 2.6;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.12);
-  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.08);
-  cushionMat.metalness = Math.max(0.05, clothMat.metalness * 0.72);
-  cushionMat.envMapIntensity = clothMat.envMapIntensity * 0.88;
+  cushionMat.roughness = Math.max(0.2, clothMat.roughness * 0.88);
+  cushionMat.metalness = Math.max(0.08, clothMat.metalness * 1.25);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.1;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: Math.min(1, clothMat.roughness * 1.15),
