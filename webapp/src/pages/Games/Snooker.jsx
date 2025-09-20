@@ -2979,9 +2979,9 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.82 * 0.5; // shrink to 50% footprint for softer, tighter beams
+      const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
       const baseRectIntensity = 29.5;
-      const lightIntensity = baseRectIntensity * 0.78 * 3; // compensate for removing the third fixture
+      const lightIntensity = baseRectIntensity * 0.78 * 3; // keep the same output with the single fixture
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2995,18 +2995,14 @@ function SnookerGame() {
         world.add(rect);
       };
 
-      // evenly space the ceiling lights along the table centre line
-      const spotlightSpread = 0.52;
-      const lightPositions = [-TABLE.H * spotlightSpread, TABLE.H * spotlightSpread];
-      for (const z of lightPositions) {
-        makeLight(0, z);
-      }
+      // keep a single ceiling light centred over the table
+      makeLight(0, 0);
 
       const ambientWallDistanceX =
-        TABLE.W / 2 + sideClearance * 0.55 - wallThickness * 0.5;
+        TABLE.W / 2 + sideClearance * 0.45 - wallThickness * 0.5; // pull the wall lights slightly closer to the table
       const ambientWallDistanceZ =
-        TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.15;
+        TABLE.H / 2 + sideClearance * 0.45 - wallThickness * 0.5;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 0.85; // hang the ambient fixtures a little lower
       const ambientIntensity = 1.32;
       const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
       const ambientAngle = Math.PI * 0.6;
