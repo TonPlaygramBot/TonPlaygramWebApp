@@ -327,6 +327,7 @@ const CLOTH_EDGE_GROWTH = TABLE.WALL * 0.18; // extend the visual cloth toward t
 const CUSHION_LIP_OFFSET = 0.05;
 const POCKET_JAW_LIP_HEIGHT =
   -TABLE.THICK + CUSHION_LIP_OFFSET; // align pocket rims flush with the cushion tops
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.35; // raise the visible pocket rim slightly above the cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -1055,37 +1056,37 @@ function Table3D(parent) {
   const clothHalfW = halfW + CLOTH_EDGE_GROWTH;
   const clothHalfH = halfH + CLOTH_EDGE_GROWTH;
 
-  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.08);
+  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.14);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothBaseColor,
-    roughness: 0.36,
-    metalness: 0.14,
-    envMapIntensity: 1.12,
-    emissive: clothBaseColor.clone().multiplyScalar(0.22),
-    emissiveIntensity: 1.85,
-    sheen: 0.5,
-    sheenColor: clothBaseColor.clone().multiplyScalar(1.1),
-    sheenRoughness: 0.6
+    roughness: 0.48,
+    metalness: 0.08,
+    envMapIntensity: 1.28,
+    emissive: clothBaseColor.clone().multiplyScalar(0.18),
+    emissiveIntensity: 1.65,
+    sheen: 0.65,
+    sheenColor: clothBaseColor.clone().multiplyScalar(1.18),
+    sheenRoughness: 0.52
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothTexture.anisotropy = Math.max(clothTexture.anisotropy ?? 1, 32);
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 0.015;
+    clothMat.bumpScale = 0.024;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = 0.01;
+    cushionMat.bumpScale = 0.015;
     cushionMat.needsUpdate = true;
   }
-  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.16);
-  cushionMat.roughness = Math.max(0.18, clothMat.roughness * 0.78);
-  cushionMat.metalness = Math.max(0.12, clothMat.metalness * 1.25);
-  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.2;
+  cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.2);
+  cushionMat.roughness = Math.max(0.22, clothMat.roughness * 0.74);
+  cushionMat.metalness = Math.max(0.1, clothMat.metalness * 1.18);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.12;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: Math.min(1, clothMat.roughness * 1.15),
@@ -1180,7 +1181,7 @@ function Table3D(parent) {
   });
   pocketInteriorMat.needsUpdate = true;
   pocketCenters().forEach((p) => {
-    const baseY = POCKET_JAW_LIP_HEIGHT;
+    const baseY = POCKET_JAW_LIP_HEIGHT + POCKET_RIM_LIFT;
     const lipDepth = CLOTH_THICKNESS * 0.6;
     const sleeveDepth = Math.max(POCKET_CLOTH_DEPTH - lipDepth, 0);
     const dropTopRadius = POCKET_CLOTH_TOP_RADIUS * POCKET_DROP_TOP_SCALE;
@@ -2970,31 +2971,30 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Pull the pot lights higher and distribute a pair of smaller fixtures
-      const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
-      const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1 * 0.6; // two fixtures, each 40% smaller than before
-      const baseRectIntensity = 29.5;
-      const spotlightIntensityBoost = 1.2; // apply a 20% intensity increase to the spotlight
-      const lightIntensity =
-        baseRectIntensity * 0.78 * 3 * spotlightIntensityBoost;
+      // Pull the pot lights higher and stretch them so each fixture floods half the table
+      const lightHeight = TABLE_Y + 150; // raise spotlights further from the table
+      const rectWidth = PLAY_W * 0.88;
+      const rectHeight = PLAY_H * 0.48;
+      const baseRectIntensity = 18;
+      const lightIntensity = baseRectIntensity * 0.85;
 
-      const makeLight = (x, z, size = rectSize, intensity = lightIntensity) => {
-        const rect = new THREE.RectAreaLight(
-          0xffffff,
-          intensity,
-          size,
-          size
-        );
+      const makeLight = (
+        x,
+        z,
+        width = rectWidth,
+        height = rectHeight,
+        intensity = lightIntensity
+      ) => {
+        const rect = new THREE.RectAreaLight(0xffffff, intensity, width, height);
         rect.position.set(x, lightHeight, z);
-        rect.lookAt(x, TABLE_Y, z);
+        rect.lookAt(x, TABLE_Y + CLOTH_THICKNESS * 0.5, z);
         world.add(rect);
       };
 
-      const spotlightSpread = PLAY_H * 0.18;
+      const spotlightZOffset = PLAY_H / 4; // centre each light over a table half
       // distribute two ceiling lights to keep the cloth evenly lit
-      makeLight(0, -spotlightSpread);
-      makeLight(0, spotlightSpread);
+      makeLight(0, -spotlightZOffset);
+      makeLight(0, spotlightZOffset);
 
       const ambientWallOffsetFactor = 1.28; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
@@ -3004,18 +3004,18 @@ function SnookerGame() {
       const ambientTableOffset = TABLE.THICK * 1.25; // push the ambient fixtures farther from the playing surface
       const ambientHeight = TABLE_Y + TABLE.THICK * 2.7; // lift the ambient fixtures higher for a softer spill
       const ambientIntensityBase = 1.32;
-      const ambientIntensity = ambientIntensityBase * 1.3; // brighten the ambient lights by 30%
+      const ambientIntensity = ambientIntensityBase * 1.65; // brighten the ambient lights and expand their reach
       const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
-      const ambientDistance = ambientDistanceBase * 1.3; // enlarge the ambient cones by 30%
+      const ambientDistance = ambientDistanceBase * 1.85; // enlarge the ambient cones so they wash the table surface
       const ambientAngleBase = Math.PI * 0.6;
       const ambientAngle = Math.min(
         Math.PI / 2,
-        ambientAngleBase * 1.5 * 1.5 * 0.7 * 1.2
-      ); // trim the ambient spread to keep the smaller fixtures focused while increasing coverage
-      const ambientPenumbra = 0.42;
+        ambientAngleBase * 1.95
+      ); // widen the ambient spill for broader coverage
+      const ambientPenumbra = 0.5;
       const ambientColor = 0xf8f1e2;
 
-      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26 * 1.3);
+      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26 * 1.8);
       world.add(ambientBoost);
 
       const cushionFill = new THREE.HemisphereLight(
@@ -3026,7 +3026,8 @@ function SnookerGame() {
       cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       world.add(cushionFill);
 
-      const pocketTargetHeight = TABLE_Y + CLOTH_THICKNESS * 0.5;
+      const pocketTargetHeight =
+        TABLE_Y + CLOTH_THICKNESS * 0.5 + POCKET_RIM_LIFT;
 
       const addAmbientFill = (x, z, targetX, targetZ) => {
         const light = new THREE.SpotLight(
