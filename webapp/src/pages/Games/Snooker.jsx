@@ -6,7 +6,6 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -2285,7 +2284,6 @@ function SnookerGame() {
       const world = new THREE.Group();
       scene.add(world);
       let worldScaleFactor = 1;
-      RectAreaLightUniformsLib.init();
       let cue;
       let clothMat;
       let cushionMat;
@@ -2988,98 +2986,51 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Pull the pot lights higher and stretch them so each fixture floods half the table
-      const lightHeight = TABLE_Y + 150; // raise spotlights further from the table
-      const spotlightScale = 0.25;
-      const rectWidth = PLAY_W * 0.88 * spotlightScale;
-      const rectHeight = PLAY_H * 0.48 * spotlightScale;
-      const baseRectIntensity = 18;
-      const lightIntensity = baseRectIntensity * 0.85;
+      // Lightweight lighting rig optimised for mobile billiards scenes.
+      const addMobileLighting = () => {
+        const lightingRig = new THREE.Group();
+        world.add(lightingRig);
 
-      const makeLight = (
-        x,
-        z,
-        width = rectWidth,
-        height = rectHeight,
-        intensity = lightIntensity
-      ) => {
-        const rect = new THREE.RectAreaLight(0xffffff, intensity, width, height);
-        rect.position.set(x, lightHeight, z);
-        rect.lookAt(x, TABLE_Y + CLOTH_THICKNESS * 0.5, z);
-        world.add(rect);
-      };
-
-      const spotlightZOffset = PLAY_H / 4; // centre each light over a table half
-      // distribute two ceiling lights to keep the cloth evenly lit
-      makeLight(0, -spotlightZOffset);
-      makeLight(0, spotlightZOffset);
-
-      const ambientWallOffsetFactor = 1.28; // spread wall-mounted ambient lights farther apart
-      const ambientWallDistanceX =
-        TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
-      const ambientWallDistanceZ =
-        TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
-      const ambientTableOffset = TABLE.THICK * 1.25; // push the ambient fixtures farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 2.25; // drop the ambient fixtures closer to the table surface
-      const ambientIntensityBase = 1.32;
-      const ambientIntensity = ambientIntensityBase * 1.65; // brighten the ambient lights and expand their reach
-      const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
-      const ambientDistance = ambientDistanceBase * 1.85; // enlarge the ambient cones so they wash the table surface
-      const ambientAngleBase = Math.PI * 0.6;
-      const ambientAngle = Math.min(
-        Math.PI / 2,
-        ambientAngleBase * 1.95
-      ); // widen the ambient spill for broader coverage
-      const ambientPenumbra = 0.5;
-      const ambientColor = 0xf8f1e2;
-
-      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26 * 1.8);
-      world.add(ambientBoost);
-
-      const cushionFill = new THREE.HemisphereLight(
-        0xf4f1e7,
-        0x1a2218,
-        0.18
-      );
-      cushionFill.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-      world.add(cushionFill);
-
-      const pocketTargetHeight =
-        TABLE_Y + CLOTH_THICKNESS * 0.5 + POCKET_RIM_LIFT;
-
-      const addAmbientFill = (x, z, targetX, targetZ) => {
-        const light = new THREE.SpotLight(
-          ambientColor,
-          ambientIntensity,
-          ambientDistance,
-          ambientAngle,
-          ambientPenumbra,
-          1
+        const hemisphere = new THREE.HemisphereLight(
+          0xf2f4ff,
+          0x16191f,
+          0.55
         );
-        light.position.set(x, ambientHeight, z);
-        light.target.position.set(targetX, pocketTargetHeight, targetZ);
-        light.castShadow = false;
-        world.add(light);
-        world.add(light.target);
+        hemisphere.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+        lightingRig.add(hemisphere);
+
+        const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
+        const ceilingY = floorY + wallHeight - wallThickness * 0.5;
+        const maxDistance = Math.max(roomWidth, roomDepth) * 1.15;
+        const spotlightAngle = Math.PI / 4.2;
+        const spotlightPenumbra = 0.38;
+
+        [
+          [0, -PLAY_H * 0.25],
+          [0, PLAY_H * 0.25]
+        ].forEach(([x, z]) => {
+          const spotlight = new THREE.SpotLight(
+            0xffffff,
+            1.25,
+            maxDistance,
+            spotlightAngle,
+            spotlightPenumbra,
+            1.1
+          );
+          spotlight.position.set(x, ceilingY, z);
+          spotlight.target.position.set(x, targetY, z);
+          spotlight.castShadow = true;
+          spotlight.shadow.mapSize.set(1024, 1024);
+          spotlight.shadow.bias = -0.0002;
+          spotlight.shadow.radius = 3.5;
+          spotlight.shadow.camera.near = 10;
+          spotlight.shadow.camera.far = maxDistance * 1.1;
+          lightingRig.add(spotlight);
+          lightingRig.add(spotlight.target);
+        });
       };
 
-      const ambientX = ambientWallDistanceX + ambientTableOffset + POCKET_VIS_R * 0.35;
-      const pocketAimOffset = POCKET_VIS_R * 0.55;
-
-      const aimTowardPocketRim = (targetX, targetZ) => {
-        const offsetX = targetX === 0 ? 0 : Math.sign(targetX) * pocketAimOffset;
-        const offsetZ = targetZ === 0 ? 0 : Math.sign(targetZ) * pocketAimOffset;
-        return [targetX + offsetX, targetZ + offsetZ];
-      };
-
-      // mount a pair of ambient accents along the long rails opposite the overhead spots
-      [
-        [ambientX, 0, PLAY_W / 2, 0],
-        [-ambientX, 0, -PLAY_W / 2, 0]
-      ].forEach(([x, z, targetX, targetZ]) => {
-        const [aimX, aimZ] = aimTowardPocketRim(targetX, targetZ);
-        addAmbientFill(x, z, aimX, aimZ);
-      });
+      addMobileLighting();
 
       // Table
       const {
