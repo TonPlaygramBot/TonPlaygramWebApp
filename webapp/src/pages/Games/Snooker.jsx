@@ -2991,68 +2991,48 @@ function SnookerGame() {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const hemisphereY =
-          TABLE_Y + TABLE.THICK * 0.68 + CLOTH_THICKNESS * 0.45;
-        const hemisphere = new THREE.HemisphereLight(
-          0xf9fbff,
-          0x1b1f27,
-          0.816 * 1.3 * 1.3
-        );
-        hemisphere.color.lerp(new THREE.Color(0xffffff), 0.3);
-        hemisphere.position.set(0, hemisphereY, 0);
+        const tableSurfaceY = TABLE_Y + CLOTH_THICKNESS * 0.5;
+        const lightHeight = tableSurfaceY + 4.5;
+
+        const hemisphere = new THREE.HemisphereLight(0xf4f7ff, 0x111318, 0.3);
+        hemisphere.position.set(0, lightHeight + 1.5, 0);
         lightingRig.add(hemisphere);
 
-        const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
-        const ceilingY = floorY + wallHeight - wallThickness * 0.5;
-        const spotlightSizeScale = 1.5;
-        const spotlightBrightnessScale = 1.5;
-        const spotlightHeightScale = 0.5;
-        const spotlightHeight =
-          targetY + (ceilingY - targetY) * 0.12 * spotlightHeightScale;
-        const maxDistance = Math.max(roomWidth, roomDepth) * 1.15 * 1.5;
-        const spotlightDistance = maxDistance * spotlightSizeScale;
-        const baseSpotlightAngle = Math.PI / 4.1;
-        const spotlightAngle = Math.min(
-          Math.PI / 2,
-          baseSpotlightAngle * 2.25 * spotlightSizeScale
-        );
-        const spotlightPenumbra = Math.min(1, 0.48 * spotlightSizeScale);
-        const spotlightIntensity = 2.46 * 1.5 * spotlightBrightnessScale;
-        const spotlightColor = new THREE.Color(0xfff1d0);
+        const halfPlayW = PLAY_W * 0.5;
+        const halfPlayH = PLAY_H * 0.5;
+        const spotlightDistance = Math.max(PLAY_W, PLAY_H) * 1.35;
+        const spotAngle = Math.PI / 5;
+        const spotPenumbra = 0.3;
+        const spotlightColor = new THREE.Color(0xfff6e6);
 
-        const spotlightTargetY =
-          targetY + CLOTH_THICKNESS * 0.25 * spotlightHeightScale;
-        const spotlightOffsetZ = PLAY_H * 0.25;
-        [
-          {
-            x: 0,
-            z: -spotlightOffsetZ,
-            targetX: 0,
-            targetZ: -PLAY_H * 0.25
-          },
-          {
-            x: 0,
-            z: spotlightOffsetZ,
-            targetX: 0,
-            targetZ: PLAY_H * 0.25
-          }
-        ].forEach(({ x, z, targetX, targetZ }) => {
+        const cornerLights = [
+          { x: -halfPlayW, z: -halfPlayH, primary: true },
+          { x: halfPlayW, z: -halfPlayH, primary: false },
+          { x: -halfPlayW, z: halfPlayH, primary: false },
+          { x: halfPlayW, z: halfPlayH, primary: true }
+        ];
+
+        cornerLights.forEach(({ x, z, primary }) => {
+          const intensity = primary ? 1.15 : 0.72;
           const spotlight = new THREE.SpotLight(
             spotlightColor,
-            spotlightIntensity,
+            intensity,
             spotlightDistance,
-            spotlightAngle,
-            spotlightPenumbra,
-            1.1
+            spotAngle,
+            spotPenumbra,
+            1.05
           );
-          spotlight.position.set(x, spotlightHeight, z);
-          spotlight.target.position.set(targetX, spotlightTargetY, targetZ);
-          spotlight.castShadow = true;
-          spotlight.shadow.mapSize.set(2048, 2048);
-          spotlight.shadow.bias = -0.0002;
-          spotlight.shadow.radius = 2.8 * spotlightSizeScale;
-          spotlight.shadow.camera.near = 10;
-          spotlight.shadow.camera.far = spotlightDistance * 1.1;
+          spotlight.position.set(x, lightHeight, z);
+          spotlight.target.position.set(x, tableSurfaceY, z);
+          spotlight.castShadow = primary;
+          spotlight.decay = 1.05;
+          if (primary) {
+            spotlight.shadow.mapSize.set(1024, 1024);
+            spotlight.shadow.bias = -0.00018;
+            spotlight.shadow.radius = 1.8;
+            spotlight.shadow.camera.near = 2;
+            spotlight.shadow.camera.far = spotlightDistance * 1.1;
+          }
           lightingRig.add(spotlight);
           lightingRig.add(spotlight.target);
         });
