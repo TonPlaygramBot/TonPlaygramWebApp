@@ -86,8 +86,8 @@ function addPocketJaws(parent, playW, playH) {
     { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
     { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
     { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_left', type: 'side', pos: [0, -HALF_PLAY_H] },
-    { id: 'side_right', type: 'side', pos: [0, HALF_PLAY_H] }
+    { id: 'side_left', type: 'side', pos: [-HALF_PLAY_W, 0] },
+    { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
   ];
   const jaws = [];
   const jawTopLift = CLOTH_THICKNESS * 0.22;
@@ -120,15 +120,10 @@ function addPocketJaws(parent, playW, playH) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
       entry.type === 'corner' ? POCKET_VIS_R * JAW_CENTER_PULL_SCALE : 0;
-    const pullDir = (() => {
-      if (entry.type !== 'side') return p.clone().multiplyScalar(-1);
-      const absX = Math.abs(entry.pos[0]);
-      const absZ = Math.abs(entry.pos[1]);
-      if (absX > absZ) {
-        return new THREE.Vector2(entry.pos[0] >= 0 ? -1 : 1, 0);
-      }
-      return new THREE.Vector2(0, entry.pos[1] >= 0 ? -1 : 1);
-    })();
+    const pullDir =
+      entry.type === 'side'
+        ? new THREE.Vector2(entry.pos[0] >= 0 ? -1 : 1, 0)
+        : p.clone().multiplyScalar(-1);
     const pShift = p.clone();
     if (centerPull > 0 && pullDir.lengthSq() > 1e-6) {
       pullDir.normalize();
@@ -159,21 +154,11 @@ function addPocketJaws(parent, playW, playH) {
     jaw.position.set(pShift.x, jawTopLocal, pShift.y);
     const lookTarget = (() => {
       if (entry.type === 'side') {
-        const absX = Math.abs(entry.pos[0]);
-        const absZ = Math.abs(entry.pos[1]);
-        if (absX > absZ) {
-          const dir = entry.pos[0] >= 0 ? -1 : 1;
-          return new THREE.Vector3(
-            jaw.position.x + dir * POCKET_VIS_R * 1.5,
-            jaw.position.y - 0.05,
-            jaw.position.z
-          );
-        }
-        const dir = entry.pos[1] >= 0 ? -1 : 1;
+        const dir = entry.pos[0] >= 0 ? -1 : 1;
         return new THREE.Vector3(
-          jaw.position.x,
+          jaw.position.x + dir * POCKET_VIS_R * 1.5,
           jaw.position.y - 0.05,
-          jaw.position.z + dir * POCKET_VIS_R * 1.5
+          jaw.position.z
         );
       }
       const towardCenter = new THREE.Vector3(
@@ -260,9 +245,8 @@ function addPocketCuts(parent, clothPlane) {
       mesh.scale.x = sx >= 0 ? -1 : 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
     } else {
-      const sz = Math.sign(p.y) || 1;
-      mesh.scale.z = sz >= 0 ? 1 : -1;
-      mesh.position.z += sz * sideRailDepth * 0.5;
+      const sy = Math.sign(p.y) || 1;
+      mesh.scale.z = sy >= 0 ? -1 : 1;
     }
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -631,8 +615,8 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
   new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
   new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(0, -PLAY_H / 2),
-  new THREE.Vector2(0, PLAY_H / 2)
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
@@ -3172,7 +3156,7 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const baseRectIntensity = 29.5;
-      const fixtureScale = 1.08 * 0.5; // shrink spotlight footprint by 50% while keeping brightness compensation
+      const fixtureScale = 1.08; // slightly larger ambient fixtures without increasing brightness
       const rectWidth = PLAY_W * 0.94 * fixtureScale;
       const rectHeight = PLAY_H * 0.98 * fixtureScale;
       const lightIntensity =
@@ -3197,14 +3181,9 @@ function SnookerGame() {
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientHeight = TABLE_Y + TABLE.THICK * 1.15;
-      const ambientIntensityBase = 1.32;
-      const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65;
-      const ambientAngleBase = Math.PI * 0.6;
-      const ambientSizeScale = 1.5; // enlarge the ambient fills by 50%
-      const ambientIntensity =
-        ambientIntensityBase / (ambientSizeScale * ambientSizeScale);
-      const ambientDistance = ambientDistanceBase * ambientSizeScale;
-      const ambientAngle = Math.min(Math.PI, ambientAngleBase * ambientSizeScale);
+      const ambientIntensity = 1.32;
+      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
+      const ambientAngle = Math.PI * 0.6;
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
