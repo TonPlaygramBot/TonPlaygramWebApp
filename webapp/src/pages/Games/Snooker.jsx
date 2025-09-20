@@ -3004,15 +3004,24 @@ function SnookerGame() {
 
         const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const ceilingY = floorY + wallHeight - wallThickness * 0.5;
-        const spotlightHeight = targetY + (ceilingY - targetY) * 0.12;
+        const spotlightSizeScale = 1.5;
+        const spotlightBrightnessScale = 1.5;
+        const spotlightHeightScale = 0.5;
+        const spotlightHeight =
+          targetY + (ceilingY - targetY) * 0.12 * spotlightHeightScale;
         const maxDistance = Math.max(roomWidth, roomDepth) * 1.15 * 1.5;
+        const spotlightDistance = maxDistance * spotlightSizeScale;
         const baseSpotlightAngle = Math.PI / 4.1;
-        const spotlightAngle = Math.min(Math.PI / 2, baseSpotlightAngle * 2.25);
-        const spotlightPenumbra = 0.48;
-        const spotlightIntensity = 2.46 * 1.5;
+        const spotlightAngle = Math.min(
+          Math.PI / 2,
+          baseSpotlightAngle * 2.25 * spotlightSizeScale
+        );
+        const spotlightPenumbra = Math.min(1, 0.48 * spotlightSizeScale);
+        const spotlightIntensity = 2.46 * 1.5 * spotlightBrightnessScale;
         const spotlightColor = new THREE.Color(0xfff1d0);
 
-        const spotlightTargetY = targetY + CLOTH_THICKNESS * 0.25;
+        const spotlightTargetY =
+          targetY + CLOTH_THICKNESS * 0.25 * spotlightHeightScale;
         const spotlightOffsetZ = PLAY_H * 0.25;
         [
           {
@@ -3031,7 +3040,7 @@ function SnookerGame() {
           const spotlight = new THREE.SpotLight(
             spotlightColor,
             spotlightIntensity,
-            maxDistance,
+            spotlightDistance,
             spotlightAngle,
             spotlightPenumbra,
             1.1
@@ -3041,9 +3050,9 @@ function SnookerGame() {
           spotlight.castShadow = true;
           spotlight.shadow.mapSize.set(2048, 2048);
           spotlight.shadow.bias = -0.0002;
-          spotlight.shadow.radius = 2.8;
+          spotlight.shadow.radius = 2.8 * spotlightSizeScale;
           spotlight.shadow.camera.near = 10;
-          spotlight.shadow.camera.far = maxDistance * 1.1;
+          spotlight.shadow.camera.far = spotlightDistance * 1.1;
           lightingRig.add(spotlight);
           lightingRig.add(spotlight.target);
         });
