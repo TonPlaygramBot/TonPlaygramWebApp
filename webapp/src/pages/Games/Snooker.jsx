@@ -2991,14 +2991,24 @@ function SnookerGame() {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const hemisphere = new THREE.HemisphereLight(
-          0xf9fbff,
-          0x1b1f27,
-          0.85
-        );
-        hemisphere.color.lerp(new THREE.Color(0xffffff), 0.25);
-        hemisphere.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-        lightingRig.add(hemisphere);
+        const hemisphereY = TABLE_Y + TABLE.THICK + CLOTH_THICKNESS * 1.5;
+        const hemisphereX = PLAY_W * 0.55;
+        const hemisphereOffsets = [
+          -PLAY_H * 0.4,
+          0,
+          PLAY_H * 0.4
+        ];
+
+        hemisphereOffsets.forEach((z) => {
+          const hemisphere = new THREE.HemisphereLight(
+            0xf9fbff,
+            0x1b1f27,
+            0.62
+          );
+          hemisphere.color.lerp(new THREE.Color(0xffffff), 0.25);
+          hemisphere.position.set(hemisphereX, hemisphereY, z);
+          lightingRig.add(hemisphere);
+        });
 
         const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const ceilingY = floorY + wallHeight - wallThickness * 0.5;
@@ -3008,11 +3018,7 @@ function SnookerGame() {
         const spotlightIntensity = 1.9;
         const spotlightColor = new THREE.Color(0xfff1d0);
 
-        [
-          [0, -PLAY_H * 0.32],
-          [0, 0],
-          [0, PLAY_H * 0.32]
-        ].forEach(([x, z]) => {
+        [[0, 0]].forEach(([x, z]) => {
           const spotlight = new THREE.SpotLight(
             spotlightColor,
             spotlightIntensity,
