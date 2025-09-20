@@ -2981,8 +2981,9 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
       const baseRectIntensity = 29.5;
+      const spotlightBrightnessBoost = 1.2 * 1.2; // apply an additional 20% intensity increase to the spotlight
       const lightIntensity =
-        baseRectIntensity * 0.78 * 3 * 1.2; // boost the spotlight output by roughly 20%
+        baseRectIntensity * 0.78 * 3 * spotlightBrightnessBoost;
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -2999,24 +3000,24 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
-      const ambientWallOffsetFactor = 0.68;
+      const ambientWallOffsetFactor = 0.76; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
-      const ambientTableOffset = TABLE.THICK * 0.45; // push the ambient fixtures a touch farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.48; // lift the ambient fixtures slightly higher for a softer spill
-      const ambientIntensity = 1.32;
-      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65 * 0.7; // shrink the ambient cones by roughly 30%
+      const ambientTableOffset = TABLE.THICK * 0.54; // push the ambient fixtures farther from the playing surface
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.62; // lift the ambient fixtures higher for a softer spill
+      const ambientIntensity = 1.32 * 1.2;
+      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65 * 0.7 * 1.2; // enlarge the ambient cones by 20%
       const ambientAngleBase = Math.PI * 0.6;
       const ambientAngle = Math.min(
         Math.PI / 2,
-        ambientAngleBase * 1.5 * 1.5 * 0.7
-      ); // trim the ambient spread to keep the smaller fixtures focused
+        ambientAngleBase * 1.5 * 1.5 * 0.7 * 1.2
+      ); // trim the ambient spread to keep the smaller fixtures focused while increasing coverage
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
-      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26);
+      const ambientBoost = new THREE.AmbientLight(ambientColor, 0.26 * 1.2);
       world.add(ambientBoost);
 
       const cushionFill = new THREE.HemisphereLight(
