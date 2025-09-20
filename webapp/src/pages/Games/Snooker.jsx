@@ -2994,7 +2994,7 @@ function SnookerGame() {
         const tableSurfaceY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const lightHeight = tableSurfaceY + 4.5;
 
-        const hemisphere = new THREE.HemisphereLight(0xf4f7ff, 0x111318, 0.3);
+        const hemisphere = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
         hemisphere.position.set(0, lightHeight + 1.5, 0);
         lightingRig.add(hemisphere);
 
@@ -3003,17 +3003,16 @@ function SnookerGame() {
         const spotlightDistance = Math.max(PLAY_W, PLAY_H) * 1.35;
         const spotAngle = Math.PI / 5;
         const spotPenumbra = 0.3;
-        const spotlightColor = new THREE.Color(0xfff6e6);
+        const spotlightColor = new THREE.Color(0xffffff);
 
         const cornerLights = [
-          { x: -halfPlayW, z: -halfPlayH, primary: true },
-          { x: halfPlayW, z: -halfPlayH, primary: false },
-          { x: -halfPlayW, z: halfPlayH, primary: false },
-          { x: halfPlayW, z: halfPlayH, primary: true }
+          { x: -halfPlayW, z: -halfPlayH, intensity: 1.2, castShadow: true },
+          { x: halfPlayW, z: -halfPlayH, intensity: 0.7, castShadow: false },
+          { x: -halfPlayW, z: halfPlayH, intensity: 0.7, castShadow: false },
+          { x: halfPlayW, z: halfPlayH, intensity: 1.2, castShadow: true }
         ];
 
-        cornerLights.forEach(({ x, z, primary }) => {
-          const intensity = primary ? 1.15 : 0.72;
+        cornerLights.forEach(({ x, z, intensity, castShadow }) => {
           const spotlight = new THREE.SpotLight(
             spotlightColor,
             intensity,
@@ -3024,9 +3023,9 @@ function SnookerGame() {
           );
           spotlight.position.set(x, lightHeight, z);
           spotlight.target.position.set(x, tableSurfaceY, z);
-          spotlight.castShadow = primary;
+          spotlight.castShadow = castShadow;
           spotlight.decay = 1.05;
-          if (primary) {
+          if (castShadow) {
             spotlight.shadow.mapSize.set(1024, 1024);
             spotlight.shadow.bias = -0.00018;
             spotlight.shadow.radius = 1.8;
