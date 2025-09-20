@@ -692,31 +692,6 @@ function makeClothTexture() {
     }
   }
 
-  const microShadowStep = 4;
-  ctx.globalAlpha = 0.18;
-  for (let y = 0; y < size; y += microShadowStep) {
-    for (let x = 0; x < size; x += microShadowStep) {
-      const weaveMod =
-        (Math.sin((x + y) * 0.032) + Math.cos((x - y) * 0.028)) * 0.5 + 0.5;
-      const strength = 0.035 + weaveMod * 0.045;
-      ctx.fillStyle = `rgba(0,0,0,${strength.toFixed(3)})`;
-      ctx.fillRect(x, y, 1.1, 1.1);
-    }
-  }
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  for (let y = 0; y < size; y += microShadowStep * 3) {
-    const offset = (y / microShadowStep) % 3;
-    for (let x = 0; x < size; x += microShadowStep * 3) {
-      const px = (x + offset * 1.2) % size;
-      const py = (y + offset * 0.8) % size;
-      ctx.beginPath();
-      ctx.ellipse(px, py, 0.6, 1.05, Math.sin(px * 0.04) * 0.6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  ctx.globalAlpha = 1;
-
   ctx.globalCompositeOperation = 'soft-light';
   ctx.globalAlpha = 0.35;
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
@@ -1680,7 +1655,7 @@ function Table3D(parent) {
   table.add(dMesh);
 
   function addSpot(x, z) {
-    const spotGeo = new THREE.CircleGeometry(0.375, 32);
+    const spotGeo = new THREE.CircleGeometry(0.75, 32);
     const spotMat = new THREE.MeshBasicMaterial({
       color: COLORS.markings,
       transparent: true,
@@ -1741,164 +1716,12 @@ function Table3D(parent) {
   frameShape.lineTo(outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, -outerHalfH);
-
-  const innerLeft = -halfW - railW;
-  const innerRight = halfW + railW;
-  const innerTop = -halfH - railW;
-  const innerBottom = halfH + railW;
-  const cornerRadius = POCKET_VIS_R + railW * 0.6;
-  const sideRadius = POCKET_VIS_R + railW * 0.4;
-
-  const circleLineIntersections = (center, radius, orientation, value) => {
-    const results = [];
-    if (orientation === 'vertical') {
-      const dx = value - center.x;
-      const term = radius * radius - dx * dx;
-      if (term >= 0) {
-        const span = Math.sqrt(term);
-        results.push(center.y + span, center.y - span);
-      }
-    } else if (orientation === 'horizontal') {
-      const dy = value - center.y;
-      const term = radius * radius - dy * dy;
-      if (term >= 0) {
-        const span = Math.sqrt(term);
-        results.push(center.x + span, center.x - span);
-      }
-    }
-    return results;
-  };
-  const inwardShift = (value, distance) => {
-    const sign = Math.sign(value);
-    if (sign === 0) return value;
-    return value - sign * distance;
-  };
-
-  const cornerCenters = [
-    new THREE.Vector2(-PLAY_W / 2, -PLAY_H / 2),
-    new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
-    new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
-    new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2)
-  ];
-  const cornerControlOffset = POCKET_VIS_R * 0.75 + railW * 0.25;
-  const corners = cornerCenters.map((center) => {
-    const vertical = center.x < 0 ? innerLeft : innerRight;
-    const horizontal = center.y < 0 ? innerTop : innerBottom;
-    const verticalCandidates = circleLineIntersections(
-      center,
-      cornerRadius,
-      'vertical',
-      vertical
-    ).filter((value) => value >= innerTop - 1e-3 && value <= innerBottom + 1e-3);
-    const horizontalCandidates = circleLineIntersections(
-      center,
-      cornerRadius,
-      'horizontal',
-      horizontal
-    ).filter((value) => value >= innerLeft - 1e-3 && value <= innerRight + 1e-3);
-    const verticalPool =
-      verticalCandidates.length > 0 ? verticalCandidates : [center.y];
-    const horizontalPool =
-      horizontalCandidates.length > 0 ? horizontalCandidates : [center.x];
-    const verticalY =
-      center.y < 0
-        ? Math.max(...verticalPool)
-        : Math.min(...verticalPool);
-    const horizontalX =
-      center.x < 0
-        ? Math.max(...horizontalPool)
-        : Math.min(...horizontalPool);
-    return {
-      center,
-      verticalPoint: new THREE.Vector2(vertical, verticalY),
-      horizontalPoint: new THREE.Vector2(horizontalX, horizontal),
-      control: new THREE.Vector2(
-        inwardShift(center.x, cornerControlOffset),
-        inwardShift(center.y, cornerControlOffset)
-      )
-    };
-  });
-
-  const [cornerTL, cornerTR, cornerBR, cornerBL] = corners;
-  const topCenter = new THREE.Vector2(0, -PLAY_H / 2);
-  const bottomCenter = new THREE.Vector2(0, PLAY_H / 2);
-  const topIntersections = circleLineIntersections(
-    topCenter,
-    sideRadius,
-    'horizontal',
-    innerTop
-  ).sort((a, b) => a - b);
-  const bottomIntersections = circleLineIntersections(
-    bottomCenter,
-    sideRadius,
-    'horizontal',
-    innerBottom
-  ).sort((a, b) => a - b);
-  const topSideLeft =
-    topIntersections[0] ?? (cornerTL.horizontalPoint.x + cornerTR.horizontalPoint.x) / 2;
-  const topSideRight =
-    topIntersections[topIntersections.length - 1] ??
-    (cornerTL.horizontalPoint.x + cornerTR.horizontalPoint.x) / 2;
-  const bottomSideLeft =
-    bottomIntersections[0] ??
-    (cornerBL.horizontalPoint.x + cornerBR.horizontalPoint.x) / 2;
-  const bottomSideRight =
-    bottomIntersections[bottomIntersections.length - 1] ??
-    (cornerBL.horizontalPoint.x + cornerBR.horizontalPoint.x) / 2;
-  const sideControlOffset = POCKET_VIS_R * 0.6 + railW * 0.2;
-  const topControl = new THREE.Vector2(
-    0,
-    inwardShift(topCenter.y, sideControlOffset)
-  );
-  const bottomControl = new THREE.Vector2(
-    0,
-    inwardShift(bottomCenter.y, sideControlOffset)
-  );
-
   const innerRect = new THREE.Path();
-  innerRect.moveTo(cornerTL.verticalPoint.x, cornerTL.verticalPoint.y);
-  innerRect.quadraticCurveTo(
-    cornerTL.control.x,
-    cornerTL.control.y,
-    cornerTL.horizontalPoint.x,
-    cornerTL.horizontalPoint.y
-  );
-  innerRect.lineTo(topSideLeft, innerTop);
-  innerRect.quadraticCurveTo(
-    topControl.x,
-    topControl.y,
-    topSideRight,
-    innerTop
-  );
-  innerRect.lineTo(cornerTR.horizontalPoint.x, cornerTR.horizontalPoint.y);
-  innerRect.quadraticCurveTo(
-    cornerTR.control.x,
-    cornerTR.control.y,
-    cornerTR.verticalPoint.x,
-    cornerTR.verticalPoint.y
-  );
-  innerRect.lineTo(cornerBR.verticalPoint.x, cornerBR.verticalPoint.y);
-  innerRect.quadraticCurveTo(
-    cornerBR.control.x,
-    cornerBR.control.y,
-    cornerBR.horizontalPoint.x,
-    cornerBR.horizontalPoint.y
-  );
-  innerRect.lineTo(bottomSideRight, innerBottom);
-  innerRect.quadraticCurveTo(
-    bottomControl.x,
-    bottomControl.y,
-    bottomSideLeft,
-    innerBottom
-  );
-  innerRect.lineTo(cornerBL.horizontalPoint.x, cornerBL.horizontalPoint.y);
-  innerRect.quadraticCurveTo(
-    cornerBL.control.x,
-    cornerBL.control.y,
-    cornerBL.verticalPoint.x,
-    cornerBL.verticalPoint.y
-  );
-  innerRect.lineTo(cornerTL.verticalPoint.x, cornerTL.verticalPoint.y);
+  innerRect.moveTo(-halfW - railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, -halfH - railW);
   frameShape.holes.push(innerRect);
   // extend the side rails downward without altering the top surface
   const frameDepth = railH * 3.4;
@@ -3156,11 +2979,9 @@ function SnookerGame() {
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const baseRectIntensity = 29.5;
-      const fixtureScale = 1.08; // slightly larger ambient fixtures without increasing brightness
-      const rectWidth = PLAY_W * 0.94 * fixtureScale;
-      const rectHeight = PLAY_H * 0.98 * fixtureScale;
-      const lightIntensity =
-        (baseRectIntensity * 0.54) / (fixtureScale * fixtureScale); // maintain perceived illumination
+      const lightIntensity = baseRectIntensity * 0.54; // softer single fixture focused over the play field
+      const rectWidth = PLAY_W * 0.94;
+      const rectHeight = PLAY_H * 0.98;
 
       const makeLight = () => {
         const rect = new THREE.RectAreaLight(
