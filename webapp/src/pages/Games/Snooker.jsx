@@ -2999,14 +2999,17 @@ function SnookerGame() {
       makeLight(0, 0);
 
       const ambientWallDistanceX =
-        TABLE.W / 2 + sideClearance * 0.45 - wallThickness * 0.5; // pull the wall lights slightly closer to the table
+        TABLE.W / 2 + sideClearance * 0.52 - wallThickness * 0.5; // nudge wall lights further from each other and the table
       const ambientWallDistanceZ =
-        TABLE.H / 2 + sideClearance * 0.45 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.2; // raise the ambient fixtures a bit higher for softer spill
+        TABLE.H / 2 + sideClearance * 0.52 - wallThickness * 0.5;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.32; // lift the ambient fixtures slightly higher for a softer spill
       const ambientIntensity = 1.32;
-      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
+      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65 * 0.7; // shrink the ambient cones by roughly 30%
       const ambientAngleBase = Math.PI * 0.6;
-      const ambientAngle = Math.min(Math.PI / 2, ambientAngleBase * 1.5 * 1.5); // enlarge the ambient cones by another 50%
+      const ambientAngle = Math.min(
+        Math.PI / 2,
+        ambientAngleBase * 1.5 * 1.5 * 0.7
+      ); // trim the ambient spread to keep the smaller fixtures focused
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
