@@ -2965,7 +2965,7 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
       const baseRectIntensity = 29.5;
-      const spotlightIntensityBoost = 1.2; // apply a 20% intensity increase to the spotlight
+      const spotlightIntensityBoost = 1.15; // apply a 15% intensity increase to the spotlight
       const lightIntensity =
         baseRectIntensity * 0.78 * 3 * spotlightIntensityBoost;
 
@@ -2984,13 +2984,13 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
-      const ambientWallOffsetFactor = 1.08; // spread wall-mounted ambient lights farther apart
+      const ambientWallOffsetFactor = 1.16; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
-      const ambientTableOffset = TABLE.THICK * 0.92; // push the ambient fixtures farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 2.12; // lift the ambient fixtures higher for a softer spill
+      const ambientTableOffset = TABLE.THICK * 1.05; // push the ambient fixtures farther from the playing surface
+      const ambientHeight = TABLE_Y + TABLE.THICK * 2.35; // lift the ambient fixtures higher for a softer spill
       const ambientIntensityBase = 1.32;
       const ambientIntensity = ambientIntensityBase * 1.3; // brighten the ambient lights by 30%
       const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
