@@ -633,75 +633,58 @@ function makeClothTexture() {
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
 
-  const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.28)');
-  shading.addColorStop(0.45, 'rgba(0,0,0,0.22)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.4)');
-  ctx.fillStyle = shading;
+  const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
+  diagonalShade.addColorStop(0, 'rgba(0,0,0,0.08)');
+  diagonalShade.addColorStop(0.45, 'rgba(255,255,255,0.05)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.16)');
+  ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
-  const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.26)');
-  crossSheen.addColorStop(0.52, 'rgba(0,0,0,0.22)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.2)');
-  ctx.fillStyle = crossSheen;
-  ctx.fillRect(0, 0, size, size);
+  const patternSize = 96;
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = patternCanvas.height = patternSize;
+  const patternCtx = patternCanvas.getContext('2d');
 
-  const spacing = 2;
-  const weaveSize = 1.8;
-  const lightWeave = 'rgba(255,255,255,0.82)';
-  const darkWeave = 'rgba(0,0,0,0.68)';
-  for (let y = 0; y < size; y += spacing) {
-    for (let x = 0; x < size; x += spacing) {
-      ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
-      ctx.fillRect(x, y, weaveSize, weaveSize);
+  if (patternCtx) {
+    patternCtx.fillStyle = baseCloth;
+    patternCtx.fillRect(0, 0, patternSize, patternSize);
+
+    patternCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+    patternCtx.lineWidth = 1.2;
+    for (let i = -patternSize; i <= patternSize * 2; i += 7) {
+      patternCtx.beginPath();
+      patternCtx.moveTo(i, -patternSize);
+      patternCtx.lineTo(i, patternSize * 2);
+      patternCtx.stroke();
+    }
+
+    patternCtx.strokeStyle = 'rgba(0,0,0,0.12)';
+    patternCtx.lineWidth = 1.1;
+    for (let i = -patternSize + 3.5; i <= patternSize * 2; i += 7) {
+      patternCtx.beginPath();
+      patternCtx.moveTo(i, -patternSize);
+      patternCtx.lineTo(i, patternSize * 2);
+      patternCtx.stroke();
+    }
+
+    const pattern = ctx.createPattern(patternCanvas, 'repeat');
+    if (pattern) {
+      ctx.save();
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate(Math.PI / 4); // rotate fibres diagonally across the surface
+      ctx.fillStyle = pattern;
+      ctx.fillRect(-size / 2, -size / 2, size, size);
+      ctx.restore();
     }
   }
 
-  ctx.globalAlpha = 0.45;
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
-  for (let y = 0; y < size; y += spacing * 4) {
-    ctx.fillRect(0, y, size, 0.9);
-  }
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  for (let x = 0; x < size; x += spacing * 4) {
-    ctx.fillRect(x, 0, 0.9, size);
-  }
-  ctx.globalAlpha = 1;
-
-  ctx.lineWidth = 1.1;
-  ctx.strokeStyle = 'rgba(0,0,0,0.62)';
-  for (let i = 0; i < 340000; i++) {
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  for (let i = 0; i < 32000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
-    const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 0.85 + 0.35;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-    ctx.stroke();
-
-    if (i % 5 === 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.58)';
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(
-        x + Math.cos(angle + Math.PI / 2) * length * 0.55,
-        y + Math.sin(angle + Math.PI / 2) * length * 0.55
-      );
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.62)';
-    }
+    ctx.fillRect(x, y, 1, 1);
   }
-
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.28;
-  ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  ctx.fillRect(0, 0, size, size);
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.32;
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -1070,26 +1053,27 @@ function Table3D(parent) {
   const clothHalfW = halfW + CLOTH_EDGE_GROWTH;
   const clothHalfH = halfH + CLOTH_EDGE_GROWTH;
 
+  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(0.94);
   const clothMat = new THREE.MeshStandardMaterial({
-    color: COLORS.cloth,
+    color: clothBaseColor,
     roughness: 0.42,
     metalness: 0.14,
     envMapIntensity: 0.66,
-    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.12),
+    emissive: clothBaseColor.clone().multiplyScalar(0.12),
     emissiveIntensity: 1.22
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
-    clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 6.4;
+    clothMat.bumpMap = null;
+    clothMat.bumpScale = 0;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
-    cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 3.2;
+    cushionMat.bumpMap = null;
+    cushionMat.bumpScale = 0;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.16);
@@ -2981,9 +2965,9 @@ function SnookerGame() {
       const rectSizeBase = 24;
       const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
       const baseRectIntensity = 29.5;
-      const spotlightBrightnessBoost = 1.2 * 1.2; // apply an additional 20% intensity increase to the spotlight
+      const spotlightIntensityBoost = 1.2; // apply a 20% intensity increase to the spotlight
       const lightIntensity =
-        baseRectIntensity * 0.78 * 3 * spotlightBrightnessBoost;
+        baseRectIntensity * 0.78 * 3 * spotlightIntensityBoost;
 
       const makeLight = (x, z) => {
         const rect = new THREE.RectAreaLight(
@@ -3000,15 +2984,17 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
-      const ambientWallOffsetFactor = 0.76; // spread wall-mounted ambient lights farther apart
+      const ambientWallOffsetFactor = 0.88; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
-      const ambientTableOffset = TABLE.THICK * 0.54; // push the ambient fixtures farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.62; // lift the ambient fixtures higher for a softer spill
-      const ambientIntensity = 1.32 * 1.2;
-      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65 * 0.7 * 1.2; // enlarge the ambient cones by 20%
+      const ambientTableOffset = TABLE.THICK * 0.65; // push the ambient fixtures farther from the playing surface
+      const ambientHeight = TABLE_Y + TABLE.THICK * 1.78; // lift the ambient fixtures higher for a softer spill
+      const ambientIntensityBase = 1.32;
+      const ambientIntensity = ambientIntensityBase * 1.2; // brighten the ambient lights by 20%
+      const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
+      const ambientDistance = ambientDistanceBase * 1.2; // enlarge the ambient cones by 20%
       const ambientAngleBase = Math.PI * 0.6;
       const ambientAngle = Math.min(
         Math.PI / 2,
