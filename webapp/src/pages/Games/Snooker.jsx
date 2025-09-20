@@ -196,9 +196,11 @@ function addPocketCuts(parent, clothPlane) {
   const sideDepth = POCKET_VIS_R * 1.12;
   const sideHalfWidth = POCKET_VIS_R * 0.92;
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x040404,
-    roughness: 0.88,
+    color: 0x060606,
+    roughness: 0.78,
     metalness: 0.12,
+    emissive: new THREE.Color(0x090909),
+    emissiveIntensity: 0.35,
     side: THREE.DoubleSide
   });
   mat.polygonOffset = true;
@@ -239,8 +241,8 @@ function addPocketCuts(parent, clothPlane) {
     const geom = isCorner ? cornerGeo.clone() : sideGeo.clone();
     const mesh = new THREE.Mesh(geom, mat.clone());
     mesh.rotation.x = Math.PI / 2;
-    mesh.position.set(p.x, clothPlane + CLOTH_THICKNESS * 0.02, p.y);
-    mesh.renderOrder = 4;
+    mesh.position.set(p.x, clothPlane + CLOTH_THICKNESS * 0.28, p.y);
+    mesh.renderOrder = 6;
     if (isCorner) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
@@ -1056,28 +1058,28 @@ function Table3D(parent) {
   const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.08);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothBaseColor,
-    roughness: 0.32,
-    metalness: 0.16,
-    envMapIntensity: 1.05,
+    roughness: 0.36,
+    metalness: 0.14,
+    envMapIntensity: 1.12,
     emissive: clothBaseColor.clone().multiplyScalar(0.22),
-    emissiveIntensity: 1.65,
-    sheen: 0.45,
+    emissiveIntensity: 1.85,
+    sheen: 0.5,
     sheenColor: clothBaseColor.clone().multiplyScalar(1.1),
-    sheenRoughness: 0.68
+    sheenRoughness: 0.6
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
     clothMat.map = clothTexture;
-    clothTexture.anisotropy = 8;
-    clothMat.bumpMap = null;
-    clothMat.bumpScale = 0;
+    clothTexture.anisotropy = Math.max(clothTexture.anisotropy ?? 1, 32);
+    clothMat.bumpMap = clothTexture;
+    clothMat.bumpScale = 0.015;
     clothMat.needsUpdate = true;
   }
   const cushionMat = clothMat.clone();
   if (clothTexture) {
     cushionMat.map = clothTexture;
-    cushionMat.bumpMap = null;
-    cushionMat.bumpScale = 0;
+    cushionMat.bumpMap = clothTexture;
+    cushionMat.bumpScale = 0.01;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.16);
@@ -1666,7 +1668,7 @@ function Table3D(parent) {
   addSpot(0, PLAY_H * 0.5 - PLAY_H * 0.05);
 
   const pocketRingMat = new THREE.MeshBasicMaterial({
-    color: 0x000000,
+    color: 0x050505,
     side: THREE.DoubleSide,
     depthWrite: false
   });
@@ -1675,16 +1677,20 @@ function Table3D(parent) {
   pocketRingMat.polygonOffsetFactor = -1;
   pocketRingMat.polygonOffsetUnits = -2;
   pocketCenters().forEach((p) => {
-    const inner = POCKET_CLOTH_TOP_RADIUS * 0.78;
-    const outer = POCKET_CLOTH_TOP_RADIUS * 0.94;
+    const inner = POCKET_CLOTH_TOP_RADIUS * 0.7;
+    const outer = POCKET_CLOTH_TOP_RADIUS * 0.88;
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(inner, outer, 64, 1),
       pocketRingMat
     );
     ring.rotation.x = -Math.PI / 2;
-    const ringHeight = markingY + CLOTH_THICKNESS * 0.3;
-    ring.position.set(p.x, ringHeight, p.y);
-    ring.renderOrder = 2;
+    const ringHeight = markingY + CLOTH_THICKNESS * 0.42;
+    const offset = new THREE.Vector2(p.x, p.y);
+    if (offset.lengthSq() > 1e-6) {
+      offset.normalize().multiplyScalar(POCKET_VIS_R * 0.12);
+    }
+    ring.position.set(p.x - offset.x, ringHeight, p.y - offset.y);
+    ring.renderOrder = 4;
     table.add(ring);
   });
 
@@ -2964,29 +2970,31 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
+      // Pull the pot lights higher and distribute a pair of smaller fixtures
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1; // slightly widen the single ceiling spotlight
+      const rectSize = rectSizeBase * 0.82 * 0.5 * 1.1 * 0.6; // two fixtures, each 40% smaller than before
       const baseRectIntensity = 29.5;
       const spotlightIntensityBoost = 1.2; // apply a 20% intensity increase to the spotlight
       const lightIntensity =
         baseRectIntensity * 0.78 * 3 * spotlightIntensityBoost;
 
-      const makeLight = (x, z) => {
+      const makeLight = (x, z, size = rectSize, intensity = lightIntensity) => {
         const rect = new THREE.RectAreaLight(
           0xffffff,
-          lightIntensity,
-          rectSize,
-          rectSize
+          intensity,
+          size,
+          size
         );
         rect.position.set(x, lightHeight, z);
         rect.lookAt(x, TABLE_Y, z);
         world.add(rect);
       };
 
-      // keep a single ceiling light centred over the table
-      makeLight(0, 0);
+      const spotlightSpread = PLAY_H * 0.18;
+      // distribute two ceiling lights to keep the cloth evenly lit
+      makeLight(0, -spotlightSpread);
+      makeLight(0, spotlightSpread);
 
       const ambientWallOffsetFactor = 1.28; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
@@ -3036,15 +3044,25 @@ function SnookerGame() {
         world.add(light.target);
       };
 
-      const ambientX = ambientWallDistanceX + ambientTableOffset;
-      const ambientZ = ambientWallDistanceZ + ambientTableOffset;
+      const ambientX = ambientWallDistanceX + ambientTableOffset + POCKET_VIS_R * 0.35;
+      const ambientZ = ambientWallDistanceZ + ambientTableOffset + POCKET_VIS_R * 0.35;
+      const pocketAimOffset = POCKET_VIS_R * 0.55;
+
+      const aimTowardPocketRim = (targetX, targetZ) => {
+        const offsetX = targetX === 0 ? 0 : Math.sign(targetX) * pocketAimOffset;
+        const offsetZ = targetZ === 0 ? 0 : Math.sign(targetZ) * pocketAimOffset;
+        return [targetX + offsetX, targetZ + offsetZ];
+      };
 
       [
         [ambientX, ambientZ, PLAY_W / 2, PLAY_H / 2],
         [-ambientX, ambientZ, -PLAY_W / 2, PLAY_H / 2],
         [ambientX, -ambientZ, PLAY_W / 2, -PLAY_H / 2],
         [-ambientX, -ambientZ, -PLAY_W / 2, -PLAY_H / 2]
-      ].forEach(([x, z, targetX, targetZ]) => addAmbientFill(x, z, targetX, targetZ));
+      ].forEach(([x, z, targetX, targetZ]) => {
+        const [aimX, aimZ] = aimTowardPocketRim(targetX, targetZ);
+        addAmbientFill(x, z, aimX, aimZ);
+      });
 
       // Table
       const {
