@@ -2992,42 +2992,38 @@ function SnookerGame() {
         world.add(lightingRig);
 
         const hemisphereY = TABLE_Y + TABLE.THICK + CLOTH_THICKNESS * 1.5;
-        const hemisphereX = PLAY_W * 0.55;
-        const hemisphereOffsets = [-PLAY_H * 0.4, PLAY_H * 0.4];
-
-        hemisphereOffsets.forEach((z) => {
-          const hemisphere = new THREE.HemisphereLight(
-            0xf9fbff,
-            0x1b1f27,
-            0.62
-          );
-          hemisphere.color.lerp(new THREE.Color(0xffffff), 0.25);
-          hemisphere.position.set(hemisphereX, hemisphereY, z);
-          lightingRig.add(hemisphere);
-        });
+        const hemisphere = new THREE.HemisphereLight(
+          0xf9fbff,
+          0x1b1f27,
+          0.68
+        );
+        hemisphere.color.lerp(new THREE.Color(0xffffff), 0.3);
+        hemisphere.position.set(0, hemisphereY, 0);
+        lightingRig.add(hemisphere);
 
         const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const ceilingY = floorY + wallHeight - wallThickness * 0.5;
         const maxDistance = Math.max(roomWidth, roomDepth) * 1.15;
-        const spotlightAngle = Math.PI / 3.7;
-        const spotlightPenumbra = 0.52;
-        const spotlightIntensity = 1.9;
+        const spotlightAngle = Math.PI / 4.1;
+        const spotlightPenumbra = 0.48;
+        const spotlightIntensity = 2.05;
         const spotlightColor = new THREE.Color(0xfff1d0);
 
         const spotlightTargetY = targetY + CLOTH_THICKNESS * 0.25;
+        const spotlightOffsetX = PLAY_W * 0.24;
+        const spotlightOffsetZ = PLAY_H * 0.36;
         [
-          { x: 0, z: 0, targetX: 0, targetZ: 0 },
           {
-            x: -PLAY_W * 0.45,
-            z: 0,
-            targetX: -PLAY_W * 0.18,
-            targetZ: 0
+            x: -spotlightOffsetX,
+            z: -spotlightOffsetZ,
+            targetX: -PLAY_W * 0.12,
+            targetZ: -PLAY_H * 0.1
           },
           {
-            x: PLAY_W * 0.45,
-            z: 0,
-            targetX: PLAY_W * 0.18,
-            targetZ: 0
+            x: spotlightOffsetX,
+            z: spotlightOffsetZ,
+            targetX: PLAY_W * 0.12,
+            targetZ: PLAY_H * 0.1
           }
         ].forEach(({ x, z, targetX, targetZ }) => {
           const spotlight = new THREE.SpotLight(
