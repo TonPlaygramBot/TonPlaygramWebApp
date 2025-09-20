@@ -22,8 +22,8 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 // --------------------------------------------------
 // Pocket jaws
 // --------------------------------------------------
-const JAW_H = 2.1;
-const JAW_T = 1.05;
+const JAW_H = 2.35;
+const JAW_T = 1.24;
 const JAW_INNER_SCALE = 0.048;
 const JAW_CENTER_PULL_SCALE = 0.028;
 const SECTOR_SWEEP = Math.PI * 0.52;
@@ -191,10 +191,10 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const cornerDepth = POCKET_VIS_R * 1.35;
+  const cornerDepth = POCKET_VIS_R * 1.48;
   const cornerCurve = cornerDepth * 0.45;
-  const sideDepth = POCKET_VIS_R * 1.12;
-  const sideHalfWidth = POCKET_VIS_R * 0.92;
+  const sideDepth = POCKET_VIS_R * 1.24;
+  const sideHalfWidth = POCKET_VIS_R * 0.98;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: 0.88,
@@ -223,10 +223,11 @@ function addPocketCuts(parent, clothPlane) {
   })();
   const sideShape = (() => {
     const s = new THREE.Shape();
+    const lipSweep = sideHalfWidth * 0.18;
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
-    s.lineTo(sideHalfWidth * 0.82, sideDepth);
-    s.quadraticCurveTo(0, sideDepth * 1.18, -sideHalfWidth * 0.82, sideDepth);
+    s.lineTo(sideHalfWidth + lipSweep, sideDepth * 0.62);
+    s.quadraticCurveTo(0, sideDepth * 1.2, -sideHalfWidth - lipSweep, sideDepth * 0.62);
     s.closePath();
     return s;
   })();
@@ -246,9 +247,15 @@ function addPocketCuts(parent, clothPlane) {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.x = sx >= 0 ? -1 : 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
+      const cornerOutset = POCKET_VIS_R * 0.28;
+      mesh.position.x += sx * cornerOutset;
+      mesh.position.z += sy * cornerOutset;
     } else {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
+      const sideOutset = POCKET_VIS_R * 0.34;
+      const sx = Math.sign(p.x) || 1;
+      mesh.position.x += sx * sideOutset;
     }
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -634,23 +641,23 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const shading = ctx.createLinearGradient(0, 0, size, size);
-  shading.addColorStop(0, 'rgba(255,255,255,0.28)');
-  shading.addColorStop(0.45, 'rgba(0,0,0,0.22)');
-  shading.addColorStop(1, 'rgba(0,0,0,0.4)');
+  shading.addColorStop(0, 'rgba(255,255,255,0.18)');
+  shading.addColorStop(0.45, 'rgba(0,0,0,0.14)');
+  shading.addColorStop(1, 'rgba(0,0,0,0.26)');
   ctx.fillStyle = shading;
   ctx.fillRect(0, 0, size, size);
 
   const crossSheen = ctx.createLinearGradient(0, 0, size, 0);
-  crossSheen.addColorStop(0, 'rgba(255,255,255,0.26)');
-  crossSheen.addColorStop(0.52, 'rgba(0,0,0,0.22)');
-  crossSheen.addColorStop(1, 'rgba(255,255,255,0.2)');
+  crossSheen.addColorStop(0, 'rgba(255,255,255,0.18)');
+  crossSheen.addColorStop(0.52, 'rgba(0,0,0,0.12)');
+  crossSheen.addColorStop(1, 'rgba(255,255,255,0.16)');
   ctx.fillStyle = crossSheen;
   ctx.fillRect(0, 0, size, size);
 
   const spacing = 2;
   const weaveSize = 1.8;
-  const lightWeave = 'rgba(255,255,255,0.82)';
-  const darkWeave = 'rgba(0,0,0,0.68)';
+  const lightWeave = 'rgba(255,255,255,0.7)';
+  const darkWeave = 'rgba(0,0,0,0.58)';
   for (let y = 0; y < size; y += spacing) {
     for (let x = 0; x < size; x += spacing) {
       ctx.fillStyle = (x + y) % (spacing * 2) === 0 ? lightWeave : darkWeave;
@@ -951,11 +958,11 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.045,
-        metalness: 0.82,
-        envMapIntensity: 1.08,
-        clearcoat: 0.78,
-        clearcoatRoughness: 0.025
+        roughness: 0.07,
+        metalness: 0.74,
+        envMapIntensity: 0.94,
+        clearcoat: 0.68,
+        clearcoatRoughness: 0.04
       })
     );
   }
@@ -1072,9 +1079,9 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshStandardMaterial({
     color: COLORS.cloth,
-    roughness: 0.34,
-    metalness: 0.1,
-    envMapIntensity: 0.74,
+    roughness: 0.3,
+    metalness: 0.09,
+    envMapIntensity: 0.88,
     emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.1),
     emissiveIntensity: 1.08
   });
@@ -1082,7 +1089,7 @@ function Table3D(parent) {
   if (clothTexture) {
     clothMat.map = clothTexture;
     clothMat.bumpMap = clothTexture;
-    clothMat.bumpScale = 3.4;
+    clothMat.bumpScale = 1.85;
     clothMat.roughnessMap = clothTexture;
     clothMat.needsUpdate = true;
   }
@@ -1090,13 +1097,13 @@ function Table3D(parent) {
   if (clothTexture) {
     cushionMat.map = clothTexture;
     cushionMat.bumpMap = clothTexture;
-    cushionMat.bumpScale = clothMat.bumpScale * 2.6;
+    cushionMat.bumpScale = clothMat.bumpScale * 2.4;
     cushionMat.needsUpdate = true;
   }
   cushionMat.color = new THREE.Color(COLORS.cloth).multiplyScalar(1.22);
-  cushionMat.roughness = Math.max(0.16, clothMat.roughness * 0.72);
-  cushionMat.metalness = Math.max(0.16, clothMat.metalness * 1.35);
-  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.3;
+  cushionMat.roughness = Math.max(0.18, clothMat.roughness * 0.7);
+  cushionMat.metalness = Math.max(0.14, clothMat.metalness * 1.28);
+  cushionMat.envMapIntensity = clothMat.envMapIntensity * 1.4;
   const clothCutMat = new THREE.MeshStandardMaterial({
     color: 0x040404,
     roughness: Math.min(1, clothMat.roughness * 1.05),
@@ -1847,9 +1854,9 @@ function Table3D(parent) {
   const cushionExtend = 6 * 0.85;
   const cushionInward = TABLE.WALL * 0.15;
   const LONG_CUSHION_TRIM = 5.4; // let the long rails reach further toward each pocket mouth
-  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.005; // extend cushion noses so they meet the pocket perimeter cleanly
-  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.1; // allow the long cushions to sit closer to the pocket openings
-  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.08; // mirror the tighter clearance on the end cushions
+  const CUSHION_POCKET_GAP = POCKET_VIS_R * 0.04; // extend cushion noses so they meet the pocket perimeter cleanly
+  const LONG_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.16; // allow the long cushions to sit closer to the pocket openings
+  const END_RAIL_EXTRA_CLEARANCE = POCKET_VIS_R * 0.14; // mirror the tighter clearance on the end cushions
   const LONG_RAIL_CENTER_PULL = TABLE.WALL * 0.085; // pull long cushions inward slightly so they hug the play field
   const END_RAIL_CENTER_PULL = TABLE.WALL * 0.065; // nudge the short-end cushions toward the table centre
   const LONG_CUSHION_FACE_SHRINK = 0.955; // trim the long cushions a touch more so the tops appear slightly slimmer
@@ -3045,13 +3052,13 @@ function SnookerGame() {
 
       // Lights
       // Pull the pot lights higher and farther apart so they feel less harsh over the cloth
-      const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
+      const lightHeight = TABLE_Y + TABLE.THICK * 6.4; // bring spotlights closer to the rails instead of directly overhead
       const rectSizeBase = 24;
-      const rectSize = rectSizeBase * 0.82 * 0.5; // shrink to 50% footprint for softer, tighter beams
+      const rectSize = rectSizeBase * 0.62; // narrow the beam footprint so it hugs the cushions
       const baseRectIntensity = 29.5;
-      const lightIntensity = baseRectIntensity * 0.85 * 3; // compensate for removing the third fixture
+      const lightIntensity = baseRectIntensity * 0.62; // softer intensity because lights sit nearer to the cloth
 
-      const makeLight = (x, z) => {
+      const makeLight = (x, z, target) => {
         const rect = new THREE.RectAreaLight(
           0xffffff,
           lightIntensity,
@@ -3059,22 +3066,23 @@ function SnookerGame() {
           rectSize
         );
         rect.position.set(x, lightHeight, z);
-        rect.lookAt(x, TABLE_Y, z);
+        const lookTarget = target || new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.25, 0);
+        rect.lookAt(lookTarget);
         world.add(rect);
       };
 
-      // evenly space the ceiling lights along the table centre line
-      const spotlightSpread = 0.62;
-      const lightPositions = [-TABLE.H * spotlightSpread, TABLE.H * spotlightSpread];
-      for (const z of lightPositions) {
-        makeLight(0, z);
-      }
+      // mount a single strip light along each long rail just outside the cushions
+      const sideLightOffset = TABLE.W / 2 + sideClearance * 0.36;
+      const forwardBias = 0;
+      const sharedTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.25, 0);
+      makeLight(-sideLightOffset, forwardBias, sharedTarget);
+      makeLight(sideLightOffset, forwardBias, sharedTarget);
 
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
-      const ambientHeight = TABLE_Y + TABLE.THICK * 0.98;
+      const ambientHeight = TABLE_Y + TABLE.THICK * 2.4;
       const ambientIntensity = 1.08;
       const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
       const ambientAngle = Math.PI * 0.6;
