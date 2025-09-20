@@ -629,58 +629,58 @@ function makeClothTexture() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const baseCloth = '#1f8a3d';
+  const clothColor = new THREE.Color(COLORS.cloth);
+  const baseCloth = `#${clothColor.getHexString()}`;
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
 
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(0,0,0,0.08)');
-  diagonalShade.addColorStop(0.45, 'rgba(255,255,255,0.05)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.16)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.04)');
+  diagonalShade.addColorStop(0.55, 'rgba(0,0,0,0.06)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.12)');
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
-  const patternSize = 96;
-  const patternCanvas = document.createElement('canvas');
-  patternCanvas.width = patternCanvas.height = patternSize;
-  const patternCtx = patternCanvas.getContext('2d');
-
-  if (patternCtx) {
-    patternCtx.fillStyle = baseCloth;
-    patternCtx.fillRect(0, 0, patternSize, patternSize);
-
-    patternCtx.strokeStyle = 'rgba(255,255,255,0.08)';
-    patternCtx.lineWidth = 1.2;
-    for (let i = -patternSize; i <= patternSize * 2; i += 7) {
-      patternCtx.beginPath();
-      patternCtx.moveTo(i, -patternSize);
-      patternCtx.lineTo(i, patternSize * 2);
-      patternCtx.stroke();
-    }
-
-    patternCtx.strokeStyle = 'rgba(0,0,0,0.12)';
-    patternCtx.lineWidth = 1.1;
-    for (let i = -patternSize + 3.5; i <= patternSize * 2; i += 7) {
-      patternCtx.beginPath();
-      patternCtx.moveTo(i, -patternSize);
-      patternCtx.lineTo(i, patternSize * 2);
-      patternCtx.stroke();
-    }
-
-    const pattern = ctx.createPattern(patternCanvas, 'repeat');
-    if (pattern) {
-      ctx.save();
-      ctx.translate(size / 2, size / 2);
-      ctx.rotate(Math.PI / 4); // rotate fibres diagonally across the surface
-      ctx.fillStyle = pattern;
-      ctx.fillRect(-size / 2, -size / 2, size, size);
-      ctx.restore();
+  const spacing = 1;
+  for (let y = 0; y < size; y += spacing) {
+    for (let x = 0; x < size; x += spacing) {
+      ctx.fillStyle = (x + y) % (spacing * 2) === 0
+        ? 'rgba(255,255,255,0.14)'
+        : 'rgba(0,0,0,0.14)';
+      ctx.beginPath();
+      ctx.arc(x, y, 0.25, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  for (let i = 0; i < 32000; i++) {
+  ctx.lineWidth = 0.35;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  for (let i = 0; i < 450000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const angle = Math.random() * Math.PI * 2;
+    const length = Math.random() * 0.6 + 0.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  for (let i = 0; i < 220000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const angle = Math.random() * Math.PI * 2;
+    const length = Math.random() * 0.45 + 0.15;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let i = 0; i < 36000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     ctx.fillRect(x, y, 1, 1);
@@ -2984,17 +2984,17 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
-      const ambientWallOffsetFactor = 0.88; // spread wall-mounted ambient lights farther apart
+      const ambientWallOffsetFactor = 1.08; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5;
-      const ambientTableOffset = TABLE.THICK * 0.65; // push the ambient fixtures farther from the playing surface
-      const ambientHeight = TABLE_Y + TABLE.THICK * 1.78; // lift the ambient fixtures higher for a softer spill
+      const ambientTableOffset = TABLE.THICK * 0.92; // push the ambient fixtures farther from the playing surface
+      const ambientHeight = TABLE_Y + TABLE.THICK * 2.12; // lift the ambient fixtures higher for a softer spill
       const ambientIntensityBase = 1.32;
-      const ambientIntensity = ambientIntensityBase * 1.2; // brighten the ambient lights by 20%
+      const ambientIntensity = ambientIntensityBase * 1.3; // brighten the ambient lights by 30%
       const ambientDistanceBase = Math.max(roomWidth, roomDepth) * 0.65 * 0.7;
-      const ambientDistance = ambientDistanceBase * 1.2; // enlarge the ambient cones by 20%
+      const ambientDistance = ambientDistanceBase * 1.3; // enlarge the ambient cones by 30%
       const ambientAngleBase = Math.PI * 0.6;
       const ambientAngle = Math.min(
         Math.PI / 2,
