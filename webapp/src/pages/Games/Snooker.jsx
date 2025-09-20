@@ -20,173 +20,99 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
 // --------------------------------------------------
-// Pocket jaws
+// Pocket rims (lathe + torus from updated design)
 // --------------------------------------------------
-const JAW_H = 2.1;
-const JAW_T = 1.05;
-const JAW_INNER_SCALE = 0.048;
-const JAW_CENTER_PULL_SCALE = 0.028;
-const SECTOR_SWEEP = Math.PI * 0.52;
-const SIDE_SECTOR_SWEEP = Math.PI * 0.32;
-const SECTOR_START = -SECTOR_SWEEP;
-const SECTOR_END = SECTOR_SWEEP;
-const jawMat = new THREE.MeshPhysicalMaterial({
-  color: 0x1c1c1c,
-  roughness: 0.42,
-  metalness: 0.12,
-  clearcoat: 0.45
+const POCKET_CHROME_MAT = new THREE.MeshPhysicalMaterial({
+  color: 0xd9d9d9,
+  metalness: 1,
+  roughness: 0.12,
+  clearcoat: 0.9,
+  clearcoatRoughness: 0.15,
+  envMapIntensity: 1.2
 });
-const jawCapMat = new THREE.MeshPhysicalMaterial({
-  color: 0x050505,
-  roughness: 0.32,
-  metalness: 0.65,
-  clearcoat: 0.25,
-  clearcoatRoughness: 0.32,
-  envMapIntensity: 0.9
+const POCKET_RIM_MAT = new THREE.MeshPhysicalMaterial({
+  color: 0x0d0d0d,
+  metalness: 0.7,
+  roughness: 0.6
 });
-function makeJawSector(
-  R = POCKET_VIS_R,
-  T = JAW_T,
-  start = SECTOR_START,
-  end = SECTOR_END,
-  depth = JAW_H
-) {
-  const outer = R + T;
-  const inner = R + Math.max(T * 0.32, R * JAW_INNER_SCALE);
-  const chamfer = Math.min((end - start) * 0.35, Math.PI * 0.18);
-  const innerStart = end - chamfer;
-  const innerEnd = start + chamfer;
-  const s = new THREE.Shape();
-  s.absarc(0, 0, outer, start, end, false);
-  const innerStartVec = new THREE.Vector2(
-    inner * Math.cos(innerStart),
-    inner * Math.sin(innerStart)
-  );
-  s.lineTo(innerStartVec.x, innerStartVec.y);
-  s.absarc(0, 0, inner, innerStart, innerEnd, true);
-  const outerStartVec = new THREE.Vector2(
-    outer * Math.cos(start),
-    outer * Math.sin(start)
-  );
-  s.lineTo(outerStartVec.x, outerStartVec.y);
-  const geo = new THREE.ExtrudeGeometry(s, {
-    depth,
-    bevelEnabled: false
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.rotateY(Math.PI / 2);
+function makePocketLathe({ inner = 0.18, outer = 0.3, depth = 0.085, lip = 0.02, seg = 96 }) {
+  const pts = [];
+  pts.push(new THREE.Vector2(outer, 0.0));
+  pts.push(new THREE.Vector2(outer - 0.02, 0.006));
+  pts.push(new THREE.Vector2(outer - 0.035, 0.01));
+  pts.push(new THREE.Vector2(inner + lip + 0.03, depth * 0.35));
+  pts.push(new THREE.Vector2(inner + lip + 0.01, depth * 0.7));
+  pts.push(new THREE.Vector2(inner + lip, depth));
+  pts.push(new THREE.Vector2(inner, depth));
+  pts.push(new THREE.Vector2(inner, 0.004));
+  pts.push(new THREE.Vector2(inner + 0.006, 0.0));
+  const geo = new THREE.LatheGeometry(pts, seg);
   geo.computeVertexNormals();
   return geo;
 }
-function addPocketJaws(parent, playW, playH) {
-  const HALF_PLAY_W = playW * 0.5;
-  const HALF_PLAY_H = playH * 0.5;
-  const POCKET_MAP = [
-    { id: 'corner_tl', type: 'corner', pos: [-HALF_PLAY_W, -HALF_PLAY_H] },
-    { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
-    { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_left', type: 'side', pos: [-HALF_PLAY_W, 0] },
-    { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
-  ];
-  const jaws = [];
-  const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
-  const jawDepthTarget = CLOTH_THICKNESS;
-  const capHeight = CLOTH_THICKNESS * 0.36;
-  const capLift = CLOTH_THICKNESS * 0.012;
-  const cornerJawGeo = makeJawSector();
-  const sideJawGeo = makeJawSector(
-    POCKET_VIS_R * 0.94,
-    JAW_T * 0.72,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP
-  );
-  const cornerCapGeo = makeJawSector(
-    POCKET_VIS_R,
-    JAW_T,
-    SECTOR_START,
-    SECTOR_END,
-    capHeight
-  );
-  const sideCapGeo = makeJawSector(
-    POCKET_VIS_R,
-    JAW_T * 0.82,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP,
-    capHeight
-  );
-  for (const entry of POCKET_MAP) {
-    const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
-    const centerPull =
-      entry.type === 'corner' ? POCKET_VIS_R * JAW_CENTER_PULL_SCALE : 0;
-    const pullDir =
-      entry.type === 'side'
-        ? new THREE.Vector2(entry.pos[0] >= 0 ? -1 : 1, 0)
-        : p.clone().multiplyScalar(-1);
-    const pShift = p.clone();
-    if (centerPull > 0 && pullDir.lengthSq() > 1e-6) {
-      pullDir.normalize();
-      pShift.add(pullDir.multiplyScalar(centerPull));
-    }
-    const geom = (entry.type === 'side' ? sideJawGeo : cornerJawGeo).clone();
-    geom.computeBoundingBox();
-    const bbox = geom.boundingBox;
-    const topShift = bbox ? -bbox.max.y : 0;
-    if (Math.abs(topShift) > 1e-6) {
-      geom.translate(0, topShift, 0);
-      geom.computeBoundingBox();
-    }
-    const adjustedBox = geom.boundingBox;
-    const currentDepth = adjustedBox
-      ? Math.abs(adjustedBox.min.y)
-      : jawDepthTarget;
-    if (currentDepth > 1e-6 && Math.abs(currentDepth - jawDepthTarget) > 1e-6) {
-      const depthScale = jawDepthTarget / currentDepth;
-      geom.scale(1, depthScale, 1);
-    }
-    geom.computeVertexNormals();
-    geom.computeBoundingBox();
-    geom.computeBoundingSphere();
-    const jaw = new THREE.Mesh(geom, jawMat);
-    jaw.castShadow = true;
-    jaw.receiveShadow = true;
-    jaw.position.set(pShift.x, jawTopLocal, pShift.y);
-    const lookTarget = (() => {
-      if (entry.type === 'side') {
-        const dir = entry.pos[0] >= 0 ? -1 : 1;
-        return new THREE.Vector3(
-          jaw.position.x + dir * POCKET_VIS_R * 1.5,
-          jaw.position.y - 0.05,
-          jaw.position.z
-        );
-      }
-      const towardCenter = new THREE.Vector3(
-        pShift.x * 0.35,
-        jaw.position.y - 0.08,
-        pShift.y * 0.35
-      );
-      return towardCenter;
-    })();
-    jaw.lookAt(lookTarget);
-    const capGeo =
-      (entry.type === 'side' ? sideCapGeo : cornerCapGeo).clone();
-    capGeo.computeBoundingBox();
-    capGeo.computeBoundingSphere();
-    const cap = new THREE.Mesh(capGeo, jawCapMat);
-    cap.castShadow = false;
-    cap.receiveShadow = true;
-    cap.position.y = capLift;
-    jaw.add(cap);
-    jaw.userData = {
-      ...(jaw.userData || {}),
-      cap,
-      capHeight,
-      capLift
-    };
-    parent.add(jaw);
-    jaws.push(jaw);
-  }
-  return jaws;
+function makePocketRim({ R = 0.3, r = 0.02, arc = Math.PI * 0.6 }) {
+  const geo = new THREE.TorusGeometry(R, r, 14, 96, arc);
+  geo.computeVertexNormals();
+  return geo;
+}
+function buildPocketGeometries() {
+  const scale = POCKET_VIS_R / 0.18;
+  const scaleValue = (value) => value * scale;
+  const makeGeos = ({ inner, outer, depth, lip, R, r, arc }) => ({
+    chrome: makePocketLathe({
+      inner: scaleValue(inner),
+      outer: scaleValue(outer),
+      depth: scaleValue(depth),
+      lip: scaleValue(lip)
+    }),
+    rim: makePocketRim({ R: scaleValue(R), r: scaleValue(r), arc })
+  });
+  return {
+    corner: makeGeos({
+      inner: 0.17,
+      outer: 0.29,
+      depth: 0.09,
+      lip: 0.02,
+      R: 0.29,
+      r: 0.022,
+      arc: Math.PI * 0.9
+    }),
+    side: makeGeos({
+      inner: 0.18,
+      outer: 0.3,
+      depth: 0.08,
+      lip: 0.02,
+      R: 0.3,
+      r: 0.02,
+      arc: Math.PI * 0.6
+    })
+  };
+}
+function addPocketMeshes(parent, cushionTop) {
+  const { corner, side } = buildPocketGeometries();
+  const pockets = [];
+  const centerTarget = new THREE.Vector3(0, cushionTop, 0);
+  pocketCenters().forEach((p) => {
+    const isCorner = Math.abs(p.x) > 1e-6 && Math.abs(p.y) > 1e-6;
+    const geos = isCorner ? corner : side;
+    const group = new THREE.Group();
+    group.position.set(p.x, cushionTop, p.y);
+    group.up.set(0, 1, 0);
+    group.lookAt(centerTarget);
+    group.rotateX(Math.PI);
+    const chrome = new THREE.Mesh(geos.chrome, POCKET_CHROME_MAT);
+    chrome.castShadow = true;
+    chrome.receiveShadow = true;
+    group.add(chrome);
+    const rim = new THREE.Mesh(geos.rim, POCKET_RIM_MAT);
+    rim.rotation.x = Math.PI / 2;
+    rim.castShadow = true;
+    rim.receiveShadow = true;
+    group.add(rim);
+    parent.add(group);
+    pockets.push(group);
+  });
+  return pockets;
 }
 
 function addPocketCuts(parent, clothPlane) {
@@ -1053,17 +979,17 @@ function Table3D(parent) {
   const clothHalfW = halfW + CLOTH_EDGE_GROWTH;
   const clothHalfH = halfH + CLOTH_EDGE_GROWTH;
 
-  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.08);
+  const clothBaseColor = new THREE.Color(COLORS.cloth).multiplyScalar(1.12);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothBaseColor,
-    roughness: 0.32,
-    metalness: 0.16,
-    envMapIntensity: 1.05,
-    emissive: clothBaseColor.clone().multiplyScalar(0.22),
-    emissiveIntensity: 1.65,
-    sheen: 0.45,
-    sheenColor: clothBaseColor.clone().multiplyScalar(1.1),
-    sheenRoughness: 0.68
+    roughness: 0.28,
+    metalness: 0.18,
+    envMapIntensity: 1.2,
+    emissive: clothBaseColor.clone().multiplyScalar(0.26),
+    emissiveIntensity: 1.75,
+    sheen: 0.55,
+    sheenColor: clothBaseColor.clone().multiplyScalar(1.15),
+    sheenRoughness: 0.6
   });
   const clothTexture = makeClothTexture();
   if (clothTexture) {
@@ -1296,9 +1222,6 @@ function Table3D(parent) {
     clothMask.material.polygonOffsetUnits = -6;
     table.add(clothMask);
   });
-
-  const pocketJaws = addPocketJaws(table, PLAY_W, PLAY_H);
-  if (pocketJaws.length) table.userData.jaws = pocketJaws;
 
   const toneCanvas = document.createElement('canvas');
   toneCanvas.width = 1024;
@@ -1905,31 +1828,8 @@ function Table3D(parent) {
 
   if (!table.userData.pockets) table.userData.pockets = [];
   const clothPlane = cushionTopLocal - CLOTH_THICKNESS;
-  if (table.userData.jaws?.length) {
-    const jawTopLocal = cushionTopLocal;
-    const targetDepth = Math.max(jawTopLocal - clothPlane, CLOTH_THICKNESS);
-    table.userData.jaws.forEach((jaw) => {
-      jaw.position.y = jawTopLocal;
-      const geom = jaw.geometry;
-      if (geom?.boundingBox) {
-        const currentDepth = Math.abs(geom.boundingBox.min.y);
-        if (
-          currentDepth > 1e-6 &&
-          Math.abs(currentDepth - targetDepth) > 1e-3
-        ) {
-          const depthScale = targetDepth / currentDepth;
-          geom.scale(1, depthScale, 1);
-          geom.computeVertexNormals();
-          geom.computeBoundingBox();
-          geom.computeBoundingSphere();
-        }
-      }
-      const { cap, capHeight, capLift } = jaw.userData || {};
-      if (cap) {
-        cap.position.y = (capHeight ?? 0) + (capLift ?? 0);
-      }
-    });
-  }
+  const pocketRims = addPocketMeshes(table, cushionTopLocal);
+  if (pocketRims.length) table.userData.pocketRims = pocketRims;
   pocketCenters().forEach((p) => {
     const cutHeight = railH * 3.0;
     const scaleY = 1.15;
@@ -2988,7 +2888,7 @@ function SnookerGame() {
       // keep a single ceiling light centred over the table
       makeLight(0, 0);
 
-      const ambientWallOffsetFactor = 1.28; // spread wall-mounted ambient lights farther apart
+      const ambientWallOffsetFactor = 1.34; // spread wall-mounted ambient lights farther apart
       const ambientWallDistanceX =
         TABLE.W / 2 + sideClearance * ambientWallOffsetFactor - wallThickness * 0.5; // position wall lights farther apart from each other
       const ambientWallDistanceZ =
@@ -3038,13 +2938,20 @@ function SnookerGame() {
 
       const ambientX = ambientWallDistanceX + ambientTableOffset;
       const ambientZ = ambientWallDistanceZ + ambientTableOffset;
+      const ambientPocketOutset = POCKET_VIS_R * 0.75 + TABLE.WALL * 0.4;
 
       [
         [ambientX, ambientZ, PLAY_W / 2, PLAY_H / 2],
         [-ambientX, ambientZ, -PLAY_W / 2, PLAY_H / 2],
         [ambientX, -ambientZ, PLAY_W / 2, -PLAY_H / 2],
         [-ambientX, -ambientZ, -PLAY_W / 2, -PLAY_H / 2]
-      ].forEach(([x, z, targetX, targetZ]) => addAmbientFill(x, z, targetX, targetZ));
+      ].forEach(([x, z, targetX, targetZ]) => {
+        const signX = Math.sign(targetX) || 0;
+        const signZ = Math.sign(targetZ) || 0;
+        const lookX = targetX + signX * ambientPocketOutset;
+        const lookZ = targetZ + signZ * ambientPocketOutset;
+        addAmbientFill(x, z, lookX, lookZ);
+      });
 
       // Table
       const {
