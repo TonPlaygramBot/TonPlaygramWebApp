@@ -2993,11 +2993,7 @@ function SnookerGame() {
 
         const hemisphereY = TABLE_Y + TABLE.THICK + CLOTH_THICKNESS * 1.5;
         const hemisphereX = PLAY_W * 0.55;
-        const hemisphereOffsets = [
-          -PLAY_H * 0.4,
-          0,
-          PLAY_H * 0.4
-        ];
+        const hemisphereOffsets = [-PLAY_H * 0.4, PLAY_H * 0.4];
 
         hemisphereOffsets.forEach((z) => {
           const hemisphere = new THREE.HemisphereLight(
@@ -3018,7 +3014,22 @@ function SnookerGame() {
         const spotlightIntensity = 1.9;
         const spotlightColor = new THREE.Color(0xfff1d0);
 
-        [[0, 0]].forEach(([x, z]) => {
+        const spotlightTargetY = targetY + CLOTH_THICKNESS * 0.25;
+        [
+          { x: 0, z: 0, targetX: 0, targetZ: 0 },
+          {
+            x: -PLAY_W * 0.45,
+            z: 0,
+            targetX: -PLAY_W * 0.18,
+            targetZ: 0
+          },
+          {
+            x: PLAY_W * 0.45,
+            z: 0,
+            targetX: PLAY_W * 0.18,
+            targetZ: 0
+          }
+        ].forEach(({ x, z, targetX, targetZ }) => {
           const spotlight = new THREE.SpotLight(
             spotlightColor,
             spotlightIntensity,
@@ -3028,7 +3039,7 @@ function SnookerGame() {
             1.1
           );
           spotlight.position.set(x, ceilingY, z);
-          spotlight.target.position.set(x, targetY + CLOTH_THICKNESS * 0.25, z);
+          spotlight.target.position.set(targetX, spotlightTargetY, targetZ);
           spotlight.castShadow = true;
           spotlight.shadow.mapSize.set(1536, 1536);
           spotlight.shadow.bias = -0.0002;
