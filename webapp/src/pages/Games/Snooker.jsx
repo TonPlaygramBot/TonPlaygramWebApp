@@ -2992,37 +2992,41 @@ function SnookerGame() {
         world.add(lightingRig);
 
         const hemisphere = new THREE.HemisphereLight(
-          0xf2f4ff,
-          0x16191f,
-          0.55
+          0xf9fbff,
+          0x1b1f27,
+          0.85
         );
+        hemisphere.color.lerp(new THREE.Color(0xffffff), 0.25);
         hemisphere.position.set(0, TABLE_Y + TABLE.THICK * 0.5, 0);
         lightingRig.add(hemisphere);
 
         const targetY = TABLE_Y + CLOTH_THICKNESS * 0.5;
         const ceilingY = floorY + wallHeight - wallThickness * 0.5;
         const maxDistance = Math.max(roomWidth, roomDepth) * 1.15;
-        const spotlightAngle = Math.PI / 4.2;
-        const spotlightPenumbra = 0.38;
+        const spotlightAngle = Math.PI / 3.7;
+        const spotlightPenumbra = 0.52;
+        const spotlightIntensity = 1.9;
+        const spotlightColor = new THREE.Color(0xfff1d0);
 
         [
-          [0, -PLAY_H * 0.25],
-          [0, PLAY_H * 0.25]
+          [0, -PLAY_H * 0.32],
+          [0, 0],
+          [0, PLAY_H * 0.32]
         ].forEach(([x, z]) => {
           const spotlight = new THREE.SpotLight(
-            0xffffff,
-            1.25,
+            spotlightColor,
+            spotlightIntensity,
             maxDistance,
             spotlightAngle,
             spotlightPenumbra,
             1.1
           );
           spotlight.position.set(x, ceilingY, z);
-          spotlight.target.position.set(x, targetY, z);
+          spotlight.target.position.set(x, targetY + CLOTH_THICKNESS * 0.25, z);
           spotlight.castShadow = true;
-          spotlight.shadow.mapSize.set(1024, 1024);
+          spotlight.shadow.mapSize.set(1536, 1536);
           spotlight.shadow.bias = -0.0002;
-          spotlight.shadow.radius = 3.5;
+          spotlight.shadow.radius = 2.8;
           spotlight.shadow.camera.near = 10;
           spotlight.shadow.camera.far = maxDistance * 1.1;
           lightingRig.add(spotlight);
