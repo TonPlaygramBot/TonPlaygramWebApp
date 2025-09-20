@@ -692,23 +692,6 @@ function makeClothTexture() {
     }
   }
 
-  const speckleCount = 8000;
-  ctx.fillStyle = 'rgba(8, 20, 12, 0.22)';
-  for (let i = 0; i < speckleCount; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const radius = Math.random() * 0.75 + 0.15;
-    const squish = 0.6 + Math.random() * 0.25;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(Math.random() * Math.PI);
-    ctx.scale(1, squish);
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
   ctx.globalCompositeOperation = 'soft-light';
   ctx.globalAlpha = 0.35;
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
@@ -1733,172 +1716,13 @@ function Table3D(parent) {
   frameShape.lineTo(outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, outerHalfH);
   frameShape.lineTo(-outerHalfW, -outerHalfH);
-
-  const innerHalfW = halfW + railW;
-  const innerHalfH = halfH + railW;
-  const topY = -innerHalfH;
-  const bottomY = innerHalfH;
-  const leftX = -innerHalfW;
-  const rightX = innerHalfW;
-  const cornerBlendRadius = POCKET_VIS_R + railW * 0.62;
-  const sideBlendRadius = POCKET_VIS_R + railW * 0.38;
-
-  const intersectCircleWithHorizontal = (center, radius, y) => {
-    const dy = y - center.y;
-    const inside = radius * radius - dy * dy;
-    if (inside <= 0) return [center.x, center.x];
-    const dx = Math.sqrt(inside);
-    return [center.x - dx, center.x + dx];
-  };
-  const intersectCircleWithVertical = (center, radius, x) => {
-    const dx = x - center.x;
-    const inside = radius * radius - dx * dx;
-    if (inside <= 0) return [center.y, center.y];
-    const dy = Math.sqrt(inside);
-    return [center.y - dy, center.y + dy];
-  };
-  const toAngle = (center, point) =>
-    Math.atan2(point.y - center.y, point.x - center.x);
-  const addArcToPath = (path, center, radius, startPoint, endPoint, clockwise) => {
-    let startAngle = toAngle(center, startPoint);
-    let endAngle = toAngle(center, endPoint);
-    if (clockwise) {
-      if (startAngle <= endAngle) startAngle += Math.PI * 2;
-    } else if (endAngle <= startAngle) endAngle += Math.PI * 2;
-    path.absarc(center.x, center.y, radius, startAngle, endAngle, clockwise);
-  };
-
-  const makeCornerBlend = (signX, signY) => {
-    const center = new THREE.Vector2(
-      (PLAY_W / 2) * signX,
-      (PLAY_H / 2) * signY
-    );
-    const horizontalY = signY < 0 ? topY : bottomY;
-    const verticalX = signX < 0 ? leftX : rightX;
-    const horizontalHits = intersectCircleWithHorizontal(
-      center,
-      cornerBlendRadius,
-      horizontalY
-    );
-    const verticalHits = intersectCircleWithVertical(
-      center,
-      cornerBlendRadius,
-      verticalX
-    );
-    const horizontalX =
-      signX < 0
-        ? Math.max(...horizontalHits)
-        : Math.min(...horizontalHits);
-    const verticalY =
-      signY < 0 ? Math.max(...verticalHits) : Math.min(...verticalHits);
-    return {
-      center,
-      horizontal: new THREE.Vector2(horizontalX, horizontalY),
-      vertical: new THREE.Vector2(verticalX, verticalY)
-    };
-  };
-  const makeSideBlend = (axis) => {
-    if (axis === 'top' || axis === 'bottom') {
-      const center = new THREE.Vector2(0, (PLAY_H / 2) * (axis === 'top' ? -1 : 1));
-      const y = axis === 'top' ? topY : bottomY;
-      const hits = intersectCircleWithHorizontal(center, sideBlendRadius, y);
-      const [left, right] = hits;
-      return {
-        center,
-        start: new THREE.Vector2(axis === 'top' ? left : right, y),
-        end: new THREE.Vector2(axis === 'top' ? right : left, y)
-      };
-    }
-    const center = new THREE.Vector2((PLAY_W / 2) * (axis === 'left' ? -1 : 1), 0);
-    const x = axis === 'left' ? leftX : rightX;
-    const hits = intersectCircleWithVertical(center, sideBlendRadius, x);
-    const [lower, upper] = hits;
-    return {
-      center,
-      start: new THREE.Vector2(x, axis === 'left' ? upper : lower),
-      end: new THREE.Vector2(x, axis === 'left' ? lower : upper)
-    };
-  };
-
-  const topLeftCorner = makeCornerBlend(-1, -1);
-  const topRightCorner = makeCornerBlend(1, -1);
-  const bottomRightCorner = makeCornerBlend(1, 1);
-  const bottomLeftCorner = makeCornerBlend(-1, 1);
-  const topSide = makeSideBlend('top');
-  const rightSide = makeSideBlend('right');
-  const bottomSide = makeSideBlend('bottom');
-  const leftSide = makeSideBlend('left');
-
-  const innerPath = new THREE.Path();
-  innerPath.moveTo(topLeftCorner.horizontal.x, topY);
-  innerPath.lineTo(topSide.start.x, topY);
-  addArcToPath(innerPath, topSide.center, sideBlendRadius, topSide.start, topSide.end, false);
-  innerPath.lineTo(topRightCorner.horizontal.x, topY);
-  addArcToPath(
-    innerPath,
-    topRightCorner.center,
-    cornerBlendRadius,
-    topRightCorner.horizontal,
-    topRightCorner.vertical,
-    true
-  );
-  innerPath.lineTo(rightX, rightSide.start.y);
-  addArcToPath(
-    innerPath,
-    rightSide.center,
-    sideBlendRadius,
-    rightSide.start,
-    rightSide.end,
-    false
-  );
-  innerPath.lineTo(rightX, bottomRightCorner.vertical.y);
-  addArcToPath(
-    innerPath,
-    bottomRightCorner.center,
-    cornerBlendRadius,
-    bottomRightCorner.vertical,
-    bottomRightCorner.horizontal,
-    true
-  );
-  innerPath.lineTo(bottomSide.start.x, bottomY);
-  addArcToPath(
-    innerPath,
-    bottomSide.center,
-    sideBlendRadius,
-    bottomSide.start,
-    bottomSide.end,
-    false
-  );
-  innerPath.lineTo(bottomLeftCorner.horizontal.x, bottomY);
-  addArcToPath(
-    innerPath,
-    bottomLeftCorner.center,
-    cornerBlendRadius,
-    bottomLeftCorner.horizontal,
-    bottomLeftCorner.vertical,
-    true
-  );
-  innerPath.lineTo(leftX, leftSide.start.y);
-  addArcToPath(
-    innerPath,
-    leftSide.center,
-    sideBlendRadius,
-    leftSide.start,
-    leftSide.end,
-    true
-  );
-  innerPath.lineTo(leftX, topLeftCorner.vertical.y);
-  addArcToPath(
-    innerPath,
-    topLeftCorner.center,
-    cornerBlendRadius,
-    topLeftCorner.vertical,
-    topLeftCorner.horizontal,
-    true
-  );
-  innerPath.closePath();
-
-  frameShape.holes.push(innerPath);
+  const innerRect = new THREE.Path();
+  innerRect.moveTo(-halfW - railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, -halfH - railW);
+  innerRect.lineTo(halfW + railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, halfH + railW);
+  innerRect.lineTo(-halfW - railW, -halfH - railW);
+  frameShape.holes.push(innerRect);
   // extend the side rails downward without altering the top surface
   const frameDepth = railH * 3.4;
   const bevelSpan = Math.min(railW, railH) * 0.18;
@@ -3156,9 +2980,8 @@ function SnookerGame() {
       const lightHeight = TABLE_Y + 140; // raise spotlights further from the table
       const baseRectIntensity = 29.5;
       const lightIntensity = baseRectIntensity * 0.54; // softer single fixture focused over the play field
-      const spotFootprintScale = 0.5; // shrink the overhead spotlight footprint by 50%
-      const rectWidth = PLAY_W * 0.94 * spotFootprintScale;
-      const rectHeight = PLAY_H * 0.98 * spotFootprintScale;
+      const rectWidth = PLAY_W * 0.94;
+      const rectHeight = PLAY_H * 0.98;
 
       const makeLight = () => {
         const rect = new THREE.RectAreaLight(
@@ -3179,11 +3002,9 @@ function SnookerGame() {
       const ambientWallDistanceZ =
         TABLE.H / 2 + sideClearance * 0.55 - wallThickness * 0.5;
       const ambientHeight = TABLE_Y + TABLE.THICK * 1.15;
-      const ambientSizeScale = 1.08; // widen the ambient fills slightly without brightening the table
-      const ambientBaseIntensity = 1.32;
-      const ambientIntensity = ambientBaseIntensity / ambientSizeScale;
-      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65 * ambientSizeScale;
-      const ambientAngle = Math.PI * 0.6 * ambientSizeScale;
+      const ambientIntensity = 1.32;
+      const ambientDistance = Math.max(roomWidth, roomDepth) * 0.65;
+      const ambientAngle = Math.PI * 0.6;
       const ambientPenumbra = 0.42;
       const ambientColor = 0xf8f1e2;
 
