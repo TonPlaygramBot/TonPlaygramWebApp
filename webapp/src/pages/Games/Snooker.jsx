@@ -2357,7 +2357,7 @@ function SnookerGame() {
 
         const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6);
-        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.35, 0);
+        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.26, 0);
         lightingRig.add(hemisphere);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -2368,11 +2368,11 @@ function SnookerGame() {
 
         const SPOT_CONFIGS = [
           {
-            position: [PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.3, PLAY_H * 0.08],
+            position: [PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.24, PLAY_H * 0.08],
             target: [0, tableSurfaceY + BALL_R * 0.5, 0]
           },
           {
-            position: [-PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.3, -PLAY_H * 0.08],
+            position: [-PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.24, -PLAY_H * 0.08],
             target: [0, tableSurfaceY + BALL_R * 0.5, 0]
           }
         ];
