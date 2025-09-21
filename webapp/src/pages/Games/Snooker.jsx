@@ -369,11 +369,12 @@ const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.0;
+const TABLE_DROP = 0.4;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 // raise overall table position so the longer legs are visible and the playfield sits higher off the floor
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const LEG_LENGTH_SCALE = 0.6; // 40% shorter legs relative to the previous build
@@ -445,12 +446,19 @@ const createClothTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const n = noise(x, y) * 0.18 - 0.09;
-        const weave = Math.sin((x / size) * Math.PI * 24) * 0.04;
-        const cross = Math.sin((y / size) * Math.PI * 18) * 0.03;
-        const variation = clamp01(srgbBase.r + n + weave + cross);
-        const tint = clamp01(srgbBase.g + n * 0.6 + weave * 0.5);
-        const depth = clamp01(srgbBase.b + n * 0.4 + cross * 0.35);
+        const n = noise(x, y) * 0.24 - 0.12;
+        const weave = Math.sin((x / size) * Math.PI * 28) * 0.055;
+        const cross = Math.sin((y / size) * Math.PI * 22) * 0.045;
+        const diag = Math.sin(((x + y) / size) * Math.PI * 20) * 0.035;
+        const variation = clamp01(
+          srgbBase.r + n * 0.65 + weave + cross * 0.6 + diag * 0.35
+        );
+        const tint = clamp01(
+          srgbBase.g + n * 0.75 + weave * 0.55 + diag * 0.4
+        );
+        const depth = clamp01(
+          srgbBase.b + n * 0.6 + cross * 0.5 + diag * 0.35
+        );
         image.data[idx] = variation * 255;
         image.data[idx + 1] = tint * 255;
         image.data[idx + 2] = depth * 255;
@@ -460,7 +468,7 @@ const createClothTextures = (() => {
     ctx.putImageData(image, 0, 0);
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 8;
+    texture.anisotropy = 10;
 
     const bumpCanvas = document.createElement('canvas');
     bumpCanvas.width = bumpCanvas.height = size;
@@ -469,9 +477,10 @@ const createClothTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const n = noise(x + 17.31, y + 91.27);
-        const fiber = Math.sin((x / size) * Math.PI * 20) * 0.25;
-        const shade = clamp01(0.55 + n * 0.35 + fiber * 0.2);
+        const n = noise(x + 17.31, y + 91.27) * 0.6 - 0.3;
+        const fiberX = Math.sin((x / size) * Math.PI * 26) * 0.35;
+        const fiberY = Math.sin((y / size) * Math.PI * 24) * 0.28;
+        const shade = clamp01(0.55 + n + fiberX + fiberY * 0.85);
         const value = shade * 255;
         bumpImage.data[idx] = value;
         bumpImage.data[idx + 1] = value;
@@ -482,7 +491,7 @@ const createClothTextures = (() => {
     bumpCtx.putImageData(bumpImage, 0, 0);
     const bump = new THREE.CanvasTexture(bumpCanvas);
     bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-    bump.anisotropy = 4;
+    bump.anisotropy = 6;
 
     cache = { map: texture, bump };
     return cache;
@@ -518,6 +527,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.35;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -1112,7 +1122,8 @@ function alignRailsToCushions(table, frame) {
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
   const frameBox = new THREE.Box3().setFromObject(frame);
   const diff = frameBox.max.y - cushionBox.max.y;
-  if (diff > 0.001) {
+  const tolerance = 1e-3;
+  if (Math.abs(diff) > tolerance) {
     frame.position.y -= diff;
   }
 }
@@ -1160,9 +1171,10 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.82,
+    roughness: 0.76,
+    metalness: 0.05,
     sheen: 1.0,
-    sheenRoughness: 0.7
+    sheenRoughness: 0.52
   });
   const clothTextures = createClothTextures();
   const baseRepeat = 26;
@@ -1174,7 +1186,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat);
-    clothMat.bumpScale = 0.065;
+    clothMat.bumpScale = 0.095;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -2023,9 +2035,10 @@ function SnookerGame() {
           const radius = clampOrbitRadius(
             THREE.MathUtils.lerp(cueShot.radius, standing.radius, blend)
           );
+          const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK - 0.05,
-            (cushionHeightRef.current ?? TABLE.THICK) * 0.95
+            cushionHeight + CAMERA_CUSHION_CLEARANCE
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -2322,7 +2335,7 @@ function SnookerGame() {
           const theta = orbit.theta ?? sph.theta;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            cushionHeightRef.current
+            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
@@ -2412,7 +2425,7 @@ function SnookerGame() {
           applyCameraBlend();
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            cushionHeightRef.current
+            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
@@ -2635,12 +2648,11 @@ function SnookerGame() {
           0.28,
           1
         );
-        spot.position.set(
-          1.25 * fixtureScale,
-          tableSurfaceY + 4.9 * scaledHeight + lightHeightLift,
-          0.65 * fixtureScale
-        );
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
+        const spotOffsetX = 1.6 * fixtureScale;
+        const spotOffsetZ = 0.95 * fixtureScale;
+        const spotHeight = tableSurfaceY + 6.2 * scaledHeight + lightHeightLift;
+        spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
