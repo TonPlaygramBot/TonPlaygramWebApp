@@ -336,7 +336,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
-const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 0.55; // extend side aprons so they meet the legs cleanly
+const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 0.88; // extend side aprons so they meet the legs cleanly and flow into the legs
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.2; // subtle lift so pocket rims sit just above the cloth surface
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -440,7 +440,7 @@ const createClothTextures = (() => {
       cache = { map: null, bump: null };
       return cache;
     }
-    const size = 256;
+    const size = 384;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -448,18 +448,18 @@ const createClothTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const n = noise(x, y) * 0.24 - 0.12;
-        const weave = Math.sin((x / size) * Math.PI * 28) * 0.055;
-        const cross = Math.sin((y / size) * Math.PI * 22) * 0.045;
-        const diag = Math.sin(((x + y) / size) * Math.PI * 20) * 0.035;
+        const n = noise(x, y) * 0.36 - 0.18;
+        const weave = Math.sin((x / size) * Math.PI * 32) * 0.085;
+        const cross = Math.sin((y / size) * Math.PI * 28) * 0.065;
+        const diag = Math.sin(((x + y) / size) * Math.PI * 24) * 0.055;
         const variation = clamp01(
-          srgbBase.r + n * 0.65 + weave + cross * 0.6 + diag * 0.35
+          srgbBase.r + n * 0.78 + weave + cross * 0.75 + diag * 0.45
         );
         const tint = clamp01(
-          srgbBase.g + n * 0.75 + weave * 0.55 + diag * 0.4
+          srgbBase.g + n * 0.88 + weave * 0.72 + diag * 0.52
         );
         const depth = clamp01(
-          srgbBase.b + n * 0.6 + cross * 0.5 + diag * 0.35
+          srgbBase.b + n * 0.7 + cross * 0.62 + diag * 0.45
         );
         image.data[idx] = variation * 255;
         image.data[idx + 1] = tint * 255;
@@ -470,7 +470,7 @@ const createClothTextures = (() => {
     ctx.putImageData(image, 0, 0);
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 10;
+    texture.anisotropy = 18;
 
     const bumpCanvas = document.createElement('canvas');
     bumpCanvas.width = bumpCanvas.height = size;
@@ -479,10 +479,83 @@ const createClothTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const n = noise(x + 17.31, y + 91.27) * 0.6 - 0.3;
-        const fiberX = Math.sin((x / size) * Math.PI * 26) * 0.35;
-        const fiberY = Math.sin((y / size) * Math.PI * 24) * 0.28;
-        const shade = clamp01(0.55 + n + fiberX + fiberY * 0.85);
+        const n = noise(x + 17.31, y + 91.27) * 0.9 - 0.45;
+        const fiberX = Math.sin((x / size) * Math.PI * 30) * 0.55;
+        const fiberY = Math.sin((y / size) * Math.PI * 28) * 0.48;
+        const micro = Math.sin(((x + y) / size) * Math.PI * 18) * 0.22;
+        const shade = clamp01(0.5 + n * 0.85 + fiberX + fiberY * 0.9 + micro);
+        const value = shade * 255;
+        bumpImage.data[idx] = value;
+        bumpImage.data[idx + 1] = value;
+        bumpImage.data[idx + 2] = value;
+        bumpImage.data[idx + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+    const bump = new THREE.CanvasTexture(bumpCanvas);
+    bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+    bump.anisotropy = 12;
+
+    cache = { map: texture, bump };
+    return cache;
+  };
+})();
+
+const createCarpetTextures = (() => {
+  let cache = null;
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  const noise = (x, y) => {
+    const value = Math.sin(x * 2.142 + y * 3.741) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const base = new THREE.Color(0x8c2f2f).convertLinearToSRGB();
+    const image = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const ring = Math.sin(((x * x + y * y) / (size * size)) * Math.PI * 1.4);
+        const fibers =
+          Math.sin((x / size) * Math.PI * 14) * 0.18 +
+          Math.cos((y / size) * Math.PI * 16) * 0.16;
+        const grain = noise(x + ring * 12.5, y + ring * 18.5) * 0.55 - 0.28;
+        const shading = clamp01(0.55 + fibers * 0.6 + ring * 0.12 + grain);
+        image.data[idx] = clamp01(base.r + shading * 0.25) * 255;
+        image.data[idx + 1] = clamp01(base.g + shading * 0.18) * 255;
+        image.data[idx + 2] = clamp01(base.b + shading * 0.15) * 255;
+        image.data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 8;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
+
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = size;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    const bumpImage = bumpCtx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const weaveX = Math.sin((x / size) * Math.PI * 18) * 0.5;
+        const weaveY = Math.cos((y / size) * Math.PI * 20) * 0.45;
+        const speckle = noise(x * 1.4, y * 1.7) * 0.8 - 0.4;
+        const shade = clamp01(0.5 + weaveX + weaveY + speckle);
         const value = shade * 255;
         bumpImage.data[idx] = value;
         bumpImage.data[idx + 1] = value;
@@ -494,6 +567,9 @@ const createClothTextures = (() => {
     const bump = new THREE.CanvasTexture(bumpCanvas);
     bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
     bump.anisotropy = 6;
+    bump.minFilter = THREE.LinearMipMapLinearFilter;
+    bump.magFilter = THREE.LinearFilter;
+    bump.generateMipmaps = true;
 
     cache = { map: texture, bump };
     return cache;
@@ -518,7 +594,7 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
 const STANDING_VIEW_MARGIN = 0.65;
 const STANDING_VIEW_FOV = 62;
 const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
@@ -569,8 +645,8 @@ const ACTION_CAMERA = Object.freeze({
 const ACTION_CAMERA_RADIUS_SCALE = 0.76;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
-  CAMERA.maxPhi - 0.02,
-  CAMERA.minPhi + 0.02
+  CAMERA.maxPhi - 0.04,
+  CAMERA.minPhi + 0.08
 );
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
@@ -1194,7 +1270,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat);
-    clothMat.bumpScale = 0.16;
+    clothMat.bumpScale = 0.26;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -1507,7 +1583,7 @@ function Table3D(parent) {
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const baseX = baseExtentW;
   const baseZ = baseExtentH;
-  const LEG_INSET = (TABLE.WALL * 0.7) * 1.0;
+  const LEG_INSET = TABLE.WALL * 0.7 * 1.35;
   const legPositions = [
     [-(baseX) + LEG_INSET, -(baseZ) + LEG_INSET],
     [baseX - LEG_INSET, -(baseZ) + LEG_INSET],
@@ -1593,6 +1669,7 @@ function SnookerGame() {
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const followViewRef = useRef(null);
+  const aimFocusRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const initialCuePhi = THREE.MathUtils.clamp(
     ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
@@ -1897,13 +1974,28 @@ function SnookerGame() {
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
       const carpetDepth = roomDepth - wallThickness + carpetInset;
+      const carpetTextures = createCarpetTextures();
+      const carpetMat = new THREE.MeshStandardMaterial({
+        color: 0x8c2f2f,
+        roughness: 0.92,
+        metalness: 0.04
+      });
+      const carpetRepeatX = Math.max(1.5, (carpetWidth / TABLE.W) * 1.2);
+      const carpetRepeatZ = Math.max(1.5, (carpetDepth / TABLE.H) * 1.2);
+      if (carpetTextures.map) {
+        carpetMat.map = carpetTextures.map;
+        carpetMat.map.repeat.set(carpetRepeatX, carpetRepeatZ);
+        carpetMat.map.needsUpdate = true;
+      }
+      if (carpetTextures.bump) {
+        carpetMat.bumpMap = carpetTextures.bump;
+        carpetMat.bumpMap.repeat.set(carpetRepeatX, carpetRepeatZ);
+        carpetMat.bumpScale = 0.35;
+        carpetMat.bumpMap.needsUpdate = true;
+      }
       const carpet = new THREE.Mesh(
         new THREE.BoxGeometry(carpetWidth, carpetThickness, carpetDepth),
-        new THREE.MeshStandardMaterial({
-          color: 0x8c2f2f,
-          roughness: 0.9,
-          metalness: 0.05
-        })
+        carpetMat
       );
       carpet.castShadow = false;
       carpet.receiveShadow = true;
@@ -2115,6 +2207,12 @@ function SnookerGame() {
                   cueBall.pos.y + dir.y * BALL_R * 12
                 );
               }
+              if (!targetVec2 && view.impactPoint) {
+                targetVec2 = view.impactPoint.clone();
+              }
+              if (targetVec2) {
+                view.impactPoint = targetVec2.clone();
+              }
               const scaledRadius = sph.radius * ACTION_CAMERA_RADIUS_SCALE;
               const orbitRadius = clampOrbitRadius(
                 Math.max(scaledRadius, ACTION_CAMERA_MIN_RADIUS)
@@ -2125,14 +2223,25 @@ function SnookerGame() {
                 CAMERA.maxPhi
               );
               const orbitTheta = sph.theta;
-              const tableFocus = new THREE.Vector3(
-                playerOffsetRef.current,
-                TABLE_Y + 0.05,
-                PLAY_H * 0.12
-              );
-              const worldFocus = tableFocus
-                .clone()
-                .multiplyScalar(worldScaleFactor);
+              const tableFocus = (() => {
+                if (
+                  targetVec2 &&
+                  Number.isFinite(targetVec2.x) &&
+                  Number.isFinite(targetVec2.y)
+                ) {
+                  return new THREE.Vector3(
+                    targetVec2.x,
+                    BALL_CENTER_Y,
+                    targetVec2.y
+                  );
+                }
+                return new THREE.Vector3(
+                  playerOffsetRef.current,
+                  TABLE_Y + 0.05,
+                  PLAY_H * 0.12
+                );
+              })();
+              const worldFocus = tableFocus.clone().multiplyScalar(worldScaleFactor);
               const fullTableRadius = clampOrbitRadius(
                 Math.max(orbitRadius, fitRadius(camera, 1.12))
               );
@@ -2230,10 +2339,18 @@ function SnookerGame() {
             lookTarget = activeShotView.smoothedTarget;
           } else {
             const followCue = cue?.mesh && cue.active && !shooting;
+            const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
             if (shooting && followViewRef.current?.lastBallPos) {
               const last = followViewRef.current.lastBallPos;
               focusTarget = new THREE.Vector3(last.x, BALL_CENTER_Y, last.y);
+            } else if (
+              aimFocus &&
+              Number.isFinite(aimFocus.x) &&
+              Number.isFinite(aimFocus.y) &&
+              Number.isFinite(aimFocus.z)
+            ) {
+              focusTarget = aimFocus.clone();
             } else if (followCue) {
               focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
@@ -2680,7 +2797,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          4.4,
+          5.2,
           0,
           Math.PI * 0.32,
           0.35,
@@ -2698,7 +2815,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.1);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
@@ -3068,6 +3185,7 @@ function SnookerGame() {
           applyCameraBlend(0);
           updateCamera();
           shooting = true;
+          aimFocusRef.current = null;
           potted = [];
           foul = false;
           firstHit = null;
@@ -3076,7 +3194,13 @@ function SnookerGame() {
           const prediction = calcTarget(cue, aimDir.clone(), balls);
           shotPrediction = {
             ballId: prediction.targetBall?.id ?? null,
-            dir: prediction.afterDir ? prediction.afterDir.clone() : null
+            dir: prediction.afterDir ? prediction.afterDir.clone() : null,
+            impact: prediction.impact
+              ? new THREE.Vector2(prediction.impact.x, prediction.impact.y)
+              : null,
+            railNormal: prediction.railNormal
+              ? prediction.railNormal.clone()
+              : null
           };
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           const powerScale =
@@ -3160,7 +3284,19 @@ function SnookerGame() {
               aimDir: aimDir.clone(),
               currentCameraId: null,
               lastCameraSwitch: shotStart,
-              focusPoint: null,
+              impactPoint: shotPrediction?.impact
+                ? shotPrediction.impact.clone()
+                : null,
+              railNormal: shotPrediction?.railNormal
+                ? shotPrediction.railNormal.clone()
+                : null,
+              focusPoint: shotPrediction?.impact
+                ? new THREE.Vector3(
+                    shotPrediction.impact.x,
+                    BALL_CENTER_Y,
+                    shotPrediction.impact.y
+                  )
+                : null,
               cameraOrbit: new THREE.Spherical(
                 actionRadius,
                 actionPhi,
@@ -3387,6 +3523,28 @@ function SnookerGame() {
           aim.material.color.set(
             targetBall && !railNormal ? 0xffff00 : 0xffffff
           );
+          if (targetBall && targetBall.active) {
+            aimFocusRef.current = new THREE.Vector3(
+              targetBall.pos.x,
+              BALL_CENTER_Y,
+              targetBall.pos.y
+            );
+          } else {
+            const focusPoint = new THREE.Vector3(
+              impact.x,
+              BALL_CENTER_Y,
+              impact.y
+            );
+            if (
+              Number.isFinite(focusPoint.x) &&
+              Number.isFinite(focusPoint.y) &&
+              Number.isFinite(focusPoint.z)
+            ) {
+              aimFocusRef.current = focusPoint;
+            } else {
+              aimFocusRef.current = null;
+            }
+          }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
@@ -3434,6 +3592,7 @@ function SnookerGame() {
             target.visible = false;
           }
         } else {
+          aimFocusRef.current = null;
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
