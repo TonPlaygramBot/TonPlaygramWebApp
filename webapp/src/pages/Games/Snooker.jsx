@@ -353,12 +353,14 @@ const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the c
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65; // boost base strike speed by ~65% for a livelier hit
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
-// Make the four round legs taller to lift the entire table
-// Increase scale so the table sits roughly twice as high and legs reach the rug
+// Make the four round legs dramatically taller so the table surface rides higher
 const LEG_SCALE = 6.2;
+const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
-const TABLE_LIFT = 3.0;
+const BASE_TABLE_LIFT = 3.0;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
+const TABLE_LIFT =
+  BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 // raise overall table position so the longer legs are visible and the playfield sits higher off the floor
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
@@ -1287,7 +1289,7 @@ function Table3D(parent) {
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
-  const legH = TABLE_H;
+  const legH = TABLE_H * LEG_HEIGHT_FACTOR;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 32);
   const legPositions = [
     [-(halfW + TABLE.WALL * 2.1), -(halfH + TABLE.WALL * 2.1)],
@@ -2366,14 +2368,14 @@ function SnookerGame() {
         const verticalScale = widthScale;
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        hemisphere.position.set(0, tableSurfaceY + verticalScale * 0.9, 0);
+        hemisphere.position.set(0, tableSurfaceY + verticalScale * 0.55, 0);
         lightingRig.add(hemisphere);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
         dirLight.position.set(
-          -2.1 * widthScale,
-          tableSurfaceY + 3.2 * verticalScale,
-          1.6 * lengthScale
+          -1.6 * widthScale,
+          tableSurfaceY + 2.4 * verticalScale,
+          1.15 * lengthScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
@@ -2388,11 +2390,11 @@ function SnookerGame() {
           1
         );
         spot.position.set(
-          1.05 * widthScale,
-          tableSurfaceY + 2.05 * verticalScale,
-          0.35 * lengthScale
+          0.85 * widthScale,
+          tableSurfaceY + 1.35 * verticalScale,
+          0.25 * lengthScale
         );
-        spot.target.position.set(0, tableSurfaceY + 0.6 * verticalScale, 0);
+        spot.target.position.set(0, tableSurfaceY + 0.42 * verticalScale, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
