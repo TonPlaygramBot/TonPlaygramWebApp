@@ -2366,15 +2366,35 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
-        spot.position.set(PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.4, PLAY_H * 0.08);
-        spot.target.position.set(0, tableSurfaceY + BALL_R * 0.5, 0);
-        spot.decay = 1.0;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00012;
-        lightingRig.add(spot);
-        lightingRig.add(spot.target);
+        const SPOT_CONFIGS = [
+          {
+            position: [PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.3, PLAY_H * 0.08],
+            target: [0, tableSurfaceY + BALL_R * 0.5, 0]
+          },
+          {
+            position: [-PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.3, -PLAY_H * 0.08],
+            target: [0, tableSurfaceY + BALL_R * 0.5, 0]
+          }
+        ];
+
+        for (const { position, target } of SPOT_CONFIGS) {
+          const spot = new THREE.SpotLight(
+            0xffffff,
+            1.5,
+            0,
+            Math.PI * 0.2,
+            0.3,
+            1
+          );
+          spot.position.set(...position);
+          spot.target.position.set(...target);
+          spot.decay = 1.0;
+          spot.castShadow = true;
+          spot.shadow.mapSize.set(2048, 2048);
+          spot.shadow.bias = -0.00012;
+          lightingRig.add(spot);
+          lightingRig.add(spot.target);
+        }
       };
 
       addMobileLighting();
