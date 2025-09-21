@@ -2372,15 +2372,19 @@ function SnookerGame() {
         const SAMPLE_PLAY_H = 2.536;
         const SAMPLE_TABLE_HEIGHT = 0.75;
 
-        const widthScale = PLAY_W / SAMPLE_PLAY_W;
-        const lengthScale = PLAY_H / SAMPLE_PLAY_H;
+        const LIGHT_DIMENSION_SCALE = 1.2;
+        const LIGHT_HEIGHT_SCALE = 1.2;
+
+        const widthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
+        const lengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
+        const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        const lightHeightLift = heightScale * 3.4; // lift the lighting rig higher above the table
+        const lightHeightLift = scaledHeight * 3.4; // lift the lighting rig higher above the table
         hemisphere.position.set(
           0,
-          tableSurfaceY + heightScale * 1.4 + lightHeightLift,
+          tableSurfaceY + scaledHeight * 1.4 + lightHeightLift,
           0
         );
         lightingRig.add(hemisphere);
@@ -2388,7 +2392,7 @@ function SnookerGame() {
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
         dirLight.position.set(
           -2.5 * widthScale,
-          tableSurfaceY + 6.1 * heightScale + lightHeightLift,
+          tableSurfaceY + 6.1 * scaledHeight + lightHeightLift,
           2 * lengthScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
@@ -2405,7 +2409,7 @@ function SnookerGame() {
         );
         spot.position.set(
           1.3 * widthScale,
-          tableSurfaceY + 4.1 * heightScale + lightHeightLift,
+          tableSurfaceY + 4.1 * scaledHeight + lightHeightLift,
           0.5 * lengthScale
         );
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
@@ -2419,7 +2423,7 @@ function SnookerGame() {
         const ambient = new THREE.AmbientLight(0xffffff, 0.08);
         ambient.position.set(
           0,
-          tableSurfaceY + heightScale * 1.95 + lightHeightLift,
+          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
           0
         );
         lightingRig.add(ambient);
