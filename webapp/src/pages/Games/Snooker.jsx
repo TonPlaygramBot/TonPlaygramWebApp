@@ -373,6 +373,9 @@ const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 // raise overall table position so the longer legs are visible and the playfield sits higher off the floor
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
+const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
+const LEG_ROOM_HEIGHT = BASE_LEG_HEIGHT + TABLE_LIFT;
+const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
@@ -1351,7 +1354,10 @@ function Table3D(parent) {
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
-  const legH = TABLE_H;
+  const legTopLocal = frameTopY - TABLE.THICK;
+  const legTopWorld = legTopLocal + TABLE_Y;
+  const legBottomWorld = FLOOR_Y;
+  const legH = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const baseX = baseExtentW;
   const baseZ = baseExtentH;
@@ -1364,7 +1370,9 @@ function Table3D(parent) {
   ];
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(lx, frameTopY - TABLE.THICK - legH / 2, lz);
+    leg.position.set(lx, legTopLocal - legH / 2, lz);
+    leg.castShadow = true;
+    leg.receiveShadow = true;
     table.add(leg);
   });
 
@@ -1722,10 +1730,8 @@ function SnookerGame() {
       let activeShotView = null;
       let shotPrediction = null;
       let cueAnimating = false; // forward stroke animation state
-      const baseLegHeight =
-        TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-      const legHeight = baseLegHeight + TABLE_LIFT;
-      const floorY = TABLE_Y - TABLE.THICK - legHeight + 0.3;
+      const legHeight = LEG_ROOM_HEIGHT;
+      const floorY = FLOOR_Y;
       const roomDepth = TABLE.H * 3.6;
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
@@ -2430,14 +2436,16 @@ function SnookerGame() {
 
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
         const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 6.0; // raise fixtures higher for stronger reflections
 
-        const widthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
-        const lengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
+        const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
+        const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
+        const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        const lightHeightLift = scaledHeight * 4.5; // lift the lighting rig higher above the table
+        const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         hemisphere.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.4 + lightHeightLift,
@@ -2447,9 +2455,9 @@ function SnookerGame() {
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
         dirLight.position.set(
-          -2.5 * widthScale,
-          tableSurfaceY + 6.1 * scaledHeight + lightHeightLift,
-          2 * lengthScale
+          -1.25 * fixtureScale,
+          tableSurfaceY + 6.6 * scaledHeight + lightHeightLift,
+          0.95 * fixtureScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
@@ -2464,9 +2472,9 @@ function SnookerGame() {
           1
         );
         spot.position.set(
-          1.3 * widthScale,
-          tableSurfaceY + 4.1 * scaledHeight + lightHeightLift,
-          0.5 * lengthScale
+          1.25 * fixtureScale,
+          tableSurfaceY + 4.9 * scaledHeight + lightHeightLift,
+          0.65 * fixtureScale
         );
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
         spot.decay = 1.0;
