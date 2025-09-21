@@ -2446,19 +2446,21 @@ function SnookerGame() {
               if (toCueLength > 1e-6) {
                 toCue.normalize();
                 const desiredTheta = Math.atan2(toCue.x, toCue.y);
-                sph.theta = lerpAngle(sph.theta, desiredTheta, 0.45);
+                const delta =
+                  THREE.MathUtils.euclideanModulo(
+                    desiredTheta - sph.theta + Math.PI,
+                    Math.PI * 2
+                  ) - Math.PI;
+                sph.theta += delta * 0.2;
               }
               const minBackLocal = Math.max(toCueLength + BALL_R * 10, BALL_R * 14);
-              const targetRadiusWorld = clampOrbitRadius(
-                Math.max(minBackLocal * worldScaleFactor, ACTION_CAMERA_MIN_RADIUS)
+              desiredRadius = clampOrbitRadius(
+                Math.max(
+                  desiredRadius,
+                  minBackLocal * worldScaleFactor,
+                  ACTION_CAMERA_MIN_RADIUS
+                )
               );
-              const blendedRadius = THREE.MathUtils.lerp(
-                sph.radius,
-                targetRadiusWorld,
-                0.4
-              );
-              sph.radius = blendedRadius;
-              desiredRadius = blendedRadius;
               const ballTopWorld =
                 (BALL_CENTER_Y + BALL_R + CAMERA_BALL_CLEARANCE) * worldScaleFactor;
               const phiLimit = Math.acos(
@@ -2478,8 +2480,7 @@ function SnookerGame() {
                 Math.max(CAMERA.minPhi, phiLimit - CAMERA_RAIL_SAFETY)
               );
               if (Number.isFinite(safePhi)) {
-                const nextPhi = THREE.MathUtils.lerp(sph.phi, safePhi, 0.35);
-                sph.phi = clamp(nextPhi, CAMERA.minPhi, CAMERA.maxPhi);
+                sph.phi = clamp(Math.min(sph.phi, safePhi), CAMERA.minPhi, CAMERA.maxPhi);
               }
               syncBlendToSpherical();
             }
