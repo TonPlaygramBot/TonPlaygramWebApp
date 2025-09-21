@@ -448,18 +448,21 @@ const createClothTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const n = noise(x, y) * 0.36 - 0.18;
-        const weave = Math.sin((x / size) * Math.PI * 32) * 0.085;
-        const cross = Math.sin((y / size) * Math.PI * 28) * 0.065;
-        const diag = Math.sin(((x + y) / size) * Math.PI * 24) * 0.055;
+        const nx = x / size;
+        const ny = y / size;
+        const baseNoise = noise(x * 0.63, y * 0.57) * 0.6 - 0.3;
+        const flow = Math.sin((nx * 1.4 + ny * 0.9) * Math.PI * 9) * 0.08;
+        const crossFlow = Math.sin((nx * 0.6 - ny * 1.35) * Math.PI * 7) * 0.06;
+        const diagonal = Math.sin(((nx + ny) * Math.PI * 6.5)) * 0.045;
+        const tintBias = Math.sin((nx * 0.35 + ny * 0.78) * Math.PI * 3.2) * 0.04;
         const variation = clamp01(
-          srgbBase.r + n * 0.78 + weave + cross * 0.75 + diag * 0.45
+          srgbBase.r + baseNoise * 0.55 + flow + diagonal * 0.6 + tintBias * 0.5
         );
         const tint = clamp01(
-          srgbBase.g + n * 0.88 + weave * 0.72 + diag * 0.52
+          srgbBase.g + baseNoise * 0.62 + flow * 0.8 + crossFlow * 0.55 + tintBias
         );
         const depth = clamp01(
-          srgbBase.b + n * 0.7 + cross * 0.62 + diag * 0.45
+          srgbBase.b + baseNoise * 0.5 + crossFlow * 0.6 + diagonal * 0.4
         );
         image.data[idx] = variation * 255;
         image.data[idx + 1] = tint * 255;
@@ -479,11 +482,13 @@ const createClothTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const n = noise(x + 17.31, y + 91.27) * 0.9 - 0.45;
-        const fiberX = Math.sin((x / size) * Math.PI * 30) * 0.55;
-        const fiberY = Math.sin((y / size) * Math.PI * 28) * 0.48;
-        const micro = Math.sin(((x + y) / size) * Math.PI * 18) * 0.22;
-        const shade = clamp01(0.5 + n * 0.85 + fiberX + fiberY * 0.9 + micro);
+        const nx = x / size;
+        const ny = y / size;
+        const n = noise(x * 0.81 + 17.31, y * 0.77 + 91.27) * 0.8 - 0.4;
+        const fiber = Math.sin((nx * 1.1 + ny * 0.85) * Math.PI * 11) * 0.4;
+        const swirl = Math.sin(((nx - ny) * Math.PI * 7.5)) * 0.28;
+        const micro = Math.sin(((nx + ny * 1.6) * Math.PI * 4.2)) * 0.18;
+        const shade = clamp01(0.5 + n + fiber + swirl + micro);
         const value = shade * 255;
         bumpImage.data[idx] = value;
         bumpImage.data[idx + 1] = value;
@@ -721,6 +726,66 @@ function distanceToTableEdge(pos, dir) {
     if (ty > 0) minT = Math.min(minT, ty);
   }
   return minT;
+}
+
+function computeCueCameraPose({
+  cuePosition,
+  focusPosition,
+  aimDirection,
+  cushionHeight,
+  options = {}
+}) {
+  const focus = focusPosition
+    ? focusPosition.clone()
+    : (() => {
+        const fallback = new THREE.Vector3(
+          aimDirection?.x ?? 0,
+          0,
+          aimDirection?.y ?? 1
+        );
+        if (fallback.lengthSq() < 1e-6) fallback.set(0, 0, 1);
+        fallback.normalize();
+        return cuePosition
+          .clone()
+          .add(fallback.multiplyScalar(BALL_R * 8))
+          .setY(cuePosition.y);
+      })();
+
+  const dir = focus.clone().sub(cuePosition);
+  dir.y = 0;
+  if (dir.lengthSq() < 1e-6) {
+    dir.set(aimDirection?.x ?? 0, 0, aimDirection?.y ?? 1);
+  }
+  if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
+  dir.normalize();
+
+  const planarOffset = focus.clone().sub(cuePosition);
+  planarOffset.y = 0;
+  const focusDistance = planarOffset.length();
+
+  const {
+    minDistance = BALL_R * 22,
+    distanceScale = 0.92,
+    distanceBias = BALL_R * 10,
+    sideOffset = 0.14,
+    heightLift = TABLE.THICK * 2.2,
+    minAboveFocus = BALL_R * 2.6,
+    extraHeight = 0
+  } = options;
+
+  const travel = Math.max(minDistance, focusDistance * distanceScale + distanceBias);
+  const lateral = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(travel * sideOffset);
+  const position = cuePosition
+    .clone()
+    .addScaledVector(dir, -travel)
+    .add(lateral);
+
+  const cushionClearance = (cushionHeight ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE;
+  const desiredHeight = focus.y + heightLift;
+  const minHeight = Math.max(desiredHeight, focus.y + minAboveFocus, cushionClearance);
+  position.y = Math.max(position.y + extraHeight, minHeight);
+
+  return { position, lookAt: focus };
 }
 
 function applyAxisClearance(limits, key, positive, clearance) {
@@ -1281,6 +1346,22 @@ function Table3D(parent) {
     bumpScale: clothMat.bumpScale
   };
   const cushionMat = clothMat.clone();
+  if (clothMat.map) {
+    cushionMat.map = clothMat.map.clone();
+    cushionMat.map.repeat.copy(clothMat.map.repeat);
+    cushionMat.map.needsUpdate = true;
+  }
+  if (clothMat.bumpMap) {
+    cushionMat.bumpMap = clothMat.bumpMap.clone();
+    cushionMat.bumpMap.repeat.copy(clothMat.bumpMap.repeat);
+    cushionMat.bumpMap.needsUpdate = true;
+    const baseBump = clothMat.bumpScale ?? 0;
+    cushionMat.bumpScale = baseBump * 0.6;
+  }
+  cushionMat.color = clothMat.color.clone();
+  cushionMat.color.offsetHSL(0, -0.05, 0.04);
+  cushionMat.roughness = Math.min(1, clothMat.roughness * 1.05);
+  cushionMat.sheenRoughness = Math.min(1, clothMat.sheenRoughness * 1.08);
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -2153,6 +2234,60 @@ function SnookerGame() {
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
+          } else if (
+            !shooting &&
+            hud.turn === 0 &&
+            cue?.mesh &&
+            cue.active &&
+            aimFocusRef.current
+          ) {
+            const ballsList =
+              ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            const cueBall = ballsList.find((b) => b.id === 'cue');
+            if (cueBall) {
+              const cuePos = new THREE.Vector3(
+                cueBall.pos.x,
+                BALL_CENTER_Y,
+                cueBall.pos.y
+              );
+              const focusPoint = aimFocusRef.current.clone();
+              const aimDir = aimDirRef.current.clone();
+              if (aimDir.lengthSq() > 1e-6) {
+                aimDir.normalize();
+              }
+              if (aimDir.lengthSq() < 1e-6 && activeShotView?.aimDir) {
+                aimDir.copy(activeShotView.aimDir);
+              }
+              const pose = computeCueCameraPose({
+                cuePosition: cuePos,
+                focusPosition: focusPoint,
+                aimDirection: aimDir,
+                cushionHeight: cushionHeightRef.current,
+                options: {
+                  minDistance: BALL_R * 24,
+                  distanceScale: 0.9,
+                  distanceBias: BALL_R * 10,
+                  sideOffset: 0.16,
+                  heightLift: TABLE.THICK * 2.35,
+                  minAboveFocus: BALL_R * 2.8
+                }
+              });
+              const worldPos = pose.position
+                .clone()
+                .multiplyScalar(worldScaleFactor);
+              const worldLook = pose.lookAt
+                .clone()
+                .multiplyScalar(worldScaleFactor);
+              camera.position.copy(worldPos);
+              camera.lookAt(worldLook);
+              lookTarget = worldLook;
+            } else {
+              const store = ensureOrbitFocus();
+              lookTarget = store.target.clone().multiplyScalar(worldScaleFactor);
+              TMP_SPH.copy(sph);
+              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+              camera.lookAt(lookTarget);
+            }
           } else if (shooting && activeShotView?.mode === 'action') {
             const view = activeShotView;
             const ballsList =
@@ -2241,24 +2376,36 @@ function SnookerGame() {
                   PLAY_H * 0.12
                 );
               })();
-              const worldFocus = tableFocus.clone().multiplyScalar(worldScaleFactor);
-              const fullTableRadius = clampOrbitRadius(
-                Math.max(orbitRadius, fitRadius(camera, 1.12))
-              );
-              view.cameraOrbit =
-                view.cameraOrbit ||
-                new THREE.Spherical(fullTableRadius, clampedPhi, orbitTheta);
-              view.cameraOrbit.radius = fullTableRadius;
-              view.cameraOrbit.phi = clampedPhi;
-              view.cameraOrbit.theta = orbitTheta;
-              view.focusPoint = tableFocus.clone();
-              view.currentCameraId = null;
+              const pose = computeCueCameraPose({
+                cuePosition: new THREE.Vector3(
+                  cuePos2.x,
+                  BALL_CENTER_Y,
+                  cuePos2.y
+                ),
+                focusPosition: tableFocus.clone(),
+                aimDirection: aimVec2,
+                cushionHeight: cushionHeightRef.current,
+                options: {
+                  minDistance: BALL_R * 32,
+                  distanceScale: 1.05,
+                  distanceBias: BALL_R * 12,
+                  sideOffset: 0.22,
+                  heightLift: TABLE.THICK * 3.15,
+                  minAboveFocus: BALL_R * 3.2,
+                  extraHeight: TABLE.THICK * 0.25
+                }
+              });
+              const worldFocus = pose.lookAt
+                .clone()
+                .multiplyScalar(worldScaleFactor);
+              const worldPos = pose.position
+                .clone()
+                .multiplyScalar(worldScaleFactor);
+              view.focusPoint = pose.lookAt.clone();
+              view.currentCameraId = 'broadcast';
+              view.cameraOrbit = null;
               lookTarget = worldFocus;
-              const adjustedRadius = fullTableRadius;
-              view.cameraOrbit.radius = adjustedRadius;
-              TMP_SPH.copy(view.cameraOrbit);
-              TMP_SPH.radius = adjustedRadius;
-              camera.position.setFromSpherical(TMP_SPH).add(worldFocus);
+              camera.position.copy(worldPos);
               camera.lookAt(worldFocus);
             }
           } else if (shooting && activeShotView?.mode === 'pocket') {
