@@ -2384,9 +2384,9 @@ function SnookerGame() {
         for (const { position, target } of SPOT_CONFIGS) {
           const spot = new THREE.SpotLight(
             0xffffff,
-            1.5 * 1.4,
+            1.5 * 1.4 * 1.5,
             0,
-            Math.PI * 0.2 * 1.4,
+            Math.PI * 0.2 * 1.4 * 1.5,
             0.3,
             1
           );
