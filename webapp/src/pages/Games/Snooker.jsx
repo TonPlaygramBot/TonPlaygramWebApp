@@ -302,8 +302,9 @@ const BALL_R = 2 * BALL_SCALE;
 const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.97;
+const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
-const BALL_SEGMENTS = Object.freeze({ width: 28, height: 18 });
+const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
@@ -326,6 +327,7 @@ const CLOTH_EDGE_GROWTH = TABLE.WALL * 0.18; // extend the visual cloth toward t
 const CUSHION_LIP_OFFSET = 0.05;
 const POCKET_JAW_LIP_HEIGHT =
   -TABLE.THICK + CUSHION_LIP_OFFSET; // align pocket rims flush with the cushion tops
+const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.35; // raise the visible pocket rim slightly above the cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -953,13 +955,12 @@ function Guret(parent, id, color, x, y) {
   if (!BALL_MATERIAL_CACHE.has(color)) {
     BALL_MATERIAL_CACHE.set(
       color,
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshPhysicalMaterial({
         color,
-        roughness: 0.09,
-        metalness: 0.75,
-        envMapIntensity: 0.92,
-        clearcoat: 0.68,
-        clearcoatRoughness: 0.05
+        roughness: 0.18,
+        metalness: 0.15,
+        clearcoat: 1,
+        clearcoatRoughness: 0.12
       })
     );
   }
@@ -1070,7 +1071,6 @@ function Table3D(parent) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
-  const frameTopY = -TABLE.THICK + 0.01;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
@@ -1090,49 +1090,33 @@ function Table3D(parent) {
     roughness: 0.8
   });
 
-  const clothInset = Math.max(
-    TABLE.WALL * 0.12,
-    Math.min(PLAY_W, PLAY_H) * 0.0035
-  );
+  const frameTopY = -TABLE.THICK + 0.01;
+  const clothLift = Math.max(0.0005, TABLE.THICK * 0.0025);
+
   const clothShape = new THREE.Shape();
-  clothShape.moveTo(-(halfW + clothInset), -(halfH + clothInset));
-  clothShape.lineTo(halfW + clothInset, -(halfH + clothInset));
-  clothShape.lineTo(halfW + clothInset, halfH + clothInset);
-  clothShape.lineTo(-(halfW + clothInset), halfH + clothInset);
-  clothShape.lineTo(-(halfW + clothInset), -(halfH + clothInset));
+  const clothExtend = TABLE.WALL * 0.7 + CUSHION_OVERLAP + TABLE.WALL * 0.02;
+  const halfWext = halfW + clothExtend;
+  const halfHext = halfH + clothExtend;
+  clothShape.moveTo(-halfWext, -halfHext);
+  clothShape.lineTo(halfWext, -halfHext);
+  clothShape.lineTo(halfWext, halfHext);
+  clothShape.lineTo(-halfWext, halfHext);
+  clothShape.lineTo(-halfWext, -halfHext);
   pocketCenters().forEach((p) => {
-    const h = new THREE.Path();
-    h.absellipse(p.x, p.y, POCKET_VIS_R * 0.9, POCKET_VIS_R * 0.9, 0, Math.PI * 2);
-    clothShape.holes.push(h);
+    const hole = new THREE.Path();
+    hole.absellipse(p.x, p.y, POCKET_HOLE_R, POCKET_HOLE_R, 0, Math.PI * 2);
+    clothShape.holes.push(hole);
   });
-  const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
-    depth: TABLE.THICK,
-    bevelEnabled: false
-  });
+  const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
-  cloth.position.y = frameTopY + 0.0005;
-  cloth.name = 'cloth';
+  cloth.position.y = frameTopY + clothLift;
+  cloth.renderOrder = 5;
   table.add(cloth);
 
-  const ringGeo = new THREE.RingGeometry(POCKET_VIS_R * 0.65, POCKET_VIS_R, 64);
-  const ringMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    side: THREE.DoubleSide,
-    metalness: 0.4,
-    roughness: 0.5,
-    depthTest: false
-  });
-  pocketCenters().forEach((p) => {
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(p.x, frameTopY + 0.0007, p.y);
-    table.add(ring);
-  });
-
   const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_VIS_R * 0.9,
-    POCKET_VIS_R * 0.9,
+    POCKET_VIS_R,
+    POCKET_VIS_R,
     TABLE.THICK,
     32
   );
@@ -1145,26 +1129,28 @@ function Table3D(parent) {
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, frameTopY - TABLE.THICK / 2, p.y);
+    pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
   });
 
+  const railW = TABLE.WALL * 0.35;
   const railH = TABLE.THICK * 1.82;
-  const railW = TABLE.WALL * 0.7;
+  const railOutPush = Math.min(TABLE.WALL * 0.05, CUSHION_OVERLAP * 0.5);
   const frameShape = new THREE.Shape();
-  const frameOuterHalfW = halfW + 2 * railW + railW * 2.5;
-  const frameOuterHalfH = halfH + 2 * railW + railW * 2.5;
-  frameShape.moveTo(-frameOuterHalfW, -frameOuterHalfH);
-  frameShape.lineTo(frameOuterHalfW, -frameOuterHalfH);
-  frameShape.lineTo(frameOuterHalfW, frameOuterHalfH);
-  frameShape.lineTo(-frameOuterHalfW, frameOuterHalfH);
-  frameShape.lineTo(-frameOuterHalfW, -frameOuterHalfH);
+  const outerHalfW = halfW + 2 * railW + railW * 2.5 + railOutPush;
+  const outerHalfH = halfH + 2 * railW + railW * 2.5 + railOutPush;
+  frameShape.moveTo(-outerHalfW, -outerHalfH);
+  frameShape.lineTo(outerHalfW, -outerHalfH);
+  frameShape.lineTo(outerHalfW, outerHalfH);
+  frameShape.lineTo(-outerHalfW, outerHalfH);
+  frameShape.lineTo(-outerHalfW, -outerHalfH);
   const innerRect = new THREE.Path();
-  innerRect.moveTo(-halfW - railW, -halfH - railW);
-  innerRect.lineTo(halfW + railW, -halfH - railW);
-  innerRect.lineTo(halfW + railW, halfH + railW);
-  innerRect.lineTo(-halfW - railW, halfH + railW);
-  innerRect.lineTo(-halfW - railW, -halfH - railW);
+  innerRect.moveTo(-(halfW + CUSHION_OVERLAP), -(halfH + CUSHION_OVERLAP));
+  innerRect.lineTo(halfW + CUSHION_OVERLAP, -(halfH + CUSHION_OVERLAP));
+  innerRect.lineTo(halfW + CUSHION_OVERLAP, halfH + CUSHION_OVERLAP);
+  innerRect.lineTo(-(halfW + CUSHION_OVERLAP), halfH + CUSHION_OVERLAP);
+  innerRect.lineTo(-(halfW + CUSHION_OVERLAP), -(halfH + CUSHION_OVERLAP));
   frameShape.holes.push(innerRect);
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
     depth: railH,
@@ -1173,14 +1159,16 @@ function Table3D(parent) {
   const frame = new THREE.Mesh(frameGeo, railWoodMat);
   frame.rotation.x = -Math.PI / 2;
   frame.position.y = frameTopY;
+  frame.renderOrder = 0;
   table.add(frame);
 
+  const CUSHION_DEPTH = railH - clothLift;
   const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = 0.97;
   const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
-  const cushionRaiseY = frameTopY;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.22;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
+  const cushionRaiseY = frameTopY + clothLift - 0.0004;
 
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
@@ -1189,20 +1177,19 @@ function Table3D(parent) {
     const backY = (TABLE.WALL * 0.7) / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
-
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
 
-    const s = new THREE.Shape();
-    s.moveTo(-halfLen, backY);
-    s.lineTo(halfLen, backY);
-    s.lineTo(halfLen - straightCut, frontY);
-    s.lineTo(-halfLen + straightCut, frontY);
-    s.lineTo(-halfLen, backY);
+    const shape = new THREE.Shape();
+    shape.moveTo(-halfLen, backY);
+    shape.lineTo(halfLen, backY);
+    shape.lineTo(halfLen - straightCut, frontY);
+    shape.lineTo(-halfLen + straightCut, frontY);
+    shape.lineTo(-halfLen, backY);
 
     const bevel = Math.min(railH, baseThickness) * 0.12;
-    const geo = new THREE.ExtrudeGeometry(s, {
-      depth: railH,
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: CUSHION_DEPTH,
       bevelEnabled: true,
       bevelThickness: bevel * 0.6,
       bevelSize: bevel,
@@ -1227,7 +1214,7 @@ function Table3D(parent) {
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
       if (frontFactor <= 0) continue;
       const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
-      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
+      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.9);
       const minAllowedZ = minZ + depth * lift;
       if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
     }
@@ -1242,22 +1229,21 @@ function Table3D(parent) {
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    const g = new THREE.Group();
-    g.add(mesh);
-    g.position.set(x, cushionRaiseY, z);
-    if (!horizontal) g.rotation.y = Math.PI / 2;
-    if (flip) g.rotation.y += Math.PI;
-    const overlap = Math.max(0.0015, TABLE.WALL * 0.02);
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.position.set(x, cushionRaiseY, z);
+    if (!horizontal) group.rotation.y = Math.PI / 2;
+    if (flip) group.rotation.y += Math.PI;
     if (horizontal) {
-      g.position.z = z >= 0 ? halfH + overlap : -halfH - overlap;
+      group.position.z = z >= 0 ? halfH + CUSHION_OVERLAP : -halfH - CUSHION_OVERLAP;
     } else {
-      g.position.x = x >= 0 ? halfW + overlap : -halfW - overlap;
+      group.position.x = x >= 0 ? halfW + CUSHION_OVERLAP : -halfW - CUSHION_OVERLAP;
     }
-    g.userData = g.userData || {};
-    g.userData.horizontal = horizontal;
-    g.userData.side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
-    table.add(g);
-    table.userData.cushions.push(g);
+    group.userData = group.userData || {};
+    group.userData.horizontal = horizontal;
+    group.userData.side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
+    table.add(group);
+    table.userData.cushions.push(group);
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
@@ -1277,25 +1263,42 @@ function Table3D(parent) {
 
   const skirtH = TABLE_H * 0.4;
   const skirtT = TABLE.WALL * 0.7 * 0.8;
-  const skirt = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      halfW * 2 + TABLE.WALL * 4 + skirtT,
-      skirtH,
-      halfH * 2 + TABLE.WALL * 4 + skirtT
-    ),
-    woodMat
-  );
-  skirt.position.y = frameTopY - TABLE.THICK - skirtH / 2;
+  const skirtShape = new THREE.Shape();
+  const skirtInnerHalfW = halfW + 2 * railW + railW * 2.5 + railOutPush;
+  const skirtInnerHalfH = halfH + 2 * railW + railW * 2.5 + railOutPush;
+  const skirtOutW = skirtInnerHalfW + skirtT * 0.2;
+  const skirtOutH = skirtInnerHalfH + skirtT * 0.2;
+  skirtShape.moveTo(-skirtOutW, -skirtOutH);
+  skirtShape.lineTo(skirtOutW, -skirtOutH);
+  skirtShape.lineTo(skirtOutW, skirtOutH);
+  skirtShape.lineTo(-skirtOutW, skirtOutH);
+  skirtShape.lineTo(-skirtOutW, -skirtOutH);
+  const innerSkirt = new THREE.Path();
+  const EPS_CONTACT = Math.max(0.0003, TABLE.WALL * 0.0005);
+  innerSkirt.moveTo(-(skirtInnerHalfW - EPS_CONTACT), -(skirtInnerHalfH - EPS_CONTACT));
+  innerSkirt.lineTo(skirtInnerHalfW - EPS_CONTACT, -(skirtInnerHalfH - EPS_CONTACT));
+  innerSkirt.lineTo(skirtInnerHalfW - EPS_CONTACT, skirtInnerHalfH - EPS_CONTACT);
+  innerSkirt.lineTo(-(skirtInnerHalfW - EPS_CONTACT), skirtInnerHalfH - EPS_CONTACT);
+  innerSkirt.lineTo(-(skirtInnerHalfW - EPS_CONTACT), -(skirtInnerHalfH - EPS_CONTACT));
+  skirtShape.holes.push(innerSkirt);
+  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
+    depth: skirtH,
+    bevelEnabled: false
+  });
+  const skirt = new THREE.Mesh(skirtGeo, woodMat);
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = frameTopY - TABLE.THICK - skirtH * 0.8;
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
-  const legH = TABLE_H * LEG_HEIGHT_FACTOR;
-  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 32);
+  const legH = TABLE_H;
+  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 48);
+  const legOffset = (TABLE.WALL * 0.7) * 0.9;
   const legPositions = [
-    [-(halfW + TABLE.WALL * 2.1), -(halfH + TABLE.WALL * 2.1)],
-    [halfW + TABLE.WALL * 2.1, -(halfH + TABLE.WALL * 2.1)],
-    [-(halfW + TABLE.WALL * 2.1), halfH + TABLE.WALL * 2.1],
-    [halfW + TABLE.WALL * 2.1, halfH + TABLE.WALL * 2.1]
+    [-(skirtInnerHalfW) + legOffset, -(skirtInnerHalfH) + legOffset],
+    [skirtInnerHalfW - legOffset, -(skirtInnerHalfH) + legOffset],
+    [-(skirtInnerHalfW) + legOffset, skirtInnerHalfH - legOffset],
+    [skirtInnerHalfW - legOffset, skirtInnerHalfH - legOffset]
   ];
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
@@ -1312,7 +1315,7 @@ function Table3D(parent) {
       cushionTopLocal = Math.max(cushionTopLocal, box.max.y);
     });
   }
-  const clothPlane = frameTopY + 0.0005;
+  const clothPlane = cloth.position.y;
 
   table.userData.pockets = [];
   pocketCenters().forEach((p) => {
@@ -2352,30 +2355,30 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Replace the previous rig with the updated three-light setup from the
-      // standalone snooker demo and scale it to the current table footprint.
+      // Adopt the lighting rig from the standalone snooker demo and scale all
+      // authored coordinates so they sit correctly over the larger table.
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
         const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
-        // The reference lighting was authored against a smaller demo table
-        // roughly 7 units wide. Convert those authored offsets so they follow
-        // our larger snooker playfield while preserving their relative angles.
-        const BASE_TABLE_DIMENSION = 7;
-        const widthScale = PLAY_W / BASE_TABLE_DIMENSION;
-        const lengthScale = PLAY_H / BASE_TABLE_DIMENSION;
-        const verticalScale = widthScale;
+        const SAMPLE_PLAY_W = 1.216;
+        const SAMPLE_PLAY_H = 2.536;
+        const SAMPLE_TABLE_HEIGHT = 0.75;
+
+        const widthScale = PLAY_W / SAMPLE_PLAY_W;
+        const lengthScale = PLAY_H / SAMPLE_PLAY_H;
+        const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        hemisphere.position.set(0, tableSurfaceY + verticalScale * 0.55, 0);
+        hemisphere.position.set(0, tableSurfaceY + heightScale * 0.55, 0);
         lightingRig.add(hemisphere);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
         dirLight.position.set(
-          -1.6 * widthScale,
-          tableSurfaceY + 2.4 * verticalScale,
-          1.15 * lengthScale
+          -2.5 * widthScale,
+          tableSurfaceY + 4 * heightScale,
+          2 * lengthScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
@@ -2390,11 +2393,11 @@ function SnookerGame() {
           1
         );
         spot.position.set(
-          0.85 * widthScale,
-          tableSurfaceY + 1.35 * verticalScale,
-          0.25 * lengthScale
+          1.3 * widthScale,
+          tableSurfaceY + 2.6 * heightScale,
+          0.5 * lengthScale
         );
-        spot.target.position.set(0, tableSurfaceY + 0.42 * verticalScale, 0);
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
@@ -2403,7 +2406,7 @@ function SnookerGame() {
         lightingRig.add(spot.target);
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.08);
-        ambient.position.set(0, tableSurfaceY + verticalScale, 0);
+        ambient.position.set(0, tableSurfaceY + heightScale, 0);
         lightingRig.add(ambient);
       };
 
