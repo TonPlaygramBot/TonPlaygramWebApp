@@ -2372,8 +2372,8 @@ function SnookerGame() {
         const SAMPLE_PLAY_H = 2.536;
         const SAMPLE_TABLE_HEIGHT = 0.75;
 
-        const LIGHT_DIMENSION_SCALE = 0.96; // reduce fixture footprint by 20%
-        const LIGHT_HEIGHT_SCALE = 1.2;
+        const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
+        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
 
         const widthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const lengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
