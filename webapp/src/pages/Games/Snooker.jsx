@@ -296,7 +296,7 @@ const CLOTH_LIFT = (() => {
 })();
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_START_BLEND = 0;
+const ACTION_CAMERA_START_BLEND = 1;
 const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.78;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
@@ -360,13 +360,13 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65; // boost base strike speed by ~65% for a livelier hit
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * 1.6; // boost base strike speed by ~65% for a livelier hit and add +60% power
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs dramatically taller so the table surface rides higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
-const LEG_HEIGHT_MULTIPLIER = 2.25;
+const LEG_HEIGHT_MULTIPLIER = 2.25 * 0.7; // shorten leg span by roughly 30%
 const BASE_TABLE_LIFT = 3.0;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 const TABLE_LIFT =
@@ -980,9 +980,9 @@ function Guret(parent, id, color, x, y) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   if (id === 'cue') {
-    const markerGeom = new THREE.CircleGeometry(CUE_MARKER_RADIUS, 48);
+    const markerGeom = new THREE.CircleGeometry(CUE_TIP_RADIUS, 48);
     const markerMat = new THREE.MeshStandardMaterial({
-      color: 0xff2f2f,
+      color: COLORS.red,
       emissive: 0x550000,
       roughness: 0.28,
       metalness: 0.05,
@@ -1081,14 +1081,92 @@ function Table3D(parent) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
+  const baulkZ = -PLAY_H / 4;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.95,
+    roughness: 0.88,
     sheen: 1.0,
-    sheenRoughness: 0.8
+    sheenRoughness: 0.58
   });
   const cushionMat = clothMat.clone();
+  if (typeof document !== 'undefined') {
+    const size = 256;
+    const spacing = 16;
+    const clothCanvas = document.createElement('canvas');
+    clothCanvas.width = size;
+    clothCanvas.height = size;
+    const clothCtx = clothCanvas.getContext('2d');
+    if (clothCtx) {
+      clothCtx.fillStyle = '#1f8a3d';
+      clothCtx.fillRect(0, 0, size, size);
+      clothCtx.lineWidth = 1;
+      clothCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+      for (let y = 0; y <= size; y += spacing) {
+        clothCtx.beginPath();
+        clothCtx.moveTo(0, y + 0.5);
+        clothCtx.lineTo(size, y + 0.5);
+        clothCtx.stroke();
+      }
+      clothCtx.strokeStyle = 'rgba(0,0,0,0.12)';
+      for (let x = 0; x <= size; x += spacing) {
+        clothCtx.beginPath();
+        clothCtx.moveTo(x + 0.5, 0);
+        clothCtx.lineTo(x + 0.5, size);
+        clothCtx.stroke();
+      }
+    }
+    const clothTexture = new THREE.CanvasTexture(clothCanvas);
+    clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
+    clothTexture.anisotropy = 8;
+    clothTexture.colorSpace = THREE.SRGBColorSpace;
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = size;
+    bumpCanvas.height = size;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (bumpCtx) {
+      bumpCtx.fillStyle = '#808080';
+      bumpCtx.fillRect(0, 0, size, size);
+      bumpCtx.lineWidth = 1;
+      bumpCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+      for (let y = 0; y <= size; y += spacing) {
+        bumpCtx.beginPath();
+        bumpCtx.moveTo(0, y + 0.5);
+        bumpCtx.lineTo(size, y + 0.5);
+        bumpCtx.stroke();
+      }
+      bumpCtx.strokeStyle = 'rgba(0,0,0,0.12)';
+      for (let x = 0; x <= size; x += spacing) {
+        bumpCtx.beginPath();
+        bumpCtx.moveTo(x + 0.5, 0);
+        bumpCtx.lineTo(x + 0.5, size);
+        bumpCtx.stroke();
+      }
+    }
+    const clothBump = new THREE.CanvasTexture(bumpCanvas);
+    clothBump.wrapS = clothBump.wrapT = THREE.RepeatWrapping;
+    clothBump.anisotropy = 6;
+    const repeat = 28;
+    clothTexture.repeat.set(repeat, repeat);
+    clothTexture.needsUpdate = true;
+    clothBump.repeat.set(repeat, repeat);
+    clothBump.needsUpdate = true;
+    clothMat.map = clothTexture;
+    clothMat.bumpMap = clothBump;
+    clothMat.bumpScale = 0.0024;
+    clothMat.needsUpdate = true;
+    const cushionTexture = clothTexture.clone();
+    cushionTexture.repeat.copy(clothTexture.repeat);
+    cushionTexture.wrapS = clothTexture.wrapS;
+    cushionTexture.wrapT = clothTexture.wrapT;
+    cushionTexture.anisotropy = clothTexture.anisotropy;
+    cushionTexture.colorSpace = clothTexture.colorSpace;
+    cushionTexture.needsUpdate = true;
+    cushionMat.map = cushionTexture;
+    cushionMat.bumpMap = clothBump;
+    cushionMat.bumpScale = clothMat.bumpScale;
+    cushionMat.needsUpdate = true;
+  }
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -1129,6 +1207,49 @@ function Table3D(parent) {
   cloth.renderOrder = 3;
   table.add(cloth);
 
+  const markings = new THREE.Group();
+  markings.position.y = clothPlaneLocal + 0.0004;
+  markings.renderOrder = 4;
+  const spotMat = new THREE.MeshBasicMaterial({
+    color: COLORS.markings,
+    transparent: true,
+    opacity: 0.85,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const lineMat = spotMat.clone();
+  lineMat.opacity = 0.75;
+  const SPOTS = spotPositions(baulkZ);
+  const spotRadius = BALL_R * 0.22;
+  const spotGeo = new THREE.CircleGeometry(spotRadius, 48);
+  Object.values(SPOTS).forEach(([sx, sz]) => {
+    const spot = new THREE.Mesh(spotGeo, spotMat);
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(sx, 0, sz);
+    markings.add(spot);
+  });
+  const dRadius = Math.abs(SPOTS.yellow[0]);
+  const lineThickness = BALL_R * 0.1;
+  const dRingGeo = new THREE.RingGeometry(
+    dRadius - lineThickness / 2,
+    dRadius + lineThickness / 2,
+    64,
+    1,
+    Math.PI,
+    Math.PI
+  );
+  const dRing = new THREE.Mesh(dRingGeo, lineMat);
+  dRing.rotation.x = -Math.PI / 2;
+  dRing.position.set(0, 0, baulkZ);
+  markings.add(dRing);
+  const baulkWidth = PLAY_W - TABLE.WALL * 0.6;
+  const baulkGeo = new THREE.PlaneGeometry(baulkWidth, lineThickness);
+  const baulkLine = new THREE.Mesh(baulkGeo, lineMat.clone());
+  baulkLine.rotation.x = -Math.PI / 2;
+  baulkLine.position.set(0, 0, baulkZ);
+  markings.add(baulkLine);
+  table.add(markings);
+
   const ringGeo = new THREE.RingGeometry(
     POCKET_TOP_R * 0.68,
     POCKET_TOP_R * 1.02,
@@ -1138,7 +1259,9 @@ function Table3D(parent) {
     color: 0x000000,
     side: THREE.DoubleSide,
     metalness: 0.4,
-    roughness: 0.5
+    roughness: 0.5,
+    emissive: new THREE.Color(0x0f0f0f),
+    emissiveIntensity: 0.55
   });
   const ringLift = BALL_R * 0.007619047619047619;
 
@@ -1151,7 +1274,9 @@ function Table3D(parent) {
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     metalness: 0.6,
-    roughness: 0.4
+    roughness: 0.4,
+    emissive: new THREE.Color(0x050505),
+    emissiveIntensity: 0.25
   });
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
@@ -1353,8 +1478,9 @@ function Table3D(parent) {
   skirt.position.y = frameTopY - TABLE.THICK - skirtH * 0.8;
   table.add(skirt);
 
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
-  const legTopLocal = frameTopY - TABLE.THICK;
+  const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * 1.3;
+  const skirtBox = new THREE.Box3().setFromObject(skirt);
+  const legTopLocal = skirtBox.isEmpty() ? frameTopY - TABLE.THICK : skirtBox.min.y;
   const legTopWorld = legTopLocal + TABLE_Y;
   const legBottomWorld = FLOOR_Y;
   const legH = Math.max(legTopWorld - legBottomWorld, TABLE_H);
@@ -1409,8 +1535,6 @@ function Table3D(parent) {
   table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
   table.userData.cushionLipClearance = clothPlaneWorld;
   parent.add(table);
-
-  const baulkZ = -PLAY_H / 4;
 
   return {
     centers: pocketCenters(),
@@ -2287,7 +2411,7 @@ function SnookerGame() {
               )
             );
             const preferredPhi = clamp(
-              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
+              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift,
               CAMERA.minPhi,
               CAMERA.maxPhi
             );
