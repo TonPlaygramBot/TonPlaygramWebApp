@@ -2377,13 +2377,13 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        hemisphere.position.set(0, tableSurfaceY + heightScale * 0.8, 0);
+        hemisphere.position.set(0, tableSurfaceY + heightScale * 1.4, 0);
         lightingRig.add(hemisphere);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
         dirLight.position.set(
           -2.5 * widthScale,
-          tableSurfaceY + 5.2 * heightScale,
+          tableSurfaceY + 6.1 * heightScale,
           2 * lengthScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
@@ -2400,7 +2400,7 @@ function SnookerGame() {
         );
         spot.position.set(
           1.3 * widthScale,
-          tableSurfaceY + 3.2 * heightScale,
+          tableSurfaceY + 4.1 * heightScale,
           0.5 * lengthScale
         );
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
@@ -2412,7 +2412,7 @@ function SnookerGame() {
         lightingRig.add(spot.target);
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.08);
-        ambient.position.set(0, tableSurfaceY + heightScale * 1.45, 0);
+        ambient.position.set(0, tableSurfaceY + heightScale * 1.95, 0);
         lightingRig.add(ambient);
       };
 
