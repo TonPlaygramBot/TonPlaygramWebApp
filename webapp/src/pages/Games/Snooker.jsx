@@ -360,7 +360,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.6; // requested 60% increase to the cue strike strength
+const SHOT_FORCE_BOOST = 1.4; // boost cue strike strength by 40%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -511,11 +511,11 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.08;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
+const STANDING_VIEW_PHI = 1.04;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.3;
 const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
-const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.02;
+const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -527,7 +527,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.35;
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.55;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -539,8 +539,13 @@ let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
   radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.76,
-  phi: CAMERA.maxPhi - 0.09
+  phi: CAMERA.maxPhi - 0.14
 });
+const CAMERA_ZOOM_RANGE = Object.freeze({
+  near: 0.9,
+  far: 1.05
+});
+const CAMERA_RAIL_SAFETY = 0.015;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -1171,13 +1176,13 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.76,
+    roughness: 0.7,
     metalness: 0.05,
     sheen: 1.0,
     sheenRoughness: 0.52
   });
   const clothTextures = createClothTextures();
-  const baseRepeat = 26;
+  const baseRepeat = 18;
   if (clothTextures.map) {
     clothMat.map = clothTextures.map;
     clothMat.map.repeat.set(baseRepeat, baseRepeat);
@@ -1186,14 +1191,14 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat);
-    clothMat.bumpScale = 0.095;
+    clothMat.bumpScale = 0.16;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
-    nearRepeat: baseRepeat * 1.35,
-    farRepeat: baseRepeat * 0.7,
+    nearRepeat: baseRepeat * 1.25,
+    farRepeat: baseRepeat * 0.6,
     bumpScale: clothMat.bumpScale
   };
   const cushionMat = clothMat.clone();
@@ -1331,7 +1336,7 @@ function Table3D(parent) {
 
   const railW = TABLE.WALL * 0.7;
   const railH = TABLE.THICK * 1.82;
-  const frameWidth = railW * 2.5;
+  const frameWidth = railW * 0.5; // slimmer top rail overhang
   const outerHalfW = halfW + 2 * railW + frameWidth;
   const outerHalfH = halfH + 2 * railW + frameWidth;
   const cushionBack = railW * 0.5;
@@ -1484,35 +1489,8 @@ function Table3D(parent) {
   addCushion(rightX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, true);
   addCushion(rightX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, true);
 
-  const skirtH = TABLE_H * 0.4;
-  const skirtT = (TABLE.WALL * 0.7) * 0.8;
-  const skirtShape = new THREE.Shape();
   const baseExtentW = halfW + 2 * railW + frameWidth;
   const baseExtentH = halfH + 2 * railW + frameWidth;
-  const skirtOutW = baseExtentW + skirtT * 0.2;
-  const skirtOutH = baseExtentH + skirtT * 0.2;
-  skirtShape.moveTo(-skirtOutW, -skirtOutH);
-  skirtShape.lineTo(skirtOutW, -skirtOutH);
-  skirtShape.lineTo(skirtOutW, skirtOutH);
-  skirtShape.lineTo(-skirtOutW, skirtOutH);
-  skirtShape.lineTo(-skirtOutW, -skirtOutH);
-  const innerSkirt = new THREE.Path();
-  const EPS_CONTACT = Math.max(0.0003, TABLE.WALL * 0.0005);
-  innerSkirt.moveTo(-(baseExtentW - EPS_CONTACT), -(baseExtentH - EPS_CONTACT));
-  innerSkirt.lineTo(baseExtentW - EPS_CONTACT, -(baseExtentH - EPS_CONTACT));
-  innerSkirt.lineTo(baseExtentW - EPS_CONTACT, baseExtentH - EPS_CONTACT);
-  innerSkirt.lineTo(-(baseExtentW - EPS_CONTACT), baseExtentH - EPS_CONTACT);
-  innerSkirt.lineTo(-(baseExtentW - EPS_CONTACT), -(baseExtentH - EPS_CONTACT));
-  skirtShape.holes.push(innerSkirt);
-  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
-    depth: skirtH,
-    bevelEnabled: false
-  });
-  const skirt = new THREE.Mesh(skirtGeo, woodMat);
-  skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = frameTopY - TABLE.THICK - skirtH * 0.8;
-  table.add(skirt);
-
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
   const legTopWorld = legTopLocal + TABLE_Y;
@@ -2032,9 +2010,17 @@ function SnookerGame() {
           );
           cameraBlendRef.current = blend;
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
-          const radius = clampOrbitRadius(
-            THREE.MathUtils.lerp(cueShot.radius, standing.radius, blend)
+          const baseRadius = THREE.MathUtils.lerp(
+            cueShot.radius,
+            standing.radius,
+            blend
           );
+          const zoomFactor = THREE.MathUtils.lerp(
+            CAMERA_ZOOM_RANGE.near,
+            CAMERA_ZOOM_RANGE.far,
+            blend
+          );
+          const radius = clampOrbitRadius(baseRadius * zoomFactor);
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK - 0.05,
@@ -2043,7 +2029,7 @@ function SnookerGame() {
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
-          const safePhi = Math.min(rawPhi, phiRailLimit - 0.01);
+          const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
           sph.phi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
           sph.radius = radius;
           syncBlendToSpherical();
@@ -2613,7 +2599,7 @@ function SnookerGame() {
 
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
         const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 6.0; // raise fixtures higher for stronger reflections
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 7.5; // raise fixtures higher for stronger reflections
 
         const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
@@ -2650,7 +2636,7 @@ function SnookerGame() {
         );
         const spotOffsetX = 1.6 * fixtureScale;
         const spotOffsetZ = 0.95 * fixtureScale;
-        const spotHeight = tableSurfaceY + 6.2 * scaledHeight + lightHeightLift;
+        const spotHeight = tableSurfaceY + 6.8 * scaledHeight + lightHeightLift;
         spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         spot.decay = 1.0;
