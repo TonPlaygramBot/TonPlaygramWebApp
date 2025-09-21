@@ -240,7 +240,7 @@ function addPocketCuts(parent, clothPlane) {
     const geom = isCorner ? cornerGeo.clone() : sideGeo.clone();
     const mesh = new THREE.Mesh(geom, mat.clone());
     mesh.rotation.x = Math.PI / 2;
-    mesh.position.set(p.x, clothPlane + CLOTH_THICKNESS * 0.28, p.y);
+    mesh.position.set(p.x, clothPlane + POCKET_RIM_LIFT, p.y);
     mesh.renderOrder = 6;
     if (isCorner) {
       const sx = Math.sign(p.x) || 1;
@@ -336,7 +336,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.35; // raise the visible pocket rim slightly above the cloth
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.2; // subtle lift so pocket rims sit just above the cloth surface
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -360,7 +360,8 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65; // boost base strike speed by ~65% for a livelier hit
+const SHOT_FORCE_BOOST = 1.6; // requested 60% increase to the cue strike strength
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs dramatically taller so the table surface rides higher
@@ -374,12 +375,17 @@ const TABLE_LIFT =
 // raise overall table position so the longer legs are visible and the playfield sits higher off the floor
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT;
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-const LEG_ROOM_HEIGHT = BASE_LEG_HEIGHT + TABLE_LIFT;
+const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
+const LEG_LENGTH_SCALE = 0.6; // 40% shorter legs relative to the previous build
+const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
+const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
+const LEG_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const CUE_MARKER_RADIUS = CUE_TIP_RADIUS;
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.3;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -416,6 +422,73 @@ const COLORS = Object.freeze({
   black: 0x000000
 });
 
+const createClothTextures = (() => {
+  let cache = null;
+  const baseColor = new THREE.Color(COLORS.cloth);
+  const srgbBase = baseColor.clone().convertLinearToSRGB();
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  const noise = (x, y) => {
+    const value = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const image = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const n = noise(x, y) * 0.18 - 0.09;
+        const weave = Math.sin((x / size) * Math.PI * 24) * 0.04;
+        const cross = Math.sin((y / size) * Math.PI * 18) * 0.03;
+        const variation = clamp01(srgbBase.r + n + weave + cross);
+        const tint = clamp01(srgbBase.g + n * 0.6 + weave * 0.5);
+        const depth = clamp01(srgbBase.b + n * 0.4 + cross * 0.35);
+        image.data[idx] = variation * 255;
+        image.data[idx + 1] = tint * 255;
+        image.data[idx + 2] = depth * 255;
+        image.data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 8;
+
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = size;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    const bumpImage = bumpCtx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const n = noise(x + 17.31, y + 91.27);
+        const fiber = Math.sin((x / size) * Math.PI * 20) * 0.25;
+        const shade = clamp01(0.55 + n * 0.35 + fiber * 0.2);
+        const value = shade * 255;
+        bumpImage.data[idx] = value;
+        bumpImage.data[idx + 1] = value;
+        bumpImage.data[idx + 2] = value;
+        bumpImage.data[idx + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+    const bump = new THREE.CanvasTexture(bumpCanvas);
+    bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+    bump.anisotropy = 4;
+
+    cache = { map: texture, bump };
+    return cache;
+  };
+})();
+
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   return {
@@ -433,15 +506,17 @@ const STANDING_VIEW_PHI = 1.08;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.72;
 const STANDING_VIEW_FOV = 62;
+const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.02;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
   minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  minPhi: STANDING_VIEW_PHI,
+  minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
-  maxPhi: CUE_SHOT_PHI
+  maxPhi: CAMERA_MAX_PHI
 };
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -478,7 +553,7 @@ const ACTION_CAMERA_RADIUS_SCALE = 0.76;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - 0.02,
-  STANDING_VIEW_PHI + 0.02
+  CAMERA.minPhi + 0.02
 );
 const POCKET_IDLE_SWITCH_MS = 0;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1081,13 +1156,34 @@ function Table3D(parent) {
   const table = new THREE.Group();
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
+  const baulkLineZ = -PLAY_H / 4;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.95,
+    roughness: 0.82,
     sheen: 1.0,
-    sheenRoughness: 0.8
+    sheenRoughness: 0.7
   });
+  const clothTextures = createClothTextures();
+  const baseRepeat = 26;
+  if (clothTextures.map) {
+    clothMat.map = clothTextures.map;
+    clothMat.map.repeat.set(baseRepeat, baseRepeat);
+    clothMat.map.needsUpdate = true;
+  }
+  if (clothTextures.bump) {
+    clothMat.bumpMap = clothTextures.bump;
+    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat);
+    clothMat.bumpScale = 0.065;
+    clothMat.bumpMap.needsUpdate = true;
+  }
+  clothMat.userData = {
+    ...(clothMat.userData || {}),
+    baseRepeat,
+    nearRepeat: baseRepeat * 1.35,
+    farRepeat: baseRepeat * 0.7,
+    bumpScale: clothMat.bumpScale
+  };
   const cushionMat = clothMat.clone();
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
@@ -1128,6 +1224,58 @@ function Table3D(parent) {
   cloth.position.y = clothPlaneLocal;
   cloth.renderOrder = 3;
   table.add(cloth);
+
+  const markingsGroup = new THREE.Group();
+  const markingMat = new THREE.MeshBasicMaterial({
+    color: COLORS.markings,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide
+  });
+  const markingHeight = clothPlaneLocal + MICRO_EPS * 2;
+  const lineThickness = Math.max(BALL_R * 0.08, 0.1);
+  const baulkLineLength = PLAY_W - TABLE.WALL * 0.4;
+  const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
+  const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
+  baulkLine.rotation.x = -Math.PI / 2;
+  baulkLine.position.set(0, markingHeight, baulkLineZ);
+  markingsGroup.add(baulkLine);
+
+  const dRadius = PLAY_W * 0.164;
+  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
+  const dGeom = new THREE.RingGeometry(
+    Math.max(0.001, dRadius - dThickness),
+    dRadius,
+    64,
+    1,
+    0,
+    Math.PI
+  );
+  const dArc = new THREE.Mesh(dGeom, markingMat.clone());
+  dArc.rotation.x = -Math.PI / 2;
+  dArc.position.set(0, markingHeight, baulkLineZ);
+  markingsGroup.add(dArc);
+
+  const spotRadius = Math.max(BALL_R * 0.14, 0.22);
+  const spotGeom = new THREE.CircleGeometry(spotRadius, 48);
+  const spotMat = markingMat.clone();
+  spotMat.opacity = 0.95;
+  const spotMap = spotPositions(baulkLineZ);
+  Object.values(spotMap).forEach(([sx, sz]) => {
+    const spot = new THREE.Mesh(spotGeom, spotMat);
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(sx, markingHeight, sz);
+    markingsGroup.add(spot);
+  });
+
+  markingsGroup.traverse((child) => {
+    if (child.isMesh) {
+      child.renderOrder = cloth.renderOrder + 1;
+      child.castShadow = false;
+      child.receiveShadow = false;
+    }
+  });
+  table.add(markingsGroup);
 
   const ringGeo = new THREE.RingGeometry(
     POCKET_TOP_R * 0.68,
@@ -1353,7 +1501,7 @@ function Table3D(parent) {
   skirt.position.y = frameTopY - TABLE.THICK - skirtH * 0.8;
   table.add(skirt);
 
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.055;
+  const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
   const legTopWorld = legTopLocal + TABLE_Y;
   const legBottomWorld = FLOOR_Y;
@@ -1410,7 +1558,7 @@ function Table3D(parent) {
   table.userData.cushionLipClearance = clothPlaneWorld;
   parent.add(table);
 
-  const baulkZ = -PLAY_H / 4;
+  const baulkZ = baulkLineZ;
 
   return {
     centers: pocketCenters(),
@@ -1871,14 +2019,20 @@ function SnookerGame() {
             1
           );
           cameraBlendRef.current = blend;
-          const phi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
-          const radius = THREE.MathUtils.lerp(
-            cueShot.radius,
-            standing.radius,
-            blend
+          const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
+          const radius = clampOrbitRadius(
+            THREE.MathUtils.lerp(cueShot.radius, standing.radius, blend)
           );
-          sph.phi = clamp(phi, CAMERA.minPhi, CAMERA.maxPhi);
-          sph.radius = clampOrbitRadius(radius);
+          const minHeightFromTarget = Math.max(
+            TABLE.THICK - 0.05,
+            (cushionHeightRef.current ?? TABLE.THICK) * 0.95
+          );
+          const phiRailLimit = Math.acos(
+            THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
+          );
+          const safePhi = Math.min(rawPhi, phiRailLimit - 0.01);
+          sph.phi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
+          sph.radius = radius;
           syncBlendToSpherical();
         };
 
@@ -2084,10 +2238,20 @@ function SnookerGame() {
           }
           if (clothMat && lookTarget) {
             const dist = camera.position.distanceTo(lookTarget);
-            // Subtle detail up close, fade quicker in orbit view
-            const fade = THREE.MathUtils.clamp((130 - dist) / 55, 0, 1);
-            const rep = THREE.MathUtils.lerp(18, 36, fade);
-            clothMat.map?.repeat.set(rep, rep);
+            const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
+            const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
+            const farRepeat = clothMat.userData?.farRepeat ?? 18;
+            const targetRepeat = THREE.MathUtils.lerp(farRepeat, nearRepeat, fade);
+            if (clothMat.map) {
+              clothMat.map.repeat.set(targetRepeat, targetRepeat);
+            }
+            if (clothMat.bumpMap) {
+              clothMat.bumpMap.repeat.set(targetRepeat, targetRepeat);
+            }
+            if (Number.isFinite(clothMat.userData?.bumpScale)) {
+              const base = clothMat.userData.bumpScale;
+              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.55, base * 1.4, fade);
+            }
           }
         };
         const lerpAngle = (a, b, t) => {
