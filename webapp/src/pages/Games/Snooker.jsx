@@ -286,6 +286,8 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
+const FRAME_TOP_Y = -TABLE.THICK + 0.01;
+const CLOTH_LIFT = Math.max(0.0005, TABLE.THICK * 0.0025);
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 0;
@@ -303,7 +305,7 @@ const POCKET_R = BALL_R * 2; // pockets twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.97;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
-const BALL_CENTER_Y = BALL_R * 1.06; // lift balls slightly so a thin contact strip remains visible
+const BALL_CENTER_Y = FRAME_TOP_Y + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
@@ -324,9 +326,8 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_EDGE_GROWTH = TABLE.WALL * 0.18; // extend the visual cloth toward the rails to eliminate the outer gap
-const CUSHION_LIP_OFFSET = 0.05;
 const POCKET_JAW_LIP_HEIGHT =
-  -TABLE.THICK + CUSHION_LIP_OFFSET; // align pocket rims flush with the cushion tops
+  FRAME_TOP_Y + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.35; // raise the visible pocket rim slightly above the cloth
 const POCKET_RECESS_DEPTH =
@@ -1090,8 +1091,8 @@ function Table3D(parent) {
     roughness: 0.8
   });
 
-  const frameTopY = -TABLE.THICK + 0.01;
-  const clothLift = Math.max(0.0005, TABLE.THICK * 0.0025);
+  const frameTopY = FRAME_TOP_Y;
+  const clothLift = CLOTH_LIFT;
 
   const clothShape = new THREE.Shape();
   const clothExtend = TABLE.WALL * 0.7 + CUSHION_OVERLAP + TABLE.WALL * 0.02;
@@ -1137,9 +1138,12 @@ function Table3D(parent) {
   const railW = TABLE.WALL * 0.35;
   const railH = TABLE.THICK * 1.82;
   const railOutPush = Math.min(TABLE.WALL * 0.05, CUSHION_OVERLAP * 0.5);
+  const railOuterGrowth = TABLE.WALL * 0.2;
   const frameShape = new THREE.Shape();
-  const outerHalfW = halfW + 2 * railW + railW * 2.5 + railOutPush;
-  const outerHalfH = halfH + 2 * railW + railW * 2.5 + railOutPush;
+  const outerHalfW =
+    halfW + 2 * railW + railW * 2.5 + railOutPush + railOuterGrowth;
+  const outerHalfH =
+    halfH + 2 * railW + railW * 2.5 + railOutPush + railOuterGrowth;
   frameShape.moveTo(-outerHalfW, -outerHalfH);
   frameShape.lineTo(outerHalfW, -outerHalfH);
   frameShape.lineTo(outerHalfW, outerHalfH);
@@ -1168,7 +1172,7 @@ function Table3D(parent) {
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.22;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
-  const cushionRaiseY = frameTopY + clothLift - 0.0004;
+  const cushionRaiseY = frameTopY + clothLift;
 
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
@@ -1264,8 +1268,10 @@ function Table3D(parent) {
   const skirtH = TABLE_H * 0.4;
   const skirtT = TABLE.WALL * 0.7 * 0.8;
   const skirtShape = new THREE.Shape();
-  const skirtInnerHalfW = halfW + 2 * railW + railW * 2.5 + railOutPush;
-  const skirtInnerHalfH = halfH + 2 * railW + railW * 2.5 + railOutPush;
+  const skirtInnerHalfW =
+    halfW + 2 * railW + railW * 2.5 + railOutPush + railOuterGrowth;
+  const skirtInnerHalfH =
+    halfH + 2 * railW + railW * 2.5 + railOutPush + railOuterGrowth;
   const skirtOutW = skirtInnerHalfW + skirtT * 0.2;
   const skirtOutH = skirtInnerHalfH + skirtT * 0.2;
   skirtShape.moveTo(-skirtOutW, -skirtOutH);
