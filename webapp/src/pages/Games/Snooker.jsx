@@ -360,7 +360,8 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * 1.6; // boost base strike speed by ~65% for a livelier hit and add +60% power
+// Increase cue impact force by an additional 50% for noticeably stronger strikes.
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * 1.6 * 1.5;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 // Make the four round legs dramatically taller so the table surface rides higher
@@ -415,6 +416,8 @@ const COLORS = Object.freeze({
   pink: 0xff69b4,
   black: 0x000000
 });
+
+const SIDE_RAIL_OUTER_SCALE = 0.5; // shrink the side rail woodwork by 50% from the outside edge
 
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
@@ -1175,8 +1178,67 @@ function Table3D(parent) {
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.3,
-    roughness: 0.8
+    roughness: 0.75
   });
+
+  const RAIL_WOOD_TEX_SIZE = 512;
+  const railWoodCanvas = document.createElement('canvas');
+  railWoodCanvas.width = RAIL_WOOD_TEX_SIZE;
+  railWoodCanvas.height = RAIL_WOOD_TEX_SIZE;
+  const railWoodCtx = railWoodCanvas.getContext('2d');
+  if (railWoodCtx) {
+    const gradient = railWoodCtx.createLinearGradient(0, 0, RAIL_WOOD_TEX_SIZE, 0);
+    gradient.addColorStop(0, '#3f2414');
+    gradient.addColorStop(0.5, '#5b351b');
+    gradient.addColorStop(1, '#3f2414');
+    railWoodCtx.fillStyle = gradient;
+    railWoodCtx.fillRect(0, 0, RAIL_WOOD_TEX_SIZE, RAIL_WOOD_TEX_SIZE);
+    railWoodCtx.globalAlpha = 0.18;
+    railWoodCtx.fillStyle = '#000000';
+    for (let x = 0; x < RAIL_WOOD_TEX_SIZE; x += RAIL_WOOD_TEX_SIZE / 24) {
+      const stripeWidth = (RAIL_WOOD_TEX_SIZE / 24) * 0.45;
+      railWoodCtx.fillRect(x, 0, stripeWidth, RAIL_WOOD_TEX_SIZE);
+    }
+    railWoodCtx.globalAlpha = 0.12;
+    railWoodCtx.fillStyle = '#ffffff';
+    for (let x = 0; x < RAIL_WOOD_TEX_SIZE; x += RAIL_WOOD_TEX_SIZE / 12) {
+      railWoodCtx.fillRect(x, 0, (RAIL_WOOD_TEX_SIZE / 12) * 0.1, RAIL_WOOD_TEX_SIZE);
+    }
+    railWoodCtx.globalAlpha = 1;
+  }
+  const railWoodTexture = new THREE.CanvasTexture(railWoodCanvas);
+  railWoodTexture.wrapS = railWoodTexture.wrapT = THREE.RepeatWrapping;
+  railWoodTexture.repeat.set(3, 0.75);
+  railWoodTexture.anisotropy = 8;
+  railWoodTexture.colorSpace = THREE.SRGBColorSpace;
+  railWoodTexture.needsUpdate = true;
+
+  const railWoodBumpCanvas = document.createElement('canvas');
+  railWoodBumpCanvas.width = RAIL_WOOD_TEX_SIZE;
+  railWoodBumpCanvas.height = RAIL_WOOD_TEX_SIZE;
+  const railWoodBumpCtx = railWoodBumpCanvas.getContext('2d');
+  if (railWoodBumpCtx) {
+    railWoodBumpCtx.fillStyle = '#808080';
+    railWoodBumpCtx.fillRect(0, 0, RAIL_WOOD_TEX_SIZE, RAIL_WOOD_TEX_SIZE);
+    railWoodBumpCtx.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let x = 0; x < RAIL_WOOD_TEX_SIZE; x += RAIL_WOOD_TEX_SIZE / 16) {
+      railWoodBumpCtx.fillRect(x, 0, (RAIL_WOOD_TEX_SIZE / 160) * 6, RAIL_WOOD_TEX_SIZE);
+    }
+    railWoodBumpCtx.fillStyle = 'rgba(0,0,0,0.1)';
+    for (let x = RAIL_WOOD_TEX_SIZE / 32; x < RAIL_WOOD_TEX_SIZE; x += RAIL_WOOD_TEX_SIZE / 16) {
+      railWoodBumpCtx.fillRect(x, 0, (RAIL_WOOD_TEX_SIZE / 160) * 4, RAIL_WOOD_TEX_SIZE);
+    }
+  }
+  const railWoodBump = new THREE.CanvasTexture(railWoodBumpCanvas);
+  railWoodBump.wrapS = railWoodBump.wrapT = THREE.RepeatWrapping;
+  railWoodBump.repeat.copy(railWoodTexture.repeat);
+  railWoodBump.anisotropy = 4;
+  railWoodBump.needsUpdate = true;
+
+  railWoodMat.map = railWoodTexture;
+  railWoodMat.bumpMap = railWoodBump;
+  railWoodMat.bumpScale = 0.0025;
+  railWoodMat.needsUpdate = true;
 
   const frameTopY = FRAME_TOP_Y;
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
@@ -1297,13 +1359,17 @@ function Table3D(parent) {
   const railW = TABLE.WALL * 0.7;
   const railH = TABLE.THICK * 1.82;
   const frameWidth = railW * 2.5;
-  const outerHalfW = halfW + 2 * railW + frameWidth;
-  const outerHalfH = halfH + 2 * railW + frameWidth;
   const cushionBack = railW * 0.5;
+  const baseRailInner = halfW + cushionBack - MICRO_EPS;
+  const originalOuterHalfW = halfW + 2 * railW + frameWidth;
+  const outerHalfW =
+    baseRailInner + (originalOuterHalfW - baseRailInner) * SIDE_RAIL_OUTER_SCALE;
+  const outerHalfH = halfH + 2 * railW + frameWidth;
+  const railTopTarget = CLOTH_TOP_LOCAL - MICRO_EPS;
   const railsGroup = new THREE.Group();
 
   function buildSideRail(sign) {
-    const xIn = (sign < 0 ? -1 : 1) * (halfW + cushionBack - MICRO_EPS);
+    const xIn = (sign < 0 ? -1 : 1) * baseRailInner;
     const xOut = (sign < 0 ? -1 : 1) * outerHalfW;
     const shape = new THREE.Shape();
     shape.moveTo(xOut, -outerHalfH);
@@ -1317,7 +1383,9 @@ function Table3D(parent) {
     });
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = frameTopY;
+    mesh.position.y = railTopTarget - railH;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     railsGroup.add(mesh);
   }
 
@@ -1336,7 +1404,9 @@ function Table3D(parent) {
     });
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = frameTopY;
+    mesh.position.y = railTopTarget - railH;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     railsGroup.add(mesh);
   }
 
@@ -1452,7 +1522,7 @@ function Table3D(parent) {
   const skirtH = TABLE_H * 0.4;
   const skirtT = (TABLE.WALL * 0.7) * 0.8;
   const skirtShape = new THREE.Shape();
-  const baseExtentW = halfW + 2 * railW + frameWidth;
+  const baseExtentW = outerHalfW;
   const baseExtentH = halfH + 2 * railW + frameWidth;
   const skirtOutW = baseExtentW + skirtT * 0.2;
   const skirtOutH = baseExtentH + skirtT * 0.2;
@@ -1475,7 +1545,7 @@ function Table3D(parent) {
   });
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = frameTopY - TABLE.THICK - skirtH * 0.8;
+  skirt.position.y = frameTopY - TABLE.THICK - skirtH * 0.3;
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * 1.3;
@@ -1487,7 +1557,7 @@ function Table3D(parent) {
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const baseX = baseExtentW;
   const baseZ = baseExtentH;
-  const LEG_INSET = (TABLE.WALL * 0.7) * 1.0;
+  const LEG_INSET = railW * 1.35;
   const legPositions = [
     [-(baseX) + LEG_INSET, -(baseZ) + LEG_INSET],
     [baseX - LEG_INSET, -(baseZ) + LEG_INSET],
@@ -2587,28 +2657,30 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const spot = new THREE.SpotLight(
-          0xffffff,
-          2.0,
-          0,
-          Math.PI * 0.22,
-          0.28,
-          1
-        );
-        spot.position.set(
-          1.25 * fixtureScale,
-          tableSurfaceY + 4.9 * scaledHeight + lightHeightLift,
-          0.65 * fixtureScale
-        );
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
-        spot.decay = 1.0;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00012;
-        lightingRig.add(spot);
-        lightingRig.add(spot.target);
+        const ambientIntensity = 0.06;
+        const spotIntensity = ambientIntensity;
+        const spotAngle = Math.PI * 0.24;
+        const spotPenumbra = 0.32;
+        const spotHeight = tableSurfaceY + 4.9 * scaledHeight + lightHeightLift;
+        const spotConfigs = [
+          [1.25 * fixtureScale, spotHeight, 0.65 * fixtureScale],
+          [-1.25 * fixtureScale, spotHeight, 0.65 * fixtureScale],
+          [1.25 * fixtureScale, spotHeight, -0.65 * fixtureScale],
+          [-1.25 * fixtureScale, spotHeight, -0.65 * fixtureScale]
+        ];
+        spotConfigs.forEach(([sx, sy, sz]) => {
+          const spot = new THREE.SpotLight(0xffffff, spotIntensity, 0, spotAngle, spotPenumbra, 1);
+          spot.position.set(sx, sy, sz);
+          spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
+          spot.decay = 1.0;
+          spot.castShadow = true;
+          spot.shadow.mapSize.set(1536, 1536);
+          spot.shadow.bias = -0.00012;
+          lightingRig.add(spot);
+          lightingRig.add(spot.target);
+        });
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
+        const ambient = new THREE.AmbientLight(0xffffff, ambientIntensity);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
