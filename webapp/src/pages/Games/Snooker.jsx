@@ -2356,42 +2356,25 @@ function SnookerGame() {
         world.add(lightingRig);
 
         const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
-        const overheadHeight = tableSurfaceY + PLAY_W * 0.42;
-
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.85);
-        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.32, 0);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6);
+        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.35, 0);
         lightingRig.add(hemisphere);
 
-        const fillLight = new THREE.AmbientLight(0xffffff, 0.15);
-        lightingRig.add(fillLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
-        dirLight.position.set(-PLAY_W * 0.28, tableSurfaceY + PLAY_W * 0.48, PLAY_H * 0.18);
-        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.5, 0);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(-PLAY_W * 0.35, tableSurfaceY + PLAY_W * 0.6, PLAY_H * 0.3);
+        dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const createSpot = (xFactor, zFactor, intensity, angle = Math.PI * 0.26) => {
-          const spot = new THREE.SpotLight(0xffffff, intensity, 0, angle, 0.35, 1.05);
-          spot.position.set(PLAY_W * xFactor, overheadHeight, PLAY_H * zFactor);
-          spot.target.position.set(
-            PLAY_W * xFactor * 0.3,
-            tableSurfaceY + BALL_R * 0.7,
-            PLAY_H * zFactor * 0.3
-          );
-          spot.decay = 1.05;
-          spot.castShadow = true;
-          spot.shadow.mapSize.set(2048, 2048);
-          spot.shadow.bias = -0.00008;
-          lightingRig.add(spot);
-          lightingRig.add(spot.target);
-        };
-
-        createSpot(0, 0, 2.2, Math.PI * 0.3);
-        createSpot(0.2, 0, 1.7);
-        createSpot(-0.2, 0, 1.7);
-        createSpot(0, 0.18, 1.6);
-        createSpot(0, -0.18, 1.6);
+        const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
+        spot.position.set(PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.5, PLAY_H * 0.08);
+        spot.target.position.set(0, tableSurfaceY + BALL_R * 0.5, 0);
+        spot.decay = 1.0;
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(2048, 2048);
+        spot.shadow.bias = -0.00012;
+        lightingRig.add(spot);
+        lightingRig.add(spot.target);
       };
 
       addMobileLighting();
