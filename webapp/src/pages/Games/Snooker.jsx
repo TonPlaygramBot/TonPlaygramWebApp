@@ -2350,59 +2350,59 @@ function SnookerGame() {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Updated lighting rig inspired by the standalone snooker demo.
+      // Replace the previous rig with the updated three-light setup from the
+      // standalone snooker demo and scale it to the current table footprint.
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
         const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6 * 1.4);
-        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.18, 0);
+        // The reference lighting was authored against a smaller demo table
+        // roughly 7 units wide. Convert those authored offsets so they follow
+        // our larger snooker playfield while preserving their relative angles.
+        const BASE_TABLE_DIMENSION = 7;
+        const widthScale = PLAY_W / BASE_TABLE_DIMENSION;
+        const lengthScale = PLAY_H / BASE_TABLE_DIMENSION;
+        const verticalScale = widthScale;
+
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
+        hemisphere.position.set(0, tableSurfaceY + verticalScale * 1.2, 0);
         lightingRig.add(hemisphere);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
-        ambient.position.set(0, tableSurfaceY + PLAY_W * 0.14, 0);
-        lightingRig.add(ambient);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(-PLAY_W * 0.35, tableSurfaceY + PLAY_W * 0.6, PLAY_H * 0.3);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
+        dirLight.position.set(
+          -2.5 * widthScale,
+          tableSurfaceY + 4 * verticalScale,
+          2 * lengthScale
+        );
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const SPOT_CONFIGS = [
-          {
-            position: [PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.24, PLAY_H * 0.08],
-            target: [0, tableSurfaceY + BALL_R * 0.5, 0]
-          },
-          {
-            position: [-PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.24, -PLAY_H * 0.08],
-            target: [0, tableSurfaceY + BALL_R * 0.5, 0]
-          }
-        ];
+        const spot = new THREE.SpotLight(
+          0xffffff,
+          2.0,
+          0,
+          Math.PI * 0.22,
+          0.28,
+          1
+        );
+        spot.position.set(
+          1.3 * widthScale,
+          tableSurfaceY + 2.6 * verticalScale,
+          0.5 * lengthScale
+        );
+        spot.target.position.set(0, tableSurfaceY + 0.75 * verticalScale, 0);
+        spot.decay = 1.0;
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(2048, 2048);
+        spot.shadow.bias = -0.00012;
+        lightingRig.add(spot);
+        lightingRig.add(spot.target);
 
-        for (const { position, target } of SPOT_CONFIGS) {
-          const spot = new THREE.SpotLight(
-            0xffffff,
-            1.5 * 1.4 * 1.5,
-            0,
-            Math.PI * 0.2 * 1.4 * 1.5,
-            0.3,
-            1
-          );
-          spot.position.set(
-            position[0],
-            position[1] - PLAY_W * 0.03,
-            position[2]
-          );
-          spot.target.position.set(...target);
-          spot.decay = 1.0;
-          spot.castShadow = true;
-          spot.shadow.mapSize.set(2048, 2048);
-          spot.shadow.bias = -0.00012;
-          lightingRig.add(spot);
-          lightingRig.add(spot.target);
-        }
+        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
+        ambient.position.set(0, tableSurfaceY + verticalScale, 0);
+        lightingRig.add(ambient);
       };
 
       addMobileLighting();
