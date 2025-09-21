@@ -2357,8 +2357,12 @@ function SnookerGame() {
 
         const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.6 * 1.4);
-        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.23, 0);
+        hemisphere.position.set(0, tableSurfaceY + PLAY_W * 0.18, 0);
         lightingRig.add(hemisphere);
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
+        ambient.position.set(0, tableSurfaceY + PLAY_W * 0.14, 0);
+        lightingRig.add(ambient);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(-PLAY_W * 0.35, tableSurfaceY + PLAY_W * 0.6, PLAY_H * 0.3);
