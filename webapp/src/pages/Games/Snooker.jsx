@@ -1028,7 +1028,7 @@ function alignRailsToCushions(table, frame) {
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
   const frameBox = new THREE.Box3().setFromObject(frame);
   const diff = frameBox.max.y - cushionBox.max.y;
-  if (diff > 0.001) {
+  if (Math.abs(diff) > 0.0005) {
     frame.position.y -= diff;
   }
 }
@@ -1235,7 +1235,13 @@ function Table3D(parent) {
     mesh.rotation.x = -Math.PI / 2;
     const group = new THREE.Group();
     group.add(mesh);
-    group.position.set(x, cushionRaiseY, z);
+    const cushionBox = new THREE.Box3().setFromObject(group);
+    const bottom = cushionBox.min.y;
+    let lift = cushionRaiseY;
+    if (Number.isFinite(bottom)) {
+      lift -= bottom;
+    }
+    group.position.set(x, lift, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     if (flip) group.rotation.y += Math.PI;
     if (horizontal) {
@@ -2377,13 +2383,13 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        hemisphere.position.set(0, tableSurfaceY + heightScale * 0.55, 0);
+        hemisphere.position.set(0, tableSurfaceY + heightScale * 0.45, 0);
         lightingRig.add(hemisphere);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
         dirLight.position.set(
           -2.5 * widthScale,
-          tableSurfaceY + 4 * heightScale,
+          tableSurfaceY + 3.6 * heightScale,
           2 * lengthScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
@@ -2400,10 +2406,10 @@ function SnookerGame() {
         );
         spot.position.set(
           1.3 * widthScale,
-          tableSurfaceY + 2.6 * heightScale,
+          tableSurfaceY + 2.3 * heightScale,
           0.5 * lengthScale
         );
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.03, 0);
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.02, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
