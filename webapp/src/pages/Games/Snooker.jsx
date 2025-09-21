@@ -2377,7 +2377,7 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        const lightHeightLift = heightScale * 0.6;
+        const lightHeightLift = heightScale * 1.2;
         hemisphere.position.set(
           0,
           tableSurfaceY + heightScale * 1.4 + lightHeightLift,
