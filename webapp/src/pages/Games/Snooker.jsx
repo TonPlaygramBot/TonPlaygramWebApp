@@ -2372,7 +2372,7 @@ function SnookerGame() {
         const SAMPLE_PLAY_H = 2.536;
         const SAMPLE_TABLE_HEIGHT = 0.75;
 
-        const LIGHT_DIMENSION_SCALE = 1.2;
+        const LIGHT_DIMENSION_SCALE = 0.96; // reduce fixture footprint by 20%
         const LIGHT_HEIGHT_SCALE = 1.2;
 
         const widthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
@@ -2381,7 +2381,7 @@ function SnookerGame() {
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
-        const lightHeightLift = scaledHeight * 3.4; // lift the lighting rig higher above the table
+        const lightHeightLift = scaledHeight * 4.5; // lift the lighting rig higher above the table
         hemisphere.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.4 + lightHeightLift,
