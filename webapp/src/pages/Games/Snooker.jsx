@@ -411,7 +411,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x1f8a3d,
+  cloth: 0x1a6d1a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -427,76 +427,58 @@ const COLORS = Object.freeze({
 
 const createClothTextures = (() => {
   let cache = null;
-  const baseColor = new THREE.Color(COLORS.cloth);
-  const srgbBase = baseColor.clone().convertLinearToSRGB();
-  const clamp01 = (v) => Math.min(1, Math.max(0, v));
-  const noise = (x, y) => {
-    const value = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-    return value - Math.floor(value);
-  };
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
       cache = { map: null, bump: null };
       return cache;
     }
-    const size = 384;
+
+    const size = 512;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const image = ctx.createImageData(size, size);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const n = noise(x, y) * 0.36 - 0.18;
-        const weave = Math.sin((x / size) * Math.PI * 32) * 0.085;
-        const cross = Math.sin((y / size) * Math.PI * 28) * 0.065;
-        const diag = Math.sin(((x + y) / size) * Math.PI * 24) * 0.055;
-        const variation = clamp01(
-          srgbBase.r + n * 0.78 + weave + cross * 0.75 + diag * 0.45
-        );
-        const tint = clamp01(
-          srgbBase.g + n * 0.88 + weave * 0.72 + diag * 0.52
-        );
-        const depth = clamp01(
-          srgbBase.b + n * 0.7 + cross * 0.62 + diag * 0.45
-        );
-        image.data[idx] = variation * 255;
-        image.data[idx + 1] = tint * 255;
-        image.data[idx + 2] = depth * 255;
-        image.data[idx + 3] = 255;
-      }
+    if (!ctx) {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+
+    const clothColor = new THREE.Color(COLORS.cloth).convertLinearToSRGB();
+    ctx.fillStyle = `#${clothColor.getHexString()}`;
+    ctx.fillRect(0, 0, size, size);
+
+    for (let y = 0; y < size; y += 2) {
+      ctx.fillStyle = 'rgba(255,255,255,0.30)';
+      ctx.fillRect(0, y, size, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.40)';
+      ctx.fillRect(0, y + 1, size, 1);
+    }
+
+    for (let x = 0; x < size; x += 8) {
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x, 0, 1, size);
+      ctx.fillStyle = 'rgba(0,0,0,0.09)';
+      ctx.fillRect(x + 4, 0, 1, size);
+    }
+
+    const image = ctx.getImageData(0, 0, size, size);
+    const data = image.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const n = (Math.random() * 44) | 0;
+      data[i] = Math.min(255, data[i] + n);
+      data[i + 1] = Math.min(255, data[i + 1] + n);
+      data[i + 2] = Math.min(255, data[i + 2] + n);
     }
     ctx.putImageData(image, 0, 0);
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 18;
+    texture.repeat.set(28, 112);
+    texture.anisotropy = 32;
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
 
-    const bumpCanvas = document.createElement('canvas');
-    bumpCanvas.width = bumpCanvas.height = size;
-    const bumpCtx = bumpCanvas.getContext('2d');
-    const bumpImage = bumpCtx.createImageData(size, size);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const n = noise(x + 17.31, y + 91.27) * 0.9 - 0.45;
-        const fiberX = Math.sin((x / size) * Math.PI * 30) * 0.55;
-        const fiberY = Math.sin((y / size) * Math.PI * 28) * 0.48;
-        const micro = Math.sin(((x + y) / size) * Math.PI * 18) * 0.22;
-        const shade = clamp01(0.5 + n * 0.85 + fiberX + fiberY * 0.9 + micro);
-        const value = shade * 255;
-        bumpImage.data[idx] = value;
-        bumpImage.data[idx + 1] = value;
-        bumpImage.data[idx + 2] = value;
-        bumpImage.data[idx + 3] = 255;
-      }
-    }
-    bumpCtx.putImageData(bumpImage, 0, 0);
-    const bump = new THREE.CanvasTexture(bumpCanvas);
-    bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-    bump.anisotropy = 12;
-
-    cache = { map: texture, bump };
+    cache = { map: texture, bump: texture };
     return cache;
   };
 })();
@@ -1255,27 +1237,29 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.7,
+    roughness: 0.8,
     metalness: 0.05,
     sheen: 1.0,
-    sheenRoughness: 0.52
+    sheenRoughness: 0.62
   });
   const clothTextures = createClothTextures();
-  const baseRepeat = 18;
+  const baseRepeat = 28;
+  const repeatRatio = 112 / 28;
   if (clothTextures.map) {
     clothMat.map = clothTextures.map;
-    clothMat.map.repeat.set(baseRepeat, baseRepeat);
+    clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.map.needsUpdate = true;
   }
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
-    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat);
-    clothMat.bumpScale = 0.26;
+    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.bumpScale = 0.055;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
+    repeatRatio,
     nearRepeat: baseRepeat * 1.25,
     farRepeat: baseRepeat * 0.6,
     bumpScale: clothMat.bumpScale
@@ -2398,12 +2382,14 @@ function SnookerGame() {
             const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
             const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
             const farRepeat = clothMat.userData?.farRepeat ?? 18;
+            const ratio = clothMat.userData?.repeatRatio ?? 1;
             const targetRepeat = THREE.MathUtils.lerp(farRepeat, nearRepeat, fade);
+            const targetRepeatY = targetRepeat * ratio;
             if (clothMat.map) {
-              clothMat.map.repeat.set(targetRepeat, targetRepeat);
+              clothMat.map.repeat.set(targetRepeat, targetRepeatY);
             }
             if (clothMat.bumpMap) {
-              clothMat.bumpMap.repeat.set(targetRepeat, targetRepeat);
+              clothMat.bumpMap.repeat.set(targetRepeat, targetRepeatY);
             }
             if (Number.isFinite(clothMat.userData?.bumpScale)) {
               const base = clothMat.userData.bumpScale;
