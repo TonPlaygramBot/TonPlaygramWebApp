@@ -382,6 +382,7 @@ const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room an
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
@@ -510,10 +511,10 @@ function spotPositions(baulkZ) {
   };
 }
 
-// Kamera: lejojmë kënd më të ulët ndaj tavolinës, por mos shko kurrë krejt në nivel (limit ~0.5rad)
-const STANDING_VIEW_PHI = 1.04;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.3;
-const STANDING_VIEW_MARGIN = 0.72;
+// Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
+const STANDING_VIEW_PHI = 0.9;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
+const STANDING_VIEW_MARGIN = 0.65;
 const STANDING_VIEW_FOV = 62;
 const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
@@ -521,7 +522,7 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.75,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -538,11 +539,11 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.76,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.7,
   phi: CAMERA.maxPhi - 0.14
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 0.9,
+  near: 0.84,
   far: 1.05
 });
 const CAMERA_RAIL_SAFETY = 0.015;
@@ -597,7 +598,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.6 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.55 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -1495,7 +1496,8 @@ function Table3D(parent) {
   const legTopLocal = frameTopY - TABLE.THICK;
   const legTopWorld = legTopLocal + TABLE_Y;
   const legBottomWorld = FLOOR_Y;
-  const legH = Math.max(legTopWorld - legBottomWorld, TABLE_H);
+  const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
+  const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const baseX = baseExtentW;
   const baseZ = baseExtentH;
@@ -1508,7 +1510,7 @@ function Table3D(parent) {
   ];
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(lx, legTopLocal - legH / 2, lz);
+    leg.position.set(lx, legTopLocal + LEG_TOP_OVERLAP - legH / 2, lz);
     leg.castShadow = true;
     leg.receiveShadow = true;
     table.add(leg);
@@ -2599,7 +2601,7 @@ function SnookerGame() {
 
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
         const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 7.5; // raise fixtures higher for stronger reflections
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
 
         const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
@@ -2628,10 +2630,10 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          2.0,
+          3.5,
           0,
-          Math.PI * 0.22,
-          0.28,
+          Math.PI * 0.26,
+          0.2,
           1
         );
         const spotOffsetX = 1.6 * fixtureScale;
@@ -2642,7 +2644,7 @@ function SnookerGame() {
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00012;
+        spot.shadow.bias = -0.00008;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
