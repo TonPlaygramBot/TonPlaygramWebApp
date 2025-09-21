@@ -2367,7 +2367,7 @@ function SnookerGame() {
         lightingRig.add(dirLight.target);
 
         const spot = new THREE.SpotLight(0xffffff, 1.5, 0, Math.PI * 0.2, 0.3, 1);
-        spot.position.set(PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.5, PLAY_H * 0.08);
+        spot.position.set(PLAY_W * 0.18, tableSurfaceY + PLAY_W * 0.4, PLAY_H * 0.08);
         spot.target.position.set(0, tableSurfaceY + BALL_R * 0.5, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
