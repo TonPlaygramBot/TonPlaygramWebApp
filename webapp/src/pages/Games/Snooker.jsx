@@ -190,8 +190,6 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const cornerDepth = POCKET_VIS_R * 1.35;
-  const cornerCurve = cornerDepth * 0.45;
   const sideDepth = POCKET_VIS_R * 1.12;
   const sideHalfWidth = POCKET_VIS_R * 0.92;
   const mat = new THREE.MeshStandardMaterial({
@@ -208,17 +206,25 @@ function addPocketCuts(parent, clothPlane) {
   mat.depthWrite = false;
   mat.depthTest = true;
   const cornerShape = (() => {
-    const s = new THREE.Shape();
-    s.moveTo(0, 0);
-    s.lineTo(cornerDepth, 0);
-    s.quadraticCurveTo(
-      cornerDepth + cornerCurve * 0.2,
-      cornerCurve * 0.25,
-      cornerDepth * 0.92,
-      cornerDepth * 0.7
+    const innerR = POCKET_VIS_R * 0.98;
+    const outerR = innerR + sideDepth;
+    const arcInset = Math.PI * 0.04;
+    const startAngle = arcInset;
+    const endAngle = Math.PI / 2 - arcInset;
+    const innerStart = new THREE.Vector2(
+      innerR * Math.cos(startAngle),
+      innerR * Math.sin(startAngle)
     );
-    s.lineTo(cornerDepth * 0.35, cornerDepth);
-    s.lineTo(0, cornerDepth);
+    const outerEnd = new THREE.Vector2(
+      outerR * Math.cos(endAngle),
+      outerR * Math.sin(endAngle)
+    );
+    const s = new THREE.Shape();
+    s.moveTo(innerStart.x, innerStart.y);
+    s.absarc(0, 0, innerR, startAngle, endAngle, false);
+    s.lineTo(outerEnd.x, outerEnd.y);
+    s.absarc(0, 0, outerR, endAngle, startAngle, true);
+    s.lineTo(innerStart.x, innerStart.y);
     s.closePath();
     return s;
   })();
