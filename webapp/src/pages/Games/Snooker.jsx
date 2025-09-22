@@ -604,9 +604,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 1.02,
+  near: 1,
   far: 1.075
 });
+const CAMERA_ZOOM_LOW_BLEND = 0.35;
 const CAMERA_RAIL_SAFETY = 0.06;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -2117,10 +2118,15 @@ function SnookerGame() {
             standing.radius,
             blend
           );
+          const zoomBlend =
+            blend <= CAMERA_ZOOM_LOW_BLEND
+              ? 0
+              : (blend - CAMERA_ZOOM_LOW_BLEND) /
+                (1 - CAMERA_ZOOM_LOW_BLEND);
           const zoomFactor = THREE.MathUtils.lerp(
             CAMERA_ZOOM_RANGE.near,
             CAMERA_ZOOM_RANGE.far,
-            blend
+            zoomBlend
           );
           const radius = clampOrbitRadius(baseRadius * zoomFactor);
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
