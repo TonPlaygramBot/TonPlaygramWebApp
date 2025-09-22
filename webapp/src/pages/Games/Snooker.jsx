@@ -3724,7 +3724,7 @@ function SnookerGame() {
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
-        if (!hud.inHand && cue?.active && !hud.over) {
+        if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -3741,28 +3741,6 @@ function SnookerGame() {
           aim.material.color.set(
             targetBall && !railNormal ? 0xffff00 : 0xffffff
           );
-          if (targetBall && targetBall.active) {
-            aimFocusRef.current = new THREE.Vector3(
-              targetBall.pos.x,
-              BALL_CENTER_Y,
-              targetBall.pos.y
-            );
-          } else {
-            const focusPoint = new THREE.Vector3(
-              impact.x,
-              BALL_CENTER_Y,
-              impact.y
-            );
-            if (
-              Number.isFinite(focusPoint.x) &&
-              Number.isFinite(focusPoint.y) &&
-              Number.isFinite(focusPoint.z)
-            ) {
-              aimFocusRef.current = focusPoint;
-            } else {
-              aimFocusRef.current = null;
-            }
-          }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
