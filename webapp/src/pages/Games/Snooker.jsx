@@ -453,8 +453,7 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const PITCH = 6;
-    const AMP = 0.19;
+    const WEAVE = 6;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -463,22 +462,34 @@ const createClothTextures = (() => {
       return cache;
     }
 
+    const clothBase = new THREE.Color(COLORS.cloth).convertLinearToSRGB();
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const k = (2 * Math.PI) / PITCH;
-    const base = { r: 0x2b, g: 0xc3, b: 0x51 };
+    const clamp01 = (v) => THREE.MathUtils.clamp(v, 0, 1);
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const s1 = Math.sin(k * (x + y));
-        const s2 = Math.sin(k * (x - y));
-        const a = Math.abs(s1);
-        const b = Math.abs(s2);
-        const ridge = (1 - a) + (1 - b);
-        const shade = AMP * (ridge - 1);
+        const warpPhase = ((x + 0.5) % WEAVE) / WEAVE;
+        const weftPhase = ((y + 0.5) % WEAVE) / WEAVE;
+        const warp = 1 - Math.abs(warpPhase * 2 - 1);
+        const weft = 1 - Math.abs(weftPhase * 2 - 1);
+        const cross = warp * weft;
+        const micro =
+          Math.sin((x + y) * 0.18) * 0.03 + Math.cos((x - y) * 0.22) * 0.03;
+        const weaveShade = (warp - 0.5) * 0.18 + (weft - 0.5) * 0.18;
+        const crossShade = (cross - 0.25) * 0.24;
+        const diagonal = ((x + y) / (SIZE * 2) - 0.5) * 0.06;
+        const shade = THREE.MathUtils.clamp(
+          weaveShade + crossShade + micro + diagonal,
+          -0.28,
+          0.28
+        );
+        const r = clamp01(clothBase.r + shade * 0.48);
+        const g = clamp01(clothBase.g + shade * 0.6);
+        const b = clamp01(clothBase.b + shade * 0.48);
         const i = (y * SIZE + x) * 4;
-        data[i + 0] = Math.max(0, Math.min(255, base.r + Math.round(255 * shade * 0.18)));
-        data[i + 1] = Math.max(0, Math.min(255, base.g + Math.round(255 * shade * 0.26)));
-        data[i + 2] = Math.max(0, Math.min(255, base.b + Math.round(255 * shade * 0.18)));
+        data[i + 0] = Math.round(r * 255);
+        data[i + 1] = Math.round(g * 255);
+        data[i + 2] = Math.round(b * 255);
         data[i + 3] = 255;
       }
     }
@@ -495,7 +506,33 @@ const createClothTextures = (() => {
     else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
-    const bumpMap = new THREE.CanvasTexture(canvas);
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = SIZE;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const warpPhase = ((x + 0.5) % WEAVE) / WEAVE;
+        const weftPhase = ((y + 0.5) % WEAVE) / WEAVE;
+        const warp = 1 - Math.abs(warpPhase * 2 - 1);
+        const weft = 1 - Math.abs(weftPhase * 2 - 1);
+        const cross = warp * weft;
+        const bumpShade = THREE.MathUtils.clamp(
+          0.5 + (warp - 0.5) * 0.45 + (weft - 0.5) * 0.45 + (cross - 0.25) * 0.35,
+          0,
+          1
+        );
+        const value = Math.round(bumpShade * 255);
+        const i = (y * SIZE + x) * 4;
+        bumpImage.data[i + 0] = value;
+        bumpImage.data[i + 1] = value;
+        bumpImage.data[i + 2] = value;
+        bumpImage.data[i + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+
+    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
     bumpMap.anisotropy = colorMap.anisotropy;
@@ -596,12 +633,12 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.8;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
+const STANDING_VIEW_PHI = 0.64;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
+const CAMERA_MIN_PHI = Math.max(0.42, STANDING_VIEW_PHI - 0.18);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.005;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -612,7 +649,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.55;
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.28;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -631,7 +668,7 @@ const CAMERA_ZOOM_RANGE = Object.freeze({
   far: 1.075
 });
 const CAMERA_ZOOM_LOW_BLEND = 0.35;
-const CAMERA_RAIL_SAFETY = 0.06;
+const CAMERA_RAIL_SAFETY = 0.02;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -640,17 +677,17 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.12,
+  phiLift: 0.06,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
   focusBlend: 0.45,
   focusClampRatio: 0.18,
   railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 2.6,
+  verticalLift: TABLE.THICK * 2.05,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.78;
+const ACTION_CAMERA_RADIUS_SCALE = 0.82;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -680,6 +717,7 @@ const AIM_FOCUS_SMOOTH_BASE = 0.2;
 const AIM_FOCUS_MIN_WEIGHT = 0.05;
 const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
+const AIM_GUIDE_HEIGHT = BALL_CENTER_Y + BALL_R * 0.45;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_MOTION_SMOOTH_TIME = 0.025; // seconds for camera interpolation to reach the desired state smoothly
@@ -1530,14 +1568,29 @@ function Table3D(parent) {
     const signX = sign < 0 ? -1 : 1;
     const xIn = innerX(signX);
     const xOut = outerX(signX);
+    const cornerRadius = Math.min(notchRadius, Math.abs(xOut - xIn) * 0.55);
+    const startOuterX = xOut - signX * cornerRadius;
     const shape = new THREE.Shape();
-    shape.moveTo(xOut, -outerHalfH);
-    shape.lineTo(xOut, outerHalfH);
+    shape.moveTo(startOuterX, -outerHalfH);
+    if (cornerRadius > 0) {
+      shape.quadraticCurveTo(
+        xOut,
+        -outerHalfH,
+        xOut,
+        -outerHalfH + cornerRadius
+      );
+      shape.lineTo(xOut, outerHalfH - cornerRadius);
+      shape.quadraticCurveTo(xOut, outerHalfH, startOuterX, outerHalfH);
+    } else {
+      shape.lineTo(xOut, -outerHalfH);
+      shape.lineTo(xOut, outerHalfH);
+    }
     shape.lineTo(xIn, outerHalfH);
     addCornerArcLong(shape, signX, 1);
     addSidePocketArc(shape, signX);
     addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
+    shape.lineTo(startOuterX, -outerHalfH);
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: sideRailDepth,
@@ -1554,13 +1607,33 @@ function Table3D(parent) {
   }
 
   function buildEndRail(sign) {
-    const zIn = (sign < 0 ? -1 : 1) * (halfH + cushionBack - MICRO_EPS);
-    const zOut = sign < 0 ? -outerHalfH : outerHalfH;
+    const signZ = sign < 0 ? -1 : 1;
+    const zIn = signZ * (halfH + cushionBack - MICRO_EPS);
+    const zOut = signZ * outerHalfH;
+    const cornerRadius = Math.min(notchRadius, Math.abs(zOut - zIn) * 0.55);
+    const startOuterZ = zOut - signZ * cornerRadius;
     const shape = new THREE.Shape();
-    shape.moveTo(-outerHalfW, zOut);
-    shape.lineTo(outerHalfW, zOut);
+    shape.moveTo(-outerHalfW, startOuterZ);
+    if (cornerRadius > 0) {
+      shape.quadraticCurveTo(
+        -outerHalfW,
+        zOut,
+        -outerHalfW + cornerRadius,
+        zOut
+      );
+      shape.lineTo(outerHalfW - cornerRadius, zOut);
+      shape.quadraticCurveTo(
+        outerHalfW,
+        zOut,
+        outerHalfW,
+        zOut - signZ * cornerRadius
+      );
+    } else {
+      shape.lineTo(outerHalfW, zOut);
+    }
     shape.lineTo(outerHalfW, zIn);
     shape.lineTo(-outerHalfW, zIn);
+    shape.lineTo(-outerHalfW, startOuterZ);
     shape.closePath();
     const endRailDepth = railH + END_RAIL_EXTRA_DEPTH;
     const geo = new THREE.ExtrudeGeometry(shape, {
@@ -3965,11 +4038,12 @@ function SnookerGame() {
             aimDir,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          const aimHeight = AIM_GUIDE_HEIGHT;
+          const start = new THREE.Vector3(cue.pos.x, aimHeight, cue.pos.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
           const rawEnd = TMP_VEC3_IMPACT.set(
             impact.x,
-            BALL_CENTER_Y,
+            aimHeight,
             impact.y
           );
           if (start.distanceTo(rawEnd) < 1e-4) {
@@ -4011,7 +4085,8 @@ function SnookerGame() {
           } else {
             smoothingState.impact.lerp(rawEnd, aimWeight);
           }
-          const smoothedEnd = smoothingState.impact ?? rawEnd;
+          const smoothedEnd = (smoothingState.impact ?? rawEnd).clone();
+          smoothedEnd.y = aimHeight;
           aimGeom.setFromPoints([start, smoothedEnd]);
           aim.visible = true;
           aim.material.color.set(
@@ -4021,13 +4096,13 @@ function SnookerGame() {
           if (targetBall && targetBall.active) {
             focusSource = TMP_VEC3_FOCUS.set(
               targetBall.pos.x,
-              BALL_CENTER_Y,
+              aimHeight,
               targetBall.pos.y
             );
           } else {
             focusSource = TMP_VEC3_FOCUS.set(
               impact.x,
-              BALL_CENTER_Y,
+              aimHeight,
               impact.y
             );
           }
@@ -4054,6 +4129,7 @@ function SnookerGame() {
             smoothedFocus = smoothingState.focus;
           }
           if (smoothedFocus) {
+            smoothedFocus.y = aimHeight;
             if (aimFocusRef.current) {
               aimFocusRef.current.copy(smoothedFocus);
             } else {
@@ -4065,10 +4141,15 @@ function SnookerGame() {
             smoothingState.targetKey = null;
           }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
-          tickGeom.setFromPoints([
-            smoothedEnd.clone().add(perp.clone().multiplyScalar(1.4)),
-            smoothedEnd.clone().add(perp.clone().multiplyScalar(-1.4))
-          ]);
+          const tickStart = smoothedEnd
+            .clone()
+            .add(perp.clone().multiplyScalar(1.4));
+          const tickEnd = smoothedEnd
+            .clone()
+            .add(perp.clone().multiplyScalar(-1.4));
+          tickStart.y = aimHeight;
+          tickEnd.y = aimHeight;
+          tickGeom.setFromPoints([tickStart, tickEnd]);
           tick.visible = true;
           const backInfo = calcTarget(
             cue,
