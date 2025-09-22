@@ -573,15 +573,15 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
-const STANDING_VIEW_MARGIN = 0.75;
-const STANDING_VIEW_FOV = 62;
+const STANDING_VIEW_MARGIN = 0.85;
+const STANDING_VIEW_FOV = 66;
 const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.1,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.75,
+  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -598,14 +598,14 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.14
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 0.9,
-  far: 1.18
+  near: 1.04,
+  far: 1.15
 });
-const CAMERA_RAIL_SAFETY = 0.015;
+const CAMERA_RAIL_SAFETY = 0.06;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -614,7 +614,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.08,
+  phiLift: 0.12,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -624,10 +624,10 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.82;
+const ACTION_CAMERA_RADIUS_SCALE = 0.98;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
-  CAMERA.maxPhi - 0.04,
+  CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   CAMERA.minPhi + 0.08
 );
 const POCKET_IDLE_SWITCH_MS = 240;
@@ -644,6 +644,8 @@ const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
+const TMP_VEC3_ANCHOR = new THREE.Vector3();
+const TMP_VEC3_POS = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -657,8 +659,8 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.6 * GLOBAL_SIZE_FACTOR;
+  // Keep a little more distance so rails remain visible while fitting the table
+  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -2197,16 +2199,6 @@ function SnookerGame() {
               if (targetVec2) {
                 view.impactPoint = targetVec2.clone();
               }
-              const scaledRadius = sph.radius * ACTION_CAMERA_RADIUS_SCALE;
-              const orbitRadius = clampOrbitRadius(
-                Math.max(scaledRadius, ACTION_CAMERA_MIN_RADIUS)
-              );
-              const clampedPhi = clamp(
-                sph.phi,
-                ACTION_CAMERA_MIN_PHI,
-                CAMERA.maxPhi
-              );
-              const orbitTheta = sph.theta;
               const tableFocus = (() => {
                 if (
                   targetVec2 &&
@@ -2226,24 +2218,43 @@ function SnookerGame() {
                 );
               })();
               const worldFocus = tableFocus.clone().multiplyScalar(worldScaleFactor);
-              const fullTableRadius = clampOrbitRadius(
-                Math.max(orbitRadius, fitRadius(camera, 1.12))
-              );
-              view.cameraOrbit =
-                view.cameraOrbit ||
-                new THREE.Spherical(fullTableRadius, clampedPhi, orbitTheta);
-              view.cameraOrbit.radius = fullTableRadius;
-              view.cameraOrbit.phi = clampedPhi;
-              view.cameraOrbit.theta = orbitTheta;
               view.focusPoint = tableFocus.clone();
               view.currentCameraId = null;
-              lookTarget = worldFocus;
-              const adjustedRadius = fullTableRadius;
-              view.cameraOrbit.radius = adjustedRadius;
-              TMP_SPH.copy(view.cameraOrbit);
-              TMP_SPH.radius = adjustedRadius;
-              camera.position.setFromSpherical(TMP_SPH).add(worldFocus);
+              if (!view.anchorFocus) {
+                view.anchorFocus = new THREE.Vector3(
+                  playerOffsetRef.current,
+                  TABLE_Y + 0.06,
+                  0
+                );
+              }
+              if (!view.anchorOrbit) {
+                const fallbackRadius = clampOrbitRadius(
+                  Math.max(
+                    sph.radius * ACTION_CAMERA_RADIUS_SCALE,
+                    ACTION_CAMERA_MIN_RADIUS,
+                    fitRadius(camera, 1.18)
+                  )
+                );
+                const fallbackPhi = clamp(
+                  sph.phi,
+                  ACTION_CAMERA_MIN_PHI,
+                  CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+                );
+                view.anchorOrbit = new THREE.Spherical(
+                  fallbackRadius,
+                  fallbackPhi,
+                  view.theta ?? sph.theta
+                );
+              }
+              const worldAnchor = TMP_VEC3_ANCHOR.copy(view.anchorFocus)
+                .multiplyScalar(worldScaleFactor);
+              TMP_SPH.copy(view.anchorOrbit);
+              const anchorPos = TMP_VEC3_POS.setFromSpherical(TMP_SPH).add(
+                worldAnchor
+              );
+              camera.position.copy(anchorPos);
               camera.lookAt(worldFocus);
+              lookTarget = worldFocus;
             }
           } else if (shooting && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
@@ -3272,7 +3283,25 @@ function SnookerGame() {
             const actionPhi = clamp(
               (cueView?.phi ?? followPhi) + ACTION_CAMERA.phiLift * 0.5,
               ACTION_CAMERA_MIN_PHI,
-              CAMERA.maxPhi
+              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+            );
+            const anchorRadius = clampOrbitRadius(
+              Math.max(actionRadius, fitRadius(camera, 1.18))
+            );
+            const anchorPhi = clamp(
+              actionPhi,
+              ACTION_CAMERA_MIN_PHI,
+              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+            );
+            const anchorFocus = new THREE.Vector3(
+              playerOffsetRef.current,
+              TABLE_Y + 0.06,
+              0
+            );
+            const anchorOrbit = new THREE.Spherical(
+              anchorRadius,
+              anchorPhi,
+              followTheta
             );
             activeShotView = {
               mode: 'action',
@@ -3310,11 +3339,8 @@ function SnookerGame() {
                     shotPrediction.impact.y
                   )
                 : null,
-              cameraOrbit: new THREE.Spherical(
-                actionRadius,
-                actionPhi,
-                followTheta
-              )
+              anchorFocus,
+              anchorOrbit
             };
             followViewRef.current = activeShotView;
             sph.theta = followTheta;
