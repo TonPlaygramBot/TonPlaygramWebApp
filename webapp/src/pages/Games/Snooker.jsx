@@ -646,9 +646,21 @@ const AIM_CAMERA_MIN_SEPARATION = BALL_R * 2.6;
 const AIM_CAMERA_RADIUS_PADDING = BALL_R * 2.2;
 const AIM_CAMERA_FOCUS_MIN_WEIGHT = 0.38;
 const AIM_CAMERA_FOCUS_MAX_WEIGHT = 0.6;
+const AIM_CAMERA_NEAR_WEIGHT = 0.12;
+const AIM_CAMERA_NEAR_DISTANCE = BALL_R * 6;
+const AIM_GUIDE_SMOOTH_BASE = 0.28;
+const AIM_FOCUS_SMOOTH_BASE = 0.22;
+const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const resolveSmoothWeight = (base = 0.2, scale = 1) => {
+  const clampedBase = THREE.MathUtils.clamp(base ?? 0, 0, 1);
+  const effectiveScale = Math.max(scale ?? 1, 1);
+  if (clampedBase <= 0) return 0;
+  if (clampedBase >= 1) return 1;
+  return 1 - Math.pow(1 - clampedBase, effectiveScale);
+};
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
 const TMP_VEC2_A = new THREE.Vector2();
@@ -665,6 +677,8 @@ const TMP_VEC3_POS = new THREE.Vector3();
 const TMP_VEC3_AIM = new THREE.Vector3();
 const TMP_VEC3_CUE = new THREE.Vector3();
 const TMP_VEC3_TARGET = new THREE.Vector3();
+const TMP_VEC3_IMPACT = new THREE.Vector3();
+const TMP_VEC3_FOCUS = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -1686,6 +1700,7 @@ function SnookerGame() {
   const initialOrbitRef = useRef(null);
   const followViewRef = useRef(null);
   const aimFocusRef = useRef(null);
+  const aimGuideSmoothRef = useRef({ impact: null, focus: null, targetKey: null });
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const initialCuePhi = THREE.MathUtils.clamp(
     ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
@@ -2515,10 +2530,21 @@ function SnookerGame() {
                   separation,
                   AIM_CAMERA_MIN_SEPARATION
                 );
-                const lerpWeight = THREE.MathUtils.clamp(
+                const baseWeight = THREE.MathUtils.clamp(
                   (safeSeparation - AIM_CAMERA_MIN_SEPARATION) / (BALL_R * 14),
                   AIM_CAMERA_FOCUS_MIN_WEIGHT,
                   AIM_CAMERA_FOCUS_MAX_WEIGHT
+                );
+                const proximityT = THREE.MathUtils.clamp(
+                  (separation - AIM_CAMERA_MIN_SEPARATION) /
+                    Math.max(AIM_CAMERA_NEAR_DISTANCE, 1e-4),
+                  0,
+                  1
+                );
+                const lerpWeight = THREE.MathUtils.lerp(
+                  AIM_CAMERA_NEAR_WEIGHT,
+                  baseWeight,
+                  proximityT
                 );
                 focusTarget = TMP_VEC3_AIM.copy(cuePos).lerp(
                   targetPos,
@@ -3757,42 +3783,85 @@ function SnookerGame() {
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
-          if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
+          const rawEnd = TMP_VEC3_IMPACT.set(
+            impact.x,
+            BALL_CENTER_Y,
+            impact.y
+          );
+          if (start.distanceTo(rawEnd) < 1e-4) {
+            rawEnd.copy(start).add(dir.clone().multiplyScalar(BALL_R));
           }
-          aimGeom.setFromPoints([start, end]);
+          const smoothingState = aimGuideSmoothRef.current;
+          const targetKey = targetBall?.id
+            ? `ball:${targetBall.id}`
+            : railNormal
+              ? 'rail'
+              : 'table';
+          const aimWeight = resolveSmoothWeight(
+            AIM_GUIDE_SMOOTH_BASE,
+            frameScale
+          );
+          const focusWeight = resolveSmoothWeight(
+            AIM_FOCUS_SMOOTH_BASE,
+            frameScale
+          );
+          const shouldResetImpact =
+            !smoothingState.impact ||
+            smoothingState.targetKey !== targetKey ||
+            !Number.isFinite(rawEnd.x) ||
+            !Number.isFinite(rawEnd.y) ||
+            !Number.isFinite(rawEnd.z) ||
+            start.distanceTo(rawEnd) > AIM_GUIDE_RESET_DISTANCE;
+          if (shouldResetImpact) {
+            smoothingState.impact = rawEnd.clone();
+          } else {
+            smoothingState.impact.lerp(rawEnd, aimWeight);
+          }
+          const smoothedEnd = smoothingState.impact ?? rawEnd;
+          aimGeom.setFromPoints([start, smoothedEnd]);
           aim.visible = true;
           aim.material.color.set(
             targetBall && !railNormal ? 0xffff00 : 0xffffff
           );
+          let focusSource;
           if (targetBall && targetBall.active) {
-            aimFocusRef.current = new THREE.Vector3(
+            focusSource = TMP_VEC3_FOCUS.set(
               targetBall.pos.x,
               BALL_CENTER_Y,
               targetBall.pos.y
             );
           } else {
-            const focusPoint = new THREE.Vector3(
+            focusSource = TMP_VEC3_FOCUS.set(
               impact.x,
               BALL_CENTER_Y,
               impact.y
             );
-            if (
-              Number.isFinite(focusPoint.x) &&
-              Number.isFinite(focusPoint.y) &&
-              Number.isFinite(focusPoint.z)
-            ) {
-              aimFocusRef.current = focusPoint;
-            } else {
-              aimFocusRef.current = null;
-            }
           }
+          let smoothedFocus = null;
+          if (
+            Number.isFinite(focusSource.x) &&
+            Number.isFinite(focusSource.y) &&
+            Number.isFinite(focusSource.z)
+          ) {
+            const shouldResetFocus =
+              !smoothingState.focus ||
+              smoothingState.targetKey !== targetKey;
+            if (shouldResetFocus) {
+              smoothingState.focus = focusSource.clone();
+            } else {
+              smoothingState.focus.lerp(focusSource, focusWeight);
+            }
+            smoothedFocus = smoothingState.focus;
+          } else {
+            smoothingState.focus = null;
+          }
+          smoothingState.targetKey = targetKey;
+          aimFocusRef.current = smoothedFocus ?? null;
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(1.4)),
-            end.clone().add(perp.clone().multiplyScalar(-1.4))
+            smoothedEnd.clone().add(perp.clone().multiplyScalar(1.4)),
+            smoothedEnd.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
           const backInfo = calcTarget(
@@ -3826,11 +3895,11 @@ function SnookerGame() {
           cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
-              end.x + afterDir.x * 30,
+              smoothedEnd.x + afterDir.x * 30,
               BALL_R,
-              end.z + afterDir.y * 30
+              smoothedEnd.z + afterDir.y * 30
             );
-            targetGeom.setFromPoints([end, tEnd]);
+            targetGeom.setFromPoints([smoothedEnd.clone(), tEnd]);
             target.visible = true;
             target.computeLineDistances();
           } else {
@@ -3838,6 +3907,9 @@ function SnookerGame() {
           }
         } else {
           aimFocusRef.current = null;
+          aimGuideSmoothRef.current.impact = null;
+          aimGuideSmoothRef.current.focus = null;
+          aimGuideSmoothRef.current.targetKey = null;
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
