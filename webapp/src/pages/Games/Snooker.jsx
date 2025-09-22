@@ -462,7 +462,9 @@ const createClothTextures = (() => {
       return cache;
     }
 
-    const clothBase = new THREE.Color(COLORS.cloth).convertLinearToSRGB();
+    const clothLinear = new THREE.Color(COLORS.cloth);
+    const clothBase = clothLinear.clone().convertLinearToSRGB();
+    const boostedBase = clothBase.clone().lerp(new THREE.Color(0xffffff), 0.08);
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
     const clamp01 = (v) => THREE.MathUtils.clamp(v, 0, 1);
@@ -474,18 +476,20 @@ const createClothTextures = (() => {
         const weft = 1 - Math.abs(weftPhase * 2 - 1);
         const cross = warp * weft;
         const micro =
-          Math.sin((x + y) * 0.18) * 0.03 + Math.cos((x - y) * 0.22) * 0.03;
-        const weaveShade = (warp - 0.5) * 0.18 + (weft - 0.5) * 0.18;
-        const crossShade = (cross - 0.25) * 0.24;
-        const diagonal = ((x + y) / (SIZE * 2) - 0.5) * 0.06;
+          Math.sin((x + y) * 0.18) * 0.018 +
+          Math.cos((x - y) * 0.22) * 0.018;
+        const weaveShade = (warp - 0.5) * 0.24 + (weft - 0.5) * 0.24;
+        const crossShade = (cross - 0.25) * 0.28;
+        const diagonal = ((x + y) / (SIZE * 2) - 0.5) * 0.035;
         const shade = THREE.MathUtils.clamp(
           weaveShade + crossShade + micro + diagonal,
-          -0.28,
-          0.28
+          -0.22,
+          0.22
         );
-        const r = clamp01(clothBase.r + shade * 0.48);
-        const g = clamp01(clothBase.g + shade * 0.6);
-        const b = clamp01(clothBase.b + shade * 0.48);
+        const brightness = 0.05;
+        const r = clamp01(boostedBase.r + brightness + shade * 0.32);
+        const g = clamp01(boostedBase.g + brightness * 1.35 + shade * 0.42);
+        const b = clamp01(boostedBase.b + brightness + shade * 0.32);
         const i = (y * SIZE + x) * 4;
         data[i + 0] = Math.round(r * 255);
         data[i + 1] = Math.round(g * 255);
@@ -518,7 +522,7 @@ const createClothTextures = (() => {
         const weft = 1 - Math.abs(weftPhase * 2 - 1);
         const cross = warp * weft;
         const bumpShade = THREE.MathUtils.clamp(
-          0.5 + (warp - 0.5) * 0.45 + (weft - 0.5) * 0.45 + (cross - 0.25) * 0.35,
+          0.56 + (warp - 0.5) * 0.28 + (weft - 0.5) * 0.28 + (cross - 0.25) * 0.22,
           0,
           1
         );
@@ -633,11 +637,12 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.64;
+const STANDING_VIEW_PHI = 0.5;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_MIN_PHI = Math.max(0.42, STANDING_VIEW_PHI - 0.18);
+const CAMERA_ABS_MIN_PHI = 0.3;
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.005;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -665,7 +670,7 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
   near: 1,
-  far: 1.075
+  far: 1
 });
 const CAMERA_ZOOM_LOW_BLEND = 0.35;
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -1360,7 +1365,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.045;
+    clothMat.bumpScale = 0.02;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -1865,10 +1870,7 @@ function SnookerGame() {
     CAMERA.minPhi,
     CAMERA.maxPhi
   );
-  const initialCueRadius = Math.max(
-    BREAK_VIEW.radius * ACTION_CAMERA_RADIUS_SCALE,
-    ACTION_CAMERA_MIN_RADIUS
-  );
+  const initialCueRadius = Math.max(BREAK_VIEW.radius, ACTION_CAMERA_MIN_RADIUS);
   const cameraBoundsRef = useRef({
     cueShot: { phi: initialCuePhi, radius: initialCueRadius },
     standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
@@ -3060,10 +3062,7 @@ function SnookerGame() {
             Math.max(standingRadiusRaw, cueBase)
           );
           const cueRadius = clampOrbitRadius(
-            Math.max(
-              standingRadius * ACTION_CAMERA_RADIUS_SCALE,
-              ACTION_CAMERA_MIN_RADIUS
-            )
+            Math.max(standingRadius, ACTION_CAMERA_MIN_RADIUS)
           );
           const cuePhi = THREE.MathUtils.clamp(
             ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
