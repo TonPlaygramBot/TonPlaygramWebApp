@@ -43,6 +43,14 @@ const jawCapMat = new THREE.MeshPhysicalMaterial({
   clearcoatRoughness: 0.32,
   envMapIntensity: 0.9
 });
+const chromeRimMat = new THREE.MeshPhysicalMaterial({
+  color: 0xdde6f5,
+  roughness: 0.12,
+  metalness: 1,
+  clearcoat: 0.78,
+  clearcoatRoughness: 0.18,
+  envMapIntensity: 1.6
+});
 function makeJawSector(
   R = POCKET_VIS_R,
   T = JAW_T,
@@ -146,9 +154,7 @@ function addPocketJaws(parent, playW, playH) {
     geom.computeVertexNormals();
     geom.computeBoundingBox();
     geom.computeBoundingSphere();
-    const jaw = new THREE.Mesh(geom, jawMat);
-    jaw.castShadow = true;
-    jaw.receiveShadow = true;
+    const jaw = new THREE.Group();
     jaw.position.set(pShift.x, jawTopLocal, pShift.y);
     const lookTarget = (() => {
       if (entry.type === 'side') {
@@ -167,18 +173,77 @@ function addPocketJaws(parent, playW, playH) {
       return towardCenter;
     })();
     jaw.lookAt(lookTarget);
-    const capGeo =
-      (entry.type === 'side' ? sideCapGeo : cornerCapGeo).clone();
-    capGeo.computeBoundingBox();
-    capGeo.computeBoundingSphere();
-    const cap = new THREE.Mesh(capGeo, jawCapMat);
-    cap.castShadow = false;
-    cap.receiveShadow = true;
-    cap.position.y = capLift;
-    jaw.add(cap);
+    const capMeshes = [];
+    if (entry.type === 'side') {
+      const width = adjustedBox
+        ? adjustedBox.max.x - adjustedBox.min.x
+        : POCKET_VIS_R * 1.2;
+      const segmentScale = 0.56;
+      const offset = width * 0.32;
+      for (const dir of [-1, 1]) {
+        const segmentGeom = geom.clone();
+        segmentGeom.scale(segmentScale, 1, 1);
+        segmentGeom.computeVertexNormals();
+        const segment = new THREE.Mesh(segmentGeom, jawMat);
+        segment.castShadow = true;
+        segment.receiveShadow = true;
+        segment.position.x = offset * dir;
+        jaw.add(segment);
+
+        const segCapGeo = (entry.type === 'side' ? sideCapGeo : cornerCapGeo)
+          .clone()
+          .scale(segmentScale, 1, 1);
+        segCapGeo.computeBoundingBox();
+        segCapGeo.computeBoundingSphere();
+        segCapGeo.computeVertexNormals();
+        const segCap = new THREE.Mesh(segCapGeo, jawCapMat);
+        segCap.castShadow = false;
+        segCap.receiveShadow = true;
+        segCap.position.set(segment.position.x, capLift, 0);
+        jaw.add(segCap);
+        capMeshes.push(segCap);
+
+        const rimGeo = makeJawSector(
+          POCKET_VIS_R * 1.02,
+          JAW_T * 0.42,
+          dir < 0 ? -SIDE_SECTOR_SWEEP : 0,
+          dir < 0 ? 0 : SIDE_SECTOR_SWEEP,
+          capHeight * 0.22
+        );
+        rimGeo.computeBoundingBox();
+        const rimBox = rimGeo.boundingBox;
+        if (rimBox) {
+          const rimShift = -rimBox.max.y;
+          if (Math.abs(rimShift) > 1e-6) rimGeo.translate(0, rimShift, 0);
+        }
+        rimGeo.scale(segmentScale * 1.06, 1, 1);
+        rimGeo.computeVertexNormals();
+        const rim = new THREE.Mesh(rimGeo, chromeRimMat);
+        rim.castShadow = false;
+        rim.receiveShadow = true;
+        rim.position.set(segment.position.x, capLift + capHeight * 0.95, 0);
+        jaw.add(rim);
+      }
+    } else {
+      const mesh = new THREE.Mesh(geom, jawMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      jaw.add(mesh);
+      const capGeo = cornerCapGeo.clone();
+      capGeo.computeBoundingBox();
+      capGeo.computeBoundingSphere();
+      capGeo.computeVertexNormals();
+      const cap = new THREE.Mesh(capGeo, jawCapMat);
+      cap.castShadow = false;
+      cap.receiveShadow = true;
+      cap.position.y = capLift;
+      mesh.add(cap);
+      capMeshes.push(cap);
+    }
     jaw.userData = {
       ...(jaw.userData || {}),
-      cap,
+      cap: capMeshes[0] ?? null,
+      caps: capMeshes,
       capHeight,
       capLift
     };
@@ -324,7 +389,7 @@ const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 2; // pockets twice the ball radius
+const POCKET_R = BALL_R * 1.94; // pockets just a touch tighter than twice the ball radius
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.97;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
@@ -429,7 +494,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x2bc351,
+  cloth: 0x0ea93a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -445,6 +510,8 @@ const COLORS = Object.freeze({
 
 const createClothTextures = (() => {
   let cache = null;
+  const clamp01 = (v) => THREE.MathUtils.clamp(v, 0, 1);
+  const frac = (v) => v - Math.floor(v);
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
@@ -453,7 +520,7 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const WEAVE = 6;
+    const PATTERN = 18;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -464,32 +531,28 @@ const createClothTextures = (() => {
 
     const clothLinear = new THREE.Color(COLORS.cloth);
     const clothBase = clothLinear.clone().convertLinearToSRGB();
-    const boostedBase = clothBase.clone().lerp(new THREE.Color(0xffffff), 0.08);
+    const liftedBase = clothBase.clone().lerp(new THREE.Color(0xffffff), 0.06);
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const clamp01 = (v) => THREE.MathUtils.clamp(v, 0, 1);
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const warpPhase = ((x + 0.5) % WEAVE) / WEAVE;
-        const weftPhase = ((y + 0.5) % WEAVE) / WEAVE;
-        const warp = 1 - Math.abs(warpPhase * 2 - 1);
-        const weft = 1 - Math.abs(weftPhase * 2 - 1);
-        const cross = warp * weft;
+        const diagA = frac((x + y) / PATTERN);
+        const diagB = frac((x - y + SIZE) / PATTERN);
+        const ridgeA = 1 - Math.abs(diagA * 2 - 1);
+        const ridgeB = 1 - Math.abs(diagB * 2 - 1);
+        const weave = ridgeA * ridgeB;
         const micro =
-          Math.sin((x + y) * 0.18) * 0.018 +
-          Math.cos((x - y) * 0.22) * 0.018;
-        const weaveShade = (warp - 0.5) * 0.24 + (weft - 0.5) * 0.24;
-        const crossShade = (cross - 0.25) * 0.28;
-        const diagonal = ((x + y) / (SIZE * 2) - 0.5) * 0.035;
-        const shade = THREE.MathUtils.clamp(
-          weaveShade + crossShade + micro + diagonal,
-          -0.22,
-          0.22
-        );
-        const brightness = 0.05;
-        const r = clamp01(boostedBase.r + brightness + shade * 0.32);
-        const g = clamp01(boostedBase.g + brightness * 1.35 + shade * 0.42);
-        const b = clamp01(boostedBase.b + brightness + shade * 0.32);
+          Math.sin((x + y) * 0.11) * 0.016 + Math.cos((x - y) * 0.14) * 0.018;
+        const stitch =
+          Math.sin((x % PATTERN) * Math.PI * 0.5) * 0.012 +
+          Math.cos((y % PATTERN) * Math.PI * 0.5) * 0.012;
+        const highlight = Math.pow(clamp01(weave), 1.4) * 0.32;
+        const shading =
+          (ridgeA - 0.5) * 0.24 + (ridgeB - 0.5) * 0.24 + micro + stitch;
+        const tone = clamp01(0.04 + shading + highlight * 0.9);
+        const r = clamp01(liftedBase.r + tone * 0.55 - 0.02);
+        const g = clamp01(liftedBase.g + tone * 0.82);
+        const b = clamp01(liftedBase.b + tone * 0.5 - 0.015);
         const i = (y * SIZE + x) * 4;
         data[i + 0] = Math.round(r * 255);
         data[i + 1] = Math.round(g * 255);
@@ -501,7 +564,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(36, 144);
+    colorMap.repeat.set(42, 168);
     colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -516,15 +579,13 @@ const createClothTextures = (() => {
     const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const warpPhase = ((x + 0.5) % WEAVE) / WEAVE;
-        const weftPhase = ((y + 0.5) % WEAVE) / WEAVE;
-        const warp = 1 - Math.abs(warpPhase * 2 - 1);
-        const weft = 1 - Math.abs(weftPhase * 2 - 1);
-        const cross = warp * weft;
-        const bumpShade = THREE.MathUtils.clamp(
-          0.56 + (warp - 0.5) * 0.28 + (weft - 0.5) * 0.28 + (cross - 0.25) * 0.22,
-          0,
-          1
+        const diagA = frac((x + y) / PATTERN);
+        const diagB = frac((x - y + SIZE) / PATTERN);
+        const ridgeA = 1 - Math.abs(diagA * 2 - 1);
+        const ridgeB = 1 - Math.abs(diagB * 2 - 1);
+        const weave = ridgeA * ridgeB;
+        const bumpShade = clamp01(
+          0.58 + (ridgeA - 0.5) * 0.32 + (ridgeB - 0.5) * 0.32 + weave * 0.38
         );
         const value = Math.round(bumpShade * 255);
         const i = (y * SIZE + x) * 4;
@@ -639,7 +700,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.78;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.92;
+const STANDING_VIEW_MARGIN = 0.88;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -692,6 +753,8 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 2.05,
   switchThreshold: 0.08
 });
+const SIDE_CAMERA_LIFT = 0.065;
+const SIDE_CAMERA_LIFT_POWER = 1.6;
 const ACTION_CAMERA_RADIUS_SCALE = 0.88;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_CUE_RADIUS_RATIO = 0.86;
@@ -747,6 +810,20 @@ const orientationScaleForTheta = (theta = 0) => {
   const cornerBias = Math.pow(sin * cos, ACTION_CAMERA_CORNER_CURVE);
   const cornerScale = 1 + ACTION_CAMERA_CORNER_PULLBACK * cornerBias;
   return base * cornerScale;
+};
+
+const applySideViewLift = (spherical, thetaOverride) => {
+  if (!spherical) return spherical;
+  const theta = thetaOverride ?? spherical.theta ?? 0;
+  const weight = Math.pow(Math.abs(Math.sin(theta)), SIDE_CAMERA_LIFT_POWER);
+  if (weight <= 1e-5) return spherical;
+  const maxPhi = CAMERA.maxPhi - CAMERA_RAIL_SAFETY;
+  spherical.phi = THREE.MathUtils.clamp(
+    spherical.phi + SIDE_CAMERA_LIFT * weight,
+    CAMERA.minPhi,
+    maxPhi
+  );
+  return spherical;
 };
 
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -1325,7 +1402,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.02;
+    clothMat.bumpScale = 0.026;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -2030,7 +2107,11 @@ function SnookerGame() {
         TABLE_Y + 0.05,
         0
       ).multiplyScalar(worldScaleFactor);
-      cam.position.setFromSpherical(sph).add(targetPos);
+      const tmpSphAnim = sph.clone
+        ? sph.clone()
+        : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
+      applySideViewLift(tmpSphAnim);
+      cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
       cam.lookAt(targetPos);
       if (k < 1) requestAnimationFrame(anim);
       else {
@@ -2334,6 +2415,7 @@ function SnookerGame() {
                 cameraBlendRef.current
               );
               TMP_SPH.copy(sph);
+              applySideViewLift(TMP_SPH);
               TMP_SPH.radius = dynamicRadius;
               camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
               camera.lookAt(lookTarget);
@@ -2415,10 +2497,12 @@ function SnookerGame() {
                   fallbackPhi,
                   view.theta ?? sph.theta
                 );
+                applySideViewLift(view.anchorOrbit);
               }
               const worldAnchor = TMP_VEC3_ANCHOR.copy(view.anchorFocus)
                 .multiplyScalar(worldScaleFactor);
               TMP_SPH.copy(view.anchorOrbit);
+              applySideViewLift(TMP_SPH);
               const anchorPos = TMP_VEC3_POS.setFromSpherical(TMP_SPH).add(
                 worldAnchor
               );
@@ -2576,6 +2660,7 @@ function SnookerGame() {
               }
             }
             TMP_SPH.copy(sph);
+            applySideViewLift(TMP_SPH, orbitTheta);
             TMP_SPH.radius = dynamicRadius;
             TMP_SPH.theta = orbitTheta;
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
