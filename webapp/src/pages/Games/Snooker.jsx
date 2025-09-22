@@ -363,7 +363,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.5; // boost cue strike strength by 50%
+const SHOT_FORCE_BOOST = 2.25; // raise cue strike strength to 225% of the base speed
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -600,8 +600,9 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
+const BREAK_VIEW_RADIUS_SCALE = 0.9;
 const BREAK_VIEW = Object.freeze({
-  radius: 78 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 78 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * BREAK_VIEW_RADIUS_SCALE,
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
@@ -3146,9 +3147,10 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
+        const ballLightIntensity = 0.12; // keep spotlight and ambient reflections balanced on the balls
         const spot = new THREE.SpotLight(
           0xffffff,
-          7.6,
+          ballLightIntensity,
           0,
           Math.PI * 0.38,
           0.48,
@@ -3166,7 +3168,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.06);
+        const ambient = new THREE.AmbientLight(0xffffff, ballLightIntensity);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
@@ -3880,8 +3882,13 @@ function SnookerGame() {
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
-        aimDir.lerp(tmpAim, 0.2);
+        tmpAim.set(camFwd.x, camFwd.z);
+        if (tmpAim.lengthSq() < 1e-6) {
+          tmpAim.set(0, 1);
+        } else {
+          tmpAim.normalize();
+        }
+        aimDir.copy(tmpAim);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
