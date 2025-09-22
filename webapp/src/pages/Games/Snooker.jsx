@@ -377,7 +377,7 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.68;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.74;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.6;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
@@ -389,9 +389,9 @@ const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.88; // pockets slightly smaller for a tighter opening
+const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
 // slightly larger visual radius so rails align with pocket rings
-const POCKET_VIS_R = POCKET_R / 0.975;
+const POCKET_VIS_R = POCKET_R / 0.985;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -419,7 +419,7 @@ const POCKET_JAW_LIP_HEIGHT =
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.2; // subtle lift so pocket rims sit just above the cloth surface
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.32; // raise pocket rims so the lip is fully visible above the cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -531,7 +531,7 @@ const createClothTextures = (() => {
 
     const clothLinear = new THREE.Color(COLORS.cloth);
     const clothBase = clothLinear.clone().convertLinearToSRGB();
-    const liftedBase = clothBase.clone().lerp(new THREE.Color(0xffffff), 0.06);
+    const liftedBase = clothBase.clone().lerp(new THREE.Color(0xffffff), 0.12);
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
     for (let y = 0; y < SIZE; y++) {
@@ -546,16 +546,16 @@ const createClothTextures = (() => {
         const stitch =
           Math.sin((x % PATTERN) * Math.PI * 0.5) * 0.012 +
           Math.cos((y % PATTERN) * Math.PI * 0.5) * 0.012;
-        const highlight = Math.pow(clamp01(weave), 1.2) * 0.42;
+        const highlight = Math.pow(clamp01(weave), 1.2) * 0.48;
         const shading =
           (ridgeA - 0.5) * 0.32 +
           (ridgeB - 0.5) * 0.32 +
           micro * 1.15 +
           stitch * 1.1;
-        const tone = clamp01(0.06 + shading + highlight * 1.05);
-        const r = clamp01(liftedBase.r + tone * 0.58 - 0.018);
-        const g = clamp01(liftedBase.g + tone * 0.88);
-        const b = clamp01(liftedBase.b + tone * 0.56 - 0.012);
+        const tone = clamp01(0.08 + shading + highlight * 1.18);
+        const r = clamp01(liftedBase.r + tone * 0.62 - 0.012);
+        const g = clamp01(liftedBase.g + tone * 0.96);
+        const b = clamp01(liftedBase.b + tone * 0.62 - 0.008);
         const i = (y * SIZE + x) * 4;
         data[i + 0] = Math.round(r * 255);
         data[i + 1] = Math.round(g * 255);
@@ -708,7 +708,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.78;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.84;
+const STANDING_VIEW_MARGIN = 0.8;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -717,7 +717,7 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.74,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -751,7 +751,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.08,
+  phiLift: 0.1,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -761,7 +761,7 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 2.25,
   switchThreshold: 0.08
 });
-const SIDE_CAMERA_LIFT = 0.095;
+const SIDE_CAMERA_LIFT = 0.145;
 const SIDE_CAMERA_LIFT_POWER = 1.45;
 const ACTION_CAMERA_RADIUS_SCALE = 0.88;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
@@ -1394,13 +1394,15 @@ function Table3D(parent) {
 
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.74,
-    metalness: 0.04,
+    roughness: 0.64,
+    metalness: 0.06,
     sheen: 1.0,
-    sheenColor: new THREE.Color(COLORS.cloth),
-    sheenRoughness: 0.5,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.38
+    sheenColor: new THREE.Color(COLORS.cloth).lerp(new THREE.Color(0xffffff), 0.1),
+    sheenRoughness: 0.42,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.32,
+    emissive: new THREE.Color(COLORS.cloth).multiplyScalar(0.1),
+    emissiveIntensity: 0.28
   });
   const clothTextures = createClothTextures();
   const baseRepeat = 32;
@@ -1413,7 +1415,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.034;
+    clothMat.bumpScale = 0.046;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -1796,7 +1798,7 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.72;
+  const POCKET_GAP = POCKET_VIS_R * 0.68;
   const horizLen = PLAY_W - 2 * POCKET_GAP;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
