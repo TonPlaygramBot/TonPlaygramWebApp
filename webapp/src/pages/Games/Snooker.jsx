@@ -387,6 +387,7 @@ const LEG_ROOM_HEIGHT =
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
+const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
@@ -599,12 +600,12 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 92 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: CAMERA.maxPhi - 0.2
+  radius: 78 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 1.04,
-  far: 1.15
+  near: 1.02,
+  far: 1.075
 });
 const CAMERA_RAIL_SAFETY = 0.06;
 const ACTION_VIEW = Object.freeze({
@@ -625,11 +626,11 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 2.6,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.9;
+const ACTION_CAMERA_RADIUS_SCALE = 0.78;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.04
+  CAMERA.minPhi + 0.12
 );
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
@@ -3270,10 +3271,15 @@ function SnookerGame() {
               phi: sph.phi,
               theta: sph.theta
             };
-            const followTheta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+            const followTheta = Math.atan2(aimDir.x, aimDir.y);
             const bounds = cameraBoundsRef.current;
             const cueView = bounds?.cueShot;
-            const followPhi = cueView?.phi ?? ACTION_CAMERA_MIN_PHI;
+            const followPhiBase = cueView?.phi ?? ACTION_CAMERA_MIN_PHI;
+            const followPhi = clamp(
+              followPhiBase + ACTION_CAMERA.phiLift * 0.25,
+              ACTION_CAMERA_MIN_PHI,
+              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+            );
             const followRadius = clampOrbitRadius(
               cueView?.radius ?? baseOrbit.radius
             );
@@ -3286,12 +3292,12 @@ function SnookerGame() {
               )
             );
             const actionPhi = clamp(
-              (cueView?.phi ?? followPhi) + ACTION_CAMERA.phiLift * 0.5,
+              followPhi + ACTION_CAMERA.phiLift * 0.4,
               ACTION_CAMERA_MIN_PHI,
               CAMERA.maxPhi - CAMERA_RAIL_SAFETY
             );
             const anchorRadius = clampOrbitRadius(
-              Math.max(actionRadius, fitRadius(camera, 1.18))
+              Math.max(actionRadius, fitRadius(camera, 1.08))
             );
             const anchorPhi = clamp(
               actionPhi,
@@ -3300,7 +3306,7 @@ function SnookerGame() {
             );
             const anchorFocus = new THREE.Vector3(
               playerOffsetRef.current,
-              TABLE_Y + 0.06,
+              TABLE_Y + 0.04,
               0
             );
             const anchorOrbit = new THREE.Spherical(
@@ -3360,9 +3366,9 @@ function SnookerGame() {
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
-          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pull = Math.min(desiredPull, maxPull);
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
           cueAnimating = true;
           const startPos = cueStick.position.clone();
           const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
@@ -3595,14 +3601,15 @@ function SnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pull = Math.min(desiredPull, maxPull);
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
           const side = appliedSpin.x * (ranges.offsetSide ?? 0);
           const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
           const spinWorld = new THREE.Vector3(
