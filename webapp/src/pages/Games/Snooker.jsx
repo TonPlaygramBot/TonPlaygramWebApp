@@ -429,7 +429,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x2bc351,
+  cloth: 0x1fa64a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -454,7 +454,7 @@ const createClothTextures = (() => {
 
     const SIZE = 1024;
     const PITCH = 6;
-    const AMP = 0.19;
+    const AMP = 0.08;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -466,7 +466,7 @@ const createClothTextures = (() => {
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
     const k = (2 * Math.PI) / PITCH;
-    const base = { r: 0x2b, g: 0xc3, b: 0x51 };
+    const base = { r: 0x1f, g: 0xa6, b: 0x4a };
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const s1 = Math.sin(k * (x + y));
@@ -596,12 +596,12 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.8;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
+const STANDING_VIEW_PHI = 0.68;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.12;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
+const CAMERA_MIN_PHI = STANDING_VIEW_PHI;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -631,7 +631,7 @@ const CAMERA_ZOOM_RANGE = Object.freeze({
   far: 1.075
 });
 const CAMERA_ZOOM_LOW_BLEND = 0.35;
-const CAMERA_RAIL_SAFETY = 0.06;
+const CAMERA_RAIL_SAFETY = 0.035;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -640,7 +640,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.12,
+  phiLift: 0.18,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -654,7 +654,7 @@ const ACTION_CAMERA_RADIUS_SCALE = 0.78;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.18
+  CAMERA.minPhi + 0.22
 );
 const ACTION_CAMERA_DIAGONAL_OFFSET = Math.PI * 0.42;
 const ACTION_CAMERA_DIAGONAL_RADIUS_SCALE = 1.16;
@@ -680,6 +680,7 @@ const AIM_FOCUS_SMOOTH_BASE = 0.2;
 const AIM_FOCUS_MIN_WEIGHT = 0.05;
 const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
+const AIM_LINE_LIFT = BALL_R * 0.1;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_MOTION_SMOOTH_TIME = 0.025; // seconds for camera interpolation to reach the desired state smoothly
@@ -1305,11 +1306,13 @@ function Table3D(parent) {
   const baulkLineZ = -PLAY_H / 4;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    roughness: 0.9,
-    metalness: 0.05,
-    sheen: 1.0,
-    sheenRoughness: 0.66
+    color: COLORS.cloth,
+    roughness: 0.34,
+    metalness: 0.02,
+    sheen: 0.75,
+    sheenRoughness: 0.5,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.5
   });
   const clothTextures = createClothTextures();
   const baseRepeat = 36;
@@ -1322,7 +1325,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.045;
+    clothMat.bumpScale = 0.024;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -1531,13 +1534,32 @@ function Table3D(parent) {
     const xIn = innerX(signX);
     const xOut = outerX(signX);
     const shape = new THREE.Shape();
-    shape.moveTo(xOut, -outerHalfH);
-    shape.lineTo(xOut, outerHalfH);
+    const outerCornerRadius = notchRadius;
+    shape.moveTo(xOut, -outerHalfH + outerCornerRadius);
+    shape.quadraticCurveTo(
+      xOut,
+      -outerHalfH,
+      xOut - signX * outerCornerRadius,
+      -outerHalfH
+    );
+    shape.lineTo(xOut - signX * outerCornerRadius, outerHalfH);
+    shape.quadraticCurveTo(
+      xOut,
+      outerHalfH,
+      xOut,
+      outerHalfH - outerCornerRadius
+    );
     shape.lineTo(xIn, outerHalfH);
     addCornerArcLong(shape, signX, 1);
     addSidePocketArc(shape, signX);
     addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
+    shape.quadraticCurveTo(
+      xOut,
+      -outerHalfH,
+      xOut,
+      -outerHalfH + outerCornerRadius
+    );
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: sideRailDepth,
@@ -1556,11 +1578,38 @@ function Table3D(parent) {
   function buildEndRail(sign) {
     const zIn = (sign < 0 ? -1 : 1) * (halfH + cushionBack - MICRO_EPS);
     const zOut = sign < 0 ? -outerHalfH : outerHalfH;
+    const signZ = sign < 0 ? -1 : 1;
     const shape = new THREE.Shape();
-    shape.moveTo(-outerHalfW, zOut);
-    shape.lineTo(outerHalfW, zOut);
-    shape.lineTo(outerHalfW, zIn);
-    shape.lineTo(-outerHalfW, zIn);
+    const outerCornerRadius = notchRadius;
+    shape.moveTo(-outerHalfW + outerCornerRadius, zOut);
+    shape.lineTo(outerHalfW - outerCornerRadius, zOut);
+    shape.quadraticCurveTo(
+      outerHalfW,
+      zOut,
+      outerHalfW,
+      zOut - signZ * outerCornerRadius
+    );
+    shape.lineTo(outerHalfW, zIn + signZ * outerCornerRadius);
+    shape.quadraticCurveTo(
+      outerHalfW,
+      zIn,
+      outerHalfW - outerCornerRadius,
+      zIn
+    );
+    shape.lineTo(-outerHalfW + outerCornerRadius, zIn);
+    shape.quadraticCurveTo(
+      -outerHalfW,
+      zIn,
+      -outerHalfW,
+      zIn + signZ * outerCornerRadius
+    );
+    shape.lineTo(-outerHalfW, zOut - signZ * outerCornerRadius);
+    shape.quadraticCurveTo(
+      -outerHalfW,
+      zOut,
+      -outerHalfW + outerCornerRadius,
+      zOut
+    );
     shape.closePath();
     const endRailDepth = railH + END_RAIL_EXTRA_DEPTH;
     const geo = new THREE.ExtrudeGeometry(shape, {
@@ -3965,13 +4014,22 @@ function SnookerGame() {
             aimDir,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          const aimPlaneY =
+            (cloth?.position?.y ?? CLOTH_TOP_LOCAL + CLOTH_LIFT) + AIM_LINE_LIFT;
+          const start = new THREE.Vector3(cue.pos.x, aimPlaneY, cue.pos.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
-          const rawEnd = TMP_VEC3_IMPACT.set(
+          const clampPad = BALL_R * 0.4;
+          const limitedX = clamp(
             impact.x,
-            BALL_CENTER_Y,
-            impact.y
+            -RAIL_LIMIT_X + clampPad,
+            RAIL_LIMIT_X - clampPad
           );
+          const limitedZ = clamp(
+            impact.y,
+            -RAIL_LIMIT_Y + clampPad,
+            RAIL_LIMIT_Y - clampPad
+          );
+          const rawEnd = TMP_VEC3_IMPACT.set(limitedX, aimPlaneY, limitedZ);
           if (start.distanceTo(rawEnd) < 1e-4) {
             rawEnd.copy(start).add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -4010,8 +4068,10 @@ function SnookerGame() {
             smoothingState.impact = rawEnd.clone();
           } else {
             smoothingState.impact.lerp(rawEnd, aimWeight);
+            smoothingState.impact.y = aimPlaneY;
           }
-          const smoothedEnd = smoothingState.impact ?? rawEnd;
+          const smoothedEnd = (smoothingState.impact ?? rawEnd).clone();
+          smoothedEnd.y = aimPlaneY;
           aimGeom.setFromPoints([start, smoothedEnd]);
           aim.visible = true;
           aim.material.color.set(
@@ -4065,9 +4125,11 @@ function SnookerGame() {
             smoothingState.targetKey = null;
           }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          const tickBase = smoothedEnd.clone();
+          tickBase.y = aimPlaneY;
           tickGeom.setFromPoints([
-            smoothedEnd.clone().add(perp.clone().multiplyScalar(1.4)),
-            smoothedEnd.clone().add(perp.clone().multiplyScalar(-1.4))
+            tickBase.clone().add(perp.clone().multiplyScalar(1.4)),
+            tickBase.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
           const backInfo = calcTarget(
