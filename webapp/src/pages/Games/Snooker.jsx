@@ -641,6 +641,7 @@ const ACTION_CAMERA_FOCUS_SMOOTH = 0.25;
 const ACTION_CAMERA_RADIUS_SMOOTH = 0.22;
 const ACTION_CAMERA_PHI_SMOOTH = 0.22;
 const ACTION_CAMERA_THETA_SMOOTH = 0.25;
+const ACTION_CAMERA_CUE_SMOOTH_TIME = 0.18;
 const AIM_CAMERA_MIN_SEPARATION = BALL_R * 2.6;
 const AIM_CAMERA_RADIUS_PADDING = BALL_R * 2.2;
 const AIM_CAMERA_FOCUS_MIN_WEIGHT = 0.38;
@@ -2178,14 +2179,33 @@ function SnookerGame() {
             const ballsList =
               ballsRef.current?.length > 0 ? ballsRef.current : balls;
             const cueBall = ballsList.find((b) => b.id === 'cue');
+            const frameNow = performance.now();
+            let smoothedCuePos = null;
             if (cueBall) {
               const cuePos2 =
                 view.lastBallPos ?? (view.lastBallPos = new THREE.Vector2());
               cuePos2.set(cueBall.pos.x, cueBall.pos.y);
+              const lastCueUpdate = view.lastCueUpdate ?? frameNow;
+              const cueDt = Math.min(
+                0.25,
+                Math.max(0, (frameNow - lastCueUpdate) / 1000)
+              );
+              view.lastCueUpdate = frameNow;
+              const cueSmooth =
+                ACTION_CAMERA_CUE_SMOOTH_TIME > 0
+                  ? 1 - Math.exp(-cueDt / ACTION_CAMERA_CUE_SMOOTH_TIME)
+                  : 1;
+              const cueLerp = THREE.MathUtils.clamp(cueSmooth, 0, 1);
+              if (!view.smoothedCuePos) {
+                view.smoothedCuePos = cuePos2.clone();
+              } else {
+                view.smoothedCuePos.lerp(cuePos2, cueLerp);
+              }
+              smoothedCuePos = view.smoothedCuePos;
             }
-            const now = performance.now();
             const engaged =
-              now - (view.startedAt ?? now) >= ACTION_CAMERA.switchDelay;
+              frameNow - (view.startedAt ?? frameNow) >=
+              ACTION_CAMERA.switchDelay;
             if (!engaged || !cueBall) {
               const store = ensureOrbitFocus();
               const fallback = store.target
@@ -2276,9 +2296,9 @@ function SnookerGame() {
                   PLAY_H * 0.12
                 );
               })();
-              const cuePos2D = cueBall
-                ? new THREE.Vector2(cueBall.pos.x, cueBall.pos.y)
-                : new THREE.Vector2(playerOffsetRef.current, 0);
+              const cuePos2D = smoothedCuePos
+                ? TMP_VEC2_A.copy(smoothedCuePos)
+                : TMP_VEC2_A.set(cueBall.pos.x, cueBall.pos.y);
               const lateral = Math.abs(aimVec2.x);
               const longitudinal = Math.abs(aimVec2.y);
               const biasSum = lateral + longitudinal;
@@ -3495,6 +3515,8 @@ function SnookerGame() {
               followWeight: ACTION_VIEW.followWeight,
               maxOffset: ACTION_VIEW.maxOffset,
               lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y),
+              smoothedCuePos: new THREE.Vector2(cue.pos.x, cue.pos.y),
+              lastCueUpdate: shotStart,
               orbitSnapshot,
               pendingPocket: null,
               lastInteraction: shotStart,
