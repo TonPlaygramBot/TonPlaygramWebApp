@@ -297,7 +297,7 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.78;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.68;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
@@ -337,6 +337,7 @@ const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 0.88; // extend side aprons so they meet the legs cleanly and flow into the legs
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.2; // subtle lift so pocket rims sit just above the cloth surface
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -369,7 +370,7 @@ const SHOT_POWER_RANGE = 0.75;
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
-const BASE_TABLE_LIFT = 3.0;
+const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 const TABLE_LIFT =
@@ -378,7 +379,7 @@ const TABLE_LIFT =
 const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const LEG_LENGTH_SCALE = 0.6; // 40% shorter legs relative to the previous build
+const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const LEG_ROOM_HEIGHT =
@@ -571,7 +572,7 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9;
+const STANDING_VIEW_PHI = 0.84;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
@@ -579,9 +580,9 @@ const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
-  near: 0.1,
+  near: 0.04,
   far: 4000,
-  minR: 20 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -598,8 +599,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: CAMERA.maxPhi - 0.14
+  radius: 92 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  phi: CAMERA.maxPhi - 0.2
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
   near: 1.04,
@@ -621,14 +622,14 @@ const ACTION_CAMERA = Object.freeze({
   focusBlend: 0.45,
   focusClampRatio: 0.18,
   railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 3.15,
+  verticalLift: TABLE.THICK * 2.6,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.98;
+const ACTION_CAMERA_RADIUS_SCALE = 0.9;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.08
+  CAMERA.minPhi + 0.04
 );
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
@@ -1439,10 +1440,14 @@ function Table3D(parent) {
     shape.lineTo(outerHalfW, zIn);
     shape.lineTo(-outerHalfW, zIn);
     shape.closePath();
+    const endRailDepth = railH + END_RAIL_EXTRA_DEPTH;
     const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
+      depth: endRailDepth,
       bevelEnabled: false
     });
+    if (END_RAIL_EXTRA_DEPTH > 0) {
+      geo.translate(0, 0, -(endRailDepth - railH));
+    }
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
@@ -1569,7 +1574,7 @@ function Table3D(parent) {
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const baseX = baseExtentW;
   const baseZ = baseExtentH;
-  const LEG_INSET = TABLE.WALL * 0.7 * 1.35;
+  const LEG_INSET = TABLE.WALL * 0.7 * 1.6;
   const legPositions = [
     [-(baseX) + LEG_INSET, -(baseZ) + LEG_INSET],
     [baseX - LEG_INSET, -(baseZ) + LEG_INSET],
@@ -3545,7 +3550,7 @@ function SnookerGame() {
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
-        if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
+        if (!hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
