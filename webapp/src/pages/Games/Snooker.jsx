@@ -395,7 +395,7 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.3;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.72;
+const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
 const MAX_SPIN_SIDE = BALL_R * 0.62;
 const MAX_SPIN_VERTICAL = BALL_R * 0.48;
@@ -820,6 +820,7 @@ function computeSpinLimits(cueBall, aimDir, balls = []) {
     TMP_VEC2_SPIN.copy(ball.pos).sub(cueBall.pos);
     const distSq = TMP_VEC2_SPIN.lengthSq();
     if (distSq < 1e-6) continue;
+    if (TMP_VEC2_SPIN.dot(TMP_VEC2_AXIS) >= 0) continue;
     const dist = Math.sqrt(distSq);
     for (const axis of axes) {
       const along = TMP_VEC2_SPIN.dot(axis.dir);
@@ -4125,8 +4126,18 @@ function SnookerGame() {
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
-          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
-          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
+          const sideLimit = ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET;
+          const vertLimit = ranges.offsetVertical ?? MAX_SPIN_VERTICAL;
+          const maxCueOffset = MAX_SPIN_CONTACT_OFFSET;
+          let side = (appliedSpin.x ?? 0) * sideLimit;
+          let vert = -(appliedSpin.y ?? 0) * vertLimit;
+          const offsetSq = side * side + vert * vert;
+          const maxOffsetSq = maxCueOffset * maxCueOffset;
+          if (offsetSq > maxOffsetSq && offsetSq > 0) {
+            const scale = Math.sqrt(maxOffsetSq / offsetSq);
+            side *= scale;
+            vert *= scale;
+          }
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
