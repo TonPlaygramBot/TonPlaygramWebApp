@@ -633,6 +633,10 @@ const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   CAMERA.minPhi + 0.12
 );
+const AIM_CAMERA_MIN_SEPARATION = BALL_R * 2.6;
+const AIM_CAMERA_RADIUS_PADDING = BALL_R * 2.2;
+const AIM_CAMERA_FOCUS_MIN_WEIGHT = 0.38;
+const AIM_CAMERA_FOCUS_MAX_WEIGHT = 0.6;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -649,6 +653,9 @@ const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC3_ANCHOR = new THREE.Vector3();
 const TMP_VEC3_POS = new THREE.Vector3();
+const TMP_VEC3_AIM = new THREE.Vector3();
+const TMP_VEC3_CUE = new THREE.Vector3();
+const TMP_VEC3_TARGET = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -2348,6 +2355,7 @@ function SnookerGame() {
             const followCue = cue?.mesh && cue.active && !shooting;
             const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
+            let requiredRadius = null;
             if (shooting && followViewRef.current?.lastBallPos) {
               const last = followViewRef.current.lastBallPos;
               focusTarget = new THREE.Vector3(last.x, BALL_CENTER_Y, last.y);
@@ -2357,7 +2365,41 @@ function SnookerGame() {
               Number.isFinite(aimFocus.y) &&
               Number.isFinite(aimFocus.z)
             ) {
-              focusTarget = aimFocus.clone();
+              if (cue?.active && cue.pos) {
+                const cuePos = TMP_VEC3_CUE.set(
+                  cue.pos.x,
+                  BALL_CENTER_Y,
+                  cue.pos.y
+                );
+                const targetPos = TMP_VEC3_TARGET.copy(aimFocus);
+                const separation = cuePos.distanceTo(targetPos);
+                const safeSeparation = Math.max(
+                  separation,
+                  AIM_CAMERA_MIN_SEPARATION
+                );
+                const lerpWeight = THREE.MathUtils.clamp(
+                  (safeSeparation - AIM_CAMERA_MIN_SEPARATION) / (BALL_R * 14),
+                  AIM_CAMERA_FOCUS_MIN_WEIGHT,
+                  AIM_CAMERA_FOCUS_MAX_WEIGHT
+                );
+                focusTarget = TMP_VEC3_AIM.copy(cuePos).lerp(
+                  targetPos,
+                  lerpWeight
+                );
+                const paddedHalfSpan =
+                  (safeSeparation * 0.5 + AIM_CAMERA_RADIUS_PADDING) *
+                  worldScaleFactor;
+                const fovY = THREE.MathUtils.degToRad(camera.fov);
+                const fovX = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect);
+                const limitingFov = Math.max(0.0001, Math.min(fovX, fovY));
+                const radiusForSpan =
+                  paddedHalfSpan / Math.tan(limitingFov / 2);
+                requiredRadius = clampOrbitRadius(
+                  Math.max(radiusForSpan, ACTION_CAMERA_MIN_RADIUS)
+                );
+              } else {
+                focusTarget = aimFocus.clone();
+              }
             } else if (followCue) {
               focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
@@ -2386,12 +2428,17 @@ function SnookerGame() {
                 ACTION_CAMERA_MIN_RADIUS
               )
             );
-            const dynamicRadius = getDynamicOrbitRadius(
+            let dynamicRadius = getDynamicOrbitRadius(
               scaledOrbitBase,
               sph.theta,
               cameraBlendRef.current,
               ACTION_CAMERA_MIN_RADIUS
             );
+            if (requiredRadius !== null) {
+              dynamicRadius = clampOrbitRadius(
+                Math.max(dynamicRadius, requiredRadius)
+              );
+            }
             const alignBlend = THREE.MathUtils.clamp(
               cameraBlendRef.current ?? 1,
               0,
@@ -3562,7 +3609,7 @@ function SnookerGame() {
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
-        if (!hud.inHand && cue?.active && !hud.over) {
+        if (!hud.inHand && cue?.active && !hud.over && !shooting) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
