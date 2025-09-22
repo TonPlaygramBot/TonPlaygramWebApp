@@ -336,7 +336,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
-const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 0.88; // extend side aprons so they meet the legs cleanly and flow into the legs
+const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.2; // subtle lift so pocket rims sit just above the cloth surface
 const POCKET_RECESS_DEPTH =
@@ -362,7 +362,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.4; // boost cue strike strength by 40%
+const SHOT_FORCE_BOOST = 1.5; // boost cue strike strength by 50%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -631,7 +631,7 @@ const ACTION_CAMERA_RADIUS_SCALE = 0.78;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.12
+  CAMERA.minPhi + 0.18
 );
 const AIM_CAMERA_MIN_SEPARATION = BALL_R * 2.6;
 const AIM_CAMERA_RADIUS_PADDING = BALL_R * 2.2;
@@ -1572,8 +1572,6 @@ function Table3D(parent) {
   addCushion(rightX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, true);
   addCushion(rightX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, true);
 
-  const baseExtentW = halfW + 2 * railW + frameWidth;
-  const baseExtentH = halfH + 2 * railW + frameWidth;
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
   const legTopWorld = legTopLocal + TABLE_Y;
@@ -1581,15 +1579,19 @@ function Table3D(parent) {
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const baseX = baseExtentW;
-  const baseZ = baseExtentH;
-  const LEG_INSET = TABLE.WALL * 0.7 * 1.6;
-  const legPositions = [
-    [-(baseX) + LEG_INSET, -(baseZ) + LEG_INSET],
-    [baseX - LEG_INSET, -(baseZ) + LEG_INSET],
-    [-(baseX) + LEG_INSET, baseZ - LEG_INSET],
-    [baseX - LEG_INSET, baseZ - LEG_INSET]
-  ];
+  const cornerLegInset = Math.max(legR * 0.55, POCKET_VIS_R * 0.6);
+  const legPositions = CORNER_SIGNS.map(({ sx, sy }) => {
+    const pocket = new THREE.Vector2(
+      sx * (PLAY_W / 2),
+      sy * (PLAY_H / 2)
+    );
+    const dir = pocket.clone();
+    if (dir.lengthSq() > 1e-6) {
+      dir.normalize().multiplyScalar(-cornerLegInset);
+      pocket.add(dir);
+    }
+    return [pocket.x, pocket.y];
+  });
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
     leg.position.set(lx, legTopLocal + LEG_TOP_OVERLAP - legH / 2, lz);
@@ -2214,6 +2216,30 @@ function SnookerGame() {
               }
               if (!targetVec2 && view.impactPoint) {
                 targetVec2 = view.impactPoint.clone();
+              }
+              if (targetVec2 && cueBall) {
+                const separation = targetVec2.distanceTo(cueBall.pos);
+                const minSeparation = BALL_R * 2.2;
+                if (separation < minSeparation) {
+                  const fallbackDir = (view.predictedDir
+                    ? view.predictedDir.clone()
+                    : aimVec2.clone()
+                  ).normalize();
+                  if (fallbackDir.lengthSq() < 1e-6) {
+                    fallbackDir.set(0, 1);
+                  }
+                  const safeDistance = BALL_R * 6;
+                  const safeTarget = new THREE.Vector2(
+                    cueBall.pos.x + fallbackDir.x * safeDistance,
+                    cueBall.pos.y + fallbackDir.y * safeDistance
+                  );
+                  const blend = THREE.MathUtils.clamp(
+                    1 - separation / minSeparation,
+                    0,
+                    1
+                  );
+                  targetVec2.lerp(safeTarget, blend);
+                }
               }
               if (targetVec2) {
                 view.impactPoint = targetVec2.clone();
