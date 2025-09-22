@@ -660,6 +660,9 @@ const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
+const CAMERA_MOTION_SMOOTH_TIME = 1 / 60; // blend camera updates toward the desired state at ~60 FPS
+const CAMERA_MOTION_MAX_DT = 0.25;
+const CAMERA_MOTION_EPS = 1e-6;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const resolveSmoothWeight = (base = 0.2, scale = 1) => {
   const clampedBase = THREE.MathUtils.clamp(base ?? 0, 0, 1);
@@ -1750,6 +1753,12 @@ function SnookerGame() {
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, TABLE_Y + 0.05, 0));
+  const cameraMotionRef = useRef({
+    pos: null,
+    target: null,
+    lastUpdate: null,
+    snapNext: false
+  });
   const updateSpinDotPosition = useCallback((value) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -2188,14 +2197,24 @@ function SnookerGame() {
           syncBlendToSpherical();
         };
 
+
         const updateCamera = () => {
           let lookTarget = null;
+          let desiredPos = null;
+          let desiredTarget = null;
+          const assignDesired = (posVec, targetVec) => {
+            if (!posVec || !targetVec) return;
+            desiredPos = posVec.clone();
+            desiredTarget = targetVec.clone();
+            lookTarget = desiredTarget;
+          };
+
           if (topViewRef.current) {
-            lookTarget = getDefaultOrbitTarget().multiplyScalar(
+            const target = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
             );
-            camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
-            camera.lookAt(lookTarget);
+            const pos = new THREE.Vector3(target.x, sph.radius, target.z);
+            assignDesired(pos, target);
           } else if (shooting && activeShotView?.mode === 'action') {
             const view = activeShotView;
             const ballsList =
@@ -2233,7 +2252,6 @@ function SnookerGame() {
               const fallback = store.target
                 .clone()
                 .multiplyScalar(worldScaleFactor);
-              lookTarget = fallback;
               const dynamicRadius = getDynamicOrbitRadius(
                 sph.radius,
                 sph.theta,
@@ -2241,8 +2259,10 @@ function SnookerGame() {
               );
               TMP_SPH.copy(sph);
               TMP_SPH.radius = dynamicRadius;
-              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-              camera.lookAt(lookTarget);
+              const pos = new THREE.Vector3()
+                .setFromSpherical(TMP_SPH)
+                .add(fallback);
+              assignDesired(pos, fallback);
             } else {
               let targetBall = null;
               if (view.targetId) {
@@ -2446,9 +2466,7 @@ function SnookerGame() {
               const anchorPos = TMP_VEC3_POS.setFromSpherical(TMP_SPH).add(
                 worldAnchor
               );
-              camera.position.copy(anchorPos);
-              camera.lookAt(worldFocus);
-              lookTarget = worldFocus;
+              assignDesired(anchorPos, worldFocus);
             }
           } else if (shooting && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
@@ -2523,9 +2541,7 @@ function SnookerGame() {
             } else {
               activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
             }
-            camera.position.copy(activeShotView.smoothedPos);
-            camera.lookAt(activeShotView.smoothedTarget);
-            lookTarget = activeShotView.smoothedTarget;
+            assignDesired(activeShotView.smoothedPos, activeShotView.smoothedTarget);
           } else {
             const followCue = cue?.mesh && cue.active && !shooting;
             const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
@@ -2607,7 +2623,6 @@ function SnookerGame() {
               focusTarget = store.target.clone();
             }
             focusTarget.multiplyScalar(worldScaleFactor);
-            lookTarget = focusTarget;
             const scaledOrbitBase = clampOrbitRadius(
               Math.max(
                 sph.radius * ACTION_CAMERA_RADIUS_SCALE,
@@ -2653,12 +2668,46 @@ function SnookerGame() {
             TMP_SPH.copy(sph);
             TMP_SPH.radius = dynamicRadius;
             TMP_SPH.theta = orbitTheta;
-            camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-            camera.lookAt(lookTarget);
+            const pos = new THREE.Vector3()
+              .setFromSpherical(TMP_SPH)
+              .add(focusTarget);
+            assignDesired(pos, focusTarget);
           }
-          if (lookTarget) {
-            lastCameraTargetRef.current.copy(lookTarget);
+
+          if (desiredPos && desiredTarget) {
+            const motion = cameraMotionRef.current;
+            const now = performance.now();
+            const last = motion.lastUpdate ?? now;
+            const dt = Math.min(
+              CAMERA_MOTION_MAX_DT,
+              Math.max(0, (now - last) / 1000)
+            );
+            motion.lastUpdate = now;
+            if (!motion.pos || !motion.target || motion.snapNext) {
+              motion.pos = desiredPos.clone();
+              motion.target = desiredTarget.clone();
+              motion.snapNext = false;
+            } else {
+              const smooth =
+                CAMERA_MOTION_SMOOTH_TIME > 0
+                  ? 1 - Math.exp(-dt / CAMERA_MOTION_SMOOTH_TIME)
+                  : 1;
+              const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
+              motion.pos.lerp(desiredPos, lerpT);
+              motion.target.lerp(desiredTarget, lerpT);
+              if (motion.pos.distanceToSquared(desiredPos) <= CAMERA_MOTION_EPS) {
+                motion.pos.copy(desiredPos);
+              }
+              if (motion.target.distanceToSquared(desiredTarget) <= CAMERA_MOTION_EPS) {
+                motion.target.copy(desiredTarget);
+              }
+            }
+            camera.position.copy(motion.pos);
+            camera.lookAt(motion.target);
+            lookTarget = motion.target;
+            lastCameraTargetRef.current.copy(motion.target);
           }
+
           if (clothMat && lookTarget) {
             const dist = camera.position.distanceTo(lookTarget);
             const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
@@ -2758,6 +2807,9 @@ function SnookerGame() {
             sph.phi = Math.max(CAMERA.minPhi, safePhi);
             sph.theta = theta;
             syncBlendToSpherical();
+            if (cameraMotionRef.current) {
+              cameraMotionRef.current.snapNext = true;
+            }
             updateCamera();
           } else {
             animateCamera({
