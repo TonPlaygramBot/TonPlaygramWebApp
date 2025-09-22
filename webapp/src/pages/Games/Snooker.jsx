@@ -312,8 +312,8 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.68;
-const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.64;
+const ACTION_CAMERA_VERTICAL_CURVE = 0.58;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
   Math.max(0.62, PLAY_W / PLAY_H)
@@ -637,9 +637,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.5;
+const STANDING_VIEW_PHI = 0.78;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.85;
+const STANDING_VIEW_MARGIN = 0.92;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -654,7 +654,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.28;
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.42;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -669,10 +669,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 1,
-  far: 1
+  near: 0.92,
+  far: 1.04
 });
-const CAMERA_ZOOM_LOW_BLEND = 0.35;
+const CAMERA_ZOOM_LOW_BLEND = 0.45;
 const CAMERA_RAIL_SAFETY = 0.02;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
@@ -682,7 +682,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.06,
+  phiLift: 0.08,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -692,11 +692,12 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 2.05,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.9;
+const ACTION_CAMERA_RADIUS_SCALE = 0.88;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
+const ACTION_CAMERA_CUE_RADIUS_RATIO = 0.86;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.04
+  STANDING_VIEW_PHI + 0.58
 );
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
@@ -2754,17 +2755,25 @@ function SnookerGame() {
           const standingRadius = clampOrbitRadius(
             Math.max(standingRadiusRaw, cueBase)
           );
+          const standingPhi = THREE.MathUtils.clamp(
+            STANDING_VIEW.phi,
+            CAMERA.minPhi,
+            CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+          );
           const cueRadius = clampOrbitRadius(
-            Math.max(standingRadius, ACTION_CAMERA_MIN_RADIUS)
+            Math.max(
+              standingRadius * ACTION_CAMERA_CUE_RADIUS_RATIO,
+              ACTION_CAMERA_MIN_RADIUS
+            )
           );
           const cuePhi = THREE.MathUtils.clamp(
             ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
             CAMERA.minPhi,
-            CAMERA.maxPhi
+            CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
           cameraBoundsRef.current = {
             cueShot: { phi: cuePhi, radius: cueRadius },
-            standing: { phi: CAMERA.minPhi, radius: standingRadius }
+            standing: { phi: standingPhi, radius: standingRadius }
           };
           applyCameraBlend();
           const cushionLimit = Math.max(
