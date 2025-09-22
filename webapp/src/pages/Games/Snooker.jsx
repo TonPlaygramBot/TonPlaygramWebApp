@@ -331,6 +331,7 @@ const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
+const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
@@ -3788,8 +3789,13 @@ function SnookerGame() {
       const step = (now) => {
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
-        const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS || 1;
+        const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS;
         const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
+        const physicsSubsteps = Math.min(
+          MAX_PHYSICS_SUBSTEPS,
+          Math.max(1, Math.ceil(frameScale))
+        );
+        const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
@@ -3961,136 +3967,139 @@ function SnookerGame() {
         }
 
         // Fizika
-        balls.forEach((b) => {
-          if (!b.active) return;
-          const isCue = b.id === 'cue';
-          const hasSpin = b.spin?.lengthSq() > 1e-6;
-          if (hasSpin) {
-            const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-            const allowRoll = !isCue || b.impacted || swerveTravel;
-            const preImpact = isCue && !b.impacted;
-            if (allowRoll) {
-              const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
-              TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
-                SPIN_ROLL_STRENGTH * rollMultiplier * frameScale
-              );
-              if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
-                const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
-                b.vel.add(TMP_VEC2_AXIS);
-                TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                if (b.spinMode === 'swerve' && b.pendingSpin) {
-                  b.pendingSpin.add(TMP_VEC2_LATERAL);
+        for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
+          const stepScale = subStepScale;
+          balls.forEach((b) => {
+            if (!b.active) return;
+            const isCue = b.id === 'cue';
+            const hasSpin = b.spin?.lengthSq() > 1e-6;
+            if (hasSpin) {
+              const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
+              const allowRoll = !isCue || b.impacted || swerveTravel;
+              const preImpact = isCue && !b.impacted;
+              if (allowRoll) {
+                const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
+                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
+                );
+                if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
+                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
+                  const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
+                  b.vel.add(TMP_VEC2_AXIS);
+                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
+                  if (b.spinMode === 'swerve' && b.pendingSpin) {
+                    b.pendingSpin.add(TMP_VEC2_LATERAL);
+                  }
+                  const alignedSpeed = b.vel.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                  b.vel.copy(TMP_VEC2_AXIS);
+                } else {
+                  b.vel.add(TMP_VEC2_SPIN);
+                  if (
+                    isCue &&
+                    b.spinMode === 'swerve' &&
+                    b.pendingSpin &&
+                    b.pendingSpin.lengthSq() > 0
+                  ) {
+                    b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
+                    b.pendingSpin.multiplyScalar(0);
+                  }
                 }
-                const alignedSpeed = b.vel.dot(launchDir);
-                TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                b.vel.copy(TMP_VEC2_AXIS);
+                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
+                b.spin.multiplyScalar(rollDecay);
               } else {
-                b.vel.add(TMP_VEC2_SPIN);
+                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
+                b.spin.multiplyScalar(airDecay);
+              }
+              if (b.spin.lengthSq() < 1e-6) {
+                b.spin.set(0, 0);
+                if (b.pendingSpin) b.pendingSpin.set(0, 0);
+                if (isCue) b.spinMode = 'standard';
+              }
+            }
+            b.pos.addScaledVector(b.vel, stepScale);
+            b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
+            const speed = b.vel.length();
+            const scaledSpeed = speed * stepScale;
+            const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
+            if (scaledSpeed < STOP_EPS) {
+              b.vel.set(0, 0);
+              if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
+              if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
+              if (isCue && !hasSpinAfter) {
+                b.impacted = false;
+                b.spinMode = 'standard';
+              }
+              b.launchDir = null;
+            }
+            const hitRail = reflectRails(b);
+            if (hitRail && b.id === 'cue') b.impacted = true;
+            if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
+              applySpinImpulse(b, 1);
+            }
+            b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
+            if (scaledSpeed > 0) {
+              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
+              const angle = scaledSpeed / BALL_R;
+              b.mesh.rotateOnWorldAxis(axis, angle);
+            }
+          });
+          // Kolizione + regjistro firstHit
+          for (let i = 0; i < balls.length; i++)
+            for (let j = i + 1; j < balls.length; j++) {
+              const a = balls[i],
+                b = balls[j];
+              if (!a.active || !b.active) continue;
+              const dx = b.pos.x - a.pos.x,
+                dy = b.pos.y - a.pos.y;
+              const d2 = dx * dx + dy * dy;
+              const min = (BALL_R * 2) ** 2;
+              if (d2 > 0 && d2 < min) {
+                const d = Math.sqrt(d2) || 1e-4;
+                const nx = dx / d,
+                  ny = dy / d;
+                const overlap = (BALL_R * 2 - d) / 2;
+                a.pos.x -= nx * overlap;
+                a.pos.y -= ny * overlap;
+                b.pos.x += nx * overlap;
+                b.pos.y += ny * overlap;
+                const avn = a.vel.x * nx + a.vel.y * ny;
+                const bvn = b.vel.x * nx + b.vel.y * ny;
+                const at = a.vel
+                  .clone()
+                  .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
+                const bt = b.vel
+                  .clone()
+                  .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
+                a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
+                b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+                const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
+                if (!firstHit) {
+                  if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
+                  else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
+                }
+                const hitBallId =
+                  a.id === 'cue' && b.id !== 'cue'
+                    ? b.id
+                    : b.id === 'cue' && a.id !== 'cue'
+                      ? a.id
+                      : null;
                 if (
-                  isCue &&
-                  b.spinMode === 'swerve' &&
-                  b.pendingSpin &&
-                  b.pendingSpin.lengthSq() > 0
+                  hitBallId &&
+                  shooting &&
+                  activeShotView?.mode === 'action'
                 ) {
-                  b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
-                  b.pendingSpin.multiplyScalar(0);
+                  activeShotView.targetId = hitBallId;
+                  activeShotView.lockedTarget = true;
+                }
+                if (cueBall && cueBall.spin?.lengthSq() > 0) {
+                  cueBall.impacted = true;
+                  applySpinImpulse(cueBall, 1.1);
                 }
               }
-              const rollDecay = Math.pow(SPIN_ROLL_DECAY, frameScale);
-              b.spin.multiplyScalar(rollDecay);
-            } else {
-              const airDecay = Math.pow(SPIN_AIR_DECAY, frameScale);
-              b.spin.multiplyScalar(airDecay);
             }
-            if (b.spin.lengthSq() < 1e-6) {
-              b.spin.set(0, 0);
-              if (b.pendingSpin) b.pendingSpin.set(0, 0);
-              if (isCue) b.spinMode = 'standard';
-            }
-          }
-          b.pos.addScaledVector(b.vel, frameScale);
-          b.vel.multiplyScalar(Math.pow(FRICTION, frameScale));
-          const speed = b.vel.length();
-          const scaledSpeed = speed * frameScale;
-          const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
-          if (scaledSpeed < STOP_EPS) {
-            b.vel.set(0, 0);
-            if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
-            if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
-            if (isCue && !hasSpinAfter) {
-              b.impacted = false;
-              b.spinMode = 'standard';
-            }
-            b.launchDir = null;
-          }
-          const hitRail = reflectRails(b);
-          if (hitRail && b.id === 'cue') b.impacted = true;
-          if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
-            applySpinImpulse(b, 1);
-          }
-          b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-          if (scaledSpeed > 0) {
-            const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
-            const angle = scaledSpeed / BALL_R;
-            b.mesh.rotateOnWorldAxis(axis, angle);
-          }
-        });
-        // Kolizione + regjistro firstHit
-        for (let i = 0; i < balls.length; i++)
-          for (let j = i + 1; j < balls.length; j++) {
-            const a = balls[i],
-              b = balls[j];
-            if (!a.active || !b.active) continue;
-            const dx = b.pos.x - a.pos.x,
-              dy = b.pos.y - a.pos.y;
-            const d2 = dx * dx + dy * dy;
-            const min = (BALL_R * 2) ** 2;
-            if (d2 > 0 && d2 < min) {
-              const d = Math.sqrt(d2) || 1e-4;
-              const nx = dx / d,
-                ny = dy / d;
-              const overlap = (BALL_R * 2 - d) / 2;
-              a.pos.x -= nx * overlap;
-              a.pos.y -= ny * overlap;
-              b.pos.x += nx * overlap;
-              b.pos.y += ny * overlap;
-              const avn = a.vel.x * nx + a.vel.y * ny;
-              const bvn = b.vel.x * nx + b.vel.y * ny;
-              const at = a.vel
-                .clone()
-                .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
-              const bt = b.vel
-                .clone()
-                .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
-              a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
-              b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
-              const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
-              if (!firstHit) {
-                if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
-                else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
-              }
-              const hitBallId =
-                a.id === 'cue' && b.id !== 'cue'
-                  ? b.id
-                  : b.id === 'cue' && a.id !== 'cue'
-                    ? a.id
-                    : null;
-              if (
-                hitBallId &&
-                shooting &&
-                activeShotView?.mode === 'action'
-              ) {
-                activeShotView.targetId = hitBallId;
-                activeShotView.lockedTarget = true;
-              }
-              if (cueBall && cueBall.spin?.lengthSq() > 0) {
-                cueBall.impacted = true;
-                applySpinImpulse(cueBall, 1.1);
-              }
-            }
-          }
+        }
         if (
           shooting &&
           activeShotView &&
