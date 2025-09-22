@@ -2690,52 +2690,48 @@ function SnookerGame() {
               Math.max(0, (now - last) / 1000)
             );
             motion.lastUpdate = now;
-            const defaultDuration = Math.max(
-              CAMERA_MOTION_SMOOTH_TIME,
-              CAMERA_MOTION_MIN_DURATION
-            );
-            const fromPos = motion.fromPos;
+
             const toPos = motion.toPos;
-            const fromTarget = motion.fromTarget;
             const toTarget = motion.toTarget;
-            if (!motion.pos || !motion.target || motion.snapNext) {
+            toPos.copy(desiredPos);
+            toTarget.copy(desiredTarget);
+
+            const lerpT =
+              CAMERA_MOTION_SMOOTH_TIME > 0
+                ? 1 - Math.exp(-dt / CAMERA_MOTION_SMOOTH_TIME)
+                : 1;
+            const clampedLerp = THREE.MathUtils.clamp(lerpT, 0, 1);
+            const shouldSnap =
+              motion.snapNext ||
+              !motion.pos ||
+              !motion.target ||
+              clampedLerp <= 0;
+
+            if (shouldSnap) {
               if (!motion.pos) motion.pos = desiredPos.clone();
               else motion.pos.copy(desiredPos);
               if (!motion.target) motion.target = desiredTarget.clone();
               else motion.target.copy(desiredTarget);
-              fromPos.copy(motion.pos);
-              toPos.copy(desiredPos);
-              fromTarget.copy(motion.target);
-              toTarget.copy(desiredTarget);
-              motion.progress = defaultDuration;
-              motion.duration = defaultDuration;
               motion.snapNext = false;
+              motion.progress = 0;
+              motion.duration = 0;
+              motion.fromPos.copy(motion.pos);
+              motion.fromTarget.copy(motion.target);
             } else {
-              if (
-                toPos.distanceToSquared(desiredPos) > CAMERA_MOTION_EPS ||
-                toTarget.distanceToSquared(desiredTarget) > CAMERA_MOTION_EPS
-              ) {
-                fromPos.copy(motion.pos);
-                fromTarget.copy(motion.target);
-                toPos.copy(desiredPos);
-                toTarget.copy(desiredTarget);
-                motion.progress = 0;
-                motion.duration = defaultDuration;
-              }
-              const span = Math.max(
-                motion.duration || 0,
-                CAMERA_MOTION_MIN_DURATION
-              );
-              motion.progress = Math.min(span, motion.progress + dt);
-              const t = span <= 1e-6 ? 1 : motion.progress / span;
-              motion.pos.copy(fromPos).lerp(toPos, t);
-              motion.target.copy(fromTarget).lerp(toTarget, t);
-              if (t >= 0.999) {
+              motion.pos.lerp(toPos, clampedLerp);
+              motion.target.lerp(toTarget, clampedLerp);
+              if (motion.pos.distanceToSquared(toPos) <= CAMERA_MOTION_EPS) {
                 motion.pos.copy(toPos);
-                motion.target.copy(toTarget);
-                motion.progress = span;
               }
+              if (
+                motion.target.distanceToSquared(toTarget) <= CAMERA_MOTION_EPS
+              ) {
+                motion.target.copy(toTarget);
+              }
+              motion.fromPos.copy(motion.pos);
+              motion.fromTarget.copy(motion.target);
             }
+
             camera.position.copy(motion.pos);
             camera.lookAt(motion.target);
             lookTarget = motion.target;
@@ -3152,7 +3148,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          6.75,
+          7.6,
           0,
           Math.PI * 0.38,
           0.48,
