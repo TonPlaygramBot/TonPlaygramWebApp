@@ -296,7 +296,7 @@ const CLOTH_LIFT = (() => {
 })();
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_START_BLEND = 0;
+const ACTION_CAMERA_START_BLEND = 1;
 const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.78;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
@@ -573,7 +573,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
-const STANDING_VIEW_MARGIN = 0.65;
+const STANDING_VIEW_MARGIN = 0.75;
 const STANDING_VIEW_FOV = 62;
 const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
@@ -598,12 +598,12 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.7,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
   phi: CAMERA.maxPhi - 0.14
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 0.84,
-  far: 1.05
+  near: 0.9,
+  far: 1.12
 });
 const CAMERA_RAIL_SAFETY = 0.015;
 const ACTION_VIEW = Object.freeze({
@@ -624,7 +624,7 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 3.15,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.76;
+const ACTION_CAMERA_RADIUS_SCALE = 0.82;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - 0.04,
@@ -658,7 +658,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Nudge camera closer so the table fills more of the view
-  const r = Math.max(dzH, dzW) * 0.55 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.6 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 
@@ -2591,7 +2591,8 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
-        const shouldPrimeActionView = !initialOrbitRef.current;
+        const shouldPrimeActionView =
+          !initialOrbitRef.current && ACTION_CAMERA_START_BLEND < 0.5;
         fit(margin);
         if (shouldPrimeActionView) {
           const bounds = cameraBoundsRef.current;
