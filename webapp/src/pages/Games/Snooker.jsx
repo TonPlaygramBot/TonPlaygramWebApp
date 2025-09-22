@@ -414,7 +414,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x4a2c18;
 const BASE_WOOD_COLOR = 0x2f1b11;
 const COLORS = Object.freeze({
-  cloth: 0x1a6d1a,
+  cloth: 0x2bc351,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -437,51 +437,58 @@ const createClothTextures = (() => {
       return cache;
     }
 
-    const size = 512;
+    const SIZE = 1024;
+    const PITCH = 6;
+    const AMP = 0.19;
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
+    canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       cache = { map: null, bump: null };
       return cache;
     }
 
-    const clothColor = new THREE.Color(COLORS.cloth).convertLinearToSRGB();
-    ctx.fillStyle = `#${clothColor.getHexString()}`;
-    ctx.fillRect(0, 0, size, size);
-
-    for (let y = 0; y < size; y += 2) {
-      ctx.fillStyle = 'rgba(255,255,255,0.30)';
-      ctx.fillRect(0, y, size, 1);
-      ctx.fillStyle = 'rgba(0,0,0,0.40)';
-      ctx.fillRect(0, y + 1, size, 1);
-    }
-
-    for (let x = 0; x < size; x += 8) {
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.fillRect(x, 0, 1, size);
-      ctx.fillStyle = 'rgba(0,0,0,0.09)';
-      ctx.fillRect(x + 4, 0, 1, size);
-    }
-
-    const image = ctx.getImageData(0, 0, size, size);
+    const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    for (let i = 0; i < data.length; i += 4) {
-      const n = (Math.random() * 44) | 0;
-      data[i] = Math.min(255, data[i] + n);
-      data[i + 1] = Math.min(255, data[i + 1] + n);
-      data[i + 2] = Math.min(255, data[i + 2] + n);
+    const k = (2 * Math.PI) / PITCH;
+    const base = { r: 0x2b, g: 0xc3, b: 0x51 };
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const s1 = Math.sin(k * (x + y));
+        const s2 = Math.sin(k * (x - y));
+        const a = Math.abs(s1);
+        const b = Math.abs(s2);
+        const ridge = (1 - a) + (1 - b);
+        const shade = AMP * (ridge - 1);
+        const i = (y * SIZE + x) * 4;
+        data[i + 0] = Math.max(0, Math.min(255, base.r + Math.round(255 * shade * 0.18)));
+        data[i + 1] = Math.max(0, Math.min(255, base.g + Math.round(255 * shade * 0.26)));
+        data[i + 2] = Math.max(0, Math.min(255, base.b + Math.round(255 * shade * 0.18)));
+        data[i + 3] = 255;
+      }
     }
     ctx.putImageData(image, 0, 0);
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(28, 112);
-    texture.anisotropy = 32;
-    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
+    const colorMap = new THREE.CanvasTexture(canvas);
+    colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
+    colorMap.repeat.set(36, 144);
+    colorMap.anisotropy = 32;
+    colorMap.generateMipmaps = true;
+    colorMap.minFilter = THREE.LinearMipmapLinearFilter;
+    colorMap.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
+    else colorMap.encoding = THREE.sRGBEncoding;
+    colorMap.needsUpdate = true;
 
-    cache = { map: texture, bump: texture };
+    const bumpMap = new THREE.CanvasTexture(canvas);
+    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+    bumpMap.repeat.copy(colorMap.repeat);
+    bumpMap.anisotropy = colorMap.anisotropy;
+    bumpMap.generateMipmaps = true;
+    bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
+    bumpMap.magFilter = THREE.LinearFilter;
+
+    cache = { map: colorMap, bump: bumpMap };
     return cache;
   };
 })();
@@ -690,6 +697,7 @@ const TMP_VEC3_POS = new THREE.Vector3();
 const TMP_VEC3_AIM = new THREE.Vector3();
 const TMP_VEC3_CUE = new THREE.Vector3();
 const TMP_VEC3_TARGET = new THREE.Vector3();
+const TMP_VEC3_GUIDE_END = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
 const TMP_VEC3_FOCUS = new THREE.Vector3();
 const CORNER_SIGNS = [
@@ -1289,15 +1297,15 @@ function Table3D(parent) {
   const baulkLineZ = -PLAY_H / 4;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: COLORS.cloth,
-    roughness: 0.8,
+    color: 0xffffff,
+    roughness: 0.9,
     metalness: 0.05,
     sheen: 1.0,
-    sheenRoughness: 0.62
+    sheenRoughness: 0.66
   });
   const clothTextures = createClothTextures();
-  const baseRepeat = 28;
-  const repeatRatio = 112 / 28;
+  const baseRepeat = 36;
+  const repeatRatio = 144 / 36;
   if (clothTextures.map) {
     clothMat.map = clothTextures.map;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1306,7 +1314,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.055;
+    clothMat.bumpScale = 0.045;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
@@ -1459,18 +1467,74 @@ function Table3D(parent) {
   const cushionBack = railW * 0.5;
   const railsGroup = new THREE.Group();
 
+  const notchRadius = POCKET_TOP_R * 1.02;
+  const innerX = (sign) => (sign < 0 ? -1 : 1) * (halfW + cushionBack - MICRO_EPS);
+  const outerX = (sign) => (sign < 0 ? -outerHalfW : outerHalfW);
+
+  function addCornerArcLong(shape, signX, signZ) {
+    const xIn = innerX(signX);
+    const cx = signX < 0 ? -halfW : halfW;
+    const cz = signZ < 0 ? -halfH : halfH;
+    const u = Math.abs(xIn - cx);
+    const radius = Math.max(notchRadius, u + 0.001);
+    const dz = Math.sqrt(Math.max(0, radius * radius - u * u));
+    const zA = cz + dz;
+    const zB = cz - dz;
+    const startZ = signZ > 0 ? zA : zB;
+    const endZ = signZ > 0 ? zB : zA;
+    shape.lineTo(xIn, startZ);
+    const steps = 64;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const z = startZ + (endZ - startZ) * t;
+      const xDelta = Math.sqrt(
+        Math.max(0, radius * radius - (z - cz) * (z - cz))
+      );
+      const x = cx + (signX > 0 ? xDelta : -xDelta);
+      if (signX * (x - xIn) >= -1e-6) {
+        shape.lineTo(x, z);
+      }
+    }
+    shape.lineTo(xIn, endZ);
+  }
+
+  function addSidePocketArc(shape, signX) {
+    const xIn = innerX(signX);
+    const cx = signX < 0 ? -halfW : halfW;
+    const u = Math.abs(xIn - cx);
+    const radius = Math.max(notchRadius, u + 0.001);
+    const dz = Math.sqrt(Math.max(0, radius * radius - u * u));
+    const zTop = dz;
+    const zBottom = -dz;
+    shape.lineTo(xIn, zTop);
+    const steps = 40;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const z = zTop + (zBottom - zTop) * t;
+      const xDelta = Math.sqrt(Math.max(0, radius * radius - z * z));
+      const x = cx + (signX > 0 ? xDelta : -xDelta);
+      shape.lineTo(x, z);
+    }
+    shape.lineTo(xIn, zBottom);
+  }
+
   function buildSideRail(sign) {
-    const xIn = (sign < 0 ? -1 : 1) * (halfW + cushionBack - MICRO_EPS);
-    const xOut = (sign < 0 ? -1 : 1) * outerHalfW;
+    const signX = sign < 0 ? -1 : 1;
+    const xIn = innerX(signX);
+    const xOut = outerX(signX);
     const shape = new THREE.Shape();
     shape.moveTo(xOut, -outerHalfH);
     shape.lineTo(xOut, outerHalfH);
     shape.lineTo(xIn, outerHalfH);
+    addCornerArcLong(shape, signX, 1);
+    addSidePocketArc(shape, signX);
+    addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: sideRailDepth,
-      bevelEnabled: false
+      bevelEnabled: false,
+      curveSegments: 96
     });
     if (SIDE_RAIL_EXTRA_DEPTH > 0) {
       geo.translate(0, 0, -(sideRailDepth - railH));
@@ -3940,11 +4004,20 @@ function SnookerGame() {
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
-          const rawEnd = TMP_VEC3_IMPACT.set(
+          const impactPos = TMP_VEC3_IMPACT.set(
             impact.x,
             BALL_CENTER_Y,
             impact.y
           );
+          let targetCenter = null;
+          if (targetBall && targetBall.active) {
+            targetCenter = TMP_VEC3_TARGET.set(
+              targetBall.pos.x,
+              BALL_CENTER_Y,
+              targetBall.pos.y
+            );
+          }
+          const rawEnd = TMP_VEC3_GUIDE_END.copy(targetCenter ?? impactPos);
           if (start.distanceTo(rawEnd) < 1e-4) {
             rawEnd.copy(start).add(dir.clone().multiplyScalar(BALL_R));
           }
