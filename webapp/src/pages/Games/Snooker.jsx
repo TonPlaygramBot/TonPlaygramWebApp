@@ -642,14 +642,20 @@ const ACTION_CAMERA_RADIUS_SMOOTH = 0.22;
 const ACTION_CAMERA_PHI_SMOOTH = 0.22;
 const ACTION_CAMERA_THETA_SMOOTH = 0.25;
 const ACTION_CAMERA_CUE_SMOOTH_TIME = 0.18;
+const ACTION_CAMERA_TARGET_SMOOTH_TIME = 0.22;
+const ACTION_CAMERA_SAFE_BLEND_PADDING = BALL_R * 0.6;
 const AIM_CAMERA_MIN_SEPARATION = BALL_R * 2.6;
 const AIM_CAMERA_RADIUS_PADDING = BALL_R * 2.2;
 const AIM_CAMERA_FOCUS_MIN_WEIGHT = 0.38;
 const AIM_CAMERA_FOCUS_MAX_WEIGHT = 0.6;
 const AIM_CAMERA_NEAR_WEIGHT = 0.12;
 const AIM_CAMERA_NEAR_DISTANCE = BALL_R * 6;
-const AIM_GUIDE_SMOOTH_BASE = 0.28;
-const AIM_FOCUS_SMOOTH_BASE = 0.22;
+const AIM_GUIDE_SMOOTH_BASE = 0.22;
+const AIM_GUIDE_MIN_WEIGHT = 0.05;
+const AIM_GUIDE_MAX_WEIGHT = 0.35;
+const AIM_FOCUS_SMOOTH_BASE = 0.2;
+const AIM_FOCUS_MIN_WEIGHT = 0.05;
+const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
@@ -2282,35 +2288,50 @@ function SnookerGame() {
                     cueBall.pos.x + fallbackDir.x * safeDistance,
                     cueBall.pos.y + fallbackDir.y * safeDistance
                   );
-                  const blend = THREE.MathUtils.clamp(
-                    1 - separation / minSeparation,
-                    0,
-                    1
+                  const blend = 1 - THREE.MathUtils.smoothstep(
+                    separation,
+                    Math.max(minSeparation - ACTION_CAMERA_SAFE_BLEND_PADDING, 0),
+                    minSeparation
                   );
-                  targetVec2.lerp(safeTarget, blend);
+                  targetVec2.lerp(safeTarget, THREE.MathUtils.clamp(blend, 0, 1));
                 }
               }
-              if (targetVec2) {
+              let focus2D = null;
+              if (
+                targetVec2 &&
+                Number.isFinite(targetVec2.x) &&
+                Number.isFinite(targetVec2.y)
+              ) {
                 view.impactPoint = targetVec2.clone();
-              }
-              const tableFocus = (() => {
-                if (
-                  targetVec2 &&
-                  Number.isFinite(targetVec2.x) &&
-                  Number.isFinite(targetVec2.y)
-                ) {
-                  return new THREE.Vector3(
-                    targetVec2.x,
-                    BALL_CENTER_Y,
-                    targetVec2.y
-                  );
-                }
-                return new THREE.Vector3(
-                  playerOffsetRef.current,
-                  TABLE_Y + 0.05,
-                  PLAY_H * 0.12
+                const lastUpdate = view.lastTargetUpdate ?? frameNow;
+                const targetDt = Math.min(
+                  0.25,
+                  Math.max(0, (frameNow - lastUpdate) / 1000)
                 );
-              })();
+                view.lastTargetUpdate = frameNow;
+                const smooth =
+                  ACTION_CAMERA_TARGET_SMOOTH_TIME > 0
+                    ? 1 - Math.exp(-targetDt / ACTION_CAMERA_TARGET_SMOOTH_TIME)
+                    : 1;
+                const targetLerp = THREE.MathUtils.clamp(smooth, 0, 1);
+                if (!view.smoothedImpact) {
+                  view.smoothedImpact = targetVec2.clone();
+                } else {
+                  view.smoothedImpact.lerp(targetVec2, targetLerp);
+                }
+                focus2D = view.smoothedImpact ?? targetVec2;
+              } else {
+                view.impactPoint = null;
+                view.smoothedImpact = null;
+                view.lastTargetUpdate = frameNow;
+              }
+              const tableFocus = focus2D
+                ? new THREE.Vector3(focus2D.x, BALL_CENTER_Y, focus2D.y)
+                : new THREE.Vector3(
+                    playerOffsetRef.current,
+                    TABLE_Y + 0.05,
+                    PLAY_H * 0.12
+                  );
               const cuePos2D = smoothedCuePos
                 ? TMP_VEC2_A.copy(smoothedCuePos)
                 : TMP_VEC2_A.set(cueBall.pos.x, cueBall.pos.y);
@@ -3798,13 +3819,23 @@ function SnookerGame() {
             : railNormal
               ? 'rail'
               : 'table';
-          const aimWeight = resolveSmoothWeight(
+          const aimWeightBase = resolveSmoothWeight(
             AIM_GUIDE_SMOOTH_BASE,
             frameScale
           );
-          const focusWeight = resolveSmoothWeight(
+          const aimWeight = THREE.MathUtils.clamp(
+            aimWeightBase,
+            AIM_GUIDE_MIN_WEIGHT,
+            AIM_GUIDE_MAX_WEIGHT
+          );
+          const focusWeightBase = resolveSmoothWeight(
             AIM_FOCUS_SMOOTH_BASE,
             frameScale
+          );
+          const focusWeight = THREE.MathUtils.clamp(
+            focusWeightBase,
+            AIM_FOCUS_MIN_WEIGHT,
+            AIM_FOCUS_MAX_WEIGHT
           );
           const shouldResetImpact =
             !smoothingState.impact ||
