@@ -377,15 +377,6 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.74;
-const ACTION_CAMERA_VERTICAL_CURVE = 0.6;
-const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
-  1,
-  Math.max(0.62, PLAY_W / PLAY_H)
-);
-const ACTION_CAMERA_LONG_SIDE_CURVE = 2;
-const ACTION_CAMERA_CORNER_PULLBACK = 0.18;
-const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -737,40 +728,14 @@ const BREAK_VIEW = Object.freeze({
   radius: 78 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.12
 });
-const CAMERA_ZOOM_RANGE = Object.freeze({
-  near: 0.92,
-  far: 1.04
-});
-const CAMERA_ZOOM_LOW_BLEND = 0.45;
 const CAMERA_RAIL_SAFETY = 0.02;
-const ACTION_VIEW = Object.freeze({
-  phiOffset: 0,
-  lockedPhi: null,
-  fitMargin: 1.03,
-  followWeight: 0.25,
-  maxOffset: PLAY_W * 0.14
-});
-const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.1,
-  thetaLerp: 0.25,
-  switchDelay: 280,
-  minSwitchInterval: 260,
-  focusBlend: 0.45,
-  focusClampRatio: 0.18,
-  railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 2.25,
-  switchThreshold: 0.08
-});
-const SIDE_CAMERA_LIFT = 0.145;
-const SIDE_CAMERA_LIFT_POWER = 1.45;
-const ACTION_CAMERA_RADIUS_SCALE = 0.88;
-const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
-const ACTION_CAMERA_CUE_RADIUS_RATIO = 0.86;
-const ACTION_CAMERA_MIN_PHI = Math.min(
+const CUE_VIEW_RADIUS_RATIO = 0.86;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
+const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.58
 );
-const POCKET_IDLE_SWITCH_MS = 240;
+const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
@@ -784,8 +749,6 @@ const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
-const TMP_VEC3_ANCHOR = new THREE.Vector3();
-const TMP_VEC3_POS = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -803,37 +766,6 @@ const fitRadius = (camera, margin = 1.1) => {
   const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
-
-const verticalZoomForBlend = (blend = 1) => {
-  const t = THREE.MathUtils.clamp(blend ?? 1, 0, 1);
-  const eased = Math.pow(t, ACTION_CAMERA_VERTICAL_CURVE);
-  return THREE.MathUtils.lerp(ACTION_CAMERA_VERTICAL_MIN_SCALE, 1, eased);
-};
-
-const orientationScaleForTheta = (theta = 0) => {
-  const sin = Math.abs(Math.sin(theta ?? 0));
-  const cos = Math.abs(Math.cos(theta ?? 0));
-  const longSideBias = Math.pow(sin, ACTION_CAMERA_LONG_SIDE_CURVE);
-  const base = THREE.MathUtils.lerp(1, ACTION_CAMERA_LONG_SIDE_SCALE, longSideBias);
-  const cornerBias = Math.pow(sin * cos, ACTION_CAMERA_CORNER_CURVE);
-  const cornerScale = 1 + ACTION_CAMERA_CORNER_PULLBACK * cornerBias;
-  return base * cornerScale;
-};
-
-const applySideViewLift = (spherical, thetaOverride) => {
-  if (!spherical) return spherical;
-  const theta = thetaOverride ?? spherical.theta ?? 0;
-  const weight = Math.pow(Math.abs(Math.sin(theta)), SIDE_CAMERA_LIFT_POWER);
-  if (weight <= 1e-5) return spherical;
-  const maxPhi = CAMERA.maxPhi - CAMERA_RAIL_SAFETY;
-  spherical.phi = THREE.MathUtils.clamp(
-    spherical.phi + SIDE_CAMERA_LIFT * weight,
-    CAMERA.minPhi,
-    maxPhi
-  );
-  return spherical;
-};
-
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
   const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
   return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
@@ -1911,15 +1843,14 @@ function SnookerGame() {
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
-  const followViewRef = useRef(null);
   const aimFocusRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const initialCuePhi = THREE.MathUtils.clamp(
-    ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
+    CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
     CAMERA.minPhi,
     CAMERA.maxPhi
   );
-  const initialCueRadius = Math.max(BREAK_VIEW.radius, ACTION_CAMERA_MIN_RADIUS);
+  const initialCueRadius = Math.max(BREAK_VIEW.radius, CUE_VIEW_MIN_RADIUS);
   const cameraBoundsRef = useRef({
     cueShot: { phi: initialCuePhi, radius: initialCueRadius },
     standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
@@ -2123,7 +2054,6 @@ function SnookerGame() {
       const tmpSphAnim = sph.clone
         ? sph.clone()
         : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
-      applySideViewLift(tmpSphAnim);
       cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
       cam.lookAt(targetPos);
       if (k < 1) requestAnimationFrame(anim);
@@ -2323,19 +2253,6 @@ function SnookerGame() {
         const clampOrbitRadius = (value) =>
           clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
-        const getDynamicOrbitRadius = (
-          baseRadius,
-          theta,
-          blend,
-          minRadius = CAMERA.minR
-        ) => {
-          const orientation = orientationScaleForTheta(theta);
-          const vertical = verticalZoomForBlend(blend);
-          const scaled = baseRadius * orientation * vertical;
-          const min = Math.max(minRadius, CAMERA.minR);
-          return clampOrbitRadius(Math.max(scaled, min));
-        };
-
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
@@ -2369,17 +2286,7 @@ function SnookerGame() {
             standing.radius,
             blend
           );
-          const zoomBlend =
-            blend <= CAMERA_ZOOM_LOW_BLEND
-              ? 0
-              : (blend - CAMERA_ZOOM_LOW_BLEND) /
-                (1 - CAMERA_ZOOM_LOW_BLEND);
-          const zoomFactor = THREE.MathUtils.lerp(
-            CAMERA_ZOOM_RANGE.near,
-            CAMERA_ZOOM_RANGE.far,
-            zoomBlend
-          );
-          const radius = clampOrbitRadius(baseRadius * zoomFactor);
+          const radius = clampOrbitRadius(baseRadius);
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK - 0.05,
@@ -2403,127 +2310,7 @@ function SnookerGame() {
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
-          } else if (shooting && activeShotView?.mode === 'action') {
-            const view = activeShotView;
-            const ballsList =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            const cueBall = ballsList.find((b) => b.id === 'cue');
-            if (cueBall) {
-              const cuePos2 =
-                view.lastBallPos ?? (view.lastBallPos = new THREE.Vector2());
-              cuePos2.set(cueBall.pos.x, cueBall.pos.y);
-            }
-            const now = performance.now();
-            const engaged =
-              now - (view.startedAt ?? now) >= ACTION_CAMERA.switchDelay;
-            if (!engaged || !cueBall) {
-              const store = ensureOrbitFocus();
-              const fallback = store.target
-                .clone()
-                .multiplyScalar(worldScaleFactor);
-              lookTarget = fallback;
-              const dynamicRadius = getDynamicOrbitRadius(
-                sph.radius,
-                sph.theta,
-                cameraBlendRef.current
-              );
-              TMP_SPH.copy(sph);
-              applySideViewLift(TMP_SPH);
-              TMP_SPH.radius = dynamicRadius;
-              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-              camera.lookAt(lookTarget);
-            } else {
-              let targetBall = null;
-              if (view.targetId) {
-                targetBall = ballsList.find((b) => b.id === view.targetId);
-                if (targetBall && !targetBall.active) targetBall = null;
-              }
-              const aimVec2 = (view.aimDir
-                ? view.aimDir.clone()
-                : aimDirRef.current.clone()
-              ).normalize();
-              view.aimDir = view.aimDir || aimVec2.clone();
-              let targetVec2 = null;
-              if (targetBall) {
-                targetVec2 = new THREE.Vector2(
-                  targetBall.pos.x,
-                  targetBall.pos.y
-                );
-              } else if (view.predictedDir && cueBall) {
-                const dir = view.predictedDir.clone();
-                if (dir.lengthSq() < 1e-6) dir.copy(aimVec2);
-                dir.normalize();
-                targetVec2 = new THREE.Vector2(
-                  cueBall.pos.x + dir.x * BALL_R * 12,
-                  cueBall.pos.y + dir.y * BALL_R * 12
-                );
-              }
-              if (!targetVec2 && view.impactPoint) {
-                targetVec2 = view.impactPoint.clone();
-              }
-              if (targetVec2) {
-                view.impactPoint = targetVec2.clone();
-              }
-              const tableFocus = (() => {
-                if (
-                  targetVec2 &&
-                  Number.isFinite(targetVec2.x) &&
-                  Number.isFinite(targetVec2.y)
-                ) {
-                  return new THREE.Vector3(
-                    targetVec2.x,
-                    BALL_CENTER_Y,
-                    targetVec2.y
-                  );
-                }
-                return new THREE.Vector3(
-                  playerOffsetRef.current,
-                  TABLE_Y + 0.05,
-                  PLAY_H * 0.12
-                );
-              })();
-              const worldFocus = tableFocus.clone().multiplyScalar(worldScaleFactor);
-              view.focusPoint = tableFocus.clone();
-              view.currentCameraId = null;
-              if (!view.anchorFocus) {
-                view.anchorFocus = new THREE.Vector3(
-                  playerOffsetRef.current,
-                  TABLE_Y + 0.06,
-                  0
-                );
-              }
-              if (!view.anchorOrbit) {
-                const fallbackRadius = clampOrbitRadius(
-                  Math.max(
-                    sph.radius * ACTION_CAMERA_RADIUS_SCALE,
-                    ACTION_CAMERA_MIN_RADIUS,
-                    fitRadius(camera, 1.18)
-                  )
-                );
-                const fallbackPhi = clamp(
-                  sph.phi,
-                  ACTION_CAMERA_MIN_PHI,
-                  CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-                );
-                view.anchorOrbit = new THREE.Spherical(
-                  fallbackRadius,
-                  fallbackPhi,
-                  view.theta ?? sph.theta
-                );
-                applySideViewLift(view.anchorOrbit);
-              }
-              const worldAnchor = TMP_VEC3_ANCHOR.copy(view.anchorFocus)
-                .multiplyScalar(worldScaleFactor);
-              TMP_SPH.copy(view.anchorOrbit);
-              applySideViewLift(TMP_SPH);
-              const anchorPos = TMP_VEC3_POS.setFromSpherical(TMP_SPH).add(
-                worldAnchor
-              );
-              camera.position.copy(anchorPos);
-              camera.lookAt(worldFocus);
-              lookTarget = worldFocus;
-            }
-          } else if (shooting && activeShotView?.mode === 'pocket') {
+          } else if (activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -2600,20 +2387,16 @@ function SnookerGame() {
             camera.lookAt(activeShotView.smoothedTarget);
             lookTarget = activeShotView.smoothedTarget;
           } else {
-            const followCue = cue?.mesh && cue.active && !shooting;
             const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
-            if (shooting && followViewRef.current?.lastBallPos) {
-              const last = followViewRef.current.lastBallPos;
-              focusTarget = new THREE.Vector3(last.x, BALL_CENTER_Y, last.y);
-            } else if (
+            if (
               aimFocus &&
               Number.isFinite(aimFocus.x) &&
               Number.isFinite(aimFocus.y) &&
               Number.isFinite(aimFocus.z)
             ) {
               focusTarget = aimFocus.clone();
-            } else if (followCue) {
+            } else if (cue?.active && !shooting) {
               focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
               const store = ensureOrbitFocus();
@@ -2635,47 +2418,7 @@ function SnookerGame() {
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
-            const scaledOrbitBase = clampOrbitRadius(
-              Math.max(
-                sph.radius * ACTION_CAMERA_RADIUS_SCALE,
-                ACTION_CAMERA_MIN_RADIUS
-              )
-            );
-            const dynamicRadius = getDynamicOrbitRadius(
-              scaledOrbitBase,
-              sph.theta,
-              cameraBlendRef.current,
-              ACTION_CAMERA_MIN_RADIUS
-            );
-            const alignBlend = THREE.MathUtils.clamp(
-              cameraBlendRef.current ?? 1,
-              0,
-              1
-            );
-            let orbitTheta = sph.theta;
-            const aimDirCurrent = aimDirRef.current;
-            const shouldAimLock =
-              !shooting &&
-              cue?.active &&
-              aimFocusRef.current &&
-              aimDirCurrent &&
-              aimDirCurrent.lengthSq() > 1e-6;
-            if (shouldAimLock) {
-              const desiredTheta = Math.atan2(aimDirCurrent.x, aimDirCurrent.y) + Math.PI;
-              const alignStrength = Math.pow(1 - alignBlend, 1.2);
-              if (alignStrength > 1e-3) {
-                const delta =
-                  THREE.MathUtils.euclideanModulo(
-                    desiredTheta - orbitTheta + Math.PI,
-                    Math.PI * 2
-                  ) - Math.PI;
-                orbitTheta += delta * (alignStrength * 0.85);
-              }
-            }
             TMP_SPH.copy(sph);
-            applySideViewLift(TMP_SPH, orbitTheta);
-            TMP_SPH.radius = dynamicRadius;
-            TMP_SPH.theta = orbitTheta;
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
           }
@@ -2842,6 +2585,7 @@ function SnookerGame() {
             maxOutside: POCKET_CAM.maxOutside,
             heightOffset,
             lastBallPos: pos.clone(),
+            score: bestScore,
             resume: followView,
             resumeOrbit
           };
@@ -2860,12 +2604,12 @@ function SnookerGame() {
           );
           const cueRadius = clampOrbitRadius(
             Math.max(
-              standingRadius * ACTION_CAMERA_CUE_RADIUS_RATIO,
-              ACTION_CAMERA_MIN_RADIUS
+              standingRadius * CUE_VIEW_RADIUS_RATIO,
+              CUE_VIEW_MIN_RADIUS
             )
           );
           const cuePhi = THREE.MathUtils.clamp(
-            ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
+            CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
@@ -2901,31 +2645,8 @@ function SnookerGame() {
               ? 1.6
               : 1.4
         );
-        const shouldPrimeActionView =
-          !initialOrbitRef.current && ACTION_CAMERA_START_BLEND < 0.5;
         fit(margin);
-        if (shouldPrimeActionView) {
-          const bounds = cameraBoundsRef.current;
-          if (bounds) {
-            const { cueShot, standing } = bounds;
-            const baseRadius = Math.min(cueShot.radius, standing.radius);
-            const preferredRadius = clampOrbitRadius(
-              Math.max(
-                baseRadius * ACTION_CAMERA_RADIUS_SCALE,
-                ACTION_CAMERA_MIN_RADIUS
-              )
-            );
-            const preferredPhi = clamp(
-              ACTION_CAMERA_MIN_PHI + ACTION_CAMERA.phiLift * 0.5,
-              CAMERA.minPhi,
-              CAMERA.maxPhi
-            );
-            sph.radius = preferredRadius;
-            sph.phi = preferredPhi;
-            syncBlendToSpherical();
-            updateCamera();
-          }
-        }
+        syncBlendToSpherical();
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
         if (!initialOrbitRef.current) {
@@ -2967,20 +2688,8 @@ function SnookerGame() {
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
         let lastInteraction = performance.now();
-        const registerInteraction = (didAdjust = false) => {
-          const now = performance.now();
-          lastInteraction = now;
-          if (
-            shooting &&
-            activeShotView &&
-            (activeShotView.mode === 'followCue' ||
-              activeShotView.mode === 'action')
-          ) {
-            activeShotView.lastInteraction = now;
-            if (didAdjust) {
-              activeShotView.userAdjusted = true;
-            }
-          }
+        const registerInteraction = () => {
+          lastInteraction = performance.now();
         };
         const down = (e) => {
           registerInteraction();
@@ -3008,7 +2717,7 @@ function SnookerGame() {
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
             updateCamera();
-            registerInteraction(true);
+            registerInteraction();
           }
         };
         const up = (e) => {
@@ -3046,7 +2755,7 @@ function SnookerGame() {
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
           } else return;
-          registerInteraction(true);
+          registerInteraction();
           updateCamera();
         };
         window.addEventListener('keydown', keyRot);
@@ -3479,9 +3188,10 @@ function SnookerGame() {
         const fire = () => {
           if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
             return;
-          applyCameraBlend(0);
+          applyCameraBlend(1);
           updateCamera();
           shooting = true;
+          activeShotView = null;
           aimFocusRef.current = null;
           potted = [];
           foul = false;
@@ -3527,105 +3237,17 @@ function SnookerGame() {
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             const sph = sphRef.current;
-            const baseOrbit =
-              initialOrbitRef.current ?? {
-                radius: sph.radius,
-                phi: sph.phi,
-                theta: sph.theta
-              };
-            const orbitSnapshot = {
-              radius: sph.radius,
-              phi: sph.phi,
-              theta: sph.theta
-            };
-            const followTheta = Math.atan2(aimDir.x, aimDir.y);
             const bounds = cameraBoundsRef.current;
-            const cueView = bounds?.cueShot;
-            const followPhiBase = cueView?.phi ?? ACTION_CAMERA_MIN_PHI;
-            const followPhi = clamp(
-              followPhiBase + ACTION_CAMERA.phiLift * 0.25,
-              ACTION_CAMERA_MIN_PHI,
-              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-            );
-            const followRadius = clampOrbitRadius(
-              cueView?.radius ?? baseOrbit.radius
-            );
-            const shotStart = performance.now();
-            lastInteraction = shotStart;
-            const actionRadius = clampOrbitRadius(
-              Math.max(
-                followRadius * ACTION_CAMERA_RADIUS_SCALE,
-                ACTION_CAMERA_MIN_RADIUS
-              )
-            );
-            const actionPhi = clamp(
-              followPhi + ACTION_CAMERA.phiLift * 0.4,
-              ACTION_CAMERA_MIN_PHI,
-              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-            );
-            const anchorRadius = clampOrbitRadius(
-              Math.max(actionRadius, fitRadius(camera, 1.08))
-            );
-            const anchorPhi = clamp(
-              actionPhi,
-              ACTION_CAMERA_MIN_PHI,
-              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-            );
-            const anchorFocus = new THREE.Vector3(
-              playerOffsetRef.current,
-              TABLE_Y + 0.04,
-              0
-            );
-            const anchorOrbit = new THREE.Spherical(
-              anchorRadius,
-              anchorPhi,
-              followTheta
-            );
-            activeShotView = {
-              mode: 'action',
-              radius: followRadius,
-              phi: followPhi,
-              theta: followTheta,
-              baseTarget: new THREE.Vector2(playerOffsetRef.current, 0),
-              offset: new THREE.Vector2(),
-              followWeight: ACTION_VIEW.followWeight,
-              maxOffset: ACTION_VIEW.maxOffset,
-              lastBallPos: new THREE.Vector2(cue.pos.x, cue.pos.y),
-              smoothedCuePos: new THREE.Vector2(cue.pos.x, cue.pos.y),
-              lastCueUpdate: shotStart,
-              orbitSnapshot,
-              pendingPocket: null,
-              lastInteraction: shotStart,
-              startedAt: shotStart,
-              userAdjusted: false,
-              freeOrbit: false,
-              targetId: shotPrediction?.ballId ?? null,
-              predictedDir: shotPrediction?.dir
-                ? shotPrediction.dir.clone()
-                : aimDir.clone(),
-              aimDir: aimDir.clone(),
-              currentCameraId: null,
-              lastCameraSwitch: shotStart,
-              impactPoint: shotPrediction?.impact
-                ? shotPrediction.impact.clone()
-                : null,
-              railNormal: shotPrediction?.railNormal
-                ? shotPrediction.railNormal.clone()
-                : null,
-              focusPoint: shotPrediction?.impact
-                ? new THREE.Vector3(
-                    shotPrediction.impact.x,
-                    BALL_CENTER_Y,
-                    shotPrediction.impact.y
-                  )
-                : null,
-              anchorFocus,
-              anchorOrbit,
-              smoothedFocus: null
-            };
-            followViewRef.current = activeShotView;
-            sph.theta = followTheta;
-            applyCameraBlend(0);
+            const standingView = bounds?.standing;
+            if (standingView) {
+              sph.radius = clampOrbitRadius(standingView.radius);
+              sph.phi = THREE.MathUtils.clamp(
+                standingView.phi,
+                CAMERA.minPhi,
+                CAMERA.maxPhi
+              );
+              syncBlendToSpherical();
+            }
             updateCamera();
           }
 
@@ -3781,7 +3403,6 @@ function SnookerGame() {
           shooting = false;
           shotPrediction = null;
           activeShotView = null;
-          followViewRef.current = null;
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
@@ -4021,14 +3642,6 @@ function SnookerGame() {
                     : b.id === 'cue' && a.id !== 'cue'
                       ? a.id
                       : null;
-                if (
-                  hitBallId &&
-                  shooting &&
-                  activeShotView?.mode === 'action'
-                ) {
-                  activeShotView.targetId = hitBallId;
-                  activeShotView.lockedTarget = true;
-                }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
                   applySpinImpulse(cueBall, 1.1);
@@ -4036,44 +3649,33 @@ function SnookerGame() {
               }
             }
         }
-        if (
-          shooting &&
-          activeShotView &&
-          (activeShotView.mode === 'followCue' ||
-            activeShotView.mode === 'action')
-        ) {
-          const followView = activeShotView;
-          if (!followView.pendingPocket && firstHit) {
-            const pocketView = makePocketCameraView(firstHit, followView);
-            if (pocketView) {
-              followView.pendingPocket = pocketView;
+        if (shooting && !topViewRef.current && !activeShotView) {
+          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const sph = sphRef.current;
+          const orbitSnapshot = sph
+            ? { radius: sph.radius, phi: sph.phi, theta: sph.theta }
+            : null;
+          let bestPocketView = null;
+          for (const ball of ballsList) {
+            if (!ball.active) continue;
+            const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
+            const candidate = makePocketCameraView(ball.id, resumeView);
+            if (!candidate) continue;
+            if (!bestPocketView || (candidate.score ?? 0) > (bestPocketView.score ?? 0)) {
+              bestPocketView = candidate;
             }
           }
-          if (followView.pendingPocket && !followView.userAdjusted) {
-            const now = performance.now();
-            const idleOrigin =
-              followView.lastInteraction ?? followView.startedAt ?? lastInteraction;
-            const idleFor = now - idleOrigin;
-            if (
-              !drag.on &&
-              (POCKET_IDLE_SWITCH_MS <= 0 || idleFor >= POCKET_IDLE_SWITCH_MS)
-            ) {
-              const pocketView = followView.pendingPocket;
-              followView.pendingPocket = null;
-              activeShotView = pocketView;
-              if (pocketView.resume) {
-                followViewRef.current = pocketView.resume;
-              }
-              pocketView.lastUpdate = performance.now();
-              if (cameraRef.current) {
-                const cam = cameraRef.current;
-                pocketView.smoothedPos = cam.position.clone();
-                const storedTarget = lastCameraTargetRef.current?.clone();
-                if (storedTarget) {
-                  pocketView.smoothedTarget = storedTarget;
-                }
+          if (bestPocketView) {
+            bestPocketView.lastUpdate = performance.now();
+            if (cameraRef.current) {
+              const cam = cameraRef.current;
+              bestPocketView.smoothedPos = cam.position.clone();
+              const storedTarget = lastCameraTargetRef.current?.clone();
+              if (storedTarget) {
+                bestPocketView.smoothedTarget = storedTarget;
               }
             }
+            activeShotView = bestPocketView;
           }
         }
         // Kapje në xhepa
@@ -4096,7 +3698,6 @@ function SnookerGame() {
               ) {
                 const pocketView = activeShotView;
                 activeShotView = null;
-                followViewRef.current = null;
                 restoreOrbitCamera(pocketView);
               }
               break;
@@ -4108,7 +3709,6 @@ function SnookerGame() {
           const focusBall = balls.find((b) => b.id === pocketView.ballId);
           if (!focusBall?.active) {
             activeShotView = null;
-            followViewRef.current = null;
             restoreOrbitCamera(pocketView);
           } else {
             const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
@@ -4119,7 +3719,6 @@ function SnookerGame() {
               const speedAlong = focusBall.vel.dot(approachDir);
               if (speedAlong * frameScale < -STOP_EPS) {
                 activeShotView = null;
-                followViewRef.current = null;
                 restoreOrbitCamera(pocketView);
               }
             }
