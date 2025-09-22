@@ -297,7 +297,7 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.68;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.64;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
@@ -581,7 +581,7 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.84;
+const STANDING_VIEW_PHI = 0.8;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
@@ -625,7 +625,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.12,
+  phiLift: 0.1,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -635,11 +635,11 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 2.6,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.78;
+const ACTION_CAMERA_RADIUS_SCALE = 0.72;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.18
+  CAMERA.minPhi + 0.14
 );
 const ACTION_CAMERA_DIAGONAL_OFFSET = Math.PI * 0.42;
 const ACTION_CAMERA_DIAGONAL_RADIUS_SCALE = 1.16;
@@ -665,8 +665,8 @@ const AIM_FOCUS_SMOOTH_BASE = 0.2;
 const AIM_FOCUS_MIN_WEIGHT = 0.05;
 const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
-const POCKET_IDLE_SWITCH_MS = 240;
-const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
+const POCKET_IDLE_SWITCH_MS = 420;
+const POCKET_VIEW_SMOOTH_TIME = 0.6; // seconds to ease pocket camera transitions
 const CAMERA_MOTION_SMOOTH_TIME = 0.025; // seconds for camera interpolation to reach the desired state smoothly
 const CAMERA_MOTION_MAX_DT = 0.25;
 const CAMERA_MOTION_EPS = 1e-6;
@@ -814,25 +814,6 @@ function computeSpinLimits(cueBall, aimDir, balls = []) {
     }
   }
 
-  for (const ball of balls) {
-    if (!ball || ball === cueBall) continue;
-    if (ball.active === false) continue;
-    TMP_VEC2_SPIN.copy(ball.pos).sub(cueBall.pos);
-    const distSq = TMP_VEC2_SPIN.lengthSq();
-    if (distSq < 1e-6) continue;
-    if (TMP_VEC2_SPIN.dot(TMP_VEC2_AXIS) >= 0) continue;
-    const dist = Math.sqrt(distSq);
-    for (const axis of axes) {
-      const along = TMP_VEC2_SPIN.dot(axis.dir);
-      if (along <= 0) continue;
-      const lateralSq = distSq - along * along;
-      const lateral = Math.sqrt(Math.max(lateralSq, 0));
-      if (lateral >= BALL_R + SPIN_CLEARANCE_MARGIN) continue;
-      const clearance = along - BALL_R * 2;
-      applyAxisClearance(limits, axis.key, axis.positive, clearance);
-    }
-  }
-
   limits.minX = clampSpinValue(limits.minX);
   limits.maxX = clampSpinValue(limits.maxX);
   limits.minY = clampSpinValue(limits.minY);
@@ -865,22 +846,22 @@ function makeClothTexture() {
   ctx.fillRect(0, 0, size, size);
 
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.08)');
-  diagonalShade.addColorStop(0.55, 'rgba(0,0,0,0.12)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.2)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.05)');
+  diagonalShade.addColorStop(0.6, 'rgba(0,0,0,0.1)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.16)');
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
   const threadStep = 4; // emphasise the primary warp/weft directions
-  ctx.lineWidth = 0.6;
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   for (let x = -threadStep; x < size + threadStep; x += threadStep) {
     ctx.beginPath();
     ctx.moveTo(x + threadStep * 0.35, 0);
     ctx.lineTo(x + threadStep * 0.35, size);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.24)';
   for (let y = -threadStep; y < size + threadStep; y += threadStep) {
     ctx.beginPath();
     ctx.moveTo(0, y + threadStep * 0.6);
@@ -888,46 +869,60 @@ function makeClothTexture() {
     ctx.stroke();
   }
 
-  const spacing = 1;
-  for (let y = 0; y < size; y += spacing) {
-    for (let x = 0; x < size; x += spacing) {
-      ctx.fillStyle = (x + y) % (spacing * 2) === 0
-        ? 'rgba(255,255,255,0.22)'
-        : 'rgba(0,0,0,0.22)';
-      ctx.beginPath();
-      ctx.arc(x, y, 0.35, 0, Math.PI * 2);
-      ctx.fill();
+  const weaveSpacing = 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  for (let y = 0; y < size; y += weaveSpacing) {
+    const offset = (y / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
+    for (let x = 0; x < size; x += weaveSpacing) {
+      ctx.fillRect(x + offset, y, 0.7, 1);
+    }
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let x = 0; x < size; x += weaveSpacing) {
+    const offset = (x / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
+    for (let y = 0; y < size; y += weaveSpacing) {
+      ctx.fillRect(x, y + offset, 1, 0.7);
     }
   }
 
-  ctx.lineWidth = 0.48;
-  ctx.strokeStyle = 'rgba(0,0,0,0.32)';
-  for (let i = 0; i < 450000; i++) {
+  ctx.lineWidth = 0.35;
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  for (let i = 0; i < 180000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
-    const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 0.6 + 0.2;
+    const horizontal = Math.random() > 0.5;
+    const length = Math.random() * 0.6 + 0.25;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    if (horizontal) {
+      ctx.moveTo(x - length / 2, y);
+      ctx.lineTo(x + length / 2, y);
+    } else {
+      ctx.moveTo(x, y - length / 2);
+      ctx.lineTo(x, y + length / 2);
+    }
     ctx.stroke();
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
-  for (let i = 0; i < 220000; i++) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  for (let i = 0; i < 120000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
-    const angle = Math.random() * Math.PI * 2;
-    const length = Math.random() * 0.45 + 0.15;
+    const horizontal = Math.random() > 0.5;
+    const length = Math.random() * 0.5 + 0.15;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    if (horizontal) {
+      ctx.moveTo(x - length / 2, y);
+      ctx.lineTo(x + length / 2, y);
+    } else {
+      ctx.moveTo(x, y - length / 2);
+      ctx.lineTo(x, y + length / 2);
+    }
     ctx.stroke();
   }
 
-  ctx.globalAlpha = 0.24;
+  ctx.globalAlpha = 0.2;
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  for (let i = 0; i < 36000; i++) {
+  for (let i = 0; i < 48000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     ctx.fillRect(x, y, 1, 1);
@@ -4004,7 +3999,10 @@ function SnookerGame() {
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          const rawDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          if (rawDir.lengthSq() < 1e-6) rawDir.set(0, 0, 1);
+          else rawDir.normalize();
+          let dir = rawDir.clone();
           const impactPos = TMP_VEC3_IMPACT.set(
             impact.x,
             BALL_CENTER_Y,
@@ -4020,7 +4018,7 @@ function SnookerGame() {
           }
           const rawEnd = TMP_VEC3_GUIDE_END.copy(targetCenter ?? impactPos);
           if (start.distanceTo(rawEnd) < 1e-4) {
-            rawEnd.copy(start).add(dir.clone().multiplyScalar(BALL_R));
+            rawEnd.copy(start).add(rawDir.clone().multiplyScalar(BALL_R));
           }
           const smoothingState = aimGuideSmoothRef.current;
           const targetKey = targetBall?.id
@@ -4059,6 +4057,12 @@ function SnookerGame() {
             smoothingState.impact.lerp(rawEnd, aimWeight);
           }
           const smoothedEnd = smoothingState.impact ?? rawEnd;
+          const guideDir = smoothedEnd.clone().sub(start);
+          if (guideDir.lengthSq() > 1e-6) {
+            dir = guideDir.normalize();
+          } else {
+            dir = rawDir.clone();
+          }
           aimGeom.setFromPoints([start, smoothedEnd]);
           aim.visible = true;
           aim.material.color.set(
