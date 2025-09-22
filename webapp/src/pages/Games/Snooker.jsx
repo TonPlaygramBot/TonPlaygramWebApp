@@ -255,8 +255,8 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const sideDepth = POCKET_VIS_R * 1.12;
-  const sideHalfWidth = POCKET_VIS_R * 0.92;
+  const sideDepth = POCKET_VIS_R * 1.04;
+  const sideHalfWidth = POCKET_VIS_R * 0.86;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x060606,
     roughness: 0.78,
@@ -297,8 +297,8 @@ function addPocketCuts(parent, clothPlane) {
     const s = new THREE.Shape();
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
-    s.lineTo(sideHalfWidth * 0.82, sideDepth);
-    s.quadraticCurveTo(0, sideDepth * 1.18, -sideHalfWidth * 0.82, sideDepth);
+    s.lineTo(sideHalfWidth * 0.86, sideDepth);
+    s.quadraticCurveTo(0, sideDepth * 1.14, -sideHalfWidth * 0.86, sideDepth);
     s.closePath();
     return s;
   })();
@@ -317,7 +317,7 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const diag = new THREE.Vector2(sx, sy).normalize();
-      const radialOffset = POCKET_VIS_R * 0.65;
+      const radialOffset = POCKET_VIS_R * 0.58;
       const railInset = TABLE.WALL * 0.35;
       mesh.scale.x = sx >= 0 ? -1 : 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
@@ -377,8 +377,8 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.64;
-const ACTION_CAMERA_VERTICAL_CURVE = 0.58;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.68;
+const ACTION_CAMERA_VERTICAL_CURVE = 0.6;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
   Math.max(0.62, PLAY_W / PLAY_H)
@@ -389,9 +389,9 @@ const ACTION_CAMERA_CORNER_CURVE = 1.35;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.94; // pockets just a touch tighter than twice the ball radius
+const POCKET_R = BALL_R * 1.88; // pockets slightly smaller for a tighter opening
 // slightly larger visual radius so rails align with pocket rings
-const POCKET_VIS_R = POCKET_R / 0.97;
+const POCKET_VIS_R = POCKET_R / 0.975;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -546,13 +546,16 @@ const createClothTextures = (() => {
         const stitch =
           Math.sin((x % PATTERN) * Math.PI * 0.5) * 0.012 +
           Math.cos((y % PATTERN) * Math.PI * 0.5) * 0.012;
-        const highlight = Math.pow(clamp01(weave), 1.4) * 0.32;
+        const highlight = Math.pow(clamp01(weave), 1.2) * 0.42;
         const shading =
-          (ridgeA - 0.5) * 0.24 + (ridgeB - 0.5) * 0.24 + micro + stitch;
-        const tone = clamp01(0.04 + shading + highlight * 0.9);
-        const r = clamp01(liftedBase.r + tone * 0.55 - 0.02);
-        const g = clamp01(liftedBase.g + tone * 0.82);
-        const b = clamp01(liftedBase.b + tone * 0.5 - 0.015);
+          (ridgeA - 0.5) * 0.32 +
+          (ridgeB - 0.5) * 0.32 +
+          micro * 1.15 +
+          stitch * 1.1;
+        const tone = clamp01(0.06 + shading + highlight * 1.05);
+        const r = clamp01(liftedBase.r + tone * 0.58 - 0.018);
+        const g = clamp01(liftedBase.g + tone * 0.88);
+        const b = clamp01(liftedBase.b + tone * 0.56 - 0.012);
         const i = (y * SIZE + x) * 4;
         data[i + 0] = Math.round(r * 255);
         data[i + 1] = Math.round(g * 255);
@@ -584,8 +587,13 @@ const createClothTextures = (() => {
         const ridgeA = 1 - Math.abs(diagA * 2 - 1);
         const ridgeB = 1 - Math.abs(diagB * 2 - 1);
         const weave = ridgeA * ridgeB;
+        const thread = Math.sin((x + y) * 0.17) * 0.018;
         const bumpShade = clamp01(
-          0.58 + (ridgeA - 0.5) * 0.32 + (ridgeB - 0.5) * 0.32 + weave * 0.38
+          0.56 +
+            (ridgeA - 0.5) * 0.42 +
+            (ridgeB - 0.5) * 0.42 +
+            weave * 0.54 +
+            thread
         );
         const value = Math.round(bumpShade * 255);
         const i = (y * SIZE + x) * 4;
@@ -700,7 +708,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.78;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.88;
+const STANDING_VIEW_MARGIN = 0.84;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -709,7 +717,7 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -750,11 +758,11 @@ const ACTION_CAMERA = Object.freeze({
   focusBlend: 0.45,
   focusClampRatio: 0.18,
   railMargin: TABLE.WALL * 0.65,
-  verticalLift: TABLE.THICK * 2.05,
+  verticalLift: TABLE.THICK * 2.25,
   switchThreshold: 0.08
 });
-const SIDE_CAMERA_LIFT = 0.065;
-const SIDE_CAMERA_LIFT_POWER = 1.6;
+const SIDE_CAMERA_LIFT = 0.095;
+const SIDE_CAMERA_LIFT_POWER = 1.45;
 const ACTION_CAMERA_RADIUS_SCALE = 0.88;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_CUE_RADIUS_RATIO = 0.86;
@@ -1385,15 +1393,18 @@ function Table3D(parent) {
   const baulkLineZ = -PLAY_H / 4;
 
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    roughness: 0.9,
-    metalness: 0.05,
+    color: COLORS.cloth,
+    roughness: 0.74,
+    metalness: 0.04,
     sheen: 1.0,
-    sheenRoughness: 0.66
+    sheenColor: new THREE.Color(COLORS.cloth),
+    sheenRoughness: 0.5,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.38
   });
   const clothTextures = createClothTextures();
-  const baseRepeat = 36;
-  const repeatRatio = 144 / 36;
+  const baseRepeat = 32;
+  const repeatRatio = 144 / 32;
   if (clothTextures.map) {
     clothMat.map = clothTextures.map;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1402,7 +1413,7 @@ function Table3D(parent) {
   if (clothTextures.bump) {
     clothMat.bumpMap = clothTextures.bump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.026;
+    clothMat.bumpScale = 0.034;
     clothMat.bumpMap.needsUpdate = true;
   }
   clothMat.userData = {
