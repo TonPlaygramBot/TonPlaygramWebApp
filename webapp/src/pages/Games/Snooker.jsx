@@ -252,11 +252,16 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const diag = new THREE.Vector2(sx, sy).normalize();
-      const backOffset = POCKET_VIS_R * 0.65;
-      mesh.scale.x = sx;
-      mesh.scale.z = sy;
-      mesh.position.x += diag.x * backOffset;
-      mesh.position.z += diag.y * backOffset;
+      const radialOffset = POCKET_VIS_R * 0.65;
+      const railInset = TABLE.WALL * 0.35;
+      mesh.scale.x = sx >= 0 ? -1 : 1;
+      mesh.scale.z = sy >= 0 ? -1 : 1;
+      mesh.rotation.y = Math.atan2(diag.y, diag.x) - Math.PI / 2;
+      mesh.position.set(
+        sx * (halfW + railInset) + diag.x * radialOffset,
+        clothPlane + POCKET_RIM_LIFT,
+        sy * (halfH + railInset) + diag.y * radialOffset
+      );
     } else {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
@@ -307,7 +312,7 @@ const CLOTH_LIFT = (() => {
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
-const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.64;
+const ACTION_CAMERA_VERTICAL_MIN_SCALE = 0.68;
 const ACTION_CAMERA_VERTICAL_CURVE = 0.65;
 const ACTION_CAMERA_LONG_SIDE_SCALE = Math.min(
   1,
@@ -592,11 +597,11 @@ function spotPositions(baulkZ) {
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.8;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.28;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -607,7 +612,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.48;
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.55;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -626,8 +631,7 @@ const CAMERA_ZOOM_RANGE = Object.freeze({
   far: 1.075
 });
 const CAMERA_ZOOM_LOW_BLEND = 0.35;
-const CAMERA_RAIL_SAFETY = 0.045;
-const CAMERA_MANUAL_OVERRIDE_MS = 800;
+const CAMERA_RAIL_SAFETY = 0.06;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -636,7 +640,7 @@ const ACTION_VIEW = Object.freeze({
   maxOffset: PLAY_W * 0.14
 });
 const ACTION_CAMERA = Object.freeze({
-  phiLift: 0.1,
+  phiLift: 0.12,
   thetaLerp: 0.25,
   switchDelay: 280,
   minSwitchInterval: 260,
@@ -646,11 +650,11 @@ const ACTION_CAMERA = Object.freeze({
   verticalLift: TABLE.THICK * 2.6,
   switchThreshold: 0.08
 });
-const ACTION_CAMERA_RADIUS_SCALE = 0.72;
+const ACTION_CAMERA_RADIUS_SCALE = 0.78;
 const ACTION_CAMERA_MIN_RADIUS = CAMERA.minR;
 const ACTION_CAMERA_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  CAMERA.minPhi + 0.14
+  CAMERA.minPhi + 0.18
 );
 const ACTION_CAMERA_DIAGONAL_OFFSET = Math.PI * 0.42;
 const ACTION_CAMERA_DIAGONAL_RADIUS_SCALE = 1.16;
@@ -676,14 +680,12 @@ const AIM_FOCUS_SMOOTH_BASE = 0.2;
 const AIM_FOCUS_MIN_WEIGHT = 0.05;
 const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
-const POCKET_IDLE_SWITCH_MS = 420;
-const POCKET_VIEW_SMOOTH_TIME = 0.6; // seconds to ease pocket camera transitions
+const POCKET_IDLE_SWITCH_MS = 240;
+const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_MOTION_SMOOTH_TIME = 0.025; // seconds for camera interpolation to reach the desired state smoothly
 const CAMERA_MOTION_MAX_DT = 0.25;
 const CAMERA_MOTION_EPS = 1e-6;
 const CAMERA_MOTION_MIN_DURATION = 1 / 120;
-const CAMERA_MOTION_BASE_SPEED = 180; // units per second for linear camera motion blending
-const CAMERA_MOTION_MAX_DURATION = 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const resolveSmoothWeight = (base = 0.2, scale = 1) => {
   const clampedBase = THREE.MathUtils.clamp(base ?? 0, 0, 1);
@@ -708,7 +710,6 @@ const TMP_VEC3_POS = new THREE.Vector3();
 const TMP_VEC3_AIM = new THREE.Vector3();
 const TMP_VEC3_CUE = new THREE.Vector3();
 const TMP_VEC3_TARGET = new THREE.Vector3();
-const TMP_VEC3_GUIDE_END = new THREE.Vector3();
 const TMP_VEC3_IMPACT = new THREE.Vector3();
 const TMP_VEC3_FOCUS = new THREE.Vector3();
 const CORNER_SIGNS = [
@@ -1812,7 +1813,6 @@ function SnookerGame() {
     ballId: null
   });
   const orbitRadiusLimitRef = useRef(null);
-  const manualOrbitRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -2728,13 +2728,7 @@ function SnookerGame() {
             );
             let orbitTheta = sph.theta;
             const aimDirCurrent = aimDirRef.current;
-            const nowTime =
-              typeof performance !== 'undefined' ? performance.now() : 0;
-            const manualOverrideActive =
-              manualOrbitRef.current &&
-              nowTime - manualOrbitRef.current < CAMERA_MANUAL_OVERRIDE_MS;
             const shouldAimLock =
-              !manualOverrideActive &&
               !shooting &&
               cue?.active &&
               aimFocusRef.current &&
@@ -2771,90 +2765,45 @@ function SnookerGame() {
             );
             motion.lastUpdate = now;
 
-            let snapRequested = motion.snapNext;
-            if (!motion.pos) {
-              motion.pos = desiredPos.clone();
-              motion.fromPos.copy(motion.pos);
-              snapRequested = true;
-            }
-            if (!motion.target) {
-              motion.target = desiredTarget.clone();
-              motion.fromTarget.copy(motion.target);
-              snapRequested = true;
-            }
-
             const toPos = motion.toPos;
             const toTarget = motion.toTarget;
-            const posDeltaSq = toPos.distanceToSquared(desiredPos);
-            const targetDeltaSq = toTarget.distanceToSquared(desiredTarget);
-            const needsNewSegment =
-              snapRequested ||
-              posDeltaSq > CAMERA_MOTION_EPS ||
-              targetDeltaSq > CAMERA_MOTION_EPS;
+            toPos.copy(desiredPos);
+            toTarget.copy(desiredTarget);
 
-            if (needsNewSegment) {
-              if (snapRequested) {
-                motion.pos.copy(desiredPos);
-                motion.target.copy(desiredTarget);
-                motion.fromPos.copy(desiredPos);
-                motion.toPos.copy(desiredPos);
-                motion.fromTarget.copy(desiredTarget);
-                motion.toTarget.copy(desiredTarget);
-                motion.progress = 1;
-                motion.duration = CAMERA_MOTION_MIN_DURATION;
-                motion.snapNext = false;
-              } else {
-                motion.fromPos.copy(motion.pos);
-                motion.fromTarget.copy(motion.target);
-                toPos.copy(desiredPos);
-                toTarget.copy(desiredTarget);
-                const travel = Math.max(
-                  motion.fromPos.distanceTo(toPos),
-                  motion.fromTarget.distanceTo(toTarget)
-                );
-                const baseDuration = Math.max(
-                  CAMERA_MOTION_SMOOTH_TIME,
-                  CAMERA_MOTION_MIN_DURATION
-                );
-                const travelDuration =
-                  travel > CAMERA_MOTION_EPS
-                    ? Math.min(
-                        CAMERA_MOTION_MAX_DURATION,
-                        Math.max(
-                          baseDuration,
-                          travel / CAMERA_MOTION_BASE_SPEED
-                        )
-                      )
-                    : baseDuration;
-                motion.duration = Math.max(
-                  CAMERA_MOTION_MIN_DURATION,
-                  travelDuration
-                );
-                motion.progress = 0;
-              }
-            }
+            const lerpT =
+              CAMERA_MOTION_SMOOTH_TIME > 0
+                ? 1 - Math.exp(-dt / CAMERA_MOTION_SMOOTH_TIME)
+                : 1;
+            const clampedLerp = THREE.MathUtils.clamp(lerpT, 0, 1);
+            const shouldSnap =
+              motion.snapNext ||
+              !motion.pos ||
+              !motion.target ||
+              clampedLerp <= 0;
 
-            const duration = Math.max(
-              CAMERA_MOTION_MIN_DURATION,
-              motion.duration || CAMERA_MOTION_MIN_DURATION
-            );
-            const deltaProgress = duration > 1e-6 ? dt / duration : 1;
-            motion.progress = Math.min(1, motion.progress + deltaProgress);
-
-            if (motion.progress >= 1) {
-              motion.pos.copy(motion.toPos);
-              motion.target.copy(motion.toTarget);
+            if (shouldSnap) {
+              if (!motion.pos) motion.pos = desiredPos.clone();
+              else motion.pos.copy(desiredPos);
+              if (!motion.target) motion.target = desiredTarget.clone();
+              else motion.target.copy(desiredTarget);
+              motion.snapNext = false;
+              motion.progress = 0;
+              motion.duration = 0;
+              motion.fromPos.copy(motion.pos);
+              motion.fromTarget.copy(motion.target);
             } else {
-              motion.pos.lerpVectors(
-                motion.fromPos,
-                motion.toPos,
-                motion.progress
-              );
-              motion.target.lerpVectors(
-                motion.fromTarget,
-                motion.toTarget,
-                motion.progress
-              );
+              motion.pos.lerp(toPos, clampedLerp);
+              motion.target.lerp(toTarget, clampedLerp);
+              if (motion.pos.distanceToSquared(toPos) <= CAMERA_MOTION_EPS) {
+                motion.pos.copy(toPos);
+              }
+              if (
+                motion.target.distanceToSquared(toTarget) <= CAMERA_MOTION_EPS
+              ) {
+                motion.target.copy(toTarget);
+              }
+              motion.fromPos.copy(motion.pos);
+              motion.fromTarget.copy(motion.target);
             }
 
             camera.position.copy(motion.pos);
@@ -3187,8 +3136,6 @@ function SnookerGame() {
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
             updateCamera();
-            manualOrbitRef.current =
-              typeof performance !== 'undefined' ? performance.now() : 0;
             registerInteraction(true);
           }
         };
@@ -3227,8 +3174,6 @@ function SnookerGame() {
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
           } else return;
-          manualOrbitRef.current =
-            typeof performance !== 'undefined' ? performance.now() : 0;
           registerInteraction(true);
           updateCamera();
         };
@@ -4021,26 +3966,14 @@ function SnookerGame() {
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          const rawDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
-          if (rawDir.lengthSq() < 1e-6) rawDir.set(0, 0, 1);
-          else rawDir.normalize();
-          let dir = rawDir.clone();
-          const impactPos = TMP_VEC3_IMPACT.set(
+          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          const rawEnd = TMP_VEC3_IMPACT.set(
             impact.x,
             BALL_CENTER_Y,
             impact.y
           );
-          let targetCenter = null;
-          if (targetBall && targetBall.active) {
-            targetCenter = TMP_VEC3_TARGET.set(
-              targetBall.pos.x,
-              BALL_CENTER_Y,
-              targetBall.pos.y
-            );
-          }
-          const rawEnd = TMP_VEC3_GUIDE_END.copy(targetCenter ?? impactPos);
           if (start.distanceTo(rawEnd) < 1e-4) {
-            rawEnd.copy(start).add(rawDir.clone().multiplyScalar(BALL_R));
+            rawEnd.copy(start).add(dir.clone().multiplyScalar(BALL_R));
           }
           const smoothingState = aimGuideSmoothRef.current;
           const targetKey = targetBall?.id
@@ -4079,12 +4012,6 @@ function SnookerGame() {
             smoothingState.impact.lerp(rawEnd, aimWeight);
           }
           const smoothedEnd = smoothingState.impact ?? rawEnd;
-          const guideDir = smoothedEnd.clone().sub(start);
-          if (guideDir.lengthSq() > 1e-6) {
-            dir = guideDir.normalize();
-          } else {
-            dir = rawDir.clone();
-          }
           aimGeom.setFromPoints([start, smoothedEnd]);
           aim.visible = true;
           aim.material.color.set(
@@ -4152,18 +4079,8 @@ function SnookerGame() {
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
-          const sideLimit = ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET;
-          const vertLimit = ranges.offsetVertical ?? MAX_SPIN_VERTICAL;
-          const maxCueOffset = MAX_SPIN_CONTACT_OFFSET;
-          let side = (appliedSpin.x ?? 0) * sideLimit;
-          let vert = -(appliedSpin.y ?? 0) * vertLimit;
-          const offsetSq = side * side + vert * vert;
-          const maxOffsetSq = maxCueOffset * maxCueOffset;
-          if (offsetSq > maxOffsetSq && offsetSq > 0) {
-            const scale = Math.sqrt(maxOffsetSq / offsetSq);
-            side *= scale;
-            vert *= scale;
-          }
+          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
+          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
