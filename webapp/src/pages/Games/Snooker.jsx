@@ -598,12 +598,12 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.82,
+  radius: 102 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.9,
   phi: CAMERA.maxPhi - 0.14
 });
 const CAMERA_ZOOM_RANGE = Object.freeze({
   near: 0.9,
-  far: 1.12
+  far: 1.18
 });
 const CAMERA_RAIL_SAFETY = 0.015;
 const ACTION_VIEW = Object.freeze({
@@ -2369,8 +2369,34 @@ function SnookerGame() {
               cameraBlendRef.current,
               ACTION_CAMERA_MIN_RADIUS
             );
+            const alignBlend = THREE.MathUtils.clamp(
+              cameraBlendRef.current ?? 1,
+              0,
+              1
+            );
+            let orbitTheta = sph.theta;
+            const aimDirCurrent = aimDirRef.current;
+            const shouldAimLock =
+              !shooting &&
+              cue?.active &&
+              aimFocusRef.current &&
+              aimDirCurrent &&
+              aimDirCurrent.lengthSq() > 1e-6;
+            if (shouldAimLock) {
+              const desiredTheta = Math.atan2(aimDirCurrent.x, aimDirCurrent.y) + Math.PI;
+              const alignStrength = Math.pow(1 - alignBlend, 1.2);
+              if (alignStrength > 1e-3) {
+                const delta =
+                  THREE.MathUtils.euclideanModulo(
+                    desiredTheta - orbitTheta + Math.PI,
+                    Math.PI * 2
+                  ) - Math.PI;
+                orbitTheta += delta * (alignStrength * 0.85);
+              }
+            }
             TMP_SPH.copy(sph);
             TMP_SPH.radius = dynamicRadius;
+            TMP_SPH.theta = orbitTheta;
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
           }
