@@ -251,8 +251,12 @@ function addPocketCuts(parent, clothPlane) {
     if (isCorner) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
-      mesh.scale.x = sx >= 0 ? -1 : 1;
-      mesh.scale.z = sy >= 0 ? -1 : 1;
+      const diag = new THREE.Vector2(sx, sy).normalize();
+      const backOffset = POCKET_VIS_R * 0.65;
+      mesh.scale.x = sx;
+      mesh.scale.z = sy;
+      mesh.position.x += diag.x * backOffset;
+      mesh.position.z += diag.y * backOffset;
     } else {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
@@ -588,11 +592,11 @@ function spotPositions(baulkZ) {
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.8;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.36;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.28;
 const STANDING_VIEW_MARGIN = 0.85;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_MIN_PHI = STANDING_VIEW_PHI + 0.01;
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -603,7 +607,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.55;
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.48;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -622,7 +626,8 @@ const CAMERA_ZOOM_RANGE = Object.freeze({
   far: 1.075
 });
 const CAMERA_ZOOM_LOW_BLEND = 0.35;
-const CAMERA_RAIL_SAFETY = 0.06;
+const CAMERA_RAIL_SAFETY = 0.045;
+const CAMERA_MANUAL_OVERRIDE_MS = 800;
 const ACTION_VIEW = Object.freeze({
   phiOffset: 0,
   lockedPhi: null,
@@ -1807,6 +1812,7 @@ function SnookerGame() {
     ballId: null
   });
   const orbitRadiusLimitRef = useRef(null);
+  const manualOrbitRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -2722,7 +2728,13 @@ function SnookerGame() {
             );
             let orbitTheta = sph.theta;
             const aimDirCurrent = aimDirRef.current;
+            const nowTime =
+              typeof performance !== 'undefined' ? performance.now() : 0;
+            const manualOverrideActive =
+              manualOrbitRef.current &&
+              nowTime - manualOrbitRef.current < CAMERA_MANUAL_OVERRIDE_MS;
             const shouldAimLock =
+              !manualOverrideActive &&
               !shooting &&
               cue?.active &&
               aimFocusRef.current &&
@@ -3175,6 +3187,8 @@ function SnookerGame() {
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
             updateCamera();
+            manualOrbitRef.current =
+              typeof performance !== 'undefined' ? performance.now() : 0;
             registerInteraction(true);
           }
         };
@@ -3213,6 +3227,8 @@ function SnookerGame() {
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
           } else return;
+          manualOrbitRef.current =
+            typeof performance !== 'undefined' ? performance.now() : 0;
           registerInteraction(true);
           updateCamera();
         };
