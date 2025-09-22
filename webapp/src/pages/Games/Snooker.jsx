@@ -664,6 +664,8 @@ const CAMERA_MOTION_SMOOTH_TIME = 0.025; // seconds for camera interpolation to 
 const CAMERA_MOTION_MAX_DT = 0.25;
 const CAMERA_MOTION_EPS = 1e-6;
 const CAMERA_MOTION_MIN_DURATION = 1 / 120;
+const CAMERA_MOTION_BASE_SPEED = 180; // units per second for linear camera motion blending
+const CAMERA_MOTION_MAX_DURATION = 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const resolveSmoothWeight = (base = 0.2, scale = 1) => {
   const clampedBase = THREE.MathUtils.clamp(base ?? 0, 0, 1);
@@ -2691,45 +2693,90 @@ function SnookerGame() {
             );
             motion.lastUpdate = now;
 
+            let snapRequested = motion.snapNext;
+            if (!motion.pos) {
+              motion.pos = desiredPos.clone();
+              motion.fromPos.copy(motion.pos);
+              snapRequested = true;
+            }
+            if (!motion.target) {
+              motion.target = desiredTarget.clone();
+              motion.fromTarget.copy(motion.target);
+              snapRequested = true;
+            }
+
             const toPos = motion.toPos;
             const toTarget = motion.toTarget;
-            toPos.copy(desiredPos);
-            toTarget.copy(desiredTarget);
+            const posDeltaSq = toPos.distanceToSquared(desiredPos);
+            const targetDeltaSq = toTarget.distanceToSquared(desiredTarget);
+            const needsNewSegment =
+              snapRequested ||
+              posDeltaSq > CAMERA_MOTION_EPS ||
+              targetDeltaSq > CAMERA_MOTION_EPS;
 
-            const lerpT =
-              CAMERA_MOTION_SMOOTH_TIME > 0
-                ? 1 - Math.exp(-dt / CAMERA_MOTION_SMOOTH_TIME)
-                : 1;
-            const clampedLerp = THREE.MathUtils.clamp(lerpT, 0, 1);
-            const shouldSnap =
-              motion.snapNext ||
-              !motion.pos ||
-              !motion.target ||
-              clampedLerp <= 0;
+            if (needsNewSegment) {
+              if (snapRequested) {
+                motion.pos.copy(desiredPos);
+                motion.target.copy(desiredTarget);
+                motion.fromPos.copy(desiredPos);
+                motion.toPos.copy(desiredPos);
+                motion.fromTarget.copy(desiredTarget);
+                motion.toTarget.copy(desiredTarget);
+                motion.progress = 1;
+                motion.duration = CAMERA_MOTION_MIN_DURATION;
+                motion.snapNext = false;
+              } else {
+                motion.fromPos.copy(motion.pos);
+                motion.fromTarget.copy(motion.target);
+                toPos.copy(desiredPos);
+                toTarget.copy(desiredTarget);
+                const travel = Math.max(
+                  motion.fromPos.distanceTo(toPos),
+                  motion.fromTarget.distanceTo(toTarget)
+                );
+                const baseDuration = Math.max(
+                  CAMERA_MOTION_SMOOTH_TIME,
+                  CAMERA_MOTION_MIN_DURATION
+                );
+                const travelDuration =
+                  travel > CAMERA_MOTION_EPS
+                    ? Math.min(
+                        CAMERA_MOTION_MAX_DURATION,
+                        Math.max(
+                          baseDuration,
+                          travel / CAMERA_MOTION_BASE_SPEED
+                        )
+                      )
+                    : baseDuration;
+                motion.duration = Math.max(
+                  CAMERA_MOTION_MIN_DURATION,
+                  travelDuration
+                );
+                motion.progress = 0;
+              }
+            }
 
-            if (shouldSnap) {
-              if (!motion.pos) motion.pos = desiredPos.clone();
-              else motion.pos.copy(desiredPos);
-              if (!motion.target) motion.target = desiredTarget.clone();
-              else motion.target.copy(desiredTarget);
-              motion.snapNext = false;
-              motion.progress = 0;
-              motion.duration = 0;
-              motion.fromPos.copy(motion.pos);
-              motion.fromTarget.copy(motion.target);
+            const duration = Math.max(
+              CAMERA_MOTION_MIN_DURATION,
+              motion.duration || CAMERA_MOTION_MIN_DURATION
+            );
+            const deltaProgress = duration > 1e-6 ? dt / duration : 1;
+            motion.progress = Math.min(1, motion.progress + deltaProgress);
+
+            if (motion.progress >= 1) {
+              motion.pos.copy(motion.toPos);
+              motion.target.copy(motion.toTarget);
             } else {
-              motion.pos.lerp(toPos, clampedLerp);
-              motion.target.lerp(toTarget, clampedLerp);
-              if (motion.pos.distanceToSquared(toPos) <= CAMERA_MOTION_EPS) {
-                motion.pos.copy(toPos);
-              }
-              if (
-                motion.target.distanceToSquared(toTarget) <= CAMERA_MOTION_EPS
-              ) {
-                motion.target.copy(toTarget);
-              }
-              motion.fromPos.copy(motion.pos);
-              motion.fromTarget.copy(motion.target);
+              motion.pos.lerpVectors(
+                motion.fromPos,
+                motion.toPos,
+                motion.progress
+              );
+              motion.target.lerpVectors(
+                motion.fromTarget,
+                motion.toTarget,
+                motion.progress
+              );
             }
 
             camera.position.copy(motion.pos);
@@ -3148,7 +3195,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          7.6,
+          9.2,
           0,
           Math.PI * 0.38,
           0.48,
