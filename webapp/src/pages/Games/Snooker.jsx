@@ -660,9 +660,10 @@ const AIM_FOCUS_MAX_WEIGHT = 0.32;
 const AIM_GUIDE_RESET_DISTANCE = BALL_R * 12;
 const POCKET_IDLE_SWITCH_MS = 240;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
-const CAMERA_MOTION_SMOOTH_TIME = 1 / 60; // blend camera updates toward the desired state at ~60 FPS
+const CAMERA_MOTION_SMOOTH_TIME = 0.025; // seconds for camera interpolation to reach the desired state smoothly
 const CAMERA_MOTION_MAX_DT = 0.25;
 const CAMERA_MOTION_EPS = 1e-6;
+const CAMERA_MOTION_MIN_DURATION = 1 / 120;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const resolveSmoothWeight = (base = 0.2, scale = 1) => {
   const clampedBase = THREE.MathUtils.clamp(base ?? 0, 0, 1);
@@ -1757,7 +1758,13 @@ function SnookerGame() {
     pos: null,
     target: null,
     lastUpdate: null,
-    snapNext: false
+    snapNext: false,
+    fromPos: new THREE.Vector3(),
+    toPos: new THREE.Vector3(),
+    fromTarget: new THREE.Vector3(),
+    toTarget: new THREE.Vector3(),
+    progress: 0,
+    duration: Math.max(CAMERA_MOTION_SMOOTH_TIME, CAMERA_MOTION_MIN_DURATION)
   });
   const updateSpinDotPosition = useCallback((value) => {
     if (!value) value = { x: 0, y: 0 };
@@ -2683,23 +2690,50 @@ function SnookerGame() {
               Math.max(0, (now - last) / 1000)
             );
             motion.lastUpdate = now;
+            const defaultDuration = Math.max(
+              CAMERA_MOTION_SMOOTH_TIME,
+              CAMERA_MOTION_MIN_DURATION
+            );
+            const fromPos = motion.fromPos;
+            const toPos = motion.toPos;
+            const fromTarget = motion.fromTarget;
+            const toTarget = motion.toTarget;
             if (!motion.pos || !motion.target || motion.snapNext) {
-              motion.pos = desiredPos.clone();
-              motion.target = desiredTarget.clone();
+              if (!motion.pos) motion.pos = desiredPos.clone();
+              else motion.pos.copy(desiredPos);
+              if (!motion.target) motion.target = desiredTarget.clone();
+              else motion.target.copy(desiredTarget);
+              fromPos.copy(motion.pos);
+              toPos.copy(desiredPos);
+              fromTarget.copy(motion.target);
+              toTarget.copy(desiredTarget);
+              motion.progress = defaultDuration;
+              motion.duration = defaultDuration;
               motion.snapNext = false;
             } else {
-              const smooth =
-                CAMERA_MOTION_SMOOTH_TIME > 0
-                  ? 1 - Math.exp(-dt / CAMERA_MOTION_SMOOTH_TIME)
-                  : 1;
-              const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
-              motion.pos.lerp(desiredPos, lerpT);
-              motion.target.lerp(desiredTarget, lerpT);
-              if (motion.pos.distanceToSquared(desiredPos) <= CAMERA_MOTION_EPS) {
-                motion.pos.copy(desiredPos);
+              if (
+                toPos.distanceToSquared(desiredPos) > CAMERA_MOTION_EPS ||
+                toTarget.distanceToSquared(desiredTarget) > CAMERA_MOTION_EPS
+              ) {
+                fromPos.copy(motion.pos);
+                fromTarget.copy(motion.target);
+                toPos.copy(desiredPos);
+                toTarget.copy(desiredTarget);
+                motion.progress = 0;
+                motion.duration = defaultDuration;
               }
-              if (motion.target.distanceToSquared(desiredTarget) <= CAMERA_MOTION_EPS) {
-                motion.target.copy(desiredTarget);
+              const span = Math.max(
+                motion.duration || 0,
+                CAMERA_MOTION_MIN_DURATION
+              );
+              motion.progress = Math.min(span, motion.progress + dt);
+              const t = span <= 1e-6 ? 1 : motion.progress / span;
+              motion.pos.copy(fromPos).lerp(toPos, t);
+              motion.target.copy(fromTarget).lerp(toTarget, t);
+              if (t >= 0.999) {
+                motion.pos.copy(toPos);
+                motion.target.copy(toTarget);
+                motion.progress = span;
               }
             }
             camera.position.copy(motion.pos);
