@@ -100,7 +100,7 @@ function addPocketJaws(parent, playW, playH) {
   const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
   const jawDepthTarget = CLOTH_THICKNESS;
   const capHeight = CLOTH_THICKNESS * 0.36;
-  const capLift = CLOTH_THICKNESS * 0.012;
+  const capLift = CLOTH_THICKNESS * 0.18; // lift jaw caps so pocket lips read above the cloth plane
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -410,7 +410,7 @@ const POCKET_JAW_LIP_HEIGHT =
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.32; // raise pocket rims so the lip is fully visible above the cloth
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // lift pockets slightly higher so the rims stay visible from shallow angles
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -725,7 +725,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 78 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 72 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -1506,29 +1506,21 @@ function Table3D(parent) {
 
   function addCornerArcLong(shape, signX, signZ) {
     const xIn = innerX(signX);
-    const cx = signX < 0 ? -halfW : halfW;
-    const cz = signZ < 0 ? -halfH : halfH;
-    const u = Math.abs(xIn - cx);
-    const radius = Math.max(notchRadius, u + 0.001);
-    const dz = Math.sqrt(Math.max(0, radius * radius - u * u));
-    const zA = cz + dz;
-    const zB = cz - dz;
-    const startZ = signZ > 0 ? zA : zB;
-    const endZ = signZ > 0 ? zB : zA;
-    shape.lineTo(xIn, startZ);
-    const steps = 64;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const z = startZ + (endZ - startZ) * t;
-      const xDelta = Math.sqrt(
-        Math.max(0, radius * radius - (z - cz) * (z - cz))
-      );
-      const x = cx + (signX > 0 ? xDelta : -xDelta);
-      if (signX * (x - xIn) >= -1e-6) {
-        shape.lineTo(x, z);
-      }
+    const startZ = signZ > 0 ? outerHalfH : -outerHalfH;
+    const targetZ = signZ * (halfH + cushionBack - MICRO_EPS);
+    const current = shape.currentPoint;
+    if (
+      !current ||
+      Math.abs(current.x - xIn) > 1e-6 ||
+      Math.abs(current.y - startZ) > 1e-6
+    ) {
+      shape.lineTo(xIn, startZ);
     }
-    shape.lineTo(xIn, endZ);
+    const availableDrop = Math.abs(startZ - targetZ);
+    const radius = Math.min(notchRadius, availableDrop);
+    const controlX = xIn - signX * radius;
+    const controlZ = startZ - signZ * radius;
+    shape.quadraticCurveTo(controlX, controlZ, xIn, targetZ);
   }
 
   function addSidePocketArc(shape, signX) {
