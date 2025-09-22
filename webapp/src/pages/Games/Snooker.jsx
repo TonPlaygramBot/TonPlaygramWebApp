@@ -3065,10 +3065,10 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          5.2,
+          6.75,
           0,
-          Math.PI * 0.32,
-          0.35,
+          Math.PI * 0.38,
+          0.48,
           1
         );
         const spotOffsetX = 1.6 * fixtureScale;
@@ -3083,7 +3083,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.06);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
@@ -3870,11 +3870,11 @@ function SnookerGame() {
             );
           }
           let smoothedFocus = null;
-          if (
+          const hasFiniteFocus =
             Number.isFinite(focusSource.x) &&
             Number.isFinite(focusSource.y) &&
-            Number.isFinite(focusSource.z)
-          ) {
+            Number.isFinite(focusSource.z);
+          if (hasFiniteFocus) {
             const shouldResetFocus =
               !smoothingState.focus ||
               smoothingState.targetKey !== targetKey;
@@ -3883,12 +3883,25 @@ function SnookerGame() {
             } else {
               smoothingState.focus.lerp(focusSource, focusWeight);
             }
+            smoothingState.targetKey = targetKey;
             smoothedFocus = smoothingState.focus;
-          } else {
-            smoothingState.focus = null;
+          } else if (smoothingState.focus) {
+            smoothedFocus = smoothingState.focus;
+          } else if (aimFocusRef.current) {
+            smoothingState.focus = aimFocusRef.current.clone();
+            smoothedFocus = smoothingState.focus;
           }
-          smoothingState.targetKey = targetKey;
-          aimFocusRef.current = smoothedFocus ?? null;
+          if (smoothedFocus) {
+            if (aimFocusRef.current) {
+              aimFocusRef.current.copy(smoothedFocus);
+            } else {
+              aimFocusRef.current = smoothedFocus.clone();
+            }
+          } else {
+            aimFocusRef.current = null;
+            smoothingState.focus = null;
+            smoothingState.targetKey = null;
+          }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
             smoothedEnd.clone().add(perp.clone().multiplyScalar(1.4)),
