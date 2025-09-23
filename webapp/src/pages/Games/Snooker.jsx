@@ -317,7 +317,7 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const diag = new THREE.Vector2(sx, sy).normalize();
-      const radialOffset = POCKET_VIS_R * 0.58;
+      const radialOffset = POCKET_VIS_R * 0.54;
       const railInset = TABLE.WALL * 0.35;
       mesh.scale.x = sx >= 0 ? -1 : 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
@@ -413,19 +413,19 @@ const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the l
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const RAIL_BASE_OVERLAP = TABLE.THICK * 0.18; // drop rails further so they blend into the base without gaps
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.48; // keep rims seated so cloth never bleeds across the pocket opening
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.36; // keep rims seated so cloth never bleeds across the pocket opening
 const POCKET_RECESS_DEPTH =
-  BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
+  BALL_R * 0.3; // deepen the pocket throat so the interior reads before the cloth
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.32;
-const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.28;
-const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.24;
-const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 0.86;
-const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.28;
+const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.38;
+const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.32;
+const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.32;
+const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 0.92;
+const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.32;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
@@ -739,13 +739,13 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 1.04;
+const STANDING_VIEW_PHI = 1.0;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.08;
 const STANDING_VIEW_MARGIN = 0.34;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.005;
+const CAMERA_ABS_MIN_PHI = 0.24;
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.24);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -761,6 +761,7 @@ const CUE_RADIUS_SCALE = 0.7;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
 const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
+const CAMERA_CLOSE_RAIL_MARGIN = TABLE.WALL * 0.04; // keep lowered orbit just outside the cushion lips
 const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.62; // keep eye level slightly above the top of the balls
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -1381,13 +1382,13 @@ function Table3D(parent) {
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.74,
+    roughness: 0.7,
     sheen: 1,
-    sheenRoughness: 0.38,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.24
+    sheenRoughness: 0.34,
+    clearcoat: 0.24,
+    clearcoatRoughness: 0.28
   });
-  const baseRepeat = 5.4;
+  const baseRepeat = 4.6;
   const repeatRatio = 3.1;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -1399,17 +1400,17 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 1.48;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 1.48;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.18,
-    farRepeat: baseRepeat * 0.52,
+    nearRepeat: baseRepeat * 0.82,
+    farRepeat: baseRepeat * 0.5,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1552,8 +1553,8 @@ function Table3D(parent) {
     roughness: 0.4
   });
   const pocketMeshes = [];
-  const ringLift = BALL_R * 0.068;
-  const lipLift = BALL_R * 0.061;
+  const ringLift = BALL_R * 0.052;
+  const lipLift = BALL_R * 0.046;
   pocketCenters().forEach((p) => {
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = -Math.PI / 2;
@@ -1832,7 +1833,8 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const horizLen = PLAY_W - 2 * POCKET_GAP;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.18;
+  const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
@@ -2403,7 +2405,39 @@ function SnookerGame() {
           if (lockedRadius == null) {
             if (!topViewRef.current) {
               const scale = worldScaleFactor || 1;
-              const sinPhi = Math.sin(phiForClamp);
+              const phiSpan = Math.max(1e-5, cueShot.phi - standing.phi);
+              const phiProgress = THREE.MathUtils.clamp(
+                (phiForClamp - standing.phi) / phiSpan,
+                0,
+                1
+              );
+              const sinPhi = Math.sin(Math.max(phiForClamp, 1e-4));
+              if (phiProgress > 0) {
+                const approachStrength = THREE.MathUtils.smoothstep(
+                  0.45,
+                  1,
+                  phiProgress
+                );
+                if (approachStrength > 0) {
+                  const desiredReach = Math.max(
+                    0,
+                    (CAMERA_RAIL_REACH_X - CAMERA_CLOSE_RAIL_MARGIN) * scale
+                  );
+                  if (desiredReach > 0) {
+                    const minRadiusForPhi =
+                      desiredReach / Math.max(sinPhi, 0.28);
+                    const tightenedTarget = Math.max(
+                      CAMERA.minR,
+                      Math.min(radius, minRadiusForPhi)
+                    );
+                    radius = THREE.MathUtils.lerp(
+                      radius,
+                      tightenedTarget,
+                      approachStrength
+                    );
+                  }
+                }
+              }
               const sinTheta = Math.sin(sph.theta);
               const reachX = CAMERA_RAIL_REACH_X * scale;
               if (reachX > 0) {
@@ -2618,7 +2652,7 @@ function SnookerGame() {
             }
             if (Number.isFinite(clothMat.userData?.bumpScale)) {
               const base = clothMat.userData.bumpScale;
-              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.6, base * 1.65, fade);
+              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.75, base * 2.05, fade);
             }
           }
         };
