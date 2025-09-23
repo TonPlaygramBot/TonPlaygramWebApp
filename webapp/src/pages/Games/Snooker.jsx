@@ -255,7 +255,7 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const sideDepth = POCKET_VIS_R * 1.04;
+  const sideDepth = POCKET_VIS_R * 1.08;
   const sideHalfWidth = POCKET_VIS_R * 0.86;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x060606,
@@ -298,7 +298,7 @@ function addPocketCuts(parent, clothPlane) {
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
     s.lineTo(sideHalfWidth * 0.86, sideDepth);
-    s.quadraticCurveTo(0, sideDepth * 1.14, -sideHalfWidth * 0.86, sideDepth);
+    s.quadraticCurveTo(0, sideDepth * 1.22, -sideHalfWidth * 0.86, sideDepth);
     s.closePath();
     return s;
   })();
@@ -384,7 +384,7 @@ const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_R = BALL_R * 1.4; // pockets tightened further so the openings read smaller
 // keep the visual rim only fractionally larger so the jaws still overlap the cloth neatly
 const POCKET_VIS_R = POCKET_R / 1.08;
-const POCKET_HOLE_R = POCKET_VIS_R * 1.52; // cloth cutout radius enlarged to clear the pocket throat
+const POCKET_HOLE_R = POCKET_VIS_R * 1.6; // widen the cloth cutout so pocket interiors stay fully exposed
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -421,11 +421,11 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.38;
-const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.32;
-const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.32;
-const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 0.92;
-const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.32;
+const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.46;
+const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.36;
+const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.38;
+const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 1.0;
+const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.34;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
@@ -535,14 +535,14 @@ const createClothTextures = (() => {
     const THREAD_PITCH = 7.2;
     const STRAND_POWER = 0.44;
     const STRAND_SHAPE = 6.2;
-    const DETAIL_ANCHOR = 0.68;
-    const MICRO_THREAD = 0.18;
-    const WEAVE_SHADE_BOOST = 1.28;
-    const THREAD_HIGHLIGHT_BOOST = 1.35;
-    const PATTERN_CONTRAST = 1.85;
-    const COLOR_CONTRAST = 1.26;
-    const BUMP_HEIGHT_SCALE = 1480;
-    const BUMP_DETAIL_SCALE = 360;
+    const DETAIL_ANCHOR = 0.76;
+    const MICRO_THREAD = 0.24;
+    const WEAVE_SHADE_BOOST = 1.4;
+    const THREAD_HIGHLIGHT_BOOST = 1.48;
+    const PATTERN_CONTRAST = 2.05;
+    const COLOR_CONTRAST = 1.34;
+    const BUMP_HEIGHT_SCALE = 1680;
+    const BUMP_DETAIL_SCALE = 420;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -1412,13 +1412,13 @@ function Table3D(parent) {
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.64,
+    roughness: 0.6,
     sheen: 1,
-    sheenRoughness: 0.3,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.26
+    sheenRoughness: 0.26,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.22
   });
-  const baseRepeat = 3.8;
+  const baseRepeat = 3.2;
   const repeatRatio = 3.1;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -1430,17 +1430,17 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 3.8;
+    clothMat.bumpScale = 4.6;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 3.8;
+    clothMat.bumpScale = 4.6;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 0.86,
-    farRepeat: baseRepeat * 0.52,
+    nearRepeat: baseRepeat * 0.82,
+    farRepeat: baseRepeat * 0.48,
     bumpScale: clothMat.bumpScale
   };
 
