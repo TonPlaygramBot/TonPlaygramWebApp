@@ -421,21 +421,21 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.46;
-const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.36;
-const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.38;
-const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 1.0;
-const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.34;
+const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.62;
+const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.4;
+const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.5;
+const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 1.08;
+const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.18,
-  maxOutside: BALL_R * 34,
-  heightOffset: BALL_R * 6.1,
-  distanceBias: 1.18,
-  offsetScale: 1.12,
-  backstep: BALL_R * 3.2,
-  fovOffset: 2
+  minOutside: TABLE.WALL + POCKET_VIS_R * 1.28,
+  maxOutside: BALL_R * 36,
+  heightOffset: BALL_R * 6.4,
+  distanceBias: 1.22,
+  offsetScale: 1.18,
+  backstep: BALL_R * 3.6,
+  fovOffset: 3
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
 const SPIN_DECAY = 0.88;
@@ -446,7 +446,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 2.25; // boost cue strike strength by 150% overall
+const SHOT_FORCE_BOOST = 2.25 * 0.75; // reduce strike strength by 25% for softer shots
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -534,17 +534,17 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 6.8;
-    const STRAND_POWER = 0.42;
-    const STRAND_SHAPE = 7.6;
-    const DETAIL_ANCHOR = 1.12;
-    const MICRO_THREAD = 0.42;
-    const WEAVE_SHADE_BOOST = 1.92;
-    const THREAD_HIGHLIGHT_BOOST = 2.15;
-    const PATTERN_CONTRAST = 3.05;
-    const COLOR_CONTRAST = 1.85;
-    const BUMP_HEIGHT_SCALE = 1980;
-    const BUMP_DETAIL_SCALE = 780;
+    const THREAD_PITCH = 7.8;
+    const STRAND_POWER = 0.48;
+    const STRAND_SHAPE = 8.4;
+    const DETAIL_ANCHOR = 1.24;
+    const MICRO_THREAD = 0.46;
+    const WEAVE_SHADE_BOOST = 2.18;
+    const THREAD_HIGHLIGHT_BOOST = 2.42;
+    const PATTERN_CONTRAST = 3.8;
+    const COLOR_CONTRAST = 2.15;
+    const BUMP_HEIGHT_SCALE = 2280;
+    const BUMP_DETAIL_SCALE = 980;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -1421,7 +1421,7 @@ function Table3D(parent) {
     clearcoatRoughness: 0.32,
     specularIntensity: 0.38
   });
-  const baseRepeat = 3.2;
+  const baseRepeat = 2.4;
   const repeatRatio = 3.1;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -1433,13 +1433,13 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 12);
-    clothMat.bumpScale = 5.25;
+    clothMat.bumpScale = 7.5;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 5.25;
+    clothMat.bumpScale = 7.5;
   }
-  const clothNearRepeat = baseRepeat * 0.6;
-  const clothFarRepeat = baseRepeat * 1.08;
+  const clothNearRepeat = baseRepeat * 0.58;
+  const clothFarRepeat = baseRepeat * 1.12;
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
@@ -1895,8 +1895,8 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.16;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.28;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.18;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.18;
   const horizLen =
     PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
