@@ -490,6 +490,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
+const HORIZONTAL_CUSHION_TRIM = BALL_R * 0.6;
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -569,9 +570,9 @@ const createClothTextures = (() => {
           ((x - y) * 2 * Math.PI) / (THREAD_PITCH * 0.5)
         ) * MICRO_THREAD;
         const weaveShade =
-          0.62 + ridge * 0.6 + cross * 0.88 + (fiber + threadTension) * 0.26;
-        const toneMix = Math.min(1, Math.max(0, 0.18 + cross * 0.82 + ridge * 0.18));
-        const highlightMix = Math.pow(Math.max(0, ridge - 0.12), 1.28);
+          0.7 + ridge * 0.52 + cross * 0.92 + (fiber + threadTension) * 0.2;
+        const toneMix = Math.min(1, Math.max(0, 0.24 + cross * 0.76 + ridge * 0.2));
+        const highlightMix = Math.pow(Math.max(0, ridge - 0.08), 1.35);
         const variation = fiber * DETAIL_ANCHOR;
         const rBase = THREE.MathUtils.lerp(base.r, deep.r, toneMix);
         const gBase = THREE.MathUtils.lerp(base.g, deep.g, toneMix * 0.9);
@@ -581,13 +582,13 @@ const createClothTextures = (() => {
           g: highlight.g * highlightMix * 1.24,
           b: highlight.b * highlightMix * 0.52
         };
-        const shadeVariation = 0.9 + variation * 0.72;
-        const gShadeVariation = 1 + variation * 0.86;
-        const intensity = (warp - weft) * 2.1;
-        const r = (rBase * weaveShade * shadeVariation + highlightLift.r) + intensity * 30;
-        const g = (gBase * weaveShade * gShadeVariation + highlightLift.g) + intensity * 20;
-        const b = (bBase * weaveShade * (0.92 + variation * 0.48) + highlightLift.b) -
-          intensity * 26;
+        const shadeVariation = 1 + variation * 0.45;
+        const gShadeVariation = 1 + variation * 0.58;
+        const intensity = (warp - weft) * 1.4;
+        const r = rBase * weaveShade * shadeVariation + highlightLift.r + intensity * 16;
+        const g = gBase * weaveShade * gShadeVariation + highlightLift.g + intensity * 10;
+        const b =
+          bBase * weaveShade * (0.94 + variation * 0.32) + highlightLift.b - intensity * 12;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -599,7 +600,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(12, 48);
+    colorMap.repeat.set(18, 18);
     colorMap.anisotropy = 64;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -761,6 +762,7 @@ const CUE_RADIUS_SCALE = 0.7;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
 const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
+const CAMERA_RAIL_REACH_Z = PLAY_H / 2 + TABLE.WALL * 0.02;
 const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.62; // keep eye level slightly above the top of the balls
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -786,6 +788,7 @@ const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_HEIGHT_ZOOM_IN = 1.45;
 const CAMERA_HEIGHT_ZOOM_OUT = 1.1;
+const TOP_VIEW_SCALE = 0.74;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -1387,8 +1390,8 @@ function Table3D(parent) {
     clearcoat: 0.22,
     clearcoatRoughness: 0.24
   });
-  const baseRepeat = 5.4;
-  const repeatRatio = 3.1;
+  const baseRepeat = 6.4;
+  const repeatRatio = 1.85;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1399,17 +1402,17 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 0.9;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 0.9;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.18,
-    farRepeat: baseRepeat * 0.52,
+    nearRepeat: baseRepeat * 1.12,
+    farRepeat: baseRepeat * 0.68,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1832,7 +1835,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const horizLen = PLAY_W - 2 * POCKET_GAP;
+  const horizLen = Math.max(0, PLAY_W - 2 * POCKET_GAP - HORIZONTAL_CUSHION_TRIM);
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
@@ -2212,7 +2215,7 @@ function SnookerGame() {
         setTopView(next);
         if (rendererRef.current) {
           rendererRef.current.domElement.style.transform = next
-            ? 'scale(0.82)'
+            ? `scale(${TOP_VIEW_SCALE})`
             : 'scale(1)';
         }
         fit(targetMargin);
@@ -2447,6 +2450,7 @@ function SnookerGame() {
             const scale = worldScaleFactor || 1;
             const sinPhi = Math.sin(phiForClamp);
             const sinTheta = Math.sin(sph.theta);
+            const cosTheta = Math.cos(sph.theta);
             const reachX = CAMERA_RAIL_REACH_X * scale;
             if (reachX > 0) {
               const denomX = Math.abs(sinPhi * sinTheta);
@@ -2454,6 +2458,16 @@ function SnookerGame() {
                 const horizontalX = Math.abs(radius * sinPhi * sinTheta);
                 if (horizontalX < reachX) {
                   radius = Math.max(radius, reachX / denomX);
+                }
+              }
+            }
+            const reachZ = CAMERA_RAIL_REACH_Z * scale;
+            if (reachZ > 0) {
+              const denomZ = Math.abs(sinPhi * cosTheta);
+              if (denomZ > 1e-4) {
+                const horizontalZ = Math.abs(radius * sinPhi * cosTheta);
+                if (horizontalZ < reachZ) {
+                  radius = Math.max(radius, reachZ / denomZ);
                 }
               }
             }
@@ -2621,8 +2635,8 @@ function SnookerGame() {
               1
             );
             const heightZoomOffset = THREE.MathUtils.lerp(
-              CAMERA_HEIGHT_ZOOM_OUT,
               -CAMERA_HEIGHT_ZOOM_IN,
+              CAMERA_HEIGHT_ZOOM_OUT,
               heightRatio
             );
             const targetFov = Math.max(30, baseFov + heightZoomOffset);
@@ -2847,14 +2861,9 @@ function SnookerGame() {
         fitRef.current = fit;
         topViewRef.current = false;
         setTopView(false);
-        const margin = Math.max(
-          STANDING_VIEW.margin,
-          topViewRef.current
-            ? 1.05
-            : window.innerHeight > window.innerWidth
-              ? 1.6
-              : 1.4
-        );
+        const margin = topViewRef.current
+          ? Math.max(STANDING_VIEW.margin, 1.05)
+          : STANDING_VIEW.margin;
         fit(margin);
         syncBlendToSpherical();
         setOrbitFocusToDefault();
