@@ -524,11 +524,11 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 14;
-    const STRAND_POWER = 0.56;
-    const STRAND_SHAPE = 4.6;
-    const DETAIL_ANCHOR = 0.34;
-    const MICRO_THREAD = 0.06;
+    const THREAD_PITCH = 10.5;
+    const STRAND_POWER = 0.52;
+    const STRAND_SHAPE = 4.9;
+    const DETAIL_ANCHOR = 0.42;
+    const MICRO_THREAD = 0.082;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -542,8 +542,9 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const base = { r: 0x28, g: 0xc4, b: 0x4b };
-    const deep = { r: 0x17, g: 0x83, b: 0x31 };
+    const base = { r: 0x2f, g: 0xd4, b: 0x58 };
+    const deep = { r: 0x12, g: 0x7c, b: 0x2d };
+    const highlight = { r: 0x2b, g: 0xff, b: 0x75 };
     const weaveProfile = (t) => {
       const wave = Math.sin(Math.PI * t);
       const envelope = 1 - Math.pow(Math.abs(wave), STRAND_POWER);
@@ -567,16 +568,26 @@ const createClothTextures = (() => {
         const threadTension = Math.sin(
           ((x - y) * 2 * Math.PI) / (THREAD_PITCH * 0.5)
         ) * MICRO_THREAD;
-        const weaveShade = 0.64 + ridge * 0.45 + cross * 0.6 + (fiber + threadTension) * 0.14;
-        const toneMix = 0.22 + cross * 0.62;
+        const weaveShade =
+          0.6 + ridge * 0.52 + cross * 0.72 + (fiber + threadTension) * 0.18;
+        const toneMix = Math.min(1, Math.max(0, 0.24 + cross * 0.68 + ridge * 0.12));
+        const highlightMix = Math.pow(Math.max(0, ridge - 0.18), 1.36);
         const variation = fiber * DETAIL_ANCHOR;
-        const rBase = base.r * weaveShade * (0.97 + variation) + deep.r * toneMix;
-        const gBase = base.g * weaveShade * (1 + variation * 1.05) + deep.g * toneMix;
-        const bBase = base.b * weaveShade * (0.95 + variation * 0.92) + deep.b * toneMix;
-        const intensity = (warp - weft) * 1.6;
-        const r = rBase + intensity * 30;
-        const g = gBase + intensity * 18;
-        const b = bBase - intensity * 24;
+        const rBase = THREE.MathUtils.lerp(base.r, deep.r, toneMix);
+        const gBase = THREE.MathUtils.lerp(base.g, deep.g, toneMix * 0.88);
+        const bBase = THREE.MathUtils.lerp(base.b, deep.b, toneMix);
+        const highlightLift = {
+          r: highlight.r * highlightMix,
+          g: highlight.g * highlightMix * 1.24,
+          b: highlight.b * highlightMix * 0.52
+        };
+        const shadeVariation = 0.96 + variation * 0.54;
+        const gShadeVariation = 1 + variation * 0.68;
+        const intensity = (warp - weft) * 1.65;
+        const r = (rBase * weaveShade * shadeVariation + highlightLift.r) + intensity * 22;
+        const g = (gBase * weaveShade * gShadeVariation + highlightLift.g) + intensity * 14;
+        const b = (bBase * weaveShade * (0.9 + variation * 0.42) + highlightLift.b) -
+          intensity * 20;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -614,9 +625,10 @@ const createClothTextures = (() => {
         const weft = weaveProfile(v);
         const ridge = warp + weft;
         const cross = warp * weft;
-        const height = 0.82 * cross + 0.18 * ridge;
-        const detail = periodicNoise(x, y) * 0.08;
-        const value = clamp255(140 + (height - 0.48) * 520 + detail * 90);
+        const microContrast = periodicNoise(x * 1.8, y * 1.6) * 0.12;
+        const height = 0.8 * cross + 0.22 * ridge + microContrast;
+        const detail = periodicNoise(x, y) * 0.12;
+        const value = clamp255(132 + (height - 0.46) * 640 + detail * 120);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1378,10 +1390,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.34;
+    clothMat.bumpScale = 0.46;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.34;
+    clothMat.bumpScale = 0.46;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
