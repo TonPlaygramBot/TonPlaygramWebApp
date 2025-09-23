@@ -381,7 +381,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.76; // pockets tightened for a slightly smaller opening
+const POCKET_R = BALL_R * 1.72; // pockets tightened for a slightly smaller opening
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.985;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
@@ -412,6 +412,7 @@ const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
+const RAIL_BASE_OVERLAP = TABLE.THICK * 0.08; // drop rails slightly so they blend into the base without gaps
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // lift pockets slightly higher so the rims stay visible from shallow angles
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -519,8 +520,8 @@ const createClothTextures = (() => {
 
     const SIZE = 1024;
     const THREAD_PITCH = 18;
-    const STRAND_POWER = 0.58;
-    const STRAND_SHAPE = 3.1;
+    const STRAND_POWER = 0.52;
+    const STRAND_SHAPE = 3.6;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -556,13 +557,13 @@ const createClothTextures = (() => {
         const ridge = warp + weft;
         const cross = warp * weft;
         const fiber = periodicNoise(x, y);
-        const weaveShade = 0.52 + ridge * 0.34 + cross * 0.3 + fiber * 0.16;
-        const toneMix = 0.36 + cross * 0.5;
-        const detailBoost = 0.07;
+        const weaveShade = 0.48 + ridge * 0.42 + cross * 0.36 + fiber * 0.22;
+        const toneMix = 0.3 + cross * 0.6;
+        const detailBoost = 0.12;
         const rBase = base.r * weaveShade * (0.9 + fiber * detailBoost) + deep.r * toneMix;
         const gBase = base.g * weaveShade * (0.92 + fiber * (detailBoost + 0.02)) + deep.g * toneMix;
         const bBase = base.b * weaveShade * (0.88 + fiber * (detailBoost - 0.01)) + deep.b * toneMix;
-        const intensity = (warp - weft) * 0.9;
+        const intensity = (warp - weft) * 1.2;
         const r = rBase + intensity * 34;
         const g = gBase + intensity * 18;
         const b = bBase - intensity * 24;
@@ -603,9 +604,9 @@ const createClothTextures = (() => {
         const weft = weaveProfile(v);
         const ridge = warp + weft;
         const cross = warp * weft;
-        const height = 0.62 * cross + 0.38 * ridge * 0.5;
-        const detail = periodicNoise(x, y) * 0.22;
-        const value = clamp255(128 + (height - 0.42) * 240 + detail * 120);
+        const height = 0.64 * cross + 0.36 * ridge;
+        const detail = periodicNoise(x, y) * 0.32;
+        const value = clamp255(128 + (height - 0.45) * 280 + detail * 150);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -718,7 +719,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.78;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.74;
+const STANDING_VIEW_MARGIN = 0.7;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -744,7 +745,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 58 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 52 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -1367,10 +1368,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.18;
+    clothMat.bumpScale = 0.26;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.18;
+    clothMat.bumpScale = 0.26;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -1623,10 +1624,11 @@ function Table3D(parent) {
     }
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
+      depth: railH + RAIL_BASE_OVERLAP,
       bevelEnabled: false,
       curveSegments: 96
     });
+    geo.translate(0, 0, -RAIL_BASE_OVERLAP);
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
@@ -1667,10 +1669,11 @@ function Table3D(parent) {
     }
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
+      depth: railH + RAIL_BASE_OVERLAP,
       bevelEnabled: false,
       curveSegments: 96
     });
+    geo.translate(0, 0, -RAIL_BASE_OVERLAP);
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
