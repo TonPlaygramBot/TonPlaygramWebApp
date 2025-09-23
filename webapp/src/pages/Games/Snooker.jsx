@@ -377,7 +377,7 @@ const CLOTH_LIFT = (() => {
 })();
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_START_BLEND = 1;
+const ACTION_CAMERA_START_BLEND = 0;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -745,7 +745,7 @@ const STANDING_VIEW_MARGIN = 0.34;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.005;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -761,7 +761,7 @@ const CUE_RADIUS_SCALE = 0.7;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
 const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.62; // keep eye level slightly above the top of the balls
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.78; // keep eye level slightly above the top of the balls
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -1387,8 +1387,8 @@ function Table3D(parent) {
     clearcoat: 0.22,
     clearcoatRoughness: 0.24
   });
-  const baseRepeat = 5.4;
-  const repeatRatio = 3.1;
+  const baseRepeat = 7.6;
+  const repeatRatio = 3.05;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1399,21 +1399,22 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 0.42;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 1.05;
+    clothMat.bumpScale = 0.42;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.18,
-    farRepeat: baseRepeat * 0.52,
+    nearRepeat: baseRepeat * 1.08,
+    farRepeat: baseRepeat * 0.6,
     bumpScale: clothMat.bumpScale
   };
 
   const cushionMat = clothMat.clone();
+  cushionMat.bumpScale = clothMat.bumpScale * 0.85;
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -1751,6 +1752,7 @@ function Table3D(parent) {
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
+  const LONG_CUSHION_LENGTH_SCALE = 0.985; // trim long cushions slightly without shifting their anchors
   const cushionRaiseY = CLOTH_TOP_LOCAL - MICRO_EPS;
 
   function cushionProfileAdvanced(len, horizontal) {
@@ -1832,7 +1834,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const horizLen = PLAY_W - 2 * POCKET_GAP;
+  const horizLen = (PLAY_W - 2 * POCKET_GAP) * LONG_CUSHION_LENGTH_SCALE;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
@@ -2176,11 +2178,11 @@ function SnookerGame() {
       theta: sph.theta
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-      const targetMargin = next
-        ? 1.05
-        : window.innerHeight > window.innerWidth
-          ? 1.6
-          : 1.4;
+    const targetMargin = next
+      ? 1.18
+      : window.innerHeight > window.innerWidth
+        ? 1.6
+        : 1.4;
     const targetRadius = fitRadius(cam, targetMargin);
     const target = {
       radius: next ? targetRadius : clampOrbitRadius(targetRadius),
@@ -2212,7 +2214,7 @@ function SnookerGame() {
         setTopView(next);
         if (rendererRef.current) {
           rendererRef.current.domElement.style.transform = next
-            ? 'scale(0.82)'
+            ? 'scale(0.74)'
             : 'scale(1)';
         }
         fit(targetMargin);
@@ -2850,12 +2852,15 @@ function SnookerGame() {
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.05
+            ? 1.18
             : window.innerHeight > window.innerWidth
               ? 1.6
               : 1.4
         );
         fit(margin);
+        sph.radius = BREAK_VIEW.radius;
+        sph.phi = BREAK_VIEW.phi;
+        updateCamera();
         syncBlendToSpherical();
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
@@ -3065,11 +3070,16 @@ function SnookerGame() {
       updateCamera();
       fit(
         topViewRef.current
-          ? 1.05
+          ? 1.18
           : window.innerHeight > window.innerWidth
             ? 1.6
             : 1.4
       );
+      sph.radius = BREAK_VIEW.radius;
+      sph.phi = BREAK_VIEW.phi;
+      updateCamera();
+      syncBlendToSpherical();
+      orbitRadiusLimitRef.current = sph.radius;
 
       // Balls (ONLY Guret)
       const add = (id, color, x, z) => {
@@ -3965,7 +3975,7 @@ function SnookerGame() {
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.05
+            ? 1.18
             : window.innerHeight > window.innerWidth
               ? 1.6
               : 1.4
