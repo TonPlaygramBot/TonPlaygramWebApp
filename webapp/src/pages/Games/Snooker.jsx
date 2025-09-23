@@ -457,6 +457,12 @@ const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
+const SKIRT_DROP_MULTIPLIER = 1.6; // extend the apron downward so the base grows vertically instead of sideways
+const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
+const SIDE_POST_CLEARANCE = 0.18; // keep the side posts slightly above the floor
+const SIDE_POST_SPREAD = 0.55; // how far towards each end the vertical side posts sit
+const SIDE_POST_THICKNESS_SCALE = 0.55; // width of each vertical side post relative to the rail width
+const SIDE_POST_DEPTH_SCALE = 1.4; // depth of each side post to make them read as solid beams
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
@@ -1744,8 +1750,8 @@ function Table3D(parent) {
 
   const frameOuterX = halfW + 2 * railW + frameWidth;
   const frameOuterZ = halfH + 2 * railW + frameWidth;
-  const skirtH = TABLE_H * 0.68;
-  const baseOverhang = railW * 2;
+  const skirtH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
+  const baseOverhang = railW * SKIRT_SIDE_OVERHANG;
   const skirtShape = new THREE.Shape();
   const outW = frameOuterX + baseOverhang;
   const outZ = frameOuterZ + baseOverhang;
@@ -1778,6 +1784,31 @@ function Table3D(parent) {
   const legBottomWorld = FLOOR_Y;
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
+  const sidePostTopLocal = legTopLocal - TABLE.THICK * 0.05;
+  const maxSidePostHeight = sidePostTopLocal - FLOOR_Y;
+  const sidePostHeight = Math.max(
+    TABLE_H * 0.85,
+    maxSidePostHeight - SIDE_POST_CLEARANCE
+  );
+  const sidePostThickness = railW * SIDE_POST_THICKNESS_SCALE;
+  const sidePostDepth = railW * SIDE_POST_DEPTH_SCALE;
+  const sidePostGeo = new THREE.BoxGeometry(
+    sidePostThickness,
+    sidePostHeight,
+    sidePostDepth
+  );
+  const sidePostY = sidePostTopLocal - sidePostHeight / 2;
+  const sidePostOffsetX = frameOuterX - sidePostThickness / 2 - railW * 0.2;
+  const sidePostZ = frameOuterZ * SIDE_POST_SPREAD;
+  [-sidePostZ, sidePostZ].forEach((zPos) => {
+    [-1, 1].forEach((dir) => {
+      const post = new THREE.Mesh(sidePostGeo, woodMat);
+      post.position.set(dir * sidePostOffsetX, sidePostY, zPos);
+      post.castShadow = true;
+      post.receiveShadow = true;
+      table.add(post);
+    });
+  });
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const legInset = railW * 2.2;
   const legPositions = [
