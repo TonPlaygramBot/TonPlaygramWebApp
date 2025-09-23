@@ -483,7 +483,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const RAIL_WOOD_COLOR = 0x3a2a1a;
-const BASE_WOOD_COLOR = 0x5b3a1a;
+const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
   cloth: 0x2bc351,
   rail: RAIL_WOOD_COLOR,
@@ -510,8 +510,12 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const PITCH = 7;
-    const AMP = 0.16;
+    const THREAD_PITCH = 11.5;
+    const STRAND_POWER = 0.72;
+    const STRAND_SHAPE = 3.6;
+    const DIAG = Math.PI / 4;
+    const COS = Math.cos(DIAG);
+    const SIN = Math.sin(DIAG);
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -522,20 +526,41 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const k = (2 * Math.PI) / PITCH;
-    const base = { r: 0x2b, g: 0xc3, b: 0x51 };
+    const base = { r: 0x24, g: 0xb6, b: 0x44 };
+    const deep = { r: 0x19, g: 0x8f, b: 0x35 };
+    const weaveProfile = (t) => {
+      const wave = Math.sin(Math.PI * t);
+      const envelope = 1 - Math.pow(Math.abs(wave), STRAND_POWER);
+      return Math.pow(Math.max(0, envelope), STRAND_SHAPE);
+    };
+    const periodicNoise = (x, y) => {
+      const n1 = Math.sin(((x + y) * 2 * Math.PI) / 64);
+      const n2 = Math.sin(((x * 3 - y * 2) * 2 * Math.PI) / 96);
+      const n3 = Math.sin(((x * 5 + y * 7) * 2 * Math.PI) / 128);
+      return (n1 * 0.45 + n2 * 0.35 + n3 * 0.2) * 0.5;
+    };
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const s1 = Math.sin(k * (x + y));
-        const s2 = Math.sin(k * (x - y));
-        const a = Math.pow(Math.abs(s1), 0.85);
-        const b = Math.pow(Math.abs(s2), 0.85);
-        const ridge = (1 - a) + (1 - b);
-        const shade = AMP * (ridge - 1);
+        const u = (x * COS + y * SIN) / THREAD_PITCH;
+        const v = (x * COS - y * SIN) / THREAD_PITCH;
+        const warp = weaveProfile(u);
+        const weft = weaveProfile(v);
+        const cross = warp * weft;
+        const ridge = warp + weft;
+        const highlight = warp - weft;
+        const fiber = periodicNoise(x, y);
+        const weaveShade = 0.58 + ridge * 0.24 + cross * 0.26 + fiber * 0.08;
+        const toneMix = 0.42 + cross * 0.45;
+        const rBase = base.r * weaveShade * (0.92 + fiber * 0.04) + deep.r * toneMix;
+        const gBase = base.g * weaveShade * (0.94 + fiber * 0.05) + deep.g * toneMix;
+        const bBase = base.b * weaveShade * (0.9 + fiber * 0.04) + deep.b * toneMix;
+        const r = rBase + highlight * 28;
+        const g = gBase + highlight * 14;
+        const b = bBase - highlight * 18;
         const i = (y * SIZE + x) * 4;
-        data[i + 0] = clamp255(base.r + Math.round(255 * shade * 0.18));
-        data[i + 1] = clamp255(base.g + Math.round(255 * shade * 0.26));
-        data[i + 2] = clamp255(base.b + Math.round(255 * shade * 0.18));
+        data[i + 0] = clamp255(r);
+        data[i + 1] = clamp255(g);
+        data[i + 2] = clamp255(b);
         data[i + 3] = 255;
       }
     }
@@ -543,7 +568,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(32, 128);
+    colorMap.repeat.set(18, 72);
     colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -552,7 +577,36 @@ const createClothTextures = (() => {
     else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
-    const bumpMap = new THREE.CanvasTexture(canvas);
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = SIZE;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (!bumpCtx) {
+      cache = { map: colorMap, bump: null };
+      return cache;
+    }
+    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
+    const bumpData = bumpImage.data;
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const u = (x * COS + y * SIN) / THREAD_PITCH;
+        const v = (x * COS - y * SIN) / THREAD_PITCH;
+        const warp = weaveProfile(u);
+        const weft = weaveProfile(v);
+        const ridge = warp + weft;
+        const cross = warp * weft;
+        const height = 0.55 * cross + 0.45 * (ridge * 0.5);
+        const detail = periodicNoise(x, y) * 0.15;
+        const value = clamp255(128 + (height - 0.4) * 190 + detail * 80);
+        const i = (y * SIZE + x) * 4;
+        bumpData[i + 0] = value;
+        bumpData[i + 1] = value;
+        bumpData[i + 2] = value;
+        bumpData[i + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+
+    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
     bumpMap.anisotropy = colorMap.anisotropy;
@@ -1294,8 +1348,8 @@ function Table3D(parent) {
     clearcoat: 0.12,
     clearcoatRoughness: 0.46
   });
-  const baseRepeat = 32;
-  const repeatRatio = 128 / 32;
+  const baseRepeat = 18;
+  const repeatRatio = 4;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1304,17 +1358,17 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.042;
+    clothMat.bumpScale = 0.06;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.042;
+    clothMat.bumpScale = 0.06;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.15,
-    farRepeat: baseRepeat * 0.55,
+    nearRepeat: baseRepeat * 1.08,
+    farRepeat: baseRepeat * 0.52,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1690,11 +1744,11 @@ function Table3D(parent) {
 
   const frameOuterX = halfW + 2 * railW + frameWidth;
   const frameOuterZ = halfH + 2 * railW + frameWidth;
-  const skirtH = TABLE_H * 0.4;
-  const skirtT = railW * 0.8;
+  const skirtH = TABLE_H * 0.68;
+  const baseOverhang = railW * 2;
   const skirtShape = new THREE.Shape();
-  const outW = frameOuterX + skirtT * 0.2;
-  const outZ = frameOuterZ + skirtT * 0.2;
+  const outW = frameOuterX + baseOverhang;
+  const outZ = frameOuterZ + baseOverhang;
   skirtShape.moveTo(-outW, -outZ);
   skirtShape.lineTo(outW, -outZ);
   skirtShape.lineTo(outW, outZ);
@@ -1713,7 +1767,7 @@ function Table3D(parent) {
   });
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = -TABLE.THICK - skirtH * 0.8;
+  skirt.position.y = -TABLE.THICK - skirtH;
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   table.add(skirt);
