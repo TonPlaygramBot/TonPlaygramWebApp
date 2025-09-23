@@ -429,9 +429,11 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.32;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 0.95,
-  maxOutside: BALL_R * 32,
-  heightOffset: BALL_R * 5.1
+  minOutside: TABLE.WALL + POCKET_VIS_R * 1.05,
+  maxOutside: BALL_R * 34,
+  heightOffset: BALL_R * 5.6,
+  distanceBias: 1.08,
+  fovOffset: 2
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
 const SPIN_DECAY = 0.88;
@@ -442,7 +444,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.5; // boost cue strike strength by 50%
+const SHOT_FORCE_BOOST = 2.25; // boost cue strike strength by 150% overall
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -814,6 +816,7 @@ const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_HEIGHT_ZOOM_IN = 1.45;
 const CAMERA_HEIGHT_ZOOM_OUT = 1.1;
+const MANUAL_PHI_OFFSET_LIMIT = THREE.MathUtils.degToRad(10);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -1427,10 +1430,10 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 2.1;
+    clothMat.bumpScale = 2.5;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 2.1;
+    clothMat.bumpScale = 2.5;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -1606,7 +1609,7 @@ function Table3D(parent) {
     pocketMeshes.push(pocket);
   });
 
-  const railW = TABLE.WALL * 0.7;
+  const railW = TABLE.WALL * 0.7 * 0.75; // trim the side rails by 25%
   const railH = TABLE.THICK * RAIL_HEIGHT_MULTIPLIER;
   const frameWidth = railW * 1.9;
   const outerHalfW = halfW + 2 * railW + frameWidth;
@@ -1860,7 +1863,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.18;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.22;
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
@@ -2046,6 +2049,7 @@ function SnookerGame() {
   const orbitRadiusLimitRef = useRef(null);
   const lockedOrbitRadiusRef = useRef(null);
   const lockedOrbitPhiRef = useRef(null);
+  const manualPhiOffsetRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -2409,6 +2413,9 @@ function SnookerGame() {
             standing.radius,
             blend
           );
+          if (topViewRef.current) {
+            manualPhiOffsetRef.current = 0;
+          }
           const manualPhiLimit = topViewRef.current
             ? CAMERA.maxPhi
             : Math.max(
@@ -2418,8 +2425,14 @@ function SnookerGame() {
                   CAMERA.maxPhi
                 )
               );
+          const manualLimit = MANUAL_PHI_OFFSET_LIMIT;
+          const manualOffset = THREE.MathUtils.clamp(
+            manualPhiOffsetRef.current ?? 0,
+            -manualLimit,
+            manualLimit
+          );
           const phiForClamp = THREE.MathUtils.clamp(
-            rawPhi,
+            rawPhi + manualOffset,
             CAMERA.minPhi,
             manualPhiLimit
           );
@@ -2501,6 +2514,11 @@ function SnookerGame() {
           const safePhi = Math.min(phiForClamp, finalPhiLimit);
           sph.phi = clamp(safePhi, CAMERA.minPhi, finalPhiLimit);
           sph.radius = radius;
+          manualPhiOffsetRef.current = THREE.MathUtils.clamp(
+            manualOffset,
+            -manualLimit,
+            manualLimit
+          );
           syncBlendToSpherical();
         };
 
@@ -2537,8 +2555,9 @@ function SnookerGame() {
               activeShotView.minOutside ?? POCKET_CAM.minOutside;
             const maxOutside =
               activeShotView.maxOutside ?? POCKET_CAM.maxOutside;
+            const bias = activeShotView.distanceBias ?? 1;
             const dynamicOffset = THREE.MathUtils.clamp(
-              distToPocket + BALL_R * 2.4,
+              (distToPocket + BALL_R * 2.4) * bias,
               minOutside,
               maxOutside
             );
@@ -2630,7 +2649,7 @@ function SnookerGame() {
             camera.lookAt(lookTarget);
           }
           if (activeShotView?.mode === 'pocket' || topViewRef.current) {
-            const targetFov = STANDING_VIEW_FOV;
+            const targetFov = STANDING_VIEW_FOV + (activeShotView.fovOffset ?? 0);
             if (Math.abs(camera.fov - targetFov) > 1e-3) {
               camera.fov = targetFov;
               camera.updateProjectionMatrix();
@@ -2698,6 +2717,9 @@ function SnookerGame() {
           theta,
           duration = 600
         } = {}) => {
+          if (phi !== undefined) {
+            manualPhiOffsetRef.current = 0;
+          }
           if (radius !== undefined) {
             radius = clampOrbitRadius(radius);
           }
@@ -2730,6 +2752,7 @@ function SnookerGame() {
           if (!view) return;
           const sph = sphRef.current;
           if (!sph) return;
+          manualPhiOffsetRef.current = 0;
           const orbit =
             view.resumeOrbit ??
             view.orbitSnapshot ??
@@ -2825,6 +2848,8 @@ function SnookerGame() {
             minOutside: POCKET_CAM.minOutside,
             maxOutside: POCKET_CAM.maxOutside,
             heightOffset,
+            distanceBias: POCKET_CAM.distanceBias ?? 1,
+            fovOffset: POCKET_CAM.fovOffset ?? 0,
             lastBallPos: pos.clone(),
             score: bestScore,
             resume: followView,
@@ -2972,6 +2997,12 @@ function SnookerGame() {
             const phiDelta = dy * 0.0025;
             const blendDelta =
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
+            const manualLimit = MANUAL_PHI_OFFSET_LIMIT;
+            manualPhiOffsetRef.current = THREE.MathUtils.clamp(
+              manualPhiOffsetRef.current + phiDelta * 0.6,
+              -manualLimit,
+              manualLimit
+            );
             applyCameraBlend(cameraBlendRef.current - blendDelta);
             updateCamera();
             registerInteraction();
@@ -3010,6 +3041,12 @@ function SnookerGame() {
             const dir = e.code === 'ArrowUp' ? -1 : 1;
             const blendDelta =
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
+            const manualLimit = MANUAL_PHI_OFFSET_LIMIT;
+            manualPhiOffsetRef.current = THREE.MathUtils.clamp(
+              manualPhiOffsetRef.current + step * dir * 0.6,
+              -manualLimit,
+              manualLimit
+            );
             applyCameraBlend(cameraBlendRef.current - blendDelta);
           } else return;
           registerInteraction();
