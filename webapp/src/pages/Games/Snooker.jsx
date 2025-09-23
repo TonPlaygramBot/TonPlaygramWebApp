@@ -2005,9 +2005,11 @@ function SnookerGame() {
   });
   const rendererRef = useRef(null);
   const worldScaleFactorRef = useRef(1);
+  const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
+  const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
@@ -2162,6 +2164,63 @@ function SnookerGame() {
 
   // Removed camera rotation helpers previously triggered by UI buttons
 
+  const toggleView = () => {
+    const cam = cameraRef.current;
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (!cam || !sph || !fit) return;
+    const next = !topViewRef.current;
+    const start = {
+      radius: sph.radius,
+      phi: sph.phi,
+      theta: sph.theta
+    };
+    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
+      const targetMargin = next
+        ? 1.05
+        : window.innerHeight > window.innerWidth
+          ? 1.6
+          : 1.4;
+    const targetRadius = fitRadius(cam, targetMargin);
+    const target = {
+      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
+      phi: next ? 0.0001 : last3DRef.current.phi,
+      theta: next ? sph.theta : last3DRef.current.theta
+    };
+    const duration = 600;
+    const t0 = performance.now();
+    function anim(t) {
+      const k = Math.min(1, (t - t0) / duration);
+      const ease = k * (2 - k);
+      sph.radius = start.radius + (target.radius - start.radius) * ease;
+      sph.phi = start.phi + (target.phi - start.phi) * ease;
+      sph.theta = start.theta + (target.theta - start.theta) * ease;
+      const scale = worldScaleFactorRef.current ?? 1;
+      const targetPos = new THREE.Vector3(
+        playerOffsetRef.current,
+        TABLE_Y + 0.05,
+        0
+      ).multiplyScalar(scale);
+      const tmpSphAnim = sph.clone
+        ? sph.clone()
+        : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
+      cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
+      cam.lookAt(targetPos);
+      if (k < 1) requestAnimationFrame(anim);
+      else {
+        topViewRef.current = next;
+        setTopView(next);
+        if (rendererRef.current) {
+          rendererRef.current.domElement.style.transform = next
+            ? 'scale(0.82)'
+            : 'scale(1)';
+        }
+        fit(targetMargin);
+      }
+    }
+    requestAnimationFrame(anim);
+  };
+
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
@@ -2214,7 +2273,6 @@ function SnookerGame() {
       );
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
-      renderer.domElement.style.transform = 'scale(1)';
 
       // Scene & Camera
       const scene = new THREE.Scene();
@@ -2374,7 +2432,7 @@ function SnookerGame() {
           );
           cameraBlendRef.current = blend;
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
-          const baseRadiusRaw = THREE.MathUtils.lerp(
+          const baseRadius = THREE.MathUtils.lerp(
             cueShot.radius,
             standing.radius,
             blend
@@ -2384,8 +2442,23 @@ function SnookerGame() {
             CAMERA.minPhi,
             CAMERA.maxPhi
           );
-          const baseRadius = clampOrbitRadius(baseRadiusRaw);
-          let radius = baseRadius;
+          let radius = clampOrbitRadius(baseRadius);
+          if (!topViewRef.current) {
+            const scale = worldScaleFactor || 1;
+            const sinPhi = Math.sin(phiForClamp);
+            const sinTheta = Math.sin(sph.theta);
+            const reachX = CAMERA_RAIL_REACH_X * scale;
+            if (reachX > 0) {
+              const denomX = Math.abs(sinPhi * sinTheta);
+              if (denomX > 1e-4) {
+                const horizontalX = Math.abs(radius * sinPhi * sinTheta);
+                if (horizontalX < reachX) {
+                  radius = Math.max(radius, reachX / denomX);
+                }
+              }
+            }
+          }
+          radius = clampOrbitRadius(radius);
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK - 0.05,
@@ -2731,7 +2804,7 @@ function SnookerGame() {
           const standingRadiusRaw = fitRadius(camera, m);
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const standingRadiusBase = Math.max(standingRadiusRaw, cueBase);
-          const computedStandingRadius = clampOrbitRadius(
+          const standingRadius = clampOrbitRadius(
             Math.max(standingRadiusBase * STANDING_RADIUS_SCALE, cueBase)
           );
           const standingPhi = THREE.MathUtils.clamp(
@@ -2741,11 +2814,10 @@ function SnookerGame() {
           );
           const cueRadius = clampOrbitRadius(
             Math.max(
-              computedStandingRadius * CUE_VIEW_RADIUS_RATIO * CUE_RADIUS_SCALE,
+              standingRadius * CUE_VIEW_RADIUS_RATIO * CUE_RADIUS_SCALE,
               CUE_VIEW_MIN_RADIUS
             )
           );
-          const standingRadius = cueRadius;
           const cuePhi = THREE.MathUtils.clamp(
             CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
             CAMERA.minPhi,
@@ -2774,6 +2846,7 @@ function SnookerGame() {
         sphRef.current = sph;
         fitRef.current = fit;
         topViewRef.current = false;
+        setTopView(false);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
@@ -4117,6 +4190,22 @@ function SnookerGame() {
         </div>
       )}
 
+      {/* View toggle */}
+      <div className="absolute left-3 bottom-24 z-50">
+        <button
+          type="button"
+          onClick={toggleView}
+          className="bg-black/70 border border-white/40 text-white text-xs font-semibold tracking-widest uppercase rounded-full px-3 py-1 shadow-md"
+          style={{
+            transform: `scale(${UI_SCALE})`,
+            transformOrigin: 'bottom left'
+          }}
+          aria-pressed={topView}
+          title={topView ? 'Switch to 3D view' : 'Switch to 2D top view'}
+        >
+          {topView ? '3D' : '2D'}
+        </button>
+      </div>
       {/* Power Slider */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2">
         <div
