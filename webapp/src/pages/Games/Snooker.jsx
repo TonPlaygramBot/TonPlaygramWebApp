@@ -433,9 +433,9 @@ const POCKET_CAM = Object.freeze({
   maxOutside: BALL_R * 32,
   heightOffset: BALL_R * 5.1
 });
-const SPIN_STRENGTH = BALL_R * 0.5;
+const SPIN_STRENGTH = BALL_R * 0.25;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
@@ -461,6 +461,7 @@ const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
+const BALL_WORLD_CENTER_Y = TABLE_Y + BALL_CENTER_Y;
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
@@ -480,10 +481,10 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.3;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
-const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
-const MAX_SPIN_FORWARD = BALL_R * 0.88;
-const MAX_SPIN_SIDE = BALL_R * 0.62;
-const MAX_SPIN_VERTICAL = BALL_R * 0.48;
+const MAX_SPIN_CONTACT_OFFSET = Math.max(0, (BALL_R - CUE_TIP_RADIUS) * 0.5);
+const MAX_SPIN_FORWARD = BALL_R * 0.44;
+const MAX_SPIN_SIDE = BALL_R * 0.31;
+const MAX_SPIN_VERTICAL = BALL_R * 0.24;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
@@ -516,6 +517,11 @@ const COLORS = Object.freeze({
 const createClothTextures = (() => {
   let cache = null;
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
+  const applyContrast = (value, strength = 1) => {
+    if (strength === 1) return clamp255(value);
+    const pivot = 128;
+    return clamp255((value - pivot) * strength + pivot);
+  };
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
@@ -529,6 +535,12 @@ const createClothTextures = (() => {
     const STRAND_SHAPE = 5.35;
     const DETAIL_ANCHOR = 0.58;
     const MICRO_THREAD = 0.11;
+    const WEAVE_SHADE_BOOST = 1.12;
+    const THREAD_HIGHLIGHT_BOOST = 1.2;
+    const PATTERN_CONTRAST = 1.4;
+    const COLOR_CONTRAST = 1.18;
+    const BUMP_HEIGHT_SCALE = 1080;
+    const BUMP_DETAIL_SCALE = 220;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -568,30 +580,43 @@ const createClothTextures = (() => {
         const threadTension = Math.sin(
           ((x - y) * 2 * Math.PI) / (THREAD_PITCH * 0.5)
         ) * MICRO_THREAD;
-        const weaveShade =
+        const weaveShadeBase =
           0.62 + ridge * 0.6 + cross * 0.88 + (fiber + threadTension) * 0.26;
-        const toneMix = Math.min(1, Math.max(0, 0.18 + cross * 0.82 + ridge * 0.18));
-        const highlightMix = Math.pow(Math.max(0, ridge - 0.12), 1.28);
+        const weaveShade = Math.min(1.45, weaveShadeBase * WEAVE_SHADE_BOOST);
+        const toneMix = Math.min(
+          1,
+          Math.max(0, 0.12 + cross * 0.92 + ridge * 0.2)
+        );
+        const highlightMix =
+          Math.pow(Math.max(0, ridge - 0.12), 1.18) * THREAD_HIGHLIGHT_BOOST;
         const variation = fiber * DETAIL_ANCHOR;
         const rBase = THREE.MathUtils.lerp(base.r, deep.r, toneMix);
         const gBase = THREE.MathUtils.lerp(base.g, deep.g, toneMix * 0.9);
         const bBase = THREE.MathUtils.lerp(base.b, deep.b, toneMix * 0.96);
         const highlightLift = {
           r: highlight.r * highlightMix,
-          g: highlight.g * highlightMix * 1.24,
-          b: highlight.b * highlightMix * 0.52
+          g: highlight.g * highlightMix * 1.32,
+          b: highlight.b * highlightMix * 0.58
         };
-        const shadeVariation = 0.9 + variation * 0.72;
-        const gShadeVariation = 1 + variation * 0.86;
-        const intensity = (warp - weft) * 2.1;
-        const r = (rBase * weaveShade * shadeVariation + highlightLift.r) + intensity * 30;
-        const g = (gBase * weaveShade * gShadeVariation + highlightLift.g) + intensity * 20;
-        const b = (bBase * weaveShade * (0.92 + variation * 0.48) + highlightLift.b) -
-          intensity * 26;
+        const shadeVariation = 0.94 + variation * 0.9;
+        const gShadeVariation = 1.04 + variation * 1.05;
+        const intensity = (warp - weft) * (2.1 * PATTERN_CONTRAST);
+        const r =
+          rBase * weaveShade * shadeVariation +
+          highlightLift.r +
+          intensity * 30 * PATTERN_CONTRAST;
+        const g =
+          gBase * weaveShade * gShadeVariation +
+          highlightLift.g +
+          intensity * 20 * PATTERN_CONTRAST;
+        const b =
+          bBase * weaveShade * (0.92 + variation * 0.58) +
+          highlightLift.b -
+          intensity * 26 * PATTERN_CONTRAST;
         const i = (y * SIZE + x) * 4;
-        data[i + 0] = clamp255(r);
-        data[i + 1] = clamp255(g);
-        data[i + 2] = clamp255(b);
+        data[i + 0] = applyContrast(r, COLOR_CONTRAST);
+        data[i + 1] = applyContrast(g, COLOR_CONTRAST);
+        data[i + 2] = applyContrast(b, COLOR_CONTRAST);
         data[i + 3] = 255;
       }
     }
@@ -628,7 +653,9 @@ const createClothTextures = (() => {
         const microContrast = periodicNoise(x * 1.8, y * 1.6) * 0.18;
         const height = 0.88 * cross + 0.28 * ridge + microContrast;
         const detail = periodicNoise(x, y) * 0.18;
-        const value = clamp255(130 + (height - 0.45) * 820 + detail * 160);
+        const value = clamp255(
+          130 + (height - 0.45) * BUMP_HEIGHT_SCALE + detail * BUMP_DETAIL_SCALE
+        );
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1400,17 +1427,17 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 1.48;
+    clothMat.bumpScale = 2.1;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 1.48;
+    clothMat.bumpScale = 2.1;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 0.82,
-    farRepeat: baseRepeat * 0.5,
+    nearRepeat: baseRepeat * 0.9,
+    farRepeat: baseRepeat * 0.58,
     bumpScale: clothMat.bumpScale
   };
 
@@ -2338,7 +2365,7 @@ function SnookerGame() {
           }
           const store = ensureOrbitFocus();
           store.ballId = ball.id;
-          store.target.set(ball.pos.x, BALL_CENTER_Y, ball.pos.y);
+          store.target.set(ball.pos.x, BALL_WORLD_CENTER_Y, ball.pos.y);
         };
 
         const getMaxOrbitRadius = () =>
@@ -2531,12 +2558,12 @@ function SnookerGame() {
             const focusTarget = focusBall?.active
               ? new THREE.Vector3(
                   focusBall.pos.x,
-                  BALL_CENTER_Y,
+                  BALL_WORLD_CENTER_Y,
                   focusBall.pos.y
                 )
               : new THREE.Vector3(
                   activeShotView.lastBallPos.x,
-                  BALL_CENTER_Y,
+                  BALL_WORLD_CENTER_Y,
                   activeShotView.lastBallPos.y
                 );
             focusTarget.multiplyScalar(worldScaleFactor);
@@ -2573,7 +2600,11 @@ function SnookerGame() {
             ) {
               focusTarget = aimFocus.clone();
             } else if (cue?.active && !shooting) {
-              focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+              focusTarget = new THREE.Vector3(
+                cue.pos.x,
+                BALL_WORLD_CENTER_Y,
+                cue.pos.y
+              );
             } else {
               const store = ensureOrbitFocus();
               if (store.ballId) {
@@ -2583,7 +2614,7 @@ function SnookerGame() {
                 if (focusBall?.active) {
                   store.target.set(
                     focusBall.pos.x,
-                    BALL_CENTER_Y,
+                    BALL_WORLD_CENTER_Y,
                     focusBall.pos.y
                   );
                 } else {
