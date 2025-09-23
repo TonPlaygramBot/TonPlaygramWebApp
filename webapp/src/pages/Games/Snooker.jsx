@@ -410,6 +410,7 @@ const POCKET_JAW_LIP_HEIGHT =
 const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // lift pockets slightly higher so the rims stay visible from shallow angles
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -457,7 +458,7 @@ const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 1.6; // extend the apron downward so the base grows vertically instead of sideways
+const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SIDE_POST_CLEARANCE = 0.18; // keep the side posts slightly above the floor
 const SIDE_POST_SPREAD = 0.55; // how far towards each end the vertical side posts sit
@@ -516,9 +517,9 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 11.5;
-    const STRAND_POWER = 0.72;
-    const STRAND_SHAPE = 3.6;
+    const THREAD_PITCH = 18;
+    const STRAND_POWER = 0.58;
+    const STRAND_SHAPE = 3.1;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -551,18 +552,19 @@ const createClothTextures = (() => {
         const v = (x * COS - y * SIN) / THREAD_PITCH;
         const warp = weaveProfile(u);
         const weft = weaveProfile(v);
-        const cross = warp * weft;
         const ridge = warp + weft;
-        const highlight = warp - weft;
+        const cross = warp * weft;
         const fiber = periodicNoise(x, y);
-        const weaveShade = 0.58 + ridge * 0.24 + cross * 0.26 + fiber * 0.08;
-        const toneMix = 0.42 + cross * 0.45;
-        const rBase = base.r * weaveShade * (0.92 + fiber * 0.04) + deep.r * toneMix;
-        const gBase = base.g * weaveShade * (0.94 + fiber * 0.05) + deep.g * toneMix;
-        const bBase = base.b * weaveShade * (0.9 + fiber * 0.04) + deep.b * toneMix;
-        const r = rBase + highlight * 28;
-        const g = gBase + highlight * 14;
-        const b = bBase - highlight * 18;
+        const weaveShade = 0.52 + ridge * 0.34 + cross * 0.3 + fiber * 0.16;
+        const toneMix = 0.36 + cross * 0.5;
+        const detailBoost = 0.07;
+        const rBase = base.r * weaveShade * (0.9 + fiber * detailBoost) + deep.r * toneMix;
+        const gBase = base.g * weaveShade * (0.92 + fiber * (detailBoost + 0.02)) + deep.g * toneMix;
+        const bBase = base.b * weaveShade * (0.88 + fiber * (detailBoost - 0.01)) + deep.b * toneMix;
+        const intensity = (warp - weft) * 0.9;
+        const r = rBase + intensity * 34;
+        const g = gBase + intensity * 18;
+        const b = bBase - intensity * 24;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -600,9 +602,9 @@ const createClothTextures = (() => {
         const weft = weaveProfile(v);
         const ridge = warp + weft;
         const cross = warp * weft;
-        const height = 0.55 * cross + 0.45 * (ridge * 0.5);
-        const detail = periodicNoise(x, y) * 0.15;
-        const value = clamp255(128 + (height - 0.4) * 190 + detail * 80);
+        const height = 0.62 * cross + 0.38 * ridge * 0.5;
+        const detail = periodicNoise(x, y) * 0.22;
+        const value = clamp255(128 + (height - 0.42) * 240 + detail * 120);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -715,7 +717,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.78;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.8;
+const STANDING_VIEW_MARGIN = 0.74;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -724,7 +726,7 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.74,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.68,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
@@ -741,7 +743,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 72 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 66 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -1354,8 +1356,8 @@ function Table3D(parent) {
     clearcoat: 0.12,
     clearcoatRoughness: 0.46
   });
-  const baseRepeat = 18;
-  const repeatRatio = 4;
+  const baseRepeat = 12;
+  const repeatRatio = 3.8;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1364,17 +1366,17 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.06;
+    clothMat.bumpScale = 0.12;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.06;
+    clothMat.bumpScale = 0.12;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.08,
-    farRepeat: baseRepeat * 0.52,
+    nearRepeat: baseRepeat * 1.3,
+    farRepeat: baseRepeat * 0.58,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1577,8 +1579,20 @@ function Table3D(parent) {
     const xIn = signX < 0 ? xInL : xInR;
     const xOut = signX < 0 ? -outerHalfW : outerHalfW;
     const shape = new THREE.Shape();
-    shape.moveTo(xOut, -outerHalfH);
-    shape.lineTo(xOut, outerHalfH);
+    const edgeRadius = Math.min(
+      railW * RAIL_OUTER_EDGE_RADIUS_RATIO,
+      Math.abs(outerHalfH) * 0.4
+    );
+    const radius = Math.max(edgeRadius, 0);
+    const startX = xOut - signX * radius;
+    shape.moveTo(startX, -outerHalfH);
+    if (radius > 0) {
+      shape.quadraticCurveTo(xOut, -outerHalfH, xOut, -outerHalfH + radius);
+      shape.lineTo(xOut, outerHalfH - radius);
+      shape.quadraticCurveTo(xOut, outerHalfH, xOut - signX * radius, outerHalfH);
+    } else {
+      shape.lineTo(xOut, outerHalfH);
+    }
     shape.lineTo(xIn, outerHalfH);
     addCornerArcLong(shape, signX, 1);
     (function () {
@@ -1601,7 +1615,11 @@ function Table3D(parent) {
     })();
     addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
-    shape.lineTo(xOut, -outerHalfH);
+    if (radius > 0) {
+      shape.lineTo(startX, -outerHalfH);
+    } else {
+      shape.lineTo(xOut, -outerHalfH);
+    }
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
@@ -1618,8 +1636,20 @@ function Table3D(parent) {
     const zIn = signZ < 0 ? zInB : zInT;
     const zOut = signZ < 0 ? -outerHalfH : outerHalfH;
     const shape = new THREE.Shape();
-    shape.moveTo(-outerHalfW, zOut);
-    shape.lineTo(outerHalfW, zOut);
+    const edgeRadius = Math.min(
+      railW * RAIL_OUTER_EDGE_RADIUS_RATIO,
+      Math.abs(outerHalfW) * 0.4
+    );
+    const radius = Math.max(edgeRadius, 0);
+    const startZ = zOut - signZ * radius;
+    shape.moveTo(-outerHalfW, startZ);
+    if (radius > 0) {
+      shape.quadraticCurveTo(-outerHalfW, zOut, -outerHalfW + radius, zOut);
+      shape.lineTo(outerHalfW - radius, zOut);
+      shape.quadraticCurveTo(outerHalfW, zOut, outerHalfW, zOut - signZ * radius);
+    } else {
+      shape.lineTo(outerHalfW, zOut);
+    }
     shape.lineTo(outerHalfW, zIn);
     addCornerArcEnd(shape, signZ, 1);
     const cxL = -halfW;
@@ -1629,7 +1659,11 @@ function Table3D(parent) {
     shape.lineTo(cxL - dx, zIn);
     addCornerArcEnd(shape, signZ, -1);
     shape.lineTo(-outerHalfW, zIn);
-    shape.lineTo(-outerHalfW, zOut);
+    if (radius > 0) {
+      shape.lineTo(-outerHalfW, startZ);
+    } else {
+      shape.lineTo(-outerHalfW, zOut);
+    }
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
@@ -1773,7 +1807,7 @@ function Table3D(parent) {
   });
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = -TABLE.THICK - skirtH;
+  skirt.position.y = frameTopY - skirtH + MICRO_EPS * 0.5;
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   table.add(skirt);
