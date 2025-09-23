@@ -1876,7 +1876,10 @@ function Table3D(parent) {
 
     const EDGE_BIAS = MICRO_EPS;
     if (horizontal) {
-      group.position.z = z > 0 ? halfH + EDGE_BIAS : -halfH - EDGE_BIAS;
+      const direction = z >= 0 ? 1 : -1;
+      const faceOffset = Math.max(0, LONG_CUSHION_FACE_SHIFT);
+      group.position.z =
+        direction * (halfH - faceOffset) + EDGE_BIAS * direction;
     } else {
       group.position.x = x > 0 ? halfW + EDGE_BIAS : -halfW - EDGE_BIAS;
     }
@@ -1890,7 +1893,10 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.22;
-  const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.12;
+  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.18;
+  const horizLen =
+    PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
@@ -2714,10 +2720,23 @@ function SnookerGame() {
           if (clothMat && lookTarget) {
             const dist = camera.position.distanceTo(lookTarget);
             const fade = THREE.MathUtils.clamp((150 - dist) / 70, 0, 1);
+            const phiRange = Math.max(1e-5, CAMERA.maxPhi - CAMERA.minPhi);
+            const phiRatio = THREE.MathUtils.clamp(
+              (sph.phi - CAMERA.minPhi) / phiRange,
+              0,
+              1
+            );
+            const lowHeightFactor = THREE.MathUtils.smoothstep(0, 1, 1 - phiRatio);
             const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
             const farRepeat = clothMat.userData?.farRepeat ?? 18;
             const ratio = clothMat.userData?.repeatRatio ?? 1;
-            const targetRepeat = THREE.MathUtils.lerp(farRepeat, nearRepeat, fade);
+            const repeatBoost = THREE.MathUtils.lerp(1, 1.28, lowHeightFactor);
+            const targetRepeatBase = THREE.MathUtils.lerp(
+              farRepeat,
+              nearRepeat,
+              fade
+            );
+            const targetRepeat = targetRepeatBase * repeatBoost;
             const targetRepeatY = targetRepeat * ratio;
             if (clothMat.map) {
               clothMat.map.repeat.set(targetRepeat, targetRepeatY);
@@ -2727,7 +2746,9 @@ function SnookerGame() {
             }
             if (Number.isFinite(clothMat.userData?.bumpScale)) {
               const base = clothMat.userData.bumpScale;
-              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.75, base * 2.05, fade);
+              const distBump = THREE.MathUtils.lerp(base * 0.75, base * 2.05, fade);
+              const heightBoost = THREE.MathUtils.lerp(1, 1.48, lowHeightFactor);
+              clothMat.bumpScale = distBump * heightBoost;
             }
           }
         };
