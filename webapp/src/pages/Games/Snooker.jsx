@@ -1276,15 +1276,20 @@ function updateRailLimitsFromTable(table) {
 
 function Table3D(parent) {
   const table = new THREE.Group();
+  table.userData = table.userData || {};
+  table.userData.cushions = [];
+
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
   const baulkLineZ = -PLAY_H / 4;
+  const frameTopY = FRAME_TOP_Y;
+  const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     roughness: 0.92,
-    sheen: 1.0,
+    sheen: 1,
     sheenRoughness: 0.72,
     clearcoat: 0.12,
     clearcoatRoughness: 0.46
@@ -1325,12 +1330,6 @@ function Table3D(parent) {
     roughness: 0.8
   });
 
-  const frameTopY = FRAME_TOP_Y;
-  const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
-
-  const POCKET_TOP_R = POCKET_VIS_R * 1;
-  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.7;
-
   const clothExtend = Math.max(TABLE.WALL * 0.18, Math.min(PLAY_W, PLAY_H) * 0.0055);
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
@@ -1342,7 +1341,7 @@ function Table3D(parent) {
   clothShape.lineTo(-halfWext, -halfHext);
   pocketCenters().forEach((p) => {
     const hole = new THREE.Path();
-    hole.absellipse(p.x, p.y, POCKET_TOP_R * 0.96, POCKET_TOP_R * 0.96, 0, Math.PI * 2);
+    hole.absellipse(p.x, p.y, POCKET_VIS_R * 0.96, POCKET_VIS_R * 0.96, 0, Math.PI * 2);
     clothShape.holes.push(hole);
   });
   const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
@@ -1383,18 +1382,20 @@ function Table3D(parent) {
   dArc.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(dArc);
 
-  const spotRadius = Math.max(BALL_R * 0.14, 0.22);
-  const spotGeom = new THREE.CircleGeometry(spotRadius, 48);
-  const spotMat = markingMat.clone();
-  spotMat.opacity = 0.95;
-  const spotMap = spotPositions(baulkLineZ);
-  Object.values(spotMap).forEach(([sx, sz]) => {
-    const spot = new THREE.Mesh(spotGeom, spotMat);
+  const spotRadius = BALL_R * 0.26;
+  const addSpot = (x, z) => {
+    const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
+    const spot = new THREE.Mesh(spotGeo, markingMat.clone());
     spot.rotation.x = -Math.PI / 2;
-    spot.position.set(sx, markingHeight, sz);
+    spot.position.set(x, markingHeight, z);
     markingsGroup.add(spot);
-  });
-
+  };
+  addSpot(-PLAY_W * 0.25, baulkLineZ);
+  addSpot(0, baulkLineZ);
+  addSpot(PLAY_W * 0.25, baulkLineZ);
+  addSpot(0, 0);
+  addSpot(0, PLAY_H * 0.25);
+  addSpot(0, PLAY_H * 0.5 - POCKET_VIS_R * 1.3);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -1404,6 +1405,8 @@ function Table3D(parent) {
   });
   table.add(markingsGroup);
 
+  const POCKET_TOP_R = POCKET_VIS_R;
+  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.7;
   const ringGeo = new THREE.RingGeometry(POCKET_TOP_R * 0.7, POCKET_TOP_R * 1.02, 64);
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
@@ -1417,7 +1420,7 @@ function Table3D(parent) {
     metalness: 0.2,
     roughness: 0.7
   });
-  const lipTubeR = Math.min(POCKET_TOP_R * 0.085, TABLE.THICK * 0.012);
+  const lipTubeR = Math.min(POCKET_TOP_R * 0.085, BALL_R * 0.18);
   const pocketGeo = new THREE.CylinderGeometry(POCKET_TOP_R, POCKET_BOTTOM_R, TABLE.THICK, 48);
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
@@ -1425,20 +1428,24 @@ function Table3D(parent) {
     roughness: 0.4
   });
   const pocketMeshes = [];
+  const ringLift = BALL_R * 0.068;
+  const lipLift = BALL_R * 0.061;
   pocketCenters().forEach((p) => {
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(p.x, clothPlaneLocal + CLOTH_THICKNESS * 0.18, p.y);
+    ring.position.set(p.x, clothPlaneLocal + ringLift, p.y);
     ring.renderOrder = cloth.renderOrder + 2;
     table.add(ring);
 
-    const torus = new THREE.Mesh(
+    const lip = new THREE.Mesh(
       new THREE.TorusGeometry(POCKET_TOP_R * 0.98, lipTubeR, 24, 64),
       lipMat
     );
-    torus.rotation.x = -Math.PI / 2;
-    torus.position.set(p.x, clothPlaneLocal + CLOTH_THICKNESS * 0.16, p.y);
-    table.add(torus);
+    lip.rotation.x = -Math.PI / 2;
+    lip.position.set(p.x, clothPlaneLocal + lipLift, p.y);
+    lip.castShadow = false;
+    lip.receiveShadow = true;
+    table.add(lip);
 
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, clothPlaneLocal - TABLE.THICK / 2, p.y);
@@ -1449,20 +1456,18 @@ function Table3D(parent) {
 
   const railW = TABLE.WALL * 0.7;
   const railH = TABLE.THICK * 1.82;
-  const FRAME_W = railW * 2.5;
-  const outerHalfW = halfW + 2 * railW + FRAME_W;
-  const outerHalfH = halfH + 2 * railW + FRAME_W;
+  const frameWidth = railW * 2.5;
+  const outerHalfW = halfW + 2 * railW + frameWidth;
+  const outerHalfH = halfH + 2 * railW + frameWidth;
   const CUSHION_BACK = railW * 0.5;
   const railsGroup = new THREE.Group();
   const NOTCH_R = POCKET_TOP_R * 1.02;
   const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
   const xInR = halfW + CUSHION_BACK - MICRO_EPS;
-  const xOutL = -outerHalfW;
-  const xOutR = outerHalfW;
-  const zOutB = -outerHalfH;
-  const zOutT = outerHalfH;
+  const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
+  const zInT = halfH + CUSHION_BACK - MICRO_EPS;
 
-  function addCornerArcLongFull(shape, signX, signZ) {
+  function addCornerArcLong(shape, signX, signZ) {
     const xIn = signX < 0 ? xInL : xInR;
     const cx = signX < 0 ? -halfW : halfW;
     const cz = signZ < 0 ? -halfH : halfH;
@@ -1485,8 +1490,8 @@ function Table3D(parent) {
     shape.lineTo(xIn, endZ);
   }
 
-  function addCornerArcEndFull(shape, signZ, signX) {
-    const zIn = signZ < 0 ? -(halfH + CUSHION_BACK - MICRO_EPS) : halfH + CUSHION_BACK - MICRO_EPS;
+  function addCornerArcEnd(shape, signZ, signX) {
+    const zIn = signZ < 0 ? zInB : zInT;
     const cx = signX < 0 ? -halfW : halfW;
     const cz = signZ < 0 ? -halfH : halfH;
     const v = Math.abs(zIn - cz);
@@ -1510,12 +1515,12 @@ function Table3D(parent) {
 
   function buildLongRail(signX) {
     const xIn = signX < 0 ? xInL : xInR;
-    const xOut = signX < 0 ? xOutL : xOutR;
+    const xOut = signX < 0 ? -outerHalfW : outerHalfW;
     const shape = new THREE.Shape();
-    shape.moveTo(xOut, zOutB);
-    shape.lineTo(xOut, zOutT);
-    shape.lineTo(xIn, zOutT);
-    addCornerArcLongFull(shape, signX, 1);
+    shape.moveTo(xOut, -outerHalfH);
+    shape.lineTo(xOut, outerHalfH);
+    shape.lineTo(xIn, outerHalfH);
+    addCornerArcLong(shape, signX, 1);
     (function () {
       const cx = signX < 0 ? -halfW : halfW;
       const u = Math.abs(xIn - cx);
@@ -1534,9 +1539,9 @@ function Table3D(parent) {
       }
       shape.lineTo(xIn, zBot);
     })();
-    addCornerArcLongFull(shape, signX, -1);
-    shape.lineTo(xIn, zOutB);
-    shape.lineTo(xOut, zOutB);
+    addCornerArcLong(shape, signX, -1);
+    shape.lineTo(xIn, -outerHalfH);
+    shape.lineTo(xOut, -outerHalfH);
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
@@ -1550,20 +1555,19 @@ function Table3D(parent) {
   }
 
   function buildEndRail(signZ) {
-    const sign = signZ < 0 ? -1 : 1;
-    const zIn = sign * (halfH + CUSHION_BACK - MICRO_EPS);
-    const zOut = sign * outerHalfH;
+    const zIn = signZ < 0 ? zInB : zInT;
+    const zOut = signZ < 0 ? -outerHalfH : outerHalfH;
     const shape = new THREE.Shape();
     shape.moveTo(-outerHalfW, zOut);
     shape.lineTo(outerHalfW, zOut);
     shape.lineTo(outerHalfW, zIn);
-    addCornerArcEndFull(shape, sign, 1);
+    addCornerArcEnd(shape, signZ, 1);
     const cxL = -halfW;
-    const v = Math.abs(zIn - (sign < 0 ? -halfH : halfH));
+    const v = Math.abs(zIn - (signZ < 0 ? -halfH : halfH));
     const R = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
     shape.lineTo(cxL - dx, zIn);
-    addCornerArcEndFull(shape, sign, -1);
+    addCornerArcEnd(shape, signZ, -1);
     shape.lineTo(-outerHalfW, zIn);
     shape.lineTo(-outerHalfW, zOut);
     shape.closePath();
@@ -1644,8 +1648,6 @@ function Table3D(parent) {
     return geo;
   }
 
-  table.userData.cushions = [];
-
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
@@ -1686,18 +1688,18 @@ function Table3D(parent) {
   addCushion(rightX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, true);
   addCushion(rightX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, true);
 
+  const frameOuterX = halfW + 2 * railW + frameWidth;
+  const frameOuterZ = halfH + 2 * railW + frameWidth;
   const skirtH = TABLE_H * 0.4;
   const skirtT = railW * 0.8;
   const skirtShape = new THREE.Shape();
-  const frameOuterX = halfW + 2 * railW + FRAME_W;
-  const frameOuterZ = halfH + 2 * railW + FRAME_W;
   const outW = frameOuterX + skirtT * 0.2;
-  const outH = frameOuterZ + skirtT * 0.2;
-  skirtShape.moveTo(-outW, -outH);
-  skirtShape.lineTo(outW, -outH);
-  skirtShape.lineTo(outW, outH);
-  skirtShape.lineTo(-outW, outH);
-  skirtShape.lineTo(-outW, -outH);
+  const outZ = frameOuterZ + skirtT * 0.2;
+  skirtShape.moveTo(-outW, -outZ);
+  skirtShape.lineTo(outW, -outZ);
+  skirtShape.lineTo(outW, outZ);
+  skirtShape.lineTo(-outW, outZ);
+  skirtShape.lineTo(-outW, -outZ);
   const inner = new THREE.Path();
   inner.moveTo(-frameOuterX, -frameOuterZ);
   inner.lineTo(frameOuterX, -frameOuterZ);
@@ -1712,6 +1714,8 @@ function Table3D(parent) {
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
+  skirt.castShadow = true;
+  skirt.receiveShadow = true;
   table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
@@ -1721,16 +1725,17 @@ function Table3D(parent) {
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const LEG_INSET = railW * 2.2;
+  const legInset = railW * 2.2;
   const legPositions = [
-    [-frameOuterX + LEG_INSET, -frameOuterZ + LEG_INSET],
-    [frameOuterX - LEG_INSET, -frameOuterZ + LEG_INSET],
-    [-frameOuterX + LEG_INSET, frameOuterZ - LEG_INSET],
-    [frameOuterX - LEG_INSET, frameOuterZ - LEG_INSET]
+    [-frameOuterX + legInset, -frameOuterZ + legInset],
+    [frameOuterX - legInset, -frameOuterZ + legInset],
+    [-frameOuterX + legInset, frameOuterZ - legInset],
+    [frameOuterX - legInset, frameOuterZ - legInset]
   ];
+  const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, woodMat);
-    leg.position.set(lx, legTopLocal + LEG_TOP_OVERLAP - legH / 2, lz);
+    leg.position.set(lx, legY, lz);
     leg.castShadow = true;
     leg.receiveShadow = true;
     table.add(leg);
@@ -1780,6 +1785,7 @@ function Table3D(parent) {
     cushionMat
   };
 }
+
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
