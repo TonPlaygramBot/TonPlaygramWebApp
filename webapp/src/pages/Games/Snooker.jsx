@@ -429,10 +429,10 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.34;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.05,
+  minOutside: TABLE.WALL + POCKET_VIS_R * 1.18,
   maxOutside: BALL_R * 34,
   heightOffset: BALL_R * 5.6,
-  distanceBias: 1.08,
+  distanceBias: 1.18,
   fovOffset: 2
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -532,17 +532,17 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 7.2;
-    const STRAND_POWER = 0.44;
+    const THREAD_PITCH = 6.6;
+    const STRAND_POWER = 0.47;
     const STRAND_SHAPE = 6.2;
-    const DETAIL_ANCHOR = 0.76;
-    const MICRO_THREAD = 0.24;
-    const WEAVE_SHADE_BOOST = 1.4;
-    const THREAD_HIGHLIGHT_BOOST = 1.48;
-    const PATTERN_CONTRAST = 2.05;
-    const COLOR_CONTRAST = 1.34;
-    const BUMP_HEIGHT_SCALE = 1680;
-    const BUMP_DETAIL_SCALE = 420;
+    const DETAIL_ANCHOR = 0.82;
+    const MICRO_THREAD = 0.3;
+    const WEAVE_SHADE_BOOST = 1.52;
+    const THREAD_HIGHLIGHT_BOOST = 1.58;
+    const PATTERN_CONTRAST = 2.24;
+    const COLOR_CONTRAST = 1.45;
+    const BUMP_HEIGHT_SCALE = 1320;
+    const BUMP_DETAIL_SCALE = 520;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -1412,39 +1412,65 @@ function Table3D(parent) {
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.6,
+    roughness: 0.54,
     sheen: 1,
-    sheenRoughness: 0.26,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.22
+    sheenRoughness: 0.22,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.18
   });
   const baseRepeat = 3.2;
   const repeatRatio = 3.1;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.map.anisotropy = Math.max(clothMat.map.anisotropy ?? 0, 8);
+    clothMat.map.anisotropy = Math.max(clothMat.map.anisotropy ?? 0, 12);
     clothMat.map.needsUpdate = true;
   }
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 4.6;
+    clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 12);
+    clothMat.bumpScale = 3.6;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 4.6;
+    clothMat.bumpScale = 3.6;
   }
+  const clothNearRepeat = baseRepeat * 1.08;
+  const clothFarRepeat = baseRepeat * 0.52;
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 0.82,
-    farRepeat: baseRepeat * 0.48,
+    nearRepeat: clothNearRepeat,
+    farRepeat: clothFarRepeat,
     bumpScale: clothMat.bumpScale
   };
 
+  const cushionRepeat = baseRepeat * 1.08;
+  const cushionRatio = repeatRatio * 0.9;
+  const cushionBump = clothMat.bumpScale * 1.45;
   const cushionMat = clothMat.clone();
+  if (cushionMat.map) {
+    cushionMat.map = cushionMat.map.clone();
+    cushionMat.map.repeat.set(cushionRepeat, cushionRepeat * cushionRatio);
+    cushionMat.map.needsUpdate = true;
+  }
+  if (cushionMat.bumpMap) {
+    cushionMat.bumpMap = cushionMat.bumpMap.clone();
+    cushionMat.bumpMap.repeat.set(cushionRepeat, cushionRepeat * cushionRatio);
+    cushionMat.bumpScale = cushionBump;
+    cushionMat.bumpMap.needsUpdate = true;
+  } else {
+    cushionMat.bumpScale = cushionBump;
+  }
+  cushionMat.userData = {
+    ...(cushionMat.userData || {}),
+    baseRepeat: cushionRepeat,
+    repeatRatio: cushionRatio,
+    nearRepeat: clothNearRepeat * 1.05,
+    farRepeat: clothFarRepeat * 0.94,
+    bumpScale: cushionBump
+  };
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -3067,8 +3093,8 @@ function SnookerGame() {
         const SAMPLE_TABLE_HEIGHT = 0.75;
 
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
-        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.4; // bring fixtures closer so the spot highlight reads on the balls
+        const LIGHT_HEIGHT_SCALE = 1.55; // lift the rig further above the table
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 6; // raise fixtures enough to soften direct reflections on the cloth
 
         const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
@@ -3097,15 +3123,15 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          9.2,
+          10,
           0,
-          Math.PI * 0.38,
-          0.48,
+          Math.PI * 0.42,
+          0.56,
           1
         );
         const spotOffsetX = 1.6 * fixtureScale;
         const spotOffsetZ = 0.95 * fixtureScale;
-        const spotHeight = tableSurfaceY + 6.8 * scaledHeight + lightHeightLift;
+        const spotHeight = tableSurfaceY + 7 * scaledHeight + lightHeightLift;
         spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         spot.decay = 1.0;
