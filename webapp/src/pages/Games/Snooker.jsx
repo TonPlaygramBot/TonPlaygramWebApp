@@ -358,7 +358,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 1;
+const BALL_SCALE = 0.96;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -431,8 +431,10 @@ const POCKET_CAM = Object.freeze({
   dotThreshold: 0.3,
   minOutside: TABLE.WALL + POCKET_VIS_R * 1.18,
   maxOutside: BALL_R * 34,
-  heightOffset: BALL_R * 5.6,
+  heightOffset: BALL_R * 6.1,
   distanceBias: 1.18,
+  offsetScale: 1.12,
+  backstep: BALL_R * 3.2,
   fovOffset: 2
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -532,17 +534,17 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 7.4;
-    const STRAND_POWER = 0.44;
-    const STRAND_SHAPE = 6.6;
-    const DETAIL_ANCHOR = 0.98;
-    const MICRO_THREAD = 0.36;
-    const WEAVE_SHADE_BOOST = 1.68;
-    const THREAD_HIGHLIGHT_BOOST = 1.8;
-    const PATTERN_CONTRAST = 2.72;
-    const COLOR_CONTRAST = 1.62;
-    const BUMP_HEIGHT_SCALE = 1760;
-    const BUMP_DETAIL_SCALE = 660;
+    const THREAD_PITCH = 6.8;
+    const STRAND_POWER = 0.42;
+    const STRAND_SHAPE = 7.6;
+    const DETAIL_ANCHOR = 1.12;
+    const MICRO_THREAD = 0.42;
+    const WEAVE_SHADE_BOOST = 1.92;
+    const THREAD_HIGHLIGHT_BOOST = 2.15;
+    const PATTERN_CONTRAST = 3.05;
+    const COLOR_CONTRAST = 1.85;
+    const BUMP_HEIGHT_SCALE = 1980;
+    const BUMP_DETAIL_SCALE = 780;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -1431,10 +1433,10 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 12);
-    clothMat.bumpScale = 4.4;
+    clothMat.bumpScale = 5.25;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 4.4;
+    clothMat.bumpScale = 5.25;
   }
   const clothNearRepeat = baseRepeat * 0.6;
   const clothFarRepeat = baseRepeat * 1.08;
@@ -1894,7 +1896,7 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.12;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.16;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.18;
   const horizLen =
     PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
@@ -2595,9 +2597,11 @@ function SnookerGame() {
               maxOutside
             );
             activeShotView.outsideOffset = dynamicOffset;
+            const offsetScale = activeShotView.offsetScale ?? 1;
+            const backstep = activeShotView.backstep ?? 0;
             const offsetVec = approachDir
               .clone()
-              .multiplyScalar(dynamicOffset);
+              .multiplyScalar(-(dynamicOffset * offsetScale + backstep));
             const basePoint = pocketCenter.clone().add(offsetVec);
             const camHeight =
               (TABLE_Y + TABLE.THICK + activeShotView.heightOffset) *
@@ -2879,6 +2883,8 @@ function SnookerGame() {
             POCKET_CAM.minOutside,
             POCKET_CAM.maxOutside
           );
+          const offsetScale = POCKET_CAM.offsetScale ?? 1;
+          const backstep = POCKET_CAM.backstep ?? 0;
           const heightOffset = POCKET_CAM.heightOffset;
           const resumeOrbit = followView?.orbitSnapshot
             ? {
@@ -2895,6 +2901,8 @@ function SnookerGame() {
             outsideOffset,
             minOutside: POCKET_CAM.minOutside,
             maxOutside: POCKET_CAM.maxOutside,
+            offsetScale,
+            backstep,
             heightOffset,
             distanceBias: POCKET_CAM.distanceBias ?? 1,
             fovOffset: POCKET_CAM.fovOffset ?? 0,
