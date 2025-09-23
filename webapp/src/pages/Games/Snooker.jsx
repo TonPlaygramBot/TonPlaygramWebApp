@@ -381,10 +381,10 @@ const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.54; // pockets tightened further for a smaller opening
+const POCKET_R = BALL_R * 1.46; // pockets tightened further so the openings read smaller
 // keep the visual rim only fractionally larger so the jaws still overlap the cloth neatly
 const POCKET_VIS_R = POCKET_R / 1.01;
-const POCKET_HOLE_R = POCKET_VIS_R * 1.36; // cloth cutout radius for pocket openings
+const POCKET_HOLE_R = POCKET_VIS_R * 1.42; // cloth cutout radius enlarged to clear the pocket throat
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -421,11 +421,11 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const CLOTH_CORNER_HOLE_RADIUS = POCKET_HOLE_R;
-const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.38;
-const CLOTH_SIDE_HOLE_MAJOR = POCKET_HOLE_R * 0.92;
-const CLOTH_SIDE_HOLE_MINOR = POCKET_HOLE_R * 0.68;
-const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.36;
+const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.18;
+const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.26;
+const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.12;
+const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 0.78;
+const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.24;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
@@ -524,9 +524,11 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 18;
-    const STRAND_POWER = 0.48;
-    const STRAND_SHAPE = 4.1;
+    const THREAD_PITCH = 14;
+    const STRAND_POWER = 0.56;
+    const STRAND_SHAPE = 4.6;
+    const DETAIL_ANCHOR = 0.34;
+    const MICRO_THREAD = 0.06;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -540,7 +542,7 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const base = { r: 0x24, g: 0xb2, b: 0x43 };
+    const base = { r: 0x28, g: 0xc4, b: 0x4b };
     const deep = { r: 0x17, g: 0x83, b: 0x31 };
     const weaveProfile = (t) => {
       const wave = Math.sin(Math.PI * t);
@@ -548,10 +550,10 @@ const createClothTextures = (() => {
       return Math.pow(Math.max(0, envelope), STRAND_SHAPE);
     };
     const periodicNoise = (x, y) => {
-      const n1 = Math.sin(((x + y) * 2 * Math.PI) / 64);
-      const n2 = Math.sin(((x * 3 - y * 2) * 2 * Math.PI) / 92);
-      const n3 = Math.sin(((x * 5 + y * 7) * 2 * Math.PI) / 128);
-      return (n1 * 0.45 + n2 * 0.35 + n3 * 0.2) * 0.22;
+      const n1 = Math.sin(((x + y) * 2 * Math.PI) / 48);
+      const n2 = Math.sin(((x * 5 - y * 3) * 2 * Math.PI) / 28);
+      const n3 = Math.sin(((x * 9 + y * 11) * 2 * Math.PI) / 18);
+      return (n1 * 0.22 + n2 * 0.28 + n3 * 0.5) * 0.12;
     };
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
@@ -562,16 +564,19 @@ const createClothTextures = (() => {
         const ridge = warp + weft;
         const cross = warp * weft;
         const fiber = periodicNoise(x, y);
-        const weaveShade = 0.58 + ridge * 0.46 + cross * 0.4 + fiber * 0.16;
-        const toneMix = 0.22 + cross * 0.7;
-        const detailBoost = 0.26;
-        const rBase = base.r * weaveShade * (0.96 + fiber * detailBoost) + deep.r * toneMix;
-        const gBase = base.g * weaveShade * (0.98 + fiber * (detailBoost + 0.02)) + deep.g * toneMix;
-        const bBase = base.b * weaveShade * (0.94 + fiber * (detailBoost - 0.01)) + deep.b * toneMix;
-        const intensity = (warp - weft) * 2.05;
-        const r = rBase + intensity * 42;
-        const g = gBase + intensity * 24;
-        const b = bBase - intensity * 30;
+        const threadTension = Math.sin(
+          ((x - y) * 2 * Math.PI) / (THREAD_PITCH * 0.5)
+        ) * MICRO_THREAD;
+        const weaveShade = 0.64 + ridge * 0.45 + cross * 0.6 + (fiber + threadTension) * 0.14;
+        const toneMix = 0.22 + cross * 0.62;
+        const variation = fiber * DETAIL_ANCHOR;
+        const rBase = base.r * weaveShade * (0.97 + variation) + deep.r * toneMix;
+        const gBase = base.g * weaveShade * (1 + variation * 1.05) + deep.g * toneMix;
+        const bBase = base.b * weaveShade * (0.95 + variation * 0.92) + deep.b * toneMix;
+        const intensity = (warp - weft) * 1.6;
+        const r = rBase + intensity * 30;
+        const g = gBase + intensity * 18;
+        const b = bBase - intensity * 24;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -609,9 +614,9 @@ const createClothTextures = (() => {
         const weft = weaveProfile(v);
         const ridge = warp + weft;
         const cross = warp * weft;
-        const height = 0.72 * cross + 0.28 * ridge;
-        const detail = periodicNoise(x, y) * 0.14;
-        const value = clamp255(132 + (height - 0.48) * 420 + detail * 110);
+        const height = 0.82 * cross + 0.18 * ridge;
+        const detail = periodicNoise(x, y) * 0.08;
+        const value = clamp255(140 + (height - 0.48) * 520 + detail * 90);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -722,9 +727,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.78;
+const STANDING_VIEW_PHI = 1.04;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.52;
+const STANDING_VIEW_MARGIN = 0.34;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -733,13 +738,13 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.6,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.52,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.42;
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.34;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -750,8 +755,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: CAMERA.minR * 1.02,
-  phi: CAMERA.maxPhi - 0.08
+  radius: CAMERA.minR,
+  phi: CAMERA.maxPhi - 0.06
 });
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_VIEW_RADIUS_RATIO = 0.8;
@@ -1373,10 +1378,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.28;
+    clothMat.bumpScale = 0.34;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.28;
+    clothMat.bumpScale = 0.34;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
