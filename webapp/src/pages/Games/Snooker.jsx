@@ -740,11 +740,11 @@ function spotPositions(baulkZ) {
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 1.0;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.08;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.05;
 const STANDING_VIEW_MARGIN = 0.34;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.24;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.24);
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.34);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -2402,57 +2402,56 @@ function SnookerGame() {
               ? lockedOrbitRadiusRef.current
               : null;
           let radius = clampOrbitRadius(baseRadius);
-          if (lockedRadius == null) {
-            if (!topViewRef.current) {
-              const scale = worldScaleFactor || 1;
-              const phiSpan = Math.max(1e-5, cueShot.phi - standing.phi);
-              const phiProgress = THREE.MathUtils.clamp(
-                (phiForClamp - standing.phi) / phiSpan,
-                0,
-                1
+          if (!topViewRef.current) {
+            const scale = worldScaleFactor || 1;
+            const phiSpan = Math.max(1e-5, cueShot.phi - standing.phi);
+            const phiProgress = THREE.MathUtils.clamp(
+              (phiForClamp - standing.phi) / phiSpan,
+              0,
+              1
+            );
+            const sinPhi = Math.sin(Math.max(phiForClamp, 1e-4));
+            if (phiProgress > 0) {
+              const approachStrength = THREE.MathUtils.smoothstep(
+                0.2,
+                1,
+                phiProgress
               );
-              const sinPhi = Math.sin(Math.max(phiForClamp, 1e-4));
-              if (phiProgress > 0) {
-                const approachStrength = THREE.MathUtils.smoothstep(
-                  0.45,
-                  1,
-                  phiProgress
+              if (approachStrength > 0) {
+                const desiredReach = Math.max(
+                  0,
+                  (CAMERA_RAIL_REACH_X + CAMERA_CLOSE_RAIL_MARGIN) * scale
                 );
-                if (approachStrength > 0) {
-                  const desiredReach = Math.max(
-                    0,
-                    (CAMERA_RAIL_REACH_X - CAMERA_CLOSE_RAIL_MARGIN) * scale
+                if (desiredReach > 0) {
+                  const minRadiusForPhi =
+                    desiredReach / Math.max(sinPhi, 0.35);
+                  const tightenedTarget = Math.max(
+                    CAMERA.minR,
+                    Math.min(radius, minRadiusForPhi)
                   );
-                  if (desiredReach > 0) {
-                    const minRadiusForPhi =
-                      desiredReach / Math.max(sinPhi, 0.28);
-                    const tightenedTarget = Math.max(
-                      CAMERA.minR,
-                      Math.min(radius, minRadiusForPhi)
-                    );
-                    radius = THREE.MathUtils.lerp(
-                      radius,
-                      tightenedTarget,
-                      approachStrength
-                    );
-                  }
-                }
-              }
-              const sinTheta = Math.sin(sph.theta);
-              const reachX = CAMERA_RAIL_REACH_X * scale;
-              if (reachX > 0) {
-                const denomX = Math.abs(sinPhi * sinTheta);
-                if (denomX > 1e-4) {
-                  const horizontalX = Math.abs(radius * sinPhi * sinTheta);
-                  if (horizontalX < reachX) {
-                    radius = Math.max(radius, reachX / denomX);
-                  }
+                  radius = THREE.MathUtils.lerp(
+                    radius,
+                    tightenedTarget,
+                    approachStrength
+                  );
                 }
               }
             }
-            radius = clampOrbitRadius(radius);
-          } else {
-            radius = lockedRadius;
+            const sinTheta = Math.sin(sph.theta);
+            const reachX = (CAMERA_RAIL_REACH_X + CAMERA_CLOSE_RAIL_MARGIN) * scale;
+            if (reachX > 0) {
+              const denomX = Math.abs(sinPhi * sinTheta);
+              if (denomX > 1e-4) {
+                const horizontalX = Math.abs(radius * sinPhi * sinTheta);
+                if (horizontalX < reachX) {
+                  radius = Math.max(radius, reachX / denomX);
+                }
+              }
+            }
+          }
+          radius = clampOrbitRadius(radius);
+          if (lockedRadius != null) {
+            radius = Math.min(radius, lockedRadius);
           }
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
@@ -2814,20 +2813,11 @@ function SnookerGame() {
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
-          if (lockedOrbitRadiusRef.current == null) {
-            lockedOrbitRadiusRef.current = computedStandingRadius;
-          }
-          if (lockedOrbitPhiRef.current == null) {
-            lockedOrbitPhiRef.current = computedStandingPhi;
-          }
-          const lockedRadius =
-            lockedOrbitRadiusRef.current ?? computedStandingRadius;
+          const scale = worldScaleFactorRef.current || 1;
+          lockedOrbitPhiRef.current = CAMERA.maxPhi;
           const phiLimit = Math.max(
             CAMERA.minPhi,
-            Math.min(
-              lockedOrbitPhiRef.current ?? computedStandingPhi,
-              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-            )
+            Math.min(lockedOrbitPhiRef.current, CAMERA.maxPhi)
           );
           const standingPhi = Math.min(computedStandingPhi, phiLimit);
           const cuePhiBase = THREE.MathUtils.clamp(
@@ -2836,11 +2826,23 @@ function SnookerGame() {
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
           const cuePhi = Math.min(cuePhiBase, phiLimit);
+          const closeReachTarget =
+            (CAMERA_RAIL_REACH_X + CAMERA_CLOSE_RAIL_MARGIN) * scale;
+          const minCueRadiusForPhi =
+            closeReachTarget / Math.max(Math.sin(Math.max(cuePhi, 1e-3)), 0.35);
+          const computedCueRadius = clampOrbitRadius(
+            Math.max(CUE_VIEW_MIN_RADIUS, minCueRadiusForPhi)
+          );
+          const standingRadius = Math.max(
+            computedStandingRadius,
+            computedCueRadius
+          );
+          lockedOrbitRadiusRef.current = standingRadius;
           cameraBoundsRef.current = {
-            cueShot: { phi: cuePhi, radius: lockedRadius },
-            standing: { phi: standingPhi, radius: lockedRadius }
+            cueShot: { phi: cuePhi, radius: computedCueRadius },
+            standing: { phi: standingPhi, radius: standingRadius }
           };
-          orbitRadiusLimitRef.current = lockedRadius;
+          orbitRadiusLimitRef.current = standingRadius;
           applyCameraBlend();
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
