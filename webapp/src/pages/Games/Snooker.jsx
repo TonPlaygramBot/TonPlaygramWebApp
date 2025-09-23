@@ -366,12 +366,13 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
+const RAIL_HEIGHT_MULTIPLIER = 1.95;
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const CLOTH_LIFT = (() => {
   const ballR = 2 * BALL_SCALE;
   const microEpsRatio = 0.022857142857142857;
   const eps = ballR * microEpsRatio;
-  const railH = TABLE.THICK * 1.82;
+  const railH = TABLE.THICK * RAIL_HEIGHT_MULTIPLIER;
   return Math.max(0, railH - ballR - eps);
 })();
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
@@ -380,7 +381,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
+const POCKET_R = BALL_R * 1.76; // pockets tightened for a slightly smaller opening
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.985;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
@@ -743,7 +744,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 66 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 58 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -1366,10 +1367,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.18;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.18;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -1517,7 +1518,7 @@ function Table3D(parent) {
   });
 
   const railW = TABLE.WALL * 0.7;
-  const railH = TABLE.THICK * 1.82;
+  const railH = TABLE.THICK * RAIL_HEIGHT_MULTIPLIER;
   const frameWidth = railW * 2.5;
   const outerHalfW = halfW + 2 * railW + frameWidth;
   const outerHalfH = halfH + 2 * railW + frameWidth;
