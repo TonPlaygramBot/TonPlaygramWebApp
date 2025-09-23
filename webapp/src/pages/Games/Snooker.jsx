@@ -532,17 +532,17 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 6.6;
-    const STRAND_POWER = 0.47;
-    const STRAND_SHAPE = 6.2;
-    const DETAIL_ANCHOR = 0.82;
-    const MICRO_THREAD = 0.3;
-    const WEAVE_SHADE_BOOST = 1.52;
-    const THREAD_HIGHLIGHT_BOOST = 1.58;
-    const PATTERN_CONTRAST = 2.24;
-    const COLOR_CONTRAST = 1.45;
-    const BUMP_HEIGHT_SCALE = 1320;
-    const BUMP_DETAIL_SCALE = 520;
+    const THREAD_PITCH = 7.4;
+    const STRAND_POWER = 0.44;
+    const STRAND_SHAPE = 6.6;
+    const DETAIL_ANCHOR = 0.98;
+    const MICRO_THREAD = 0.36;
+    const WEAVE_SHADE_BOOST = 1.68;
+    const THREAD_HIGHLIGHT_BOOST = 1.8;
+    const PATTERN_CONTRAST = 2.72;
+    const COLOR_CONTRAST = 1.62;
+    const BUMP_HEIGHT_SCALE = 1760;
+    const BUMP_DETAIL_SCALE = 660;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -1412,11 +1412,12 @@ function Table3D(parent) {
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.54,
-    sheen: 1,
-    sheenRoughness: 0.22,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.18
+    roughness: 0.68,
+    sheen: 0.92,
+    sheenRoughness: 0.28,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.32,
+    specularIntensity: 0.38
   });
   const baseRepeat = 3.2;
   const repeatRatio = 3.1;
@@ -1430,13 +1431,13 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 12);
-    clothMat.bumpScale = 3.6;
+    clothMat.bumpScale = 4.4;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 3.6;
+    clothMat.bumpScale = 4.4;
   }
-  const clothNearRepeat = baseRepeat * 1.08;
-  const clothFarRepeat = baseRepeat * 0.52;
+  const clothNearRepeat = baseRepeat * 0.6;
+  const clothFarRepeat = baseRepeat * 1.08;
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
@@ -2730,7 +2731,7 @@ function SnookerGame() {
             const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
             const farRepeat = clothMat.userData?.farRepeat ?? 18;
             const ratio = clothMat.userData?.repeatRatio ?? 1;
-            const repeatBoost = THREE.MathUtils.lerp(1, 1.28, lowHeightFactor);
+            const repeatBoost = THREE.MathUtils.lerp(1, 0.78, lowHeightFactor);
             const targetRepeatBase = THREE.MathUtils.lerp(
               farRepeat,
               nearRepeat,
@@ -2746,8 +2747,8 @@ function SnookerGame() {
             }
             if (Number.isFinite(clothMat.userData?.bumpScale)) {
               const base = clothMat.userData.bumpScale;
-              const distBump = THREE.MathUtils.lerp(base * 0.75, base * 2.05, fade);
-              const heightBoost = THREE.MathUtils.lerp(1, 1.48, lowHeightFactor);
+              const distBump = THREE.MathUtils.lerp(base * 0.82, base * 2.25, fade);
+              const heightBoost = THREE.MathUtils.lerp(1, 1.62, lowHeightFactor);
               clothMat.bumpScale = distBump * heightBoost;
             }
           }
@@ -3144,10 +3145,10 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          10,
+          7.6,
           0,
-          Math.PI * 0.42,
-          0.56,
+          Math.PI * 0.46,
+          0.62,
           1
         );
         const spotOffsetX = 1.6 * fixtureScale;
@@ -3159,10 +3160,11 @@ function SnookerGame() {
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
         spot.shadow.bias = -0.00008;
+        spot.penumbra = 0.68;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.06);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
