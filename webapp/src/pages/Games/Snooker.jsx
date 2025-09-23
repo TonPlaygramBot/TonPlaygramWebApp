@@ -740,7 +740,7 @@ function spotPositions(baulkZ) {
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 1.04;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.08;
 const STANDING_VIEW_MARGIN = 0.34;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
@@ -756,12 +756,12 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const STANDING_RADIUS_SCALE = 0.9;
-const CUE_RADIUS_SCALE = 0.88;
+const STANDING_RADIUS_SCALE = 0.56;
+const CUE_RADIUS_SCALE = 0.7;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
-const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.55;
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.34;
+const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.62; // keep eye level slightly above the top of the balls
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2212,7 +2212,7 @@ function SnookerGame() {
         setTopView(next);
         if (rendererRef.current) {
           rendererRef.current.domElement.style.transform = next
-            ? 'scale(0.9)'
+            ? 'scale(0.82)'
             : 'scale(1)';
         }
         fit(targetMargin);
