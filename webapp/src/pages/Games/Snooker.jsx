@@ -2445,7 +2445,9 @@ function SnookerGame() {
             CAMERA.minPhi,
             CAMERA.maxPhi
           );
-          let radius = clampOrbitRadius(baseRadius);
+          let radius = topViewRef.current
+            ? standing.radius
+            : clampOrbitRadius(baseRadius);
           if (!topViewRef.current) {
             const scale = worldScaleFactor || 1;
             const sinPhi = Math.sin(phiForClamp);
@@ -2819,7 +2821,9 @@ function SnookerGame() {
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const standingRadiusBase = Math.max(standingRadiusRaw, cueBase);
           const standingRadius = clampOrbitRadius(
-            Math.max(standingRadiusBase * STANDING_RADIUS_SCALE, cueBase)
+            topViewRef.current
+              ? standingRadiusBase
+              : Math.max(standingRadiusBase * STANDING_RADIUS_SCALE, cueBase)
           );
           const standingPhi = THREE.MathUtils.clamp(
             STANDING_VIEW.phi,
