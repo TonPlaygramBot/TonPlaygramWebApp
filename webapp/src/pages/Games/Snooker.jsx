@@ -532,17 +532,17 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 8.6;
-    const STRAND_POWER = 0.48;
-    const STRAND_SHAPE = 5.35;
-    const DETAIL_ANCHOR = 0.58;
-    const MICRO_THREAD = 0.11;
-    const WEAVE_SHADE_BOOST = 1.12;
-    const THREAD_HIGHLIGHT_BOOST = 1.2;
-    const PATTERN_CONTRAST = 1.4;
-    const COLOR_CONTRAST = 1.18;
-    const BUMP_HEIGHT_SCALE = 1080;
-    const BUMP_DETAIL_SCALE = 220;
+    const THREAD_PITCH = 7.2;
+    const STRAND_POWER = 0.44;
+    const STRAND_SHAPE = 6.2;
+    const DETAIL_ANCHOR = 0.68;
+    const MICRO_THREAD = 0.18;
+    const WEAVE_SHADE_BOOST = 1.28;
+    const THREAD_HIGHLIGHT_BOOST = 1.35;
+    const PATTERN_CONTRAST = 1.85;
+    const COLOR_CONTRAST = 1.26;
+    const BUMP_HEIGHT_SCALE = 1480;
+    const BUMP_DETAIL_SCALE = 360;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -556,9 +556,9 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const base = { r: 0x2f, g: 0xd4, b: 0x58 };
-    const deep = { r: 0x12, g: 0x7c, b: 0x2d };
-    const highlight = { r: 0x2b, g: 0xff, b: 0x75 };
+    const base = { r: 0x14, g: 0xc8, b: 0x3f };
+    const deep = { r: 0x0a, g: 0x8e, b: 0x2a };
+    const highlight = { r: 0x4a, g: 0xff, b: 0x95 };
     const weaveProfile = (t) => {
       const wave = Math.sin(Math.PI * t);
       const envelope = 1 - Math.pow(Math.abs(wave), STRAND_POWER);
@@ -583,38 +583,38 @@ const createClothTextures = (() => {
           ((x - y) * 2 * Math.PI) / (THREAD_PITCH * 0.5)
         ) * MICRO_THREAD;
         const weaveShadeBase =
-          0.62 + ridge * 0.6 + cross * 0.88 + (fiber + threadTension) * 0.26;
-        const weaveShade = Math.min(1.45, weaveShadeBase * WEAVE_SHADE_BOOST);
+          0.58 + ridge * 0.72 + cross * 1.05 + (fiber + threadTension) * 0.34;
+        const weaveShade = Math.min(1.58, weaveShadeBase * WEAVE_SHADE_BOOST);
         const toneMix = Math.min(
           1,
           Math.max(0, 0.12 + cross * 0.92 + ridge * 0.2)
         );
         const highlightMix =
-          Math.pow(Math.max(0, ridge - 0.12), 1.18) * THREAD_HIGHLIGHT_BOOST;
+          Math.pow(Math.max(0, ridge - 0.08), 1.26) * THREAD_HIGHLIGHT_BOOST;
         const variation = fiber * DETAIL_ANCHOR;
-        const rBase = THREE.MathUtils.lerp(base.r, deep.r, toneMix);
-        const gBase = THREE.MathUtils.lerp(base.g, deep.g, toneMix * 0.9);
-        const bBase = THREE.MathUtils.lerp(base.b, deep.b, toneMix * 0.96);
+        const rBase = THREE.MathUtils.lerp(base.r, deep.r, toneMix * 0.92);
+        const gBase = THREE.MathUtils.lerp(base.g, deep.g, toneMix * 0.84);
+        const bBase = THREE.MathUtils.lerp(base.b, deep.b, toneMix * 0.9);
         const highlightLift = {
           r: highlight.r * highlightMix,
           g: highlight.g * highlightMix * 1.32,
           b: highlight.b * highlightMix * 0.58
         };
-        const shadeVariation = 0.94 + variation * 0.9;
-        const gShadeVariation = 1.04 + variation * 1.05;
-        const intensity = (warp - weft) * (2.1 * PATTERN_CONTRAST);
+        const shadeVariation = 1.02 + variation * 1.06;
+        const gShadeVariation = 1.12 + variation * 1.18;
+        const intensity = (warp - weft) * (2.35 * PATTERN_CONTRAST);
         const r =
           rBase * weaveShade * shadeVariation +
           highlightLift.r +
-          intensity * 30 * PATTERN_CONTRAST;
+          intensity * 34 * PATTERN_CONTRAST;
         const g =
           gBase * weaveShade * gShadeVariation +
           highlightLift.g +
-          intensity * 20 * PATTERN_CONTRAST;
+          intensity * 24 * PATTERN_CONTRAST;
         const b =
           bBase * weaveShade * (0.92 + variation * 0.58) +
           highlightLift.b -
-          intensity * 26 * PATTERN_CONTRAST;
+          intensity * 28 * PATTERN_CONTRAST;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = applyContrast(r, COLOR_CONTRAST);
         data[i + 1] = applyContrast(g, COLOR_CONTRAST);
@@ -1412,13 +1412,13 @@ function Table3D(parent) {
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.7,
+    roughness: 0.64,
     sheen: 1,
-    sheenRoughness: 0.34,
-    clearcoat: 0.24,
-    clearcoatRoughness: 0.28
+    sheenRoughness: 0.3,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.26
   });
-  const baseRepeat = 4.6;
+  const baseRepeat = 3.8;
   const repeatRatio = 3.1;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -1430,17 +1430,17 @@ function Table3D(parent) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
-    clothMat.bumpScale = 2.5;
+    clothMat.bumpScale = 3.8;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 2.5;
+    clothMat.bumpScale = 3.8;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 0.9,
-    farRepeat: baseRepeat * 0.58,
+    nearRepeat: baseRepeat * 0.86,
+    farRepeat: baseRepeat * 0.52,
     bumpScale: clothMat.bumpScale
   };
 
