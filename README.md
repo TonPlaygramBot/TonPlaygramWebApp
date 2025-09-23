@@ -1,3 +1,81 @@
+# Orientation & Calibration Guide
+
+The TonPlaygram experiences are meant to feel consistent whether they are loaded on an event kiosk, a wall display or a referee's tablet. Use this guide before every deployment to make sure the playing field, cameras and touch displays share the same orientation and that all calibration files are in sync.
+
+## 1. Quick placement checklist
+
+- **Face North** – treat the broadcast camera riser as “North”. When you stand at the break end of the snooker table you should be facing North, with spectators to the East/West sidelines.
+- **Align digital overlays** – the snooker top view and Goal Rush rink both expect the scoreboard wall to sit “above” the field (negative Z axis) and the player entry tunnel to sit “below” the field (positive Z axis).
+- **Lock device rotation** – disable auto-rotate on Android/iOS control tablets so the UI keeps its intended portrait/landscape layout.
+- **Level all surfaces** – uneven floors cause drift in both the snooker camera dolly and Goal Rush puck physics. Use a physical bubble level on the table edges and on the kiosks.
+
+### Default axes
+
+| Axis | Positive direction | Physical landmark |
+| ---- | ------------------ | ----------------- |
+| +X   | Player's right when facing North | Commentary booth / admin desk |
+| -X   | Player's left when facing North | Broadcast camera stack |
+| +Z   | Away from the main scoreboard | Player entrance tunnel |
+| -Z   | Towards the scoreboard wall | LED backdrop & audience riser |
+
+## 2. Station placement
+
+### Snooker arena
+
+1. Position the table so the baulk line is parallel with the scoreboard wall (North).
+2. Center the overhead light rig on the table's midline; aim the primary key light from the North-East corner to avoid cue shadows on camera.
+3. Mount the top-view screen or projector directly above the table. The 3D web client assumes the +X axis points to the player's right when they address the table from the baulk end.
+4. Place the tracking tablet on the West sideline, screen facing South so that swiping right sends positive X input to the `useAimCalibration` hook. The hook automatically swaps axes in portrait mode, but the baseline assumes the placement above.【F:webapp/src/hooks/useAimCalibration.js†L1-L47】
+
+### Goal Rush rink
+
+1. Square the inflatable rink or floor decal with the venue grid – the rink art's top edge (the goal) must sit on the North side.
+2. Mount the display so the scoreboard header is closest to the North wall. The HTML canvas scales using `fieldScaleX`/`fieldScaleY` and assumes the goal sits along the negative Z edge.【F:webapp/public/goal-rush.html†L18-L86】【F:webapp/public/goal-rush-calibration.json†L1-L16】
+3. If you use an external camera, align it with the table centerline and tilt down 12–15° so players see both goals without parallax.
+4. Place motion sensors or tap targets symmetrically. Offsets can be dialed in through calibration (see below).
+
+## 3. Calibration workflow
+
+### Snooker aim & camera calibration
+
+1. Open the Snooker game in the staff build and tap **Settings → Aim calibration**.
+2. Verify that horizontal strokes move the cue along +X. If motion feels inverted, toggle **Invert horizontal**; if the tablet is mounted portrait, enable **Swap axes**. These flags persist via the `snooker.calib.*` local storage namespace used by `useAimCalibration` so every operator shares the same feel.【F:webapp/src/hooks/useAimCalibration.js†L1-L47】
+3. Ask a player to take a practice cue action; confirm that the cue tip reticle tracks cleanly across the ball without diagonal drift.
+4. For camera rigs, frame the break-off area first. Use the in-game orbit camera to ensure cushions align with the digital mesh; adjust tripod yaw until the baulk line sits flat in the preview.
+
+### Goal Rush field calibration
+
+1. Load `/goal-rush.html?mode=calibration` (or the admin shortcut) on the deployment device.
+2. Measure the physical rink: width between sidelines, height between goal lines, and actual goal mouth width.
+3. Update the calibration payload with those values:
+
+   ```bash
+   curl -X POST https://<bot-host>/api/goal-rush/calibration \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "accountId": "<your dev account>",
+       "calibration": {
+         "fieldScaleX": 0.98,
+         "fieldScaleY": 1.02,
+         "goalWidthPct": 0.34,
+         "goalOffsetXPct": 0.01,
+         "goalOffsetYPct": -0.02
+       }
+     }'
+   ```
+
+   The API writes to both the public and built copies of `goal-rush-calibration.json`, keeping kiosk and production builds in sync.【F:bot/server.js†L153-L190】【F:webapp/public/goal-rush-calibration.json†L1-L16】
+4. Reload the game and confirm the digital goal overlaps the physical frame. Adjust `goalOffsetXPct`/`goalOffsetYPct` for lateral or depth alignment, and `puckScale` if the puck sprite feels off-sized.【F:webapp/public/goal-rush.html†L180-L205】【F:webapp/public/goal-rush-calibration.json†L1-L16】
+5. Save a backup of the final JSON in the deployment notes so you can restore it quickly at future venues.
+
+## 4. Final validation
+
+- Run a full frame with each experience while standing at their intended operator spot.
+- Watch for mirrored HUD elements; if text appears reversed, rotate the display hardware rather than compensating in software.
+- Trigger a Goal Rush scoring sequence to ensure confetti or overlays fall vertically (wrong orientation indicates a 90° rotation).
+- Record a 30-second clip from the broadcast feed to verify camera axes, then archive the clip with the day's calibration JSON.
+
+---
 
 > 📱 **Mobile parity requirement:** All gameplay, UI and configuration updates must be validated against the mobile layout so the experience shown on a phone exactly matches the client's requests.
 
