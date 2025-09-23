@@ -483,7 +483,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const RAIL_WOOD_COLOR = 0x3a2a1a;
-const BASE_WOOD_COLOR = 0x5b3a1a;
+const BASE_WOOD_COLOR = 0x8d5d2f;
 const COLORS = Object.freeze({
   cloth: 0x2bc351,
   rail: RAIL_WOOD_COLOR,
@@ -502,6 +502,7 @@ const COLORS = Object.freeze({
 const createClothTextures = (() => {
   let cache = null;
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
+  const clamp01 = (value) => Math.max(0, Math.min(1, value));
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
@@ -510,8 +511,11 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const PITCH = 7;
-    const AMP = 0.16;
+    const CROSS_PITCH = 7;
+    const CROSS_AMP = 0.16;
+    const THREAD_PITCH_WARP = 5.2;
+    const THREAD_PITCH_WEFT = 6.4;
+    const MICRO_FREQ = 0.32;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -520,26 +524,69 @@ const createClothTextures = (() => {
       return cache;
     }
 
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = SIZE;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (!bumpCtx) {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const k = (2 * Math.PI) / PITCH;
+    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
+    const bumpData = bumpImage.data;
+    const crossK = (2 * Math.PI) / CROSS_PITCH;
+    const warpK = (2 * Math.PI) / THREAD_PITCH_WARP;
+    const weftK = (2 * Math.PI) / THREAD_PITCH_WEFT;
     const base = { r: 0x2b, g: 0xc3, b: 0x51 };
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const s1 = Math.sin(k * (x + y));
-        const s2 = Math.sin(k * (x - y));
+        const s1 = Math.sin(crossK * (x + y));
+        const s2 = Math.sin(crossK * (x - y));
         const a = Math.pow(Math.abs(s1), 0.85);
         const b = Math.pow(Math.abs(s2), 0.85);
         const ridge = (1 - a) + (1 - b);
-        const shade = AMP * (ridge - 1);
+        const diagonalShade = CROSS_AMP * (ridge - 1);
+
+        const warpAngle = (x + y * 0.18) * warpK;
+        const weftAngle = (y - x * 0.14) * weftK;
+        const warpHighlight = Math.pow(1 - Math.abs(Math.sin(warpAngle)), 12);
+        const weftHighlight = Math.pow(1 - Math.abs(Math.sin(weftAngle)), 12);
+        const fiberHighlight = warpHighlight + weftHighlight;
+
+        const fineWarp = Math.sin((x * 0.55 + y * 0.21) * MICRO_FREQ);
+        const fineWeft = Math.sin((y * 0.58 - x * 0.27) * MICRO_FREQ);
+        const fineNoise = fineWarp * 0.5 + fineWeft * 0.5;
+        const crossNoise =
+          Math.sin(x * 0.073 + y * 0.045) * 0.5 +
+          Math.sin(x * 0.031 - y * 0.052) * 0.25;
+
+        const fiberShade = fiberHighlight * 0.085;
+        const microShade = fineNoise * 0.045 + crossNoise * 0.02;
+        const shade = diagonalShade + fiberShade + microShade;
+
         const i = (y * SIZE + x) * 4;
-        data[i + 0] = clamp255(base.r + Math.round(255 * shade * 0.18));
-        data[i + 1] = clamp255(base.g + Math.round(255 * shade * 0.26));
-        data[i + 2] = clamp255(base.b + Math.round(255 * shade * 0.18));
+        data[i + 0] = clamp255(base.r + Math.round(255 * shade * 0.22));
+        data[i + 1] = clamp255(base.g + Math.round(255 * shade * 0.32));
+        data[i + 2] = clamp255(base.b + Math.round(255 * shade * 0.22));
         data[i + 3] = 255;
+
+        const diagNorm = clamp01(ridge * 0.5);
+        const fiberHeight = clamp01(fiberHighlight * 0.55);
+        const microHeight = clamp01(0.5 + fineNoise * 0.5);
+        const bumpMix = clamp01(
+          0.28 + fiberHeight * 0.6 + diagNorm * 0.25 + (microHeight - 0.5) * 0.3
+        );
+        const bumpValue = clamp255(bumpMix * 255);
+        bumpData[i + 0] = bumpValue;
+        bumpData[i + 1] = bumpValue;
+        bumpData[i + 2] = bumpValue;
+        bumpData[i + 3] = 255;
       }
     }
     ctx.putImageData(image, 0, 0);
+    bumpCtx.putImageData(bumpImage, 0, 0);
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
@@ -552,13 +599,14 @@ const createClothTextures = (() => {
     else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
-    const bumpMap = new THREE.CanvasTexture(canvas);
+    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
     bumpMap.anisotropy = colorMap.anisotropy;
     bumpMap.generateMipmaps = true;
     bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
     bumpMap.magFilter = THREE.LinearFilter;
+    bumpMap.needsUpdate = true;
 
     cache = { map: colorMap, bump: bumpMap };
     return cache;
@@ -1304,10 +1352,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.042;
+    clothMat.bumpScale = 0.06;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.042;
+    clothMat.bumpScale = 0.06;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -1711,6 +1759,29 @@ function Table3D(parent) {
     depth: skirtH,
     bevelEnabled: false
   });
+  const topExtentX = outW;
+  const topExtentZ = outZ;
+  const flareTargetX = frameOuterX + railW * 2;
+  const flareTargetZ = frameOuterZ + railW * 2;
+  const bottomScaleX = topExtentX > 0 ? flareTargetX / topExtentX : 1;
+  const bottomScaleZ = topExtentZ > 0 ? flareTargetZ / topExtentZ : 1;
+  const skirtPosAttr = skirtGeo.getAttribute('position');
+  if (skirtPosAttr) {
+    const arr = skirtPosAttr.array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const z = arr[i + 2];
+      const t = skirtH <= 0 ? 0 : THREE.MathUtils.clamp(z / skirtH, 0, 1);
+      if (t <= 0) continue;
+      const scaleX = THREE.MathUtils.lerp(1, bottomScaleX, t);
+      const scaleZ = THREE.MathUtils.lerp(1, bottomScaleZ, t);
+      arr[i] *= scaleX;
+      arr[i + 1] *= scaleZ;
+    }
+    skirtPosAttr.needsUpdate = true;
+    skirtGeo.computeVertexNormals();
+    skirtGeo.computeBoundingBox();
+    skirtGeo.computeBoundingSphere();
+  }
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -TABLE.THICK - skirtH * 0.8;
