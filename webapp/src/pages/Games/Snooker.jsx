@@ -383,8 +383,8 @@ const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_R = BALL_R * 1.4; // pockets tightened further so the openings read smaller
 // keep the visual rim only fractionally larger so the jaws still overlap the cloth neatly
-const POCKET_VIS_R = POCKET_R / 1.0125;
-const POCKET_HOLE_R = POCKET_VIS_R * 1.46; // cloth cutout radius enlarged to clear the pocket throat
+const POCKET_VIS_R = POCKET_R / 1.08;
+const POCKET_HOLE_R = POCKET_VIS_R * 1.52; // cloth cutout radius enlarged to clear the pocket throat
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -413,7 +413,7 @@ const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the l
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const RAIL_BASE_OVERLAP = TABLE.THICK * 0.18; // drop rails further so they blend into the base without gaps
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // lift pockets slightly higher so the rims stay visible from shallow angles
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.48; // keep rims seated so cloth never bleeds across the pocket opening
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -421,11 +421,11 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.18;
-const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.26;
-const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.12;
-const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 0.78;
-const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.24;
+const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.32;
+const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.28;
+const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.24;
+const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 0.86;
+const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.28;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
@@ -750,14 +750,14 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.52,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.48,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const STANDING_RADIUS_SCALE = 0.94;
-const CUE_RADIUS_SCALE = 0.9;
+const STANDING_RADIUS_SCALE = 0.9;
+const CUE_RADIUS_SCALE = 0.88;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
 const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.55;
@@ -775,7 +775,7 @@ const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR,
   phi: CAMERA.maxPhi - 0.06
 });
-const CAMERA_RAIL_SAFETY = 0.02;
+const CAMERA_RAIL_SAFETY = 0.04;
 const CUE_VIEW_RADIUS_RATIO = 0.8;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -784,6 +784,8 @@ const CUE_VIEW_MIN_PHI = Math.min(
 );
 const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
+const CAMERA_HEIGHT_ZOOM_IN = 1.45;
+const CAMERA_HEIGHT_ZOOM_OUT = 1.1;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -1378,34 +1380,36 @@ function Table3D(parent) {
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    roughness: 0.82,
+    color: COLORS.cloth,
+    roughness: 0.74,
     sheen: 1,
-    sheenRoughness: 0.46,
-    clearcoat: 0.16,
-    clearcoatRoughness: 0.3
+    sheenRoughness: 0.38,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.24
   });
-  const baseRepeat = 6.5;
-  const repeatRatio = 3.4;
+  const baseRepeat = 5.4;
+  const repeatRatio = 3.1;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.map.anisotropy = Math.max(clothMat.map.anisotropy ?? 0, 8);
     clothMat.map.needsUpdate = true;
   }
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.68;
+    clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 8);
+    clothMat.bumpScale = 1.05;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.68;
+    clothMat.bumpScale = 1.05;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.32,
-    farRepeat: baseRepeat * 0.6,
+    nearRepeat: baseRepeat * 1.18,
+    farRepeat: baseRepeat * 0.52,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1525,9 +1529,9 @@ function Table3D(parent) {
   });
   table.add(markingsGroup);
 
-  const POCKET_TOP_R = POCKET_VIS_R;
-  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.7;
-  const ringGeo = new THREE.RingGeometry(POCKET_TOP_R * 0.7, POCKET_TOP_R * 1.02, 64);
+  const POCKET_TOP_R = POCKET_VIS_R * 0.96;
+  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.62;
+  const ringGeo = new THREE.RingGeometry(POCKET_TOP_R * 0.68, POCKET_TOP_R * 0.98, 64);
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     side: THREE.DoubleSide,
@@ -1540,7 +1544,7 @@ function Table3D(parent) {
     metalness: 0.2,
     roughness: 0.7
   });
-  const lipTubeR = Math.min(POCKET_TOP_R * 0.085, BALL_R * 0.18);
+  const lipTubeR = Math.min(POCKET_TOP_R * 0.082, BALL_R * 0.16);
   const pocketGeo = new THREE.CylinderGeometry(POCKET_TOP_R, POCKET_BOTTOM_R, TABLE.THICK, 48);
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
@@ -2000,6 +2004,7 @@ function SnookerGame() {
     standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
+  const worldScaleFactorRef = useRef(1);
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
@@ -2190,11 +2195,12 @@ function SnookerGame() {
       sph.radius = start.radius + (target.radius - start.radius) * ease;
       sph.phi = start.phi + (target.phi - start.phi) * ease;
       sph.theta = start.theta + (target.theta - start.theta) * ease;
+      const scale = worldScaleFactorRef.current ?? 1;
       const targetPos = new THREE.Vector3(
         playerOffsetRef.current,
         TABLE_Y + 0.05,
         0
-      ).multiplyScalar(worldScaleFactor);
+      ).multiplyScalar(scale);
       const tmpSphAnim = sph.clone
         ? sph.clone()
         : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
@@ -2274,6 +2280,7 @@ function SnookerGame() {
       const world = new THREE.Group();
       scene.add(world);
       let worldScaleFactor = 1;
+      worldScaleFactorRef.current = worldScaleFactor;
       let cue;
       let clothMat;
       let cushionMat;
@@ -2602,11 +2609,23 @@ function SnookerGame() {
               0,
               1
             );
-            const targetFov = THREE.MathUtils.lerp(
+            const baseFov = THREE.MathUtils.lerp(
               CAMERA_CUE_FOV,
               CAMERA_STANDING_FOV,
               zoomBlend
             );
+            const phiRange = Math.max(1e-5, CAMERA.maxPhi - CAMERA.minPhi);
+            const heightRatio = THREE.MathUtils.clamp(
+              (sph.phi - CAMERA.minPhi) / phiRange,
+              0,
+              1
+            );
+            const heightZoomOffset = THREE.MathUtils.lerp(
+              CAMERA_HEIGHT_ZOOM_OUT,
+              -CAMERA_HEIGHT_ZOOM_IN,
+              heightRatio
+            );
+            const targetFov = Math.max(30, baseFov + heightZoomOffset);
             if (Math.abs(camera.fov - targetFov) > 1e-3) {
               camera.fov = targetFov;
               camera.updateProjectionMatrix();
@@ -2617,7 +2636,7 @@ function SnookerGame() {
           }
           if (clothMat && lookTarget) {
             const dist = camera.position.distanceTo(lookTarget);
-            const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
+            const fade = THREE.MathUtils.clamp((150 - dist) / 70, 0, 1);
             const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
             const farRepeat = clothMat.userData?.farRepeat ?? 18;
             const ratio = clothMat.userData?.repeatRatio ?? 1;
@@ -2631,7 +2650,7 @@ function SnookerGame() {
             }
             if (Number.isFinite(clothMat.userData?.bumpScale)) {
               const base = clothMat.userData.bumpScale;
-              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.55, base * 1.4, fade);
+              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.6, base * 1.65, fade);
             }
           }
         };
@@ -3041,6 +3060,7 @@ function SnookerGame() {
       sph.radius = clampOrbitRadius(sph.radius);
       worldScaleFactor = WORLD_SCALE;
       world.scale.setScalar(worldScaleFactor);
+      worldScaleFactorRef.current = worldScaleFactor;
       world.updateMatrixWorld(true);
       updateCamera();
       fit(
@@ -4169,6 +4189,23 @@ function SnookerGame() {
           Init error: {String(err)}
         </div>
       )}
+
+      {/* View toggle */}
+      <div className="absolute left-3 bottom-24 z-50">
+        <button
+          type="button"
+          onClick={toggleView}
+          className="bg-black/70 border border-white/40 text-white text-xs font-semibold tracking-widest uppercase rounded-full px-3 py-1 shadow-md"
+          style={{
+            transform: `scale(${UI_SCALE})`,
+            transformOrigin: 'bottom left'
+          }}
+          aria-pressed={topView}
+          title={topView ? 'Switch to 3D view' : 'Switch to 2D top view'}
+        >
+          {topView ? '3D' : '2D'}
+        </button>
+      </div>
       {/* Power Slider */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2">
         <div
