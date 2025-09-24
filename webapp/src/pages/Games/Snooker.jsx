@@ -410,7 +410,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
-const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
+const CUSHION_RAIL_OVERLAP = TABLE.WALL * 0.22; // extend rails slightly beneath the cushions so no daylight is visible between them
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -431,13 +431,13 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 7.5,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.8,
-  maxOutside: BALL_R * 48,
-  heightOffset: BALL_R * 8.8,
-  distanceBias: 1.12,
-  offsetScale: 1.08,
-  backstep: BALL_R * 5.4,
-  fovOffset: 3.2
+  minOutside: TABLE.WALL + POCKET_VIS_R * 2.2,
+  maxOutside: BALL_R * 52,
+  heightOffset: BALL_R * 10.2,
+  distanceBias: 1.32,
+  offsetScale: 1.14,
+  backstep: BALL_R * 7.6,
+  fovOffset: 4
 });
 const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
 const ACTION_CAM = Object.freeze({
@@ -450,16 +450,20 @@ const ACTION_CAM = Object.freeze({
     minY: 0.38,
     maxY: 0.62
   }),
+  bounds: Object.freeze({
+    x: PLAY_W / 2 + TABLE.WALL * 2.4,
+    z: PLAY_H / 2 + TABLE.WALL * 3
+  }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.92,
-    minRailClearance: TABLE.WALL + BALL_R * 2.25,
-    extraClearance: TABLE.WALL * 0.42,
-    backstep: BALL_R * 8.6,
-    heightOffset: BALL_R * 18.8,
-    targetBias: 0.14,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 2.2,
-    radiusScale: 1.58,
-    focusBlend: 0.6
+    lateral: PLAY_W * 1.35,
+    minRailClearance: TABLE.WALL + BALL_R * 3.1,
+    extraClearance: TABLE.WALL * 0.68,
+    backstep: BALL_R * 12.4,
+    heightOffset: BALL_R * 24,
+    targetBias: 0.22,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 2.6,
+    radiusScale: 1.82,
+    focusBlend: 0.45
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -520,7 +524,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 31;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
-const CLOTH_TEXTURE_INTENSITY = 4; // double cloth texture visibility on both the bed and cushions
+const CLOTH_TEXTURE_INTENSITY = 8; // amplify cloth fibre visibility (2x previous boost) so the weave reads clearly on cushions and bed
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -529,8 +533,10 @@ const UI_SCALE = SIZE_REDUCTION;
 // includes separate tones for rails, base wood and cloth markings
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
+const CUSHION_HEX = 0x0f6c3b; // #6 ball green tone for the cushion wraps
 const COLORS = Object.freeze({
   cloth: 0x3ce67d,
+  cushion: CUSHION_HEX,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -1583,7 +1589,8 @@ function Table3D(parent) {
   const cushionRepeat = baseRepeat;
   const cushionRatio = repeatRatio;
   const cushionMat = clothMat.clone();
-  cushionMat.color.copy(clothMat.color);
+  cushionMat.color = cushionMat.color ?? new THREE.Color();
+  cushionMat.color.setHex(COLORS.cushion);
   cushionMat.roughness = clothMat.roughness;
   cushionMat.metalness = clothMat.metalness;
   cushionMat.clearcoat = clothMat.clearcoat;
@@ -1797,13 +1804,21 @@ function Table3D(parent) {
   const frameWidth = railW * 1.9;
   const outerHalfW = halfW + 2 * railW + frameWidth;
   const outerHalfH = halfH + 2 * railW + frameWidth;
-  const CUSHION_BACK = (TABLE.WALL * 0.7) / 2; // match cushion depth so rails meet without overlap
+  const FACE_SHRINK_LONG = 0.94;
+  const FACE_SHRINK_SHORT = 0.97;
+  const CUSHION_BASE_THICKNESS = TABLE.WALL * 0.7;
+  const MAX_CUSHION_DEPTH = CUSHION_BASE_THICKNESS * Math.max(FACE_SHRINK_LONG, FACE_SHRINK_SHORT);
+  const CUSHION_BACK = MAX_CUSHION_DEPTH / 2; // align rail pocket carvings with the deepest cushion profile
+  const RAIL_INNER_BACK = Math.max(
+    CUSHION_BACK - CUSHION_RAIL_OVERLAP,
+    CUSHION_BASE_THICKNESS * 0.12
+  );
   const railsGroup = new THREE.Group();
   const NOTCH_R = POCKET_TOP_R * 1.22;
-  const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
-  const xInR = halfW + CUSHION_BACK - MICRO_EPS;
-  const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
-  const zInT = halfH + CUSHION_BACK - MICRO_EPS;
+  const xInL = -(halfW + RAIL_INNER_BACK - MICRO_EPS);
+  const xInR = halfW + RAIL_INNER_BACK - MICRO_EPS;
+  const zInB = -(halfH + RAIL_INNER_BACK - MICRO_EPS);
+  const zInT = halfH + RAIL_INNER_BACK - MICRO_EPS;
 
   function addCornerArcLong(shape, signX, signZ) {
     const xIn = signX < 0 ? xInL : xInR;
@@ -1960,8 +1975,6 @@ function Table3D(parent) {
   buildEndRail(1);
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.94;
-  const FACE_SHRINK_SHORT = 0.97;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
@@ -2774,6 +2787,19 @@ function SnookerGame() {
 
         const updateCamera = () => {
           let lookTarget = null;
+          const applyCameraBounds = (vec) => {
+            if (!vec || !ACTION_CAM.bounds) return vec;
+            const { x: limitX, z: limitZ } = ACTION_CAM.bounds;
+            if (typeof limitX === 'number') {
+              const scaledX = limitX * worldScaleFactor;
+              vec.x = THREE.MathUtils.clamp(vec.x, -scaledX, scaledX);
+            }
+            if (typeof limitZ === 'number') {
+              const scaledZ = limitZ * worldScaleFactor;
+              vec.z = THREE.MathUtils.clamp(vec.z, -scaledZ, scaledZ);
+            }
+            return vec;
+          };
           if (topViewRef.current) {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
@@ -2864,6 +2890,7 @@ function SnookerGame() {
                 camHeight,
                 anchor.point.y * worldScaleFactor
               );
+              applyCameraBounds(desiredPosition);
               const ballTarget = new THREE.Vector3(
                 ballPos2D.x,
                 BALL_WORLD_CENTER_Y,
@@ -2874,20 +2901,29 @@ function SnookerGame() {
                 BALL_WORLD_CENTER_Y,
                 pocketCenter.y
               );
-              let focusTarget = ballTarget.clone();
+              const cueTarget = cueBall
+                ? new THREE.Vector3(
+                    cueBall.pos.x,
+                    BALL_WORLD_CENTER_Y,
+                    cueBall.pos.y
+                  )
+                : null;
+              let focusTarget;
+              if (cueTarget && focusBall?.active) {
+                focusTarget = cueTarget.clone().lerp(ballTarget, 0.5);
+              } else if (cueTarget) {
+                focusTarget = cueTarget.clone();
+              } else {
+                focusTarget = ballTarget.clone();
+              }
               const bias = THREE.MathUtils.clamp(
                 activeShotView.targetBias ?? ACTION_CAM.opposite.targetBias ?? 0.3,
                 0,
                 1
               );
-              focusTarget.lerp(pocketTarget, bias);
-              if (cueBall) {
-                const cueTarget = new THREE.Vector3(
-                  cueBall.pos.x,
-                  BALL_WORLD_CENTER_Y,
-                  cueBall.pos.y
-                );
-                focusTarget.lerp(cueTarget, 0.35);
+              if (bias > 0) {
+                const pocketBlend = THREE.MathUtils.clamp(bias * 0.4, 0, 1);
+                focusTarget.lerp(pocketTarget, pocketBlend);
               }
               const focusOverride = activeShotView.focusOverride;
               if (focusOverride) {
@@ -2933,6 +2969,7 @@ function SnookerGame() {
                   focus2D.y + offset2D.y
                 );
               }
+              applyCameraBounds(desiredPosition);
               const now = performance.now();
               const lastUpdate = activeShotView.lastUpdate ?? now;
               const dt = Math.min(0.2, Math.max(0, (now - lastUpdate) / 1000));
@@ -2944,8 +2981,10 @@ function SnookerGame() {
               const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
               if (!activeShotView.smoothedPos) {
                 activeShotView.smoothedPos = desiredPosition.clone();
+                applyCameraBounds(activeShotView.smoothedPos);
               } else {
                 activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
+                applyCameraBounds(activeShotView.smoothedPos);
               }
               if (!activeShotView.smoothedTarget) {
                 activeShotView.smoothedTarget = focusTarget.clone();
@@ -3008,6 +3047,7 @@ function SnookerGame() {
               camHeight,
               basePoint.y * worldScaleFactor
             );
+            applyCameraBounds(desiredPosition);
             const focusTarget = focusBall?.active
               ? new THREE.Vector3(
                   focusBall.pos.x,
@@ -3031,8 +3071,10 @@ function SnookerGame() {
             const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
+              applyCameraBounds(activeShotView.smoothedPos);
             } else {
               activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
+              applyCameraBounds(activeShotView.smoothedPos);
             }
             if (!activeShotView.smoothedTarget) {
               activeShotView.smoothedTarget = focusTarget.clone();
