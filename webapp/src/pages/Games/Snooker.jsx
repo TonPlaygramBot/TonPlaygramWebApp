@@ -3879,15 +3879,26 @@ function SnookerGame() {
           [spotOffsetX, fillLightHeight, -spotOffsetZ],
           [-spotOffsetX, fillLightHeight, -spotOffsetZ]
         ];
+        const fillLights = [];
         for (const [x, y, z] of fillPositions) {
           const fill = new THREE.PointLight(0xffffff, fillIntensity, fillLightDistance, 1.1);
           fill.position.set(x, y, z);
           fill.castShadow = false;
           lightingRig.add(fill);
+          fillLights.push(fill);
         }
+
+        return {
+          lightingRig,
+          hemisphere,
+          dirLight,
+          spot,
+          ambient,
+          fillLights
+        };
       };
 
-      addMobileLighting();
+      const { ambient: ambientLight } = addMobileLighting();
 
       // Table
       const {
@@ -3897,6 +3908,16 @@ function SnookerGame() {
         clothMat: tableCloth,
         cushionMat: tableCushion
       } = Table3D(world);
+      if (ambientLight && table) {
+        table.updateMatrixWorld(true);
+        const tableBounds = new THREE.Box3().setFromObject(table);
+        const tableCenter = tableBounds.getCenter(new THREE.Vector3());
+        ambientLight.position.set(
+          tableCenter.x,
+          ambientLight.position.y,
+          tableCenter.z
+        );
+      }
       clothMat = tableCloth;
       cushionMat = tableCushion;
       if (table?.userData) {
