@@ -2052,7 +2052,7 @@ function Table3D(parent) {
       TMP_VEC3_A.applyQuaternion(orientation);
       const upFacing = Math.max(TMP_VEC3_A.y, 0);
       const lateral = Math.max(0, 1 - Math.abs(TMP_VEC3_A.y));
-      let shade = 1 - upFacing * 0.24 + lateral * 0.08;
+      let shade = 1 - upFacing * 0.3 + lateral * 0.05;
       if (TMP_VEC3_A.y < 0) shade *= 0.9;
       if (positions) {
         TMP_VEC3_B.set(
@@ -2068,7 +2068,7 @@ function Table3D(parent) {
         );
         shade = THREE.MathUtils.lerp(0.88, shade, lipBlend);
       }
-      shade = THREE.MathUtils.clamp(shade, 0.72, 0.98);
+      shade = THREE.MathUtils.clamp(shade, 0.74, 0.94);
       const idx = i * 3;
       colors[idx] = shade;
       colors[idx + 1] = shade;
@@ -3895,7 +3895,7 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const spotIntensity = 8.5;
+        const spotIntensity = 6.2;
         const spot = new THREE.SpotLight(
           0xffffff,
           spotIntensity,
@@ -3913,7 +3913,7 @@ function SnookerGame() {
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
         spot.shadow.bias = -0.00008;
-        spot.penumbra = 0.68;
+        spot.penumbra = 0.74;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
@@ -3929,7 +3929,7 @@ function SnookerGame() {
         counterSpot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         counterSpot.decay = 1.0;
         counterSpot.castShadow = false;
-        counterSpot.penumbra = 0.72;
+        counterSpot.penumbra = 0.78;
         lightingRig.add(counterSpot);
         lightingRig.add(counterSpot.target);
 
