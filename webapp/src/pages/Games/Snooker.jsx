@@ -1414,7 +1414,7 @@ function Table3D(parent) {
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 8; // amplify cloth weave visibility (~8 crossings across one ball)
-  const clothTextureScale = 0.04; // enlarge weave pattern an additional 5x for clearer visibility
+  const clothTextureScale = 0.02; // enlarge weave pattern an additional 10x for clearer visibility
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
