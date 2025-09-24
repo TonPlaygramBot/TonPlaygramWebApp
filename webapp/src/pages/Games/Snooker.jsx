@@ -431,13 +431,13 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 7.5,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.28,
-  maxOutside: BALL_R * 36,
-  heightOffset: BALL_R * 6.4,
-  distanceBias: 1.22,
-  offsetScale: 1.18,
-  backstep: BALL_R * 3.6,
-  fovOffset: 3
+  minOutside: TABLE.WALL + POCKET_VIS_R * 1.4,
+  maxOutside: BALL_R * 42,
+  heightOffset: BALL_R * 7.6,
+  distanceBias: 1.34,
+  offsetScale: 1.22,
+  backstep: BALL_R * 4.2,
+  fovOffset: 4.5
 });
 const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
 const ACTION_CAM = Object.freeze({
@@ -451,15 +451,15 @@ const ACTION_CAM = Object.freeze({
     maxY: 0.6
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.72,
-    minRailClearance: TABLE.WALL + BALL_R * 1.45,
-    extraClearance: TABLE.WALL * 0.22,
-    backstep: BALL_R * 5.6,
-    heightOffset: BALL_R * 13.2,
-    targetBias: 0.34,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.6,
-    radiusScale: 1.26,
-    focusBlend: 0.48
+    lateral: PLAY_W * 0.84,
+    minRailClearance: TABLE.WALL + BALL_R * 1.85,
+    extraClearance: TABLE.WALL * 0.32,
+    backstep: BALL_R * 7.2,
+    heightOffset: BALL_R * 15.4,
+    targetBias: 0.22,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.8,
+    radiusScale: 1.35,
+    focusBlend: 0.35
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -520,6 +520,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 31;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
+const CLOTH_TEXTURE_INTENSITY = 2; // boost cloth texture visibility on both the bed and cushions
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -1543,10 +1544,11 @@ function Table3D(parent) {
     displacementMap: clothHeight || undefined,
     roughnessMap: clothRoughness || undefined,
     aoMap: clothAO || undefined,
-    aoMapIntensity: 1
+    aoMapIntensity: CLOTH_TEXTURE_INTENSITY
   });
   if (clothMat.normalMap) {
-    clothMat.normalScale = new THREE.Vector2(0.64, 0.64);
+    const boosted = 0.64 * CLOTH_TEXTURE_INTENSITY;
+    clothMat.normalScale = new THREE.Vector2(boosted, boosted);
   }
   if (clothMat.displacementMap) {
     clothMat.displacementScale = 0;
@@ -1578,8 +1580,8 @@ function Table3D(parent) {
     displacementScale: clothMat.displacementMap ? clothMat.displacementScale : null
   };
 
-  const cushionRepeat = baseRepeat * 1.08;
-  const cushionRatio = repeatRatio * 0.9;
+  const cushionRepeat = baseRepeat;
+  const cushionRatio = repeatRatio;
   const cushionMat = clothMat.clone();
   cushionMat.color.copy(clothMat.color);
   cushionMat.roughness = clothMat.roughness;
@@ -1618,8 +1620,8 @@ function Table3D(parent) {
     ...(cushionMat.userData || {}),
     baseRepeat: cushionRepeat,
     repeatRatio: cushionRatio,
-    nearRepeat: clothNearRepeat * 1.05,
-    farRepeat: clothFarRepeat * 0.94,
+    nearRepeat: clothNearRepeat,
+    farRepeat: clothFarRepeat,
     normalScale: cushionMat.normalMap ? cushionMat.normalScale.x : null,
     displacementScale: cushionMat.displacementMap ? cushionMat.displacementScale : null
   };
@@ -1797,7 +1799,7 @@ function Table3D(parent) {
   const outerHalfH = halfH + 2 * railW + frameWidth;
   const CUSHION_BACK = (TABLE.WALL * 0.7) / 2; // match cushion depth so rails meet without overlap
   const railsGroup = new THREE.Group();
-  const NOTCH_R = POCKET_TOP_R * 1.08;
+  const NOTCH_R = POCKET_TOP_R * 1.14;
   const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
   const xInR = halfW + CUSHION_BACK - MICRO_EPS;
   const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
@@ -2049,11 +2051,11 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.72;
+  const POCKET_GAP = POCKET_VIS_R * 0.78;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
   const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
-  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.06;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.18;
+  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.1;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
   const horizLen =
     PLAY_W -
@@ -3500,7 +3502,7 @@ function SnookerGame() {
             heightOffset: ACTION_CAM.opposite.heightOffset,
             targetBias: ACTION_CAM.opposite.targetBias,
             smoothTime: ACTION_CAM.smoothTime,
-            fovOffset: 0,
+            fovOffset: 2,
             resume: followView ?? null,
             resumeOrbit,
             orbitSnapshot: followView?.orbitSnapshot ?? null,
