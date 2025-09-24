@@ -528,7 +528,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x26c95a,
+  cloth: 0x32d66b,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -551,7 +551,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x26, g: 0xc9, b: 0x5a };
+  const BASE_COLOR = { r: 0x32, g: 0xd6, b: 0x6b };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -579,19 +579,19 @@ const createClothTextures = (() => {
     const microFiber = periodicNoise(x * 2, y * 2);
     const heightRaw =
       0.52 +
-      ribBlend * 0.18 +
-      weave * 0.08 +
-      fineDiag * 0.02 +
-      fineAnti * 0.018 +
-      fiber * 0.035 +
-      microFiber * 0.02;
+      ribBlend * 0.22 +
+      weave * 0.1 +
+      fineDiag * 0.024 +
+      fineAnti * 0.022 +
+      fiber * 0.045 +
+      microFiber * 0.028;
     const height = clamp01(heightRaw);
     const fiberInfluence = fiber * 0.02 + microFiber * 0.015;
     const ribInfluence = ribBlend * 0.02;
     const baseR = BASE_COLOR.r / 255;
     const baseG = BASE_COLOR.g / 255;
     const baseB = BASE_COLOR.b / 255;
-    const shade = (height - 0.5) * 0.04 - weave * 0.01;
+    const shade = (height - 0.5) * 0.05 - weave * 0.012;
     const colorFactor = 1 + ribInfluence + fiberInfluence + shade;
     const color = {
       r: clamp255(baseR * colorFactor * 255),
@@ -599,7 +599,7 @@ const createClothTextures = (() => {
       b: clamp255(baseB * (1 + ribInfluence * 0.8 + fiberInfluence * 0.6) * 255)
     };
     const roughness = clamp01(
-      0.62 - ribBlend * 0.04 - fiber * 0.015 + weaveAbs * 0.02
+      0.6 - ribBlend * 0.05 - fiber * 0.02 + weaveAbs * 0.028
     );
     const ao = clamp01(0.9 - weaveAbs * 0.05 - fiber * 0.03 - (height - 0.5) * 0.12);
     return { height, color, roughness, ao, fiber, weaveAbs, rib: ribBlend };
@@ -1545,10 +1545,10 @@ function Table3D(parent) {
     aoMapIntensity: 0.8
   });
   if (clothMat.normalMap) {
-    clothMat.normalScale = new THREE.Vector2(0.55, 0.55);
+    clothMat.normalScale = new THREE.Vector2(0.62, 0.62);
   }
   if (clothMat.displacementMap) {
-    clothMat.displacementScale = 0.00034;
+    clothMat.displacementScale = 0.00038;
     clothMat.displacementBias = -clothMat.displacementScale / 2;
   }
   const baseRepeat = 2.4;
@@ -1594,17 +1594,17 @@ function Table3D(parent) {
   });
   if (cushionMat.normalMap && clothMat.normalScale) {
     const baseNormal = clothMat.normalScale.x;
-    const cushionNormal = baseNormal * 1.35;
+    const cushionNormal = baseNormal * 1.55;
     cushionMat.normalScale = cushionMat.normalScale?.clone() ?? new THREE.Vector2();
     cushionMat.normalScale.setScalar(cushionNormal);
   }
   if (cushionMat.displacementMap && clothMat.displacementScale) {
-    const cushionDisp = clothMat.displacementScale * 1.25;
+    const cushionDisp = clothMat.displacementScale * 1.4;
     cushionMat.displacementScale = cushionDisp;
     cushionMat.displacementBias = -cushionDisp / 2;
   }
   if (cushionMat.aoMap) {
-    cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
+    cushionMat.aoMapIntensity = clothMat.aoMapIntensity * 1.08;
   }
   cushionMat.userData = {
     ...(cushionMat.userData || {}),
