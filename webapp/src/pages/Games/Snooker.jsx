@@ -526,7 +526,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x2bc351,
+  cloth: 0x0f8a3d,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -542,115 +542,194 @@ const COLORS = Object.freeze({
 
 const createClothTextures = (() => {
   let cache = null;
+  const clamp01 = (value) => Math.max(0, Math.min(1, value));
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
-  const applyContrast = (value, strength = 1) => {
-    if (strength === 1) return clamp255(value);
-    const pivot = 128;
-    return clamp255((value - pivot) * strength + pivot);
+  const wrapIndex = (value, size) => {
+    const mod = value % size;
+    return mod < 0 ? mod + size : mod;
+  };
+  const TWO_PI = Math.PI * 2;
+  const BASE_COLOR = { r: 0x0f, g: 0x8a, b: 0x3d };
+  const TWILL_PERIOD = 64;
+  const periodicNoise = (x, y) => {
+    const n1 = Math.sin((TWO_PI * (x + y)) / 16);
+    const n2 = Math.sin((TWO_PI * (3 * x - 2 * y)) / 32);
+    const n3 = Math.sin((TWO_PI * (5 * x + 7 * y)) / 128);
+    const n4 = Math.sin((TWO_PI * (9 * x + 11 * y)) / 256);
+    const n5 = Math.sin((TWO_PI * (x - y)) / 8);
+    return (n1 * 0.25 + n2 * 0.18 + n3 * 0.16 + n4 * 0.14 + n5 * 0.27) * 0.5;
+  };
+  const sampleWeave = (x, y) => {
+    const diag = (x + y) / TWILL_PERIOD;
+    const diagOffset = (x + y + TWILL_PERIOD * 0.5) / (TWILL_PERIOD * 2);
+    const anti = (x - y) / (TWILL_PERIOD * 2);
+    const ribWave = Math.sin(TWO_PI * diag);
+    const ribAltWave = Math.sin(TWO_PI * diagOffset);
+    const weaveWave = Math.sin(TWO_PI * anti);
+    const rib = Math.sign(ribWave) * Math.pow(Math.abs(ribWave), 1.8);
+    const ribAlt = Math.sign(ribAltWave) * Math.pow(Math.abs(ribAltWave), 1.6);
+    const ribBlend = rib * 0.68 + ribAlt * 0.32;
+    const weave = Math.sign(weaveWave) * Math.pow(Math.abs(weaveWave), 1.7);
+    const weaveAbs = Math.abs(weave);
+    const fineDiag = Math.sin((TWO_PI * (x + y)) / 8);
+    const fineAnti = Math.sin((TWO_PI * (x - y)) / 16);
+    const fiber = periodicNoise(x, y);
+    const microFiber = periodicNoise(x * 2, y * 2);
+    const heightRaw =
+      0.52 +
+      ribBlend * 0.18 +
+      weave * 0.08 +
+      fineDiag * 0.02 +
+      fineAnti * 0.018 +
+      fiber * 0.035 +
+      microFiber * 0.02;
+    const height = clamp01(heightRaw);
+    const fiberInfluence = fiber * 0.02 + microFiber * 0.015;
+    const ribInfluence = ribBlend * 0.02;
+    const baseR = BASE_COLOR.r / 255;
+    const baseG = BASE_COLOR.g / 255;
+    const baseB = BASE_COLOR.b / 255;
+    const shade = (height - 0.5) * 0.04 - weave * 0.01;
+    const colorFactor = 1 + ribInfluence + fiberInfluence + shade;
+    const color = {
+      r: clamp255(baseR * colorFactor * 255),
+      g: clamp255(baseG * (1 + ribInfluence * 1.1 + fiberInfluence) * 255),
+      b: clamp255(baseB * (1 + ribInfluence * 0.8 + fiberInfluence * 0.6) * 255)
+    };
+    const roughness = clamp01(
+      0.62 - ribBlend * 0.04 - fiber * 0.015 + weaveAbs * 0.02
+    );
+    const ao = clamp01(0.9 - weaveAbs * 0.05 - fiber * 0.03 - (height - 0.5) * 0.12);
+    return { height, color, roughness, ao, fiber, weaveAbs, rib: ribBlend };
   };
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
-      cache = { map: null, bump: null };
+      cache = {
+        map: null,
+        normal: null,
+        height: null,
+        roughness: null,
+        ao: null,
+        bump: null
+      };
       return cache;
     }
 
-    const SIZE = 1024;
-    const THREAD_PITCH = 7.8;
-    const STRAND_POWER = 0.48;
-    const STRAND_SHAPE = 8.4;
-    const DETAIL_ANCHOR = 1.24;
-    const MICRO_THREAD = 0.46;
-    const WEAVE_SHADE_BOOST = 2.18;
-    const THREAD_HIGHLIGHT_BOOST = 2.42;
-    const PATTERN_CONTRAST = 3.8;
-    const COLOR_CONTRAST = 2.15;
-    const BUMP_HEIGHT_SCALE = 2280;
-    const BUMP_DETAIL_SCALE = 980;
-    const DIAG = Math.PI / 4;
-    const COS = Math.cos(DIAG);
-    const SIN = Math.sin(DIAG);
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      cache = { map: null, bump: null };
+    const SIZE = 4096;
+    const baseCanvas = document.createElement('canvas');
+    baseCanvas.width = baseCanvas.height = SIZE;
+    const baseCtx = baseCanvas.getContext('2d');
+    if (!baseCtx) {
+      cache = {
+        map: null,
+        normal: null,
+        height: null,
+        roughness: null,
+        ao: null,
+        bump: null
+      };
       return cache;
     }
-
-    const image = ctx.createImageData(SIZE, SIZE);
-    const data = image.data;
-    const base = { r: 0x14, g: 0xc8, b: 0x3f };
-    const deep = { r: 0x0a, g: 0x8e, b: 0x2a };
-    const highlight = { r: 0x4a, g: 0xff, b: 0x95 };
-    const weaveProfile = (t) => {
-      const wave = Math.sin(Math.PI * t);
-      const envelope = 1 - Math.pow(Math.abs(wave), STRAND_POWER);
-      return Math.pow(Math.max(0, envelope), STRAND_SHAPE);
-    };
-    const periodicNoise = (x, y) => {
-      const n1 = Math.sin(((x + y) * 2 * Math.PI) / 48);
-      const n2 = Math.sin(((x * 5 - y * 3) * 2 * Math.PI) / 28);
-      const n3 = Math.sin(((x * 9 + y * 11) * 2 * Math.PI) / 18);
-      return (n1 * 0.22 + n2 * 0.28 + n3 * 0.5) * 0.12;
-    };
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = heightCanvas.height = SIZE;
+    const heightCtx = heightCanvas.getContext('2d');
+    const roughnessCanvas = document.createElement('canvas');
+    roughnessCanvas.width = roughnessCanvas.height = SIZE;
+    const roughnessCtx = roughnessCanvas.getContext('2d');
+    const aoCanvas = document.createElement('canvas');
+    aoCanvas.width = aoCanvas.height = SIZE;
+    const aoCtx = aoCanvas.getContext('2d');
+    if (!heightCtx || !roughnessCtx || !aoCtx) {
+      cache = {
+        map: null,
+        normal: null,
+        height: null,
+        roughness: null,
+        ao: null,
+        bump: null
+      };
+      return cache;
+    }
+    const baseImage = baseCtx.createImageData(SIZE, SIZE);
+    const heightImage = heightCtx.createImageData(SIZE, SIZE);
+    const roughnessImage = roughnessCtx.createImageData(SIZE, SIZE);
+    const aoImage = aoCtx.createImageData(SIZE, SIZE);
+    const heightField = new Float32Array(SIZE * SIZE);
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const u = (x * COS + y * SIN) / THREAD_PITCH;
-        const v = (x * COS - y * SIN) / THREAD_PITCH;
-        const warp = weaveProfile(u);
-        const weft = weaveProfile(v);
-        const ridge = warp + weft;
-        const cross = warp * weft;
-        const fiber = periodicNoise(x, y);
-        const threadTension = Math.sin(
-          ((x - y) * 2 * Math.PI) / (THREAD_PITCH * 0.5)
-        ) * MICRO_THREAD;
-        const weaveShadeBase =
-          0.58 + ridge * 0.72 + cross * 1.05 + (fiber + threadTension) * 0.34;
-        const weaveShade = Math.min(1.58, weaveShadeBase * WEAVE_SHADE_BOOST);
-        const toneMix = Math.min(
-          1,
-          Math.max(0, 0.12 + cross * 0.92 + ridge * 0.2)
-        );
-        const highlightMix =
-          Math.pow(Math.max(0, ridge - 0.08), 1.26) * THREAD_HIGHLIGHT_BOOST;
-        const variation = fiber * DETAIL_ANCHOR;
-        const rBase = THREE.MathUtils.lerp(base.r, deep.r, toneMix * 0.92);
-        const gBase = THREE.MathUtils.lerp(base.g, deep.g, toneMix * 0.84);
-        const bBase = THREE.MathUtils.lerp(base.b, deep.b, toneMix * 0.9);
-        const highlightLift = {
-          r: highlight.r * highlightMix,
-          g: highlight.g * highlightMix * 1.32,
-          b: highlight.b * highlightMix * 0.58
-        };
-        const shadeVariation = 1.02 + variation * 1.06;
-        const gShadeVariation = 1.12 + variation * 1.18;
-        const intensity = (warp - weft) * (2.35 * PATTERN_CONTRAST);
-        const r =
-          rBase * weaveShade * shadeVariation +
-          highlightLift.r +
-          intensity * 34 * PATTERN_CONTRAST;
-        const g =
-          gBase * weaveShade * gShadeVariation +
-          highlightLift.g +
-          intensity * 24 * PATTERN_CONTRAST;
-        const b =
-          bBase * weaveShade * (0.92 + variation * 0.58) +
-          highlightLift.b -
-          intensity * 28 * PATTERN_CONTRAST;
-        const i = (y * SIZE + x) * 4;
-        data[i + 0] = applyContrast(r, COLOR_CONTRAST);
-        data[i + 1] = applyContrast(g, COLOR_CONTRAST);
-        data[i + 2] = applyContrast(b, COLOR_CONTRAST);
-        data[i + 3] = 255;
+        const sample = sampleWeave(x, y);
+        const idx = (y * SIZE + x) * 4;
+        baseImage.data[idx + 0] = sample.color.r;
+        baseImage.data[idx + 1] = sample.color.g;
+        baseImage.data[idx + 2] = sample.color.b;
+        baseImage.data[idx + 3] = 255;
+        const heightValue = clamp255(sample.height * 255);
+        heightImage.data[idx + 0] = heightValue;
+        heightImage.data[idx + 1] = heightValue;
+        heightImage.data[idx + 2] = heightValue;
+        heightImage.data[idx + 3] = 255;
+        const roughnessValue = clamp255(sample.roughness * 255);
+        roughnessImage.data[idx + 0] = roughnessValue;
+        roughnessImage.data[idx + 1] = roughnessValue;
+        roughnessImage.data[idx + 2] = roughnessValue;
+        roughnessImage.data[idx + 3] = 255;
+        const aoValue = clamp255(sample.ao * 255);
+        aoImage.data[idx + 0] = aoValue;
+        aoImage.data[idx + 1] = aoValue;
+        aoImage.data[idx + 2] = aoValue;
+        aoImage.data[idx + 3] = 255;
+        heightField[y * SIZE + x] = sample.height;
       }
     }
-    ctx.putImageData(image, 0, 0);
+    baseCtx.putImageData(baseImage, 0, 0);
+    heightCtx.putImageData(heightImage, 0, 0);
+    roughnessCtx.putImageData(roughnessImage, 0, 0);
+    aoCtx.putImageData(aoImage, 0, 0);
 
-    const colorMap = new THREE.CanvasTexture(canvas);
+    const normalCanvas = document.createElement('canvas');
+    normalCanvas.width = normalCanvas.height = SIZE;
+    const normalCtx = normalCanvas.getContext('2d');
+    if (!normalCtx) {
+      cache = {
+        map: null,
+        normal: null,
+        height: null,
+        roughness: null,
+        ao: null,
+        bump: null
+      };
+      return cache;
+    }
+    const normalImage = normalCtx.createImageData(SIZE, SIZE);
+    const normalStrength = 0.4;
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const left = heightField[y * SIZE + wrapIndex(x - 1, SIZE)];
+        const right = heightField[y * SIZE + wrapIndex(x + 1, SIZE)];
+        const up = heightField[wrapIndex(y - 1, SIZE) * SIZE + x];
+        const down = heightField[wrapIndex(y + 1, SIZE) * SIZE + x];
+        const dx = (right - left) * normalStrength;
+        const dy = (down - up) * normalStrength;
+        const nx = -dx;
+        const ny = 1;
+        const nz = -dy;
+        const lenSq = nx * nx + ny * ny + nz * nz;
+        const invLen = lenSq > 1e-10 ? 1 / Math.sqrt(lenSq) : 1;
+        const r = clamp255(((nx * invLen) * 0.5 + 0.5) * 255);
+        const g = clamp255(((ny * invLen) * 0.5 + 0.5) * 255);
+        const b = clamp255(((nz * invLen) * 0.5 + 0.5) * 255);
+        const idx = (y * SIZE + x) * 4;
+        normalImage.data[idx + 0] = r;
+        normalImage.data[idx + 1] = g;
+        normalImage.data[idx + 2] = b;
+        normalImage.data[idx + 3] = 255;
+      }
+    }
+    normalCtx.putImageData(normalImage, 0, 0);
+
+    const colorMap = new THREE.CanvasTexture(baseCanvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(12, 48);
     colorMap.anisotropy = 64;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -659,47 +738,54 @@ const createClothTextures = (() => {
     else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
-    const bumpCanvas = document.createElement('canvas');
-    bumpCanvas.width = bumpCanvas.height = SIZE;
-    const bumpCtx = bumpCanvas.getContext('2d');
-    if (!bumpCtx) {
-      cache = { map: colorMap, bump: null };
-      return cache;
-    }
-    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
-    const bumpData = bumpImage.data;
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        const u = (x * COS + y * SIN) / THREAD_PITCH;
-        const v = (x * COS - y * SIN) / THREAD_PITCH;
-        const warp = weaveProfile(u);
-        const weft = weaveProfile(v);
-        const ridge = warp + weft;
-        const cross = warp * weft;
-        const microContrast = periodicNoise(x * 1.8, y * 1.6) * 0.18;
-        const height = 0.88 * cross + 0.28 * ridge + microContrast;
-        const detail = periodicNoise(x, y) * 0.18;
-        const value = clamp255(
-          130 + (height - 0.45) * BUMP_HEIGHT_SCALE + detail * BUMP_DETAIL_SCALE
-        );
-        const i = (y * SIZE + x) * 4;
-        bumpData[i + 0] = value;
-        bumpData[i + 1] = value;
-        bumpData[i + 2] = value;
-        bumpData[i + 3] = 255;
-      }
-    }
-    bumpCtx.putImageData(bumpImage, 0, 0);
+    const normalMap = new THREE.CanvasTexture(normalCanvas);
+    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+    normalMap.anisotropy = 32;
+    normalMap.generateMipmaps = true;
+    normalMap.minFilter = THREE.LinearMipmapLinearFilter;
+    normalMap.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in normalMap) normalMap.colorSpace = THREE.NoColorSpace;
+    else normalMap.encoding = THREE.LinearEncoding;
+    normalMap.needsUpdate = true;
 
-    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
-    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
-    bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = colorMap.anisotropy;
-    bumpMap.generateMipmaps = true;
-    bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
-    bumpMap.magFilter = THREE.LinearFilter;
+    const heightMap = new THREE.CanvasTexture(heightCanvas);
+    heightMap.wrapS = heightMap.wrapT = THREE.RepeatWrapping;
+    heightMap.anisotropy = 16;
+    heightMap.generateMipmaps = true;
+    heightMap.minFilter = THREE.LinearMipmapLinearFilter;
+    heightMap.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in heightMap) heightMap.colorSpace = THREE.NoColorSpace;
+    else heightMap.encoding = THREE.LinearEncoding;
+    heightMap.needsUpdate = true;
 
-    cache = { map: colorMap, bump: bumpMap };
+    const roughnessMap = new THREE.CanvasTexture(roughnessCanvas);
+    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+    roughnessMap.anisotropy = 16;
+    roughnessMap.generateMipmaps = true;
+    roughnessMap.minFilter = THREE.LinearMipmapLinearFilter;
+    roughnessMap.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in roughnessMap) roughnessMap.colorSpace = THREE.NoColorSpace;
+    else roughnessMap.encoding = THREE.LinearEncoding;
+    roughnessMap.needsUpdate = true;
+
+    const aoMap = new THREE.CanvasTexture(aoCanvas);
+    aoMap.wrapS = aoMap.wrapT = THREE.RepeatWrapping;
+    aoMap.anisotropy = 16;
+    aoMap.generateMipmaps = true;
+    aoMap.minFilter = THREE.LinearMipmapLinearFilter;
+    aoMap.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in aoMap) aoMap.colorSpace = THREE.NoColorSpace;
+    else aoMap.encoding = THREE.LinearEncoding;
+    aoMap.needsUpdate = true;
+
+    cache = {
+      map: colorMap,
+      normal: normalMap,
+      height: heightMap,
+      roughness: roughnessMap,
+      ao: aoMap,
+      bump: heightMap
+    };
     return cache;
   };
 })();
@@ -1433,33 +1519,50 @@ function Table3D(parent) {
   const frameTopY = FRAME_TOP_Y;
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
-  const { map: clothMap, bump: clothBump } = createClothTextures();
+  const {
+    map: clothMap,
+    normal: clothNormal,
+    height: clothHeight,
+    roughness: clothRoughness,
+    ao: clothAO
+  } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.68,
-    sheen: 0.92,
-    sheenRoughness: 0.28,
-    clearcoat: 0.08,
-    clearcoatRoughness: 0.32,
-    specularIntensity: 0.38
+    roughness: 0.62,
+    metalness: 0,
+    sheen: 0.9,
+    sheenRoughness: 0.26,
+    clearcoat: 0.05,
+    clearcoatRoughness: 0.34,
+    specularIntensity: 0.32,
+    map: clothMap || undefined,
+    normalMap: clothNormal || undefined,
+    displacementMap: clothHeight || undefined,
+    roughnessMap: clothRoughness || undefined,
+    aoMap: clothAO || undefined,
+    aoMapIntensity: 0.88
   });
+  if (clothMat.normalMap) {
+    clothMat.normalScale = new THREE.Vector2(0.4, 0.4);
+  }
+  if (clothMat.displacementMap) {
+    clothMat.displacementScale = 0.00024;
+    clothMat.displacementBias = -clothMat.displacementScale / 2;
+  }
   const baseRepeat = 2.4;
   const repeatRatio = 3.1;
-  if (clothMap) {
-    clothMat.map = clothMap;
-    clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.map.anisotropy = Math.max(clothMat.map.anisotropy ?? 0, 12);
-    clothMat.map.needsUpdate = true;
-  }
-  if (clothBump) {
-    clothMat.bumpMap = clothBump;
-    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 12);
-    clothMat.bumpScale = 7.5;
-    clothMat.bumpMap.needsUpdate = true;
-  } else {
-    clothMat.bumpScale = 7.5;
-  }
+  const applyTextureSettings = (texture, repeatX, repeatY, anisotropy = 12) => {
+    if (!texture) return;
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeatX, repeatY);
+    texture.anisotropy = Math.max(texture.anisotropy ?? 0, anisotropy);
+    texture.needsUpdate = true;
+  };
+  applyTextureSettings(clothMat.map, baseRepeat, baseRepeat * repeatRatio, 16);
+  applyTextureSettings(clothMat.normalMap, baseRepeat, baseRepeat * repeatRatio, 16);
+  applyTextureSettings(clothMat.displacementMap, baseRepeat, baseRepeat * repeatRatio, 12);
+  applyTextureSettings(clothMat.roughnessMap, baseRepeat, baseRepeat * repeatRatio, 8);
+  applyTextureSettings(clothMat.aoMap, baseRepeat, baseRepeat * repeatRatio, 8);
   const clothNearRepeat = baseRepeat * 0.58;
   const clothFarRepeat = baseRepeat * 1.12;
   clothMat.userData = {
@@ -1468,25 +1571,38 @@ function Table3D(parent) {
     repeatRatio,
     nearRepeat: clothNearRepeat,
     farRepeat: clothFarRepeat,
-    bumpScale: clothMat.bumpScale
+    normalScale: clothMat.normalMap ? clothMat.normalScale.x : null,
+    displacementScale: clothMat.displacementMap ? clothMat.displacementScale : null
   };
 
   const cushionRepeat = baseRepeat * 1.08;
   const cushionRatio = repeatRatio * 0.9;
-  const cushionBump = clothMat.bumpScale * 1.45;
   const cushionMat = clothMat.clone();
-  if (cushionMat.map) {
-    cushionMat.map = cushionMat.map.clone();
-    cushionMat.map.repeat.set(cushionRepeat, cushionRepeat * cushionRatio);
-    cushionMat.map.needsUpdate = true;
+  const textureKeys = ['map', 'normalMap', 'displacementMap', 'roughnessMap', 'aoMap'];
+  textureKeys.forEach((key) => {
+    const tex = cushionMat[key];
+    if (!tex) return;
+    cushionMat[key] = tex.clone();
+    applyTextureSettings(
+      cushionMat[key],
+      cushionRepeat,
+      cushionRepeat * cushionRatio,
+      key === 'map' ? 16 : key === 'normalMap' ? 16 : 8
+    );
+  });
+  if (cushionMat.normalMap && clothMat.normalScale) {
+    const baseNormal = clothMat.normalScale.x;
+    const cushionNormal = baseNormal * 1.35;
+    cushionMat.normalScale = cushionMat.normalScale?.clone() ?? new THREE.Vector2();
+    cushionMat.normalScale.setScalar(cushionNormal);
   }
-  if (cushionMat.bumpMap) {
-    cushionMat.bumpMap = cushionMat.bumpMap.clone();
-    cushionMat.bumpMap.repeat.set(cushionRepeat, cushionRepeat * cushionRatio);
-    cushionMat.bumpScale = cushionBump;
-    cushionMat.bumpMap.needsUpdate = true;
-  } else {
-    cushionMat.bumpScale = cushionBump;
+  if (cushionMat.displacementMap && clothMat.displacementScale) {
+    const cushionDisp = clothMat.displacementScale * 1.25;
+    cushionMat.displacementScale = cushionDisp;
+    cushionMat.displacementBias = -cushionDisp / 2;
+  }
+  if (cushionMat.aoMap) {
+    cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
   }
   cushionMat.userData = {
     ...(cushionMat.userData || {}),
@@ -1494,7 +1610,8 @@ function Table3D(parent) {
     repeatRatio: cushionRatio,
     nearRepeat: clothNearRepeat * 1.05,
     farRepeat: clothFarRepeat * 0.94,
-    bumpScale: cushionBump
+    normalScale: cushionMat.normalMap ? cushionMat.normalScale.x : null,
+    displacementScale: cushionMat.displacementMap ? cushionMat.displacementScale : null
   };
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
@@ -1551,6 +1668,9 @@ function Table3D(parent) {
     clothShape.holes.push(hole);
   });
   const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
+  if (clothGeo.attributes.uv && !clothGeo.attributes.uv2) {
+    clothGeo.setAttribute('uv2', clothGeo.attributes.uv.clone());
+  }
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal;
@@ -1890,6 +2010,9 @@ function Table3D(parent) {
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
+    if (geo.attributes.uv && !geo.attributes.uv2) {
+      geo.setAttribute('uv2', geo.attributes.uv.clone());
+    }
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 2;
@@ -2985,17 +3108,40 @@ function SnookerGame() {
             );
             const targetRepeat = targetRepeatBase * repeatBoost;
             const targetRepeatY = targetRepeat * ratio;
-            if (clothMat.map) {
-              clothMat.map.repeat.set(targetRepeat, targetRepeatY);
-            }
-            if (clothMat.bumpMap) {
-              clothMat.bumpMap.repeat.set(targetRepeat, targetRepeatY);
-            }
-            if (Number.isFinite(clothMat.userData?.bumpScale)) {
-              const base = clothMat.userData.bumpScale;
-              const distBump = THREE.MathUtils.lerp(base * 0.82, base * 2.25, fade);
+            [
+              clothMat.map,
+              clothMat.normalMap,
+              clothMat.displacementMap,
+              clothMat.roughnessMap,
+              clothMat.aoMap
+            ].forEach((tex) => {
+              if (tex) {
+                tex.repeat.set(targetRepeat, targetRepeatY);
+              }
+            });
+            if (clothMat.normalMap && Number.isFinite(clothMat.userData?.normalScale)) {
+              const base = clothMat.userData.normalScale;
+              const distNormal = THREE.MathUtils.lerp(
+                base * 0.82,
+                base * 2.25,
+                fade
+              );
               const heightBoost = THREE.MathUtils.lerp(1, 1.62, lowHeightFactor);
-              clothMat.bumpScale = distBump * heightBoost;
+              clothMat.normalScale.setScalar(distNormal * heightBoost);
+            }
+            if (
+              clothMat.displacementMap &&
+              Number.isFinite(clothMat.userData?.displacementScale)
+            ) {
+              const baseDisp = clothMat.userData.displacementScale;
+              const distDisp = THREE.MathUtils.lerp(
+                baseDisp * 0.85,
+                baseDisp * 1.65,
+                fade
+              );
+              const dispBoost = THREE.MathUtils.lerp(1, 1.55, lowHeightFactor);
+              clothMat.displacementScale = distDisp * dispBoost;
+              clothMat.displacementBias = -clothMat.displacementScale / 2;
             }
           }
         };
