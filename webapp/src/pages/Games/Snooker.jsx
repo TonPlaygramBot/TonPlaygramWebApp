@@ -1403,7 +1403,7 @@ function Table3D(parent) {
   const clothPrimary = new THREE.Color(COLORS.cloth);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothPrimary,
-    roughness: 0.8,
+    roughness: 0.85,
     sheen: 0.85,
     sheenRoughness: 0.46,
     clearcoat: 0.05,
@@ -1414,12 +1414,12 @@ function Table3D(parent) {
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 8; // amplify cloth weave visibility (~8 crossings across one ball)
-  const clothTextureScale = 0.02; // enlarge weave pattern an additional 10x for clearer visibility
+  const clothTextureScale = 0.01; // reduce tiling 50% so the weave reads larger on the cloth
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.15;
-  const baseBumpScale = 0.74;
+  const baseBumpScale = 0.86; // slightly stronger bump for thicker, fuzzier fibers
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
