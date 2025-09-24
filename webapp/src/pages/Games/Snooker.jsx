@@ -3746,27 +3746,6 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const spot = new THREE.SpotLight(
-          0xffffff,
-          7.6,
-          0,
-          Math.PI * 0.46,
-          0.62,
-          1
-        );
-        const spotOffsetX = 1.6 * fixtureScale;
-        const spotOffsetZ = 0.95 * fixtureScale;
-        const spotHeight = tableSurfaceY + 7 * scaledHeight + lightHeightLift;
-        spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
-        spot.decay = 1.0;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00008;
-        spot.penumbra = 0.68;
-        lightingRig.add(spot);
-        lightingRig.add(spot.target);
-
         const ambient = new THREE.AmbientLight(0xffffff, 0.08);
         ambient.position.set(
           0,
@@ -3774,6 +3753,14 @@ function SnookerGame() {
           0
         );
         lightingRig.add(ambient);
+
+        const secondaryAmbient = new THREE.AmbientLight(0xffffff, 0.08);
+        secondaryAmbient.position.set(
+          0,
+          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
+          0
+        );
+        lightingRig.add(secondaryAmbient);
       };
 
       addMobileLighting();
