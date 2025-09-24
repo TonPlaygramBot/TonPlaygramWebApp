@@ -516,7 +516,7 @@ const MAX_SPIN_VERTICAL = BALL_R * 0.24;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 32;
+const CUSHION_CUT_ANGLE = 31;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
 
@@ -1580,6 +1580,14 @@ function Table3D(parent) {
   const cushionRepeat = baseRepeat * 1.08;
   const cushionRatio = repeatRatio * 0.9;
   const cushionMat = clothMat.clone();
+  cushionMat.color.copy(clothMat.color);
+  cushionMat.roughness = clothMat.roughness;
+  cushionMat.metalness = clothMat.metalness;
+  cushionMat.clearcoat = clothMat.clearcoat;
+  cushionMat.clearcoatRoughness = clothMat.clearcoatRoughness;
+  cushionMat.sheen = clothMat.sheen;
+  cushionMat.sheenRoughness = clothMat.sheenRoughness;
+  cushionMat.specularIntensity = clothMat.specularIntensity;
   const textureKeys = ['map', 'normalMap', 'displacementMap', 'roughnessMap', 'aoMap'];
   textureKeys.forEach((key) => {
     const tex = cushionMat[key];
@@ -1594,17 +1602,16 @@ function Table3D(parent) {
   });
   if (cushionMat.normalMap && clothMat.normalScale) {
     const baseNormal = clothMat.normalScale.x;
-    const cushionNormal = baseNormal * 1.55;
     cushionMat.normalScale = cushionMat.normalScale?.clone() ?? new THREE.Vector2();
-    cushionMat.normalScale.setScalar(cushionNormal);
+    cushionMat.normalScale.setScalar(baseNormal);
   }
   if (cushionMat.displacementMap && clothMat.displacementScale) {
-    const cushionDisp = clothMat.displacementScale * 1.4;
-    cushionMat.displacementScale = cushionDisp;
-    cushionMat.displacementBias = -cushionDisp / 2;
+    cushionMat.displacementScale = clothMat.displacementScale;
+    cushionMat.displacementBias =
+      clothMat.displacementBias ?? -clothMat.displacementScale / 2;
   }
   if (cushionMat.aoMap) {
-    cushionMat.aoMapIntensity = clothMat.aoMapIntensity * 1.08;
+    cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
   }
   cushionMat.userData = {
     ...(cushionMat.userData || {}),
@@ -1787,7 +1794,7 @@ function Table3D(parent) {
   const frameWidth = railW * 1.9;
   const outerHalfW = halfW + 2 * railW + frameWidth;
   const outerHalfH = halfH + 2 * railW + frameWidth;
-  const CUSHION_BACK = railW * 0.5;
+  const CUSHION_BACK = (TABLE.WALL * 0.7) / 2; // match cushion depth so rails meet without overlap
   const railsGroup = new THREE.Group();
   const NOTCH_R = POCKET_TOP_R * 1.02;
   const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
