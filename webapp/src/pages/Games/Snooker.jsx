@@ -492,7 +492,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x2bc351,
+  cloth: 0x31c66a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -532,10 +532,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x15, g: 0x63, b: 0x2d };
-    const base = { r: 0x23, g: 0x92, b: 0x45 };
-    const accent = { r: 0x33, g: 0xb0, b: 0x57 };
-    const highlight = { r: 0x4d, g: 0xd2, b: 0x74 };
+    const shadow = { r: 0x1d, g: 0x7d, b: 0x42 };
+    const base = { r: 0x30, g: 0xb3, b: 0x62 };
+    const accent = { r: 0x45, g: 0xcc, b: 0x79 };
+    const highlight = { r: 0x63, g: 0xec, b: 0x97 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -561,7 +561,7 @@ const createClothTextures = (() => {
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const tonal = THREE.MathUtils.clamp(
-          0.52 +
+          0.56 +
             (weave - 0.5) * 0.5 +
             (cross - 0.5) * 0.42 +
             (diamond - 0.5) * 0.55 +
@@ -571,7 +571,7 @@ const createClothTextures = (() => {
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
-          0.5 + (tonal - 0.5) * 1.35,
+          0.5 + (tonal - 0.5) * 1.48,
           0,
           1
         );
@@ -584,12 +584,12 @@ const createClothTextures = (() => {
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.38 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24,
+          0.42 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
-          0.38 + (highlightMix - 0.5) * 1.35,
+          0.38 + (highlightMix - 0.5) * 1.5,
           0,
           1
         );
@@ -643,7 +643,7 @@ const createClothTextures = (() => {
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const bump = THREE.MathUtils.clamp(
-          0.52 +
+          0.54 +
             (weave - 0.5) * 0.78 +
             (cross - 0.5) * 0.42 +
             (diamond - 0.5) * 0.56 +
@@ -652,7 +652,7 @@ const createClothTextures = (() => {
           0,
           1
         );
-        const value = clamp255(128 + (bump - 0.5) * 210);
+        const value = clamp255(128 + (bump - 0.5) * 228);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1396,17 +1396,20 @@ function Table3D(parent) {
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
+  const clothPrimary = new THREE.Color(COLORS.cloth);
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: 0x1b6f3c,
-    roughness: 0.82,
+    color: clothPrimary,
+    roughness: 0.8,
     sheen: 0.85,
-    sheenRoughness: 0.48,
+    sheenRoughness: 0.46,
     clearcoat: 0.05,
-    clearcoatRoughness: 0.28
+    clearcoatRoughness: 0.26,
+    emissive: clothPrimary.clone().multiplyScalar(0.09),
+    emissiveIntensity: 1
   });
   const baseRepeat = 9;
   const repeatRatio = 3.15;
-  const baseBumpScale = 0.52;
+  const baseBumpScale = 0.68;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
