@@ -943,6 +943,16 @@ const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
+const TMP_VEC3_A = new THREE.Vector3();
+const TMP_VEC3_B = new THREE.Vector3();
+const TMP_QUAT_A = new THREE.Quaternion();
+const TMP_QUAT_B = new THREE.Quaternion();
+const TMP_QUAT_RESULT = new THREE.Quaternion();
+const CUSHION_BASE_ROTATION = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(1, 0, 0),
+  -Math.PI / 2
+);
+const CUSHION_Y_AXIS = new THREE.Vector3(0, 1, 0);
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -1594,6 +1604,7 @@ function Table3D(parent) {
   cushionMat.sheenRoughness = clothMat.sheenRoughness;
   cushionMat.specularIntensity = clothMat.specularIntensity;
   cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
+  cushionMat.vertexColors = true;
   cushionMat.side = THREE.DoubleSide;
   const textureKeys = ['map', 'normalMap', 'displacementMap', 'roughnessMap', 'aoMap'];
   textureKeys.forEach((key) => {
@@ -2024,11 +2035,54 @@ function Table3D(parent) {
     return geo;
   }
 
+  function applyCushionVertexShading(geometry, horizontal, flip) {
+    const normals = geometry.attributes.normal;
+    const positions = geometry.attributes.position;
+    if (!normals || !normals.count) return;
+    const orientation = TMP_QUAT_RESULT.copy(CUSHION_BASE_ROTATION);
+    if (!horizontal) {
+      orientation.premultiply(TMP_QUAT_A.setFromAxisAngle(CUSHION_Y_AXIS, Math.PI / 2));
+    }
+    if (flip) {
+      orientation.premultiply(TMP_QUAT_B.setFromAxisAngle(CUSHION_Y_AXIS, Math.PI));
+    }
+    const colors = new Float32Array(normals.count * 3);
+    for (let i = 0; i < normals.count; i++) {
+      TMP_VEC3_A.set(normals.getX(i), normals.getY(i), normals.getZ(i));
+      TMP_VEC3_A.applyQuaternion(orientation);
+      const upFacing = Math.max(TMP_VEC3_A.y, 0);
+      const lateral = Math.max(0, 1 - Math.abs(TMP_VEC3_A.y));
+      let shade = 1 - upFacing * 0.24 + lateral * 0.08;
+      if (TMP_VEC3_A.y < 0) shade *= 0.9;
+      if (positions) {
+        TMP_VEC3_B.set(
+          positions.getX(i),
+          positions.getY(i),
+          positions.getZ(i)
+        );
+        TMP_VEC3_B.applyQuaternion(orientation);
+        const lipBlend = THREE.MathUtils.clamp(
+          (TMP_VEC3_B.y + TABLE.WALL * 0.25) / (TABLE.WALL * 0.9),
+          0,
+          1
+        );
+        shade = THREE.MathUtils.lerp(0.88, shade, lipBlend);
+      }
+      shade = THREE.MathUtils.clamp(shade, 0.72, 0.98);
+      const idx = i * 3;
+      colors[idx] = shade;
+      colors[idx + 1] = shade;
+      colors[idx + 2] = shade;
+    }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  }
+
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
     if (geo.attributes.uv && !geo.attributes.uv2) {
       geo.setAttribute('uv2', geo.attributes.uv.clone());
     }
+    applyCushionVertexShading(geo, horizontal, flip);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 2;
