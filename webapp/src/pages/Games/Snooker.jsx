@@ -492,7 +492,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x31c66a,
+  cloth: 0x2db85f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -506,6 +506,10 @@ const COLORS = Object.freeze({
   black: 0x000000
 });
 
+const CLOTH_TEXTURE_SIZE = 1024;
+const CLOTH_THREAD_PITCH = 18;
+const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
+
 const createClothTextures = (() => {
   let cache = null;
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
@@ -516,8 +520,8 @@ const createClothTextures = (() => {
       return cache;
     }
 
-    const SIZE = 1024;
-    const THREAD_PITCH = 18;
+    const SIZE = CLOTH_TEXTURE_SIZE;
+    const THREAD_PITCH = CLOTH_THREAD_PITCH;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -532,10 +536,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x1d, g: 0x7d, b: 0x42 };
-    const base = { r: 0x30, g: 0xb3, b: 0x62 };
-    const accent = { r: 0x45, g: 0xcc, b: 0x79 };
-    const highlight = { r: 0x63, g: 0xec, b: 0x97 };
+    const shadow = { r: 0x19, g: 0x70, b: 0x3a };
+    const base = { r: 0x2a, g: 0xa3, b: 0x58 };
+    const accent = { r: 0x3f, g: 0xbd, b: 0x70 };
+    const highlight = { r: 0x5a, g: 0xd7, b: 0x86 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -1407,7 +1411,11 @@ function Table3D(parent) {
     emissive: clothPrimary.clone().multiplyScalar(0.09),
     emissiveIntensity: 1
   });
-  const baseRepeat = 9;
+  const ballDiameter = BALL_R * 2;
+  const ballsAcrossWidth = PLAY_W / ballDiameter;
+  const threadsPerBallTarget = 12; // slightly enlarged weave: ~12 thread crossings across one ball
+  const baseRepeat =
+    (threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE;
   const repeatRatio = 3.15;
   const baseBumpScale = 0.68;
   if (clothMap) {
