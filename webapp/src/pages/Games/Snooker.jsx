@@ -2241,8 +2241,7 @@ function SnookerGame() {
     phase: 'reds',
     next: 'red',
     inHand: false,
-    over: false,
-    reSpotBlack: false
+    over: false
   });
   const powerRef = useRef(hud.power);
   useEffect(() => {
@@ -4053,15 +4052,18 @@ function SnookerGame() {
 
       // Shot lifecycle
       let potted = [];
+      let foul = false;
       let firstHit = null;
-      const legalTarget = () => {
-        if (hud.phase === 'reds') {
-          return hud.next === 'red' ? 'red' : 'colour';
-        }
-        if (hud.phase === 'respotted') return 'black';
-        return hud.next;
-      };
+      const legalTarget = () =>
+        hud.phase === 'reds'
+          ? hud.next === 'red'
+            ? 'red'
+            : 'colour'
+          : hud.next;
       const isRedId = (id) => id.startsWith('red');
+      const values = rules.getBallValues();
+      const val = (id) =>
+        isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
         // Fire (slider e thërret në release)
         const fire = () => {
@@ -4072,6 +4074,7 @@ function SnookerGame() {
           activeShotView = null;
           aimFocusRef.current = null;
           potted = [];
+          foul = false;
           firstHit = null;
           clearInterval(timerRef.current);
           const aimDir = aimDirRef.current.clone();
@@ -4206,234 +4209,101 @@ function SnookerGame() {
 
       // Resolve shot
       function resolve() {
-        const me = hud.turn === 0 ? 'A' : 'B';
-        const opponent = hud.turn === 0 ? 'B' : 'A';
-        const cueBallPotted = !cue.active;
-        const values = rules.getBallValues();
-        const colourOrder = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
-
-        const classify = (id) => {
-          if (!id) return null;
-          if (id === 'cue') return 'cue';
-          if (typeof id === 'string' && (id === 'red' || id.startsWith('red'))) {
-            return 'red';
-          }
-          return id;
-        };
-
-        const valueFor = (type) => {
-          if (!type) return 0;
-          if (type === 'red') return values.RED;
-          if (type === 'cue') return 0;
-          return values[type.toUpperCase()] || 0;
-        };
-
-        const pottedIds = [...potted];
-        const redsPotted = pottedIds.filter((id) => classify(id) === 'red');
-        const colourPottedTypes = pottedIds
-          .map((id) => classify(id))
-          .filter((type) => type && type !== 'red' && type !== 'cue');
-
-        const respotQueue = new Set();
-        const queueRespot = (id) => {
-          const key = classify(id);
-          if (!key || key === 'red' || key === 'cue') return;
-          respotQueue.add(key);
-        };
-
-        const targetLabel = legalTarget();
-        let ballOnValue = 0;
-        if (targetLabel === 'red') ballOnValue = values.RED;
-        else if (targetLabel === 'colour') ballOnValue = values.BLACK;
-        else ballOnValue = valueFor(targetLabel);
-
-        let highestInvolved = ballOnValue;
-        const registerBall = (id) => {
-          const type = classify(id);
-          if (!type) return;
-          if (type === 'cue') {
-            highestInvolved = Math.max(highestInvolved, 4);
+        const me = hud.turn === 0 ? 'A' : 'B',
+          op = hud.turn === 0 ? 'B' : 'A';
+        let gain = 0;
+        let swap = true;
+        if (!cue.active) foul = true;
+        const target = legalTarget();
+        if (firstHit) {
+          if (target === 'red' && !isRedId(firstHit)) foul = true;
+          else if (target === 'colour' && isRedId(firstHit)) foul = true;
+          else if (
+            target !== 'red' &&
+            target !== 'colour' &&
+            firstHit !== target
+          )
+            foul = true;
+        } else {
+          foul = true;
+        }
+        const reds = potted.filter(isRedId),
+          cols = potted.filter((id) => !isRedId(id));
+        if (hud.phase === 'reds') {
+          if (hud.next === 'red') {
+            if (cols.length > 0) foul = true;
+            gain += reds.length;
+            if (reds.length > 0 && !foul) {
+              setHud((s) => ({ ...s, next: 'colour' }));
+              swap = false;
+            }
           } else {
-            highestInvolved = Math.max(highestInvolved, valueFor(type));
+            if (reds.length > 0) foul = true;
+            if (cols.length > 0 && !foul) {
+              cols.forEach((id) => {
+                gain += val(id);
+                const b = colors[id];
+                if (b) {
+                  const [sx, sy] = SPOTS[id];
+                  b.active = true;
+                  b.mesh.visible = true;
+                  b.pos.set(sx, sy);
+                  b.mesh.position.set(sx, BALL_CENTER_Y, sy);
+                  if (b.spin) b.spin.set(0, 0);
+                  if (b.pendingSpin) b.pendingSpin.set(0, 0);
+                  b.spinMode = 'standard';
+                }
+              });
+              setHud((s) => ({ ...s, next: 'red' }));
+              swap = false;
+            }
           }
-        };
-        registerBall(firstHit);
-        pottedIds.forEach(registerBall);
-        if (cueBallPotted) highestInvolved = Math.max(highestInvolved, 4);
-
-        let foulDetected = !firstHit;
-        const firstType = classify(firstHit);
-        if (!foulDetected) {
-          if (targetLabel === 'red' && firstType !== 'red') {
-            foulDetected = true;
-          } else if (targetLabel === 'colour' && firstType === 'red') {
-            foulDetected = true;
-          } else if (
-            targetLabel !== 'red' &&
-            targetLabel !== 'colour' &&
-            firstType !== targetLabel
+          const redsLeft = balls.some((b) => b.active && isRedId(b.id));
+          if (!redsLeft)
+            setHud((s) => ({ ...s, phase: 'colors', next: 'yellow' }));
+        } else {
+          if (
+            cols.length === 1 &&
+            reds.length === 0 &&
+            cols[0] === hud.next &&
+            !foul
           ) {
-            foulDetected = true;
-          }
-        }
-
-        let scoreGain = 0;
-        let continueTurn = false;
-        let frameOver = hud.over;
-        let nextPhase = hud.phase;
-        let nextTarget = hud.next;
-        let reSpotBlack = hud.reSpotBlack;
-        let triggerRespottedBlack = false;
-        let cueInHand = false;
-
-        if (!foulDetected) {
-          if (hud.phase === 'reds') {
-            if (hud.next === 'red') {
-              if (colourPottedTypes.length > 0) {
-                foulDetected = true;
-              } else if (redsPotted.length > 0) {
-                scoreGain += redsPotted.length * values.RED;
-                continueTurn = true;
-                nextTarget = 'colour';
-              }
+            gain += val(hud.next);
+            const order = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
+            const idx = order.indexOf(hud.next);
+            const nxt = order[idx + 1];
+            if (nxt) {
+              setHud((s) => ({ ...s, next: nxt }));
+              swap = false;
             } else {
-              if (redsPotted.length > 0) {
-                foulDetected = true;
-              } else if (colourPottedTypes.length > 1) {
-                foulDetected = true;
-              } else if (colourPottedTypes.length === 1) {
-                const colour = colourPottedTypes[0];
-                scoreGain += valueFor(colour);
-                continueTurn = true;
-                nextTarget = 'red';
-                queueRespot(colour);
-              } else {
-                nextTarget = 'red';
-              }
+              setHud((s) => ({ ...s, over: true }));
             }
-          } else if (hud.phase === 'colors') {
-            if (redsPotted.length > 0) {
-              foulDetected = true;
-            } else if (colourPottedTypes.length === 0) {
-              // miss
-            } else if (
-              colourPottedTypes.length === 1 &&
-              colourPottedTypes[0] === hud.next
-            ) {
-              scoreGain += valueFor(hud.next);
-              continueTurn = true;
-              const idx = colourOrder.indexOf(hud.next);
-              if (idx >= 0 && idx < colourOrder.length - 1) {
-                nextTarget = colourOrder[idx + 1];
-              } else {
-                frameOver = true;
-                reSpotBlack = false;
-              }
-            } else {
-              foulDetected = true;
-            }
-          } else if (hud.phase === 'respotted') {
-            if (
-              colourPottedTypes.length === 1 &&
-              colourPottedTypes[0] === 'black'
-            ) {
-              scoreGain += valueFor('black');
-              frameOver = true;
-              reSpotBlack = false;
-            } else if (colourPottedTypes.length > 0) {
-              foulDetected = true;
-            }
+          } else if (cols.length > 0 || reds.length > 0) {
+            foul = true;
           }
         }
-
-        if (cueBallPotted) {
-          foulDetected = true;
-          cueInHand = true;
-        }
-
-        if (foulDetected) {
-          scoreGain = 0;
-          continueTurn = false;
-          colourPottedTypes.forEach((c) => queueRespot(c));
-        }
-
-        const redsRemaining = balls.filter((b) => b.active && isRedId(b.id)).length;
-        if (nextPhase === 'reds' && nextTarget === 'red' && redsRemaining === 0) {
-          nextPhase = 'colors';
-          nextTarget = 'yellow';
-        }
-
-        if (!foulDetected && frameOver && nextPhase !== 'respotted') {
-          const projectedPlayerScore = hud[me] + scoreGain;
-          const projectedOpponentScore = hud[opponent];
-          if (projectedPlayerScore === projectedOpponentScore) {
-            frameOver = false;
-            triggerRespottedBlack = true;
-            nextPhase = 'respotted';
-            nextTarget = 'black';
-            reSpotBlack = true;
-            queueRespot('black');
-            cueInHand = true;
-            continueTurn = false;
-          }
-        }
-
-        const requiresInHand = cueInHand || triggerRespottedBlack || foulDetected;
-        const nextHud = {
-          ...hud,
-          phase: nextPhase,
-          next: nextTarget,
-          over: frameOver,
-          inHand: requiresInHand,
-          reSpotBlack
-        };
-
-        if (foulDetected) {
-          const foulPoints = Math.min(7, Math.max(4, ballOnValue, highestInvolved));
-          nextHud[opponent] = hud[opponent] + foulPoints;
-        } else if (scoreGain > 0) {
-          nextHud[me] = hud[me] + scoreGain;
-        }
-
-        let nextTurn = hud.turn;
-        if (!frameOver) {
-          if (!foulDetected && continueTurn) {
-            nextTurn = hud.turn;
-          } else if (triggerRespottedBlack) {
-            nextTurn = hud.turn;
-          } else {
-            nextTurn = 1 - hud.turn;
-          }
-        }
-        nextHud.turn = nextTurn;
-
-        setHud(nextHud);
-
-        respotQueue.forEach((id) => {
-          const entry = colors[id];
-          const spot = SPOTS[id];
-          if (!entry || !spot) return;
-          const [sx, sz] = spot;
-          entry.active = true;
-          entry.mesh.visible = true;
-          entry.pos.set(sx, sz);
-          entry.mesh.position.set(sx, BALL_CENTER_Y, sz);
-          entry.vel?.set(0, 0);
-          entry.spin?.set(0, 0);
-          entry.pendingSpin?.set(0, 0);
-          entry.spinMode = 'standard';
-        });
-
-        if (foulDetected || triggerRespottedBlack) {
+        if (foul) {
+          const foulPts = Math.max(
+            4,
+            ...potted.map((id) => val(id)),
+            cue.active ? 0 : 4
+          );
+          setHud((s) => ({
+            ...s,
+            [op]: s[op] + foulPts,
+            inHand: true,
+            next: s.phase === 'reds' ? 'red' : s.next
+          }));
           cue.active = false;
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
-          cue.pendingSpin?.set(0, 0);
           cue.spinMode = 'standard';
           cue.impacted = false;
+        } else if (gain > 0) {
+          setHud((s) => ({ ...s, [me]: s[me] + gain }));
         }
-      }
+        if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
           shooting = false;
           shotPrediction = null;
           activeShotView = null;
@@ -4463,6 +4333,7 @@ function SnookerGame() {
             });
           }
           potted = [];
+          foul = false;
           firstHit = null;
         }
 
