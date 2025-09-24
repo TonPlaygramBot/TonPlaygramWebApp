@@ -14,7 +14,8 @@ import {
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
+import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
+import { Referee } from '../../../../src/core/Referee.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
@@ -358,7 +359,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.96;
+const BALL_SCALE = 0.92;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -515,7 +516,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = TABLE.WALL * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
+const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -1916,9 +1917,9 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.28;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.18;
-  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.18;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
+  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
   const horizLen =
     PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
@@ -2059,7 +2060,8 @@ function Table3D(parent) {
 function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
-  const rules = useMemo(() => new UnitySnookerRules(), []);
+  const rules = useMemo(() => new SnookerRules(), []);
+  const referee = useMemo(() => new Referee(rules), [rules]);
   const initialFrame = useMemo(
     () => rules.getInitialFrame('Player', 'AI'),
     [rules]
@@ -2096,6 +2098,10 @@ function SnookerGame() {
   const [hud, setHud] = useState(() =>
     deriveHudFromFrame(initialFrame, { power: 0.65, inHand: false })
   );
+  const hudRef = useRef(hud);
+  useEffect(() => {
+    hudRef.current = hud;
+  }, [hud]);
   const toBallColor = useCallback((id) => {
     if (!id) return null;
     if (id === 'cue') return 'CUE';
@@ -2324,6 +2330,7 @@ function SnookerGame() {
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    const readHud = () => hudRef.current ?? {};
     try {
       screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
@@ -2671,7 +2678,12 @@ function SnookerGame() {
               approachDir.normalize();
             }
             if (!activeShotView.side) {
-              activeShotView.side = new THREE.Vector2(-approachDir.y, approachDir.x);
+              activeShotView.side = activeShotView.forceStraight
+                ? approachDir.clone().multiplyScalar(-1)
+                : new THREE.Vector2(-approachDir.y, approachDir.x);
+            }
+            if (activeShotView.forceStraight) {
+              activeShotView.side.copy(approachDir.clone().multiplyScalar(-1));
             }
             if (activeShotView.side.lengthSq() < 1e-6) {
               activeShotView.side.set(-approachDir.y, approachDir.x);
@@ -2683,12 +2695,19 @@ function SnookerGame() {
             const basePoint = ballPos2D
               .clone()
               .sub(approachDir.clone().multiplyScalar(backstep));
+            const lateralDir = activeShotView.forceStraight
+              ? approachDir.clone().multiplyScalar(-1)
+              : activeShotView.side.clone();
+            if (lateralDir.lengthSq() < 1e-6) {
+              lateralDir.copy(new THREE.Vector2(-approachDir.y, approachDir.x));
+            }
+            lateralDir.normalize();
             const anchor = computeOppositeAnchor(
               basePoint,
-              activeShotView.side,
+              lateralDir,
               activeShotView.lateral ?? ACTION_CAM.opposite.lateral,
               railMargin,
-              ACTION_CAM.opposite.extraClearance,
+              activeShotView.forceStraight ? 0 : ACTION_CAM.opposite.extraClearance,
               ACTION_CAM.opposite.maxLateral
             );
             if (anchor) {
@@ -2698,7 +2717,7 @@ function SnookerGame() {
                 (TABLE_Y + TABLE.THICK +
                   (activeShotView.heightOffset ?? ACTION_CAM.opposite.heightOffset)) *
                 worldScaleFactor;
-              const desiredPosition = new THREE.Vector3(
+              let desiredPosition = new THREE.Vector3(
                 anchor.point.x * worldScaleFactor,
                 camHeight,
                 anchor.point.y * worldScaleFactor
@@ -2721,6 +2740,38 @@ function SnookerGame() {
               );
               focusTarget.lerp(pocketTarget, bias);
               focusTarget.multiplyScalar(worldScaleFactor);
+              const resumeOrbit = activeShotView.resumeOrbit;
+              if (resumeOrbit) {
+                const targetRadius = resumeOrbit.radius * worldScaleFactor;
+                const targetPhi = resumeOrbit.phi;
+                const focusHeight = focusTarget.y;
+                const vertical = targetRadius * Math.cos(targetPhi);
+                const horizontalRadius = Math.sqrt(
+                  Math.max(targetRadius * targetRadius - vertical * vertical, 0)
+                );
+                const focus2D = new THREE.Vector2(focusTarget.x, focusTarget.z);
+                const desired2D = new THREE.Vector2(
+                  desiredPosition.x,
+                  desiredPosition.z
+                );
+                let offset2D = desired2D.clone().sub(focus2D);
+                if (offset2D.lengthSq() < 1e-6) {
+                  const baseSide = activeShotView.forceStraight
+                    ? approachDir.clone().multiplyScalar(-1)
+                    : activeShotView.side.clone();
+                  if (baseSide.lengthSq() > 1e-6 && horizontalRadius > 0) {
+                    baseSide.normalize();
+                    offset2D = baseSide.multiplyScalar(horizontalRadius);
+                  }
+                } else if (horizontalRadius > 0) {
+                  offset2D.setLength(horizontalRadius);
+                }
+                desiredPosition = new THREE.Vector3(
+                  focus2D.x + offset2D.x,
+                  focusHeight + vertical,
+                  focus2D.y + offset2D.y
+                );
+              }
               const now = performance.now();
               const lastUpdate = activeShotView.lastUpdate ?? now;
               const dt = Math.min(0.2, Math.max(0, (now - lastUpdate) / 1000));
@@ -3211,6 +3262,7 @@ function SnookerGame() {
           const basePoint = pos.clone().sub(candidate.pocketDir.clone().multiplyScalar(backstep));
           const anchor = chooseOppositeSide(basePoint, candidate.pocketDir);
           if (!anchor) return null;
+          const forceStraight = candidate.dist > Math.max(PLAY_W, PLAY_H) * 0.5;
           const view = {
             mode: 'action',
             kind: 'opposite',
@@ -3230,7 +3282,8 @@ function SnookerGame() {
             orbitSnapshot: followView?.orbitSnapshot ?? null,
             lastBallPos: pos.clone(),
             score: candidate.score,
-            switchMinDist: ACTION_CAM.switchMinDist
+            switchMinDist: ACTION_CAM.switchMinDist,
+            forceStraight
           };
           return view;
         };
@@ -3239,6 +3292,9 @@ function SnookerGame() {
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
           if (!targetBall) return null;
+          const isPredicted = shotPrediction?.ballId === ballId;
+          const moving = targetBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
+          if (!isPredicted && !moving) return null;
           const pos = targetBall.pos.clone();
           const dir = (() => {
             const velocity = targetBall.vel.clone();
@@ -3461,10 +3517,11 @@ function SnookerGame() {
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
+          const hudState = readHud();
           if (
             !moved &&
             !topViewRef.current &&
-            !hud.inHand &&
+            !hudState.inHand &&
             !shooting
           ) {
             if (e?.button !== undefined && e.button !== 0) return;
@@ -3840,7 +3897,7 @@ function SnookerGame() {
       };
 
       const pickOrbitFocus = (ev) => {
-        if (hud.inHand || shooting) return;
+        if (readHud().inHand || shooting) return;
         const rect = dom.getBoundingClientRect();
         const clientX =
           ev?.clientX ?? ev?.changedTouches?.[0]?.clientX ?? drag.x;
@@ -3897,7 +3954,7 @@ function SnookerGame() {
             new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
         );
       const onPlace = (e) => {
-        if (!hud.inHand) return;
+        if (!readHud().inHand) return;
         const p = project(e);
         if (
           p.y <= baulkZ &&
@@ -3919,7 +3976,8 @@ function SnookerGame() {
 
         // Fire (slider e thërret në release)
         const fire = () => {
-          if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
+          const hudState = readHud();
+          if (!cue?.active || hudState.inHand || !allStopped(balls) || hudState.over)
             return;
           applyCameraBlend(1);
           shooting = true;
@@ -4079,7 +4137,7 @@ function SnookerGame() {
         }
         let updatedState = frameStateRef.current;
         try {
-          updatedState = rules.applyShot(frameStateRef.current, events);
+          updatedState = referee.applyShot(frameStateRef.current, events);
         } catch (applyErr) {
           console.error('Failed to apply snooker rules', applyErr);
         }
@@ -4183,7 +4241,8 @@ function SnookerGame() {
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
-        if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
+        const hudState = readHud();
+        if (allStopped(balls) && !hudState.inHand && cue?.active && !hudState.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -4414,6 +4473,10 @@ function SnookerGame() {
           let bestPocketView = null;
           for (const ball of ballsList) {
             if (!ball.active) continue;
+            const speed = ball.vel.length() * frameScale;
+            const isPredicted =
+              shotPrediction?.ballId === ball.id || ball.id === 'cue';
+            if (speed < STOP_EPS && !isPredicted) continue;
             const candidate = makePocketCameraView(ball.id, followSource);
             if (!candidate) continue;
             if (!bestPocketView || (candidate.score ?? 0) > (bestPocketView.score ?? 0)) {
@@ -4574,14 +4637,7 @@ function SnookerGame() {
       console.error(e);
       setErr(e?.message || String(e));
     }
-  }, [
-    hud.inHand,
-    hud.over,
-    deriveHudFromFrame,
-    toBallColor,
-    pocketIdByIndex,
-    rules
-  ]);
+  }, [deriveHudFromFrame, toBallColor, pocketIdByIndex, referee]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
