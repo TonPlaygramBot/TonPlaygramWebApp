@@ -528,7 +528,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x32d66b,
+  cloth: 0x3ce67d,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -551,7 +551,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x32, g: 0xd6, b: 0x6b };
+  const BASE_COLOR = { r: 0x3c, g: 0xe6, b: 0x7d };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -1545,10 +1545,10 @@ function Table3D(parent) {
     aoMapIntensity: 0.8
   });
   if (clothMat.normalMap) {
-    clothMat.normalScale = new THREE.Vector2(0.62, 0.62);
+    clothMat.normalScale = new THREE.Vector2(0.32, 0.32);
   }
   if (clothMat.displacementMap) {
-    clothMat.displacementScale = 0.00038;
+    clothMat.displacementScale = 0.00018;
     clothMat.displacementBias = -clothMat.displacementScale / 2;
   }
   const baseRepeat = 2.4;
@@ -2051,7 +2051,8 @@ function Table3D(parent) {
   const POCKET_GAP = POCKET_VIS_R * 0.72;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
   const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.08;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
+  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.06;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
   const horizLen =
     PLAY_W -
@@ -2059,7 +2060,7 @@ function Table3D(parent) {
     LONG_CUSHION_TRIM -
     LONG_CUSHION_EXTRA_TRIM -
     LONG_CUSHION_LENGTH_REDUCTION;
-  const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
+  const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP - SHORT_CUSHION_LENGTH_REDUCTION;
   const bottomZ = -halfH;
   const topZ = halfH;
   const leftX = -halfW;
@@ -3406,22 +3407,55 @@ function SnookerGame() {
             : followView?.resumeOrbit
               ? scaleOrbit(followView.resumeOrbit)
               : null;
+          const hasMagnitude = (vec, eps = 1e-6) =>
+            !!(vec && typeof vec.lengthSq === 'function' && vec.lengthSq() > eps);
           let focusBall = cueBall;
           let pos = cueBall.pos.clone();
-          let dir = cueBall.launchDir
-            ? cueBall.launchDir.clone()
-            : cueBall.vel.clone();
+          let dir =
+            cueBall.launchDir && typeof cueBall.launchDir.clone === 'function'
+              ? cueBall.launchDir.clone()
+              : cueBall.vel.clone();
+          let impendingMotion = hasMagnitude(dir);
+          if (!impendingMotion && hasMagnitude(cueBall.launchDir)) {
+            impendingMotion = true;
+          }
           if (prediction?.ballId) {
             const targetBall = ballsList.find((b) => b.id === prediction.ballId);
             if (targetBall) {
-              focusBall = targetBall;
-              pos = targetBall.pos.clone();
-              dir = prediction?.dir
-                ? prediction.dir.clone()
-                : targetBall.vel.clone();
+              let predictedDir = null;
+              if (
+                prediction?.dir &&
+                typeof prediction.dir.clone === 'function'
+              ) {
+                const clone = prediction.dir.clone();
+                if (hasMagnitude(clone)) {
+                  predictedDir = clone;
+                }
+              }
+              const targetVelSq = targetBall.vel.lengthSq();
+              if (targetVelSq > STOP_EPS * STOP_EPS || predictedDir) {
+                focusBall = targetBall;
+                pos = targetBall.pos.clone();
+                dir = predictedDir ?? targetBall.vel.clone();
+                if (predictedDir) {
+                  impendingMotion = true;
+                }
+              }
             }
           }
-          if (!dir || dir.lengthSq() < 1e-6) return null;
+          const cueMoving = cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
+          const focusMoving = focusBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
+          if (!cueMoving && !focusMoving && !impendingMotion) return null;
+          if (!hasMagnitude(dir)) {
+            dir = focusBall.vel.clone();
+          }
+          if (!hasMagnitude(dir) && focusBall === cueBall && cueBall.launchDir) {
+            dir =
+              typeof cueBall.launchDir.clone === 'function'
+                ? cueBall.launchDir.clone()
+                : cueBall.launchDir;
+          }
+          if (!hasMagnitude(dir)) return null;
           dir.normalize();
           const candidate = findPocketCandidate(pos, dir, {
             minDist: 0,
@@ -3435,6 +3469,23 @@ function SnookerGame() {
           const anchor = chooseOppositeSide(basePoint, candidate.pocketDir);
           if (!anchor) return null;
           const forceStraight = candidate.dist > Math.max(PLAY_W, PLAY_H) * 0.5;
+          const cueWorld = new THREE.Vector3(
+            cueBall.pos.x,
+            BALL_WORLD_CENTER_Y,
+            cueBall.pos.y
+          );
+          const focusWorld = new THREE.Vector3(
+            pos.x,
+            BALL_WORLD_CENTER_Y,
+            pos.y
+          );
+          const lerpAmount = focusBall === cueBall ? 1 : 0.5;
+          const blendedTarget = cueWorld.clone().lerp(focusWorld, lerpAmount);
+          blendedTarget.x = THREE.MathUtils.lerp(
+            playerOffsetRef.current,
+            blendedTarget.x,
+            0.5
+          );
           const view = {
             mode: 'action',
             kind: 'opposite',
@@ -3456,11 +3507,7 @@ function SnookerGame() {
             score: candidate.score,
             switchMinDist: ACTION_CAM.switchMinDist,
             forceStraight,
-            focusOverride: new THREE.Vector3(
-              playerOffsetRef.current,
-              BALL_WORLD_CENTER_Y,
-              pos.y
-            ),
+            focusOverride: blendedTarget,
             focusBlend: ACTION_CAM.opposite.focusBlend
           };
           return view;
