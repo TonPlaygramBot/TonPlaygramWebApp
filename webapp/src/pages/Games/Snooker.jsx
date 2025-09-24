@@ -3873,7 +3873,7 @@ function SnookerGame() {
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        const spotIntensity = 6.2 * 1.4;
+        const spotIntensity = 6.2 * 1.4 * 1.5;
         const spot = new THREE.SpotLight(
           0xffffff,
           spotIntensity,
@@ -3911,7 +3911,7 @@ function SnookerGame() {
         lightingRig.add(counterSpot);
         lightingRig.add(counterSpot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.26);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.26 * 1.5);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 2.4 + lightHeightLift,
