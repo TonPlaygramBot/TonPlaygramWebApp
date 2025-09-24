@@ -520,7 +520,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 31;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
-const CLOTH_TEXTURE_INTENSITY = 6; // amplify cloth weave visibility on both the bed and cushions
+const CLOTH_TEXTURE_INTENSITY = 9; // amplify cloth weave visibility on both the bed and cushions
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -1999,13 +1999,9 @@ function Table3D(parent) {
     shape.lineTo(-halfLen + straightCut, frontY);
     shape.lineTo(-halfLen, backY);
 
-    const cushionBevel = Math.min(railH, baseThickness) * 0.12;
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
-      bevelEnabled: true,
-      bevelThickness: cushionBevel * 0.6,
-      bevelSize: cushionBevel,
-      bevelSegments: 2,
+      bevelEnabled: false,
       curveSegments: 8
     });
 
@@ -3877,7 +3873,7 @@ function SnookerGame() {
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        const spotIntensity = 6.2;
+        const spotIntensity = 6.2 * 1.4;
         const spot = new THREE.SpotLight(
           0xffffff,
           spotIntensity,
