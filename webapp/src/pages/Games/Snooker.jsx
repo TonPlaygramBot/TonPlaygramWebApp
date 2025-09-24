@@ -431,13 +431,13 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 7.5,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.8,
+  minOutside: TABLE.WALL + POCKET_VIS_R * 2.1,
   maxOutside: BALL_R * 48,
-  heightOffset: BALL_R * 8.8,
-  distanceBias: 1.12,
-  offsetScale: 1.08,
-  backstep: BALL_R * 5.4,
-  fovOffset: 3.2
+  heightOffset: BALL_R * 11,
+  distanceBias: 1.28,
+  offsetScale: 1.02,
+  backstep: BALL_R * 6.8,
+  fovOffset: 2.6
 });
 const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
 const ACTION_CAM = Object.freeze({
@@ -445,21 +445,21 @@ const ACTION_CAM = Object.freeze({
   switchMinDist: POCKET_SWITCH_MIN_DIST,
   smoothTime: 0.52,
   safeBox: Object.freeze({
-    minX: 0.38,
-    maxX: 0.62,
-    minY: 0.38,
-    maxY: 0.62
+    minX: 0.35,
+    maxX: 0.65,
+    minY: 0.35,
+    maxY: 0.65
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.92,
-    minRailClearance: TABLE.WALL + BALL_R * 2.25,
-    extraClearance: TABLE.WALL * 0.42,
-    backstep: BALL_R * 8.6,
-    heightOffset: BALL_R * 18.8,
-    targetBias: 0.14,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 2.2,
-    radiusScale: 1.58,
-    focusBlend: 0.6
+    lateral: PLAY_W,
+    minRailClearance: TABLE.WALL + BALL_R * 2.8,
+    extraClearance: TABLE.WALL * 0.68,
+    backstep: BALL_R * 12.4,
+    heightOffset: BALL_R * 24.2,
+    targetBias: 0.22,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 2.8,
+    radiusScale: 1.86,
+    focusBlend: 0.5
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -520,7 +520,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 31;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
-const CLOTH_TEXTURE_INTENSITY = 4; // double cloth texture visibility on both the bed and cushions
+const CLOTH_TEXTURE_INTENSITY = 6; // amplify cloth weave visibility on both the bed and cushions
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -530,7 +530,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x3ce67d,
+  cloth: 0x45f48b,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -553,7 +553,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x3c, g: 0xe6, b: 0x7d };
+  const BASE_COLOR = { r: 0x45, g: 0xf4, b: 0x8b };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -930,7 +930,7 @@ const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_HEIGHT_ZOOM_IN = 1.45;
 const CAMERA_HEIGHT_ZOOM_OUT = 1.1;
-const MANUAL_PHI_OFFSET_LIMIT = THREE.MathUtils.degToRad(10);
+const MANUAL_PHI_OFFSET_LIMIT = THREE.MathUtils.degToRad(16);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -1532,7 +1532,7 @@ function Table3D(parent) {
   } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.58,
+    roughness: 0.54,
     metalness: 0,
     sheen: 0.9,
     sheenRoughness: 0.26,
@@ -1547,7 +1547,7 @@ function Table3D(parent) {
     aoMapIntensity: CLOTH_TEXTURE_INTENSITY
   });
   if (clothMat.normalMap) {
-    const boosted = 0.64 * CLOTH_TEXTURE_INTENSITY;
+    const boosted = 0.74 * CLOTH_TEXTURE_INTENSITY;
     clothMat.normalScale = new THREE.Vector2(boosted, boosted);
   }
   if (clothMat.displacementMap) {
@@ -1591,6 +1591,8 @@ function Table3D(parent) {
   cushionMat.sheen = clothMat.sheen;
   cushionMat.sheenRoughness = clothMat.sheenRoughness;
   cushionMat.specularIntensity = clothMat.specularIntensity;
+  cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
+  cushionMat.side = THREE.DoubleSide;
   const textureKeys = ['map', 'normalMap', 'displacementMap', 'roughnessMap', 'aoMap'];
   textureKeys.forEach((key) => {
     const tex = cushionMat[key];
@@ -2053,10 +2055,10 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.84;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.38;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.3;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.28;
-  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.16;
-  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.28;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.18;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
+  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
+  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.1;
   const horizLen =
     PLAY_W -
     2 * POCKET_GAP -
