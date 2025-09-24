@@ -559,13 +559,16 @@ const createClothTextures = (() => {
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const tonal = THREE.MathUtils.clamp(
-          0.52 + (weave - 0.5) * 0.34 + (cross - 0.5) * 0.26 + (fiber - 0.5) * 0.18 +
-            (micro - 0.5) * 0.12,
+          0.5 +
+            (weave - 0.5) * 0.44 +
+            (cross - 0.5) * 0.3 +
+            (fiber - 0.5) * 0.24 +
+            (micro - 0.5) * 0.18,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
-          0.32 + (cross - 0.5) * 0.28 + (sparkle - 0.5) * 0.35,
+          0.28 + (cross - 0.5) * 0.34 + (sparkle - 0.5) * 0.42,
           0,
           1
         );
@@ -620,7 +623,7 @@ const createClothTextures = (() => {
           0,
           1
         );
-        const value = clamp255(128 + (bump - 0.5) * 140);
+        const value = clamp255(128 + (bump - 0.5) * 170);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1372,8 +1375,8 @@ function Table3D(parent) {
     clearcoat: 0.08,
     clearcoatRoughness: 0.32
   });
-  const baseRepeat = 16;
-  const repeatRatio = 4;
+  const baseRepeat = 14;
+  const repeatRatio = 3.6;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1382,10 +1385,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.085;
+    clothMat.bumpScale = 0.12;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.085;
+    clothMat.bumpScale = 0.12;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -1756,8 +1759,8 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.12; // shorten long cushions slightly so they sit shy of the pockets
+  const POCKET_GAP = POCKET_VIS_R * 0.75;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.18; // shorten long cushions slightly so they sit shy of the pockets
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
