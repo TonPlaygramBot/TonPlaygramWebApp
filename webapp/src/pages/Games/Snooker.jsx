@@ -1397,16 +1397,16 @@ function Table3D(parent) {
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    roughness: 0.95,
-    sheen: 0.72,
-    sheenRoughness: 0.55,
-    clearcoat: 0.08,
-    clearcoatRoughness: 0.32
+    color: 0x1b6f3c,
+    roughness: 0.82,
+    sheen: 0.85,
+    sheenRoughness: 0.48,
+    clearcoat: 0.05,
+    clearcoatRoughness: 0.28
   });
-  const baseRepeat = 12;
+  const baseRepeat = 9;
   const repeatRatio = 3.15;
-  const baseBumpScale = 0.38;
+  const baseBumpScale = 0.52;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1790,7 +1790,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.58; // trim long cushions further so they clear the pocket entrances
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.78; // trim long cushions slightly more so they clear the pocket entrances
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
