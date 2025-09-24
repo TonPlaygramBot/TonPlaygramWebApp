@@ -359,7 +359,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.9;
+const BALL_SCALE = 0.88;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -386,7 +386,8 @@ const POCKET_R = BALL_R * 1.4; // pockets tightened further so the openings read
 // keep the visual rim only fractionally larger so the jaws still overlap the cloth neatly
 const POCKET_VIS_R = POCKET_R / 1.08;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.6; // widen the cloth cutout so pocket interiors stay fully exposed
-const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
+const BALL_CENTER_Y =
+  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - MICRO_EPS * 0.5; // sink balls slightly into the cloth for contact
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
@@ -442,7 +443,7 @@ const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
 const ACTION_CAM = Object.freeze({
   nearPocketDist: CAPTURE_R * 3.2,
   switchMinDist: POCKET_SWITCH_MIN_DIST,
-  smoothTime: 0.45,
+  smoothTime: 0.52,
   safeBox: Object.freeze({
     minX: 0.4,
     maxX: 0.6,
@@ -450,15 +451,15 @@ const ACTION_CAM = Object.freeze({
     maxY: 0.6
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.62,
-    minRailClearance: TABLE.WALL + BALL_R * 1.15,
-    extraClearance: TABLE.WALL * 0.14,
+    lateral: PLAY_W * 0.72,
+    minRailClearance: TABLE.WALL + BALL_R * 1.45,
+    extraClearance: TABLE.WALL * 0.22,
     backstep: BALL_R * 5.6,
-    heightOffset: BALL_R * 12.4,
-    targetBias: 0.28,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.45,
-    radiusScale: 1.12,
-    focusBlend: 0.35
+    heightOffset: BALL_R * 13.2,
+    targetBias: 0.34,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.6,
+    radiusScale: 1.26,
+    focusBlend: 0.48
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -1542,14 +1543,14 @@ function Table3D(parent) {
     displacementMap: clothHeight || undefined,
     roughnessMap: clothRoughness || undefined,
     aoMap: clothAO || undefined,
-    aoMapIntensity: 0.8
+    aoMapIntensity: 1
   });
   if (clothMat.normalMap) {
-    clothMat.normalScale = new THREE.Vector2(0.32, 0.32);
+    clothMat.normalScale = new THREE.Vector2(0.64, 0.64);
   }
   if (clothMat.displacementMap) {
-    clothMat.displacementScale = 0.00018;
-    clothMat.displacementBias = -clothMat.displacementScale / 2;
+    clothMat.displacementScale = 0;
+    clothMat.displacementBias = 0;
   }
   const baseRepeat = 2.4;
   const repeatRatio = 3.1;
@@ -1796,7 +1797,7 @@ function Table3D(parent) {
   const outerHalfH = halfH + 2 * railW + frameWidth;
   const CUSHION_BACK = (TABLE.WALL * 0.7) / 2; // match cushion depth so rails meet without overlap
   const railsGroup = new THREE.Group();
-  const NOTCH_R = POCKET_TOP_R * 1.02;
+  const NOTCH_R = POCKET_TOP_R * 1.08;
   const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
   const xInR = halfW + CUSHION_BACK - MICRO_EPS;
   const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
@@ -1957,7 +1958,7 @@ function Table3D(parent) {
   buildEndRail(1);
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.955;
+  const FACE_SHRINK_LONG = 0.94;
   const FACE_SHRINK_SHORT = 0.97;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -3817,9 +3818,9 @@ function SnookerGame() {
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
         dirLight.position.set(
-          -1.25 * fixtureScale,
-          tableSurfaceY + 6.6 * scaledHeight + lightHeightLift,
-          0.95 * fixtureScale
+          -2.1 * fixtureScale,
+          tableSurfaceY + 7.8 * scaledHeight + lightHeightLift,
+          1.35 * fixtureScale
         );
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
@@ -3829,13 +3830,13 @@ function SnookerGame() {
           0xffffff,
           7.6,
           0,
-          Math.PI * 0.46,
+          Math.PI * 0.5,
           0.62,
           1
         );
-        const spotOffsetX = 1.6 * fixtureScale;
-        const spotOffsetZ = 0.95 * fixtureScale;
-        const spotHeight = tableSurfaceY + 7 * scaledHeight + lightHeightLift;
+        const spotOffsetX = 2.2 * fixtureScale;
+        const spotOffsetZ = 1.45 * fixtureScale;
+        const spotHeight = tableSurfaceY + 8.6 * scaledHeight + lightHeightLift;
         spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         spot.decay = 1.0;
@@ -3849,7 +3850,7 @@ function SnookerGame() {
         const ambient = new THREE.AmbientLight(0xffffff, 0.08);
         ambient.position.set(
           0,
-          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
+          tableSurfaceY + scaledHeight * 2.4 + lightHeightLift,
           0
         );
         lightingRig.add(ambient);
