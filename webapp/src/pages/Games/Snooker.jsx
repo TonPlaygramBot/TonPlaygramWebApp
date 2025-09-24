@@ -1375,8 +1375,9 @@ function Table3D(parent) {
     clearcoat: 0.08,
     clearcoatRoughness: 0.32
   });
-  const baseRepeat = 14;
-  const repeatRatio = 3.6;
+  const baseRepeat = 10;
+  const repeatRatio = 3.4;
+  const baseBumpScale = 0.2;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1385,17 +1386,17 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = baseBumpScale;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = baseBumpScale;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.3,
-    farRepeat: baseRepeat * 0.58,
+    nearRepeat: baseRepeat * 1.2,
+    farRepeat: baseRepeat * 0.52,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1528,20 +1529,20 @@ function Table3D(parent) {
     const u = Math.abs(xIn - cx);
     const R = Math.max(NOTCH_R, u + 0.001);
     const dz = Math.sqrt(Math.max(0, R * R - u * u));
-    const zA = cz + dz;
-    const zB = cz - dz;
-    const startZ = signZ > 0 ? zA : zB;
-    const endZ = signZ > 0 ? zB : zA;
-    shape.lineTo(xIn, startZ);
-    const steps = 64;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const z = startZ + (endZ - startZ) * t;
-      const xDelta = Math.sqrt(Math.max(0, R * R - (z - cz) * (z - cz)));
-      const x = cx + (signX > 0 ? xDelta : -xDelta);
-      if (signX * (x - xIn) >= -1e-6) shape.lineTo(x, z);
+    const start = new THREE.Vector2(xIn, cz + signZ * dz);
+    const end = new THREE.Vector2(xIn, cz - signZ * dz);
+    shape.lineTo(start.x, start.y);
+    let startAngle = Math.atan2(start.y - cz, start.x - cx);
+    let endAngle = Math.atan2(end.y - cz, end.x - cx);
+    let delta = endAngle - startAngle;
+    if (delta > Math.PI) {
+      endAngle -= Math.PI * 2;
+      delta = endAngle - startAngle;
+    } else if (delta < -Math.PI) {
+      endAngle += Math.PI * 2;
+      delta = endAngle - startAngle;
     }
-    shape.lineTo(xIn, endZ);
+    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
   function addCornerArcEnd(shape, signZ, signX) {
@@ -1551,20 +1552,20 @@ function Table3D(parent) {
     const v = Math.abs(zIn - cz);
     const R = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
-    const xA = cx + dx;
-    const xB = cx - dx;
-    const startX = signX > 0 ? xA : xB;
-    const endX = signX > 0 ? xB : xA;
-    shape.lineTo(startX, zIn);
-    const steps = 64;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const x = startX + (endX - startX) * t;
-      const zDelta = Math.sqrt(Math.max(0, R * R - (x - cx) * (x - cx)));
-      const z = cz + (signZ > 0 ? zDelta : -zDelta);
-      if (signZ * (z - zIn) >= -1e-6) shape.lineTo(x, z);
+    const start = new THREE.Vector2(cx + signX * dx, zIn);
+    const end = new THREE.Vector2(cx - signX * dx, zIn);
+    shape.lineTo(start.x, start.y);
+    let startAngle = Math.atan2(start.y - cz, start.x - cx);
+    let endAngle = Math.atan2(end.y - cz, end.x - cx);
+    let delta = endAngle - startAngle;
+    if (delta > Math.PI) {
+      endAngle -= Math.PI * 2;
+      delta = endAngle - startAngle;
+    } else if (delta < -Math.PI) {
+      endAngle += Math.PI * 2;
+      delta = endAngle - startAngle;
     }
-    shape.lineTo(endX, zIn);
+    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
   function buildLongRail(signX) {
@@ -1760,7 +1761,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.75;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.18; // shorten long cushions slightly so they sit shy of the pockets
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // shorten long cushions slightly so they sit shy of the pockets
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
