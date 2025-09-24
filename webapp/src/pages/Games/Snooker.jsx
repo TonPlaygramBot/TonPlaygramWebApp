@@ -44,14 +44,6 @@ const jawCapMat = new THREE.MeshPhysicalMaterial({
   clearcoatRoughness: 0.32,
   envMapIntensity: 0.9
 });
-const chromeRimMat = new THREE.MeshPhysicalMaterial({
-  color: 0xdde6f5,
-  roughness: 0.12,
-  metalness: 1,
-  clearcoat: 0.78,
-  clearcoatRoughness: 0.18,
-  envMapIntensity: 1.6
-});
 function makeJawSector(
   R = POCKET_VIS_R,
   T = JAW_T,
@@ -204,26 +196,6 @@ function addPocketJaws(parent, playW, playH) {
         jaw.add(segCap);
         capMeshes.push(segCap);
 
-        const rimGeo = makeJawSector(
-          POCKET_VIS_R * 1.02,
-          JAW_T * 0.42,
-          dir < 0 ? -SIDE_SECTOR_SWEEP : 0,
-          dir < 0 ? 0 : SIDE_SECTOR_SWEEP,
-          capHeight * 0.22
-        );
-        rimGeo.computeBoundingBox();
-        const rimBox = rimGeo.boundingBox;
-        if (rimBox) {
-          const rimShift = -rimBox.max.y;
-          if (Math.abs(rimShift) > 1e-6) rimGeo.translate(0, rimShift, 0);
-        }
-        rimGeo.scale(segmentScale * 1.06, 1, 1);
-        rimGeo.computeVertexNormals();
-        const rim = new THREE.Mesh(rimGeo, chromeRimMat);
-        rim.castShadow = false;
-        rim.receiveShadow = true;
-        rim.position.set(segment.position.x, capLift + capHeight * 0.95, 0);
-        jaw.add(rim);
       }
     } else {
       const mesh = new THREE.Mesh(geom, jawMat);
@@ -359,7 +331,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.92;
+const BALL_SCALE = 0.88;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -526,7 +498,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x0f8a3d,
+  cloth: 0x1f9c52,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -540,8 +512,8 @@ const COLORS = Object.freeze({
   black: 0x000000
 });
 
-const CLOTH_BUMP_BASE = 0.22;
-const CLOTH_NORMAL_SCALE = 0.4;
+const CLOTH_BUMP_BASE = 0.27;
+const CLOTH_NORMAL_SCALE = 0.46;
 const CLOTH_DISPLACEMENT_SCALE = 0.0002;
 
 const createClothTextures = (() => {
@@ -606,7 +578,7 @@ const createClothTextures = (() => {
     const aoImage = aoCtx.createImageData(SIZE, SIZE);
     const heightValues = new Float32Array(SIZE * SIZE);
 
-    const baseColor = { r: 0x0f / 255, g: 0x8a / 255, b: 0x3d / 255 };
+    const baseColor = { r: 0x1f / 255, g: 0x9c / 255, b: 0x52 / 255 };
     const THREAD_PITCH = 26;
     const STRAND_EXPONENT = 2.6;
     const TWO_PI = Math.PI * 2;
@@ -1557,12 +1529,14 @@ function Table3D(parent) {
   } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.62,
-    sheen: 0.9,
-    sheenRoughness: 0.26,
-    clearcoat: 0.06,
-    clearcoatRoughness: 0.32,
-    specularIntensity: 0.36
+    roughness: 0.78,
+    sheen: 0.72,
+    sheenRoughness: 0.34,
+    clearcoat: 0.02,
+    clearcoatRoughness: 0.38,
+    specularIntensity: 0.18,
+    metalness: 0,
+    envMapIntensity: 0.25
   });
   const baseRepeat = 2.4;
   const repeatRatio = 3.1;
@@ -2015,7 +1989,7 @@ function Table3D(parent) {
   buildEndRail(1);
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.955;
+  const FACE_SHRINK_LONG = 0.948;
   const FACE_SHRINK_SHORT = 0.97;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -2104,9 +2078,9 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.42;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.3;
+  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.32;
   const horizLen =
     PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
