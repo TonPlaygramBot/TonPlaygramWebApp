@@ -359,7 +359,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.92;
+const BALL_SCALE = 0.9;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -450,13 +450,15 @@ const ACTION_CAM = Object.freeze({
     maxY: 0.6
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.6,
+    lateral: PLAY_W * 0.58,
     minRailClearance: TABLE.WALL + BALL_R * 1.35,
     extraClearance: TABLE.WALL * 0.08,
     backstep: BALL_R * 5.2,
-    heightOffset: BALL_R * 10.5,
-    targetBias: 0.32,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.35
+    heightOffset: BALL_R * 11.2,
+    targetBias: 0.34,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.35,
+    radiusScale: 1.08,
+    focusBlend: 0.85
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -526,7 +528,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x0f8a3d,
+  cloth: 0x159d45,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -549,7 +551,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x0f, g: 0x8a, b: 0x3d };
+  const BASE_COLOR = { r: 0x15, g: 0x9d, b: 0x45 };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -1528,25 +1530,25 @@ function Table3D(parent) {
   } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.62,
+    roughness: 0.58,
     metalness: 0,
     sheen: 0.9,
     sheenRoughness: 0.26,
     clearcoat: 0.05,
     clearcoatRoughness: 0.34,
-    specularIntensity: 0.32,
+    specularIntensity: 0.36,
     map: clothMap || undefined,
     normalMap: clothNormal || undefined,
     displacementMap: clothHeight || undefined,
     roughnessMap: clothRoughness || undefined,
     aoMap: clothAO || undefined,
-    aoMapIntensity: 0.88
+    aoMapIntensity: 0.8
   });
   if (clothMat.normalMap) {
-    clothMat.normalScale = new THREE.Vector2(0.4, 0.4);
+    clothMat.normalScale = new THREE.Vector2(0.55, 0.55);
   }
   if (clothMat.displacementMap) {
-    clothMat.displacementScale = 0.00024;
+    clothMat.displacementScale = 0.00034;
     clothMat.displacementBias = -clothMat.displacementScale / 2;
   }
   const baseRepeat = 2.4;
@@ -2862,6 +2864,17 @@ function SnookerGame() {
                 1
               );
               focusTarget.lerp(pocketTarget, bias);
+              const focusOverride = activeShotView.focusOverride;
+              if (focusOverride) {
+                const blend = THREE.MathUtils.clamp(
+                  activeShotView.focusBlend ?? ACTION_CAM.opposite.focusBlend ?? 1,
+                  0,
+                  1
+                );
+                if (blend > 0) {
+                  focusTarget.lerp(focusOverride, blend);
+                }
+              }
               focusTarget.multiplyScalar(worldScaleFactor);
               const resumeOrbit = activeShotView.resumeOrbit;
               if (resumeOrbit) {
@@ -3367,18 +3380,19 @@ function SnookerGame() {
           followView
         }) => {
           if (!cueBall) return null;
+          const scaleOrbit = (orbit) => {
+            if (!orbit) return null;
+            const radiusScale = ACTION_CAM.opposite.radiusScale ?? 1;
+            return {
+              radius: orbit.radius * radiusScale,
+              phi: orbit.phi,
+              theta: orbit.theta
+            };
+          };
           const resumeOrbit = followView?.orbitSnapshot
-            ? {
-                radius: followView.orbitSnapshot.radius,
-                phi: followView.orbitSnapshot.phi,
-                theta: followView.orbitSnapshot.theta
-              }
+            ? scaleOrbit(followView.orbitSnapshot)
             : followView?.resumeOrbit
-              ? {
-                  radius: followView.resumeOrbit.radius,
-                  phi: followView.resumeOrbit.phi,
-                  theta: followView.resumeOrbit.theta
-                }
+              ? scaleOrbit(followView.resumeOrbit)
               : null;
           let focusBall = cueBall;
           let pos = cueBall.pos.clone();
@@ -3429,7 +3443,13 @@ function SnookerGame() {
             lastBallPos: pos.clone(),
             score: candidate.score,
             switchMinDist: ACTION_CAM.switchMinDist,
-            forceStraight
+            forceStraight,
+            focusOverride: new THREE.Vector3(
+              playerOffsetRef.current,
+              BALL_WORLD_CENTER_Y,
+              0
+            ),
+            focusBlend: ACTION_CAM.opposite.focusBlend
           };
           return view;
         };
