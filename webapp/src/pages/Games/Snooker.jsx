@@ -3754,12 +3754,15 @@ function SnookerGame() {
         );
         lightingRig.add(ambient);
 
-        const secondaryAmbient = new THREE.AmbientLight(0xffffff, 0.08);
-        secondaryAmbient.position.set(
-          0,
-          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
-          0
+        const spotReplacementAmbientIntensity = 0.08 * 1.33; // boost brightness by 33%
+        const spotOffsetX = 1.6 * fixtureScale;
+        const spotOffsetZ = 0.95 * fixtureScale;
+        const spotHeight = tableSurfaceY + 7 * scaledHeight + lightHeightLift;
+        const secondaryAmbient = new THREE.AmbientLight(
+          0xffffff,
+          spotReplacementAmbientIntensity
         );
+        secondaryAmbient.position.set(spotOffsetX, spotHeight, spotOffsetZ);
         lightingRig.add(secondaryAmbient);
       };
 
