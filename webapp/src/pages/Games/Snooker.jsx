@@ -411,7 +411,7 @@ const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // lift pockets slightly higher so the rims stay visible from shallow angles
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // maintain cloth cut alignment above the recess
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -517,12 +517,11 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 18;
-    const STRAND_POWER = 0.58;
-    const STRAND_SHAPE = 3.1;
+    const THREAD_PITCH = 22;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
+    const TAU = Math.PI * 2;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -533,38 +532,49 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const base = { r: 0x24, g: 0xb6, b: 0x44 };
-    const deep = { r: 0x19, g: 0x8f, b: 0x35 };
-    const weaveProfile = (t) => {
-      const wave = Math.sin(Math.PI * t);
-      const envelope = 1 - Math.pow(Math.abs(wave), STRAND_POWER);
-      return Math.pow(Math.max(0, envelope), STRAND_SHAPE);
-    };
-    const periodicNoise = (x, y) => {
-      const n1 = Math.sin(((x + y) * 2 * Math.PI) / 64);
-      const n2 = Math.sin(((x * 3 - y * 2) * 2 * Math.PI) / 96);
-      const n3 = Math.sin(((x * 5 + y * 7) * 2 * Math.PI) / 128);
-      return (n1 * 0.45 + n2 * 0.35 + n3 * 0.2) * 0.5;
-    };
+    const shadow = { r: 0x2f, g: 0x78, b: 0x34 };
+    const base = { r: 0x3b, g: 0x91, b: 0x3f };
+    const highlight = { r: 0x4d, g: 0xa7, b: 0x50 };
+    const hashNoise = (x, y, seedX, seedY, phase = 0) =>
+      Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
+    const fiberNoise = (x, y) =>
+      hashNoise(x, y, 12.9898, 78.233, 1.5) * 0.6 +
+      hashNoise(x, y, 32.654, 23.147, 15.73) * 0.3 +
+      hashNoise(x, y, 63.726, 12.193, -9.21) * 0.1;
+    const microNoise = (x, y) =>
+      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.7 +
+      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.3;
+    const sparkleNoise = (x, y) =>
+      hashNoise(x, y, 73.19, 11.17, 7.2) * 0.5 +
+      hashNoise(x, y, 27.73, 61.91, -14.4) * 0.5;
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const u = (x * COS + y * SIN) / THREAD_PITCH;
-        const v = (x * COS - y * SIN) / THREAD_PITCH;
-        const warp = weaveProfile(u);
-        const weft = weaveProfile(v);
-        const ridge = warp + weft;
-        const cross = warp * weft;
-        const fiber = periodicNoise(x, y);
-        const weaveShade = 0.52 + ridge * 0.34 + cross * 0.3 + fiber * 0.16;
-        const toneMix = 0.36 + cross * 0.5;
-        const detailBoost = 0.07;
-        const rBase = base.r * weaveShade * (0.9 + fiber * detailBoost) + deep.r * toneMix;
-        const gBase = base.g * weaveShade * (0.92 + fiber * (detailBoost + 0.02)) + deep.g * toneMix;
-        const bBase = base.b * weaveShade * (0.88 + fiber * (detailBoost - 0.01)) + deep.b * toneMix;
-        const intensity = (warp - weft) * 0.9;
-        const r = rBase + intensity * 34;
-        const g = gBase + intensity * 18;
-        const b = bBase - intensity * 24;
+        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
+        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.45);
+        const cross = Math.pow(warp * weft, 0.75);
+        const fiber = fiberNoise(x, y);
+        const micro = microNoise(x + 31.8, y + 17.3);
+        const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
+        const tonal = THREE.MathUtils.clamp(
+          0.52 + (weave - 0.5) * 0.34 + (cross - 0.5) * 0.26 + (fiber - 0.5) * 0.18 +
+            (micro - 0.5) * 0.12,
+          0,
+          1
+        );
+        const highlightMix = THREE.MathUtils.clamp(
+          0.32 + (cross - 0.5) * 0.28 + (sparkle - 0.5) * 0.35,
+          0,
+          1
+        );
+        const baseR = shadow.r + (base.r - shadow.r) * tonal;
+        const baseG = shadow.g + (base.g - shadow.g) * tonal;
+        const baseB = shadow.b + (base.b - shadow.b) * tonal;
+        const r = baseR + (highlight.r - baseR) * highlightMix;
+        const g = baseG + (highlight.g - baseG) * highlightMix;
+        const b = baseB + (highlight.b - baseB) * highlightMix;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -576,7 +586,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(18, 72);
+    colorMap.repeat.set(16, 64);
     colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -596,15 +606,21 @@ const createClothTextures = (() => {
     const bumpData = bumpImage.data;
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const u = (x * COS + y * SIN) / THREAD_PITCH;
-        const v = (x * COS - y * SIN) / THREAD_PITCH;
-        const warp = weaveProfile(u);
-        const weft = weaveProfile(v);
-        const ridge = warp + weft;
-        const cross = warp * weft;
-        const height = 0.62 * cross + 0.38 * ridge * 0.5;
-        const detail = periodicNoise(x, y) * 0.22;
-        const value = clamp255(128 + (height - 0.42) * 240 + detail * 120);
+        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
+        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.25);
+        const cross = Math.pow(warp * weft, 0.8);
+        const fiber = fiberNoise(x, y);
+        const micro = microNoise(x + 31.8, y + 17.3);
+        const bump = THREE.MathUtils.clamp(
+          0.5 + (weave - 0.5) * 0.55 + (cross - 0.5) * 0.25 + (fiber - 0.5) * 0.22 +
+            (micro - 0.5) * 0.18,
+          0,
+          1
+        );
+        const value = clamp255(128 + (bump - 0.5) * 140);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1350,14 +1366,14 @@ function Table3D(parent) {
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    roughness: 0.92,
-    sheen: 1,
-    sheenRoughness: 0.72,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.46
+    roughness: 0.95,
+    sheen: 0.72,
+    sheenRoughness: 0.55,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.32
   });
-  const baseRepeat = 12;
-  const repeatRatio = 3.8;
+  const baseRepeat = 16;
+  const repeatRatio = 4;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1366,10 +1382,10 @@ function Table3D(parent) {
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.085;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = 0.12;
+    clothMat.bumpScale = 0.085;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -1469,46 +1485,19 @@ function Table3D(parent) {
 
   const POCKET_TOP_R = POCKET_VIS_R;
   const POCKET_BOTTOM_R = POCKET_VIS_R * 0.7;
-  const ringGeo = new THREE.RingGeometry(POCKET_TOP_R * 0.7, POCKET_TOP_R * 1.02, 64);
-  const ringMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    side: THREE.DoubleSide,
-    metalness: 0.4,
-    roughness: 0.55
-  });
-  ringMat.depthTest = false;
-  const lipMat = new THREE.MeshStandardMaterial({
-    color: 0x111111,
-    metalness: 0.2,
-    roughness: 0.7
-  });
-  const lipTubeR = Math.min(POCKET_TOP_R * 0.085, BALL_R * 0.18);
-  const pocketGeo = new THREE.CylinderGeometry(POCKET_TOP_R, POCKET_BOTTOM_R, TABLE.THICK, 48);
+  const pocketGeo = new THREE.CylinderGeometry(
+    POCKET_TOP_R,
+    POCKET_BOTTOM_R,
+    TABLE.THICK,
+    48
+  );
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
-    metalness: 0.6,
-    roughness: 0.4
+    metalness: 0.45,
+    roughness: 0.6
   });
   const pocketMeshes = [];
-  const ringLift = BALL_R * 0.068;
-  const lipLift = BALL_R * 0.061;
   pocketCenters().forEach((p) => {
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(p.x, clothPlaneLocal + ringLift, p.y);
-    ring.renderOrder = cloth.renderOrder + 2;
-    table.add(ring);
-
-    const lip = new THREE.Mesh(
-      new THREE.TorusGeometry(POCKET_TOP_R * 0.98, lipTubeR, 24, 64),
-      lipMat
-    );
-    lip.rotation.x = -Math.PI / 2;
-    lip.position.set(p.x, clothPlaneLocal + lipLift, p.y);
-    lip.castShadow = false;
-    lip.receiveShadow = true;
-    table.add(lip);
-
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, clothPlaneLocal - TABLE.THICK / 2, p.y);
     pocket.receiveShadow = true;
@@ -1768,7 +1757,8 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const horizLen = PLAY_W - 2 * POCKET_GAP;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.12; // shorten long cushions slightly so they sit shy of the pockets
+  const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
