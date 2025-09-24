@@ -14,8 +14,7 @@ import {
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
-import { Referee } from '../../../../src/core/Referee.ts';
+import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
@@ -2060,8 +2059,7 @@ function Table3D(parent) {
 function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
-  const rules = useMemo(() => new SnookerRules(), []);
-  const referee = useMemo(() => new Referee(rules), [rules]);
+  const rules = useMemo(() => new UnitySnookerRules(), []);
   const initialFrame = useMemo(
     () => rules.getInitialFrame('Player', 'AI'),
     [rules]
@@ -4081,7 +4079,7 @@ function SnookerGame() {
         }
         let updatedState = frameStateRef.current;
         try {
-          updatedState = referee.applyShot(frameStateRef.current, events);
+          updatedState = rules.applyShot(frameStateRef.current, events);
         } catch (applyErr) {
           console.error('Failed to apply snooker rules', applyErr);
         }
@@ -4576,7 +4574,14 @@ function SnookerGame() {
       console.error(e);
       setErr(e?.message || String(e));
     }
-  }, [hud.inHand, hud.over, deriveHudFromFrame, toBallColor, pocketIdByIndex, referee]);
+  }, [
+    hud.inHand,
+    hud.over,
+    deriveHudFromFrame,
+    toBallColor,
+    pocketIdByIndex,
+    rules
+  ]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
