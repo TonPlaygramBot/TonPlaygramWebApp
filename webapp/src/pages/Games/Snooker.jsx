@@ -530,7 +530,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x45f48b,
+  cloth: 0x5ff5a6,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -553,7 +553,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x45, g: 0xf4, b: 0x8b };
+  const BASE_COLOR = { r: 0x5f, g: 0xf5, b: 0xa6 };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -1402,9 +1402,10 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshPhysicalMaterial({
         color,
-        roughness: 0.18,
+        roughness: 0.14,
         clearcoat: 1,
-        clearcoatRoughness: 0.12
+        clearcoatRoughness: 0.12,
+        specularIntensity: 1.2
       })
     );
   }
@@ -1532,13 +1533,14 @@ function Table3D(parent) {
   } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.54,
+    roughness: 0.78,
     metalness: 0,
-    sheen: 0.9,
-    sheenRoughness: 0.26,
-    clearcoat: 0.05,
-    clearcoatRoughness: 0.34,
-    specularIntensity: 0.36,
+    sheen: 0.48,
+    sheenRoughness: 0.58,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
+    specularIntensity: 0.12,
+    envMapIntensity: 0,
     map: clothMap || undefined,
     normalMap: clothNormal || undefined,
     displacementMap: clothHeight || undefined,
@@ -1547,7 +1549,7 @@ function Table3D(parent) {
     aoMapIntensity: CLOTH_TEXTURE_INTENSITY
   });
   if (clothMat.normalMap) {
-    const boosted = 0.74 * CLOTH_TEXTURE_INTENSITY;
+    const boosted = 0.62 * CLOTH_TEXTURE_INTENSITY;
     clothMat.normalScale = new THREE.Vector2(boosted, boosted);
   }
   if (clothMat.displacementMap) {
@@ -2056,7 +2058,7 @@ function Table3D(parent) {
   const POCKET_GAP = POCKET_VIS_R * 0.84;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.38;
   const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.18;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.18;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.32;
   const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.1;
   const horizLen =
@@ -3841,7 +3843,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          7.6,
+          12,
           0,
           Math.PI * 0.5,
           0.62,
