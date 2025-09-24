@@ -3862,13 +3862,29 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.26);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 2.4 + lightHeightLift,
           0
         );
         lightingRig.add(ambient);
+
+        const fillLightHeight = tableSurfaceY + scaledHeight * 2.2 + lightHeightLift;
+        const fillLightDistance = Math.max(PLAY_W, PLAY_H) * 3.2;
+        const fillIntensity = 0.58;
+        const fillPositions = [
+          [spotOffsetX, fillLightHeight, spotOffsetZ],
+          [-spotOffsetX, fillLightHeight, spotOffsetZ],
+          [spotOffsetX, fillLightHeight, -spotOffsetZ],
+          [-spotOffsetX, fillLightHeight, -spotOffsetZ]
+        ];
+        for (const [x, y, z] of fillPositions) {
+          const fill = new THREE.PointLight(0xffffff, fillIntensity, fillLightDistance, 1.1);
+          fill.position.set(x, y, z);
+          fill.castShadow = false;
+          lightingRig.add(fill);
+        }
       };
 
       addMobileLighting();
