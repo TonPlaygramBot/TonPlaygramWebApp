@@ -530,7 +530,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x157f46,
+  cloth: 0x5ff5a6,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -553,7 +553,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x15, g: 0x7f, b: 0x46 };
+  const BASE_COLOR = { r: 0x5f, g: 0xf5, b: 0xa6 };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -2068,7 +2068,7 @@ function Table3D(parent) {
         );
         shade = THREE.MathUtils.lerp(0.88, shade, lipBlend);
       }
-      shade = THREE.MathUtils.clamp(shade, 0.7, 0.9);
+      shade = THREE.MathUtils.clamp(shade, 0.74, 0.94);
       const idx = i * 3;
       colors[idx] = shade;
       colors[idx + 1] = shade;
