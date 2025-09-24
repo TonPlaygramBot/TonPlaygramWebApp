@@ -15,7 +15,6 @@ import {
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
-import { Referee } from '../../../../src/core/Referee.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
@@ -256,7 +255,7 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const sideDepth = POCKET_VIS_R * 1.08;
+  const sideDepth = POCKET_VIS_R * 1.04;
   const sideHalfWidth = POCKET_VIS_R * 0.86;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x060606,
@@ -269,7 +268,7 @@ function addPocketCuts(parent, clothPlane) {
   mat.polygonOffset = true;
   mat.polygonOffsetFactor = -1;
   mat.polygonOffsetUnits = -6;
-  mat.depthWrite = true;
+  mat.depthWrite = false;
   mat.depthTest = true;
   const cornerShape = (() => {
     const innerR = POCKET_VIS_R * 0.98;
@@ -299,7 +298,7 @@ function addPocketCuts(parent, clothPlane) {
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
     s.lineTo(sideHalfWidth * 0.86, sideDepth);
-    s.quadraticCurveTo(0, sideDepth * 1.22, -sideHalfWidth * 0.86, sideDepth);
+    s.quadraticCurveTo(0, sideDepth * 1.14, -sideHalfWidth * 0.86, sideDepth);
     s.closePath();
     return s;
   })();
@@ -318,7 +317,7 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const diag = new THREE.Vector2(sx, sy).normalize();
-      const radialOffset = POCKET_VIS_R * 0.54;
+      const radialOffset = POCKET_VIS_R * 0.58;
       const railInset = TABLE.WALL * 0.35;
       mesh.scale.x = sx >= 0 ? -1 : 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
@@ -359,7 +358,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.92;
+const BALL_SCALE = 1;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -367,13 +366,12 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT_MULTIPLIER = 1.95;
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const CLOTH_LIFT = (() => {
   const ballR = 2 * BALL_SCALE;
   const microEpsRatio = 0.022857142857142857;
   const eps = ballR * microEpsRatio;
-  const railH = TABLE.THICK * RAIL_HEIGHT_MULTIPLIER;
+  const railH = TABLE.THICK * 1.82;
   return Math.max(0, railH - ballR - eps);
 })();
 const PLAY_W = TABLE.W - 2 * TABLE.WALL;
@@ -382,10 +380,10 @@ const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.4; // pockets tightened further so the openings read smaller
-// keep the visual rim only fractionally larger so the jaws still overlap the cloth neatly
-const POCKET_VIS_R = POCKET_R / 1.08;
-const POCKET_HOLE_R = POCKET_VIS_R * 1.6; // widen the cloth cutout so pocket interiors stay fully exposed
+const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
+// slightly larger visual radius so rails align with pocket rings
+const POCKET_VIS_R = POCKET_R / 0.985;
+const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -413,62 +411,31 @@ const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const RAIL_BASE_OVERLAP = TABLE.THICK * 0.18; // drop rails further so they blend into the base without gaps
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.36; // keep rims seated so cloth never bleeds across the pocket opening
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // lift pockets slightly higher so the rims stay visible from shallow angles
 const POCKET_RECESS_DEPTH =
-  BALL_R * 0.3; // deepen the pocket throat so the interior reads before the cloth
+  BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const CLOTH_CORNER_HOLE_RADIUS = POCKET_VIS_R * 1.62;
-const CLOTH_CORNER_HOLE_OFFSET = POCKET_VIS_R * 0.4;
-const CLOTH_SIDE_HOLE_MAJOR = POCKET_VIS_R * 1.5;
-const CLOTH_SIDE_HOLE_MINOR = POCKET_VIS_R * 1.08;
-const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 7.5,
+  triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.28,
-  maxOutside: BALL_R * 36,
-  heightOffset: BALL_R * 6.4,
-  distanceBias: 1.22,
-  offsetScale: 1.18,
-  backstep: BALL_R * 3.6,
-  fovOffset: 3
+  minOutside: TABLE.WALL + POCKET_VIS_R * 0.95,
+  maxOutside: BALL_R * 32,
+  heightOffset: BALL_R * 5.1
 });
-const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
-const ACTION_CAM = Object.freeze({
-  nearPocketDist: CAPTURE_R * 3.2,
-  switchMinDist: POCKET_SWITCH_MIN_DIST,
-  smoothTime: 0.45,
-  safeBox: Object.freeze({
-    minX: 0.4,
-    maxX: 0.6,
-    minY: 0.4,
-    maxY: 0.6
-  }),
-  opposite: Object.freeze({
-    lateral: PLAY_W * 0.6,
-    minRailClearance: TABLE.WALL + BALL_R * 1.35,
-    extraClearance: TABLE.WALL * 0.08,
-    backstep: BALL_R * 5.2,
-    heightOffset: BALL_R * 10.5,
-    targetBias: 0.32,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.35
-  })
-});
-const SPIN_STRENGTH = BALL_R * 0.25;
+const SPIN_STRENGTH = BALL_R * 0.5;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 2.25 * 0.75; // reduce strike strength by 25% for softer shots
+const SHOT_FORCE_BOOST = 1.5; // boost cue strike strength by 50%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -487,7 +454,6 @@ const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
-const BALL_WORLD_CENTER_Y = TABLE_Y + BALL_CENTER_Y;
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
@@ -495,7 +461,7 @@ const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SIDE_POST_CLEARANCE = 0.18; // keep the side posts slightly above the floor
-const SIDE_POST_SPREAD = 0.8; // shift the vertical side posts closer to the legs
+const SIDE_POST_SPREAD = 0.55; // how far towards each end the vertical side posts sit
 const SIDE_POST_THICKNESS_SCALE = 0.55; // width of each vertical side post relative to the rail width
 const SIDE_POST_DEPTH_SCALE = 1.4; // depth of each side post to make them read as solid beams
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
@@ -507,16 +473,16 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.3;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
-const MAX_SPIN_CONTACT_OFFSET = Math.max(0, (BALL_R - CUE_TIP_RADIUS) * 0.5);
-const MAX_SPIN_FORWARD = BALL_R * 0.44;
-const MAX_SPIN_SIDE = BALL_R * 0.31;
-const MAX_SPIN_VERTICAL = BALL_R * 0.24;
+const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
+const MAX_SPIN_FORWARD = BALL_R * 0.88;
+const MAX_SPIN_SIDE = BALL_R * 0.62;
+const MAX_SPIN_VERTICAL = BALL_R * 0.48;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
+const CUSHION_FACE_INSET = TABLE.WALL * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -526,7 +492,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x0f8a3d,
+  cloth: 0x2bc351,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -542,195 +508,76 @@ const COLORS = Object.freeze({
 
 const createClothTextures = (() => {
   let cache = null;
-  const clamp01 = (value) => Math.max(0, Math.min(1, value));
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
-  const wrapIndex = (value, size) => {
-    const mod = value % size;
-    return mod < 0 ? mod + size : mod;
-  };
-  const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x0f, g: 0x8a, b: 0x3d };
-  const TWILL_PERIOD = 64;
-  const periodicNoise = (x, y) => {
-    const n1 = Math.sin((TWO_PI * (x + y)) / 16);
-    const n2 = Math.sin((TWO_PI * (3 * x - 2 * y)) / 32);
-    const n3 = Math.sin((TWO_PI * (5 * x + 7 * y)) / 128);
-    const n4 = Math.sin((TWO_PI * (9 * x + 11 * y)) / 256);
-    const n5 = Math.sin((TWO_PI * (x - y)) / 8);
-    return (n1 * 0.25 + n2 * 0.18 + n3 * 0.16 + n4 * 0.14 + n5 * 0.27) * 0.5;
-  };
-  const sampleWeave = (x, y) => {
-    const diag = (x + y) / TWILL_PERIOD;
-    const diagOffset = (x + y + TWILL_PERIOD * 0.5) / (TWILL_PERIOD * 2);
-    const anti = (x - y) / (TWILL_PERIOD * 2);
-    const ribWave = Math.sin(TWO_PI * diag);
-    const ribAltWave = Math.sin(TWO_PI * diagOffset);
-    const weaveWave = Math.sin(TWO_PI * anti);
-    const rib = Math.sign(ribWave) * Math.pow(Math.abs(ribWave), 1.8);
-    const ribAlt = Math.sign(ribAltWave) * Math.pow(Math.abs(ribAltWave), 1.6);
-    const ribBlend = rib * 0.68 + ribAlt * 0.32;
-    const weave = Math.sign(weaveWave) * Math.pow(Math.abs(weaveWave), 1.7);
-    const weaveAbs = Math.abs(weave);
-    const fineDiag = Math.sin((TWO_PI * (x + y)) / 8);
-    const fineAnti = Math.sin((TWO_PI * (x - y)) / 16);
-    const fiber = periodicNoise(x, y);
-    const microFiber = periodicNoise(x * 2, y * 2);
-    const heightRaw =
-      0.52 +
-      ribBlend * 0.18 +
-      weave * 0.08 +
-      fineDiag * 0.02 +
-      fineAnti * 0.018 +
-      fiber * 0.035 +
-      microFiber * 0.02;
-    const height = clamp01(heightRaw);
-    const fiberInfluence = fiber * 0.02 + microFiber * 0.015;
-    const ribInfluence = ribBlend * 0.02;
-    const baseR = BASE_COLOR.r / 255;
-    const baseG = BASE_COLOR.g / 255;
-    const baseB = BASE_COLOR.b / 255;
-    const shade = (height - 0.5) * 0.04 - weave * 0.01;
-    const colorFactor = 1 + ribInfluence + fiberInfluence + shade;
-    const color = {
-      r: clamp255(baseR * colorFactor * 255),
-      g: clamp255(baseG * (1 + ribInfluence * 1.1 + fiberInfluence) * 255),
-      b: clamp255(baseB * (1 + ribInfluence * 0.8 + fiberInfluence * 0.6) * 255)
-    };
-    const roughness = clamp01(
-      0.62 - ribBlend * 0.04 - fiber * 0.015 + weaveAbs * 0.02
-    );
-    const ao = clamp01(0.9 - weaveAbs * 0.05 - fiber * 0.03 - (height - 0.5) * 0.12);
-    return { height, color, roughness, ao, fiber, weaveAbs, rib: ribBlend };
-  };
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
-      cache = {
-        map: null,
-        normal: null,
-        height: null,
-        roughness: null,
-        ao: null,
-        bump: null
-      };
+      cache = { map: null, bump: null };
       return cache;
     }
 
-    const SIZE = 4096;
-    const baseCanvas = document.createElement('canvas');
-    baseCanvas.width = baseCanvas.height = SIZE;
-    const baseCtx = baseCanvas.getContext('2d');
-    if (!baseCtx) {
-      cache = {
-        map: null,
-        normal: null,
-        height: null,
-        roughness: null,
-        ao: null,
-        bump: null
-      };
+    const SIZE = 1024;
+    const THREAD_PITCH = 18;
+    const STRAND_POWER = 0.58;
+    const STRAND_SHAPE = 3.1;
+    const DIAG = Math.PI / 4;
+    const COS = Math.cos(DIAG);
+    const SIN = Math.sin(DIAG);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      cache = { map: null, bump: null };
       return cache;
     }
-    const heightCanvas = document.createElement('canvas');
-    heightCanvas.width = heightCanvas.height = SIZE;
-    const heightCtx = heightCanvas.getContext('2d');
-    const roughnessCanvas = document.createElement('canvas');
-    roughnessCanvas.width = roughnessCanvas.height = SIZE;
-    const roughnessCtx = roughnessCanvas.getContext('2d');
-    const aoCanvas = document.createElement('canvas');
-    aoCanvas.width = aoCanvas.height = SIZE;
-    const aoCtx = aoCanvas.getContext('2d');
-    if (!heightCtx || !roughnessCtx || !aoCtx) {
-      cache = {
-        map: null,
-        normal: null,
-        height: null,
-        roughness: null,
-        ao: null,
-        bump: null
-      };
-      return cache;
-    }
-    const baseImage = baseCtx.createImageData(SIZE, SIZE);
-    const heightImage = heightCtx.createImageData(SIZE, SIZE);
-    const roughnessImage = roughnessCtx.createImageData(SIZE, SIZE);
-    const aoImage = aoCtx.createImageData(SIZE, SIZE);
-    const heightField = new Float32Array(SIZE * SIZE);
+
+    const image = ctx.createImageData(SIZE, SIZE);
+    const data = image.data;
+    const base = { r: 0x24, g: 0xb6, b: 0x44 };
+    const deep = { r: 0x19, g: 0x8f, b: 0x35 };
+    const weaveProfile = (t) => {
+      const wave = Math.sin(Math.PI * t);
+      const envelope = 1 - Math.pow(Math.abs(wave), STRAND_POWER);
+      return Math.pow(Math.max(0, envelope), STRAND_SHAPE);
+    };
+    const periodicNoise = (x, y) => {
+      const n1 = Math.sin(((x + y) * 2 * Math.PI) / 64);
+      const n2 = Math.sin(((x * 3 - y * 2) * 2 * Math.PI) / 96);
+      const n3 = Math.sin(((x * 5 + y * 7) * 2 * Math.PI) / 128);
+      return (n1 * 0.45 + n2 * 0.35 + n3 * 0.2) * 0.5;
+    };
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
-        const sample = sampleWeave(x, y);
-        const idx = (y * SIZE + x) * 4;
-        baseImage.data[idx + 0] = sample.color.r;
-        baseImage.data[idx + 1] = sample.color.g;
-        baseImage.data[idx + 2] = sample.color.b;
-        baseImage.data[idx + 3] = 255;
-        const heightValue = clamp255(sample.height * 255);
-        heightImage.data[idx + 0] = heightValue;
-        heightImage.data[idx + 1] = heightValue;
-        heightImage.data[idx + 2] = heightValue;
-        heightImage.data[idx + 3] = 255;
-        const roughnessValue = clamp255(sample.roughness * 255);
-        roughnessImage.data[idx + 0] = roughnessValue;
-        roughnessImage.data[idx + 1] = roughnessValue;
-        roughnessImage.data[idx + 2] = roughnessValue;
-        roughnessImage.data[idx + 3] = 255;
-        const aoValue = clamp255(sample.ao * 255);
-        aoImage.data[idx + 0] = aoValue;
-        aoImage.data[idx + 1] = aoValue;
-        aoImage.data[idx + 2] = aoValue;
-        aoImage.data[idx + 3] = 255;
-        heightField[y * SIZE + x] = sample.height;
+        const u = (x * COS + y * SIN) / THREAD_PITCH;
+        const v = (x * COS - y * SIN) / THREAD_PITCH;
+        const warp = weaveProfile(u);
+        const weft = weaveProfile(v);
+        const ridge = warp + weft;
+        const cross = warp * weft;
+        const fiber = periodicNoise(x, y);
+        const weaveShade = 0.52 + ridge * 0.34 + cross * 0.3 + fiber * 0.16;
+        const toneMix = 0.36 + cross * 0.5;
+        const detailBoost = 0.07;
+        const rBase = base.r * weaveShade * (0.9 + fiber * detailBoost) + deep.r * toneMix;
+        const gBase = base.g * weaveShade * (0.92 + fiber * (detailBoost + 0.02)) + deep.g * toneMix;
+        const bBase = base.b * weaveShade * (0.88 + fiber * (detailBoost - 0.01)) + deep.b * toneMix;
+        const intensity = (warp - weft) * 0.9;
+        const r = rBase + intensity * 34;
+        const g = gBase + intensity * 18;
+        const b = bBase - intensity * 24;
+        const i = (y * SIZE + x) * 4;
+        data[i + 0] = clamp255(r);
+        data[i + 1] = clamp255(g);
+        data[i + 2] = clamp255(b);
+        data[i + 3] = 255;
       }
     }
-    baseCtx.putImageData(baseImage, 0, 0);
-    heightCtx.putImageData(heightImage, 0, 0);
-    roughnessCtx.putImageData(roughnessImage, 0, 0);
-    aoCtx.putImageData(aoImage, 0, 0);
+    ctx.putImageData(image, 0, 0);
 
-    const normalCanvas = document.createElement('canvas');
-    normalCanvas.width = normalCanvas.height = SIZE;
-    const normalCtx = normalCanvas.getContext('2d');
-    if (!normalCtx) {
-      cache = {
-        map: null,
-        normal: null,
-        height: null,
-        roughness: null,
-        ao: null,
-        bump: null
-      };
-      return cache;
-    }
-    const normalImage = normalCtx.createImageData(SIZE, SIZE);
-    const normalStrength = 0.4;
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        const left = heightField[y * SIZE + wrapIndex(x - 1, SIZE)];
-        const right = heightField[y * SIZE + wrapIndex(x + 1, SIZE)];
-        const up = heightField[wrapIndex(y - 1, SIZE) * SIZE + x];
-        const down = heightField[wrapIndex(y + 1, SIZE) * SIZE + x];
-        const dx = (right - left) * normalStrength;
-        const dy = (down - up) * normalStrength;
-        const nx = -dx;
-        const ny = 1;
-        const nz = -dy;
-        const lenSq = nx * nx + ny * ny + nz * nz;
-        const invLen = lenSq > 1e-10 ? 1 / Math.sqrt(lenSq) : 1;
-        const r = clamp255(((nx * invLen) * 0.5 + 0.5) * 255);
-        const g = clamp255(((ny * invLen) * 0.5 + 0.5) * 255);
-        const b = clamp255(((nz * invLen) * 0.5 + 0.5) * 255);
-        const idx = (y * SIZE + x) * 4;
-        normalImage.data[idx + 0] = r;
-        normalImage.data[idx + 1] = g;
-        normalImage.data[idx + 2] = b;
-        normalImage.data[idx + 3] = 255;
-      }
-    }
-    normalCtx.putImageData(normalImage, 0, 0);
-
-    const colorMap = new THREE.CanvasTexture(baseCanvas);
+    const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.anisotropy = 64;
+    colorMap.repeat.set(18, 72);
+    colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
@@ -738,54 +585,44 @@ const createClothTextures = (() => {
     else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
-    const normalMap = new THREE.CanvasTexture(normalCanvas);
-    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-    normalMap.anisotropy = 32;
-    normalMap.generateMipmaps = true;
-    normalMap.minFilter = THREE.LinearMipmapLinearFilter;
-    normalMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in normalMap) normalMap.colorSpace = THREE.NoColorSpace;
-    else normalMap.encoding = THREE.LinearEncoding;
-    normalMap.needsUpdate = true;
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = SIZE;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (!bumpCtx) {
+      cache = { map: colorMap, bump: null };
+      return cache;
+    }
+    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
+    const bumpData = bumpImage.data;
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const u = (x * COS + y * SIN) / THREAD_PITCH;
+        const v = (x * COS - y * SIN) / THREAD_PITCH;
+        const warp = weaveProfile(u);
+        const weft = weaveProfile(v);
+        const ridge = warp + weft;
+        const cross = warp * weft;
+        const height = 0.62 * cross + 0.38 * ridge * 0.5;
+        const detail = periodicNoise(x, y) * 0.22;
+        const value = clamp255(128 + (height - 0.42) * 240 + detail * 120);
+        const i = (y * SIZE + x) * 4;
+        bumpData[i + 0] = value;
+        bumpData[i + 1] = value;
+        bumpData[i + 2] = value;
+        bumpData[i + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
 
-    const heightMap = new THREE.CanvasTexture(heightCanvas);
-    heightMap.wrapS = heightMap.wrapT = THREE.RepeatWrapping;
-    heightMap.anisotropy = 16;
-    heightMap.generateMipmaps = true;
-    heightMap.minFilter = THREE.LinearMipmapLinearFilter;
-    heightMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in heightMap) heightMap.colorSpace = THREE.NoColorSpace;
-    else heightMap.encoding = THREE.LinearEncoding;
-    heightMap.needsUpdate = true;
+    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+    bumpMap.repeat.copy(colorMap.repeat);
+    bumpMap.anisotropy = colorMap.anisotropy;
+    bumpMap.generateMipmaps = true;
+    bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
+    bumpMap.magFilter = THREE.LinearFilter;
 
-    const roughnessMap = new THREE.CanvasTexture(roughnessCanvas);
-    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-    roughnessMap.anisotropy = 16;
-    roughnessMap.generateMipmaps = true;
-    roughnessMap.minFilter = THREE.LinearMipmapLinearFilter;
-    roughnessMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in roughnessMap) roughnessMap.colorSpace = THREE.NoColorSpace;
-    else roughnessMap.encoding = THREE.LinearEncoding;
-    roughnessMap.needsUpdate = true;
-
-    const aoMap = new THREE.CanvasTexture(aoCanvas);
-    aoMap.wrapS = aoMap.wrapT = THREE.RepeatWrapping;
-    aoMap.anisotropy = 16;
-    aoMap.generateMipmaps = true;
-    aoMap.minFilter = THREE.LinearMipmapLinearFilter;
-    aoMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in aoMap) aoMap.colorSpace = THREE.NoColorSpace;
-    else aoMap.encoding = THREE.LinearEncoding;
-    aoMap.needsUpdate = true;
-
-    cache = {
-      map: colorMap,
-      normal: normalMap,
-      height: heightMap,
-      roughness: roughnessMap,
-      ao: aoMap,
-      bump: heightMap
-    };
+    cache = { map: colorMap, bump: bumpMap };
     return cache;
   };
 })();
@@ -878,30 +715,24 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 1.0;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.05;
-const STANDING_VIEW_MARGIN = 0.34;
+const STANDING_VIEW_PHI = 0.78;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
+const STANDING_VIEW_MARGIN = 0.74;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.24;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.34);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI;
+const CAMERA_ABS_MIN_PHI = 0.3;
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.005;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.48,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.68,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const STANDING_RADIUS_SCALE = 0.56;
-const CUE_RADIUS_SCALE = 0.7;
-const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
-const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
-const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
-const CAMERA_CLOSE_RAIL_MARGIN = TABLE.WALL * 0.04; // keep lowered orbit just outside the cushion lips
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.62; // keep eye level slightly above the top of the balls
+const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.42;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -912,11 +743,11 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: CAMERA.minR,
-  phi: CAMERA.maxPhi - 0.06
+  radius: 66 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  phi: CAMERA.maxPhi - 0.12
 });
-const CAMERA_RAIL_SAFETY = 0.04;
-const CUE_VIEW_RADIUS_RATIO = 0.8;
+const CAMERA_RAIL_SAFETY = 0.02;
+const CUE_VIEW_RADIUS_RATIO = 0.86;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -924,9 +755,6 @@ const CUE_VIEW_MIN_PHI = Math.min(
 );
 const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
-const CAMERA_HEIGHT_ZOOM_IN = 1.45;
-const CAMERA_HEIGHT_ZOOM_OUT = 1.1;
-const MANUAL_PHI_OFFSET_LIMIT = THREE.MathUtils.degToRad(10);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -1519,100 +1347,40 @@ function Table3D(parent) {
   const frameTopY = FRAME_TOP_Y;
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
-  const {
-    map: clothMap,
-    normal: clothNormal,
-    height: clothHeight,
-    roughness: clothRoughness,
-    ao: clothAO
-  } = createClothTextures();
+  const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: COLORS.cloth,
-    roughness: 0.62,
-    metalness: 0,
-    sheen: 0.9,
-    sheenRoughness: 0.26,
-    clearcoat: 0.05,
-    clearcoatRoughness: 0.34,
-    specularIntensity: 0.32,
-    map: clothMap || undefined,
-    normalMap: clothNormal || undefined,
-    displacementMap: clothHeight || undefined,
-    roughnessMap: clothRoughness || undefined,
-    aoMap: clothAO || undefined,
-    aoMapIntensity: 0.88
+    color: 0xffffff,
+    roughness: 0.92,
+    sheen: 1,
+    sheenRoughness: 0.72,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.46
   });
-  if (clothMat.normalMap) {
-    clothMat.normalScale = new THREE.Vector2(0.4, 0.4);
+  const baseRepeat = 12;
+  const repeatRatio = 3.8;
+  if (clothMap) {
+    clothMat.map = clothMap;
+    clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.map.needsUpdate = true;
   }
-  if (clothMat.displacementMap) {
-    clothMat.displacementScale = 0.00024;
-    clothMat.displacementBias = -clothMat.displacementScale / 2;
+  if (clothBump) {
+    clothMat.bumpMap = clothBump;
+    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.bumpScale = 0.12;
+    clothMat.bumpMap.needsUpdate = true;
+  } else {
+    clothMat.bumpScale = 0.12;
   }
-  const baseRepeat = 2.4;
-  const repeatRatio = 3.1;
-  const applyTextureSettings = (texture, repeatX, repeatY, anisotropy = 12) => {
-    if (!texture) return;
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(repeatX, repeatY);
-    texture.anisotropy = Math.max(texture.anisotropy ?? 0, anisotropy);
-    texture.needsUpdate = true;
-  };
-  applyTextureSettings(clothMat.map, baseRepeat, baseRepeat * repeatRatio, 16);
-  applyTextureSettings(clothMat.normalMap, baseRepeat, baseRepeat * repeatRatio, 16);
-  applyTextureSettings(clothMat.displacementMap, baseRepeat, baseRepeat * repeatRatio, 12);
-  applyTextureSettings(clothMat.roughnessMap, baseRepeat, baseRepeat * repeatRatio, 8);
-  applyTextureSettings(clothMat.aoMap, baseRepeat, baseRepeat * repeatRatio, 8);
-  const clothNearRepeat = baseRepeat * 0.58;
-  const clothFarRepeat = baseRepeat * 1.12;
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: clothNearRepeat,
-    farRepeat: clothFarRepeat,
-    normalScale: clothMat.normalMap ? clothMat.normalScale.x : null,
-    displacementScale: clothMat.displacementMap ? clothMat.displacementScale : null
+    nearRepeat: baseRepeat * 1.3,
+    farRepeat: baseRepeat * 0.58,
+    bumpScale: clothMat.bumpScale
   };
 
-  const cushionRepeat = baseRepeat * 1.08;
-  const cushionRatio = repeatRatio * 0.9;
   const cushionMat = clothMat.clone();
-  const textureKeys = ['map', 'normalMap', 'displacementMap', 'roughnessMap', 'aoMap'];
-  textureKeys.forEach((key) => {
-    const tex = cushionMat[key];
-    if (!tex) return;
-    cushionMat[key] = tex.clone();
-    applyTextureSettings(
-      cushionMat[key],
-      cushionRepeat,
-      cushionRepeat * cushionRatio,
-      key === 'map' ? 16 : key === 'normalMap' ? 16 : 8
-    );
-  });
-  if (cushionMat.normalMap && clothMat.normalScale) {
-    const baseNormal = clothMat.normalScale.x;
-    const cushionNormal = baseNormal * 1.35;
-    cushionMat.normalScale = cushionMat.normalScale?.clone() ?? new THREE.Vector2();
-    cushionMat.normalScale.setScalar(cushionNormal);
-  }
-  if (cushionMat.displacementMap && clothMat.displacementScale) {
-    const cushionDisp = clothMat.displacementScale * 1.25;
-    cushionMat.displacementScale = cushionDisp;
-    cushionMat.displacementBias = -cushionDisp / 2;
-  }
-  if (cushionMat.aoMap) {
-    cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
-  }
-  cushionMat.userData = {
-    ...(cushionMat.userData || {}),
-    baseRepeat: cushionRepeat,
-    repeatRatio: cushionRatio,
-    nearRepeat: clothNearRepeat * 1.05,
-    farRepeat: clothFarRepeat * 0.94,
-    normalScale: cushionMat.normalMap ? cushionMat.normalScale.x : null,
-    displacementScale: cushionMat.displacementMap ? cushionMat.displacementScale : null
-  };
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
     metalness: 0.2,
@@ -1635,42 +1403,10 @@ function Table3D(parent) {
   clothShape.lineTo(-halfWext, -halfHext);
   pocketCenters().forEach((p) => {
     const hole = new THREE.Path();
-    const isCorner =
-      Math.abs(Math.abs(p.x) - halfW) < 1e-3 && Math.abs(Math.abs(p.y) - halfH) < 1e-3;
-    if (isCorner) {
-      const sx = Math.sign(p.x) || 1;
-      const sy = Math.sign(p.y) || 1;
-      const diag = new THREE.Vector2(sx, sy).normalize();
-      const centerX = p.x + diag.x * CLOTH_CORNER_HOLE_OFFSET;
-      const centerY = p.y + diag.y * CLOTH_CORNER_HOLE_OFFSET;
-      hole.absellipse(
-        centerX,
-        centerY,
-        CLOTH_CORNER_HOLE_RADIUS,
-        CLOTH_CORNER_HOLE_RADIUS,
-        0,
-        Math.PI * 2
-      );
-    } else {
-      const sx = Math.sign(p.x) || 1;
-      const centerX = p.x + sx * CLOTH_SIDE_HOLE_OFFSET;
-      hole.absellipse(
-        centerX,
-        p.y,
-        CLOTH_SIDE_HOLE_MINOR,
-        CLOTH_SIDE_HOLE_MAJOR,
-        0,
-        Math.PI * 2,
-        false,
-        Math.PI / 2
-      );
-    }
+    hole.absellipse(p.x, p.y, POCKET_VIS_R * 0.96, POCKET_VIS_R * 0.96, 0, Math.PI * 2);
     clothShape.holes.push(hole);
   });
   const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
-  if (clothGeo.attributes.uv && !clothGeo.attributes.uv2) {
-    clothGeo.setAttribute('uv2', clothGeo.attributes.uv.clone());
-  }
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal;
@@ -1731,22 +1467,22 @@ function Table3D(parent) {
   });
   table.add(markingsGroup);
 
-  const POCKET_TOP_R = POCKET_VIS_R * 0.96;
-  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.62;
-  const ringGeo = new THREE.RingGeometry(POCKET_TOP_R * 0.68, POCKET_TOP_R * 0.98, 64);
+  const POCKET_TOP_R = POCKET_VIS_R;
+  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.7;
+  const ringGeo = new THREE.RingGeometry(POCKET_TOP_R * 0.7, POCKET_TOP_R * 1.02, 64);
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     side: THREE.DoubleSide,
     metalness: 0.4,
     roughness: 0.55
   });
-  ringMat.depthTest = true;
+  ringMat.depthTest = false;
   const lipMat = new THREE.MeshStandardMaterial({
     color: 0x111111,
     metalness: 0.2,
     roughness: 0.7
   });
-  const lipTubeR = Math.min(POCKET_TOP_R * 0.082, BALL_R * 0.16);
+  const lipTubeR = Math.min(POCKET_TOP_R * 0.085, BALL_R * 0.18);
   const pocketGeo = new THREE.CylinderGeometry(POCKET_TOP_R, POCKET_BOTTOM_R, TABLE.THICK, 48);
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
@@ -1754,8 +1490,8 @@ function Table3D(parent) {
     roughness: 0.4
   });
   const pocketMeshes = [];
-  const ringLift = BALL_R * 0.052;
-  const lipLift = BALL_R * 0.046;
+  const ringLift = BALL_R * 0.068;
+  const lipLift = BALL_R * 0.061;
   pocketCenters().forEach((p) => {
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = -Math.PI / 2;
@@ -1780,9 +1516,9 @@ function Table3D(parent) {
     pocketMeshes.push(pocket);
   });
 
-  const railW = TABLE.WALL * 0.7 * 0.75; // trim the side rails by 25%
-  const railH = TABLE.THICK * RAIL_HEIGHT_MULTIPLIER;
-  const frameWidth = railW * 1.9;
+  const railW = TABLE.WALL * 0.7;
+  const railH = TABLE.THICK * 1.82;
+  const frameWidth = railW * 2.5;
   const outerHalfW = halfW + 2 * railW + frameWidth;
   const outerHalfH = halfH + 2 * railW + frameWidth;
   const CUSHION_BACK = railW * 0.5;
@@ -1886,11 +1622,10 @@ function Table3D(parent) {
     }
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH + RAIL_BASE_OVERLAP,
+      depth: railH,
       bevelEnabled: false,
       curveSegments: 96
     });
-    geo.translate(0, 0, -RAIL_BASE_OVERLAP);
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
@@ -1931,11 +1666,10 @@ function Table3D(parent) {
     }
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH + RAIL_BASE_OVERLAP,
+      depth: railH,
       bevelEnabled: false,
       curveSegments: 96
     });
-    geo.translate(0, 0, -RAIL_BASE_OVERLAP);
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
@@ -2010,9 +1744,6 @@ function Table3D(parent) {
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
-    if (geo.attributes.uv && !geo.attributes.uv2) {
-      geo.setAttribute('uv2', geo.attributes.uv.clone());
-    }
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 2;
@@ -2024,10 +1755,7 @@ function Table3D(parent) {
 
     const EDGE_BIAS = MICRO_EPS;
     if (horizontal) {
-      const direction = z >= 0 ? 1 : -1;
-      const faceOffset = Math.max(0, LONG_CUSHION_FACE_SHIFT);
-      group.position.z =
-        direction * (halfH - faceOffset) + EDGE_BIAS * direction;
+      group.position.z = z > 0 ? halfH + EDGE_BIAS : -halfH - EDGE_BIAS;
     } else {
       group.position.x = x > 0 ? halfW + EDGE_BIAS : -halfW - EDGE_BIAS;
     }
@@ -2040,11 +1768,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.72;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
-  const horizLen =
-    PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
+  const horizLen = PLAY_W - 2 * POCKET_GAP;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
@@ -2062,26 +1786,31 @@ function Table3D(parent) {
   const frameOuterZ = halfH + 2 * railW + frameWidth;
   const skirtH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
   const baseOverhang = railW * SKIRT_SIDE_OVERHANG;
-  const apronThickness = Math.max(railW * 0.85, TABLE.WALL * 0.9) + baseOverhang;
-  const skirtTopY = frameTopY;
-  const skirtY = skirtTopY - skirtH / 2;
-  const skirtGroup = new THREE.Group();
-  const longApronGeo = new THREE.BoxGeometry(frameOuterX * 2, skirtH, apronThickness);
-  const shortApronGeo = new THREE.BoxGeometry(apronThickness, skirtH, frameOuterZ * 2);
-  [-1, 1].forEach((dir) => {
-    const longApron = new THREE.Mesh(longApronGeo, woodMat);
-    longApron.position.set(0, skirtY, dir * (frameOuterZ - apronThickness / 2));
-    longApron.castShadow = true;
-    longApron.receiveShadow = true;
-    skirtGroup.add(longApron);
-
-    const shortApron = new THREE.Mesh(shortApronGeo, woodMat);
-    shortApron.position.set(dir * (frameOuterX - apronThickness / 2), skirtY, 0);
-    shortApron.castShadow = true;
-    shortApron.receiveShadow = true;
-    skirtGroup.add(shortApron);
+  const skirtShape = new THREE.Shape();
+  const outW = frameOuterX + baseOverhang;
+  const outZ = frameOuterZ + baseOverhang;
+  skirtShape.moveTo(-outW, -outZ);
+  skirtShape.lineTo(outW, -outZ);
+  skirtShape.lineTo(outW, outZ);
+  skirtShape.lineTo(-outW, outZ);
+  skirtShape.lineTo(-outW, -outZ);
+  const inner = new THREE.Path();
+  inner.moveTo(-frameOuterX, -frameOuterZ);
+  inner.lineTo(frameOuterX, -frameOuterZ);
+  inner.lineTo(frameOuterX, frameOuterZ);
+  inner.lineTo(-frameOuterX, frameOuterZ);
+  inner.lineTo(-frameOuterX, -frameOuterZ);
+  skirtShape.holes.push(inner);
+  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
+    depth: skirtH,
+    bevelEnabled: false
   });
-  table.add(skirtGroup);
+  const skirt = new THREE.Mesh(skirtGeo, woodMat);
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = frameTopY - skirtH + MICRO_EPS * 0.5;
+  skirt.castShadow = true;
+  skirt.receiveShadow = true;
+  table.add(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
@@ -2105,8 +1834,7 @@ function Table3D(parent) {
   const sidePostY = sidePostTopLocal - sidePostHeight / 2;
   const sidePostOffsetX = frameOuterX - sidePostThickness / 2 - railW * 0.2;
   const sidePostZ = frameOuterZ * SIDE_POST_SPREAD;
-  const sidePostPositions = sidePostZ > 0 ? [sidePostZ] : [];
-  sidePostPositions.forEach((zPos) => {
+  [-sidePostZ, sidePostZ].forEach((zPos) => {
     [-1, 1].forEach((dir) => {
       const post = new THREE.Mesh(sidePostGeo, woodMat);
       post.position.set(dir * sidePostOffsetX, sidePostY, zPos);
@@ -2184,57 +1912,16 @@ function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new SnookerRules(), []);
-  const referee = useMemo(() => new Referee(rules), [rules]);
-  const initialFrame = useMemo(
-    () => rules.getInitialFrame('Player', 'AI'),
-    [rules]
-  );
-  const [frameState, setFrameState] = useState(initialFrame);
-  const frameStateRef = useRef(frameState);
-  useEffect(() => {
-    frameStateRef.current = frameState;
-  }, [frameState]);
-  const shotEventsRef = useRef([]);
-  const deriveHudFromFrame = useCallback(
-    (frame, prevHud = {}) => {
-      const phase = frame.phase === 'COLORS_ORDER' ? 'colors' : 'reds';
-      let next = prevHud.next ?? 'red';
-      if (phase === 'reds') {
-        next = frame.colorOnAfterRed ? 'colour' : 'red';
-      } else if (frame.ballOn?.length > 0) {
-        next = frame.ballOn[0].toLowerCase();
-      }
-      return {
-        power: prevHud.power ?? 0.65,
-        inHand: prevHud.inHand ?? false,
-        ...prevHud,
-        A: frame.players.A.score,
-        B: frame.players.B.score,
-        turn: frame.activePlayer === 'A' ? 0 : 1,
-        phase,
-        next,
-        over: frame.frameOver
-      };
-    },
-    []
-  );
-  const [hud, setHud] = useState(() =>
-    deriveHudFromFrame(initialFrame, { power: 0.65, inHand: false })
-  );
-  const hudRef = useRef(hud);
-  useEffect(() => {
-    hudRef.current = hud;
-  }, [hud]);
-  const toBallColor = useCallback((id) => {
-    if (!id) return null;
-    if (id === 'cue') return 'CUE';
-    if (id.startsWith('red')) return 'RED';
-    return id.toUpperCase();
-  }, []);
-  const pocketIdByIndex = useMemo(
-    () => ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'],
-    []
-  );
+  const [hud, setHud] = useState({
+    power: 0.65,
+    A: 0,
+    B: 0,
+    turn: 0,
+    phase: 'reds',
+    next: 'red',
+    inHand: false,
+    over: false
+  });
   const powerRef = useRef(hud.power);
   useEffect(() => {
     powerRef.current = hud.power;
@@ -2257,10 +1944,11 @@ function SnookerGame() {
     standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
-  const worldScaleFactorRef = useRef(1);
+  const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
+  const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
@@ -2268,9 +1956,6 @@ function SnookerGame() {
     ballId: null
   });
   const orbitRadiusLimitRef = useRef(null);
-  const lockedOrbitRadiusRef = useRef(null);
-  const lockedOrbitPhiRef = useRef(null);
-  const manualPhiOffsetRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
@@ -2418,6 +2103,62 @@ function SnookerGame() {
 
   // Removed camera rotation helpers previously triggered by UI buttons
 
+  const toggleView = () => {
+    const cam = cameraRef.current;
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (!cam || !sph || !fit) return;
+    const next = !topViewRef.current;
+    const start = {
+      radius: sph.radius,
+      phi: sph.phi,
+      theta: sph.theta
+    };
+    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
+      const targetMargin = next
+        ? 1.05
+        : window.innerHeight > window.innerWidth
+          ? 1.6
+          : 1.4;
+    const targetRadius = fitRadius(cam, targetMargin);
+    const target = {
+      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
+      phi: next ? 0.0001 : last3DRef.current.phi,
+      theta: next ? sph.theta : last3DRef.current.theta
+    };
+    const duration = 600;
+    const t0 = performance.now();
+    function anim(t) {
+      const k = Math.min(1, (t - t0) / duration);
+      const ease = k * (2 - k);
+      sph.radius = start.radius + (target.radius - start.radius) * ease;
+      sph.phi = start.phi + (target.phi - start.phi) * ease;
+      sph.theta = start.theta + (target.theta - start.theta) * ease;
+      const targetPos = new THREE.Vector3(
+        playerOffsetRef.current,
+        TABLE_Y + 0.05,
+        0
+      ).multiplyScalar(worldScaleFactor);
+      const tmpSphAnim = sph.clone
+        ? sph.clone()
+        : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
+      cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
+      cam.lookAt(targetPos);
+      if (k < 1) requestAnimationFrame(anim);
+      else {
+        topViewRef.current = next;
+        setTopView(next);
+        if (rendererRef.current) {
+          rendererRef.current.domElement.style.transform = next
+            ? 'scale(0.9)'
+            : 'scale(1)';
+        }
+        fit(targetMargin);
+      }
+    }
+    requestAnimationFrame(anim);
+  };
+
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
@@ -2429,16 +2170,7 @@ function SnookerGame() {
         if (t <= 1) {
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
-            setFrameState((prev) => {
-              if (prev.activePlayer === 'B') return prev;
-              const updated = { ...prev, activePlayer: 'B', currentBreak: 0 };
-              frameStateRef.current = updated;
-              setHud((s) => ({
-                ...deriveHudFromFrame(updated, s),
-                inHand: s.inHand
-              }));
-              return updated;
-            });
+            setHud((s) => ({ ...s, turn: 1 - s.turn }));
           } else {
             aiShoot.current();
           }
@@ -2448,12 +2180,11 @@ function SnookerGame() {
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, deriveHudFromFrame]);
+  }, [hud.turn, hud.over]);
 
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
-    const readHud = () => hudRef.current ?? {};
     try {
       screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
@@ -2487,7 +2218,6 @@ function SnookerGame() {
       const world = new THREE.Group();
       scene.add(world);
       let worldScaleFactor = 1;
-      worldScaleFactorRef.current = worldScaleFactor;
       let cue;
       let clothMat;
       let cushionMat;
@@ -2600,7 +2330,7 @@ function SnookerGame() {
           }
           const store = ensureOrbitFocus();
           store.ballId = ball.id;
-          store.target.set(ball.pos.x, BALL_WORLD_CENTER_Y, ball.pos.y);
+          store.target.set(ball.pos.x, BALL_CENTER_Y, ball.pos.y);
         };
 
         const getMaxOrbitRadius = () =>
@@ -2644,86 +2374,7 @@ function SnookerGame() {
             standing.radius,
             blend
           );
-          if (topViewRef.current) {
-            manualPhiOffsetRef.current = 0;
-          }
-          const manualPhiLimit = topViewRef.current
-            ? CAMERA.maxPhi
-            : Math.max(
-                CAMERA.minPhi,
-                Math.min(
-                  lockedOrbitPhiRef.current ?? CAMERA.maxPhi,
-                  CAMERA.maxPhi
-                )
-              );
-          const manualLimit = MANUAL_PHI_OFFSET_LIMIT;
-          const manualOffset = THREE.MathUtils.clamp(
-            manualPhiOffsetRef.current ?? 0,
-            -manualLimit,
-            manualLimit
-          );
-          const phiForClamp = THREE.MathUtils.clamp(
-            rawPhi + manualOffset,
-            CAMERA.minPhi,
-            manualPhiLimit
-          );
-          const lockedRadius =
-            !topViewRef.current &&
-            Number.isFinite(lockedOrbitRadiusRef.current)
-              ? lockedOrbitRadiusRef.current
-              : null;
-          let radius = clampOrbitRadius(baseRadius);
-          if (!topViewRef.current) {
-            const scale = worldScaleFactor || 1;
-            const phiSpan = Math.max(1e-5, cueShot.phi - standing.phi);
-            const phiProgress = THREE.MathUtils.clamp(
-              (phiForClamp - standing.phi) / phiSpan,
-              0,
-              1
-            );
-            const sinPhi = Math.sin(Math.max(phiForClamp, 1e-4));
-            if (phiProgress > 0) {
-              const approachStrength = THREE.MathUtils.smoothstep(
-                0.2,
-                1,
-                phiProgress
-              );
-              if (approachStrength > 0) {
-                const desiredReach = Math.max(
-                  0,
-                  (CAMERA_RAIL_REACH_X + CAMERA_CLOSE_RAIL_MARGIN) * scale
-                );
-                if (desiredReach > 0) {
-                  const minRadiusForPhi =
-                    desiredReach / Math.max(sinPhi, 0.35);
-                  const tightenedTarget = Math.max(
-                    CAMERA.minR,
-                    Math.min(radius, minRadiusForPhi)
-                  );
-                  radius = THREE.MathUtils.lerp(
-                    radius,
-                    tightenedTarget,
-                    approachStrength
-                  );
-                }
-              }
-            }
-            const sinTheta = Math.sin(sph.theta);
-            const reachX = (CAMERA_RAIL_REACH_X + CAMERA_CLOSE_RAIL_MARGIN) * scale;
-            if (reachX > 0) {
-              const denomX = Math.abs(sinPhi * sinTheta);
-              if (denomX > 1e-4) {
-                const horizontalX = Math.abs(radius * sinPhi * sinTheta);
-                if (horizontalX < reachX) {
-                  radius = Math.max(radius, reachX / denomX);
-                }
-              }
-            }
-          }
-          radius = clampOrbitRadius(radius);
-          if (lockedRadius != null) {
-            radius = Math.min(radius, lockedRadius);
-          }
+          const radius = clampOrbitRadius(baseRadius);
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK - 0.05,
@@ -2732,24 +2383,9 @@ function SnookerGame() {
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
-          const safeRailPhi = Math.max(
-            CAMERA.minPhi,
-            phiRailLimit - CAMERA_RAIL_SAFETY
-          );
-          const finalPhiLimit = topViewRef.current
-            ? Math.max(CAMERA.minPhi, Math.min(CAMERA.maxPhi, safeRailPhi))
-            : Math.max(
-                CAMERA.minPhi,
-                Math.min(manualPhiLimit, safeRailPhi)
-              );
-          const safePhi = Math.min(phiForClamp, finalPhiLimit);
-          sph.phi = clamp(safePhi, CAMERA.minPhi, finalPhiLimit);
+          const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
+          sph.phi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
           sph.radius = radius;
-          manualPhiOffsetRef.current = THREE.MathUtils.clamp(
-            manualOffset,
-            -manualLimit,
-            manualLimit
-          );
           syncBlendToSpherical();
         };
 
@@ -2762,169 +2398,6 @@ function SnookerGame() {
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
-          } else if (activeShotView?.mode === 'action') {
-            const ballsList = ballsRef.current || [];
-            const focusBall = ballsList.find(
-              (b) => b.id === activeShotView.ballId
-            );
-            let ballPos2D = activeShotView.lastBallPos;
-            if (!ballPos2D) {
-              ballPos2D = new THREE.Vector2();
-              activeShotView.lastBallPos = ballPos2D;
-            }
-            if (focusBall?.active) {
-              ballPos2D = activeShotView.lastBallPos.set(
-                focusBall.pos.x,
-                focusBall.pos.y
-              );
-            }
-            const pocketCenter = activeShotView.pocketCenter;
-            const toPocket = pocketCenter.clone().sub(ballPos2D);
-            const distToPocket = toPocket.length();
-            const approachDir = activeShotView.approach;
-            if (distToPocket > 1e-4) {
-              const normalized = toPocket.clone().multiplyScalar(1 / distToPocket);
-              if (focusBall?.vel.lengthSq() > 1e-6) {
-                const travelDir = focusBall.vel.clone().normalize();
-                approachDir.lerp(travelDir, 0.35);
-              } else {
-                approachDir.lerp(normalized, 0.25);
-              }
-            }
-            if (approachDir.lengthSq() < 1e-6) {
-              if (toPocket.lengthSq() > 1e-6) {
-                approachDir.copy(toPocket.clone().normalize());
-              } else {
-                approachDir.copy(TMP_VEC2_FORWARD.set(0, 1));
-              }
-            } else {
-              approachDir.normalize();
-            }
-            if (!activeShotView.side) {
-              activeShotView.side = activeShotView.forceStraight
-                ? approachDir.clone().multiplyScalar(-1)
-                : new THREE.Vector2(-approachDir.y, approachDir.x);
-            }
-            if (activeShotView.forceStraight) {
-              activeShotView.side.copy(approachDir.clone().multiplyScalar(-1));
-            }
-            if (activeShotView.side.lengthSq() < 1e-6) {
-              activeShotView.side.set(-approachDir.y, approachDir.x);
-            }
-            activeShotView.side.normalize();
-            const railMargin =
-              activeShotView.railMargin ?? ACTION_CAM.opposite.minRailClearance;
-            const backstep = activeShotView.backstep ?? 0;
-            const basePoint = ballPos2D
-              .clone()
-              .sub(approachDir.clone().multiplyScalar(backstep));
-            const lateralDir = activeShotView.forceStraight
-              ? approachDir.clone().multiplyScalar(-1)
-              : activeShotView.side.clone();
-            if (lateralDir.lengthSq() < 1e-6) {
-              lateralDir.copy(new THREE.Vector2(-approachDir.y, approachDir.x));
-            }
-            lateralDir.normalize();
-            const anchor = computeOppositeAnchor(
-              basePoint,
-              lateralDir,
-              activeShotView.lateral ?? ACTION_CAM.opposite.lateral,
-              railMargin,
-              activeShotView.forceStraight ? 0 : ACTION_CAM.opposite.extraClearance,
-              ACTION_CAM.opposite.maxLateral
-            );
-            if (anchor) {
-              activeShotView.side.copy(anchor.side);
-              activeShotView.lateral = anchor.lateral;
-              const camHeight =
-                (TABLE_Y + TABLE.THICK +
-                  (activeShotView.heightOffset ?? ACTION_CAM.opposite.heightOffset)) *
-                worldScaleFactor;
-              let desiredPosition = new THREE.Vector3(
-                anchor.point.x * worldScaleFactor,
-                camHeight,
-                anchor.point.y * worldScaleFactor
-              );
-              const ballTarget = new THREE.Vector3(
-                ballPos2D.x,
-                BALL_WORLD_CENTER_Y,
-                ballPos2D.y
-              );
-              const pocketTarget = new THREE.Vector3(
-                pocketCenter.x,
-                BALL_WORLD_CENTER_Y,
-                pocketCenter.y
-              );
-              let focusTarget = ballTarget.clone();
-              const bias = THREE.MathUtils.clamp(
-                activeShotView.targetBias ?? ACTION_CAM.opposite.targetBias ?? 0.3,
-                0,
-                1
-              );
-              focusTarget.lerp(pocketTarget, bias);
-              focusTarget.multiplyScalar(worldScaleFactor);
-              const resumeOrbit = activeShotView.resumeOrbit;
-              if (resumeOrbit) {
-                const targetRadius = resumeOrbit.radius * worldScaleFactor;
-                const targetPhi = resumeOrbit.phi;
-                const focusHeight = focusTarget.y;
-                const vertical = targetRadius * Math.cos(targetPhi);
-                const horizontalRadius = Math.sqrt(
-                  Math.max(targetRadius * targetRadius - vertical * vertical, 0)
-                );
-                const focus2D = new THREE.Vector2(focusTarget.x, focusTarget.z);
-                const desired2D = new THREE.Vector2(
-                  desiredPosition.x,
-                  desiredPosition.z
-                );
-                let offset2D = desired2D.clone().sub(focus2D);
-                if (offset2D.lengthSq() < 1e-6) {
-                  const baseSide = activeShotView.forceStraight
-                    ? approachDir.clone().multiplyScalar(-1)
-                    : activeShotView.side.clone();
-                  if (baseSide.lengthSq() > 1e-6 && horizontalRadius > 0) {
-                    baseSide.normalize();
-                    offset2D = baseSide.multiplyScalar(horizontalRadius);
-                  }
-                } else if (horizontalRadius > 0) {
-                  offset2D.setLength(horizontalRadius);
-                }
-                desiredPosition = new THREE.Vector3(
-                  focus2D.x + offset2D.x,
-                  focusHeight + vertical,
-                  focus2D.y + offset2D.y
-                );
-              }
-              const now = performance.now();
-              const lastUpdate = activeShotView.lastUpdate ?? now;
-              const dt = Math.min(0.2, Math.max(0, (now - lastUpdate) / 1000));
-              activeShotView.lastUpdate = now;
-              const smoothTime =
-                activeShotView.smoothTime ?? ACTION_CAM.smoothTime;
-              const smooth =
-                smoothTime > 0 ? 1 - Math.exp(-dt / smoothTime) : 1;
-              const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
-              if (!activeShotView.smoothedPos) {
-                activeShotView.smoothedPos = desiredPosition.clone();
-              } else {
-                activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
-              }
-              if (!activeShotView.smoothedTarget) {
-                activeShotView.smoothedTarget = focusTarget.clone();
-              } else {
-                activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
-              }
-              camera.position.copy(activeShotView.smoothedPos);
-              camera.lookAt(activeShotView.smoothedTarget);
-              lookTarget = activeShotView.smoothedTarget;
-            } else if (
-              activeShotView.smoothedPos &&
-              activeShotView.smoothedTarget
-            ) {
-              camera.position.copy(activeShotView.smoothedPos);
-              camera.lookAt(activeShotView.smoothedTarget);
-              lookTarget = activeShotView.smoothedTarget;
-            }
           } else if (activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
@@ -2949,18 +2422,15 @@ function SnookerGame() {
               activeShotView.minOutside ?? POCKET_CAM.minOutside;
             const maxOutside =
               activeShotView.maxOutside ?? POCKET_CAM.maxOutside;
-            const bias = activeShotView.distanceBias ?? 1;
             const dynamicOffset = THREE.MathUtils.clamp(
-              (distToPocket + BALL_R * 2.4) * bias,
+              distToPocket + BALL_R * 2.4,
               minOutside,
               maxOutside
             );
             activeShotView.outsideOffset = dynamicOffset;
-            const offsetScale = activeShotView.offsetScale ?? 1;
-            const backstep = activeShotView.backstep ?? 0;
             const offsetVec = approachDir
               .clone()
-              .multiplyScalar(-(dynamicOffset * offsetScale + backstep));
+              .multiplyScalar(dynamicOffset);
             const basePoint = pocketCenter.clone().add(offsetVec);
             const camHeight =
               (TABLE_Y + TABLE.THICK + activeShotView.heightOffset) *
@@ -2973,12 +2443,12 @@ function SnookerGame() {
             const focusTarget = focusBall?.active
               ? new THREE.Vector3(
                   focusBall.pos.x,
-                  BALL_WORLD_CENTER_Y,
+                  BALL_CENTER_Y,
                   focusBall.pos.y
                 )
               : new THREE.Vector3(
                   activeShotView.lastBallPos.x,
-                  BALL_WORLD_CENTER_Y,
+                  BALL_CENTER_Y,
                   activeShotView.lastBallPos.y
                 );
             focusTarget.multiplyScalar(worldScaleFactor);
@@ -3015,11 +2485,7 @@ function SnookerGame() {
             ) {
               focusTarget = aimFocus.clone();
             } else if (cue?.active && !shooting) {
-              focusTarget = new THREE.Vector3(
-                cue.pos.x,
-                BALL_WORLD_CENTER_Y,
-                cue.pos.y
-              );
+              focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
               const store = ensureOrbitFocus();
               if (store.ballId) {
@@ -3029,7 +2495,7 @@ function SnookerGame() {
                 if (focusBall?.active) {
                   store.target.set(
                     focusBall.pos.x,
-                    BALL_WORLD_CENTER_Y,
+                    BALL_CENTER_Y,
                     focusBall.pos.y
                   );
                 } else {
@@ -3044,104 +2510,26 @@ function SnookerGame() {
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
           }
-          if (
-            topViewRef.current ||
-            (activeShotView &&
-              (activeShotView.mode === 'pocket' ||
-                activeShotView.mode === 'action'))
-          ) {
-            const targetFov =
-              STANDING_VIEW_FOV + (activeShotView?.fovOffset ?? 0);
-            if (Math.abs(camera.fov - targetFov) > 1e-3) {
-              camera.fov = targetFov;
-              camera.updateProjectionMatrix();
-            }
-          } else {
-            const zoomBlend = THREE.MathUtils.clamp(
-              cameraBlendRef.current ?? 0,
-              0,
-              1
-            );
-            const baseFov = THREE.MathUtils.lerp(
-              CAMERA_CUE_FOV,
-              CAMERA_STANDING_FOV,
-              zoomBlend
-            );
-            const phiRange = Math.max(1e-5, CAMERA.maxPhi - CAMERA.minPhi);
-            const heightRatio = THREE.MathUtils.clamp(
-              (sph.phi - CAMERA.minPhi) / phiRange,
-              0,
-              1
-            );
-            const heightZoomOffset = THREE.MathUtils.lerp(
-              CAMERA_HEIGHT_ZOOM_OUT,
-              -CAMERA_HEIGHT_ZOOM_IN,
-              heightRatio
-            );
-            const targetFov = Math.max(30, baseFov + heightZoomOffset);
-            if (Math.abs(camera.fov - targetFov) > 1e-3) {
-              camera.fov = targetFov;
-              camera.updateProjectionMatrix();
-            }
-          }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
           }
           if (clothMat && lookTarget) {
             const dist = camera.position.distanceTo(lookTarget);
-            const fade = THREE.MathUtils.clamp((150 - dist) / 70, 0, 1);
-            const phiRange = Math.max(1e-5, CAMERA.maxPhi - CAMERA.minPhi);
-            const phiRatio = THREE.MathUtils.clamp(
-              (sph.phi - CAMERA.minPhi) / phiRange,
-              0,
-              1
-            );
-            const lowHeightFactor = THREE.MathUtils.smoothstep(0, 1, 1 - phiRatio);
+            const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
             const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
             const farRepeat = clothMat.userData?.farRepeat ?? 18;
             const ratio = clothMat.userData?.repeatRatio ?? 1;
-            const repeatBoost = THREE.MathUtils.lerp(1, 0.78, lowHeightFactor);
-            const targetRepeatBase = THREE.MathUtils.lerp(
-              farRepeat,
-              nearRepeat,
-              fade
-            );
-            const targetRepeat = targetRepeatBase * repeatBoost;
+            const targetRepeat = THREE.MathUtils.lerp(farRepeat, nearRepeat, fade);
             const targetRepeatY = targetRepeat * ratio;
-            [
-              clothMat.map,
-              clothMat.normalMap,
-              clothMat.displacementMap,
-              clothMat.roughnessMap,
-              clothMat.aoMap
-            ].forEach((tex) => {
-              if (tex) {
-                tex.repeat.set(targetRepeat, targetRepeatY);
-              }
-            });
-            if (clothMat.normalMap && Number.isFinite(clothMat.userData?.normalScale)) {
-              const base = clothMat.userData.normalScale;
-              const distNormal = THREE.MathUtils.lerp(
-                base * 0.82,
-                base * 2.25,
-                fade
-              );
-              const heightBoost = THREE.MathUtils.lerp(1, 1.62, lowHeightFactor);
-              clothMat.normalScale.setScalar(distNormal * heightBoost);
+            if (clothMat.map) {
+              clothMat.map.repeat.set(targetRepeat, targetRepeatY);
             }
-            if (
-              clothMat.displacementMap &&
-              Number.isFinite(clothMat.userData?.displacementScale)
-            ) {
-              const baseDisp = clothMat.userData.displacementScale;
-              const distDisp = THREE.MathUtils.lerp(
-                baseDisp * 0.85,
-                baseDisp * 1.65,
-                fade
-              );
-              const dispBoost = THREE.MathUtils.lerp(1, 1.55, lowHeightFactor);
-              clothMat.displacementScale = distDisp * dispBoost;
-              clothMat.displacementBias = -clothMat.displacementScale / 2;
+            if (clothMat.bumpMap) {
+              clothMat.bumpMap.repeat.set(targetRepeat, targetRepeatY);
+            }
+            if (Number.isFinite(clothMat.userData?.bumpScale)) {
+              const base = clothMat.userData.bumpScale;
+              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.55, base * 1.4, fade);
             }
           }
         };
@@ -3157,9 +2545,6 @@ function SnookerGame() {
           theta,
           duration = 600
         } = {}) => {
-          if (phi !== undefined) {
-            manualPhiOffsetRef.current = 0;
-          }
           if (radius !== undefined) {
             radius = clampOrbitRadius(radius);
           }
@@ -3192,7 +2577,6 @@ function SnookerGame() {
           if (!view) return;
           const sph = sphRef.current;
           if (!sph) return;
-          manualPhiOffsetRef.current = 0;
           const orbit =
             view.resumeOrbit ??
             view.orbitSnapshot ??
@@ -3238,238 +2622,39 @@ function SnookerGame() {
             });
           }
         };
-        const findPocketCandidate = (
-          pos,
-          dir,
-          {
-            minDist = 0,
-            maxDist = Infinity,
-            dotThreshold = POCKET_CAM.dotThreshold
-          } = {}
-        ) => {
-          if (!pos || !dir) return null;
-          const direction = dir.clone();
-          if (direction.lengthSq() < 1e-6) return null;
-          direction.normalize();
-          const centers = pocketCenters();
-          let best = null;
-          let bestScore = -Infinity;
-          for (const center of centers) {
-            const toPocket = center.clone().sub(pos);
-            const dist = toPocket.length();
-            if (!Number.isFinite(dist) || dist <= 1e-4) continue;
-            if (dist < minDist || dist > maxDist) continue;
-            if (dist < BALL_R * 1.5) continue;
-            const pocketDir = toPocket.clone().normalize();
-            const score = pocketDir.dot(direction);
-            if (score < dotThreshold) continue;
-            if (score > bestScore) {
-              bestScore = score;
-              best = { center, dist, pocketDir };
-            }
-          }
-          if (!best) return null;
-          return { ...best, score: bestScore };
-        };
-        const computeOppositeAnchor = (
-          basePoint,
-          side,
-          baseLateral = ACTION_CAM.opposite.lateral,
-          railMargin = ACTION_CAM.opposite.minRailClearance,
-          extraClearance = ACTION_CAM.opposite.extraClearance,
-          maxLateral = ACTION_CAM.opposite.maxLateral
-        ) => {
-          if (!basePoint || !side) return null;
-          const normalizedSide = side.clone();
-          if (normalizedSide.lengthSq() < 1e-6) return null;
-          normalizedSide.normalize();
-          const limitX = RAIL_LIMIT_X + railMargin;
-          const limitY = RAIL_LIMIT_Y + railMargin;
-          const apply = (lat) =>
-            basePoint
-              .clone()
-              .add(normalizedSide.clone().multiplyScalar(lat));
-          let lateral = Math.max(baseLateral ?? 0, 0);
-          let point = apply(lateral);
-          if (
-            Math.abs(point.x) < limitX - 1e-4 &&
-            Math.abs(normalizedSide.x) > 1e-5
-          ) {
-            const target = normalizedSide.x > 0 ? limitX : -limitX;
-            const needed = (target - point.x) / normalizedSide.x;
-            if (needed > 0) {
-              lateral += needed;
-              point = apply(lateral);
-            }
-          }
-          if (
-            Math.abs(point.y) < limitY - 1e-4 &&
-            Math.abs(normalizedSide.y) > 1e-5
-          ) {
-            const target = normalizedSide.y > 0 ? limitY : -limitY;
-            const needed = (target - point.y) / normalizedSide.y;
-            if (needed > 0) {
-              lateral += needed;
-              point = apply(lateral);
-            }
-          }
-          if (extraClearance) {
-            lateral += extraClearance;
-            point = apply(lateral);
-          }
-          if (maxLateral) {
-            lateral = Math.min(lateral, maxLateral);
-            point = apply(lateral);
-          }
-          return { point, lateral, side: normalizedSide };
-        };
-        const chooseOppositeSide = (basePoint, approachDir) => {
-          if (!basePoint || !approachDir) return null;
-          const forward = approachDir.clone();
-          if (forward.lengthSq() < 1e-6) return null;
-          forward.normalize();
-          const perp = new THREE.Vector2(-forward.y, forward.x);
-          if (perp.lengthSq() < 1e-6) return null;
-          perp.normalize();
-          const options = [perp.clone(), perp.clone().multiplyScalar(-1)];
-          let best = null;
-          const limitX = RAIL_LIMIT_X + ACTION_CAM.opposite.minRailClearance;
-          const limitY = RAIL_LIMIT_Y + ACTION_CAM.opposite.minRailClearance;
-          for (const option of options) {
-            const result = computeOppositeAnchor(basePoint, option);
-            if (!result) continue;
-            const clearance = Math.min(
-              Math.abs(result.point.x) - limitX,
-              Math.abs(result.point.y) - limitY
-            );
-            const distCenter = result.point.lengthSq();
-            if (
-              !best ||
-              clearance > best.clearance + 1e-3 ||
-              (Math.abs(clearance - best.clearance) <= 1e-3 &&
-                distCenter > best.distCenter)
-            ) {
-              best = {
-                side: result.side.clone(),
-                lateral: result.lateral,
-                clearance,
-                distCenter
-              };
-            }
-          }
-          if (!best) return null;
-          return { side: best.side.normalize(), lateral: best.lateral };
-        };
-        const makeActionCameraView = ({
-          cueBall,
-          prediction,
-          ballsList,
-          followView
-        }) => {
-          if (!cueBall) return null;
-          const resumeOrbit = followView?.orbitSnapshot
-            ? {
-                radius: followView.orbitSnapshot.radius,
-                phi: followView.orbitSnapshot.phi,
-                theta: followView.orbitSnapshot.theta
-              }
-            : followView?.resumeOrbit
-              ? {
-                  radius: followView.resumeOrbit.radius,
-                  phi: followView.resumeOrbit.phi,
-                  theta: followView.resumeOrbit.theta
-                }
-              : null;
-          let focusBall = cueBall;
-          let pos = cueBall.pos.clone();
-          let dir = cueBall.launchDir
-            ? cueBall.launchDir.clone()
-            : cueBall.vel.clone();
-          if (prediction?.ballId) {
-            const targetBall = ballsList.find((b) => b.id === prediction.ballId);
-            if (targetBall) {
-              focusBall = targetBall;
-              pos = targetBall.pos.clone();
-              dir = prediction?.dir
-                ? prediction.dir.clone()
-                : targetBall.vel.clone();
-            }
-          }
-          if (!dir || dir.lengthSq() < 1e-6) return null;
-          dir.normalize();
-          const candidate = findPocketCandidate(pos, dir, {
-            minDist: 0,
-            maxDist: Math.max(PLAY_W, PLAY_H),
-            dotThreshold: POCKET_CAM.dotThreshold
-          });
-          if (!candidate) return null;
-          if (candidate.dist < ACTION_CAM.nearPocketDist) return null;
-          const backstep = ACTION_CAM.opposite.backstep ?? 0;
-          const basePoint = pos.clone().sub(candidate.pocketDir.clone().multiplyScalar(backstep));
-          const anchor = chooseOppositeSide(basePoint, candidate.pocketDir);
-          if (!anchor) return null;
-          const forceStraight = candidate.dist > Math.max(PLAY_W, PLAY_H) * 0.5;
-          const view = {
-            mode: 'action',
-            kind: 'opposite',
-            ballId: focusBall.id,
-            pocketCenter: candidate.center.clone(),
-            approach: candidate.pocketDir.clone(),
-            side: anchor.side.clone(),
-            lateral: anchor.lateral,
-            railMargin: ACTION_CAM.opposite.minRailClearance,
-            backstep,
-            heightOffset: ACTION_CAM.opposite.heightOffset,
-            targetBias: ACTION_CAM.opposite.targetBias,
-            smoothTime: ACTION_CAM.smoothTime,
-            fovOffset: 0,
-            resume: followView ?? null,
-            resumeOrbit,
-            orbitSnapshot: followView?.orbitSnapshot ?? null,
-            lastBallPos: pos.clone(),
-            score: candidate.score,
-            switchMinDist: ACTION_CAM.switchMinDist,
-            forceStraight
-          };
-          return view;
-        };
         const makePocketCameraView = (ballId, followView) => {
           if (!followView) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
           if (!targetBall) return null;
-          const isPredicted = shotPrediction?.ballId === ballId;
-          const moving = targetBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
-          if (!isPredicted && !moving) return null;
-          const pos = targetBall.pos.clone();
-          const dir = (() => {
-            const velocity = targetBall.vel.clone();
-            if (velocity.lengthSq() > 1e-6) return velocity;
-            if (shotPrediction?.ballId === ballId && shotPrediction?.dir) {
-              return shotPrediction.dir.clone();
-            }
-            if (followView?.approach?.lengthSq?.() > 1e-6) {
-              return followView.approach.clone();
-            }
-            return velocity;
-          })();
-          if (!dir || dir.lengthSq() < 1e-6) return null;
+          const dir = targetBall.vel.clone();
+          if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
+            dir.copy(shotPrediction.dir ?? new THREE.Vector2());
+          }
+          if (dir.lengthSq() < 1e-6) return null;
           dir.normalize();
-          const candidate = findPocketCandidate(pos, dir, {
-            minDist: 0,
-            maxDist: POCKET_CAM.triggerDist,
-            dotThreshold: POCKET_CAM.dotThreshold
-          });
-          if (!candidate) return null;
-          const minSwitch = followView?.switchMinDist ?? ACTION_CAM.switchMinDist;
-          if (candidate.dist < (minSwitch ?? POCKET_SWITCH_MIN_DIST)) return null;
+          const centers = pocketCenters();
+          const pos = targetBall.pos.clone();
+          let best = null;
+          let bestScore = -Infinity;
+          for (const center of centers) {
+            const toPocket = center.clone().sub(pos);
+            const dist = toPocket.length();
+            if (dist < BALL_R * 1.5) continue;
+            const pocketDir = toPocket.clone().normalize();
+            const score = pocketDir.dot(dir);
+            if (score > bestScore) {
+              bestScore = score;
+              best = { center, dist, pocketDir };
+            }
+          }
+          if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
+          if (best.dist > POCKET_CAM.triggerDist) return null;
           const outsideOffset = THREE.MathUtils.clamp(
-            candidate.dist * 0.65 + POCKET_VIS_R + BALL_R * 0.4,
+            best.dist * 0.65 + POCKET_VIS_R + BALL_R * 0.4,
             POCKET_CAM.minOutside,
             POCKET_CAM.maxOutside
           );
-          const offsetScale = POCKET_CAM.offsetScale ?? 1;
-          const backstep = POCKET_CAM.backstep ?? 0;
           const heightOffset = POCKET_CAM.heightOffset;
           const resumeOrbit = followView?.orbitSnapshot
             ? {
@@ -3477,31 +2662,18 @@ function SnookerGame() {
                 phi: followView.orbitSnapshot.phi,
                 theta: followView.orbitSnapshot.theta
               }
-            : followView?.resumeOrbit
-              ? {
-                  radius: followView.resumeOrbit.radius,
-                  phi: followView.resumeOrbit.phi,
-                  theta: followView.resumeOrbit.theta
-                }
-              : null;
-          const lastBallPos = followView?.lastBallPos
-            ? followView.lastBallPos.clone()
-            : pos.clone();
+            : null;
           return {
             mode: 'pocket',
             ballId,
-            pocketCenter: candidate.center.clone(),
-            approach: candidate.pocketDir.clone(),
+            pocketCenter: best.center.clone(),
+            approach: best.pocketDir.clone(),
             outsideOffset,
             minOutside: POCKET_CAM.minOutside,
             maxOutside: POCKET_CAM.maxOutside,
-            offsetScale,
-            backstep,
             heightOffset,
-            distanceBias: POCKET_CAM.distanceBias ?? 1,
-            fovOffset: POCKET_CAM.fovOffset ?? 0,
-            lastBallPos,
-            score: candidate.score,
+            lastBallPos: pos.clone(),
+            score: bestScore,
             resume: followView,
             resumeOrbit
           };
@@ -3510,45 +2682,29 @@ function SnookerGame() {
           camera.aspect = host.clientWidth / host.clientHeight;
           const standingRadiusRaw = fitRadius(camera, m);
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
-          const standingRadiusBase = Math.max(standingRadiusRaw, cueBase);
-          const computedStandingRadius = clampOrbitRadius(
-            Math.max(standingRadiusBase * STANDING_RADIUS_SCALE, cueBase)
+          const standingRadius = clampOrbitRadius(
+            Math.max(standingRadiusRaw, cueBase)
           );
-          const computedStandingPhi = THREE.MathUtils.clamp(
+          const standingPhi = THREE.MathUtils.clamp(
             STANDING_VIEW.phi,
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
-          const scale = worldScaleFactorRef.current || 1;
-          lockedOrbitPhiRef.current = CAMERA.maxPhi;
-          const phiLimit = Math.max(
-            CAMERA.minPhi,
-            Math.min(lockedOrbitPhiRef.current, CAMERA.maxPhi)
+          const cueRadius = clampOrbitRadius(
+            Math.max(
+              standingRadius * CUE_VIEW_RADIUS_RATIO,
+              CUE_VIEW_MIN_RADIUS
+            )
           );
-          const standingPhi = Math.min(computedStandingPhi, phiLimit);
-          const cuePhiBase = THREE.MathUtils.clamp(
+          const cuePhi = THREE.MathUtils.clamp(
             CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
-          const cuePhi = Math.min(cuePhiBase, phiLimit);
-          const closeReachTarget =
-            (CAMERA_RAIL_REACH_X + CAMERA_CLOSE_RAIL_MARGIN) * scale;
-          const minCueRadiusForPhi =
-            closeReachTarget / Math.max(Math.sin(Math.max(cuePhi, 1e-3)), 0.35);
-          const computedCueRadius = clampOrbitRadius(
-            Math.max(CUE_VIEW_MIN_RADIUS, minCueRadiusForPhi)
-          );
-          const standingRadius = Math.max(
-            computedStandingRadius,
-            computedCueRadius
-          );
-          lockedOrbitRadiusRef.current = standingRadius;
           cameraBoundsRef.current = {
-            cueShot: { phi: cuePhi, radius: computedCueRadius },
+            cueShot: { phi: cuePhi, radius: cueRadius },
             standing: { phi: standingPhi, radius: standingRadius }
           };
-          orbitRadiusLimitRef.current = standingRadius;
           applyCameraBlend();
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
@@ -3568,6 +2724,7 @@ function SnookerGame() {
         sphRef.current = sph;
         fitRef.current = fit;
         topViewRef.current = false;
+        setTopView(false);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
@@ -3579,8 +2736,7 @@ function SnookerGame() {
         fit(margin);
         syncBlendToSpherical();
         setOrbitFocusToDefault();
-        orbitRadiusLimitRef.current =
-          lockedOrbitRadiusRef.current ?? sph.radius;
+        orbitRadiusLimitRef.current = sph.radius;
         if (!initialOrbitRef.current) {
           initialOrbitRef.current = {
             radius: sph.radius,
@@ -3647,12 +2803,6 @@ function SnookerGame() {
             const phiDelta = dy * 0.0025;
             const blendDelta =
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
-            const manualLimit = MANUAL_PHI_OFFSET_LIMIT;
-            manualPhiOffsetRef.current = THREE.MathUtils.clamp(
-              manualPhiOffsetRef.current + phiDelta * 0.6,
-              -manualLimit,
-              manualLimit
-            );
             applyCameraBlend(cameraBlendRef.current - blendDelta);
             updateCamera();
             registerInteraction();
@@ -3663,11 +2813,10 @@ function SnookerGame() {
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
-          const hudState = readHud();
           if (
             !moved &&
             !topViewRef.current &&
-            !hudState.inHand &&
+            !hud.inHand &&
             !shooting
           ) {
             if (e?.button !== undefined && e.button !== 0) return;
@@ -3692,12 +2841,6 @@ function SnookerGame() {
             const dir = e.code === 'ArrowUp' ? -1 : 1;
             const blendDelta =
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
-            const manualLimit = MANUAL_PHI_OFFSET_LIMIT;
-            manualPhiOffsetRef.current = THREE.MathUtils.clamp(
-              manualPhiOffsetRef.current + step * dir * 0.6,
-              -manualLimit,
-              manualLimit
-            );
             applyCameraBlend(cameraBlendRef.current - blendDelta);
           } else return;
           registerInteraction();
@@ -3718,8 +2861,8 @@ function SnookerGame() {
         const SAMPLE_TABLE_HEIGHT = 0.75;
 
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
-        const LIGHT_HEIGHT_SCALE = 1.55; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 6; // raise fixtures enough to soften direct reflections on the cloth
+        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.4; // bring fixtures closer so the spot highlight reads on the balls
 
         const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
@@ -3746,24 +2889,33 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
+        const spot = new THREE.SpotLight(
+          0xffffff,
+          9.2,
+          0,
+          Math.PI * 0.38,
+          0.48,
+          1
+        );
+        const spotOffsetX = 1.6 * fixtureScale;
+        const spotOffsetZ = 0.95 * fixtureScale;
+        const spotHeight = tableSurfaceY + 6.8 * scaledHeight + lightHeightLift;
+        spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
+        spot.decay = 1.0;
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(2048, 2048);
+        spot.shadow.bias = -0.00008;
+        lightingRig.add(spot);
+        lightingRig.add(spot.target);
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.06);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
           0
         );
         lightingRig.add(ambient);
-
-        const spotReplacementAmbientIntensity = 0.08 * 1.33; // boost brightness by 33%
-        const spotOffsetX = 1.6 * fixtureScale;
-        const spotOffsetZ = 0.95 * fixtureScale;
-        const spotHeight = tableSurfaceY + 7 * scaledHeight + lightHeightLift;
-        const secondaryAmbient = new THREE.AmbientLight(
-          0xffffff,
-          spotReplacementAmbientIntensity
-        );
-        secondaryAmbient.position.set(spotOffsetX, spotHeight, spotOffsetZ);
-        lightingRig.add(secondaryAmbient);
       };
 
       addMobileLighting();
@@ -3786,7 +2938,6 @@ function SnookerGame() {
       sph.radius = clampOrbitRadius(sph.radius);
       worldScaleFactor = WORLD_SCALE;
       world.scale.setScalar(worldScaleFactor);
-      worldScaleFactorRef.current = worldScaleFactor;
       world.updateMatrixWorld(true);
       updateCamera();
       fit(
@@ -4033,7 +3184,7 @@ function SnookerGame() {
       };
 
       const pickOrbitFocus = (ev) => {
-        if (readHud().inHand || shooting) return;
+        if (hud.inHand || shooting) return;
         const rect = dom.getBoundingClientRect();
         const clientX =
           ev?.clientX ?? ev?.changedTouches?.[0]?.clientX ?? drag.x;
@@ -4090,7 +3241,7 @@ function SnookerGame() {
             new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
         );
       const onPlace = (e) => {
-        if (!readHud().inHand) return;
+        if (!hud.inHand) return;
         const p = project(e);
         if (
           p.y <= baulkZ &&
@@ -4107,21 +3258,32 @@ function SnookerGame() {
       dom.addEventListener('pointerdown', onPlace);
 
       // Shot lifecycle
-      let pottedSet = new Set();
-      let firstHitColor = null;
+      let potted = [];
+      let foul = false;
+      let firstHit = null;
+      const legalTarget = () =>
+        hud.phase === 'reds'
+          ? hud.next === 'red'
+            ? 'red'
+            : 'colour'
+          : hud.next;
+      const isRedId = (id) => id.startsWith('red');
+      const values = rules.getBallValues();
+      const val = (id) =>
+        isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
         // Fire (slider e thërret në release)
         const fire = () => {
-          const hudState = readHud();
-          if (!cue?.active || hudState.inHand || !allStopped(balls) || hudState.over)
+          if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
             return;
           applyCameraBlend(1);
+          updateCamera();
           shooting = true;
           activeShotView = null;
           aimFocusRef.current = null;
-          pottedSet.clear();
-          firstHitColor = null;
-          shotEventsRef.current = [];
+          potted = [];
+          foul = false;
+          firstHit = null;
           clearInterval(timerRef.current);
           const aimDir = aimDirRef.current.clone();
           const prediction = calcTarget(cue, aimDir.clone(), balls);
@@ -4172,32 +3334,8 @@ function SnookerGame() {
                 CAMERA.minPhi,
                 CAMERA.maxPhi
               );
+              syncBlendToSpherical();
             }
-            const orbitSnapshot = {
-              radius: sph.radius,
-              phi: sph.phi,
-              theta: sph.theta
-            };
-            const followView = { orbitSnapshot };
-            const actionView = makeActionCameraView({
-              cueBall: cue,
-              prediction: shotPrediction,
-              ballsList: balls,
-              followView
-            });
-            if (actionView) {
-              actionView.lastUpdate = performance.now();
-              actionView.resume = followView;
-              if (cameraRef.current) {
-                actionView.smoothedPos = cameraRef.current.position.clone();
-                const storedTarget = lastCameraTargetRef.current?.clone();
-                if (storedTarget) {
-                  actionView.smoothedTarget = storedTarget;
-                }
-              }
-              activeShotView = actionView;
-            }
-            syncBlendToSpherical();
             updateCamera();
           }
 
@@ -4255,76 +3393,101 @@ function SnookerGame() {
 
       // Resolve shot
       function resolve() {
-        const events = [...shotEventsRef.current];
-        const hasHit = events.some((ev) => ev.type === 'HIT');
-        if (!hasHit) {
-          events.unshift({
-            type: 'HIT',
-            firstContact: firstHitColor ?? null
-          });
-        } else if (firstHitColor) {
-          const hitIndex = events.findIndex((ev) => ev.type === 'HIT');
-          if (hitIndex >= 0 && events[hitIndex].firstContact == null) {
-            events[hitIndex] = {
-              ...events[hitIndex],
-              firstContact: firstHitColor
-            };
+        const me = hud.turn === 0 ? 'A' : 'B',
+          op = hud.turn === 0 ? 'B' : 'A';
+        let gain = 0;
+        let swap = true;
+        if (!cue.active) foul = true;
+        const target = legalTarget();
+        if (firstHit) {
+          if (target === 'red' && !isRedId(firstHit)) foul = true;
+          else if (target === 'colour' && isRedId(firstHit)) foul = true;
+          else if (
+            target !== 'red' &&
+            target !== 'colour' &&
+            firstHit !== target
+          )
+            foul = true;
+        } else {
+          foul = true;
+        }
+        const reds = potted.filter(isRedId),
+          cols = potted.filter((id) => !isRedId(id));
+        if (hud.phase === 'reds') {
+          if (hud.next === 'red') {
+            if (cols.length > 0) foul = true;
+            gain += reds.length;
+            if (reds.length > 0 && !foul) {
+              setHud((s) => ({ ...s, next: 'colour' }));
+              swap = false;
+            }
+          } else {
+            if (reds.length > 0) foul = true;
+            if (cols.length > 0 && !foul) {
+              cols.forEach((id) => {
+                gain += val(id);
+                const b = colors[id];
+                if (b) {
+                  const [sx, sy] = SPOTS[id];
+                  b.active = true;
+                  b.mesh.visible = true;
+                  b.pos.set(sx, sy);
+                  b.mesh.position.set(sx, BALL_CENTER_Y, sy);
+                  if (b.spin) b.spin.set(0, 0);
+                  if (b.pendingSpin) b.pendingSpin.set(0, 0);
+                  b.spinMode = 'standard';
+                }
+              });
+              setHud((s) => ({ ...s, next: 'red' }));
+              swap = false;
+            }
+          }
+          const redsLeft = balls.some((b) => b.active && isRedId(b.id));
+          if (!redsLeft)
+            setHud((s) => ({ ...s, phase: 'colors', next: 'yellow' }));
+        } else {
+          if (
+            cols.length === 1 &&
+            reds.length === 0 &&
+            cols[0] === hud.next &&
+            !foul
+          ) {
+            gain += val(hud.next);
+            const order = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
+            const idx = order.indexOf(hud.next);
+            const nxt = order[idx + 1];
+            if (nxt) {
+              setHud((s) => ({ ...s, next: nxt }));
+              swap = false;
+            } else {
+              setHud((s) => ({ ...s, over: true }));
+            }
+          } else if (cols.length > 0 || reds.length > 0) {
+            foul = true;
           }
         }
-        let updatedState = frameStateRef.current;
-        try {
-          updatedState = referee.applyShot(frameStateRef.current, events);
-        } catch (applyErr) {
-          console.error('Failed to apply snooker rules', applyErr);
-        }
-        frameStateRef.current = updatedState;
-        setFrameState(updatedState);
-
-        const foulCommitted = Boolean(updatedState.foul);
-        if (foulCommitted) {
+        if (foul) {
+          const foulPts = Math.max(
+            4,
+            ...potted.map((id) => val(id)),
+            cue.active ? 0 : 4
+          );
+          setHud((s) => ({
+            ...s,
+            [op]: s[op] + foulPts,
+            inHand: true,
+            next: s.phase === 'reds' ? 'red' : s.next
+          }));
           cue.active = false;
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
-          cue.pendingSpin?.set(0, 0);
           cue.spinMode = 'standard';
           cue.impacted = false;
+        } else if (gain > 0) {
+          setHud((s) => ({ ...s, [me]: s[me] + gain }));
         }
-
-        const colorKeys = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
-        colorKeys.forEach((key) => {
-          const ballState = updatedState.balls.find(
-            (ball) => ball.color === key.toUpperCase()
-          );
-          const colorBall = colors[key];
-          if (!ballState || !colorBall) return;
-          const [sx, sy] = SPOTS[key];
-          if (ballState.onTable) {
-            colorBall.active = true;
-            colorBall.mesh.visible = true;
-            colorBall.pos.set(sx, sy);
-            colorBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
-          } else {
-            colorBall.active = false;
-            colorBall.mesh.visible = false;
-          }
-          colorBall.vel.set(0, 0);
-          if (colorBall.spin) colorBall.spin.set(0, 0);
-          if (colorBall.pendingSpin) colorBall.pendingSpin.set(0, 0);
-          colorBall.spinMode = 'standard';
-          colorBall.impacted = false;
-        });
-
-        setHud((prev) => {
-          const derived = deriveHudFromFrame(updatedState, prev);
-          return {
-            ...derived,
-            inHand: foulCommitted || !cue?.active
-          };
-        });
-
-        shotEventsRef.current = [];
-        firstHitColor = null;
+        if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
           shooting = false;
           shotPrediction = null;
           activeShotView = null;
@@ -4353,9 +3516,9 @@ function SnookerGame() {
               duration: 600
             });
           }
-          pottedSet.clear();
-          shotEventsRef.current = [];
-          firstHitColor = null;
+          potted = [];
+          foul = false;
+          firstHit = null;
         }
 
       // Loop
@@ -4377,8 +3540,7 @@ function SnookerGame() {
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
-        const hudState = readHud();
-        if (allStopped(balls) && !hudState.inHand && cue?.active && !hudState.over) {
+        if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -4558,24 +3720,9 @@ function SnookerGame() {
                 a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
                 b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
-                if (!firstHitColor) {
-                  const hitId =
-                    a.id === 'cue' && b.id !== 'cue'
-                      ? b.id
-                      : b.id === 'cue' && a.id !== 'cue'
-                        ? a.id
-                        : null;
-                  if (
-                    hitId &&
-                    !shotEventsRef.current.some((ev) => ev.type === 'HIT')
-                  ) {
-                    const color = toBallColor(hitId);
-                    firstHitColor = color;
-                    shotEventsRef.current.push({
-                      type: 'HIT',
-                      firstContact: color
-                    });
-                  }
+                if (!firstHit) {
+                  if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
+                  else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
                 }
                 const hitBallId =
                   a.id === 'cue' && b.id !== 'cue'
@@ -4590,30 +3737,17 @@ function SnookerGame() {
               }
             }
         }
-        if (
-          shooting &&
-          !topViewRef.current &&
-          (!activeShotView || activeShotView.mode === 'action')
-        ) {
+        if (shooting && !topViewRef.current && !activeShotView) {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const sph = sphRef.current;
           const orbitSnapshot = sph
             ? { radius: sph.radius, phi: sph.phi, theta: sph.theta }
             : null;
-          const followSource =
-            activeShotView && activeShotView.mode === 'action'
-              ? activeShotView
-              : orbitSnapshot
-                ? { orbitSnapshot }
-                : null;
           let bestPocketView = null;
           for (const ball of ballsList) {
             if (!ball.active) continue;
-            const speed = ball.vel.length() * frameScale;
-            const isPredicted =
-              shotPrediction?.ballId === ball.id || ball.id === 'cue';
-            if (speed < STOP_EPS && !isPredicted) continue;
-            const candidate = makePocketCameraView(ball.id, followSource);
+            const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
+            const candidate = makePocketCameraView(ball.id, resumeView);
             if (!candidate) continue;
             if (!bestPocketView || (candidate.score ?? 0) > (bestPocketView.score ?? 0)) {
               bestPocketView = candidate;
@@ -4635,11 +3769,8 @@ function SnookerGame() {
         // Kapje në xhepa
         balls.forEach((b) => {
           if (!b.active) return;
-          for (let idx = 0; idx < centers.length; idx++) {
-            const c = centers[idx];
+          for (const c of centers) {
             if (b.pos.distanceTo(c) < CAPTURE_R) {
-              if (pottedSet.has(b.id)) break;
-              pottedSet.add(b.id);
               b.active = false;
               b.mesh.visible = false;
               b.vel.set(0, 0);
@@ -4648,19 +3779,9 @@ function SnookerGame() {
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              const color = toBallColor(b.id);
-              const pocketId = pocketIdByIndex[idx] || 'TL';
-              if (color) {
-                shotEventsRef.current.push({
-                  type: 'POTTED',
-                  ball: color,
-                  pocket: pocketId
-                });
-              }
+              if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
               if (
-                activeShotView &&
-                (activeShotView.mode === 'pocket' ||
-                  activeShotView.mode === 'action') &&
+                activeShotView?.mode === 'pocket' &&
                 activeShotView.ballId === b.id
               ) {
                 const pocketView = activeShotView;
@@ -4688,30 +3809,6 @@ function SnookerGame() {
                 activeShotView = null;
                 restoreOrbitCamera(pocketView);
               }
-            }
-          }
-        } else if (activeShotView?.mode === 'action') {
-          const actionView = activeShotView;
-          const focusBall = balls.find((b) => b.id === actionView.ballId);
-          if (!focusBall?.active) {
-            activeShotView = null;
-            restoreOrbitCamera(actionView);
-          } else {
-            const toPocket = actionView.pocketCenter.clone().sub(focusBall.pos);
-            const dist = toPocket.length();
-            if (dist > 1e-4) {
-              const approachDir = toPocket.clone().normalize();
-              actionView.approach.lerp(approachDir, 0.2);
-              actionView.approach.normalize();
-              const speedAlong = focusBall.vel.dot(actionView.approach);
-              if (speedAlong * frameScale < -STOP_EPS) {
-                activeShotView = null;
-                restoreOrbitCamera(actionView);
-              }
-            }
-            if (focusBall.vel.length() * frameScale < STOP_EPS) {
-              activeShotView = null;
-              restoreOrbitCamera(actionView);
             }
           }
         }
@@ -4773,7 +3870,7 @@ function SnookerGame() {
       console.error(e);
       setErr(e?.message || String(e));
     }
-  }, [deriveHudFromFrame, toBallColor, pocketIdByIndex, referee]);
+  }, [hud.inHand, hud.over]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
@@ -4969,7 +4066,6 @@ function SnookerGame() {
           Init error: {String(err)}
         </div>
       )}
-
       {/* Power Slider */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2">
         <div
