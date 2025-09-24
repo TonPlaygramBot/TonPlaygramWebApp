@@ -3876,25 +3876,7 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        hemisphere.position.set(
-          0,
-          tableSurfaceY + scaledHeight * 1.4 + lightHeightLift,
-          0
-        );
-        lightingRig.add(hemisphere);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
-        dirLight.position.set(
-          -2.1 * fixtureScale,
-          tableSurfaceY + 7.8 * scaledHeight + lightHeightLift,
-          1.35 * fixtureScale
-        );
-        dirLight.target.position.set(0, tableSurfaceY, 0);
-        lightingRig.add(dirLight);
-        lightingRig.add(dirLight.target);
-
         const spotIntensity = 6.2;
         const spot = new THREE.SpotLight(
           0xffffff,
@@ -3941,31 +3923,10 @@ function SnookerGame() {
         );
         lightingRig.add(ambient);
 
-        const fillLightHeight = tableSurfaceY + scaledHeight * 2.2 + lightHeightLift;
-        const fillLightDistance = Math.max(PLAY_W, PLAY_H) * 3.2;
-        const fillIntensity = 0.58;
-        const fillPositions = [
-          [spotOffsetX, fillLightHeight, spotOffsetZ],
-          [-spotOffsetX, fillLightHeight, spotOffsetZ],
-          [spotOffsetX, fillLightHeight, -spotOffsetZ],
-          [-spotOffsetX, fillLightHeight, -spotOffsetZ]
-        ];
-        const fillLights = [];
-        for (const [x, y, z] of fillPositions) {
-          const fill = new THREE.PointLight(0xffffff, fillIntensity, fillLightDistance, 1.1);
-          fill.position.set(x, y, z);
-          fill.castShadow = false;
-          lightingRig.add(fill);
-          fillLights.push(fill);
-        }
-
         return {
           lightingRig,
-          hemisphere,
-          dirLight,
           spot,
           ambient,
-          fillLights,
           spots: [spot, counterSpot]
         };
       };
