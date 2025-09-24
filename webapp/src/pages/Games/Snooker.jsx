@@ -1413,11 +1413,11 @@ function Table3D(parent) {
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 12; // slightly enlarged weave: ~12 thread crossings across one ball
+  const threadsPerBallTarget = 8; // amplify cloth weave visibility (~8 crossings across one ball)
   const baseRepeat =
     (threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE;
   const repeatRatio = 3.15;
-  const baseBumpScale = 0.68;
+  const baseBumpScale = 0.74;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1435,8 +1435,8 @@ function Table3D(parent) {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.15,
-    farRepeat: baseRepeat * 0.48,
+    nearRepeat: baseRepeat * 1.05,
+    farRepeat: baseRepeat * 0.42,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1461,9 +1461,10 @@ function Table3D(parent) {
   clothShape.lineTo(halfWext, halfHext);
   clothShape.lineTo(-halfWext, halfHext);
   clothShape.lineTo(-halfWext, -halfHext);
+  const clothHoleRadius = POCKET_VIS_R * 1.02;
   pocketCenters().forEach((p) => {
     const hole = new THREE.Path();
-    hole.absellipse(p.x, p.y, POCKET_VIS_R * 0.96, POCKET_VIS_R * 0.96, 0, Math.PI * 2);
+    hole.absellipse(p.x, p.y, clothHoleRadius, clothHoleRadius, 0, Math.PI * 2);
     clothShape.holes.push(hole);
   });
   const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
@@ -1527,8 +1528,8 @@ function Table3D(parent) {
   });
   table.add(markingsGroup);
 
-  const POCKET_TOP_R = POCKET_VIS_R;
-  const POCKET_BOTTOM_R = POCKET_VIS_R * 0.7;
+  const POCKET_TOP_R = POCKET_VIS_R * 0.96;
+  const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -1716,7 +1717,7 @@ function Table3D(parent) {
   table.add(railsGroup);
 
   const FACE_SHRINK_LONG = 0.955;
-  const FACE_SHRINK_SHORT = 0.97;
+  const FACE_SHRINK_SHORT = 0.9;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
