@@ -317,11 +317,11 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const diag = new THREE.Vector2(sx, sy).normalize();
+      const inward = diag.clone().multiplyScalar(-1);
       const radialOffset = POCKET_VIS_R * 0.58;
       const railInset = TABLE.WALL * 0.35;
-      mesh.scale.x = sx >= 0 ? -1 : 1;
-      mesh.scale.z = sy >= 0 ? -1 : 1;
-      mesh.rotation.y = Math.atan2(diag.y, diag.x) - Math.PI / 2;
+      mesh.scale.set(-1, 1, -1);
+      mesh.rotation.y = Math.atan2(inward.y, inward.x) + Math.PI / 2;
       mesh.position.set(
         sx * (halfW + railInset) + diag.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
@@ -567,17 +567,27 @@ const createClothTextures = (() => {
           0,
           1
         );
+        const tonalEnhanced = THREE.MathUtils.clamp(
+          0.5 + (tonal - 0.5) * 1.35,
+          0,
+          1
+        );
         const highlightMix = THREE.MathUtils.clamp(
           0.28 + (cross - 0.5) * 0.34 + (sparkle - 0.5) * 0.42,
           0,
           1
         );
-        const baseR = shadow.r + (base.r - shadow.r) * tonal;
-        const baseG = shadow.g + (base.g - shadow.g) * tonal;
-        const baseB = shadow.b + (base.b - shadow.b) * tonal;
-        const r = baseR + (highlight.r - baseR) * highlightMix;
-        const g = baseG + (highlight.g - baseG) * highlightMix;
-        const b = baseB + (highlight.b - baseB) * highlightMix;
+        const highlightEnhanced = THREE.MathUtils.clamp(
+          0.32 + (highlightMix - 0.5) * 1.25,
+          0,
+          1
+        );
+        const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
+        const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
+        const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
+        const r = baseR + (highlight.r - baseR) * highlightEnhanced;
+        const g = baseG + (highlight.g - baseG) * highlightEnhanced;
+        const b = baseB + (highlight.b - baseB) * highlightEnhanced;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -589,7 +599,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(16, 64);
+    colorMap.repeat.set(12, 48);
     colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -618,12 +628,12 @@ const createClothTextures = (() => {
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const bump = THREE.MathUtils.clamp(
-          0.5 + (weave - 0.5) * 0.55 + (cross - 0.5) * 0.25 + (fiber - 0.5) * 0.22 +
-            (micro - 0.5) * 0.18,
+          0.5 + (weave - 0.5) * 0.7 + (cross - 0.5) * 0.32 + (fiber - 0.5) * 0.28 +
+            (micro - 0.5) * 0.24,
           0,
           1
         );
-        const value = clamp255(128 + (bump - 0.5) * 170);
+        const value = clamp255(128 + (bump - 0.5) * 210);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1377,7 +1387,7 @@ function Table3D(parent) {
   });
   const baseRepeat = 10;
   const repeatRatio = 3.4;
-  const baseBumpScale = 0.2;
+  const baseBumpScale = 0.32;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1760,8 +1770,8 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.75;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // shorten long cushions slightly so they sit shy of the pockets
+  const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.42; // shorten long cushions slightly so they sit shy of the pockets
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
