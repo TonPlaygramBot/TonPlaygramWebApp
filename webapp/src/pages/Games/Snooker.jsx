@@ -450,15 +450,15 @@ const ACTION_CAM = Object.freeze({
     maxY: 0.6
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.58,
-    minRailClearance: TABLE.WALL + BALL_R * 1.35,
-    extraClearance: TABLE.WALL * 0.08,
-    backstep: BALL_R * 5.2,
-    heightOffset: BALL_R * 11.2,
-    targetBias: 0.34,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.35,
-    radiusScale: 1.08,
-    focusBlend: 0.85
+    lateral: PLAY_W * 0.62,
+    minRailClearance: TABLE.WALL + BALL_R * 1.15,
+    extraClearance: TABLE.WALL * 0.14,
+    backstep: BALL_R * 5.6,
+    heightOffset: BALL_R * 12.4,
+    targetBias: 0.28,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.45,
+    radiusScale: 1.12,
+    focusBlend: 0.35
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -528,7 +528,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x159d45,
+  cloth: 0x26c95a,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -551,7 +551,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x15, g: 0x9d, b: 0x45 };
+  const BASE_COLOR = { r: 0x26, g: 0xc9, b: 0x5a };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -2044,9 +2044,14 @@ function Table3D(parent) {
   const POCKET_GAP = POCKET_VIS_R * 0.72;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
   const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.08;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
   const horizLen =
-    PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
+    PLAY_W -
+    2 * POCKET_GAP -
+    LONG_CUSHION_TRIM -
+    LONG_CUSHION_EXTRA_TRIM -
+    LONG_CUSHION_LENGTH_REDUCTION;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
@@ -3447,7 +3452,7 @@ function SnookerGame() {
             focusOverride: new THREE.Vector3(
               playerOffsetRef.current,
               BALL_WORLD_CENTER_Y,
-              0
+              pos.y
             ),
             focusBlend: ACTION_CAM.opposite.focusBlend
           };
