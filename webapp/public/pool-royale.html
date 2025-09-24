@@ -189,7 +189,7 @@
       :root {
         --rpw: min(23vw, 115px);
         --player-frame-color: #000;
-        --table-brightness: 1.1;
+        --table-brightness: 2;
       }
 
       /* Canvas i tavolines (mbulon gjithcka, pervec panelit djathtas) */
@@ -862,7 +862,7 @@
           type="range"
           id="tableBrightness"
           min="0.5"
-          max="1.5"
+          max="2"
           step="0.1"
       /></label>
       <label>Frame Style<select id="playerFrameStyle"></select></label>
@@ -1068,7 +1068,7 @@
           parseFloat(localStorage.getItem('poolPocketVol')) || 1;
         var ballVolume = parseFloat(localStorage.getItem('poolBallVol')) || 1;
         var tableBrightness =
-          parseFloat(localStorage.getItem('poolBrightness')) || 1.1;
+          parseFloat(localStorage.getItem('poolBrightness')) || 2;
         var frameStyleSetting = localStorage.getItem('poolFrameStyle') || '1';
         var frameColorSetting =
           localStorage.getItem('poolFrameColor') || '#000';
