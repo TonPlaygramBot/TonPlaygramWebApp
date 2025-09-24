@@ -359,7 +359,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.88;
+const BALL_SCALE = 0.92;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -386,8 +386,7 @@ const POCKET_R = BALL_R * 1.4; // pockets tightened further so the openings read
 // keep the visual rim only fractionally larger so the jaws still overlap the cloth neatly
 const POCKET_VIS_R = POCKET_R / 1.08;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.6; // widen the cloth cutout so pocket interiors stay fully exposed
-const BALL_CENTER_Y =
-  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - MICRO_EPS * 0.5; // sink balls slightly into the cloth for contact
+const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
@@ -431,35 +430,33 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 7.5,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 2.1,
-  maxOutside: BALL_R * 48,
-  heightOffset: BALL_R * 11,
-  distanceBias: 1.28,
-  offsetScale: 1.02,
-  backstep: BALL_R * 6.8,
-  fovOffset: 2.6
+  minOutside: TABLE.WALL + POCKET_VIS_R * 1.28,
+  maxOutside: BALL_R * 36,
+  heightOffset: BALL_R * 6.4,
+  distanceBias: 1.22,
+  offsetScale: 1.18,
+  backstep: BALL_R * 3.6,
+  fovOffset: 3
 });
 const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
 const ACTION_CAM = Object.freeze({
   nearPocketDist: CAPTURE_R * 3.2,
   switchMinDist: POCKET_SWITCH_MIN_DIST,
-  smoothTime: 0.52,
+  smoothTime: 0.45,
   safeBox: Object.freeze({
-    minX: 0.35,
-    maxX: 0.65,
-    minY: 0.35,
-    maxY: 0.65
+    minX: 0.4,
+    maxX: 0.6,
+    minY: 0.4,
+    maxY: 0.6
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W,
-    minRailClearance: TABLE.WALL + BALL_R * 2.8,
-    extraClearance: TABLE.WALL * 0.68,
-    backstep: BALL_R * 12.4,
-    heightOffset: BALL_R * 24.2,
-    targetBias: 0.22,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 2.8,
-    radiusScale: 1.86,
-    focusBlend: 0.5
+    lateral: PLAY_W * 0.6,
+    minRailClearance: TABLE.WALL + BALL_R * 1.35,
+    extraClearance: TABLE.WALL * 0.08,
+    backstep: BALL_R * 5.2,
+    heightOffset: BALL_R * 10.5,
+    targetBias: 0.32,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.35
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -517,10 +514,9 @@ const MAX_SPIN_VERTICAL = BALL_R * 0.24;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 31;
+const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
-const CLOTH_TEXTURE_INTENSITY = 9; // amplify cloth weave visibility on both the bed and cushions
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -530,7 +526,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x5ff5a6,
+  cloth: 0x0f8a3d,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -553,7 +549,7 @@ const createClothTextures = (() => {
     return mod < 0 ? mod + size : mod;
   };
   const TWO_PI = Math.PI * 2;
-  const BASE_COLOR = { r: 0x5f, g: 0xf5, b: 0xa6 };
+  const BASE_COLOR = { r: 0x0f, g: 0x8a, b: 0x3d };
   const TWILL_PERIOD = 64;
   const periodicNoise = (x, y) => {
     const n1 = Math.sin((TWO_PI * (x + y)) / 16);
@@ -581,19 +577,19 @@ const createClothTextures = (() => {
     const microFiber = periodicNoise(x * 2, y * 2);
     const heightRaw =
       0.52 +
-      ribBlend * 0.22 +
-      weave * 0.1 +
-      fineDiag * 0.024 +
-      fineAnti * 0.022 +
-      fiber * 0.045 +
-      microFiber * 0.028;
+      ribBlend * 0.18 +
+      weave * 0.08 +
+      fineDiag * 0.02 +
+      fineAnti * 0.018 +
+      fiber * 0.035 +
+      microFiber * 0.02;
     const height = clamp01(heightRaw);
     const fiberInfluence = fiber * 0.02 + microFiber * 0.015;
     const ribInfluence = ribBlend * 0.02;
     const baseR = BASE_COLOR.r / 255;
     const baseG = BASE_COLOR.g / 255;
     const baseB = BASE_COLOR.b / 255;
-    const shade = (height - 0.5) * 0.05 - weave * 0.012;
+    const shade = (height - 0.5) * 0.04 - weave * 0.01;
     const colorFactor = 1 + ribInfluence + fiberInfluence + shade;
     const color = {
       r: clamp255(baseR * colorFactor * 255),
@@ -601,7 +597,7 @@ const createClothTextures = (() => {
       b: clamp255(baseB * (1 + ribInfluence * 0.8 + fiberInfluence * 0.6) * 255)
     };
     const roughness = clamp01(
-      0.6 - ribBlend * 0.05 - fiber * 0.02 + weaveAbs * 0.028
+      0.62 - ribBlend * 0.04 - fiber * 0.015 + weaveAbs * 0.02
     );
     const ao = clamp01(0.9 - weaveAbs * 0.05 - fiber * 0.03 - (height - 0.5) * 0.12);
     return { height, color, roughness, ao, fiber, weaveAbs, rib: ribBlend };
@@ -893,14 +889,14 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.54,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.48,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const STANDING_RADIUS_SCALE = 0.66;
-const CUE_RADIUS_SCALE = 0.78;
+const STANDING_RADIUS_SCALE = 0.56;
+const CUE_RADIUS_SCALE = 0.7;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
 const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
@@ -930,7 +926,7 @@ const CUE_VIEW_PHI_LIFT = 0.1;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const CAMERA_HEIGHT_ZOOM_IN = 1.45;
 const CAMERA_HEIGHT_ZOOM_OUT = 1.1;
-const MANUAL_PHI_OFFSET_LIMIT = THREE.MathUtils.degToRad(16);
+const MANUAL_PHI_OFFSET_LIMIT = THREE.MathUtils.degToRad(10);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
@@ -943,16 +939,6 @@ const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
-const TMP_VEC3_A = new THREE.Vector3();
-const TMP_VEC3_B = new THREE.Vector3();
-const TMP_QUAT_A = new THREE.Quaternion();
-const TMP_QUAT_B = new THREE.Quaternion();
-const TMP_QUAT_RESULT = new THREE.Quaternion();
-const CUSHION_BASE_ROTATION = new THREE.Quaternion().setFromAxisAngle(
-  new THREE.Vector3(1, 0, 0),
-  -Math.PI / 2
-);
-const CUSHION_Y_AXIS = new THREE.Vector3(0, 1, 0);
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -1412,10 +1398,9 @@ function Guret(parent, id, color, x, y) {
       color,
       new THREE.MeshPhysicalMaterial({
         color,
-        roughness: 0.14,
+        roughness: 0.18,
         clearcoat: 1,
-        clearcoatRoughness: 0.12,
-        specularIntensity: 1.2
+        clearcoatRoughness: 0.12
       })
     );
   }
@@ -1543,28 +1528,26 @@ function Table3D(parent) {
   } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.78,
+    roughness: 0.62,
     metalness: 0,
-    sheen: 0.48,
-    sheenRoughness: 0.58,
-    clearcoat: 0,
-    clearcoatRoughness: 0,
-    specularIntensity: 0.12,
-    envMapIntensity: 0,
+    sheen: 0.9,
+    sheenRoughness: 0.26,
+    clearcoat: 0.05,
+    clearcoatRoughness: 0.34,
+    specularIntensity: 0.32,
     map: clothMap || undefined,
     normalMap: clothNormal || undefined,
     displacementMap: clothHeight || undefined,
     roughnessMap: clothRoughness || undefined,
     aoMap: clothAO || undefined,
-    aoMapIntensity: CLOTH_TEXTURE_INTENSITY
+    aoMapIntensity: 0.88
   });
   if (clothMat.normalMap) {
-    const boosted = 0.62 * CLOTH_TEXTURE_INTENSITY;
-    clothMat.normalScale = new THREE.Vector2(boosted, boosted);
+    clothMat.normalScale = new THREE.Vector2(0.4, 0.4);
   }
   if (clothMat.displacementMap) {
-    clothMat.displacementScale = 0;
-    clothMat.displacementBias = 0;
+    clothMat.displacementScale = 0.00024;
+    clothMat.displacementBias = -clothMat.displacementScale / 2;
   }
   const baseRepeat = 2.4;
   const repeatRatio = 3.1;
@@ -1592,20 +1575,9 @@ function Table3D(parent) {
     displacementScale: clothMat.displacementMap ? clothMat.displacementScale : null
   };
 
-  const cushionRepeat = baseRepeat;
-  const cushionRatio = repeatRatio;
+  const cushionRepeat = baseRepeat * 1.08;
+  const cushionRatio = repeatRatio * 0.9;
   const cushionMat = clothMat.clone();
-  cushionMat.color.copy(clothMat.color);
-  cushionMat.roughness = clothMat.roughness;
-  cushionMat.metalness = clothMat.metalness;
-  cushionMat.clearcoat = clothMat.clearcoat;
-  cushionMat.clearcoatRoughness = clothMat.clearcoatRoughness;
-  cushionMat.sheen = clothMat.sheen;
-  cushionMat.sheenRoughness = clothMat.sheenRoughness;
-  cushionMat.specularIntensity = clothMat.specularIntensity;
-  cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
-  cushionMat.vertexColors = true;
-  cushionMat.side = THREE.DoubleSide;
   const textureKeys = ['map', 'normalMap', 'displacementMap', 'roughnessMap', 'aoMap'];
   textureKeys.forEach((key) => {
     const tex = cushionMat[key];
@@ -1620,13 +1592,14 @@ function Table3D(parent) {
   });
   if (cushionMat.normalMap && clothMat.normalScale) {
     const baseNormal = clothMat.normalScale.x;
+    const cushionNormal = baseNormal * 1.35;
     cushionMat.normalScale = cushionMat.normalScale?.clone() ?? new THREE.Vector2();
-    cushionMat.normalScale.setScalar(baseNormal);
+    cushionMat.normalScale.setScalar(cushionNormal);
   }
   if (cushionMat.displacementMap && clothMat.displacementScale) {
-    cushionMat.displacementScale = clothMat.displacementScale;
-    cushionMat.displacementBias =
-      clothMat.displacementBias ?? -clothMat.displacementScale / 2;
+    const cushionDisp = clothMat.displacementScale * 1.25;
+    cushionMat.displacementScale = cushionDisp;
+    cushionMat.displacementBias = -cushionDisp / 2;
   }
   if (cushionMat.aoMap) {
     cushionMat.aoMapIntensity = clothMat.aoMapIntensity;
@@ -1635,8 +1608,8 @@ function Table3D(parent) {
     ...(cushionMat.userData || {}),
     baseRepeat: cushionRepeat,
     repeatRatio: cushionRatio,
-    nearRepeat: clothNearRepeat,
-    farRepeat: clothFarRepeat,
+    nearRepeat: clothNearRepeat * 1.05,
+    farRepeat: clothFarRepeat * 0.94,
     normalScale: cushionMat.normalMap ? cushionMat.normalScale.x : null,
     displacementScale: cushionMat.displacementMap ? cushionMat.displacementScale : null
   };
@@ -1812,9 +1785,9 @@ function Table3D(parent) {
   const frameWidth = railW * 1.9;
   const outerHalfW = halfW + 2 * railW + frameWidth;
   const outerHalfH = halfH + 2 * railW + frameWidth;
-  const CUSHION_BACK = (TABLE.WALL * 0.7) / 2; // match cushion depth so rails meet without overlap
+  const CUSHION_BACK = railW * 0.5;
   const railsGroup = new THREE.Group();
-  const NOTCH_R = POCKET_TOP_R * 1.22;
+  const NOTCH_R = POCKET_TOP_R * 1.02;
   const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
   const xInR = halfW + CUSHION_BACK - MICRO_EPS;
   const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
@@ -1975,7 +1948,7 @@ function Table3D(parent) {
   buildEndRail(1);
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.97;
+  const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = 0.97;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -1999,9 +1972,13 @@ function Table3D(parent) {
     shape.lineTo(-halfLen + straightCut, frontY);
     shape.lineTo(-halfLen, backY);
 
+    const cushionBevel = Math.min(railH, baseThickness) * 0.12;
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: railH,
-      bevelEnabled: false,
+      bevelEnabled: true,
+      bevelThickness: cushionBevel * 0.6,
+      bevelSize: cushionBevel,
+      bevelSegments: 2,
       curveSegments: 8
     });
 
@@ -2031,54 +2008,11 @@ function Table3D(parent) {
     return geo;
   }
 
-  function applyCushionVertexShading(geometry, horizontal, flip) {
-    const normals = geometry.attributes.normal;
-    const positions = geometry.attributes.position;
-    if (!normals || !normals.count) return;
-    const orientation = TMP_QUAT_RESULT.copy(CUSHION_BASE_ROTATION);
-    if (!horizontal) {
-      orientation.premultiply(TMP_QUAT_A.setFromAxisAngle(CUSHION_Y_AXIS, Math.PI / 2));
-    }
-    if (flip) {
-      orientation.premultiply(TMP_QUAT_B.setFromAxisAngle(CUSHION_Y_AXIS, Math.PI));
-    }
-    const colors = new Float32Array(normals.count * 3);
-    for (let i = 0; i < normals.count; i++) {
-      TMP_VEC3_A.set(normals.getX(i), normals.getY(i), normals.getZ(i));
-      TMP_VEC3_A.applyQuaternion(orientation);
-      const upFacing = Math.max(TMP_VEC3_A.y, 0);
-      const lateral = Math.max(0, 1 - Math.abs(TMP_VEC3_A.y));
-      let shade = 1 - upFacing * 0.3 + lateral * 0.05;
-      if (TMP_VEC3_A.y < 0) shade *= 0.9;
-      if (positions) {
-        TMP_VEC3_B.set(
-          positions.getX(i),
-          positions.getY(i),
-          positions.getZ(i)
-        );
-        TMP_VEC3_B.applyQuaternion(orientation);
-        const lipBlend = THREE.MathUtils.clamp(
-          (TMP_VEC3_B.y + TABLE.WALL * 0.25) / (TABLE.WALL * 0.9),
-          0,
-          1
-        );
-        shade = THREE.MathUtils.lerp(0.88, shade, lipBlend);
-      }
-      shade = THREE.MathUtils.clamp(shade, 0.74, 0.94);
-      const idx = i * 3;
-      colors[idx] = shade;
-      colors[idx + 1] = shade;
-      colors[idx + 2] = shade;
-    }
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  }
-
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
     if (geo.attributes.uv && !geo.attributes.uv2) {
       geo.setAttribute('uv2', geo.attributes.uv.clone());
     }
-    applyCushionVertexShading(geo, horizontal, flip);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 2;
@@ -2105,19 +2039,13 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.84;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.38;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.18;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.32;
-  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
-  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.1;
+  const POCKET_GAP = POCKET_VIS_R * 0.72;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
+  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
   const horizLen =
-    PLAY_W -
-    2 * POCKET_GAP -
-    LONG_CUSHION_TRIM -
-    LONG_CUSHION_EXTRA_TRIM -
-    LONG_CUSHION_LENGTH_REDUCTION;
-  const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP - SHORT_CUSHION_LENGTH_REDUCTION;
+    PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM - LONG_CUSHION_EXTRA_TRIM;
+  const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
   const leftX = -halfW;
@@ -2836,7 +2764,6 @@ function SnookerGame() {
             camera.lookAt(lookTarget);
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
-            const cueBall = ballsList.find((b) => b.id === 'cue');
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
             );
@@ -2935,25 +2862,6 @@ function SnookerGame() {
                 1
               );
               focusTarget.lerp(pocketTarget, bias);
-              if (cueBall) {
-                const cueTarget = new THREE.Vector3(
-                  cueBall.pos.x,
-                  BALL_WORLD_CENTER_Y,
-                  cueBall.pos.y
-                );
-                focusTarget.lerp(cueTarget, 0.35);
-              }
-              const focusOverride = activeShotView.focusOverride;
-              if (focusOverride) {
-                const blend = THREE.MathUtils.clamp(
-                  activeShotView.focusBlend ?? ACTION_CAM.opposite.focusBlend ?? 1,
-                  0,
-                  1
-                );
-                if (blend > 0) {
-                  focusTarget.lerp(focusOverride, blend);
-                }
-              }
               focusTarget.multiplyScalar(worldScaleFactor);
               const resumeOrbit = activeShotView.resumeOrbit;
               if (resumeOrbit) {
@@ -3459,69 +3367,35 @@ function SnookerGame() {
           followView
         }) => {
           if (!cueBall) return null;
-          const scaleOrbit = (orbit) => {
-            if (!orbit) return null;
-            const radiusScale = ACTION_CAM.opposite.radiusScale ?? 1;
-            return {
-              radius: orbit.radius * radiusScale,
-              phi: orbit.phi,
-              theta: orbit.theta
-            };
-          };
           const resumeOrbit = followView?.orbitSnapshot
-            ? scaleOrbit(followView.orbitSnapshot)
+            ? {
+                radius: followView.orbitSnapshot.radius,
+                phi: followView.orbitSnapshot.phi,
+                theta: followView.orbitSnapshot.theta
+              }
             : followView?.resumeOrbit
-              ? scaleOrbit(followView.resumeOrbit)
+              ? {
+                  radius: followView.resumeOrbit.radius,
+                  phi: followView.resumeOrbit.phi,
+                  theta: followView.resumeOrbit.theta
+                }
               : null;
-          const hasMagnitude = (vec, eps = 1e-6) =>
-            !!(vec && typeof vec.lengthSq === 'function' && vec.lengthSq() > eps);
           let focusBall = cueBall;
           let pos = cueBall.pos.clone();
-          let dir =
-            cueBall.launchDir && typeof cueBall.launchDir.clone === 'function'
-              ? cueBall.launchDir.clone()
-              : cueBall.vel.clone();
-          let impendingMotion = hasMagnitude(dir);
-          if (!impendingMotion && hasMagnitude(cueBall.launchDir)) {
-            impendingMotion = true;
-          }
+          let dir = cueBall.launchDir
+            ? cueBall.launchDir.clone()
+            : cueBall.vel.clone();
           if (prediction?.ballId) {
             const targetBall = ballsList.find((b) => b.id === prediction.ballId);
             if (targetBall) {
-              let predictedDir = null;
-              if (
-                prediction?.dir &&
-                typeof prediction.dir.clone === 'function'
-              ) {
-                const clone = prediction.dir.clone();
-                if (hasMagnitude(clone)) {
-                  predictedDir = clone;
-                }
-              }
-              const targetVelSq = targetBall.vel.lengthSq();
-              if (targetVelSq > STOP_EPS * STOP_EPS || predictedDir) {
-                focusBall = targetBall;
-                pos = targetBall.pos.clone();
-                dir = predictedDir ?? targetBall.vel.clone();
-                if (predictedDir) {
-                  impendingMotion = true;
-                }
-              }
+              focusBall = targetBall;
+              pos = targetBall.pos.clone();
+              dir = prediction?.dir
+                ? prediction.dir.clone()
+                : targetBall.vel.clone();
             }
           }
-          const cueMoving = cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
-          const focusMoving = focusBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
-          if (!cueMoving && !focusMoving && !impendingMotion) return null;
-          if (!hasMagnitude(dir)) {
-            dir = focusBall.vel.clone();
-          }
-          if (!hasMagnitude(dir) && focusBall === cueBall && cueBall.launchDir) {
-            dir =
-              typeof cueBall.launchDir.clone === 'function'
-                ? cueBall.launchDir.clone()
-                : cueBall.launchDir;
-          }
-          if (!hasMagnitude(dir)) return null;
+          if (!dir || dir.lengthSq() < 1e-6) return null;
           dir.normalize();
           const candidate = findPocketCandidate(pos, dir, {
             minDist: 0,
@@ -3535,23 +3409,6 @@ function SnookerGame() {
           const anchor = chooseOppositeSide(basePoint, candidate.pocketDir);
           if (!anchor) return null;
           const forceStraight = candidate.dist > Math.max(PLAY_W, PLAY_H) * 0.5;
-          const cueWorld = new THREE.Vector3(
-            cueBall.pos.x,
-            BALL_WORLD_CENTER_Y,
-            cueBall.pos.y
-          );
-          const focusWorld = new THREE.Vector3(
-            pos.x,
-            BALL_WORLD_CENTER_Y,
-            pos.y
-          );
-          const lerpAmount = focusBall === cueBall ? 1 : 0.5;
-          const blendedTarget = cueWorld.clone().lerp(focusWorld, lerpAmount);
-          blendedTarget.x = THREE.MathUtils.lerp(
-            playerOffsetRef.current,
-            blendedTarget.x,
-            0.5
-          );
           const view = {
             mode: 'action',
             kind: 'opposite',
@@ -3565,16 +3422,14 @@ function SnookerGame() {
             heightOffset: ACTION_CAM.opposite.heightOffset,
             targetBias: ACTION_CAM.opposite.targetBias,
             smoothTime: ACTION_CAM.smoothTime,
-            fovOffset: 2,
+            fovOffset: 0,
             resume: followView ?? null,
             resumeOrbit,
             orbitSnapshot: followView?.orbitSnapshot ?? null,
             lastBallPos: pos.clone(),
             score: candidate.score,
             switchMinDist: ACTION_CAM.switchMinDist,
-            forceStraight,
-            focusOverride: blendedTarget,
-            focusBlend: ACTION_CAM.opposite.focusBlend
+            forceStraight
           };
           return view;
         };
@@ -3872,62 +3727,56 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        const spotIntensity = 6.2 * 1.4 * 1.5;
+        hemisphere.position.set(
+          0,
+          tableSurfaceY + scaledHeight * 1.4 + lightHeightLift,
+          0
+        );
+        lightingRig.add(hemisphere);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
+        dirLight.position.set(
+          -1.25 * fixtureScale,
+          tableSurfaceY + 6.6 * scaledHeight + lightHeightLift,
+          0.95 * fixtureScale
+        );
+        dirLight.target.position.set(0, tableSurfaceY, 0);
+        lightingRig.add(dirLight);
+        lightingRig.add(dirLight.target);
+
         const spot = new THREE.SpotLight(
           0xffffff,
-          spotIntensity,
+          7.6,
           0,
-          Math.PI * 0.5,
+          Math.PI * 0.46,
           0.62,
           1
         );
-        const spotOffsetX = 2.2 * fixtureScale;
-        const spotOffsetZ = 1.45 * fixtureScale;
-        const spotHeight = tableSurfaceY + 8.6 * scaledHeight + lightHeightLift;
+        const spotOffsetX = 1.6 * fixtureScale;
+        const spotOffsetZ = 0.95 * fixtureScale;
+        const spotHeight = tableSurfaceY + 7 * scaledHeight + lightHeightLift;
         spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
         spot.shadow.bias = -0.00008;
-        spot.penumbra = 0.74;
+        spot.penumbra = 0.68;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const counterSpot = new THREE.SpotLight(
-          0xffffff,
-          spotIntensity * 0.65,
-          0,
-          Math.PI * 0.5,
-          0.7,
-          1
-        );
-        counterSpot.position.set(-spotOffsetX, spotHeight, -spotOffsetZ);
-        counterSpot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
-        counterSpot.decay = 1.0;
-        counterSpot.castShadow = false;
-        counterSpot.penumbra = 0.78;
-        lightingRig.add(counterSpot);
-        lightingRig.add(counterSpot.target);
-
-        const ambient = new THREE.AmbientLight(0xffffff, 0.26 * 1.5);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.08);
         ambient.position.set(
           0,
-          tableSurfaceY + scaledHeight * 2.4 + lightHeightLift,
+          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
           0
         );
         lightingRig.add(ambient);
-
-        return {
-          lightingRig,
-          spot,
-          ambient,
-          spots: [spot, counterSpot]
-        };
       };
 
-      const { ambient: ambientLight } = addMobileLighting();
+      addMobileLighting();
 
       // Table
       const {
@@ -3937,16 +3786,6 @@ function SnookerGame() {
         clothMat: tableCloth,
         cushionMat: tableCushion
       } = Table3D(world);
-      if (ambientLight && table) {
-        table.updateMatrixWorld(true);
-        const tableBounds = new THREE.Box3().setFromObject(table);
-        const tableCenter = tableBounds.getCenter(new THREE.Vector3());
-        ambientLight.position.set(
-          tableCenter.x,
-          ambientLight.position.y,
-          tableCenter.z
-        );
-      }
       clothMat = tableCloth;
       cushionMat = tableCushion;
       if (table?.userData) {
