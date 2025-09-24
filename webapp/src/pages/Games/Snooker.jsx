@@ -1962,7 +1962,7 @@ function Table3D(parent) {
   buildEndRail(1);
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.94;
+  const FACE_SHRINK_LONG = 0.97;
   const FACE_SHRINK_SHORT = 0.97;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -2056,7 +2056,7 @@ function Table3D(parent) {
   const POCKET_GAP = POCKET_VIS_R * 0.84;
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.38;
   const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.18;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.18;
   const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.12;
   const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.1;
   const horizLen =
