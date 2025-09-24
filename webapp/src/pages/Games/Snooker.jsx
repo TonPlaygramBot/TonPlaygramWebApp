@@ -3895,9 +3895,10 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
+        const spotIntensity = 8.5;
         const spot = new THREE.SpotLight(
           0xffffff,
-          12,
+          spotIntensity,
           0,
           Math.PI * 0.5,
           0.62,
@@ -3915,6 +3916,22 @@ function SnookerGame() {
         spot.penumbra = 0.68;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
+
+        const counterSpot = new THREE.SpotLight(
+          0xffffff,
+          spotIntensity * 0.65,
+          0,
+          Math.PI * 0.5,
+          0.7,
+          1
+        );
+        counterSpot.position.set(-spotOffsetX, spotHeight, -spotOffsetZ);
+        counterSpot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
+        counterSpot.decay = 1.0;
+        counterSpot.castShadow = false;
+        counterSpot.penumbra = 0.72;
+        lightingRig.add(counterSpot);
+        lightingRig.add(counterSpot.target);
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.26);
         ambient.position.set(
@@ -3948,7 +3965,8 @@ function SnookerGame() {
           dirLight,
           spot,
           ambient,
-          fillLights
+          fillLights,
+          spots: [spot, counterSpot]
         };
       };
 
