@@ -517,7 +517,7 @@ const createClothTextures = (() => {
     }
 
     const SIZE = 1024;
-    const THREAD_PITCH = 22;
+    const THREAD_PITCH = 18;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -532,9 +532,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x2f, g: 0x78, b: 0x34 };
-    const base = { r: 0x3b, g: 0x91, b: 0x3f };
-    const highlight = { r: 0x4d, g: 0xa7, b: 0x50 };
+    const shadow = { r: 0x15, g: 0x63, b: 0x2d };
+    const base = { r: 0x23, g: 0x92, b: 0x45 };
+    const accent = { r: 0x33, g: 0xb0, b: 0x57 };
+    const highlight = { r: 0x4d, g: 0xd2, b: 0x74 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -553,17 +554,19 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.45);
-        const cross = Math.pow(warp * weft, 0.75);
+        const weave = Math.pow((warp + weft) * 0.5, 1.65);
+        const cross = Math.pow(warp * weft, 0.9);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.62);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const tonal = THREE.MathUtils.clamp(
-          0.5 +
-            (weave - 0.5) * 0.44 +
-            (cross - 0.5) * 0.3 +
-            (fiber - 0.5) * 0.24 +
-            (micro - 0.5) * 0.18,
+          0.52 +
+            (weave - 0.5) * 0.5 +
+            (cross - 0.5) * 0.42 +
+            (diamond - 0.5) * 0.55 +
+            (fiber - 0.5) * 0.2 +
+            (micro - 0.5) * 0.16,
           0,
           1
         );
@@ -573,21 +576,32 @@ const createClothTextures = (() => {
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
-          0.28 + (cross - 0.5) * 0.34 + (sparkle - 0.5) * 0.42,
+          0.35 +
+            (cross - 0.5) * 0.42 +
+            (diamond - 0.5) * 0.68 +
+            (sparkle - 0.5) * 0.34,
+          0,
+          1
+        );
+        const accentMix = THREE.MathUtils.clamp(
+          0.38 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
-          0.32 + (highlightMix - 0.5) * 1.25,
+          0.38 + (highlightMix - 0.5) * 1.35,
           0,
           1
         );
         const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
         const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
         const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
-        const r = baseR + (highlight.r - baseR) * highlightEnhanced;
-        const g = baseG + (highlight.g - baseG) * highlightEnhanced;
-        const b = baseB + (highlight.b - baseB) * highlightEnhanced;
+        const accentR = baseR + (accent.r - baseR) * accentMix;
+        const accentG = baseG + (accent.g - baseG) * accentMix;
+        const accentB = baseB + (accent.b - baseB) * accentMix;
+        const r = accentR + (highlight.r - accentR) * highlightEnhanced;
+        const g = accentG + (highlight.g - accentG) * highlightEnhanced;
+        const b = accentB + (highlight.b - accentB) * highlightEnhanced;
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(r);
         data[i + 1] = clamp255(g);
@@ -623,13 +637,18 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.25);
-        const cross = Math.pow(warp * weft, 0.8);
+        const weave = Math.pow((warp + weft) * 0.5, 1.4);
+        const cross = Math.pow(warp * weft, 0.92);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const bump = THREE.MathUtils.clamp(
-          0.5 + (weave - 0.5) * 0.7 + (cross - 0.5) * 0.32 + (fiber - 0.5) * 0.28 +
-            (micro - 0.5) * 0.24,
+          0.52 +
+            (weave - 0.5) * 0.78 +
+            (cross - 0.5) * 0.42 +
+            (diamond - 0.5) * 0.56 +
+            (fiber - 0.5) * 0.26 +
+            (micro - 0.5) * 0.2,
           0,
           1
         );
@@ -1385,9 +1404,9 @@ function Table3D(parent) {
     clearcoat: 0.08,
     clearcoatRoughness: 0.32
   });
-  const baseRepeat = 10;
-  const repeatRatio = 3.4;
-  const baseBumpScale = 0.32;
+  const baseRepeat = 12;
+  const repeatRatio = 3.15;
+  const baseBumpScale = 0.38;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1405,8 +1424,8 @@ function Table3D(parent) {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.2,
-    farRepeat: baseRepeat * 0.52,
+    nearRepeat: baseRepeat * 1.15,
+    farRepeat: baseRepeat * 0.48,
     bumpScale: clothMat.bumpScale
   };
 
@@ -1771,7 +1790,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.42; // shorten long cushions slightly so they sit shy of the pockets
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.58; // trim long cushions further so they clear the pocket entrances
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
