@@ -422,13 +422,14 @@ const ACTION_CAM = Object.freeze({
     maxY: 0.6
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.6,
-    minRailClearance: TABLE.WALL + BALL_R * 1.35,
-    extraClearance: TABLE.WALL * 0.08,
-    backstep: BALL_R * 5.2,
-    heightOffset: BALL_R * 10.5,
-    targetBias: 0.32,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.35
+    lateral: PLAY_W * 0.66,
+    minRailClearance: TABLE.WALL + BALL_R * 1.6,
+    extraClearance: TABLE.WALL * 0.12,
+    backstep: BALL_R * 6.4,
+    heightOffset: BALL_R * 11.2,
+    targetBias: 0.58,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.5,
+    fovOffset: 2.5
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -498,7 +499,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x1f9c52,
+  cloth: 0x27b864,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -512,9 +513,9 @@ const COLORS = Object.freeze({
   black: 0x000000
 });
 
-const CLOTH_BUMP_BASE = 0.27;
-const CLOTH_NORMAL_SCALE = 0.46;
-const CLOTH_DISPLACEMENT_SCALE = 0.0002;
+const CLOTH_BUMP_BASE = 0.34;
+const CLOTH_NORMAL_SCALE = 0.58;
+const CLOTH_DISPLACEMENT_SCALE = 0.00028;
 
 const createClothTextures = (() => {
   let cache = null;
@@ -1466,7 +1467,11 @@ function alignRailsToCushions(table, frame) {
   if (!sampleCushion) return;
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
   const frameBox = new THREE.Box3().setFromObject(frame);
-  const diff = frameBox.max.y - cushionBox.max.y;
+  const cushionBottom = cushionBox.min.y;
+  const frameTop = frameBox.max.y;
+  const contactOffset = MICRO_EPS * 4;
+  const desiredFrameTop = cushionBottom - contactOffset;
+  const diff = frameTop - desiredFrameTop;
   const tolerance = 1e-3;
   if (Math.abs(diff) > tolerance) {
     frame.position.y -= diff;
@@ -1529,14 +1534,14 @@ function Table3D(parent) {
   } = createClothTextures();
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.cloth,
-    roughness: 0.78,
-    sheen: 0.72,
-    sheenRoughness: 0.34,
-    clearcoat: 0.02,
-    clearcoatRoughness: 0.38,
-    specularIntensity: 0.18,
+    roughness: 0.74,
+    sheen: 0.78,
+    sheenRoughness: 0.28,
+    clearcoat: 0.03,
+    clearcoatRoughness: 0.32,
+    specularIntensity: 0.22,
     metalness: 0,
-    envMapIntensity: 0.25
+    envMapIntensity: 0.32
   });
   const baseRepeat = 2.4;
   const repeatRatio = 3.1;
@@ -3449,7 +3454,7 @@ function SnookerGame() {
             heightOffset: ACTION_CAM.opposite.heightOffset,
             targetBias: ACTION_CAM.opposite.targetBias,
             smoothTime: ACTION_CAM.smoothTime,
-            fovOffset: 0,
+            fovOffset: ACTION_CAM.opposite.fovOffset ?? 0,
             resume: followView ?? null,
             resumeOrbit,
             orbitSnapshot: followView?.orbitSnapshot ?? null,
@@ -3775,7 +3780,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          7.6,
+          8.8,
           0,
           Math.PI * 0.46,
           0.62,
