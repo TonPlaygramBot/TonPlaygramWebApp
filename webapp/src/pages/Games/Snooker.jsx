@@ -431,13 +431,13 @@ const CLOTH_SIDE_HOLE_OFFSET = POCKET_VIS_R * 0.38;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 7.5,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 1.4,
-  maxOutside: BALL_R * 42,
-  heightOffset: BALL_R * 7.6,
-  distanceBias: 1.34,
-  offsetScale: 1.22,
-  backstep: BALL_R * 4.2,
-  fovOffset: 4.5
+  minOutside: TABLE.WALL + POCKET_VIS_R * 1.8,
+  maxOutside: BALL_R * 48,
+  heightOffset: BALL_R * 8.8,
+  distanceBias: 1.12,
+  offsetScale: 1.08,
+  backstep: BALL_R * 5.4,
+  fovOffset: 3.2
 });
 const POCKET_SWITCH_MIN_DIST = CAPTURE_R * 4.2;
 const ACTION_CAM = Object.freeze({
@@ -445,21 +445,21 @@ const ACTION_CAM = Object.freeze({
   switchMinDist: POCKET_SWITCH_MIN_DIST,
   smoothTime: 0.52,
   safeBox: Object.freeze({
-    minX: 0.4,
-    maxX: 0.6,
-    minY: 0.4,
-    maxY: 0.6
+    minX: 0.38,
+    maxX: 0.62,
+    minY: 0.38,
+    maxY: 0.62
   }),
   opposite: Object.freeze({
-    lateral: PLAY_W * 0.84,
-    minRailClearance: TABLE.WALL + BALL_R * 1.85,
-    extraClearance: TABLE.WALL * 0.32,
-    backstep: BALL_R * 7.2,
-    heightOffset: BALL_R * 15.4,
-    targetBias: 0.22,
-    maxLateral: Math.max(PLAY_W, PLAY_H) * 1.8,
-    radiusScale: 1.35,
-    focusBlend: 0.35
+    lateral: PLAY_W * 0.92,
+    minRailClearance: TABLE.WALL + BALL_R * 2.25,
+    extraClearance: TABLE.WALL * 0.42,
+    backstep: BALL_R * 8.6,
+    heightOffset: BALL_R * 18.8,
+    targetBias: 0.14,
+    maxLateral: Math.max(PLAY_W, PLAY_H) * 2.2,
+    radiusScale: 1.58,
+    focusBlend: 0.6
   })
 });
 const SPIN_STRENGTH = BALL_R * 0.25;
@@ -520,7 +520,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 31;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = TABLE.WALL * 0.11; // pull cushions slightly closer to centre for a tighter pocket entry
-const CLOTH_TEXTURE_INTENSITY = 2; // boost cloth texture visibility on both the bed and cushions
+const CLOTH_TEXTURE_INTENSITY = 4; // double cloth texture visibility on both the bed and cushions
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -893,14 +893,14 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.48,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.54,
   maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const STANDING_RADIUS_SCALE = 0.56;
-const CUE_RADIUS_SCALE = 0.7;
+const STANDING_RADIUS_SCALE = 0.66;
+const CUE_RADIUS_SCALE = 0.78;
 const CAMERA_STANDING_FOV = STANDING_VIEW_FOV + 1.5;
 const CAMERA_CUE_FOV = STANDING_VIEW_FOV - 2.4;
 const CAMERA_RAIL_REACH_X = PLAY_W / 2 + TABLE.WALL * 0.02; // hug the side rails without letting the camera enter the cloth
@@ -1799,7 +1799,7 @@ function Table3D(parent) {
   const outerHalfH = halfH + 2 * railW + frameWidth;
   const CUSHION_BACK = (TABLE.WALL * 0.7) / 2; // match cushion depth so rails meet without overlap
   const railsGroup = new THREE.Group();
-  const NOTCH_R = POCKET_TOP_R * 1.14;
+  const NOTCH_R = POCKET_TOP_R * 1.22;
   const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
   const xInR = halfW + CUSHION_BACK - MICRO_EPS;
   const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
@@ -2051,12 +2051,12 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.78;
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.34;
-  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.22;
-  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.18;
-  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.1;
-  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.24;
+  const POCKET_GAP = POCKET_VIS_R * 0.84;
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.38;
+  const LONG_CUSHION_EXTRA_TRIM = POCKET_VIS_R * 0.3;
+  const LONG_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.28;
+  const SHORT_CUSHION_LENGTH_REDUCTION = POCKET_VIS_R * 0.16;
+  const LONG_CUSHION_FACE_SHIFT = TABLE.WALL * 0.28;
   const horizLen =
     PLAY_W -
     2 * POCKET_GAP -
@@ -2782,6 +2782,7 @@ function SnookerGame() {
             camera.lookAt(lookTarget);
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
+            const cueBall = ballsList.find((b) => b.id === 'cue');
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
             );
@@ -2880,6 +2881,14 @@ function SnookerGame() {
                 1
               );
               focusTarget.lerp(pocketTarget, bias);
+              if (cueBall) {
+                const cueTarget = new THREE.Vector3(
+                  cueBall.pos.x,
+                  BALL_WORLD_CENTER_Y,
+                  cueBall.pos.y
+                );
+                focusTarget.lerp(cueTarget, 0.35);
+              }
               const focusOverride = activeShotView.focusOverride;
               if (focusOverride) {
                 const blend = THREE.MathUtils.clamp(
