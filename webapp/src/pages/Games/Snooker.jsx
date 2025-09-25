@@ -2991,6 +2991,14 @@ function SnookerGame() {
         );
         lightingRig.add(hemisphere);
 
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.65);
+        hemisphereRig.position.set(
+          0,
+          tableSurfaceY + 6.6 * scaledHeight + lightHeightLift,
+          0
+        );
+        lightingRig.add(hemisphereRig);
+
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
         dirLight.position.set(
           -1.25 * fixtureScale,
