@@ -803,9 +803,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.78;
+const STANDING_VIEW_PHI = 0.81;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.1;
-const STANDING_VIEW_MARGIN = 0.62;
+const STANDING_VIEW_MARGIN = 0.58;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -831,8 +831,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 34 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: CAMERA.maxPhi - 0.06
+  radius: 32 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  phi: CAMERA.maxPhi - 0.02
 });
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_VIEW_RADIUS_RATIO = 0.78;
