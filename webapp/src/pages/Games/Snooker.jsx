@@ -395,7 +395,8 @@ const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_START_BLEND = 1;
+// Blend closer to the cue view on load so the camera sits lower beside the rail
+const ACTION_CAMERA_START_BLEND = 0.18;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -840,6 +841,14 @@ const CUE_VIEW_MIN_PHI = Math.min(
   STANDING_VIEW_PHI + 0.58
 );
 const CUE_VIEW_PHI_LIFT = 0.1;
+const SIDE_RAIL_START_VIEW = Object.freeze({
+  theta: Math.PI / 2,
+  radiusScale: 0.92,
+  phi: Math.min(
+    CAMERA.maxPhi - CAMERA_RAIL_SAFETY * 1.2,
+    CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.3
+  )
+});
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
@@ -2058,7 +2067,10 @@ function SnookerGame() {
     standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
-  const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
+  const last3DRef = useRef({
+    phi: SIDE_RAIL_START_VIEW.phi,
+    theta: SIDE_RAIL_START_VIEW.theta
+  });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
@@ -2413,11 +2425,11 @@ function SnookerGame() {
           CAMERA.near,
           CAMERA.far
         );
-        // Start behind baulk colours
+        // Start alongside the side rail with a lower, player-level angle
         const sph = new THREE.Spherical(
           BREAK_VIEW.radius,
-          BREAK_VIEW.phi, // keep the break view a touch higher for clearer break alignment
-          Math.PI
+          SIDE_RAIL_START_VIEW.phi,
+          SIDE_RAIL_START_VIEW.theta
         );
 
         const getDefaultOrbitTarget = () =>
@@ -2848,6 +2860,14 @@ function SnookerGame() {
               : 1.32
         );
         fit(margin);
+        if (!initialOrbitRef.current) {
+          sph.theta = SIDE_RAIL_START_VIEW.theta;
+          sph.radius = clampOrbitRadius(
+            sph.radius * SIDE_RAIL_START_VIEW.radiusScale
+          );
+          const targetPhi = Math.max(sph.phi, SIDE_RAIL_START_VIEW.phi);
+          sph.phi = THREE.MathUtils.clamp(targetPhi, CAMERA.minPhi, CAMERA.maxPhi);
+        }
         syncBlendToSpherical();
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
@@ -2857,6 +2877,7 @@ function SnookerGame() {
             phi: sph.phi,
             theta: sph.theta
           };
+          last3DRef.current = { phi: sph.phi, theta: sph.theta };
         }
         const dom = renderer.domElement;
         dom.style.touchAction = 'none';
