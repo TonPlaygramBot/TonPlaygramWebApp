@@ -4,9 +4,9 @@ using UnityEngine;
 /// <summary>
 /// Simple camera controller that keeps the camera above the table while
 /// providing a slightly pulled back perspective. When the player drags the
-/// camera down toward the rails the controller automatically increases the
-/// distance from the table centre so that more of the playing surface remains
-/// visible.
+/// camera down toward the rails the controller eases the view closer to the
+/// cloth while ensuring the camera stays clear of the wooden frame. Pulling the
+/// camera up gives a wider overview of the table.
 /// </summary>
 public class CameraController : MonoBehaviour
 {
@@ -16,14 +16,21 @@ public class CameraController : MonoBehaviour
     // to keep the camera from dipping too low relative to the table frame.
     public float railTopY = 0.33f;
     // Small clearance so the camera always remains a little above the side rails.
-    public float railClearance = 0.08f;
+    public float railClearance = 0.12f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 2.2f;
-    // Default distance of the camera from the table centre, pulled back slightly
-    // for an improved overview.
-    public float distanceFromCenter = 7f;
-    // Additional pullback applied as the camera moves toward the rails.
-    public float pullbackWhenLow = 0.8f;
+    // Default distance of the camera from the table centre when fully raised to
+    // provide a broad overview of the action.
+    public float distanceFromCenter = 6.2f;
+    // Minimum distance from the table centre allowed when the camera is pulled
+    // down toward the rails for a closer look.
+    public float minDistanceFromCenter = 5.6f;
+    // Extra pullback applied when the camera is raised to its maximum height so
+    // the player gets a slightly wider view while aiming.
+    public float zoomOutWhenRaised = 0.4f;
+    // Buffer that keeps the camera just outside the rails even at the closest
+    // zoom level.
+    public float railBuffer = 0.1f;
     // Slight height offset so the camera looks just above the table centre
     // to reduce the viewing angle and give a lower perspective.
     public float lookAtHeightOffset = 0.05f;
@@ -50,10 +57,14 @@ public class CameraController : MonoBehaviour
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
-        // Increase the viewing distance slightly as the camera is pulled down
-        // to keep more of the table in view.
-        float t = Mathf.InverseLerp(maxY, minY, pos.y);
-        float currentDistance = distanceFromCenter + pullbackWhenLow * t;
+        // As the camera is pulled downward toward the rails gradually move it
+        // closer to the table for an intimate view, while raising the camera
+        // pushes it back a little so more of the table stays in frame.
+        float heightBlend = Mathf.InverseLerp(maxY, minY, pos.y);
+
+        float minAllowedDistance = Mathf.Max(minDistanceFromCenter, Mathf.Max(cornerXThreshold, cornerZThreshold) + railBuffer);
+        float raisedDistance = Mathf.Max(minAllowedDistance, distanceFromCenter + zoomOutWhenRaised);
+        float currentDistance = Mathf.Lerp(raisedDistance, minAllowedDistance, heightBlend);
 
         // If the player (or the camera if no player reference is set) moves
         // close to a corner, increase the distance a little to give a clearer
