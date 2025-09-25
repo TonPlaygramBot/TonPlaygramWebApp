@@ -425,7 +425,9 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
-  CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
+  CLOTH_TOP_LOCAL +
+  CLOTH_LIFT +
+  BALL_R * 0.05; // lift the pocket rims slightly so they sit more prominently above the cloth
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -827,7 +829,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 66 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 60 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.12
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -1848,9 +1850,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.78; // trim long cushions slightly more so they clear the pocket entrances
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.2; // shorten side cushions so they meet but do not intrude on the side pockets
+  const POCKET_GAP = POCKET_VIS_R * 0.74; // stop cushions right as the corner pocket arcs begin
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.86; // trim long cushions so they clear the exposed pocket rims
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.24; // shorten side cushions to end before the side pocket curves
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
@@ -2842,8 +2844,8 @@ function SnookerGame() {
           topViewRef.current
             ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.6
-              : 1.4
+              ? 1.45
+              : 1.32
         );
         fit(margin);
         syncBlendToSpherical();
