@@ -1593,8 +1593,8 @@ function Table3D(parent) {
   const zInB = -(halfH + cushionBackEnd - MICRO_EPS);
   const zInT = halfH + cushionBackEnd - MICRO_EPS;
 
-  function addCornerArcLong(shape, signX, signZ, anchor) {
-    const xIn = anchor ?? (signX < 0 ? xInL : xInR);
+  function addCornerArcLong(shape, signX, signZ) {
+    const xIn = signX < 0 ? xInL : xInR;
     const cx = signX < 0 ? -halfW : halfW;
     const cz = signZ < 0 ? -halfH : halfH;
     const u = Math.abs(xIn - cx);
@@ -1616,8 +1616,8 @@ function Table3D(parent) {
     shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
-  function addCornerArcEnd(shape, signZ, signX, anchor) {
-    const zIn = anchor ?? (signZ < 0 ? zInB : zInT);
+  function addCornerArcEnd(shape, signZ, signX) {
+    const zIn = signZ < 0 ? zInB : zInT;
     const cx = signX < 0 ? -halfW : halfW;
     const cz = signZ < 0 ? -halfH : halfH;
     const v = Math.abs(zIn - cz);
@@ -1642,7 +1642,6 @@ function Table3D(parent) {
   function buildLongRail(signX) {
     const xIn = signX < 0 ? xInL : xInR;
     const xOut = signX < 0 ? -outerHalfW : outerHalfW;
-    const arcAnchor = xIn - signX * POCKET_VIS_R * 0.6;
     const shape = new THREE.Shape();
     const edgeRadius = Math.min(
       longRailW * RAIL_OUTER_EDGE_RADIUS_RATIO,
@@ -1658,16 +1657,16 @@ function Table3D(parent) {
     } else {
       shape.lineTo(xOut, outerHalfH);
     }
-    shape.lineTo(arcAnchor, outerHalfH);
-    addCornerArcLong(shape, signX, 1, arcAnchor);
+    shape.lineTo(xIn, outerHalfH);
+    addCornerArcLong(shape, signX, 1);
     (function () {
       const cx = signX < 0 ? -halfW : halfW;
-      const u = Math.abs(arcAnchor - cx);
+      const u = Math.abs(xIn - cx);
       const R = Math.max(NOTCH_R, u + 0.001);
       const dz = Math.sqrt(Math.max(0, R * R - u * u));
       const zTop = dz;
       const zBot = -dz;
-      shape.lineTo(arcAnchor, zTop);
+      shape.lineTo(xIn, zTop);
       const steps = 40;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
@@ -1676,10 +1675,10 @@ function Table3D(parent) {
         const x = cx + (signX > 0 ? xDelta : -xDelta);
         shape.lineTo(x, z);
       }
-      shape.lineTo(arcAnchor, zBot);
+      shape.lineTo(xIn, zBot);
     })();
-    addCornerArcLong(shape, signX, -1, arcAnchor);
-    shape.lineTo(arcAnchor, -outerHalfH);
+    addCornerArcLong(shape, signX, -1);
+    shape.lineTo(xIn, -outerHalfH);
     if (radius > 0) {
       shape.lineTo(startX, -outerHalfH);
     } else {
@@ -1700,7 +1699,6 @@ function Table3D(parent) {
   function buildEndRail(signZ) {
     const zIn = signZ < 0 ? zInB : zInT;
     const zOut = signZ < 0 ? -outerHalfH : outerHalfH;
-    const arcAnchor = zIn - signZ * POCKET_VIS_R * 0.6;
     const shape = new THREE.Shape();
     const edgeRadius = Math.min(
       endRailW * RAIL_OUTER_EDGE_RADIUS_RATIO,
@@ -1716,15 +1714,15 @@ function Table3D(parent) {
     } else {
       shape.lineTo(outerHalfW, zOut);
     }
-    shape.lineTo(outerHalfW, arcAnchor);
-    addCornerArcEnd(shape, signZ, 1, arcAnchor);
+    shape.lineTo(outerHalfW, zIn);
+    addCornerArcEnd(shape, signZ, 1);
     const cxL = -halfW;
-    const v = Math.abs(arcAnchor - (signZ < 0 ? -halfH : halfH));
+    const v = Math.abs(zIn - (signZ < 0 ? -halfH : halfH));
     const R = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
-    shape.lineTo(cxL - dx, arcAnchor);
-    addCornerArcEnd(shape, signZ, -1, arcAnchor);
-    shape.lineTo(-outerHalfW, arcAnchor);
+    shape.lineTo(cxL - dx, zIn);
+    addCornerArcEnd(shape, signZ, -1);
+    shape.lineTo(-outerHalfW, zIn);
     if (radius > 0) {
       shape.lineTo(-outerHalfW, startZ);
     } else {
