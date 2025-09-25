@@ -388,8 +388,7 @@ const CLOTH_LIFT = (() => {
   const railH = TABLE.THICK * 1.82;
   return Math.max(0, railH - ballR - eps);
 })();
-// Halve the short-end side rails so all aprons match the long cushions and extend play length
-const SIDE_RAIL_INNER_REDUCTION = 0.85;
+const SIDE_RAIL_INNER_REDUCTION = 0.7;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
