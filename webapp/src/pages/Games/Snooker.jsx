@@ -445,7 +445,9 @@ const POCKET_CAM = Object.freeze({
   dotThreshold: 0.3,
   minOutside: SIDE_RAIL_INNER_THICKNESS + POCKET_VIS_R * 1.05,
   maxOutside: BALL_R * 32,
-  heightOffset: BALL_R * 4.6
+  heightOffset: BALL_R * 4.6,
+  distanceScale: 1.05,
+  heightScale: 0.94
 });
 const SPIN_STRENGTH = BALL_R * 0.5;
 const SPIN_DECAY = 0.88;
@@ -802,8 +804,8 @@ function spotPositions(baulkZ) {
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.78;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.04;
-const STANDING_VIEW_MARGIN = 0.74;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.1;
+const STANDING_VIEW_MARGIN = 0.7;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -829,17 +831,22 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 46 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 43 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.06
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.86;
+const CUE_VIEW_RADIUS_RATIO = 0.83;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.58
 );
 const CUE_VIEW_PHI_LIFT = 0.1;
+const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
+const CAMERA_MIN_HORIZONTAL =
+  ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
+  CAMERA_RAIL_SAFETY;
+const CAMERA_DOWNWARD_PULL = 1.4;
 const POCKET_VIEW_SMOOTH_TIME = 0.35; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TMP_SPIN = new THREE.Vector2();
@@ -2534,7 +2541,13 @@ function SnookerGame() {
             standing.radius,
             blend
           );
-          const radius = clampOrbitRadius(baseRadius);
+          let radius = clampOrbitRadius(baseRadius);
+          if (CAMERA_DOWNWARD_PULL > 0) {
+            const pull = CAMERA_DOWNWARD_PULL * (1 - blend);
+            if (pull > 0) {
+              radius = clampOrbitRadius(radius - pull);
+            }
+          }
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
@@ -2544,8 +2557,19 @@ function SnookerGame() {
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
           const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
-          sph.phi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
-          sph.radius = radius;
+          const clampedPhi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
+          let finalRadius = radius;
+          if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
+            const sinPhi = Math.sin(clampedPhi);
+            if (sinPhi > 1e-4) {
+              const minRadiusForRails = clampOrbitRadius(
+                CAMERA_MIN_HORIZONTAL / sinPhi
+              );
+              finalRadius = Math.max(finalRadius, minRadiusForRails);
+            }
+          }
+          sph.phi = clampedPhi;
+          sph.radius = clampOrbitRadius(finalRadius);
           syncBlendToSpherical();
         };
 
@@ -2582,8 +2606,12 @@ function SnookerGame() {
               activeShotView.minOutside ?? POCKET_CAM.minOutside;
             const maxOutside =
               activeShotView.maxOutside ?? POCKET_CAM.maxOutside;
+            const distanceScale =
+              activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
+            const scaledOutside =
+              (distToPocket + BALL_R * 2.4) * distanceScale;
             const dynamicOffset = THREE.MathUtils.clamp(
-              distToPocket + BALL_R * 2.4,
+              scaledOutside,
               minOutside,
               maxOutside
             );
@@ -2592,8 +2620,10 @@ function SnookerGame() {
               .clone()
               .multiplyScalar(dynamicOffset);
             const basePoint = pocketCenter.clone().add(offsetVec);
+            const heightScale =
+              activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
             const camHeight =
-              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset) *
+              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
               worldScaleFactor;
             const desiredPosition = new THREE.Vector3(
               basePoint.x * worldScaleFactor,
@@ -2832,6 +2862,8 @@ function SnookerGame() {
             minOutside: POCKET_CAM.minOutside,
             maxOutside: POCKET_CAM.maxOutside,
             heightOffset,
+            distanceScale: POCKET_CAM.distanceScale,
+            heightScale: POCKET_CAM.heightScale,
             lastBallPos: pos.clone(),
             score: bestScore,
             resume: followView,
