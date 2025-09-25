@@ -319,7 +319,7 @@ function addPocketCuts(parent, clothPlane) {
       const diag = new THREE.Vector2(sx, sy).normalize();
       const inward = diag.clone().multiplyScalar(-1);
       const radialOffset = POCKET_VIS_R * 0.58;
-      const railInset = TABLE.WALL * 0.35;
+      const railInset = INNER_RAIL_INSET * 0.35;
       mesh.scale.set(-1, 1, -1);
       mesh.rotation.y = Math.atan2(inward.y, inward.x) + Math.PI / 2;
       mesh.position.set(
@@ -366,6 +366,9 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
+// shrink the inner-facing portion of the brown rails by 50% to widen the cloth field
+const INNER_RAIL_REDUCTION = 0.5;
+const INNER_RAIL_INSET = TABLE.WALL * INNER_RAIL_REDUCTION;
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const CLOTH_LIFT = (() => {
   const ballR = 2 * BALL_SCALE;
@@ -374,8 +377,8 @@ const CLOTH_LIFT = (() => {
   const railH = TABLE.THICK * 1.82;
   return Math.max(0, railH - ballR - eps);
 })();
-const PLAY_W = TABLE.W - 2 * TABLE.WALL;
-const PLAY_H = TABLE.H - 2 * TABLE.WALL;
+const PLAY_W = TABLE.W - 2 * INNER_RAIL_INSET;
+const PLAY_H = TABLE.H - 2 * INNER_RAIL_INSET;
 const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
@@ -407,7 +410,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
-const CUSHION_OVERLAP = TABLE.WALL * 0.35; // overlap between cushions and rails to hide seams
+const CUSHION_OVERLAP = INNER_RAIL_INSET * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -422,7 +425,7 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: TABLE.WALL + POCKET_VIS_R * 0.95,
+  minOutside: INNER_RAIL_INSET + POCKET_VIS_R * 0.95,
   maxOutside: BALL_R * 32,
   heightOffset: BALL_R * 5.1
 });
@@ -482,7 +485,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = TABLE.WALL * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
+const CUSHION_FACE_INSET = INNER_RAIL_INSET * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -506,7 +509,7 @@ const COLORS = Object.freeze({
   black: 0x000000
 });
 
-const CLOTH_TEXTURE_SIZE = 1024;
+const CLOTH_TEXTURE_SIZE = 4096; // 4K resolution cloth tile for sharper weave detail
 const CLOTH_THREAD_PITCH = 18;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
@@ -552,48 +555,56 @@ const createClothTextures = (() => {
     const sparkleNoise = (x, y) =>
       hashNoise(x, y, 73.19, 11.17, 7.2) * 0.5 +
       hashNoise(x, y, 27.73, 61.91, -14.4) * 0.5;
+    const pileNoise = (x, y) =>
+      hashNoise(x, y, 17.213, 91.731, 4.75) * 0.5 +
+      hashNoise(x, y, 91.713, 37.291, -6.82) * 0.5;
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.65);
-        const cross = Math.pow(warp * weft, 0.9);
+        const weave = Math.pow((warp + weft) * 0.5, 1.35);
+        const cross = Math.pow(warp * weft, 0.82);
         const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.62);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
+        const pile = Math.pow(pileNoise(x, y), 1.45);
+        const plushLift =
+          (pile - 0.5) * 0.42 + (fiber - 0.5) * 0.22 + (micro - 0.5) * 0.1;
         const tonal = THREE.MathUtils.clamp(
-          0.56 +
+          0.6 +
             (weave - 0.5) * 0.5 +
             (cross - 0.5) * 0.42 +
             (diamond - 0.5) * 0.55 +
             (fiber - 0.5) * 0.2 +
-            (micro - 0.5) * 0.16,
+            (micro - 0.5) * 0.16 +
+            plushLift * 0.5,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
-          0.5 + (tonal - 0.5) * 1.48,
+          0.5 + (tonal - 0.5) * 1.55,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
-          0.35 +
+          0.36 +
             (cross - 0.5) * 0.42 +
             (diamond - 0.5) * 0.68 +
-            (sparkle - 0.5) * 0.34,
+            (sparkle - 0.5) * 0.34 +
+            plushLift * 0.38,
           0,
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.42 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24,
+          0.42 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24 + plushLift * 0.3,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
-          0.38 + (highlightMix - 0.5) * 1.5,
+          0.38 + (highlightMix - 0.5) * 1.45,
           0,
           1
         );
@@ -618,7 +629,7 @@ const createClothTextures = (() => {
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
     colorMap.repeat.set(12, 48);
-    colorMap.anisotropy = 32;
+    colorMap.anisotropy = 64;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
@@ -641,18 +652,20 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.4);
-        const cross = Math.pow(warp * weft, 0.92);
+        const weave = Math.pow((warp + weft) * 0.5, 1.22);
+        const cross = Math.pow(warp * weft, 0.88);
         const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
+        const pile = Math.pow(pileNoise(x, y), 1.4);
         const bump = THREE.MathUtils.clamp(
-          0.54 +
+          0.58 +
             (weave - 0.5) * 0.78 +
             (cross - 0.5) * 0.42 +
             (diamond - 0.5) * 0.56 +
             (fiber - 0.5) * 0.26 +
-            (micro - 0.5) * 0.2,
+            (micro - 0.5) * 0.2 +
+            (pile - 0.5) * 0.5,
           0,
           1
         );
@@ -1403,23 +1416,23 @@ function Table3D(parent) {
   const clothPrimary = new THREE.Color(COLORS.cloth);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothPrimary,
-    roughness: 0.8,
-    sheen: 0.85,
-    sheenRoughness: 0.46,
-    clearcoat: 0.05,
-    clearcoatRoughness: 0.26,
-    emissive: clothPrimary.clone().multiplyScalar(0.09),
-    emissiveIntensity: 1
+    roughness: 0.86,
+    sheen: 0.92,
+    sheenRoughness: 0.52,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.32,
+    emissive: clothPrimary.clone().multiplyScalar(0.1),
+    emissiveIntensity: 1.05
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 8; // amplify cloth weave visibility (~8 crossings across one ball)
-  const clothTextureScale = 0.04; // enlarge weave pattern an additional 5x for clearer visibility
+  const clothTextureScale = 0.8; // shrink pattern 80% (5x more repeats) to reveal denser plush weave
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.15;
-  const baseBumpScale = 0.74;
+  const baseBumpScale = 0.96;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1454,7 +1467,7 @@ function Table3D(parent) {
     roughness: 0.8
   });
 
-  const clothExtend = Math.max(TABLE.WALL * 0.18, Math.min(PLAY_W, PLAY_H) * 0.0055);
+  const clothExtend = Math.max(INNER_RAIL_INSET * 0.18, Math.min(PLAY_W, PLAY_H) * 0.0055);
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
@@ -1485,7 +1498,7 @@ function Table3D(parent) {
   });
   const markingHeight = clothPlaneLocal + MICRO_EPS * 2;
   const lineThickness = Math.max(BALL_R * 0.08, 0.1);
-  const baulkLineLength = PLAY_W - TABLE.WALL * 0.4;
+  const baulkLineLength = PLAY_W - INNER_RAIL_INSET * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
@@ -1555,8 +1568,8 @@ function Table3D(parent) {
   const railW = TABLE.WALL * 0.7;
   const railH = TABLE.THICK * 1.82;
   const frameWidth = railW * 2.5;
-  const outerHalfW = halfW + 2 * railW + frameWidth;
-  const outerHalfH = halfH + 2 * railW + frameWidth;
+  const outerHalfW = TABLE.W / 2 + 2 * railW + frameWidth - TABLE.WALL; // preserve exterior edge of the rails
+  const outerHalfH = TABLE.H / 2 + 2 * railW + frameWidth - TABLE.WALL; // preserve exterior edge of the rails
   const CUSHION_BACK = railW * 0.5;
   const railsGroup = new THREE.Group();
   const NOTCH_R = POCKET_TOP_R * 1.02;
@@ -3858,8 +3871,8 @@ function SnookerGame() {
           }
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
-            const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
-            const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
+            const limX = PLAY_W / 2 - BALL_R - INNER_RAIL_INSET;
+            const limY = PLAY_H / 2 - BALL_R - INNER_RAIL_INSET;
             const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
             const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
