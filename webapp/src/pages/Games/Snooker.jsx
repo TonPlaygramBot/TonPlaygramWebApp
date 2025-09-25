@@ -255,8 +255,8 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const sideDepth = POCKET_VIS_R * 1.04;
-  const sideHalfWidth = POCKET_VIS_R * 0.86;
+  const sideDepth = POCKET_VIS_R * 1.12;
+  const sideHalfWidth = POCKET_VIS_R * 0.9;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x060606,
     roughness: 0.78,
@@ -294,11 +294,24 @@ function addPocketCuts(parent, clothPlane) {
     return s;
   })();
   const sideShape = (() => {
+    const lipInset = POCKET_VIS_R * 0.32;
+    const throatHalfWidth = POCKET_VIS_R * 0.58;
     const s = new THREE.Shape();
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
-    s.lineTo(sideHalfWidth * 0.86, sideDepth);
-    s.quadraticCurveTo(0, sideDepth * 1.14, -sideHalfWidth * 0.86, sideDepth);
+    s.quadraticCurveTo(
+      sideHalfWidth + lipInset,
+      sideDepth * 0.35,
+      throatHalfWidth,
+      sideDepth * 0.92
+    );
+    s.quadraticCurveTo(0, sideDepth * 1.1, -throatHalfWidth, sideDepth * 0.92);
+    s.quadraticCurveTo(
+      -sideHalfWidth - lipInset,
+      sideDepth * 0.35,
+      -sideHalfWidth,
+      0
+    );
     s.closePath();
     return s;
   })();
@@ -330,6 +343,7 @@ function addPocketCuts(parent, clothPlane) {
     } else {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
+      mesh.position.z += sy * POCKET_VIS_R * 0.12;
     }
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -497,7 +511,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x229042,
+  cloth: 0x28a64d,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -2989,7 +3003,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          11.04,
+          13.248,
           0,
           Math.PI * 0.38,
           0.48,
