@@ -385,7 +385,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
+const POCKET_R = BALL_R * 1.78; // pockets tightened for a smaller opening
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.985;
 const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
@@ -2979,7 +2979,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.06);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.072);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
