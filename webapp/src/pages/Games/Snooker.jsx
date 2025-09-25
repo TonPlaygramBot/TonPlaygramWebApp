@@ -319,14 +319,13 @@ function addPocketCuts(parent, clothPlane) {
       const diag = new THREE.Vector2(sx, sy).normalize();
       const inward = diag.clone().multiplyScalar(-1);
       const radialOffset = POCKET_VIS_R * 0.58;
-      const railInsetX = LONG_RAIL_WIDTH * 0.35;
-      const railInsetZ = BASE_RAIL_WIDTH * 0.35;
+      const railInset = TABLE.WALL * 0.35;
       mesh.scale.set(-1, 1, -1);
       mesh.rotation.y = Math.atan2(inward.y, inward.x) + Math.PI / 2;
       mesh.position.set(
-        sx * (halfW + railInsetX) + diag.x * radialOffset,
+        sx * (halfW + railInset) + diag.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
-        sy * (halfH + railInsetZ) + diag.y * radialOffset
+        sy * (halfH + railInset) + diag.y * radialOffset
       );
     } else {
       const sy = Math.sign(p.y) || 1;
@@ -367,9 +366,6 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const SIDE_RAIL_REDUCTION = 0.4;
-const BASE_RAIL_WIDTH = TABLE.WALL * 0.7;
-const LONG_RAIL_WIDTH = BASE_RAIL_WIDTH * (1 - SIDE_RAIL_REDUCTION);
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const CLOTH_LIFT = (() => {
   const ballR = 2 * BALL_SCALE;
@@ -378,10 +374,7 @@ const CLOTH_LIFT = (() => {
   const railH = TABLE.THICK * 1.82;
   return Math.max(0, railH - ballR - eps);
 })();
-const PLAY_W =
-  TABLE.W -
-  2 * TABLE.WALL +
-  2 * (BASE_RAIL_WIDTH - LONG_RAIL_WIDTH);
+const PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
@@ -489,8 +482,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET_LONG = LONG_RAIL_WIDTH * 0.09; // pull cushions on the long sides slightly closer to centre
-const CUSHION_FACE_INSET_SHORT = BASE_RAIL_WIDTH * 0.09; // retain original spacing on the short sides
+const CUSHION_FACE_INSET = TABLE.WALL * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -500,7 +492,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x149b41,
+  cloth: 0x2db85f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -514,8 +506,8 @@ const COLORS = Object.freeze({
   black: 0x000000
 });
 
-const CLOTH_TEXTURE_SIZE = 2048;
-const CLOTH_THREAD_PITCH = 24;
+const CLOTH_TEXTURE_SIZE = 1024;
+const CLOTH_THREAD_PITCH = 18;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -544,73 +536,64 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x0f, g: 0x5b, b: 0x2d };
-    const base = { r: 0x18, g: 0x92, b: 0x45 };
-    const accent = { r: 0x20, g: 0xaa, b: 0x52 };
-    const highlight = { r: 0x39, g: 0xca, b: 0x6f };
+    const shadow = { r: 0x19, g: 0x70, b: 0x3a };
+    const base = { r: 0x2a, g: 0xa3, b: 0x58 };
+    const accent = { r: 0x3f, g: 0xbd, b: 0x70 };
+    const highlight = { r: 0x5a, g: 0xd7, b: 0x86 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
-      hashNoise(x, y, 12.9898, 78.233, 1.5) * 0.5 +
-      hashNoise(x, y, 32.654, 23.147, 15.73) * 0.28 +
-      hashNoise(x, y, 63.726, 12.193, -9.21) * 0.14 +
-      hashNoise(x, y, 27.13, 44.78, 6.92) * 0.08;
+      hashNoise(x, y, 12.9898, 78.233, 1.5) * 0.6 +
+      hashNoise(x, y, 32.654, 23.147, 15.73) * 0.3 +
+      hashNoise(x, y, 63.726, 12.193, -9.21) * 0.1;
     const microNoise = (x, y) =>
-      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.52 +
-      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.32 +
-      hashNoise(x, y, 11.36, 34.21, 17.44) * 0.16;
-    const fuzzNoise = (x, y) =>
-      hashNoise(x, y, 17.43, 91.27, 4.7) * 0.6 +
-      hashNoise(x, y, 53.92, 14.38, -11.6) * 0.4;
+      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.7 +
+      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.3;
     const sparkleNoise = (x, y) =>
-      hashNoise(x, y, 73.19, 11.17, 7.2) * 0.45 +
-      hashNoise(x, y, 27.73, 61.91, -14.4) * 0.4 +
-      hashNoise(x, y, 91.51, 37.42, 3.6) * 0.15;
+      hashNoise(x, y, 73.19, 11.17, 7.2) * 0.5 +
+      hashNoise(x, y, 27.73, 61.91, -14.4) * 0.5;
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.48);
-        const cross = Math.pow(warp * weft, 0.86);
-        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.58);
+        const weave = Math.pow((warp + weft) * 0.5, 1.65);
+        const cross = Math.pow(warp * weft, 0.9);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.62);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
-        const fuzz = fuzzNoise(x * 0.92, y * 1.08);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const tonal = THREE.MathUtils.clamp(
-          0.55 +
-            (weave - 0.5) * 0.46 +
-            (cross - 0.5) * 0.38 +
-            (diamond - 0.5) * 0.5 +
-            (fiber - 0.5) * 0.26 +
-            (micro - 0.5) * 0.2 +
-            (fuzz - 0.5) * 0.32,
+          0.56 +
+            (weave - 0.5) * 0.5 +
+            (cross - 0.5) * 0.42 +
+            (diamond - 0.5) * 0.55 +
+            (fiber - 0.5) * 0.2 +
+            (micro - 0.5) * 0.16,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
-          0.5 + (tonal - 0.5) * 1.56,
+          0.5 + (tonal - 0.5) * 1.48,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
-          0.32 +
-            (cross - 0.5) * 0.4 +
-            (diamond - 0.5) * 0.64 +
-            (sparkle - 0.5) * 0.3 +
-            (fuzz - 0.5) * 0.18,
+          0.35 +
+            (cross - 0.5) * 0.42 +
+            (diamond - 0.5) * 0.68 +
+            (sparkle - 0.5) * 0.34,
           0,
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.4 + (diamond - 0.5) * 1 + (fiber - 0.5) * 0.28 + (fuzz - 0.5) * 0.22,
+          0.42 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
-          0.38 + (highlightMix - 0.5) * 1.54,
+          0.38 + (highlightMix - 0.5) * 1.5,
           0,
           1
         );
@@ -634,7 +617,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(16, 64);
+    colorMap.repeat.set(12, 48);
     colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -658,24 +641,22 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.28);
-        const cross = Math.pow(warp * weft, 0.88);
-        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.64);
+        const weave = Math.pow((warp + weft) * 0.5, 1.4);
+        const cross = Math.pow(warp * weft, 0.92);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
-        const fuzz = fuzzNoise(x * 0.92, y * 1.08);
         const bump = THREE.MathUtils.clamp(
-          0.55 +
-            (weave - 0.5) * 0.82 +
-            (cross - 0.5) * 0.44 +
-            (diamond - 0.5) * 0.58 +
-            (fiber - 0.5) * 0.32 +
-            (micro - 0.5) * 0.24 +
-            (fuzz - 0.5) * 0.34,
+          0.54 +
+            (weave - 0.5) * 0.78 +
+            (cross - 0.5) * 0.42 +
+            (diamond - 0.5) * 0.56 +
+            (fiber - 0.5) * 0.26 +
+            (micro - 0.5) * 0.2,
           0,
           1
         );
-        const value = clamp255(128 + (bump - 0.5) * 236);
+        const value = clamp255(128 + (bump - 0.5) * 228);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -808,8 +789,8 @@ const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
 });
-const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
-const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
+const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
+const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
@@ -1422,23 +1403,23 @@ function Table3D(parent) {
   const clothPrimary = new THREE.Color(COLORS.cloth);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothPrimary,
-    roughness: 0.84,
-    sheen: 0.9,
-    sheenRoughness: 0.4,
-    clearcoat: 0.04,
-    clearcoatRoughness: 0.24,
-    emissive: clothPrimary.clone().multiplyScalar(0.1),
+    roughness: 0.8,
+    sheen: 0.85,
+    sheenRoughness: 0.46,
+    clearcoat: 0.05,
+    clearcoatRoughness: 0.26,
+    emissive: clothPrimary.clone().multiplyScalar(0.09),
     emissiveIntensity: 1
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 8; // amplify cloth weave visibility (~8 crossings across one ball)
-  const clothTextureScale = 0.028; // tighten weave repetition for finer, high-resolution detail
+  const clothTextureScale = 0.04; // enlarge weave pattern an additional 5x for clearer visibility
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.15;
-  const baseBumpScale = 0.92;
+  const baseBumpScale = 0.74;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1473,7 +1454,7 @@ function Table3D(parent) {
     roughness: 0.8
   });
 
-  const clothExtend = Math.max(LONG_RAIL_WIDTH * 0.18, Math.min(PLAY_W, PLAY_H) * 0.0055);
+  const clothExtend = Math.max(TABLE.WALL * 0.18, Math.min(PLAY_W, PLAY_H) * 0.0055);
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
@@ -1504,7 +1485,7 @@ function Table3D(parent) {
   });
   const markingHeight = clothPlaneLocal + MICRO_EPS * 2;
   const lineThickness = Math.max(BALL_R * 0.08, 0.1);
-  const baulkLineLength = PLAY_W - LONG_RAIL_WIDTH * 0.4;
+  const baulkLineLength = PLAY_W - TABLE.WALL * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
@@ -1571,23 +1552,18 @@ function Table3D(parent) {
     pocketMeshes.push(pocket);
   });
 
-  const railWBase = BASE_RAIL_WIDTH;
-  const railWLong = LONG_RAIL_WIDTH;
-  const railWShort = railWBase;
-  const railWMax = Math.max(railWLong, railWShort);
+  const railW = TABLE.WALL * 0.7;
   const railH = TABLE.THICK * 1.82;
-  const frameWidthX = railWLong * 2.5;
-  const frameWidthZ = railWShort * 2.5;
-  const outerHalfW = halfW + 2 * railWLong + frameWidthX;
-  const outerHalfH = halfH + 2 * railWShort + frameWidthZ;
-  const CUSHION_BACK_LONG = railWLong * 0.5;
-  const CUSHION_BACK_SHORT = railWShort * 0.5;
+  const frameWidth = railW * 2.5;
+  const outerHalfW = halfW + 2 * railW + frameWidth;
+  const outerHalfH = halfH + 2 * railW + frameWidth;
+  const CUSHION_BACK = railW * 0.5;
   const railsGroup = new THREE.Group();
   const NOTCH_R = POCKET_TOP_R * 1.02;
-  const xInL = -(halfW + CUSHION_BACK_LONG - MICRO_EPS);
-  const xInR = halfW + CUSHION_BACK_LONG - MICRO_EPS;
-  const zInB = -(halfH + CUSHION_BACK_SHORT - MICRO_EPS);
-  const zInT = halfH + CUSHION_BACK_SHORT - MICRO_EPS;
+  const xInL = -(halfW + CUSHION_BACK - MICRO_EPS);
+  const xInR = halfW + CUSHION_BACK - MICRO_EPS;
+  const zInB = -(halfH + CUSHION_BACK - MICRO_EPS);
+  const zInT = halfH + CUSHION_BACK - MICRO_EPS;
 
   function addCornerArcLong(shape, signX, signZ) {
     const xIn = signX < 0 ? xInL : xInR;
@@ -1640,7 +1616,7 @@ function Table3D(parent) {
     const xOut = signX < 0 ? -outerHalfW : outerHalfW;
     const shape = new THREE.Shape();
     const edgeRadius = Math.min(
-      railWLong * RAIL_OUTER_EDGE_RADIUS_RATIO,
+      railW * RAIL_OUTER_EDGE_RADIUS_RATIO,
       Math.abs(outerHalfH) * 0.4
     );
     const radius = Math.max(edgeRadius, 0);
@@ -1697,7 +1673,7 @@ function Table3D(parent) {
     const zOut = signZ < 0 ? -outerHalfH : outerHalfH;
     const shape = new THREE.Shape();
     const edgeRadius = Math.min(
-      railWShort * RAIL_OUTER_EDGE_RADIUS_RATIO,
+      railW * RAIL_OUTER_EDGE_RADIUS_RATIO,
       Math.abs(outerHalfW) * 0.4
     );
     const radius = Math.max(edgeRadius, 0);
@@ -1752,9 +1728,8 @@ function Table3D(parent) {
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
-    const baseRail = horizontal ? railWLong : railWShort;
-    const baseThickness = baseRail * thicknessScale;
-    const backY = baseRail / 2;
+    const baseThickness = TABLE.WALL * 0.7 * thicknessScale;
+    const backY = (TABLE.WALL * 0.7) / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -1844,10 +1819,10 @@ function Table3D(parent) {
   addCushion(rightX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, true);
   addCushion(rightX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, true);
 
-  const frameOuterX = outerHalfW;
-  const frameOuterZ = outerHalfH;
+  const frameOuterX = halfW + 2 * railW + frameWidth;
+  const frameOuterZ = halfH + 2 * railW + frameWidth;
   const skirtH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
-  const baseOverhang = railWMax * SKIRT_SIDE_OVERHANG;
+  const baseOverhang = railW * SKIRT_SIDE_OVERHANG;
   const skirtShape = new THREE.Shape();
   const outW = frameOuterX + baseOverhang;
   const outZ = frameOuterZ + baseOverhang;
@@ -1886,15 +1861,15 @@ function Table3D(parent) {
     TABLE_H * 0.85,
     maxSidePostHeight - SIDE_POST_CLEARANCE
   );
-  const sidePostThickness = railWMax * SIDE_POST_THICKNESS_SCALE;
-  const sidePostDepth = railWShort * SIDE_POST_DEPTH_SCALE;
+  const sidePostThickness = railW * SIDE_POST_THICKNESS_SCALE;
+  const sidePostDepth = railW * SIDE_POST_DEPTH_SCALE;
   const sidePostGeo = new THREE.BoxGeometry(
     sidePostThickness,
     sidePostHeight,
     sidePostDepth
   );
   const sidePostY = sidePostTopLocal - sidePostHeight / 2;
-  const sidePostOffsetX = frameOuterX - sidePostThickness / 2 - railWLong * 0.2;
+  const sidePostOffsetX = frameOuterX - sidePostThickness / 2 - railW * 0.2;
   const sidePostZ = frameOuterZ * SIDE_POST_SPREAD;
   [-sidePostZ, sidePostZ].forEach((zPos) => {
     [-1, 1].forEach((dir) => {
@@ -1906,7 +1881,7 @@ function Table3D(parent) {
     });
   });
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legInset = railWMax * 2.2;
+  const legInset = railW * 2.2;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
     [frameOuterX - legInset, -frameOuterZ + legInset],
@@ -2109,8 +2084,8 @@ function SnookerGame() {
         if (dz < 0) sides.down = true;
       }
     }
-    const halfW = PLAY_W / 2 - CUSHION_FACE_INSET_LONG;
-    const halfH = PLAY_H / 2 - CUSHION_FACE_INSET_SHORT;
+    const halfW = PLAY_W / 2 - CUSHION_FACE_INSET;
+    const halfH = PLAY_H / 2 - CUSHION_FACE_INSET;
     if (cue.pos.x + BALL_R >= halfW) sides.right = true;
     if (cue.pos.x - BALL_R <= -halfW) sides.left = true;
     if (cue.pos.y + BALL_R >= halfH) sides.up = true;
@@ -3883,8 +3858,8 @@ function SnookerGame() {
           }
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
-            const limX = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
-            const limY = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
+            const limX = PLAY_W / 2 - BALL_R - TABLE.WALL;
+            const limY = PLAY_H / 2 - BALL_R - TABLE.WALL;
             const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
             const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
