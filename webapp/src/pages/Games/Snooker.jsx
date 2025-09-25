@@ -1498,7 +1498,7 @@ function Table3D(parent) {
   clothShape.lineTo(halfWext, halfHext);
   clothShape.lineTo(-halfWext, halfHext);
   clothShape.lineTo(-halfWext, -halfHext);
-  const clothHoleRadius = POCKET_VIS_R * 1.02;
+  const clothHoleRadius = POCKET_HOLE_R;
   pocketCenters().forEach((p) => {
     const hole = new THREE.Path();
     hole.absellipse(p.x, p.y, clothHoleRadius, clothHoleRadius, 0, Math.PI * 2);
@@ -3003,7 +3003,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          13.248,
+          15.8976,
           0,
           Math.PI * 0.38,
           0.48,
