@@ -364,7 +364,7 @@ const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE * 0.5 // reduce interior rail thickness by 50%
+  WALL: 2.6 * TABLE_SCALE
 };
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const CLOTH_LIFT = (() => {
@@ -492,7 +492,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x1f8f4b,
+  cloth: 0x2db85f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -507,7 +507,7 @@ const COLORS = Object.freeze({
 });
 
 const CLOTH_TEXTURE_SIZE = 1024;
-const CLOTH_THREAD_PITCH = 12;
+const CLOTH_THREAD_PITCH = 18;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -536,10 +536,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x12, g: 0x5a, b: 0x2d };
-    const base = { r: 0x24, g: 0x86, b: 0x45 };
-    const accent = { r: 0x6c, g: 0x8d, b: 0x3e };
-    const highlight = { r: 0xa8, g: 0x96, b: 0x4f };
+    const shadow = { r: 0x19, g: 0x70, b: 0x3a };
+    const base = { r: 0x2a, g: 0xa3, b: 0x58 };
+    const accent = { r: 0x3f, g: 0xbd, b: 0x70 };
+    const highlight = { r: 0x5a, g: 0xd7, b: 0x86 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -1413,8 +1413,8 @@ function Table3D(parent) {
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 6; // thicker weave so threads read bolder across one ball
-  const clothTextureScale = 0.055; // enlarge weave pattern slightly more for added presence
+  const threadsPerBallTarget = 8; // amplify cloth weave visibility (~8 crossings across one ball)
+  const clothTextureScale = 0.04; // enlarge weave pattern an additional 5x for clearer visibility
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
