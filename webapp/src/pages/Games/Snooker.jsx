@@ -430,7 +430,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.64; // lift pocket rims slightly higher above the cloth
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // maintain cloth cut alignment above the recess
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -1848,9 +1848,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.74; // pull cushions back so they stop at the pocket arc transition
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.9; // trim long cushions further so they clear the pocket entrances cleanly
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.28; // shorten side cushions to avoid overhanging the pocket throat
+  const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.78; // trim long cushions slightly more so they clear the pocket entrances
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.2; // shorten side cushions so they meet but do not intrude on the side pockets
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
@@ -2051,11 +2051,9 @@ function SnookerGame() {
     CAMERA.maxPhi
   );
   const initialCueRadius = Math.max(BREAK_VIEW.radius, CUE_VIEW_MIN_RADIUS);
-  const initialStandingPhi = CAMERA.minPhi;
-  const initialStandingRadius = BREAK_VIEW.radius;
   const cameraBoundsRef = useRef({
-    cueShot: { phi: initialStandingPhi, radius: initialStandingRadius },
-    standing: { phi: initialCuePhi, radius: initialCueRadius }
+    cueShot: { phi: initialCuePhi, radius: initialCueRadius },
+    standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
@@ -2816,8 +2814,8 @@ function SnookerGame() {
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
           cameraBoundsRef.current = {
-            cueShot: { phi: standingPhi, radius: standingRadius },
-            standing: { phi: cuePhi, radius: cueRadius }
+            cueShot: { phi: cuePhi, radius: cueRadius },
+            standing: { phi: standingPhi, radius: standingRadius }
           };
           applyCameraBlend();
           const cushionLimit = Math.max(
