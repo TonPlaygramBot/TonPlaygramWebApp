@@ -14,7 +14,7 @@ import {
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { SnookerRules } from '../../../../src/rules/SnookerRules.ts';
+import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
@@ -829,8 +829,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 60 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
-  phi: CAMERA.maxPhi - 0.12
+  radius: 52 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  phi: CAMERA.maxPhi - 0.06
 });
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_VIEW_RADIUS_RATIO = 0.86;
@@ -967,6 +967,7 @@ const pocketCenters = () => [
   new THREE.Vector2(-PLAY_W / 2, 0),
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
+const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
 function makeClothTexture() {
@@ -2025,7 +2026,14 @@ function Table3D(parent) {
 function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
-  const rules = useMemo(() => new SnookerRules(), []);
+  const rules = useMemo(() => new UnitySnookerRules(), []);
+  const [frameState, setFrameState] = useState(() =>
+    rules.getInitialFrame('Player', 'AI')
+  );
+  const frameRef = useRef(frameState);
+  useEffect(() => {
+    frameRef.current = frameState;
+  }, [frameState]);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -2111,6 +2119,44 @@ function SnookerGame() {
       avatar: getTelegramPhotoUrl()
     });
   }, []);
+  useEffect(() => {
+    setFrameState((prev) => {
+      const nextName = player.name || 'Player';
+      if (prev.players.A.name === nextName) return prev;
+      return {
+        ...prev,
+        players: {
+          ...prev.players,
+          A: { ...prev.players.A, name: nextName }
+        }
+      };
+    });
+  }, [player.name]);
+  useEffect(() => {
+    setHud((prev) => {
+      const nextTargets = frameState.ballOn.map((c) => c.toLowerCase());
+      let nextLabel = prev.next;
+      if (nextTargets.length === 1) {
+        nextLabel = nextTargets[0];
+      } else if (nextTargets.length > 1) {
+        nextLabel = nextTargets.includes('red')
+          ? 'red'
+          : nextTargets[0];
+      } else if (frameState.phase === 'COLORS_ORDER') {
+        nextLabel = 'yellow';
+      }
+      return {
+        ...prev,
+        A: frameState.players.A.score,
+        B: frameState.players.B.score,
+        turn: frameState.activePlayer === 'A' ? 0 : 1,
+        phase:
+          frameState.phase === 'REDS_AND_COLORS' ? 'reds' : 'colors',
+        next: nextLabel,
+        over: frameState.frameOver
+      };
+    });
+  }, [frameState]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -3368,18 +3414,7 @@ function SnookerGame() {
 
       // Shot lifecycle
       let potted = [];
-      let foul = false;
       let firstHit = null;
-      const legalTarget = () =>
-        hud.phase === 'reds'
-          ? hud.next === 'red'
-            ? 'red'
-            : 'colour'
-          : hud.next;
-      const isRedId = (id) => id.startsWith('red');
-      const values = rules.getBallValues();
-      const val = (id) =>
-        isRedId(id) ? values.RED : values[id.toUpperCase()] || 0;
 
         // Fire (slider e thërret në release)
         const fire = () => {
@@ -3391,7 +3426,6 @@ function SnookerGame() {
           activeShotView = null;
           aimFocusRef.current = null;
           potted = [];
-          foul = false;
           firstHit = null;
           clearInterval(timerRef.current);
           const aimDir = aimDirRef.current.clone();
@@ -3502,104 +3536,67 @@ function SnookerGame() {
 
       // Resolve shot
       function resolve() {
-        const me = hud.turn === 0 ? 'A' : 'B',
-          op = hud.turn === 0 ? 'B' : 'A';
-        let gain = 0;
-        let swap = true;
-        if (!cue.active) foul = true;
-        const target = legalTarget();
-        if (firstHit) {
-          if (target === 'red' && !isRedId(firstHit)) foul = true;
-          else if (target === 'colour' && isRedId(firstHit)) foul = true;
-          else if (
-            target !== 'red' &&
-            target !== 'colour' &&
-            firstHit !== target
-          )
-            foul = true;
-        } else {
-          foul = true;
-        }
-        const reds = potted.filter(isRedId),
-          cols = potted.filter((id) => !isRedId(id));
-        if (hud.phase === 'reds') {
-          if (hud.next === 'red') {
-            if (cols.length > 0) foul = true;
-            gain += reds.length;
-            if (reds.length > 0 && !foul) {
-              setHud((s) => ({ ...s, next: 'colour' }));
-              swap = false;
+        const toBallColor = (id) => {
+          if (!id) return null;
+          if (id === 'cue' || id === 'CUE') return 'CUE';
+          if (typeof id === 'string' && id.startsWith('red')) return 'RED';
+          return typeof id === 'string' ? id.toUpperCase() : null;
+        };
+        const shotEvents = [];
+        const firstContactColor = toBallColor(firstHit);
+        shotEvents.push({ type: 'HIT', firstContact: firstContactColor });
+        potted.forEach((entry) => {
+          const pocket = entry.pocket ?? 'TM';
+          shotEvents.push({
+            type: 'POTTED',
+            ball: entry.color,
+            pocket
+          });
+        });
+        const currentState = frameRef.current ?? frameState;
+        const nextState = rules.applyShot(currentState, shotEvents);
+        frameRef.current = nextState;
+        setFrameState(nextState);
+        const cueBallPotted =
+          potted.some((entry) => entry.color === 'CUE') || !cue.active;
+        const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
+        colourNames.forEach((name) => {
+          const simBall = colors[name];
+          const stateBall = nextState.balls.find(
+            (b) => b.color === name.toUpperCase()
+          );
+          if (!simBall || !stateBall) return;
+          if (stateBall.onTable) {
+            if (!simBall.active) {
+              const [sx, sy] = SPOTS[name];
+              simBall.active = true;
+              simBall.mesh.visible = true;
+              simBall.pos.set(sx, sy);
+              simBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
+              simBall.vel.set(0, 0);
+              simBall.spin?.set(0, 0);
+              simBall.pendingSpin?.set(0, 0);
+              simBall.spinMode = 'standard';
             }
           } else {
-            if (reds.length > 0) foul = true;
-            if (cols.length > 0 && !foul) {
-              cols.forEach((id) => {
-                gain += val(id);
-                const b = colors[id];
-                if (b) {
-                  const [sx, sy] = SPOTS[id];
-                  b.active = true;
-                  b.mesh.visible = true;
-                  b.pos.set(sx, sy);
-                  b.mesh.position.set(sx, BALL_CENTER_Y, sy);
-                  if (b.spin) b.spin.set(0, 0);
-                  if (b.pendingSpin) b.pendingSpin.set(0, 0);
-                  b.spinMode = 'standard';
-                }
-              });
-              setHud((s) => ({ ...s, next: 'red' }));
-              swap = false;
-            }
+            simBall.active = false;
+            simBall.mesh.visible = false;
           }
-          const redsLeft = balls.some((b) => b.active && isRedId(b.id));
-          if (!redsLeft)
-            setHud((s) => ({ ...s, phase: 'colors', next: 'yellow' }));
-        } else {
-          if (
-            cols.length === 1 &&
-            reds.length === 0 &&
-            cols[0] === hud.next &&
-            !foul
-          ) {
-            gain += val(hud.next);
-            const order = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
-            const idx = order.indexOf(hud.next);
-            const nxt = order[idx + 1];
-            if (nxt) {
-              setHud((s) => ({ ...s, next: nxt }));
-              swap = false;
-            } else {
-              setHud((s) => ({ ...s, over: true }));
-            }
-          } else if (cols.length > 0 || reds.length > 0) {
-            foul = true;
-          }
-        }
-        if (foul) {
-          const foulPts = Math.max(
-            4,
-            ...potted.map((id) => val(id)),
-            cue.active ? 0 : 4
-          );
-          setHud((s) => ({
-            ...s,
-            [op]: s[op] + foulPts,
-            inHand: true,
-            next: s.phase === 'reds' ? 'red' : s.next
-          }));
+        });
+        if (cueBallPotted) {
           cue.active = false;
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
+          cue.pendingSpin?.set(0, 0);
           cue.spinMode = 'standard';
           cue.impacted = false;
-        } else if (gain > 0) {
-          setHud((s) => ({ ...s, [me]: s[me] + gain }));
+          cue.launchDir = null;
         }
-        if (swap || foul) setHud((s) => ({ ...s, turn: 1 - s.turn }));
-          shooting = false;
-          shotPrediction = null;
-          activeShotView = null;
+        setHud((prev) => ({ ...prev, inHand: cueBallPotted }));
+        shooting = false;
+        shotPrediction = null;
+        activeShotView = null;
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
@@ -3626,7 +3623,6 @@ function SnookerGame() {
             });
           }
           potted = [];
-          foul = false;
           firstHit = null;
         }
 
@@ -3878,7 +3874,8 @@ function SnookerGame() {
         // Kapje në xhepa
         balls.forEach((b) => {
           if (!b.active) return;
-          for (const c of centers) {
+          for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
+            const c = centers[pocketIndex];
             if (b.pos.distanceTo(c) < CAPTURE_R) {
               b.active = false;
               b.mesh.visible = false;
@@ -3888,7 +3885,13 @@ function SnookerGame() {
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              if (b !== cue) potted.push(b.id.startsWith('red') ? 'red' : b.id);
+              const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
+              const colorId = b.id === 'cue'
+                ? 'CUE'
+                : b.id.startsWith('red')
+                  ? 'RED'
+                  : b.id.toUpperCase();
+              potted.push({ id: b.id, color: colorId, pocket: pocketId });
               if (
                 activeShotView?.mode === 'pocket' &&
                 activeShotView.ballId === b.id
