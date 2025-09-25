@@ -319,7 +319,7 @@ function addPocketCuts(parent, clothPlane) {
       const diag = new THREE.Vector2(sx, sy).normalize();
       const inward = diag.clone().multiplyScalar(-1);
       const radialOffset = POCKET_VIS_R * 0.58;
-      const railInset = SIDE_RAIL_INNER_THICKNESS * 0.35;
+      const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
       mesh.scale.set(-1, 1, -1);
       mesh.rotation.y = Math.atan2(inward.y, inward.x) + Math.PI / 2;
       mesh.position.set(
@@ -1572,7 +1572,7 @@ function Table3D(parent) {
   });
 
   const railH = TABLE.THICK * 1.82;
-  const longRailW = ORIGINAL_RAIL_WIDTH * SIDE_RAIL_INNER_SCALE;
+  const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
   const frameWidthLong = Math.max(
     0,
