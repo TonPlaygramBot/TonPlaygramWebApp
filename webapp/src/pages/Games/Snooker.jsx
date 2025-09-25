@@ -1836,8 +1836,10 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.78; // trim long cushions slightly more so they clear the pocket entrances
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.2; // shorten side cushions so they meet but do not intrude on the side pockets
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
-  const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
+  const vertSeg =
+    PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
   const topZ = halfH;
   const leftX = -halfW;
@@ -1845,10 +1847,36 @@ function Table3D(parent) {
 
   addCushion(0, bottomZ, horizLen, true, false);
   addCushion(0, topZ, horizLen, true, true);
-  addCushion(leftX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, false);
-  addCushion(leftX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, false);
-  addCushion(rightX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, true);
-  addCushion(rightX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, true);
+  const sideCushionOffset = POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE;
+
+  addCushion(
+    leftX,
+    -halfH + sideCushionOffset + vertSeg / 2,
+    vertSeg,
+    false,
+    false
+  );
+  addCushion(
+    leftX,
+    halfH - sideCushionOffset - vertSeg / 2,
+    vertSeg,
+    false,
+    false
+  );
+  addCushion(
+    rightX,
+    -halfH + sideCushionOffset + vertSeg / 2,
+    vertSeg,
+    false,
+    true
+  );
+  addCushion(
+    rightX,
+    halfH - sideCushionOffset - vertSeg / 2,
+    vertSeg,
+    false,
+    true
+  );
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
@@ -2961,7 +2989,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          9.2,
+          11.04,
           0,
           Math.PI * 0.38,
           0.48,
