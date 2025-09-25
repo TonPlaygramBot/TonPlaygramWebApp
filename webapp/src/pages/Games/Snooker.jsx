@@ -402,7 +402,7 @@ const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.985;
-const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
+const POCKET_HOLE_R = POCKET_VIS_R * 1.45; // widen cloth cutout so no green cloth bleeds into the pocket recess
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
@@ -1579,12 +1579,33 @@ function Table3D(parent) {
     roughness: 0.6
   });
   const pocketMeshes = [];
+  const pocketLightGroup = new THREE.Group();
+  table.add(pocketLightGroup);
+  const pocketLightColor = new THREE.Color(0xfff3d2);
+  const pocketLightIndicatorMat = new THREE.MeshBasicMaterial({
+    color: pocketLightColor
+  });
+  const indicatorGeo = new THREE.SphereGeometry(POCKET_VIS_R * 0.08, 16, 16);
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, clothPlaneLocal - TABLE.THICK / 2, p.y);
     pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
+
+    const pocketLight = new THREE.PointLight(
+      pocketLightColor,
+      0.7,
+      POCKET_VIS_R * 8,
+      2.2
+    );
+    pocketLight.position.set(p.x, clothPlaneLocal - TABLE.THICK * 0.45, p.y);
+    pocketLightGroup.add(pocketLight);
+
+    const indicator = new THREE.Mesh(indicatorGeo, pocketLightIndicatorMat);
+    indicator.position.copy(pocketLight.position);
+    indicator.scale.setScalar(0.6);
+    pocketLightGroup.add(indicator);
   });
 
   const railH = TABLE.THICK * 1.82;
@@ -3003,7 +3024,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          15.8976,
+          19.07712,
           0,
           Math.PI * 0.38,
           0.48,
