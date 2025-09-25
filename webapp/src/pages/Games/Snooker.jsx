@@ -2982,29 +2982,19 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1.14);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        hemisphere.position.set(
-          0,
-          tableSurfaceY + scaledHeight * 1.4 + lightHeightLift,
-          0
-        );
+        const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
+        const triangleRadius = fixtureScale * 1.25;
+        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.75);
         lightingRig.add(hemisphere);
 
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.65);
-        hemisphereRig.position.set(
-          0,
-          tableSurfaceY + 6.6 * scaledHeight + lightHeightLift,
-          0
-        );
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.78);
+        hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
-        dirLight.position.set(
-          -1.25 * fixtureScale,
-          tableSurfaceY + 6.6 * scaledHeight + lightHeightLift,
-          0.95 * fixtureScale
-        );
+        dirLight.position.set(-triangleRadius, triangleHeight, triangleRadius * 0.5);
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
@@ -3017,10 +3007,7 @@ function SnookerGame() {
           0.48,
           1
         );
-        const spotOffsetX = 1.6 * fixtureScale;
-        const spotOffsetZ = 0.95 * fixtureScale;
-        const spotHeight = tableSurfaceY + 6.8 * scaledHeight + lightHeightLift;
-        spot.position.set(spotOffsetX, spotHeight, spotOffsetZ);
+        spot.position.set(triangleRadius, triangleHeight, triangleRadius * 0.5);
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
