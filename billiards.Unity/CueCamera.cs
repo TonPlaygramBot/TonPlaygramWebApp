@@ -24,6 +24,9 @@ public class CueCamera : MonoBehaviour
     // Distance and height when pulling the camera down for a close-up view.
     public float closeDistance = 0.7f;
     public float closeHeight = 0.15f;
+    // Additional offsets applied while the action camera is following a shot.
+    public float actionDistanceOffset = 0.25f;
+    public float actionHeightOffset = -0.05f;
     // Rotation speed in degrees per second for horizontal mouse movement.
     public float rotationSpeed = 90f;
     // Speed at which the view blends between normal and close-up when dragging vertically.
@@ -114,6 +117,12 @@ public class CueCamera : MonoBehaviour
 
         float distance = Mathf.Lerp(normalDistance, closeDistance, viewBlend);
         float height = Mathf.Lerp(normalHeight, closeHeight, viewBlend);
+
+        if (shotInProgress)
+        {
+            distance += actionDistanceOffset;
+            height = Mathf.Max(0.05f, height + actionHeightOffset);
+        }
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
