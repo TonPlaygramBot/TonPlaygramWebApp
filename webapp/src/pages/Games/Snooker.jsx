@@ -376,8 +376,6 @@ const CLOTH_LIFT = (() => {
 })();
 const SIDE_RAIL_INNER_REDUCTION = 0.7;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-const END_RAIL_INNER_REDUCTION = 0.7;
-const END_RAIL_INNER_SCALE = 1 - END_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
@@ -499,7 +497,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x239046,
+  cloth: 0x1f7f3c,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -522,8 +520,8 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_SIZE = 4096;
-const CLOTH_THREAD_PITCH = 14 * 1.2;
+const CLOTH_TEXTURE_SIZE = 2048;
+const CLOTH_THREAD_PITCH = 14;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -552,10 +550,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x16, g: 0x56, b: 0x2f };
-    const base = { r: 0x26, g: 0x84, b: 0x42 };
-    const accent = { r: 0x38, g: 0x9c, b: 0x52 };
-    const highlight = { r: 0x58, g: 0xc6, b: 0x78 };
+    const shadow = { r: 0x12, g: 0x4a, b: 0x28 };
+    const base = { r: 0x1e, g: 0x6f, b: 0x36 };
+    const accent = { r: 0x2d, g: 0x8c, b: 0x45 };
+    const highlight = { r: 0x4a, g: 0xb4, b: 0x68 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -580,15 +578,15 @@ const createClothTextures = (() => {
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
-        const fuzz = Math.pow(fiber, 0.92);
+        const fuzz = Math.pow(fiber, 1.2);
         const tonal = THREE.MathUtils.clamp(
-          0.56 +
-            (weave - 0.5) * 0.48 +
-            (cross - 0.5) * 0.42 +
-            (diamond - 0.5) * 0.46 +
-            (fiber - 0.5) * 0.34 +
-            (fuzz - 0.5) * 0.26 +
-            (micro - 0.5) * 0.18,
+          0.54 +
+            (weave - 0.5) * 0.52 +
+            (cross - 0.5) * 0.44 +
+            (diamond - 0.5) * 0.5 +
+            (fiber - 0.5) * 0.28 +
+            (fuzz - 0.5) * 0.18 +
+            (micro - 0.5) * 0.16,
           0,
           1
         );
@@ -636,7 +634,7 @@ const createClothTextures = (() => {
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
     colorMap.repeat.set(16, 64);
-    colorMap.anisotropy = 128;
+    colorMap.anisotropy = 64;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
@@ -659,18 +657,18 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.3);
+        const weave = Math.pow((warp + weft) * 0.5, 1.48);
         const cross = Math.pow(warp * weft, 0.9);
         const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.64);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const bump = THREE.MathUtils.clamp(
-          0.56 +
-            (weave - 0.5) * 0.78 +
-            (cross - 0.5) * 0.42 +
-            (diamond - 0.5) * 0.48 +
-            (fiber - 0.5) * 0.4 +
-            (micro - 0.5) * 0.26,
+          0.54 +
+            (weave - 0.5) * 0.82 +
+            (cross - 0.5) * 0.4 +
+            (diamond - 0.5) * 0.5 +
+            (fiber - 0.5) * 0.32 +
+            (micro - 0.5) * 0.22,
           0,
           1
         );
@@ -1426,18 +1424,18 @@ function Table3D(parent) {
     sheenRoughness: 0.46,
     clearcoat: 0.05,
     clearcoatRoughness: 0.26,
-    emissive: clothPrimary.clone().multiplyScalar(0.1),
-    emissiveIntensity: 1.05
+    emissive: clothPrimary.clone().multiplyScalar(0.09),
+    emissiveIntensity: 1
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 7.2; // coarser weave with thicker fibres
-  const clothTextureScale = 0.0288; // reduce cloth pattern frequency by 20%
+  const threadsPerBallTarget = 9; // tighten the weave slightly while keeping detail visible
+  const clothTextureScale = 0.036; // keep the weave legible after increasing texture resolution
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.15;
-  const baseBumpScale = 1.12;
+  const baseBumpScale = 0.88;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -1575,7 +1573,7 @@ function Table3D(parent) {
 
   const railH = TABLE.THICK * 1.82;
   const longRailW = ORIGINAL_RAIL_WIDTH * SIDE_RAIL_INNER_SCALE;
-  const endRailW = ORIGINAL_RAIL_WIDTH * END_RAIL_INNER_SCALE;
+  const endRailW = ORIGINAL_RAIL_WIDTH;
   const frameWidthLong = Math.max(
     0,
     ORIGINAL_OUTER_HALF_W - halfW - 2 * longRailW
@@ -1749,7 +1747,7 @@ function Table3D(parent) {
   table.add(railsGroup);
 
   const FACE_SHRINK_LONG = 0.955;
-  const FACE_SHRINK_SHORT = 0.955;
+  const FACE_SHRINK_SHORT = 0.9;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
@@ -1835,10 +1833,9 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
-  const SHORT_CUSHION_GAP = POCKET_GAP * 0.82; // widen the short-end cushions without affecting the long rails
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.78; // trim long cushions slightly more so they clear the pocket entrances
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
-  const vertSeg = PLAY_H / 2 - 2 * SHORT_CUSHION_GAP;
+  const vertSeg = PLAY_H / 2 - 2 * POCKET_GAP;
   const bottomZ = -halfH;
   const topZ = halfH;
   const leftX = -halfW;
@@ -1846,10 +1843,10 @@ function Table3D(parent) {
 
   addCushion(0, bottomZ, horizLen, true, false);
   addCushion(0, topZ, horizLen, true, true);
-  addCushion(leftX, -halfH + SHORT_CUSHION_GAP + vertSeg / 2, vertSeg, false, false);
-  addCushion(leftX, halfH - SHORT_CUSHION_GAP - vertSeg / 2, vertSeg, false, false);
-  addCushion(rightX, -halfH + SHORT_CUSHION_GAP + vertSeg / 2, vertSeg, false, true);
-  addCushion(rightX, halfH - SHORT_CUSHION_GAP - vertSeg / 2, vertSeg, false, true);
+  addCushion(leftX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, false);
+  addCushion(leftX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, false);
+  addCushion(rightX, -halfH + POCKET_GAP + vertSeg / 2, vertSeg, false, true);
+  addCushion(rightX, halfH - POCKET_GAP - vertSeg / 2, vertSeg, false, true);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
