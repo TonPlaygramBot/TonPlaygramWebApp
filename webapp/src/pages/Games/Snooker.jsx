@@ -443,9 +443,9 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: SIDE_RAIL_INNER_THICKNESS + POCKET_VIS_R * 0.95,
+  minOutside: SIDE_RAIL_INNER_THICKNESS + POCKET_VIS_R * 1.05,
   maxOutside: BALL_R * 32,
-  heightOffset: BALL_R * 5.1
+  heightOffset: BALL_R * 4.6
 });
 const SPIN_STRENGTH = BALL_R * 0.5;
 const SPIN_DECAY = 0.88;
@@ -807,7 +807,7 @@ const STANDING_VIEW_MARGIN = 0.74;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.005;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.03;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -829,7 +829,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 52 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: 46 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
   phi: CAMERA.maxPhi - 0.06
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -2537,7 +2537,7 @@ function SnookerGame() {
           const radius = clampOrbitRadius(baseRadius);
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
-            TABLE.THICK - 0.05,
+            TABLE.THICK,
             cushionHeight + CAMERA_CUSHION_CLEARANCE
           );
           const phiRailLimit = Math.acos(
