@@ -364,7 +364,7 @@ const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE * 0.5 // reduce interior rail thickness by 50%
+  WALL: 2.6 * TABLE_SCALE * 0.25 // trim interior rail intrusion by an additional 50%
 };
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const CLOTH_LIFT = (() => {
@@ -492,7 +492,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const RAIL_WOOD_COLOR = 0x3a2a1a;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
-  cloth: 0x1f8f4b,
+  cloth: 0x137f32,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -507,7 +507,7 @@ const COLORS = Object.freeze({
 });
 
 const CLOTH_TEXTURE_SIZE = 1024;
-const CLOTH_THREAD_PITCH = 12;
+const CLOTH_THREAD_PITCH = 18; // coarser spacing so threads read thicker and softer
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -536,10 +536,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x12, g: 0x5a, b: 0x2d };
-    const base = { r: 0x24, g: 0x86, b: 0x45 };
-    const accent = { r: 0x6c, g: 0x8d, b: 0x3e };
-    const highlight = { r: 0xa8, g: 0x96, b: 0x4f };
+    const shadow = { r: 0x0c, g: 0x3b, b: 0x19 };
+    const base = { r: 0x1a, g: 0x6e, b: 0x31 };
+    const accent = { r: 0x28, g: 0x92, b: 0x41 };
+    const highlight = { r: 0x48, g: 0xbc, b: 0x6d };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -547,8 +547,11 @@ const createClothTextures = (() => {
       hashNoise(x, y, 32.654, 23.147, 15.73) * 0.3 +
       hashNoise(x, y, 63.726, 12.193, -9.21) * 0.1;
     const microNoise = (x, y) =>
-      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.7 +
-      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.3;
+      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.6 +
+      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.4;
+    const pileNoise = (x, y) =>
+      hashNoise(x, y, 17.13, 91.7, 6.4) * 0.55 +
+      hashNoise(x, y, 9.71, 47.33, -2.1) * 0.45;
     const sparkleNoise = (x, y) =>
       hashNoise(x, y, 73.19, 11.17, 7.2) * 0.5 +
       hashNoise(x, y, 27.73, 61.91, -14.4) * 0.5;
@@ -558,42 +561,44 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.65);
-        const cross = Math.pow(warp * weft, 0.9);
-        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.62);
+        const weave = Math.pow((warp + weft) * 0.5, 1.45);
+        const cross = Math.pow(warp * weft, 0.85);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.58);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
+        const pile = pileNoise(x * 0.95, y * 0.95);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const tonal = THREE.MathUtils.clamp(
-          0.56 +
-            (weave - 0.5) * 0.5 +
-            (cross - 0.5) * 0.42 +
-            (diamond - 0.5) * 0.55 +
-            (fiber - 0.5) * 0.2 +
-            (micro - 0.5) * 0.16,
+          0.54 +
+            (weave - 0.5) * 0.54 +
+            (cross - 0.5) * 0.46 +
+            (diamond - 0.5) * 0.62 +
+            (fiber - 0.5) * 0.16 +
+            (micro - 0.5) * 0.12 +
+            (pile - 0.5) * 0.18,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
-          0.5 + (tonal - 0.5) * 1.48,
+          0.5 + (tonal - 0.5) * 1.6,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
-          0.35 +
-            (cross - 0.5) * 0.42 +
-            (diamond - 0.5) * 0.68 +
-            (sparkle - 0.5) * 0.34,
+          0.32 +
+            (cross - 0.5) * 0.45 +
+            (diamond - 0.5) * 0.74 +
+            (sparkle - 0.5) * 0.28,
           0,
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.42 + (diamond - 0.5) * 1.05 + (fiber - 0.5) * 0.24,
+          0.46 + (diamond - 0.5) * 1.08 + (pile - 0.5) * 0.22,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
-          0.38 + (highlightMix - 0.5) * 1.5,
+          0.36 + (highlightMix - 0.5) * 1.65,
           0,
           1
         );
@@ -617,7 +622,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(12, 48);
+    colorMap.repeat.set(8, 40);
     colorMap.anisotropy = 32;
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
@@ -641,18 +646,20 @@ const createClothTextures = (() => {
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
         const warp = 0.5 + 0.5 * Math.cos(u);
         const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.4);
-        const cross = Math.pow(warp * weft, 0.92);
-        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
+        const weave = Math.pow((warp + weft) * 0.5, 1.3);
+        const cross = Math.pow(warp * weft, 0.88);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.62);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
+        const pile = pileNoise(x * 0.95, y * 0.95);
         const bump = THREE.MathUtils.clamp(
-          0.54 +
-            (weave - 0.5) * 0.78 +
-            (cross - 0.5) * 0.42 +
-            (diamond - 0.5) * 0.56 +
-            (fiber - 0.5) * 0.26 +
-            (micro - 0.5) * 0.2,
+          0.52 +
+            (weave - 0.5) * 0.86 +
+            (cross - 0.5) * 0.44 +
+            (diamond - 0.5) * 0.6 +
+            (fiber - 0.5) * 0.22 +
+            (micro - 0.5) * 0.18 +
+            (pile - 0.5) * 0.24,
           0,
           1
         );
@@ -1414,12 +1421,12 @@ function Table3D(parent) {
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 6; // thicker weave so threads read bolder across one ball
-  const clothTextureScale = 0.055; // enlarge weave pattern slightly more for added presence
+  const clothTextureScale = 0.07; // scale pattern up to emphasise the heavier felt texture
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
-  const repeatRatio = 3.15;
-  const baseBumpScale = 0.74;
+  const repeatRatio = 3.05;
+  const baseBumpScale = 0.82;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
