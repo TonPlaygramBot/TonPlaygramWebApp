@@ -178,8 +178,8 @@ function addPocketJaws(parent, playW, playH) {
       const width = adjustedBox
         ? adjustedBox.max.x - adjustedBox.min.x
         : POCKET_VIS_R * 1.2;
-      const segmentScale = 0.56;
-      const offset = width * 0.32;
+      const segmentScale = 0.62;
+      const offset = width * 0.24;
       for (const dir of [-1, 1]) {
         const segmentGeom = geom.clone();
         segmentGeom.scale(segmentScale, 1, 1);
@@ -206,8 +206,8 @@ function addPocketJaws(parent, playW, playH) {
         const rimGeo = makeJawSector(
           POCKET_VIS_R * 1.02,
           JAW_T * 0.42,
-          dir < 0 ? -SIDE_SECTOR_SWEEP : 0,
-          dir < 0 ? 0 : SIDE_SECTOR_SWEEP,
+          -SIDE_SECTOR_SWEEP,
+          SIDE_SECTOR_SWEEP,
           capHeight * 0.22
         );
         rimGeo.computeBoundingBox();
