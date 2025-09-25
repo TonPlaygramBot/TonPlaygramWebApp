@@ -1850,9 +1850,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.74; // stop cushions right as the corner pocket arcs begin
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.86; // trim long cushions so they clear the exposed pocket rims
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.24; // shorten side cushions to end before the side pocket curves
+  const POCKET_GAP = POCKET_VIS_R * 0.64; // tighten gap so cushions meet pocket arcs sooner
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.72; // pull long cushions closer while keeping rim clearance
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.18; // extend side cushions to meet the pocket arcs evenly
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
