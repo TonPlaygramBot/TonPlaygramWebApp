@@ -100,9 +100,7 @@ function addPocketJaws(parent, playW, playH) {
   const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
   const jawDepthTarget = CLOTH_THICKNESS;
   const capHeight = CLOTH_THICKNESS * 0.36;
-  const capLift =
-    CLOTH_THICKNESS * 0.18 +
-    POCKET_LIP_EXTRA_LIFT; // lift jaw caps so pocket lips read above the cloth plane
+  const capLift = CLOTH_THICKNESS * 0.18; // lift jaw caps so pocket lips read above the cloth plane
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -397,9 +395,7 @@ const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * TABLE.WALL;
-const ACTION_CAMERA_BLEND = 0;
-const STANDING_CAMERA_BLEND = 1;
-const ACTION_CAMERA_START_BLEND = ACTION_CAMERA_BLEND;
+const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -428,18 +424,13 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const POCKET_LIP_EXTRA_LIFT = CLOTH_THICKNESS * 0.12;
 const POCKET_JAW_LIP_HEIGHT =
-  CLOTH_TOP_LOCAL +
-  CLOTH_LIFT +
-  POCKET_LIP_EXTRA_LIFT; // keep the pocket rims slightly proud of the cloth surface
+  CLOTH_TOP_LOCAL + CLOTH_LIFT; // keep the pocket rims in contact with the cloth surface
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT =
-  CLOTH_THICKNESS * 0.56 +
-  POCKET_LIP_EXTRA_LIFT; // maintain cloth cut alignment while lifting the pocket rims
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.56; // maintain cloth cut alignment above the recess
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -1857,11 +1848,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP =
-    POCKET_VIS_R * 0.72; // allow short-side cushions to reach a little closer to each corner
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.84; // trim long cushions slightly more so they clear the pocket entrances
-  const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.26; // shorten side cushions so they meet but do not intrude on the side pockets
+  const POCKET_GAP = POCKET_VIS_R * 0.68; // allow short-side cushions to reach a little closer to each corner
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.78; // trim long cushions slightly more so they clear the pocket entrances
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.2; // shorten side cushions so they meet but do not intrude on the side pockets
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
@@ -3394,7 +3383,7 @@ function SnookerGame() {
         const fire = () => {
           if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
             return;
-          applyCameraBlend(ACTION_CAMERA_BLEND);
+          applyCameraBlend(1);
           updateCamera();
           shooting = true;
           activeShotView = null;
@@ -3626,7 +3615,7 @@ function SnookerGame() {
             const behindRadius = clampOrbitRadius(
               standingView?.radius ?? BREAK_VIEW.radius
             );
-            applyCameraBlend(STANDING_CAMERA_BLEND);
+            applyCameraBlend(1);
             animateCamera({
               radius: behindRadius,
               phi: behindPhi,
