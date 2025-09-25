@@ -1747,7 +1747,7 @@ function Table3D(parent) {
   table.add(railsGroup);
 
   const FACE_SHRINK_LONG = 0.955;
-  const FACE_SHRINK_SHORT = 0.9;
+  const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
