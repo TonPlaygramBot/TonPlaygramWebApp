@@ -316,16 +316,16 @@ function addPocketCuts(parent, clothPlane) {
     if (isCorner) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
-      const diag = new THREE.Vector2(sx, sy).normalize();
-      const inward = diag.clone().multiplyScalar(-1);
+      const outward = new THREE.Vector2(sx, sy).normalize();
+      const inward = outward.clone().multiplyScalar(-1);
       const radialOffset = POCKET_VIS_R * 0.58;
       const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
-      mesh.scale.set(-1, 1, -1);
+      mesh.scale.set(sx < 0 ? -1 : 1, 1, sy < 0 ? -1 : 1);
       mesh.rotation.y = Math.atan2(inward.y, inward.x) + Math.PI / 2;
       mesh.position.set(
-        sx * (halfW + railInset) + diag.x * radialOffset,
+        sx * (halfW + railInset) + outward.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
-        sy * (halfH + railInset) + diag.y * radialOffset
+        sy * (halfH + railInset) + outward.y * radialOffset
       );
     } else {
       const sy = Math.sign(p.y) || 1;
