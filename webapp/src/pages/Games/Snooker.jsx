@@ -1767,7 +1767,7 @@ function Table3D(parent) {
     const v = Math.abs(zIn - (signZ < 0 ? -halfH : halfH));
     const R = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
-    shape.lineTo(cxL - dx, zIn);
+    shape.lineTo(cxL + dx, zIn);
     addCornerArcEnd(shape, signZ, -1);
     shape.lineTo(-outerHalfW, zIn);
     if (radius > 0) {
