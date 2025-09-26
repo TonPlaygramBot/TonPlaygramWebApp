@@ -398,7 +398,7 @@ const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
-const ACTION_CAMERA_START_BLEND = 1;
+const ACTION_CAMERA_START_BLEND = 0;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -815,12 +815,16 @@ const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.09;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.54;
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
+const BROADCAST_DISTANCE_MULTIPLIER = 1.16;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.45;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * 0.68,
-  maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * PLAYER_CAMERA_DISTANCE_FACTOR,
+  maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * BROADCAST_RADIUS_LIMIT_MULTIPLIER,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
@@ -840,7 +844,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.005
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.78;
+const CUE_VIEW_RADIUS_RATIO = 0.7;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -2902,8 +2906,14 @@ function SnookerGame() {
           camera.aspect = host.clientWidth / host.clientHeight;
           const standingRadiusRaw = fitRadius(camera, m);
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
-          const standingRadius = clampOrbitRadius(
-            Math.max(standingRadiusRaw, cueBase)
+          const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
+          const broadcastRadius =
+            playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER +
+            BROADCAST_RADIUS_PADDING;
+          const standingRadius = clamp(
+            broadcastRadius,
+            CAMERA.minR,
+            CAMERA.maxR
           );
           const standingPhi = THREE.MathUtils.clamp(
             STANDING_VIEW.phi,
@@ -2912,7 +2922,7 @@ function SnookerGame() {
           );
           const cueRadius = clampOrbitRadius(
             Math.max(
-              standingRadius * CUE_VIEW_RADIUS_RATIO,
+              playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
               CUE_VIEW_MIN_RADIUS
             )
           );
@@ -2926,6 +2936,7 @@ function SnookerGame() {
             standing: { phi: standingPhi, radius: standingRadius }
           };
           applyCameraBlend();
+          orbitRadiusLimitRef.current = standingRadius;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
             (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
