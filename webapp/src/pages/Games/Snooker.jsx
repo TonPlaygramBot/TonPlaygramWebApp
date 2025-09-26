@@ -815,11 +815,11 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
-const STANDING_VIEW_MARGIN = 0.44;
+const STANDING_VIEW_MARGIN = 0.4;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.05;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14;
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.46;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 const BROADCAST_DISTANCE_MULTIPLIER = 1.04;
@@ -845,7 +845,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: CAMERA.minR * 1.15, // start a little closer to the table for the initial shot view
+  radius: CAMERA.minR * 1.05, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.005
 });
 const CAMERA_RAIL_SAFETY = 0.02;
