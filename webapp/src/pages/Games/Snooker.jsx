@@ -100,7 +100,7 @@ function addPocketJaws(parent, playW, playH) {
   const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
   const jawDepthTarget = CLOTH_THICKNESS;
   const capHeight = CLOTH_THICKNESS * 0.36;
-  const capLift = CLOTH_THICKNESS * 0.18; // lift jaw caps so pocket lips read above the cloth plane
+  const capLift = CLOTH_THICKNESS * 0.28; // lift jaw caps so pocket lips read above the cloth plane
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -434,7 +434,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL +
   CLOTH_LIFT +
-  BALL_R * 0.05; // lift the pocket rims slightly so they sit more prominently above the cloth
+  BALL_R * 0.0625; // lift the pocket rims slightly so they sit more prominently above the cloth
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -462,13 +462,15 @@ const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 20,
   pairMaxDistance: BALL_R * 60,
   pairDistanceScale: 0.9,
-  sideBias: 1.08,
-  forwardBias: 0.18,
-  heightOffset: BALL_R * 9.2,
+  sideBias: 1.24,
+  forwardBias: 0.1,
+  shortRailBias: 0.52,
+  followShortRailBias: 0.42,
+  heightOffset: BALL_R * 8.8,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 42,
-  followHeightOffset: BALL_R * 7.2,
+  followHeightOffset: BALL_R * 6.8,
   followHoldMs: 900
 });
 const POCKET_VIEW_MIN_DURATION_MS = 900;
@@ -828,7 +830,7 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9;
+const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
 const STANDING_VIEW_MARGIN = 0.4;
 const STANDING_VIEW_FOV = 66;
@@ -2711,10 +2713,22 @@ function SnookerGame() {
                   BALL_CENTER_Y + BALL_R * 0.3,
                   mid.y
                 );
+                const shortRailDir = (() => {
+                  if (Math.abs(mid.y) > 1e-6) return Math.sign(mid.y);
+                  if (Math.abs(cueBall.pos.y) > 1e-6) return Math.sign(cueBall.pos.y);
+                  return Math.sign(forward.y) || 1;
+                })();
+                const shortRailOffset = distance * ACTION_CAM.shortRailBias;
+                const shortRailLimit = PLAY_H / 2 + BALL_R * 14;
+                const biasedZ = THREE.MathUtils.clamp(
+                  anchor.z + offsetSide.y + offsetBack.y + shortRailDir * shortRailOffset,
+                  -shortRailLimit,
+                  shortRailLimit
+                );
                 const desired = new THREE.Vector3(
                   anchor.x + offsetSide.x + offsetBack.x,
                   TABLE_Y + TABLE.THICK + ACTION_CAM.heightOffset,
-                  anchor.z + offsetSide.y + offsetBack.y
+                  biasedZ
                 );
                 focusTargetVec3 = anchor.clone().multiplyScalar(worldScaleFactor);
                 desiredPosition = desired.multiplyScalar(worldScaleFactor);
@@ -2745,10 +2759,24 @@ function SnookerGame() {
                   ACTION_CAM.pairMaxDistance
                 );
                 const lateral = perp.multiplyScalar(BALL_R * 6);
+                const followShortRailDir = (() => {
+                  if (Math.abs(anchor.z) > 1e-6) return Math.sign(anchor.z);
+                  if (Math.abs(cueBall.pos.y) > 1e-6) return Math.sign(cueBall.pos.y);
+                  return Math.sign(dir.y) || 1;
+                })();
+                const followShortRailOffset =
+                  distance * ACTION_CAM.followShortRailBias;
+                const followShortRailLimit = PLAY_H / 2 + BALL_R * 14;
+                const biasedFollowZ = THREE.MathUtils.clamp(
+                  anchor.z - dir.y * distance + lateral.y +
+                    followShortRailDir * followShortRailOffset,
+                  -followShortRailLimit,
+                  followShortRailLimit
+                );
                 const desired = new THREE.Vector3(
                   anchor.x - dir.x * distance + lateral.x,
                   TABLE_Y + TABLE.THICK + ACTION_CAM.followHeightOffset,
-                  anchor.z - dir.y * distance + lateral.y
+                  biasedFollowZ
                 );
                 focusTargetVec3 = anchor.clone().multiplyScalar(worldScaleFactor);
                 desiredPosition = desired.multiplyScalar(worldScaleFactor);
@@ -2782,6 +2810,7 @@ function SnookerGame() {
               );
             }
             const pocketCenter = activeShotView.pocketCenter;
+            const isSidePocket = Boolean(activeShotView.isSidePocket);
             const toPocket = pocketCenter.clone().sub(ballPos2D);
             const distToPocket = toPocket.length();
             const approachDir = activeShotView.approach;
@@ -2806,9 +2835,10 @@ function SnookerGame() {
             const offsetVec = approachDir
               .clone()
               .multiplyScalar(dynamicOffset);
+            const offsetScale = isSidePocket ? 0.2 : 0.35;
             const anchorPoint = pocketCenter
               .clone()
-              .add(offsetVec.clone().multiplyScalar(0.45));
+              .add(offsetVec.clone().multiplyScalar(offsetScale));
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
             const camHeight =
@@ -2828,10 +2858,10 @@ function SnookerGame() {
               -approachDir.x,
               0,
               -approachDir.y
-            );
+            ).multiplyScalar(isSidePocket ? 0.35 : 0.8);
             const guidedPocketAim = pocketAim
               .clone()
-              .add(approachVec3.clone().multiplyScalar(BALL_R * 0.8));
+              .add(approachVec3.clone().multiplyScalar(BALL_R));
             const focusTarget = focusBall?.active
               ? guidedPocketAim
                   .clone()
@@ -2841,7 +2871,7 @@ function SnookerGame() {
                       BALL_CENTER_Y,
                       focusBall.pos.y
                     ),
-                    0.35
+                    isSidePocket ? 0.25 : 0.35
                   )
               : guidedPocketAim;
             focusTarget.multiplyScalar(worldScaleFactor);
@@ -3105,13 +3135,23 @@ function SnookerGame() {
             }
           }
           if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
+          const isSidePocket = Math.abs(best.center.y) < BALL_R * 0.5;
+          if (
+            isSidePocket &&
+            !(Math.abs(best.pocketDir.x) > Math.abs(best.pocketDir.y) * 0.7)
+          ) {
+            return null;
+          }
           if (best.dist > POCKET_CAM.triggerDist) return null;
           const outsideOffset = THREE.MathUtils.clamp(
             best.dist * 0.65 + POCKET_VIS_R + BALL_R * 0.4,
             POCKET_CAM.minOutside,
             POCKET_CAM.maxOutside
           );
-          const heightOffset = POCKET_CAM.heightOffset;
+          const baseHeightOffset = POCKET_CAM.heightOffset;
+          const heightOffset = isSidePocket
+            ? baseHeightOffset * 0.92
+            : baseHeightOffset;
           const resumeOrbit = followView?.orbitSnapshot
             ? {
                 radius: followView.orbitSnapshot.radius,
@@ -3137,7 +3177,8 @@ function SnookerGame() {
             resumeOrbit,
             startedAt: now,
             holdUntil: now + POCKET_VIEW_MIN_DURATION_MS,
-            completed: false
+            completed: false,
+            isSidePocket
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
