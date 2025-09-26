@@ -1631,45 +1631,6 @@ function Table3D(parent) {
   const zInB = -(halfH + cushionBackEnd - MICRO_EPS);
   const zInT = halfH + cushionBackEnd - MICRO_EPS;
 
-  const TWO_PI = Math.PI * 2;
-  const ANGLE_EPS = 1e-6;
-
-  const unwrapAngle = (angle, reference) => {
-    const diff = angle - reference;
-    if (diff > Math.PI) return angle - TWO_PI;
-    if (diff < -Math.PI) return angle + TWO_PI;
-    return angle;
-  };
-
-  const orientArc = (startAngle, endAngle, midAngle) => {
-    const candidates = [endAngle, endAngle + TWO_PI, endAngle - TWO_PI];
-    const targetDelta = unwrapAngle(midAngle, startAngle) - startAngle;
-    let best = null;
-    for (const candidate of candidates) {
-      const delta = candidate - startAngle;
-      if (Math.abs(delta) < ANGLE_EPS) continue;
-      const clockwise = delta < 0;
-      const contains = clockwise
-        ? targetDelta <= ANGLE_EPS && targetDelta >= delta - ANGLE_EPS
-        : targetDelta >= -ANGLE_EPS && targetDelta <= delta + ANGLE_EPS;
-      if (!contains) continue;
-      const score = Math.abs(delta);
-      if (!best || score < best.score) {
-        best = { end: candidate, clockwise, score };
-      }
-    }
-    if (!best) {
-      const fallbackEnd = unwrapAngle(endAngle, startAngle);
-      const delta = fallbackEnd - startAngle;
-      best = {
-        end: fallbackEnd,
-        clockwise: delta < 0,
-        score: Math.abs(delta)
-      };
-    }
-    return best;
-  };
-
   function addCornerArcLong(shape, signX, signZ) {
     const xIn = signX < 0 ? xInL : xInR;
     const cx = signX < 0 ? -halfW : halfW;
@@ -1680,15 +1641,17 @@ function Table3D(parent) {
     const start = new THREE.Vector2(xIn, cz + signZ * dz);
     const end = new THREE.Vector2(xIn, cz - signZ * dz);
     shape.lineTo(start.x, start.y);
-    const startAngle = Math.atan2(start.y - cz, start.x - cx);
-    const endAngle = Math.atan2(end.y - cz, end.x - cx);
-    const midAngle = Math.atan2(-cz, -cx);
-    const { end: finalEndAngle, clockwise } = orientArc(
-      startAngle,
-      endAngle,
-      midAngle
-    );
-    shape.absarc(cx, cz, R, startAngle, finalEndAngle, clockwise);
+    let startAngle = Math.atan2(start.y - cz, start.x - cx);
+    let endAngle = Math.atan2(end.y - cz, end.x - cx);
+    let delta = endAngle - startAngle;
+    if (delta > Math.PI) {
+      endAngle -= Math.PI * 2;
+      delta = endAngle - startAngle;
+    } else if (delta < -Math.PI) {
+      endAngle += Math.PI * 2;
+      delta = endAngle - startAngle;
+    }
+    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
   function addCornerArcEnd(shape, signZ, signX) {
@@ -1701,15 +1664,17 @@ function Table3D(parent) {
     const start = new THREE.Vector2(cx + signX * dx, zIn);
     const end = new THREE.Vector2(cx - signX * dx, zIn);
     shape.lineTo(start.x, start.y);
-    const startAngle = Math.atan2(start.y - cz, start.x - cx);
-    const endAngle = Math.atan2(end.y - cz, end.x - cx);
-    const midAngle = Math.atan2(-cz, -cx);
-    const { end: finalEndAngle, clockwise } = orientArc(
-      startAngle,
-      endAngle,
-      midAngle
-    );
-    shape.absarc(cx, cz, R, startAngle, finalEndAngle, clockwise);
+    let startAngle = Math.atan2(start.y - cz, start.x - cx);
+    let endAngle = Math.atan2(end.y - cz, end.x - cx);
+    let delta = endAngle - startAngle;
+    if (delta > Math.PI) {
+      endAngle -= Math.PI * 2;
+      delta = endAngle - startAngle;
+    } else if (delta < -Math.PI) {
+      endAngle += Math.PI * 2;
+      delta = endAngle - startAngle;
+    }
+    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
   function buildLongRail(signX) {
