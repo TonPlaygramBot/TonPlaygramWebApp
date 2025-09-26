@@ -51,6 +51,15 @@ const chromeRimMat = new THREE.MeshPhysicalMaterial({
   clearcoatRoughness: 0.18,
   envMapIntensity: 1.6
 });
+const pocketRimMat = new THREE.MeshPhysicalMaterial({
+  color: 0x090909,
+  roughness: 0.42,
+  metalness: 0.35,
+  clearcoat: 0.24,
+  clearcoatRoughness: 0.32,
+  sheen: 0.28,
+  sheenRoughness: 0.68
+});
 function makeJawSector(
   R = POCKET_VIS_R,
   T = JAW_T,
@@ -121,6 +130,54 @@ function addPocketJaws(parent, playW, playH) {
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     capHeight
+  );
+  const alignTop = (geo) => {
+    geo.computeBoundingBox();
+    const box = geo.boundingBox;
+    if (box) {
+      const shift = -box.max.y;
+      if (Math.abs(shift) > 1e-6) geo.translate(0, shift, 0);
+    }
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    return geo;
+  };
+  const sideChromeBaseGeo = alignTop(
+    makeJawSector(
+      POCKET_VIS_R * 1.08,
+      JAW_T * 0.55,
+      -SIDE_SECTOR_SWEEP * 0.92,
+      SIDE_SECTOR_SWEEP * 0.92,
+      capHeight * 0.32
+    )
+  );
+  const sideRimBaseGeo = alignTop(
+    makeJawSector(
+      POCKET_VIS_R * 1.02,
+      JAW_T * 0.26,
+      -SIDE_SECTOR_SWEEP * 0.92,
+      SIDE_SECTOR_SWEEP * 0.92,
+      capHeight * 0.16
+    )
+  );
+  const cornerChromeBaseGeo = alignTop(
+    makeJawSector(
+      POCKET_VIS_R * 1.08,
+      JAW_T * 0.7,
+      SECTOR_START * 0.82,
+      SECTOR_END * 0.82,
+      capHeight * 0.32
+    )
+  );
+  const cornerRimBaseGeo = alignTop(
+    makeJawSector(
+      POCKET_VIS_R * 1.02,
+      JAW_T * 0.32,
+      SECTOR_START * 0.86,
+      SECTOR_END * 0.86,
+      capHeight * 0.16
+    )
   );
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
@@ -203,25 +260,30 @@ function addPocketJaws(parent, playW, playH) {
         jaw.add(segCap);
         capMeshes.push(segCap);
 
-        const rimGeo = makeJawSector(
-          POCKET_VIS_R * 1.02,
-          JAW_T * 0.42,
-          -SIDE_SECTOR_SWEEP,
-          SIDE_SECTOR_SWEEP,
-          capHeight * 0.22
+        const chromeGeo = sideChromeBaseGeo.clone();
+        chromeGeo.scale(segmentScale * 1.04, 1, 1);
+        chromeGeo.computeVertexNormals();
+        const chrome = new THREE.Mesh(chromeGeo, chromeRimMat);
+        chrome.castShadow = false;
+        chrome.receiveShadow = true;
+        chrome.position.set(
+          segment.position.x,
+          capLift + capHeight * 0.92,
+          0
         );
-        rimGeo.computeBoundingBox();
-        const rimBox = rimGeo.boundingBox;
-        if (rimBox) {
-          const rimShift = -rimBox.max.y;
-          if (Math.abs(rimShift) > 1e-6) rimGeo.translate(0, rimShift, 0);
-        }
-        rimGeo.scale(segmentScale * 1.06, 1, 1);
+        jaw.add(chrome);
+
+        const rimGeo = sideRimBaseGeo.clone();
+        rimGeo.scale(segmentScale * 1.04, 1, 1);
         rimGeo.computeVertexNormals();
-        const rim = new THREE.Mesh(rimGeo, chromeRimMat);
+        const rim = new THREE.Mesh(rimGeo, pocketRimMat);
         rim.castShadow = false;
         rim.receiveShadow = true;
-        rim.position.set(segment.position.x, capLift + capHeight * 0.95, 0);
+        rim.position.set(
+          segment.position.x,
+          chrome.position.y + capHeight * 0.14,
+          0
+        );
         jaw.add(rim);
       }
     } else {
@@ -239,6 +301,22 @@ function addPocketJaws(parent, playW, playH) {
       cap.position.y = capLift;
       mesh.add(cap);
       capMeshes.push(cap);
+
+      const chromeGeo = cornerChromeBaseGeo.clone();
+      chromeGeo.computeVertexNormals();
+      const chrome = new THREE.Mesh(chromeGeo, chromeRimMat);
+      chrome.castShadow = false;
+      chrome.receiveShadow = true;
+      chrome.position.y = capLift + capHeight * 0.9;
+      jaw.add(chrome);
+
+      const rimGeo = cornerRimBaseGeo.clone();
+      rimGeo.computeVertexNormals();
+      const rim = new THREE.Mesh(rimGeo, pocketRimMat);
+      rim.castShadow = false;
+      rim.receiveShadow = true;
+      rim.position.y = chrome.position.y + capHeight * 0.16;
+      jaw.add(rim);
     }
     jaw.userData = {
       ...(jaw.userData || {}),
@@ -711,6 +789,53 @@ const createClothTextures = (() => {
     bumpMap.magFilter = THREE.LinearFilter;
 
     cache = { map: colorMap, bump: bumpMap };
+    return cache;
+  };
+})();
+
+const createPocketNetTexture = (() => {
+  let cache = null;
+  return () => {
+    if (cache !== null) return cache;
+    if (typeof document === 'undefined') {
+      cache = null;
+      return cache;
+    }
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      cache = null;
+      return cache;
+    }
+    ctx.clearRect(0, 0, size, size);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const spacing = size / 8;
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = Math.max(1, spacing * 0.18);
+    for (let i = 0; i <= size; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(i + spacing * 0.1, 0);
+      ctx.lineTo(i + spacing * 0.1, size);
+      ctx.stroke();
+    }
+    for (let j = 0; j <= size; j += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, j + spacing * 0.1);
+      ctx.lineTo(size, j + spacing * 0.1);
+      ctx.stroke();
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 4;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
+    cache = texture;
     return cache;
   };
 })();
@@ -1582,12 +1707,15 @@ function Table3D(parent) {
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
     TABLE.THICK,
-    48
+    48,
+    1,
+    true
   );
   const pocketMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    metalness: 0.45,
-    roughness: 0.6
+    color: 0x050505,
+    metalness: 0.48,
+    roughness: 0.55,
+    side: THREE.DoubleSide
   });
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
@@ -1596,6 +1724,79 @@ function Table3D(parent) {
     pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
+  });
+
+  const netTexture = createPocketNetTexture();
+  const makeNetMaterial = (repeat) => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      metalness: 0.18,
+      roughness: 0.82,
+      transparent: true,
+      opacity: 0.94,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      alphaTest: 0.12
+    });
+    if (netTexture) {
+      const map = netTexture.clone();
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.repeat.copy(repeat);
+      map.needsUpdate = true;
+      mat.map = map;
+      const alpha = netTexture.clone();
+      alpha.wrapS = alpha.wrapT = THREE.RepeatWrapping;
+      alpha.repeat.copy(repeat);
+      alpha.needsUpdate = true;
+      mat.alphaMap = alpha;
+    }
+    return mat;
+  };
+  const cornerNetGeo = new THREE.CylinderGeometry(1, 1.65, 1, 32, 2, true);
+  cornerNetGeo.translate(0, -0.5, 0);
+  const sideNetGeo = new THREE.CylinderGeometry(1, 1.4, 1, 28, 2, true);
+  sideNetGeo.translate(0, -0.5, 0);
+  const pocketNetGroup = new THREE.Group();
+  pocketNetGroup.renderOrder = 2;
+  table.add(pocketNetGroup);
+  pocketCenters().forEach((p) => {
+    const isCorner =
+      Math.abs(Math.abs(p.x) - PLAY_W / 2) < 1e-3 &&
+      Math.abs(Math.abs(p.y) - PLAY_H / 2) < 1e-3;
+    const netGeo = (isCorner ? cornerNetGeo : sideNetGeo).clone();
+    const repeat = isCorner
+      ? new THREE.Vector2(1.38, 1.72)
+      : new THREE.Vector2(1.08, 1.98);
+    const netMat = makeNetMaterial(repeat);
+    const net = new THREE.Mesh(netGeo, netMat);
+    const netHeight = isCorner ? TABLE.THICK * 1.52 : TABLE.THICK * 1.34;
+    const topRadius = POCKET_TOP_R * (isCorner ? 0.82 : 0.76);
+    const scaleX = isCorner ? 1 : 1.22;
+    const scaleZ = isCorner ? 1 : 0.88;
+    net.scale.set(topRadius * scaleX, netHeight, topRadius * scaleZ);
+    net.castShadow = false;
+    net.receiveShadow = false;
+    net.renderOrder = 4;
+    const netGroup = new THREE.Group();
+    const sx = Math.sign(p.x) || 1;
+    const sy = Math.sign(p.y) || 1;
+    let offsetX = 0;
+    let offsetZ = 0;
+    if (isCorner) {
+      const inward = new THREE.Vector2(-sx, -sy).normalize();
+      const offset = POCKET_VIS_R * 0.42;
+      offsetX = inward.x * offset;
+      offsetZ = inward.y * offset;
+    } else {
+      offsetX = -sx * POCKET_VIS_R * 0.3;
+    }
+    netGroup.position.set(
+      p.x + offsetX,
+      clothPlaneLocal - MICRO_EPS * 2,
+      p.y + offsetZ
+    );
+    netGroup.add(net);
+    pocketNetGroup.add(netGroup);
   });
 
   const railH = TABLE.THICK * 1.82;
