@@ -391,10 +391,13 @@ const CLOTH_LIFT = (() => {
 const SIDE_RAIL_INNER_REDUCTION = 0.7;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
+const END_RAIL_INNER_REDUCTION = SIDE_RAIL_INNER_REDUCTION;
+const END_RAIL_INNER_SCALE = 1 - END_RAIL_INNER_REDUCTION;
+const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
 const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
-const PLAY_H = TABLE.H - 2 * TABLE.WALL;
+const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
@@ -443,7 +446,9 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
-  minOutside: SIDE_RAIL_INNER_THICKNESS + POCKET_VIS_R * 1.08,
+  minOutside:
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
+    POCKET_VIS_R * 1.08,
   maxOutside: BALL_R * 32,
   heightOffset: BALL_R * 4.3,
   distanceScale: 1.12,
@@ -1515,7 +1520,13 @@ function Table3D(parent) {
     hole.absellipse(p.x, p.y, clothHoleRadius, clothHoleRadius, 0, Math.PI * 2);
     clothShape.holes.push(hole);
   });
-  const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
+  const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
+    depth: CLOTH_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 64,
+    steps: 1
+  });
+  clothGeo.translate(0, 0, -CLOTH_THICKNESS);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal;
