@@ -1631,44 +1631,6 @@ function Table3D(parent) {
   const zInB = -(halfH + cushionBackEnd - MICRO_EPS);
   const zInT = halfH + cushionBackEnd - MICRO_EPS;
 
-  const normalizeAngle = (angle) => {
-    let a = angle;
-    const twoPi = Math.PI * 2;
-    while (a <= -Math.PI) a += twoPi;
-    while (a > Math.PI) a -= twoPi;
-    return a;
-  };
-
-  const angleDelta = (from, to) => {
-    let d = to - from;
-    const twoPi = Math.PI * 2;
-    while (d <= -Math.PI) d += twoPi;
-    while (d > Math.PI) d -= twoPi;
-    return d;
-  };
-
-  function addPocketArc(shape, cx, cz, R, start, end) {
-    const startAngle = Math.atan2(start.y - cz, start.x - cx);
-    const endAngle = Math.atan2(end.y - cz, end.x - cx);
-    const toward = Math.atan2(-cz, -cx);
-
-    let ccwDelta = angleDelta(startAngle, endAngle);
-    if (ccwDelta < 0) {
-      ccwDelta += Math.PI * 2;
-    }
-    const cwDelta = ccwDelta - Math.PI * 2;
-
-    const midCCW = normalizeAngle(startAngle + ccwDelta / 2);
-    const midCW = normalizeAngle(startAngle + cwDelta / 2);
-
-    const distCCW = Math.abs(angleDelta(toward, midCCW));
-    const distCW = Math.abs(angleDelta(toward, midCW));
-    const clockwise = distCW < distCCW;
-
-    shape.lineTo(start.x, start.y);
-    shape.absarc(cx, cz, R, startAngle, endAngle, clockwise);
-  }
-
   function addCornerArcLong(shape, signX, signZ) {
     const xIn = signX < 0 ? xInL : xInR;
     const cx = signX < 0 ? -halfW : halfW;
@@ -1678,7 +1640,18 @@ function Table3D(parent) {
     const dz = Math.sqrt(Math.max(0, R * R - u * u));
     const start = new THREE.Vector2(xIn, cz + signZ * dz);
     const end = new THREE.Vector2(xIn, cz - signZ * dz);
-    addPocketArc(shape, cx, cz, R, start, end);
+    shape.lineTo(start.x, start.y);
+    let startAngle = Math.atan2(start.y - cz, start.x - cx);
+    let endAngle = Math.atan2(end.y - cz, end.x - cx);
+    let delta = endAngle - startAngle;
+    if (delta > Math.PI) {
+      endAngle -= Math.PI * 2;
+      delta = endAngle - startAngle;
+    } else if (delta < -Math.PI) {
+      endAngle += Math.PI * 2;
+      delta = endAngle - startAngle;
+    }
+    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
   function addCornerArcEnd(shape, signZ, signX) {
@@ -1690,7 +1663,18 @@ function Table3D(parent) {
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
     const start = new THREE.Vector2(cx + signX * dx, zIn);
     const end = new THREE.Vector2(cx - signX * dx, zIn);
-    addPocketArc(shape, cx, cz, R, start, end);
+    shape.lineTo(start.x, start.y);
+    let startAngle = Math.atan2(start.y - cz, start.x - cx);
+    let endAngle = Math.atan2(end.y - cz, end.x - cx);
+    let delta = endAngle - startAngle;
+    if (delta > Math.PI) {
+      endAngle -= Math.PI * 2;
+      delta = endAngle - startAngle;
+    } else if (delta < -Math.PI) {
+      endAngle += Math.PI * 2;
+      delta = endAngle - startAngle;
+    }
+    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
   function buildLongRail(signX) {
