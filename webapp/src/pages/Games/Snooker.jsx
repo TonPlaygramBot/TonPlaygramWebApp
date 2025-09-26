@@ -335,6 +335,9 @@ function addPocketCuts(parent, clothPlane) {
       // rotate the base profile so every corner cut follows the rail tangents symmetrically
       const cornerYaw = Math.atan2(outward.y, outward.x) - Math.PI / 4;
       mesh.rotation.y = cornerYaw;
+      const mirrorX = sx >= 0 ? 1 : -1;
+      const mirrorY = sy >= 0 ? 1 : -1;
+      mesh.scale.set(mirrorX, mirrorY, 1);
       mesh.position.set(
         sx * (halfW + railInset) + outward.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
