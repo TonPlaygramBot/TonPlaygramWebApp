@@ -335,9 +335,6 @@ function addPocketCuts(parent, clothPlane) {
       // rotate the base profile so every corner cut follows the rail tangents symmetrically
       const cornerYaw = Math.atan2(outward.y, outward.x) - Math.PI / 4;
       mesh.rotation.y = cornerYaw;
-      const mirrorX = sx >= 0 ? 1 : -1;
-      const mirrorY = sy >= 0 ? 1 : -1;
-      mesh.scale.set(mirrorX, mirrorY, 1);
       mesh.position.set(
         sx * (halfW + railInset) + outward.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
@@ -1687,28 +1684,58 @@ function Table3D(parent) {
     shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
   }
 
-  function buildLongRail(signX) {
-    const xIn = signX < 0 ? xInL : xInR;
-    const xOut = signX < 0 ? -outerHalfW : outerHalfW;
+  function mirrorBufferGeometry(geometry, axis) {
+    const position = geometry.getAttribute('position');
+    const index = geometry.getIndex();
+    const axisIndex = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+    for (let i = 0; i < position.count; i++) {
+      if (axisIndex === 0) {
+        position.setX(i, -position.getX(i));
+      } else if (axisIndex === 1) {
+        position.setY(i, -position.getY(i));
+      } else {
+        position.setZ(i, -position.getZ(i));
+      }
+    }
+    position.needsUpdate = true;
+    if (index) {
+      const arr = index.array;
+      for (let i = 0; i < arr.length; i += 3) {
+        const tmp = arr[i + 1];
+        arr[i + 1] = arr[i + 2];
+        arr[i + 2] = tmp;
+      }
+      index.needsUpdate = true;
+    }
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return geometry;
+  }
+
+  const longRailShapeBase = (() => {
+    const signX = 1;
+    const xIn = xInR;
+    const xOut = outerHalfW;
     const shape = new THREE.Shape();
     const edgeRadius = Math.min(
       longRailW * RAIL_OUTER_EDGE_RADIUS_RATIO,
       Math.abs(outerHalfH) * 0.4
     );
     const radius = Math.max(edgeRadius, 0);
-    const startX = xOut - signX * radius;
+    const startX = xOut - radius;
     shape.moveTo(startX, -outerHalfH);
     if (radius > 0) {
       shape.quadraticCurveTo(xOut, -outerHalfH, xOut, -outerHalfH + radius);
       shape.lineTo(xOut, outerHalfH - radius);
-      shape.quadraticCurveTo(xOut, outerHalfH, xOut - signX * radius, outerHalfH);
+      shape.quadraticCurveTo(xOut, outerHalfH, xOut - radius, outerHalfH);
     } else {
       shape.lineTo(xOut, outerHalfH);
     }
     shape.lineTo(xIn, outerHalfH);
     addCornerArcLong(shape, signX, 1);
     (function () {
-      const cx = signX < 0 ? -halfW : halfW;
+      const cx = halfW;
       const u = Math.abs(xIn - cx);
       const R = Math.max(NOTCH_R, u + 0.001);
       const dz = Math.sqrt(Math.max(0, R * R - u * u));
@@ -1720,7 +1747,7 @@ function Table3D(parent) {
         const t = i / steps;
         const z = zTop + (zBot - zTop) * t;
         const xDelta = Math.sqrt(Math.max(0, R * R - z * z));
-        const x = cx + (signX > 0 ? xDelta : -xDelta);
+        const x = cx + xDelta;
         shape.lineTo(x, z);
       }
       shape.lineTo(xIn, zBot);
@@ -1733,39 +1760,41 @@ function Table3D(parent) {
       shape.lineTo(xOut, -outerHalfH);
     }
     shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
-      bevelEnabled: false,
-      curveSegments: 96
-    });
-    const mesh = new THREE.Mesh(geo, railWoodMat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = frameTopY;
-    railsGroup.add(mesh);
-  }
+    return shape;
+  })();
 
-  function buildEndRail(signZ) {
-    const zIn = signZ < 0 ? zInB : zInT;
-    const zOut = signZ < 0 ? -outerHalfH : outerHalfH;
+  const longRailBaseGeometry = new THREE.ExtrudeGeometry(longRailShapeBase, {
+    depth: railH,
+    bevelEnabled: false,
+    curveSegments: 96
+  });
+  longRailBaseGeometry.computeVertexNormals();
+  longRailBaseGeometry.computeBoundingBox();
+  longRailBaseGeometry.computeBoundingSphere();
+
+  const endRailShapeBase = (() => {
+    const signZ = 1;
+    const zIn = zInT;
+    const zOut = outerHalfH;
     const shape = new THREE.Shape();
     const edgeRadius = Math.min(
       endRailW * RAIL_OUTER_EDGE_RADIUS_RATIO,
       Math.abs(outerHalfW) * 0.4
     );
     const radius = Math.max(edgeRadius, 0);
-    const startZ = zOut - signZ * radius;
+    const startZ = zOut - radius;
     shape.moveTo(-outerHalfW, startZ);
     if (radius > 0) {
       shape.quadraticCurveTo(-outerHalfW, zOut, -outerHalfW + radius, zOut);
       shape.lineTo(outerHalfW - radius, zOut);
-      shape.quadraticCurveTo(outerHalfW, zOut, outerHalfW, zOut - signZ * radius);
+      shape.quadraticCurveTo(outerHalfW, zOut, outerHalfW, zOut - radius);
     } else {
       shape.lineTo(outerHalfW, zOut);
     }
     shape.lineTo(outerHalfW, zIn);
     addCornerArcEnd(shape, signZ, 1);
     const cxL = -halfW;
-    const v = Math.abs(zIn - (signZ < 0 ? -halfH : halfH));
+    const v = Math.abs(zIn - halfH);
     const R = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
     shape.lineTo(cxL - dx, zIn);
@@ -1777,11 +1806,34 @@ function Table3D(parent) {
       shape.lineTo(-outerHalfW, zOut);
     }
     shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
-      bevelEnabled: false,
-      curveSegments: 96
-    });
+    return shape;
+  })();
+
+  const endRailBaseGeometry = new THREE.ExtrudeGeometry(endRailShapeBase, {
+    depth: railH,
+    bevelEnabled: false,
+    curveSegments: 96
+  });
+  endRailBaseGeometry.computeVertexNormals();
+  endRailBaseGeometry.computeBoundingBox();
+  endRailBaseGeometry.computeBoundingSphere();
+
+  function buildLongRail(signX) {
+    const geo =
+      signX > 0
+        ? longRailBaseGeometry.clone()
+        : mirrorBufferGeometry(longRailBaseGeometry.clone(), 'x');
+    const mesh = new THREE.Mesh(geo, railWoodMat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = frameTopY;
+    railsGroup.add(mesh);
+  }
+
+  function buildEndRail(signZ) {
+    const geo =
+      signZ > 0
+        ? endRailBaseGeometry.clone()
+        : mirrorBufferGeometry(endRailBaseGeometry.clone(), 'z');
     const mesh = new THREE.Mesh(geo, railWoodMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
