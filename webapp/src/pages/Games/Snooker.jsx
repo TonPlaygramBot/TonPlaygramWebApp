@@ -255,8 +255,8 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const sideDepth = POCKET_VIS_R * 1.12;
-  const sideHalfWidth = POCKET_VIS_R * 0.9;
+  const sideDepth = POCKET_VIS_R * 1.12 * POCKET_CUT_EXPANSION;
+  const sideHalfWidth = POCKET_VIS_R * 0.9 * POCKET_CUT_EXPANSION;
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
   const mat = new THREE.MeshStandardMaterial({
@@ -273,7 +273,7 @@ function addPocketCuts(parent, clothPlane) {
   mat.depthWrite = false;
   mat.depthTest = true;
   const cornerShape = (() => {
-    const innerR = POCKET_VIS_R * 0.98;
+    const innerR = POCKET_VIS_R * 0.98 * POCKET_CUT_EXPANSION;
     const outerR = innerR + sideDepth;
     const arcInset = Math.PI * 0.04;
     const startAngle = arcInset;
@@ -296,8 +296,8 @@ function addPocketCuts(parent, clothPlane) {
     return s;
   })();
   const sideShape = (() => {
-    const lipInset = POCKET_VIS_R * 0.32;
-    const throatHalfWidth = POCKET_VIS_R * 0.58;
+    const lipInset = POCKET_VIS_R * 0.32 * POCKET_CUT_EXPANSION;
+    const throatHalfWidth = POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION;
     const s = new THREE.Shape();
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
@@ -332,7 +332,7 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const outward = new THREE.Vector2(sx, sy).normalize();
-      const radialOffset = POCKET_VIS_R * 0.58;
+      const radialOffset = POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION;
       const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
       // mirror the profile so local axes always point toward the playing surface
       mesh.scale.set(-sx, -sy, 1);
@@ -344,7 +344,7 @@ function addPocketCuts(parent, clothPlane) {
     } else {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
-      mesh.position.z += sy * POCKET_VIS_R * 0.12;
+      mesh.position.z += sy * POCKET_VIS_R * 0.12 * POCKET_CUT_EXPANSION;
     }
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -407,7 +407,9 @@ const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.985;
-const POCKET_HOLE_R = POCKET_VIS_R * 1.3; // cloth cutout radius for pocket openings
+const POCKET_CUT_EXPANSION = 1.04; // widen cloth openings so the pockets stay fully visible
+const POCKET_HOLE_R =
+  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
