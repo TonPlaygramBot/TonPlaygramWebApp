@@ -1687,18 +1687,24 @@ function Table3D(parent) {
     shape.lineTo(xIn, outerHalfH);
     addCornerArcLong(shape, signX, 1);
     (function () {
-      const cx = signX < 0 ? -halfW : halfW;
+      const cx = 0;
+      const cz = 0;
       const u = Math.abs(xIn - cx);
       const R = Math.max(NOTCH_R, u + 0.001);
-      const dz = Math.sqrt(Math.max(0, R * R - u * u));
-      const zTop = dz;
-      const zBot = -dz;
+      const arcSq = Math.max(0, R * R - u * u);
+      if (arcSq < 1e-8) {
+        return;
+      }
+      const zExtent = Math.sqrt(arcSq);
+      const zTop = cz + zExtent;
+      const zBot = cz - zExtent;
       shape.lineTo(xIn, zTop);
-      const steps = 40;
+      const steps = 72;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const z = zTop + (zBot - zTop) * t;
-        const xDelta = Math.sqrt(Math.max(0, R * R - z * z));
+        const innerSq = Math.max(0, R * R - (z - cz) * (z - cz));
+        const xDelta = Math.sqrt(innerSq);
         const x = cx + (signX > 0 ? xDelta : -xDelta);
         shape.lineTo(x, z);
       }
