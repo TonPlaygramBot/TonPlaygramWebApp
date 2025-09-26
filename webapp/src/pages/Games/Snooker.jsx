@@ -257,6 +257,8 @@ function addPocketCuts(parent, clothPlane) {
   const cuts = [];
   const sideDepth = POCKET_VIS_R * 1.12;
   const sideHalfWidth = POCKET_VIS_R * 0.9;
+  const halfW = PLAY_W / 2;
+  const halfH = PLAY_H / 2;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x060606,
     roughness: 0.78,
@@ -332,12 +334,8 @@ function addPocketCuts(parent, clothPlane) {
       const outward = new THREE.Vector2(sx, sy).normalize();
       const radialOffset = POCKET_VIS_R * 0.58;
       const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
-      // rotate the base profile so every corner cut follows the rail tangents symmetrically
-      const cornerYaw = Math.atan2(outward.y, outward.x) - Math.PI / 4;
-      mesh.rotation.y = cornerYaw;
-      const mirrorX = sx >= 0 ? 1 : -1;
-      const mirrorY = sy >= 0 ? 1 : -1;
-      mesh.scale.set(mirrorX, mirrorY, 1);
+      // mirror the profile so local axes always point toward the playing surface
+      mesh.scale.set(-sx, -sy, 1);
       mesh.position.set(
         sx * (halfW + railInset) + outward.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
