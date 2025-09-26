@@ -398,7 +398,7 @@ const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
-const ACTION_CAMERA_START_BLEND = 0;
+const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -450,9 +450,9 @@ const POCKET_CAM = Object.freeze({
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
     POCKET_VIS_R * 0.96,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 5.6,
+  heightOffset: BALL_R * 4.6,
   distanceScale: 0.96,
-  heightScale: 1.1
+  heightScale: 0.95
 });
 const POCKET_VIEW_MIN_DURATION_MS = 900;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 400;
@@ -811,9 +811,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86;
+const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
-const STANDING_VIEW_MARGIN = 0.52;
+const STANDING_VIEW_MARGIN = 0.48;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -851,7 +851,7 @@ const CUE_VIEW_RADIUS_RATIO = 0.7;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.58
+  STANDING_VIEW_PHI + 0.48
 );
 const CUE_VIEW_PHI_LIFT = 0.1;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
@@ -2089,7 +2089,7 @@ function SnookerGame() {
   const initialCueRadius = Math.max(BREAK_VIEW.radius, CUE_VIEW_MIN_RADIUS);
   const cameraBoundsRef = useRef({
     cueShot: { phi: initialCuePhi, radius: initialCueRadius },
-    standing: { phi: CAMERA.minPhi, radius: BREAK_VIEW.radius }
+    standing: { phi: STANDING_VIEW.phi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
@@ -2485,12 +2485,25 @@ function SnookerGame() {
           CAMERA.near,
           CAMERA.far
         );
-        // Start behind baulk colours
+        const standingPhi = THREE.MathUtils.clamp(
+          STANDING_VIEW.phi,
+          CAMERA.minPhi,
+          CAMERA.maxPhi
+        );
+        const standingRadius = clamp(
+          fitRadius(camera, STANDING_VIEW.margin),
+          CAMERA.minR,
+          CAMERA.maxR
+        );
         const sph = new THREE.Spherical(
-          BREAK_VIEW.radius,
-          BREAK_VIEW.phi, // keep the break view a touch higher for clearer break alignment
+          standingRadius,
+          standingPhi,
           Math.PI
         );
+        cameraBoundsRef.current = {
+          cueShot: { phi: initialCuePhi, radius: initialCueRadius },
+          standing: { phi: standingPhi, radius: standingRadius }
+        };
 
         const getDefaultOrbitTarget = () =>
           new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
