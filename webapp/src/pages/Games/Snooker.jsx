@@ -1645,8 +1645,14 @@ function Table3D(parent) {
   innerField.lineTo(-halfW, -halfH);
   baseShape.holes.push(innerField);
 
-  const makePocketRailCut = (center) => {
-    const toCenter = center.clone().multiplyScalar(-1);
+  const makePocketCut = (center, radius = POCKET_TOP_R, outwardOffset = 0) => {
+    let cutCenter = center.clone();
+    const outward = cutCenter.clone();
+    if (outward.lengthSq() > 1e-9 && Math.abs(outwardOffset) > 1e-9) {
+      outward.normalize().multiplyScalar(outwardOffset);
+      cutCenter = cutCenter.add(outward);
+    }
+    const toCenter = cutCenter.clone().multiplyScalar(-1);
     if (toCenter.lengthSq() < 1e-9) return null;
     const baseAngle = Math.atan2(toCenter.y, toCenter.x);
     const startAngle = baseAngle - Math.PI / 2;
@@ -1658,8 +1664,8 @@ function Table3D(parent) {
       const angle = startAngle + (endAngle - startAngle) * t;
       points.push(
         new THREE.Vector2(
-          center.x + POCKET_TOP_R * Math.cos(angle),
-          center.y + POCKET_TOP_R * Math.sin(angle)
+          cutCenter.x + radius * Math.cos(angle),
+          cutCenter.y + radius * Math.sin(angle)
         )
       );
     }
@@ -1675,7 +1681,7 @@ function Table3D(parent) {
   };
 
   pocketCenters().forEach((pocket) => {
-    const cut = makePocketRailCut(pocket);
+    const cut = makePocketCut(pocket, POCKET_VIS_R, 0);
     if (cut) baseShape.holes.push(cut);
   });
 
@@ -1846,6 +1852,13 @@ function Table3D(parent) {
   inner.lineTo(-frameOuterX, frameOuterZ);
   inner.lineTo(-frameOuterX, -frameOuterZ);
   skirtShape.holes.push(inner);
+
+  const basePocketRadius = POCKET_VIS_R + Math.max(longRailW, endRailW) * 0.55;
+  const basePocketOffset = Math.max(longRailW, endRailW) * 0.6;
+  pocketCenters().forEach((pocket) => {
+    const baseCut = makePocketCut(pocket, basePocketRadius, basePocketOffset);
+    if (baseCut) skirtShape.holes.push(baseCut);
+  });
   const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
     depth: skirtH,
     bevelEnabled: false
