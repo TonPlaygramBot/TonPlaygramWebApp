@@ -1645,10 +1645,38 @@ function Table3D(parent) {
   innerField.lineTo(-halfW, -halfH);
   baseShape.holes.push(innerField);
 
+  const makePocketRailCut = (center) => {
+    const toCenter = center.clone().multiplyScalar(-1);
+    if (toCenter.lengthSq() < 1e-9) return null;
+    const baseAngle = Math.atan2(toCenter.y, toCenter.x);
+    const startAngle = baseAngle - Math.PI / 2;
+    const endAngle = baseAngle + Math.PI / 2;
+    const segments = 28;
+    const points = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const angle = startAngle + (endAngle - startAngle) * t;
+      points.push(
+        new THREE.Vector2(
+          center.x + POCKET_TOP_R * Math.cos(angle),
+          center.y + POCKET_TOP_R * Math.sin(angle)
+        )
+      );
+    }
+    points.reverse();
+    if (!points.length) return null;
+    const cut = new THREE.Path();
+    cut.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      cut.lineTo(points[i].x, points[i].y);
+    }
+    cut.closePath();
+    return cut;
+  };
+
   pocketCenters().forEach((pocket) => {
-    const hole = new THREE.Path();
-    hole.absarc(pocket.x, pocket.y, POCKET_TOP_R, 0, Math.PI * 2, true);
-    baseShape.holes.push(hole);
+    const cut = makePocketRailCut(pocket);
+    if (cut) baseShape.holes.push(cut);
   });
 
   const curveSegments = 96;
