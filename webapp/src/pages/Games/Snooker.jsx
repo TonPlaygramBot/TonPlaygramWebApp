@@ -332,9 +332,9 @@ function addPocketCuts(parent, clothPlane) {
       const outward = new THREE.Vector2(sx, sy).normalize();
       const radialOffset = POCKET_VIS_R * 0.58;
       const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
-      // mirror the base shape across the table axes so the pocket lip hugs the rails
-      // without rotating the arc away from the rail tangents
-      mesh.scale.set(sx < 0 ? -1 : 1, 1, sy < 0 ? -1 : 1);
+      // rotate the base profile so every corner cut follows the rail tangents symmetrically
+      const cornerYaw = Math.atan2(outward.y, outward.x) - Math.PI / 4;
+      mesh.rotation.y = cornerYaw;
       mesh.position.set(
         sx * (halfW + railInset) + outward.x * radialOffset,
         clothPlane + POCKET_RIM_LIFT,
