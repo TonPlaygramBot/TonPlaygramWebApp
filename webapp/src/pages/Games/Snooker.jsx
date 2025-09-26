@@ -1631,6 +1631,61 @@ function Table3D(parent) {
   const zInB = -(halfH + cushionBackEnd - MICRO_EPS);
   const zInT = halfH + cushionBackEnd - MICRO_EPS;
 
+  const TWO_PI = Math.PI * 2;
+
+  const alignAngle = (angle, reference) =>
+    angle + TWO_PI * Math.round((reference - angle) / TWO_PI);
+
+  function resolveArcSweep(startAngle, endAngle, targetAngle) {
+    const attempts = [];
+    for (const offset of [0, TWO_PI, -TWO_PI]) {
+      let start = startAngle + offset;
+      let end = alignAngle(endAngle + offset, start);
+      if (end <= start) end += TWO_PI;
+      let target = alignAngle(targetAngle, start);
+      if (target < start) target += TWO_PI;
+      if (target > end) {
+        const altTarget = target - TWO_PI;
+        if (altTarget >= start && altTarget <= end) {
+          target = altTarget;
+        } else {
+          continue;
+        }
+      }
+      attempts.push({ start, end });
+    }
+    if (!attempts.length) return null;
+    return attempts.reduce((best, curr) =>
+      !best || curr.end - curr.start < best.end - best.start ? curr : best
+    );
+  }
+
+  function appendPocketArc(shape, cx, cz, radius, startVec, endVec, targetPoint) {
+    const startAngle = Math.atan2(startVec.y - cz, startVec.x - cx);
+    const endAngle = Math.atan2(endVec.y - cz, endVec.x - cx);
+    const targetAngle = Math.atan2(targetPoint.y - cz, targetPoint.x - cx);
+    const sweep = resolveArcSweep(startAngle, endAngle, targetAngle);
+    shape.lineTo(startVec.x, startVec.y);
+    if (!sweep) {
+      shape.lineTo(endVec.x, endVec.y);
+      return;
+    }
+    const { start, end } = sweep;
+    const arcLength = Math.abs(end - start);
+    const steps = Math.max(12, Math.ceil((arcLength / (Math.PI * 2)) * 64));
+    for (let i = 1; i <= steps; i++) {
+      if (i === steps) {
+        shape.lineTo(endVec.x, endVec.y);
+        continue;
+      }
+      const t = i / steps;
+      const angle = start + (end - start) * t;
+      const x = cx + Math.cos(angle) * radius;
+      const y = cz + Math.sin(angle) * radius;
+      shape.lineTo(x, y);
+    }
+  }
+
   function addCornerArcLong(shape, signX, signZ) {
     const xIn = signX < 0 ? xInL : xInR;
     const cx = signX < 0 ? -halfW : halfW;
@@ -1640,18 +1695,8 @@ function Table3D(parent) {
     const dz = Math.sqrt(Math.max(0, R * R - u * u));
     const start = new THREE.Vector2(xIn, cz + signZ * dz);
     const end = new THREE.Vector2(xIn, cz - signZ * dz);
-    shape.lineTo(start.x, start.y);
-    let startAngle = Math.atan2(start.y - cz, start.x - cx);
-    let endAngle = Math.atan2(end.y - cz, end.x - cx);
-    let delta = endAngle - startAngle;
-    if (delta > Math.PI) {
-      endAngle -= Math.PI * 2;
-      delta = endAngle - startAngle;
-    } else if (delta < -Math.PI) {
-      endAngle += Math.PI * 2;
-      delta = endAngle - startAngle;
-    }
-    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
+    const target = new THREE.Vector2(0, 0);
+    appendPocketArc(shape, cx, cz, R, start, end, target);
   }
 
   function addCornerArcEnd(shape, signZ, signX) {
@@ -1663,18 +1708,8 @@ function Table3D(parent) {
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
     const start = new THREE.Vector2(cx + signX * dx, zIn);
     const end = new THREE.Vector2(cx - signX * dx, zIn);
-    shape.lineTo(start.x, start.y);
-    let startAngle = Math.atan2(start.y - cz, start.x - cx);
-    let endAngle = Math.atan2(end.y - cz, end.x - cx);
-    let delta = endAngle - startAngle;
-    if (delta > Math.PI) {
-      endAngle -= Math.PI * 2;
-      delta = endAngle - startAngle;
-    } else if (delta < -Math.PI) {
-      endAngle += Math.PI * 2;
-      delta = endAngle - startAngle;
-    }
-    shape.absarc(cx, cz, R, startAngle, endAngle, delta < 0);
+    const target = new THREE.Vector2(0, 0);
+    appendPocketArc(shape, cx, cz, R, start, end, target);
   }
 
   function buildLongRail(signX) {
