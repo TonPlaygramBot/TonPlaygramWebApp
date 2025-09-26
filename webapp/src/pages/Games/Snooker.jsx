@@ -1457,7 +1457,8 @@ function Table3D(parent) {
     clearcoat: 0.05,
     clearcoatRoughness: 0.26,
     emissive: clothPrimary.clone().multiplyScalar(0.09),
-    emissiveIntensity: 1
+    emissiveIntensity: 1,
+    side: THREE.DoubleSide
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
@@ -1520,13 +1521,7 @@ function Table3D(parent) {
     hole.absellipse(p.x, p.y, clothHoleRadius, clothHoleRadius, 0, Math.PI * 2);
     clothShape.holes.push(hole);
   });
-  const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
-    depth: CLOTH_THICKNESS,
-    bevelEnabled: false,
-    curveSegments: 64,
-    steps: 1
-  });
-  clothGeo.translate(0, 0, -CLOTH_THICKNESS);
+  const clothGeo = new THREE.ShapeGeometry(clothShape, 64);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal;
@@ -1661,8 +1656,9 @@ function Table3D(parent) {
     const v = Math.abs(zIn - cz);
     const R = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, R * R - v * v));
-    const start = new THREE.Vector2(cx + signX * dx, zIn);
-    const end = new THREE.Vector2(cx - signX * dx, zIn);
+    const insideDir = signX > 0 ? -1 : 1;
+    const start = new THREE.Vector2(cx + insideDir * dx, zIn);
+    const end = new THREE.Vector2(cx - insideDir * dx, zIn);
     shape.lineTo(start.x, start.y);
     let startAngle = Math.atan2(start.y - cz, start.x - cx);
     let endAngle = Math.atan2(end.y - cz, end.x - cx);
@@ -1704,13 +1700,14 @@ function Table3D(parent) {
       const dz = Math.sqrt(Math.max(0, R * R - u * u));
       const zTop = dz;
       const zBot = -dz;
+      const insideDir = signX > 0 ? -1 : 1;
       shape.lineTo(xIn, zTop);
       const steps = 40;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const z = zTop + (zBot - zTop) * t;
         const xDelta = Math.sqrt(Math.max(0, R * R - z * z));
-        const x = cx + (signX > 0 ? xDelta : -xDelta);
+        const x = cx + insideDir * xDelta;
         shape.lineTo(x, z);
       }
       shape.lineTo(xIn, zBot);
@@ -1870,49 +1867,27 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.64; // tighten gap so cushions meet pocket arcs sooner
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.72; // pull long cushions closer while keeping rim clearance
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.18; // extend side cushions to meet the pocket arcs evenly
-  const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
-  const vertSeg =
-    PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
+  const noseClearance = CUSHION_FACE_INSET + MICRO_EPS * 2;
+  const effectivePocketRadius = Math.max(0, NOTCH_R - noseClearance);
+  const horizLen = Math.max(0, PLAY_W - 2 * effectivePocketRadius);
+  const vertSeg = Math.max(0, PLAY_H / 2 - 2 * effectivePocketRadius);
   const bottomZ = -halfH;
   const topZ = halfH;
   const leftX = -halfW;
   const rightX = halfW;
 
-  addCushion(0, bottomZ, horizLen, true, false);
-  addCushion(0, topZ, horizLen, true, true);
-  const sideCushionOffset = POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE;
+  if (horizLen > MICRO_EPS) {
+    addCushion(0, bottomZ, horizLen, true, false);
+    addCushion(0, topZ, horizLen, true, true);
+  }
+  const verticalCenterOffset = PLAY_H / 4;
 
-  addCushion(
-    leftX,
-    -halfH + sideCushionOffset + vertSeg / 2,
-    vertSeg,
-    false,
-    false
-  );
-  addCushion(
-    leftX,
-    halfH - sideCushionOffset - vertSeg / 2,
-    vertSeg,
-    false,
-    false
-  );
-  addCushion(
-    rightX,
-    -halfH + sideCushionOffset + vertSeg / 2,
-    vertSeg,
-    false,
-    true
-  );
-  addCushion(
-    rightX,
-    halfH - sideCushionOffset - vertSeg / 2,
-    vertSeg,
-    false,
-    true
-  );
+  if (vertSeg > MICRO_EPS) {
+    addCushion(leftX, verticalCenterOffset, vertSeg, false, false);
+    addCushion(leftX, -verticalCenterOffset, vertSeg, false, false);
+    addCushion(rightX, verticalCenterOffset, vertSeg, false, true);
+    addCushion(rightX, -verticalCenterOffset, vertSeg, false, true);
+  }
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
