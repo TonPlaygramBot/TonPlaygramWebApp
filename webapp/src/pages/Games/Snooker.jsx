@@ -815,15 +815,15 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.18;
-const STANDING_VIEW_MARGIN = 0.48;
+const STANDING_VIEW_MARGIN = 0.44;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.05;
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.5;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.46;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-const BROADCAST_DISTANCE_MULTIPLIER = 1.1;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.45;
+const BROADCAST_DISTANCE_MULTIPLIER = 1.04;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.36;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -834,7 +834,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.78; // keep orbit height above cushion lip
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep orbit height safely above cushion lip
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
