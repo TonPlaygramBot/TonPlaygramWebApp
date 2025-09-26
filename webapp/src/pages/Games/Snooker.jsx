@@ -1699,23 +1699,21 @@ function Table3D(parent) {
     addCornerArcLong(shape, signX, 1);
     (function () {
       const cx = signX < 0 ? -halfW : halfW;
-      const cz = signZ < 0 ? -halfH : halfH;
       const u = Math.abs(xIn - cx);
       const R = Math.max(NOTCH_R, u + 0.001);
       const dz = Math.sqrt(Math.max(0, R * R - u * u));
       const zTop = dz;
       const zBot = -dz;
-      shape.lineTo(xIn, cz + zTop);
+      shape.lineTo(xIn, zTop);
       const steps = 40;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
-        const zRel = zTop + (zBot - zTop) * t;
-        const xDelta = Math.sqrt(Math.max(0, R * R - zRel * zRel));
+        const z = zTop + (zBot - zTop) * t;
+        const xDelta = Math.sqrt(Math.max(0, R * R - z * z));
         const x = cx + (signX > 0 ? xDelta : -xDelta);
-        const zWorld = cz + zRel;
-        shape.lineTo(x, zWorld);
+        shape.lineTo(x, z);
       }
-      shape.lineTo(xIn, cz + zBot);
+      shape.lineTo(xIn, zBot);
     })();
     addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
