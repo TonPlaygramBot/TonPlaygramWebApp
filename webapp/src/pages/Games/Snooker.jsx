@@ -449,7 +449,7 @@ const POCKET_CAM = Object.freeze({
   distanceScale: 1.12,
   heightScale: 0.88
 });
-const SPIN_STRENGTH = BALL_R * 0.25;
+const SPIN_STRENGTH = BALL_R * 0.125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
 const SPIN_ROLL_DECAY = 0.978;
@@ -820,7 +820,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = BALL_R * 0.9;
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.65; // keep orbit height above cushion lip
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -831,7 +831,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: 16 * TABLE_SCALE * GLOBAL_SIZE_FACTOR,
+  radius: CAMERA.minR * 1.15, // start a little closer to the table for the initial shot view
   phi: CAMERA.maxPhi - 0.005
 });
 const CAMERA_RAIL_SAFETY = 0.02;
