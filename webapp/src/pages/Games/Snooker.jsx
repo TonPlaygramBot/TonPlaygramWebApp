@@ -389,7 +389,8 @@ const CLOTH_LIFT = (() => {
   const railH = TABLE.THICK * 1.82;
   return Math.max(0, railH - ballR - eps);
 })();
-const SIDE_RAIL_INNER_REDUCTION = 0.7;
+// shrink the inside rails so their exposed width is roughly 30% of the cushion depth
+const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const END_RAIL_INNER_REDUCTION = SIDE_RAIL_INNER_REDUCTION;
@@ -848,7 +849,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.005
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.7;
+const CUE_VIEW_RADIUS_RATIO = 0.62;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -1878,9 +1879,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.64; // tighten gap so cushions meet pocket arcs sooner
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.72; // pull long cushions closer while keeping rim clearance
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.18; // extend side cushions to meet the pocket arcs evenly
+  const POCKET_GAP = POCKET_VIS_R * 0.7; // leave a little more clearance so cushions meet the pocket arcs without overlap
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.68; // shorten long cushions slightly so they finish where the pocket arch begins
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.22; // extend side cushions just up to the start of the arch
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
