@@ -838,7 +838,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.4;
+const STANDING_VIEW_MARGIN = 0.32;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -886,6 +886,11 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
+const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
+const LONG_SHOT_ACTIVATION_DELAY_MS = 320;
+const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.35;
+const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
+const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -2783,14 +2788,27 @@ function SnookerGame() {
                     -lateralClamp,
                     lateralClamp
                   );
+                  const longShotPullback =
+                    activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
+                  const heightLift =
+                    activeShotView.longShot ? BALL_R * 2.5 : 0;
                   const desired = new THREE.Vector3(
                     baseX,
-                    heightBase + ACTION_CAM.heightOffset,
-                    railDir * SHORT_RAIL_CAMERA_DISTANCE
+                    heightBase + ACTION_CAM.heightOffset + heightLift,
+                    railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
                   );
                   const lookAnchor = anchor.clone();
-                  lookAnchor.x += signed(baseX, 0) * BALL_R * 2.5;
-                  lookAnchor.z += -railDir * BALL_R * 4;
+                  if (activeShotView.longShot) {
+                    lookAnchor.x = THREE.MathUtils.lerp(
+                      lookAnchor.x,
+                      0,
+                      0.35
+                    );
+                  }
+                  lookAnchor.x +=
+                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                  lookAnchor.z +=
+                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -2846,14 +2864,27 @@ function SnookerGame() {
                     -lateralClamp,
                     lateralClamp
                   );
+                  const longShotPullback =
+                    activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
+                  const heightLift =
+                    activeShotView.longShot ? BALL_R * 2.2 : 0;
                   const desired = new THREE.Vector3(
                     baseX,
-                    heightBase + ACTION_CAM.followHeightOffset,
-                    railDir * SHORT_RAIL_CAMERA_DISTANCE
+                    heightBase + ACTION_CAM.followHeightOffset + heightLift,
+                    railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
                   );
                   const lookAnchor = anchor.clone();
-                  lookAnchor.x += signed(baseX, 0) * BALL_R * 2.5;
-                  lookAnchor.z += -railDir * BALL_R * 5;
+                  if (activeShotView.longShot) {
+                    lookAnchor.x = THREE.MathUtils.lerp(
+                      lookAnchor.x,
+                      0,
+                      0.35
+                    );
+                  }
+                  lookAnchor.x +=
+                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                  lookAnchor.z +=
+                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -2927,7 +2958,7 @@ function SnookerGame() {
             if (anchorType === 'short') {
               anchorPoint = new THREE.Vector2(
                 0,
-                railDir * SHORT_RAIL_CAMERA_DISTANCE
+                -railDir * SHORT_RAIL_CAMERA_DISTANCE
               );
               const diagonalLean = signed(pocketCenter.x, 0);
               const diagonalDir = new THREE.Vector2(
@@ -2935,12 +2966,12 @@ function SnookerGame() {
                 -railDir
               ).normalize();
               activeShotView.approach.copy(diagonalDir);
-              focusAim2D = pocketCenter.clone().add(
-                diagonalDir.clone().multiplyScalar(POCKET_VIS_R * 6)
-              );
+              focusAim2D = pocketCenter
+                .clone()
+                .add(diagonalDir.clone().multiplyScalar(POCKET_VIS_R * 3.4));
             } else {
               anchorPoint = new THREE.Vector2(
-                railDir * SIDE_RAIL_CAMERA_DISTANCE,
+                -railDir * SIDE_RAIL_CAMERA_DISTANCE,
                 0
               );
               const verticalLean = signed(pocketCenter.y, 0);
@@ -2949,9 +2980,9 @@ function SnookerGame() {
                 -verticalLean * 0.55
               ).normalize();
               activeShotView.approach.copy(diagonalDir);
-              focusAim2D = pocketCenter.clone().add(
-                diagonalDir.clone().multiplyScalar(POCKET_VIS_R * 5.5)
-              );
+              focusAim2D = pocketCenter
+                .clone()
+                .add(diagonalDir.clone().multiplyScalar(POCKET_VIS_R * 3.2));
             }
             const desiredPosition = new THREE.Vector3(
               anchorPoint.x * worldScaleFactor,
@@ -3154,6 +3185,9 @@ function SnookerGame() {
             resumeAction.stage = 'followCue';
             resumeAction.lastUpdate = now;
             resumeAction.holdUntil = now + ACTION_CAM.followHoldMs;
+            resumeAction.pendingActivation = false;
+            resumeAction.activationDelay = null;
+            resumeAction.activationTravel = 0;
             if (cameraRef.current) {
               resumeAction.smoothedPos = cameraRef.current.position.clone();
               const storedTarget = lastCameraTargetRef.current?.clone();
@@ -3172,9 +3206,15 @@ function SnookerGame() {
           cueBall,
           targetId,
           followView,
-          railNormal
+          railNormal,
+          { longShot = false, travelDistance = 0 } = {}
         ) => {
           if (!cueBall) return null;
+          const ballsList = ballsRef.current || [];
+          const targetBall =
+            targetId != null
+              ? ballsList.find((b) => b.id === targetId) || null
+              : null;
           const orbitSnapshot = followView?.orbitSnapshot
             ? {
                 radius: followView.orbitSnapshot.radius,
@@ -3182,10 +3222,20 @@ function SnookerGame() {
                 theta: followView.orbitSnapshot.theta
               }
             : null;
-          const axis =
+          const baseAxis =
             railNormal && Math.abs(railNormal.x) > Math.abs(railNormal.y)
               ? 'side'
               : 'short';
+          const nearRailThresholdX = RAIL_LIMIT_X - RAIL_NEAR_BUFFER;
+          const nearRailThresholdY = RAIL_LIMIT_Y - RAIL_NEAR_BUFFER;
+          const cueNearRail =
+            Math.abs(cueBall.pos.x) > nearRailThresholdX ||
+            Math.abs(cueBall.pos.y) > nearRailThresholdY;
+          const targetNearRail = targetBall
+            ? Math.abs(targetBall.pos.x) > nearRailThresholdX ||
+              Math.abs(targetBall.pos.y) > nearRailThresholdY
+            : false;
+          const axis = longShot || cueNearRail || targetNearRail ? 'short' : baseAxis;
           const initialRailDir =
             axis === 'side'
               ? signed(
@@ -3198,6 +3248,15 @@ function SnookerGame() {
                     1
                 );
           const now = performance.now();
+          const activationDelay = longShot
+            ? now + LONG_SHOT_ACTIVATION_DELAY_MS
+            : null;
+          const activationTravel = longShot
+            ? Math.max(
+                BALL_R * 12,
+                Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
+              )
+            : 0;
           return {
             mode: 'action',
             cueId: cueBall.id,
@@ -3208,17 +3267,26 @@ function SnookerGame() {
             lastUpdate: now,
             smoothedPos: null,
             smoothedTarget: null,
-            targetLastPos: targetId
-              ? new THREE.Vector2(cueBall.pos.x, cueBall.pos.y)
+            targetLastPos: targetBall
+              ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
               : null,
             holdUntil: null,
             hitConfirmed: false,
             lastCueDir: cueBall.vel.clone(),
-            cueLookAhead: BALL_R * 6,
+            cueLookAhead: longShot ? BALL_R * 9 : BALL_R * 6,
             axis,
             railDir: initialRailDir,
             hasSwitchedRail: false,
-            railNormal: railNormal ? railNormal.clone() : null
+            railNormal: railNormal ? railNormal.clone() : null,
+            longShot,
+            travelDistance,
+            activationDelay,
+            activationTravel,
+            pendingActivation: longShot,
+            startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
+            targetInitialPos: targetBall
+              ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
+              : null
           };
         };
         const makePocketCameraView = (ballId, followView) => {
@@ -3890,6 +3958,13 @@ function SnookerGame() {
           clearInterval(timerRef.current);
           const aimDir = aimDirRef.current.clone();
           const prediction = calcTarget(cue, aimDir.clone(), balls);
+          const predictedTravelRaw = prediction.targetBall
+            ? cue.pos.distanceTo(prediction.targetBall.pos)
+            : prediction.tHit;
+          const predictedTravel = Number.isFinite(predictedTravelRaw)
+            ? predictedTravelRaw
+            : 0;
+          const isLongShot = predictedTravel > LONG_SHOT_DISTANCE;
           shotPrediction = {
             ballId: prediction.targetBall?.id ?? null,
             dir: prediction.afterDir ? prediction.afterDir.clone() : null,
@@ -3898,6 +3973,11 @@ function SnookerGame() {
               : null,
             railNormal: prediction.railNormal
               ? prediction.railNormal.clone()
+              : null,
+            travel: predictedTravel,
+            longShot: isLongShot,
+            targetInitialPos: prediction.targetBall
+              ? prediction.targetBall.pos.clone()
               : null
           };
           const orbitSnapshot = sphRef.current
@@ -3912,17 +3992,25 @@ function SnookerGame() {
             cue,
             shotPrediction.ballId,
             followView,
-            shotPrediction.railNormal
+            shotPrediction.railNormal,
+            {
+              longShot: isLongShot,
+              travelDistance: predictedTravel
+            }
           );
           if (actionView) {
-            suspendedActionView = null;
             if (cameraRef.current) {
               actionView.smoothedPos = cameraRef.current.position.clone();
               const storedTarget = lastCameraTargetRef.current?.clone();
               if (storedTarget) actionView.smoothedTarget = storedTarget;
             }
-            activeShotView = actionView;
-            updateCamera();
+            if (isLongShot) {
+              suspendedActionView = actionView;
+            } else {
+              suspendedActionView = null;
+              activeShotView = actionView;
+              updateCamera();
+            }
           }
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           const powerScale =
@@ -4334,6 +4422,40 @@ function SnookerGame() {
                 }
               }
             }
+        }
+        if (
+          !activeShotView &&
+          suspendedActionView?.mode === 'action' &&
+          suspendedActionView.pendingActivation
+        ) {
+          const cueBall = balls.find((b) => b.id === suspendedActionView.cueId);
+          if (cueBall?.active) {
+            const cuePos = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
+            const travelStart =
+              suspendedActionView.startCuePos || cuePos.clone();
+            const travel = cuePos.distanceTo(travelStart);
+            const now = performance.now();
+            const travelReady =
+              travel >= (suspendedActionView.activationTravel ?? 0);
+            const delayReady =
+              !suspendedActionView.activationDelay ||
+              now >= suspendedActionView.activationDelay;
+            if (travelReady && delayReady) {
+              const pending = suspendedActionView;
+              pending.pendingActivation = false;
+              pending.activationDelay = null;
+              pending.activationTravel = 0;
+              pending.lastUpdate = now;
+              if (cameraRef.current) {
+                pending.smoothedPos = cameraRef.current.position.clone();
+                const storedTarget = lastCameraTargetRef.current?.clone();
+                if (storedTarget) pending.smoothedTarget = storedTarget;
+              }
+              activeShotView = pending;
+              suspendedActionView = null;
+              updateCamera();
+            }
+          }
         }
         if (activeShotView?.mode === 'action') {
           const now = performance.now();
