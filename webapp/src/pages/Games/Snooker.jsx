@@ -473,6 +473,44 @@ const ACTION_CAM = Object.freeze({
   followHeightOffset: BALL_R * 8.4,
   followHoldMs: 900
 });
+/**
+ * Regji Kamera Snooker
+ *
+ * 0–2s (Opening Pan)
+ * • Kamera nis nga lart, kënd diagonal mbi tavolinë (rreth 60°).
+ * • Pan i ngadaltë djathtas → majtas që tregon gjithë tavolinën.
+ *
+ * 2–4s (Focus on Cue Ball)
+ * • Kamera afrohet tek topi i bardhë dhe shkopi.
+ * • Këndi ulet në 20–25° mbi tavolinë, direkt pas shkopit.
+ * • Zoom i lehtë / shtrëngim i kornizës.
+ *
+ * 4–6s (Strike Tracking)
+ * • Në momentin e goditjes kamera dridhet lehtë për impakt.
+ * • Pastaj ndjek topin e bardhë përgjatë tavolinës duke e mbajtur në qendër.
+ *
+ * 6–9s (Impact & Spread)
+ * • Kur topat përplasen, kamera ngrihet gradualisht (top-down).
+ * • Hapet FOV që të futen të gjithë topat në kornizë.
+ * • Bën lëvizje orbitale të shpejtë rreth tavolinës (rreth 30° rrotullim).
+ *
+ * 9–12s (Potting Shot)
+ * • Kamera bën një dolly-in tek xhepi ku bie topi.
+ * • Ndjek topin brenda xhepit për ~1 sekondë.
+ * • Pastaj fade-out ose rikthim tek pamja e plotë.
+ *
+ * 12s+ (Reset)
+ * • Kamera kthehet në overview fillestar (45° mbi tavolinë).
+ * • Mban pan shumë të ngadaltë si looping idle derisa të ndodhë goditja tjetër.
+ *
+ * 🎮 Triggers
+ * • Fillim loje → Opening Pan.
+ * • Kur lojtari përgatitet → Focus on Cue Ball.
+ * • Moment goditjeje → Strike Tracking.
+ * • Kur topat përplasen → Impact & Spread.
+ * • Kur një top bie në xhep → Potting Shot.
+ * • Pas çdo raundi → Reset.
+ */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
 const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 18;
 const CAMERA_LATERAL_CLAMP = Object.freeze({
