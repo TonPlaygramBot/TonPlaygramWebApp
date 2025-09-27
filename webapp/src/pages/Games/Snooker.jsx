@@ -272,7 +272,8 @@ function addPocketJaws(parent, playW, playH) {
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeTopY = jawTopLocal + capLift + capHeight * 0.88;
+  const chromeTopY =
+    jawTopLocal + capLift + capHeight + chromePlateThickness * 0.5;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -1068,7 +1069,7 @@ function spotPositions(baulkZ) {
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.18;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
@@ -1107,7 +1108,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.42;
+const CUE_VIEW_RADIUS_RATIO = 0.4;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
