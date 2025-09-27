@@ -401,6 +401,30 @@ const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const ACTION_CAMERA_START_BLEND = 1;
+const CAMERA_MODES = Object.freeze({
+  OVERHEAD: 'overhead',
+  SHOT: 'shot',
+  FOLLOW: 'follow',
+  POCKET: 'pocket'
+});
+const CAMERA_FLOW_CHART = Object.freeze({
+  [CAMERA_MODES.OVERHEAD]: {
+    AIM: CAMERA_MODES.SHOT,
+    FIRE: CAMERA_MODES.FOLLOW,
+    POT: CAMERA_MODES.POCKET
+  },
+  [CAMERA_MODES.SHOT]: {
+    CANCEL: CAMERA_MODES.OVERHEAD,
+    FIRE: CAMERA_MODES.FOLLOW
+  },
+  [CAMERA_MODES.FOLLOW]: {
+    TIMEOUT: CAMERA_MODES.OVERHEAD,
+    POT: CAMERA_MODES.POCKET
+  },
+  [CAMERA_MODES.POCKET]: {
+    COMPLETE: CAMERA_MODES.OVERHEAD
+  }
+});
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -448,30 +472,30 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 3.8,
+  triggerDist: CAPTURE_R * 3.6,
   dotThreshold: 0.3,
   minOutside:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
     POCKET_VIS_R * 0.96,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 3.6,
-  distanceScale: 1.12,
-  heightScale: 0.88
+  heightOffset: BALL_R * 3.2,
+  distanceScale: 1.08,
+  heightScale: 0.9
 });
 const ACTION_CAM = Object.freeze({
-  pairMinDistance: BALL_R * 32,
-  pairMaxDistance: BALL_R * 76,
-  pairDistanceScale: 1.08,
-  sideBias: 1.1,
-  forwardBias: 0.08,
-  shortRailBias: 0.52,
-  followShortRailBias: 0.42,
-  heightOffset: BALL_R * 11.6,
-  smoothingTime: 0.28,
-  followSmoothingTime: 0.22,
-  followDistance: BALL_R * 60,
-  followHeightOffset: BALL_R * 9.2,
-  followHoldMs: 960
+  pairMinDistance: BALL_R * 34,
+  pairMaxDistance: BALL_R * 74,
+  pairDistanceScale: 1.04,
+  sideBias: 1.0,
+  forwardBias: 0.06,
+  shortRailBias: 0.48,
+  followShortRailBias: 0.4,
+  heightOffset: BALL_R * 9.6,
+  smoothingTime: 0.2,
+  followSmoothingTime: 0.18,
+  followDistance: BALL_R * 62,
+  followHeightOffset: BALL_R * 8.4,
+  followHoldMs: 1500
 });
 const SCORE_VIEW_BREAK_THRESHOLD = 20;
 const SCORE_VIEW_MIN_HOLD_MS = 2200;
@@ -486,9 +510,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 900;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 400;
-const POCKET_VIEW_POST_POT_HOLD_MS = 1100;
+const POCKET_VIEW_MIN_DURATION_MS = 1000;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
+const POCKET_VIEW_POST_POT_HOLD_MS = 1000;
 const SPIN_STRENGTH = BALL_R * 0.125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
@@ -843,17 +867,20 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.74;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.34;
-const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14;
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.46;
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.36;
+const STANDING_VIEW_PHI = THREE.MathUtils.degToRad(12);
+const CUE_SHOT_PHI = THREE.MathUtils.degToRad(60);
+const STANDING_VIEW_MARGIN = 0.28;
+const STANDING_VIEW_FOV = 36;
+const CAMERA_ABS_MIN_PHI = THREE.MathUtils.degToRad(6);
+const CAMERA_MIN_PHI = Math.max(
+  CAMERA_ABS_MIN_PHI,
+  STANDING_VIEW_PHI - THREE.MathUtils.degToRad(4)
+);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI + THREE.MathUtils.degToRad(4);
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.68;
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.04;
+const BROADCAST_DISTANCE_MULTIPLIER = 1.0;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.42;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -879,19 +906,17 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.62;
+const CUE_VIEW_RADIUS_RATIO = 0.58;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
-const CUE_VIEW_MIN_PHI = Math.min(
-  CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.42
-);
-const CUE_VIEW_PHI_LIFT = 0.12;
-const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
+const CUE_VIEW_BASE_PHI = THREE.MathUtils.degToRad(60);
+const CUE_VIEW_PHI_LIFT = THREE.MathUtils.degToRad(6);
+const CAMERA_RAIL_APPROACH_PHI =
+  STANDING_VIEW_PHI + THREE.MathUtils.degToRad(42);
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.45;
-const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
+const CAMERA_DOWNWARD_PULL = 0;
+const CAMERA_DYNAMIC_PULL_RANGE = 0;
 const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -921,7 +946,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 1.05 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -2127,6 +2152,8 @@ function SnookerGame() {
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
+  const cameraModeRef = useRef(CAMERA_MODES.OVERHEAD);
+  const cameraEventRef = useRef(null);
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -2141,7 +2168,7 @@ function SnookerGame() {
     prevBlend: 1
   });
   const initialCuePhi = THREE.MathUtils.clamp(
-    CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
+    CUE_VIEW_BASE_PHI + CUE_VIEW_PHI_LIFT * 0.5,
     CAMERA.minPhi,
     CAMERA.maxPhi
   );
@@ -2455,12 +2482,6 @@ function SnookerGame() {
     const host = mountRef.current;
     if (!host) return;
     try {
-      const updatePocketCameraState = (active) => {
-        if (pocketCameraStateRef.current === active) return;
-        pocketCameraStateRef.current = active;
-        setPocketCameraActive(active);
-      };
-      updatePocketCameraState(false);
       screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
@@ -2710,6 +2731,51 @@ function SnookerGame() {
           sph.radius = clampOrbitRadius(finalRadius);
           syncBlendToSpherical();
         };
+
+        const setCameraMode = (mode) => {
+          if (!mode || cameraModeRef.current === mode) return;
+          cameraModeRef.current = mode;
+          switch (mode) {
+            case CAMERA_MODES.SHOT:
+              applyCameraBlend(0);
+              break;
+            case CAMERA_MODES.OVERHEAD:
+              if (!pocketCameraStateRef.current) {
+                applyCameraBlend(1);
+              }
+              break;
+            default:
+              break;
+          }
+        };
+
+        const triggerCameraEvent = (event) => {
+          if (!event) return;
+          const flow = CAMERA_FLOW_CHART[cameraModeRef.current];
+          const next = flow?.[event] ?? null;
+          if (next) {
+            setCameraMode(next);
+          }
+        };
+
+        cameraEventRef.current = triggerCameraEvent;
+
+        const updatePocketCameraState = (active) => {
+          if (pocketCameraStateRef.current === active) return;
+          pocketCameraStateRef.current = active;
+          setPocketCameraActive(active);
+          if (active) {
+            triggerCameraEvent('POT');
+            setCameraMode(CAMERA_MODES.POCKET);
+          } else {
+            triggerCameraEvent('COMPLETE');
+            setCameraMode(CAMERA_MODES.OVERHEAD);
+          }
+        };
+
+        cameraModeRef.current = null;
+        setCameraMode(CAMERA_MODES.OVERHEAD);
+        updatePocketCameraState(false);
 
 
         const updateCamera = () => {
@@ -3185,6 +3251,7 @@ function SnookerGame() {
               duration: 500
             });
           }
+          setCameraMode(CAMERA_MODES.OVERHEAD);
         };
         const resumeAfterPocket = (pocketView, now) => {
           updatePocketCameraState(false);
@@ -3207,6 +3274,7 @@ function SnookerGame() {
             }
             activeShotView = resumeAction;
             suspendedActionView = null;
+            setCameraMode(CAMERA_MODES.FOLLOW);
           } else {
             activeShotView = null;
             restoreOrbitCamera(pocketView);
@@ -3360,7 +3428,7 @@ function SnookerGame() {
             )
           );
           const cuePhi = THREE.MathUtils.clamp(
-            CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
+            CUE_VIEW_BASE_PHI + CUE_VIEW_PHI_LIFT * 0.5,
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
@@ -3929,6 +3997,7 @@ function SnookerGame() {
           shooting = true;
           isAimingRef.current = false;
           activeShotView = null;
+          triggerCameraEvent('FIRE');
           aimFocusRef.current = null;
           potted = [];
           firstHit = null;
@@ -3967,6 +4036,7 @@ function SnookerGame() {
               if (storedTarget) actionView.smoothedTarget = storedTarget;
             }
             activeShotView = actionView;
+            setCameraMode(CAMERA_MODES.FOLLOW);
             updateCamera();
           }
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
@@ -4124,6 +4194,7 @@ function SnookerGame() {
         }
         setHud((prev) => ({ ...prev, inHand: cueBallPotted }));
         shooting = false;
+        triggerCameraEvent('TIMEOUT');
         shotPrediction = null;
         activeShotView = null;
         suspendedActionView = null;
@@ -4637,14 +4708,27 @@ function SnookerGame() {
             !scoreboard.active &&
             !scoreboard.requested
           ) {
-            const desiredBlend = isAimingRef.current ? 0 : 1;
-            const currentBlend = cameraBlendRef.current ?? desiredBlend;
-            const idleMs = now - lastInteraction;
-            const shouldAdjust = isAimingRef.current || idleMs > 220;
-            if (shouldAdjust && Math.abs(currentBlend - desiredBlend) > 0.01) {
-              const factor = isAimingRef.current ? 0.22 : 0.1;
-              const nextBlend = currentBlend + (desiredBlend - currentBlend) * factor;
-              applyCameraBlend(nextBlend);
+            const targetMode = isAimingRef.current
+              ? CAMERA_MODES.SHOT
+              : CAMERA_MODES.OVERHEAD;
+            setCameraMode(targetMode);
+            if (
+              cameraModeRef.current === CAMERA_MODES.SHOT ||
+              cameraModeRef.current === CAMERA_MODES.OVERHEAD
+            ) {
+              const desiredBlend =
+                cameraModeRef.current === CAMERA_MODES.SHOT ? 0 : 1;
+              const currentBlend = cameraBlendRef.current ?? desiredBlend;
+              const idleMs = now - lastInteraction;
+              const shouldAdjust =
+                cameraModeRef.current === CAMERA_MODES.SHOT || idleMs > 220;
+              if (shouldAdjust && Math.abs(currentBlend - desiredBlend) > 0.01) {
+                const factor =
+                  cameraModeRef.current === CAMERA_MODES.SHOT ? 0.22 : 0.1;
+                const nextBlend =
+                  currentBlend + (desiredBlend - currentBlend) * factor;
+                applyCameraBlend(nextBlend);
+              }
             }
           }
           updateCamera();
@@ -4674,6 +4758,8 @@ function SnookerGame() {
         cancelAnimationFrame(rafRef.current);
         window.removeEventListener('resize', onResize);
         updatePocketCameraState(false);
+        cameraEventRef.current = null;
+        cameraModeRef.current = CAMERA_MODES.OVERHEAD;
         try {
           host.removeChild(renderer.domElement);
         } catch {}
@@ -4715,9 +4801,11 @@ function SnookerGame() {
     const sliderEl = slider.el;
     const handleAimStart = () => {
       isAimingRef.current = true;
+      cameraEventRef.current?.('AIM');
     };
     const handleAimEnd = () => {
       isAimingRef.current = false;
+      cameraEventRef.current?.('CANCEL');
     };
     sliderEl.addEventListener('pointerdown', handleAimStart);
     sliderEl.addEventListener('pointerup', handleAimEnd);
@@ -4731,6 +4819,7 @@ function SnookerGame() {
       sliderEl.removeEventListener('lostpointercapture', handleAimEnd);
       sliderEl.removeEventListener('blur', handleAimEnd);
       isAimingRef.current = false;
+      cameraEventRef.current?.('CANCEL');
       slider.destroy();
     };
   }, []);
