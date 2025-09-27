@@ -471,7 +471,7 @@ const ACTION_CAM = Object.freeze({
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
   followHeightOffset: BALL_R * 8.4,
-  followHoldMs: 900
+  followHoldMs: 720
 });
 /**
  * Regji Kamera Snooker
@@ -517,9 +517,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 750;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
-const POCKET_VIEW_POST_POT_HOLD_MS = 850;
+const POCKET_VIEW_MIN_DURATION_MS = 620;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
+const POCKET_VIEW_POST_POT_HOLD_MS = 560;
 const SPIN_STRENGTH = BALL_R * 0.125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
@@ -583,7 +583,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
-const RAIL_WOOD_COLOR = 0x3a2a1a;
+const RAIL_WOOD_COLOR = 0x4b3624;
 const BASE_WOOD_COLOR = 0x8c5a33;
 const COLORS = Object.freeze({
   cloth: 0x28a64d,
@@ -786,6 +786,62 @@ const createClothTextures = (() => {
   };
 })();
 
+const createWoodTextures = (() => {
+  let cache = null;
+  const hash = (x, y, seed = 0) => {
+    const s = Math.sin((x * 12.9898 + y * 78.233 + seed) * 43758.5453);
+    return (s - Math.floor(s)) * 0.5 + 0.5;
+  };
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { map: null };
+      return cache;
+    }
+    const size = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      cache = { map: null };
+      return cache;
+    }
+    const image = ctx.createImageData(size, size);
+    const data = image.data;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const nx = x / size;
+        const ny = y / size;
+        const flow = Math.sin((nx * 12 + ny * 3.2) * Math.PI);
+        const rings = Math.sin((nx + ny * 0.35) * Math.PI * 6 + hash(x, y, 5) * Math.PI);
+        const grain = Math.sin((ny * 2.4 + flow * 0.35) * Math.PI * 2);
+        const noise = hash(x, y, 11) * 0.28 - 0.14;
+        const shade = clamp01(0.58 + rings * 0.18 + grain * 0.12 + noise);
+        const r = clamp01(0.32 + shade * 0.42);
+        const g = clamp01(0.22 + shade * 0.3);
+        const b = clamp01(0.14 + shade * 0.2);
+        data[idx] = r * 255;
+        data[idx + 1] = g * 255;
+        data[idx + 2] = b * 255;
+        data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 6;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
+    cache = { map: texture };
+    return cache;
+  };
+})();
+
 const createCarpetTextures = (() => {
   let cache = null;
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -876,7 +932,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.28;
+const STANDING_VIEW_MARGIN = 0.24;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -914,7 +970,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.62;
+const CUE_VIEW_RADIUS_RATIO = 0.6;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -927,11 +983,11 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
-const POCKET_VIEW_SMOOTH_TIME = 0.36; // seconds to ease pocket camera transitions
+const POCKET_VIEW_SMOOTH_TIME = 0.28; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = 72;
 const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 6.4;
 const POCKET_CAMERA_CORNER_LATERAL = POCKET_VIS_R * 2.4;
-const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 4.2;
+const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 4.8;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -1499,6 +1555,20 @@ function calcTarget(cue, dir, balls) {
   return { impact, afterDir, targetBall, railNormal, tHit };
 }
 
+function toBallColor(id) {
+  if (!id) return null;
+  if (typeof id === 'string') {
+    const normalized = id.toUpperCase();
+    if (normalized === 'CUE') return 'CUE';
+    if (normalized.startsWith('RED')) return 'RED';
+    return normalized;
+  }
+  if (typeof id === 'object' && 'id' in id) {
+    return toBallColor(id.id);
+  }
+  return null;
+}
+
 // --------------------------------------------------
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
@@ -1683,6 +1753,19 @@ function Table3D(parent) {
     metalness: 0.3,
     roughness: 0.8
   });
+  const woodTextures = createWoodTextures();
+  const applyWoodMap = (material, repeatX, repeatY) => {
+    if (!material || !woodTextures.map) return;
+    const map = woodTextures.map.clone();
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.anisotropy = 6;
+    map.repeat.set(repeatX, repeatY);
+    map.needsUpdate = true;
+    material.map = map;
+    material.needsUpdate = true;
+  };
+  applyWoodMap(woodMat, 3.4, 1.6);
+  applyWoodMap(railWoodMat, 6.2, 1.4);
 
   const clothExtend = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.18,
@@ -1713,6 +1796,7 @@ function Table3D(parent) {
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal;
   cloth.renderOrder = 3;
+  cloth.receiveShadow = true;
   table.add(cloth);
 
   const markingsGroup = new THREE.Group();
@@ -2616,15 +2700,22 @@ function SnookerGame() {
       });
       const carpetRepeatX = Math.max(1.5, (carpetWidth / TABLE.W) * 1.2);
       const carpetRepeatZ = Math.max(1.5, (carpetDepth / TABLE.H) * 1.2);
+      const carpetRepeatScale = 0.55;
       if (carpetTextures.map) {
         carpetMat.map = carpetTextures.map;
-        carpetMat.map.repeat.set(carpetRepeatX, carpetRepeatZ);
+        carpetMat.map.repeat.set(
+          carpetRepeatX * carpetRepeatScale,
+          carpetRepeatZ * carpetRepeatScale
+        );
         carpetMat.map.needsUpdate = true;
       }
       if (carpetTextures.bump) {
         carpetMat.bumpMap = carpetTextures.bump;
-        carpetMat.bumpMap.repeat.set(carpetRepeatX, carpetRepeatZ);
-        carpetMat.bumpScale = 0.35;
+        carpetMat.bumpMap.repeat.set(
+          carpetRepeatX * carpetRepeatScale,
+          carpetRepeatZ * carpetRepeatScale
+        );
+        carpetMat.bumpScale = 0.12;
         carpetMat.bumpMap.needsUpdate = true;
       }
       const carpet = new THREE.Mesh(
@@ -3914,6 +4005,7 @@ function SnookerGame() {
 
       cueRef.current = cue;
       ballsRef.current = balls;
+      retargetAimToLegalBall(frameRef.current ?? frameState);
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
@@ -4245,6 +4337,41 @@ function SnookerGame() {
         );
       };
 
+      function retargetAimToLegalBall(frame) {
+        if (!cue?.active || hud.inHand) return;
+        const allowed = (frame?.ballOn ?? []).map((c) =>
+          c ? c.toUpperCase() : c
+        );
+        if (!allowed.length) return;
+        const allowedSet = new Set(allowed);
+        const cuePos = cue.pos.clone();
+        let bestBall = null;
+        let bestDist = Infinity;
+        balls.forEach((ball) => {
+          if (!ball.active || ball === cue) return;
+          const colorId = toBallColor(ball.id);
+          if (!colorId || !allowedSet.has(colorId)) return;
+          const dist = cuePos.distanceTo(ball.pos);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestBall = ball;
+          }
+        });
+        if (bestBall) {
+          const dir = bestBall.pos.clone().sub(cuePos);
+          if (dir.lengthSq() > 1e-6) {
+            dir.normalize();
+            aimDirRef.current.copy(dir);
+            aimFocusRef.current = new THREE.Vector3(
+              bestBall.pos.x,
+              BALL_CENTER_Y,
+              bestBall.pos.y
+            );
+            alignStandingCameraToAim(cue, aimDirRef.current);
+          }
+        }
+      }
+
       // Fire (slider e thërret në release)
       const fire = () => {
         if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
@@ -4432,12 +4559,6 @@ function SnookerGame() {
 
       // Resolve shot
       function resolve() {
-        const toBallColor = (id) => {
-          if (!id) return null;
-          if (id === 'cue' || id === 'CUE') return 'CUE';
-          if (typeof id === 'string' && id.startsWith('red')) return 'RED';
-          return typeof id === 'string' ? id.toUpperCase() : null;
-        };
         const shotEvents = [];
         const firstContactColor = toBallColor(firstHit);
         shotEvents.push({ type: 'HIT', firstContact: firstContactColor });
@@ -4495,6 +4616,7 @@ function SnookerGame() {
         activeShotView = null;
         suspendedActionView = null;
         updatePocketCameraState(false);
+        retargetAimToLegalBall(nextState);
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
@@ -4557,9 +4679,21 @@ function SnookerGame() {
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
-          aim.material.color.set(
-            targetBall && !railNormal ? 0xffff00 : 0xffffff
+          const currentFrameState = frameRef.current ?? frameState;
+          const allowedColours = (currentFrameState?.ballOn ?? []).map((c) =>
+            c ? c.toUpperCase() : c
           );
+          const allowedSet = new Set(allowedColours);
+          let aimColorHex = 0xff3535;
+          if (allowedSet.size === 0) {
+            aimColorHex = 0xffffff;
+          } else if (targetBall && !railNormal) {
+            const targetColorId = toBallColor(targetBall.id);
+            if (targetColorId && allowedSet.has(targetColorId)) {
+              aimColorHex = 0x2ecc71;
+            }
+          }
+          aim.material.color.set(aimColorHex);
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
