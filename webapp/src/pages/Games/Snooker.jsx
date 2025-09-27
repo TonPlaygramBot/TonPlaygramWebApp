@@ -924,6 +924,8 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
+const POCKET_CAMERA_FOV = 56;
+const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 4.8;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -2164,6 +2166,8 @@ function SnookerGame() {
   const aimFocusRef = useRef(null);
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
+  const pocketCamerasRef = useRef(new Map());
+  const activeRenderCameraRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const initialCuePhi = THREE.MathUtils.clamp(
     CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
@@ -2570,9 +2574,10 @@ function SnookerGame() {
 
       const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
       rightWall.position.x = roomWidth / 2;
+        const aspect = host.clientWidth / host.clientHeight;
         const camera = new THREE.PerspectiveCamera(
           CAMERA.fov,
-          host.clientWidth / host.clientHeight,
+          aspect,
           CAMERA.near,
           CAMERA.far
         );
@@ -2596,8 +2601,38 @@ function SnookerGame() {
           standing: { phi: standingPhi, radius: standingRadius }
         };
 
+        const ensurePocketCamera = (id, center) => {
+          if (!id) return null;
+          let entry = pocketCamerasRef.current.get(id);
+          if (!entry) {
+            const pocketCamera = new THREE.PerspectiveCamera(
+              POCKET_CAMERA_FOV,
+              aspect,
+              CAMERA.near,
+              CAMERA.far
+            );
+            pocketCamera.up.set(0, 1, 0);
+            entry = { camera: pocketCamera, center: center?.clone() ?? null };
+            pocketCamerasRef.current.set(id, entry);
+          } else if (entry.camera.aspect !== aspect) {
+            entry.camera.aspect = aspect;
+            entry.camera.updateProjectionMatrix();
+          }
+          if (center) {
+            entry.center = center.clone();
+          }
+          return entry.camera;
+        };
+
+        pocketCenters().forEach((center, idx) => {
+          const id = POCKET_IDS[idx] ?? `P${idx}`;
+          ensurePocketCamera(id, center);
+        });
+
         const getDefaultOrbitTarget = () =>
           new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
+
+        activeRenderCameraRef.current = camera;
 
         const ensureOrbitFocus = () => {
           const store = orbitFocusRef.current;
@@ -2714,6 +2749,7 @@ function SnookerGame() {
 
 
         const updateCamera = () => {
+          let renderCamera = camera;
           let lookTarget = null;
           if (topViewRef.current) {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
@@ -2721,6 +2757,7 @@ function SnookerGame() {
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
+            renderCamera = camera;
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -2961,6 +2998,7 @@ function SnookerGame() {
                 camera.position.copy(activeShotView.smoothedPos);
                 camera.lookAt(activeShotView.smoothedTarget);
                 lookTarget = activeShotView.smoothedTarget;
+                renderCamera = camera;
               }
             }
           } else if (activeShotView?.mode === 'pocket') {
@@ -2993,45 +3031,61 @@ function SnookerGame() {
             const camHeight =
               (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
               worldScaleFactor;
-            let anchorPoint;
-            let focusAim2D;
-            if (anchorType === 'short') {
-              anchorPoint = new THREE.Vector2(
-                0,
-                -railDir * SHORT_RAIL_CAMERA_DISTANCE
-              );
-              const diagonalLean = signed(pocketCenter.x, 0);
-              const diagonalDir = new THREE.Vector2(
-                -diagonalLean * 0.55,
-                -railDir
-              ).normalize();
-              activeShotView.approach.copy(diagonalDir);
-              focusAim2D = pocketCenter
-                .clone()
-                .add(diagonalDir.clone().multiplyScalar(POCKET_VIS_R * 3.4));
-            } else {
-              anchorPoint = new THREE.Vector2(
-                -railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                0
-              );
-              const verticalLean = signed(pocketCenter.y, 0);
-              const diagonalDir = new THREE.Vector2(
-                -railDir,
-                -verticalLean * 0.55
-              ).normalize();
-              activeShotView.approach.copy(diagonalDir);
-              focusAim2D = pocketCenter
-                .clone()
-                .add(diagonalDir.clone().multiplyScalar(POCKET_VIS_R * 3.2));
+            const pocketId = activeShotView.anchorId ??
+              pocketIdFromCenter(pocketCenter);
+            let pocketCamEntry = pocketCamerasRef.current.get(pocketId);
+            const pocketCamera = pocketCamEntry
+              ? pocketCamEntry.camera
+              : ensurePocketCamera(pocketId, pocketCenter);
+            if (!pocketCamEntry) {
+              pocketCamEntry = pocketCamerasRef.current.get(pocketId) ?? null;
             }
-            const desiredPosition = new THREE.Vector3(
-              anchorPoint.x * worldScaleFactor,
-              camHeight,
-              anchorPoint.y * worldScaleFactor
+            const pocketCenter2D = pocketCamEntry?.center
+              ? pocketCamEntry.center.clone()
+              : pocketCenter.clone();
+            const approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
+            }
+            const outward = pocketCenter2D.clone();
+            if (outward.lengthSq() < 1e-6) {
+              outward.set(
+                anchorType === 'side' ? railDir : 0,
+                anchorType === 'side' ? 0 : railDir
+              );
+            }
+            outward.normalize();
+            const cameraDistance = THREE.MathUtils.clamp(
+              activeShotView.cameraDistance ?? POCKET_CAM.minOutside,
+              POCKET_CAM.minOutside,
+              POCKET_CAM.maxOutside
             );
+            const cameraAnchor2D = pocketCenter2D
+              .clone()
+              .add(outward.clone().multiplyScalar(cameraDistance));
+            const desiredPosition = new THREE.Vector3(
+              cameraAnchor2D.x * worldScaleFactor,
+              camHeight,
+              cameraAnchor2D.y * worldScaleFactor
+            );
+            const lookDir = approachDir.clone().multiplyScalar(-1);
+            if (lookDir.lengthSq() < 1e-6) {
+              lookDir.copy(outward.clone().multiplyScalar(-1));
+            }
+            const focusAim2D = activeShotView.pocketCenter
+              .clone()
+              .add(lookDir.multiplyScalar(POCKET_CAMERA_LOOK_AHEAD));
             const focusTarget = new THREE.Vector3(
               focusAim2D.x,
-              BALL_CENTER_Y + BALL_R * 0.35,
+              BALL_CENTER_Y + BALL_R * 0.25,
               focusAim2D.y
             );
             focusTarget.multiplyScalar(worldScaleFactor);
@@ -3062,8 +3116,12 @@ function SnookerGame() {
             } else {
               activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
             }
-            camera.position.copy(activeShotView.smoothedPos);
-            camera.lookAt(activeShotView.smoothedTarget);
+            if (pocketCamera) {
+              pocketCamera.position.copy(activeShotView.smoothedPos);
+              pocketCamera.lookAt(activeShotView.smoothedTarget);
+              pocketCamera.updateMatrixWorld();
+              renderCamera = pocketCamera;
+            }
             lookTarget = activeShotView.smoothedTarget;
           } else {
             const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
@@ -3100,12 +3158,13 @@ function SnookerGame() {
             TMP_SPH.copy(sph);
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
+            renderCamera = camera;
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
           }
           if (clothMat && lookTarget) {
-            const dist = camera.position.distanceTo(lookTarget);
+            const dist = renderCamera.position.distanceTo(lookTarget);
             const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
             const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
             const farRepeat = clothMat.userData?.farRepeat ?? 18;
@@ -3123,6 +3182,8 @@ function SnookerGame() {
               clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.55, base * 1.4, fade);
             }
           }
+          activeRenderCameraRef.current = renderCamera;
+          return renderCamera;
         };
         const lerpAngle = (a, b, t) => {
           const delta =
@@ -3380,6 +3441,11 @@ function SnookerGame() {
               }
             : null;
           const now = performance.now();
+          const cameraDistance = THREE.MathUtils.clamp(
+            best.dist * POCKET_CAM.distanceScale,
+            POCKET_CAM.minOutside,
+            POCKET_CAM.maxOutside
+          );
           return {
             mode: 'pocket',
             ballId,
@@ -3396,7 +3462,9 @@ function SnookerGame() {
             completed: false,
             isSidePocket,
             anchorType: isSidePocket ? 'side' : 'short',
-            railDir
+            railDir,
+            anchorId: anchorPocketId,
+            cameraDistance
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -3897,7 +3965,8 @@ function SnookerGame() {
           1
         );
         pointer.set(cx, cy);
-        ray.setFromCamera(pointer, camera);
+        const activeCamera = activeRenderCameraRef.current ?? camera;
+        ray.setFromCamera(pointer, activeCamera);
         const pt = new THREE.Vector3();
         ray.ray.intersectPlane(plane, pt);
         return new THREE.Vector2(
@@ -3925,7 +3994,8 @@ function SnookerGame() {
         const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
         const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
         pointer.set(nx, ny);
-        ray.setFromCamera(pointer, camera);
+        const currentCamera = activeRenderCameraRef.current ?? camera;
+        ray.setFromCamera(pointer, currentCamera);
         const ballsList =
           ballsRef.current?.length > 0 ? ballsRef.current : balls;
         const intersects = ray.intersectObjects(
@@ -4693,33 +4763,41 @@ function SnookerGame() {
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
           }
-          updateCamera();
-          renderer.render(scene, camera);
+          const frameCamera = updateCamera();
+          renderer.render(scene, frameCamera ?? camera);
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
 
       // Resize
-      const onResize = () => {
-        // Update canvas dimensions when the window size changes so the table
-        // remains fully visible.
-        renderer.setSize(host.clientWidth, host.clientHeight);
-        const margin = Math.max(
-          STANDING_VIEW.margin,
-          topViewRef.current
-            ? 1.05
-            : window.innerHeight > window.innerWidth
-              ? 1.6
-              : 1.4
-        );
-        fit(margin);
-      };
+        const onResize = () => {
+          // Update canvas dimensions when the window size changes so the table
+          // remains fully visible.
+          renderer.setSize(host.clientWidth, host.clientHeight);
+          const margin = Math.max(
+            STANDING_VIEW.margin,
+            topViewRef.current
+              ? 1.05
+              : window.innerHeight > window.innerWidth
+                ? 1.6
+                : 1.4
+          );
+          fit(margin);
+          const resizeAspect = host.clientWidth / host.clientHeight;
+          pocketCamerasRef.current.forEach((entry) => {
+            if (!entry?.camera) return;
+            entry.camera.aspect = resizeAspect;
+            entry.camera.updateProjectionMatrix();
+          });
+        };
       window.addEventListener('resize', onResize);
 
       return () => {
         cancelAnimationFrame(rafRef.current);
         window.removeEventListener('resize', onResize);
         updatePocketCameraState(false);
+        pocketCamerasRef.current.clear();
+        activeRenderCameraRef.current = null;
         try {
           host.removeChild(renderer.domElement);
         } catch {}
