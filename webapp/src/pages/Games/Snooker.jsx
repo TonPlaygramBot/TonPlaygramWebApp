@@ -454,32 +454,25 @@ const POCKET_CAM = Object.freeze({
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
     POCKET_VIS_R * 0.96,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 3.6,
-  distanceScale: 1.12,
-  heightScale: 0.88
+  heightOffset: BALL_R * 3.9,
+  distanceScale: 1.05,
+  heightScale: 0.92
 });
 const ACTION_CAM = Object.freeze({
-  pairMinDistance: BALL_R * 32,
-  pairMaxDistance: BALL_R * 76,
-  pairDistanceScale: 1.08,
-  sideBias: 1.1,
-  forwardBias: 0.08,
+  pairMinDistance: BALL_R * 28,
+  pairMaxDistance: BALL_R * 72,
+  pairDistanceScale: 1.05,
+  sideBias: 1.24,
+  forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 11.6,
-  smoothingTime: 0.28,
-  followSmoothingTime: 0.22,
-  followDistance: BALL_R * 60,
-  followHeightOffset: BALL_R * 9.2,
-  followHoldMs: 960
+  heightOffset: BALL_R * 10.5,
+  smoothingTime: 0.32,
+  followSmoothingTime: 0.24,
+  followDistance: BALL_R * 54,
+  followHeightOffset: BALL_R * 8.4,
+  followHoldMs: 900
 });
-const SCORE_VIEW_BREAK_THRESHOLD = 20;
-const SCORE_VIEW_MIN_HOLD_MS = 2200;
-const SCORE_VIEW_RELEASE_GRACE_MS = 500;
-const SCORE_VIEW_RADIUS_SCALE = 1.05;
-const SCORE_VIEW_PHI_OFFSET = -0.04;
-const SCORE_VIEW_ANIM_MS = 720;
-const PANORAMA_LONG_SIDE_THETA = Math.PI / 2;
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
 const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 18;
 const CAMERA_LATERAL_CLAMP = Object.freeze({
@@ -843,16 +836,16 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.74;
+const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.34;
+const STANDING_VIEW_MARGIN = 0.4;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14;
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.46;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
+const BROADCAST_DISTANCE_MULTIPLIER = 1.04;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.36;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -890,7 +883,7 @@ const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.45;
+const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -2127,19 +2120,6 @@ function SnookerGame() {
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
-  const hudRef = useRef(hud);
-  useEffect(() => {
-    hudRef.current = hud;
-  }, [hud]);
-  const isAimingRef = useRef(false);
-  const scoreCameraRef = useRef({
-    requested: false,
-    active: false,
-    releaseAt: 0,
-    lastBreakValue: 0,
-    prevOrbit: null,
-    prevBlend: 1
-  });
   const initialCuePhi = THREE.MathUtils.clamp(
     CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
     CAMERA.minPhi,
@@ -2242,30 +2222,6 @@ function SnookerGame() {
       };
     });
   }, [frameState]);
-  useEffect(() => {
-    const store = scoreCameraRef.current;
-    const currentBreak = frameState?.currentBreak ?? 0;
-    if (
-      !store.active &&
-      currentBreak >= SCORE_VIEW_BREAK_THRESHOLD &&
-      store.lastBreakValue < SCORE_VIEW_BREAK_THRESHOLD
-    ) {
-      store.requested = true;
-    }
-    if (currentBreak === 0) {
-      store.lastBreakValue = 0;
-      store.requested = false;
-      if (store.active) {
-        const now =
-          typeof performance !== 'undefined' ? performance.now() : Date.now();
-        if (!store.releaseAt || store.releaseAt > now + SCORE_VIEW_RELEASE_GRACE_MS) {
-          store.releaseAt = now + SCORE_VIEW_RELEASE_GRACE_MS;
-        }
-      }
-    } else {
-      store.lastBreakValue = currentBreak;
-    }
-  }, [frameState.currentBreak]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -3392,10 +3348,10 @@ function SnookerGame() {
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.02
+            ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.12
-              : 1.06
+              ? 1.45
+              : 1.32
         );
         fit(margin);
         syncBlendToSpherical();
@@ -3924,10 +3880,9 @@ function SnookerGame() {
         const fire = () => {
           if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
             return;
-          applyCameraBlend(0);
+          applyCameraBlend(1);
           updateCamera();
           shooting = true;
-          isAimingRef.current = false;
           activeShotView = null;
           aimFocusRef.current = null;
           potted = [];
@@ -4128,36 +4083,31 @@ function SnookerGame() {
         activeShotView = null;
         suspendedActionView = null;
         updatePocketCameraState(false);
-        if (cameraRef.current && sphRef.current) {
-          const cuePos = cue?.pos
-            ? new THREE.Vector2(cue.pos.x, cue.pos.y)
-            : new THREE.Vector2();
-          const standingView = cameraBoundsRef.current?.standing;
-          const panoramaPhi = clamp(
-            standingView?.phi ?? STANDING_VIEW.phi,
-            CAMERA.minPhi,
-            CAMERA.maxPhi
-          );
-          const panoramaRadius = clampOrbitRadius(
-            standingView?.radius ?? BREAK_VIEW.radius
-          );
-          let thetaTarget = PANORAMA_LONG_SIDE_THETA;
-          if (Number.isFinite(cuePos.x) && Math.abs(cuePos.x) > BALL_R * 0.5) {
-            thetaTarget = cuePos.x >= 0 ? PANORAMA_LONG_SIDE_THETA : -PANORAMA_LONG_SIDE_THETA;
-          } else if (sphRef.current) {
-            const currentTheta = sphRef.current.theta ?? PANORAMA_LONG_SIDE_THETA;
-            thetaTarget = Math.abs(currentTheta) > Math.PI / 2
-              ? -PANORAMA_LONG_SIDE_THETA
-              : PANORAMA_LONG_SIDE_THETA;
+          if (cameraRef.current && sphRef.current) {
+            const cuePos = cue?.pos
+              ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+              : new THREE.Vector2();
+            const toCenter = new THREE.Vector2(-cuePos.x, -cuePos.y);
+            if (toCenter.lengthSq() < 1e-4) toCenter.set(0, 1);
+            else toCenter.normalize();
+            const behindTheta = Math.atan2(toCenter.x, toCenter.y) + Math.PI;
+            const standingView = cameraBoundsRef.current?.standing;
+            const behindPhi = clamp(
+              standingView?.phi ?? CAMERA.minPhi,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
+            const behindRadius = clampOrbitRadius(
+              standingView?.radius ?? BREAK_VIEW.radius
+            );
+            applyCameraBlend(1);
+            animateCamera({
+              radius: behindRadius,
+              phi: behindPhi,
+              theta: behindTheta,
+              duration: 600
+            });
           }
-          applyCameraBlend(1);
-          animateCamera({
-            radius: panoramaRadius,
-            phi: panoramaPhi,
-            theta: thetaTarget,
-            duration: 650
-          });
-        }
           potted = [];
           firstHit = null;
         }
@@ -4548,75 +4498,6 @@ function SnookerGame() {
             );
             if (!any) resolve();
           }
-          const scoreboard = scoreCameraRef.current;
-          if (scoreboard.active) {
-            const idleMs = now - lastInteraction;
-            const abort =
-              shooting ||
-              activeShotView ||
-              pocketCameraStateRef.current ||
-              isAimingRef.current ||
-              idleMs < 120;
-            if (abort || now >= (scoreboard.releaseAt || 0)) {
-              const prevOrbit = scoreboard.prevOrbit;
-              const prevBlend = scoreboard.prevBlend;
-              scoreboard.active = false;
-              scoreboard.requested = false;
-              scoreboard.prevOrbit = null;
-              scoreboard.prevBlend = 1;
-              scoreboard.releaseAt = 0;
-              if (prevOrbit) {
-                restoreOrbitCamera({ orbitSnapshot: prevOrbit });
-              } else if (Number.isFinite(prevBlend)) {
-                applyCameraBlend(prevBlend);
-              } else {
-                applyCameraBlend(1);
-              }
-            }
-          } else if (
-            scoreboard.requested &&
-            !shooting &&
-            !activeShotView &&
-            !pocketCameraStateRef.current
-          ) {
-            scoreboard.requested = false;
-            scoreboard.active = true;
-            scoreboard.prevBlend = cameraBlendRef.current ?? 1;
-            scoreboard.prevOrbit = sphRef.current
-              ? {
-                  radius: sphRef.current.radius,
-                  phi: sphRef.current.phi,
-                  theta: sphRef.current.theta
-                }
-              : null;
-            scoreboard.releaseAt = now + SCORE_VIEW_MIN_HOLD_MS;
-            const standing = cameraBoundsRef.current?.standing;
-            const sph = sphRef.current;
-            const baseRadius = standing?.radius ?? sph?.radius ?? BREAK_VIEW.radius;
-            const radius = clampOrbitRadius(baseRadius * SCORE_VIEW_RADIUS_SCALE);
-            const basePhi = clamp(
-              (standing?.phi ?? STANDING_VIEW.phi) + SCORE_VIEW_PHI_OFFSET,
-              CAMERA.minPhi,
-              CAMERA.maxPhi
-            );
-            const cuePos = cue?.pos
-              ? new THREE.Vector2(cue.pos.x, cue.pos.y)
-              : new THREE.Vector2();
-            let thetaBase;
-            if (Number.isFinite(cuePos.y) && Math.abs(cuePos.y) > BALL_R) {
-              thetaBase = cuePos.y >= 0 ? 0 : Math.PI;
-            } else {
-              const hudState = hudRef.current;
-              thetaBase = hudState?.turn === 0 ? Math.PI : 0;
-            }
-            applyCameraBlend(1);
-            animateCamera({
-              radius,
-              phi: basePhi,
-              theta: thetaBase,
-              duration: SCORE_VIEW_ANIM_MS
-            });
-          }
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
             const limX =
@@ -4627,25 +4508,6 @@ function SnookerGame() {
             const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
-          }
-          if (
-            !shooting &&
-            !(hudRef.current?.inHand) &&
-            !topViewRef.current &&
-            !activeShotView &&
-            !pocketCameraStateRef.current &&
-            !scoreboard.active &&
-            !scoreboard.requested
-          ) {
-            const desiredBlend = isAimingRef.current ? 0 : 1;
-            const currentBlend = cameraBlendRef.current ?? desiredBlend;
-            const idleMs = now - lastInteraction;
-            const shouldAdjust = isAimingRef.current || idleMs > 220;
-            if (shouldAdjust && Math.abs(currentBlend - desiredBlend) > 0.01) {
-              const factor = isAimingRef.current ? 0.22 : 0.1;
-              const nextBlend = currentBlend + (desiredBlend - currentBlend) * factor;
-              applyCameraBlend(nextBlend);
-            }
           }
           updateCamera();
           renderer.render(scene, camera);
@@ -4661,10 +4523,10 @@ function SnookerGame() {
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.02
+            ? 1.05
             : window.innerHeight > window.innerWidth
-              ? 1.16
-              : 1.08
+              ? 1.6
+              : 1.4
         );
         fit(margin);
       };
@@ -4712,25 +4574,7 @@ function SnookerGame() {
         });
       }
     });
-    const sliderEl = slider.el;
-    const handleAimStart = () => {
-      isAimingRef.current = true;
-    };
-    const handleAimEnd = () => {
-      isAimingRef.current = false;
-    };
-    sliderEl.addEventListener('pointerdown', handleAimStart);
-    sliderEl.addEventListener('pointerup', handleAimEnd);
-    sliderEl.addEventListener('pointercancel', handleAimEnd);
-    sliderEl.addEventListener('lostpointercapture', handleAimEnd);
-    sliderEl.addEventListener('blur', handleAimEnd);
     return () => {
-      sliderEl.removeEventListener('pointerdown', handleAimStart);
-      sliderEl.removeEventListener('pointerup', handleAimEnd);
-      sliderEl.removeEventListener('pointercancel', handleAimEnd);
-      sliderEl.removeEventListener('lostpointercapture', handleAimEnd);
-      sliderEl.removeEventListener('blur', handleAimEnd);
-      isAimingRef.current = false;
       slider.destroy();
     };
   }, []);
