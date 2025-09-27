@@ -454,9 +454,9 @@ const POCKET_CAM = Object.freeze({
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
     POCKET_VIS_R * 1.28,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 11.2,
+  heightOffset: BALL_R * 12.6,
   distanceScale: 1.12,
-  heightScale: 1.12
+  heightScale: 1.22
 });
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -517,9 +517,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 750;
+const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
-const POCKET_VIEW_POST_POT_HOLD_MS = 850;
+const POCKET_VIEW_POST_POT_HOLD_MS = 480;
 const SPIN_STRENGTH = BALL_R * 0.125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
@@ -881,7 +881,7 @@ const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14;
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.46;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.44;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.26;
@@ -914,7 +914,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.62;
+const CUE_VIEW_RADIUS_RATIO = 0.58;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -927,11 +927,11 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
-const POCKET_VIEW_SMOOTH_TIME = 0.36; // seconds to ease pocket camera transitions
+const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = 72;
-const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 6.4;
+const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 7.2;
 const POCKET_CAMERA_CORNER_LATERAL = POCKET_VIS_R * 2.4;
-const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 4.2;
+const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 5.4;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -1569,6 +1569,13 @@ function Guret(parent, id, color, x, y) {
   };
 }
 
+const toBallColorId = (id) => {
+  if (!id) return null;
+  if (id === 'cue' || id === 'CUE') return 'CUE';
+  if (typeof id === 'string' && id.toLowerCase().startsWith('red')) return 'RED';
+  return typeof id === 'string' ? id.toUpperCase() : null;
+};
+
 function alignRailsToCushions(table, frame) {
   if (!frame || !table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
@@ -1713,6 +1720,7 @@ function Table3D(parent) {
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal;
   cloth.renderOrder = 3;
+  cloth.receiveShadow = true;
   table.add(cloth);
 
   const markingsGroup = new THREE.Group();
@@ -2235,6 +2243,34 @@ function SnookerGame() {
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
+  const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const loadingClearedRef = useRef(false);
+  useEffect(() => {
+    let raf = null;
+    let active = true;
+    if (!loading) {
+      setLoadingProgress(100);
+      return () => {};
+    }
+    const start = performance.now();
+    const duration = 2200;
+    const tick = (now) => {
+      if (!active) return;
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = Math.min(95, Math.max(0, Math.round(eased * 95)));
+      setLoadingProgress((prev) => (prev >= next ? prev : next));
+      if (loading) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      active = false;
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [loading]);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -2550,6 +2586,7 @@ function SnookerGame() {
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    let loadTimer = null;
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -4432,14 +4469,8 @@ function SnookerGame() {
 
       // Resolve shot
       function resolve() {
-        const toBallColor = (id) => {
-          if (!id) return null;
-          if (id === 'cue' || id === 'CUE') return 'CUE';
-          if (typeof id === 'string' && id.startsWith('red')) return 'RED';
-          return typeof id === 'string' ? id.toUpperCase() : null;
-        };
         const shotEvents = [];
-        const firstContactColor = toBallColor(firstHit);
+        const firstContactColor = toBallColorId(firstHit);
         shotEvents.push({ type: 'HIT', firstContact: firstContactColor });
         potted.forEach((entry) => {
           const pocket = entry.pocket ?? 'TM';
@@ -4557,8 +4588,28 @@ function SnookerGame() {
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
+          const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
+          const legalTargetsRaw =
+            frameRef.current?.ballOn ?? frameState.ballOn ?? [];
+          const legalTargets = Array.isArray(legalTargetsRaw)
+            ? legalTargetsRaw
+                .map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+                .filter(Boolean)
+            : [];
+          const aimingWrong =
+            targetBall &&
+            !railNormal &&
+            targetBallColor &&
+            legalTargets.length > 0 &&
+            !legalTargets.includes(targetBallColor);
           aim.material.color.set(
-            targetBall && !railNormal ? 0xffff00 : 0xffffff
+            aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffff00
+                : 0xffffff
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           tickGeom.setFromPoints([
@@ -4957,6 +5008,13 @@ function SnookerGame() {
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          if (!loadingClearedRef.current) {
+            loadingClearedRef.current = true;
+            loadTimer = window.setTimeout(() => {
+              setLoading(false);
+              setLoadingProgress(100);
+            }, 120);
+          }
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
@@ -4984,28 +5042,33 @@ function SnookerGame() {
         };
       window.addEventListener('resize', onResize);
 
-      return () => {
-        cancelAnimationFrame(rafRef.current);
-        window.removeEventListener('resize', onResize);
-        updatePocketCameraState(false);
-        pocketCamerasRef.current.clear();
-        activeRenderCameraRef.current = null;
-        try {
-          host.removeChild(renderer.domElement);
-        } catch {}
-        dom.removeEventListener('mousedown', down);
-        dom.removeEventListener('mousemove', move);
-        window.removeEventListener('mouseup', up);
-        dom.removeEventListener('touchstart', down);
-        dom.removeEventListener('touchmove', move);
-        window.removeEventListener('touchend', up);
-        window.removeEventListener('keydown', keyRot);
-        dom.removeEventListener('pointerdown', onPlace);
-      };
-    } catch (e) {
-      console.error(e);
-      setErr(e?.message || String(e));
-    }
+        return () => {
+          cancelAnimationFrame(rafRef.current);
+          window.removeEventListener('resize', onResize);
+          updatePocketCameraState(false);
+          pocketCamerasRef.current.clear();
+          activeRenderCameraRef.current = null;
+          try {
+            host.removeChild(renderer.domElement);
+          } catch {}
+          dom.removeEventListener('mousedown', down);
+          dom.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+          dom.removeEventListener('touchstart', down);
+          dom.removeEventListener('touchmove', move);
+          window.removeEventListener('touchend', up);
+          window.removeEventListener('keydown', keyRot);
+          dom.removeEventListener('pointerdown', onPlace);
+          if (loadTimer) {
+            clearTimeout(loadTimer);
+          }
+        };
+      } catch (e) {
+        console.error(e);
+        setErr(e?.message || String(e));
+        setLoading(false);
+        setLoadingProgress(100);
+      }
   }, [hud.inHand, hud.over]);
 
   // --------------------------------------------------
@@ -5156,10 +5219,49 @@ function SnookerGame() {
     };
   }, [updateSpinDotPosition]);
 
+  const displayedProgress = Math.min(
+    100,
+    Math.max(0, Math.round(loadingProgress))
+  );
+  const cueStrikeProgress = Math.min(1, displayedProgress / 12);
+  const cueBaseOffset = 16;
+  const cueDrawBack = 18;
+  const cueTrackWidth = 200;
+  const ballOffsetStart = cueBaseOffset + 28;
+  const cueBallRadius = 12;
+  const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
+  const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
+  const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
+
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {(loading || displayedProgress < 100) && (
+        <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
+          <div className="relative w-64 h-24">
+            <div className="absolute left-0 top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-white/15" />
+            <div
+              className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-emerald-400/80 transition-all duration-150 ease-out"
+              style={{ width: `${displayedProgress}%` }}
+            />
+            <div
+              className="absolute left-0 top-1/2 h-2 w-28 rounded-r-full bg-amber-300 shadow-lg shadow-amber-500/40 transition-transform duration-150 ease-out"
+              style={{ transform: `translate(${cuePosition}px, -50%)` }}
+            />
+            <div
+              className="absolute left-0 top-1/2 h-6 w-6 rounded-full border border-emerald-200 bg-white shadow-[0_0_16px_rgba(74,222,128,0.5)] transition-transform duration-150 ease-out"
+              style={{
+                transform: `translate(${cueBallPosition - cueBallRadius}px, -50%)`
+              }}
+            />
+          </div>
+          <div className="text-sm tracking-[0.3em] uppercase text-emerald-200">
+            Loading {displayedProgress}%
+          </div>
+        </div>
+      )}
 
       {/* Top HUD */}
       <div
