@@ -417,6 +417,67 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
+const BALL_SHADOW_GEOMETRY = new THREE.CircleGeometry(1, 48);
+const BALL_SHADOW_RADIUS = BALL_R * 1.32;
+const BALL_SHADOW_OFFSET = -BALL_R + 0.004;
+const getBallShadowMaterial = (() => {
+  let material = null;
+  return () => {
+    if (material) return material;
+    if (typeof document === 'undefined') {
+      material = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.32,
+        depthWrite: false
+      });
+      material.toneMapped = false;
+      return material;
+    }
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      material = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.32,
+        depthWrite: false
+      });
+      material.toneMapped = false;
+      return material;
+    }
+    const gradient = ctx.createRadialGradient(
+      size / 2,
+      size / 2,
+      size * 0.18,
+      size / 2,
+      size / 2,
+      size * 0.5
+    );
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.52)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
+    material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 1,
+      depthWrite: false,
+      color: 0xffffff
+    });
+    material.toneMapped = false;
+    return material;
+  };
+})();
 const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
@@ -452,14 +513,14 @@ const POCKET_CAM = Object.freeze({
   dotThreshold: 0.3,
   minOutside:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
-    POCKET_VIS_R * 1.28,
-  maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 12.6,
+    POCKET_VIS_R * 1.52,
+  maxOutside: BALL_R * 32,
+  heightOffset: BALL_R * 13.4,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.65 +
-    POCKET_VIS_R * 0.9,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.72 +
+    POCKET_VIS_R * 1.12,
   heightDrop: BALL_R * 1.4,
-  distanceScale: 1.12,
+  distanceScale: 1.2,
   heightScale: 1.22
 });
 const ACTION_CAM = Object.freeze({
@@ -880,7 +941,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.28;
+const STANDING_VIEW_MARGIN = 0.22;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -918,13 +979,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.58;
+const CUE_VIEW_RADIUS_RATIO = 0.52;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.42
 );
-const CUE_VIEW_PHI_LIFT = 0.16;
+const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
@@ -1521,6 +1582,17 @@ function Guret(parent, id, color, x, y) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  const contactShadow = new THREE.Mesh(
+    BALL_SHADOW_GEOMETRY,
+    getBallShadowMaterial()
+  );
+  contactShadow.rotation.x = -Math.PI / 2;
+  contactShadow.position.set(0, BALL_SHADOW_OFFSET, 0);
+  contactShadow.scale.setScalar(BALL_SHADOW_RADIUS);
+  contactShadow.renderOrder = -1;
+  contactShadow.castShadow = false;
+  contactShadow.receiveShadow = false;
+  mesh.add(contactShadow);
   if (id === 'cue') {
     const markerGeom = new THREE.CircleGeometry(CUE_MARKER_RADIUS, 48);
     const markerMat = new THREE.MeshStandardMaterial({
