@@ -451,14 +451,15 @@ const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 3.8,
   dotThreshold: 0.3,
   minOutside:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
-    POCKET_VIS_R * 2.1 +
-    BALL_R * 1.6,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.25 +
+    POCKET_VIS_R * 2.85 +
+    BALL_R * 2.4,
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 10.8,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.95 +
-    POCKET_VIS_R * 1.45,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.45 +
+    POCKET_VIS_R * 2.3 +
+    BALL_R * 1.8,
   heightDrop: BALL_R * 1.2,
   distanceScale: 1.08,
   heightScale: 1.22
