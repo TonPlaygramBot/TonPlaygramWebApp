@@ -464,6 +464,9 @@ const POCKET_CAM = Object.freeze({
   distanceScale: 1.08,
   heightScale: 1.22
 });
+const POCKET_CHAOS_MOVING_THRESHOLD = 3;
+const POCKET_GUARANTEED_ALIGNMENT = 0.82;
+const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
   pairMaxDistance: BALL_R * 72,
@@ -571,7 +574,7 @@ const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.38;
+const CUE_BUTT_LIFT = BALL_R * 0.42;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
@@ -928,7 +931,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.5;
+const CUE_VIEW_RADIUS_RATIO = 0.46;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -2321,6 +2324,8 @@ function SnookerGame() {
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const activeRenderCameraRef = useRef(null);
+  const pocketSwitchIntentRef = useRef(null);
+  const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const initialCuePhi = THREE.MathUtils.clamp(
     CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
@@ -3603,8 +3608,10 @@ function SnookerGame() {
               : null
           };
         };
-        const makePocketCameraView = (ballId, followView) => {
+        const makePocketCameraView = (ballId, followView, options = {}) => {
           if (!followView) return null;
+          const { forceEarly = false } = options;
+          if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
           if (!targetBall) return null;
@@ -3640,7 +3647,8 @@ function SnookerGame() {
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (best.dist > POCKET_CAM.triggerDist) return null;
+          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
+          if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const heightOffset = isSidePocket
             ? baseHeightOffset * 0.92
@@ -3662,8 +3670,15 @@ function SnookerGame() {
               }
             : null;
           const now = performance.now();
+          const effectiveDist = forcedEarly
+            ? Math.min(best.dist, POCKET_CAM.triggerDist)
+            : best.dist;
+          const predictedAlignment =
+            shotPrediction?.ballId === ballId && shotPrediction?.dir
+              ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
+              : null;
           const cameraDistance = THREE.MathUtils.clamp(
-            best.dist * POCKET_CAM.distanceScale,
+            effectiveDist * POCKET_CAM.distanceScale,
             POCKET_CAM.minOutside,
             POCKET_CAM.maxOutside
           );
@@ -3690,7 +3705,9 @@ function SnookerGame() {
               anchorOutward?.normalize() ?? fallbackOutward,
             cameraDistance,
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
-            lastRailHitType: targetBall.lastRailHitType ?? null
+            lastRailHitType: targetBall.lastRailHitType ?? null,
+            predictedAlignment,
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -4378,6 +4395,20 @@ function SnookerGame() {
               ? prediction.targetBall.pos.clone()
               : null
           };
+          const intentTimestamp = performance.now();
+          if (shotPrediction.ballId) {
+            const isDirectHit =
+              shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
+            pocketSwitchIntentRef.current = {
+              ballId: shotPrediction.ballId,
+              allowEarly: isDirectHit,
+              forced: isDirectHit,
+              createdAt: intentTimestamp
+            };
+          } else {
+            pocketSwitchIntentRef.current = null;
+          }
+          lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const base = aimDir
@@ -4584,6 +4615,8 @@ function SnookerGame() {
         shotPrediction = null;
         activeShotView = null;
         suspendedActionView = null;
+        pocketSwitchIntentRef.current = null;
+        lastPocketBallRef.current = null;
         updatePocketCameraState(false);
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
@@ -4958,17 +4991,71 @@ function SnookerGame() {
               : suspendedActionView?.mode === 'action'
                 ? suspendedActionView
                 : null;
+          const now = performance.now();
+          let pocketIntent = pocketSwitchIntentRef.current;
+          if (pocketIntent && now - pocketIntent.createdAt > POCKET_INTENT_TIMEOUT_MS) {
+            pocketIntent = null;
+            pocketSwitchIntentRef.current = null;
+          }
+          const movingBalls = ballsList.filter(
+            (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+          );
+          const movingCount = movingBalls.length;
+          const lastPocketBall = lastPocketBallRef.current;
           let bestPocketView = null;
           for (const ball of ballsList) {
             if (!ball.active) continue;
             const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
-            const candidate = makePocketCameraView(ball.id, resumeView);
+            const matchesIntent = pocketIntent?.ballId === ball.id;
+            const candidate = makePocketCameraView(ball.id, resumeView, {
+              forceEarly: matchesIntent && pocketIntent?.allowEarly
+            });
             if (!candidate) continue;
-            if (!bestPocketView || (candidate.score ?? 0) > (bestPocketView.score ?? 0)) {
+            const matchesPrediction = shotPrediction?.ballId === ball.id;
+            const predictedAlignment = candidate.predictedAlignment ?? candidate.score ?? 0;
+            const isDirectPrediction =
+              matchesPrediction &&
+              (shotPrediction?.railNormal === null ||
+                shotPrediction?.railNormal === undefined);
+            const qualifiesAsGuaranteed =
+              isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+            const allowDuringChaos =
+              movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
+              matchesIntent ||
+              qualifiesAsGuaranteed ||
+              (lastPocketBall && lastPocketBall === ball.id);
+            if (!allowDuringChaos) continue;
+            if (
+              movingCount > POCKET_CHAOS_MOVING_THRESHOLD &&
+              !matchesIntent &&
+              !qualifiesAsGuaranteed &&
+              lastPocketBall &&
+              lastPocketBall !== ball.id
+            ) {
+              continue;
+            }
+            const baseScore = candidate.score ?? 0;
+            let priority = baseScore;
+            if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 1.2;
+            else if (matchesIntent) priority += 0.6;
+            if (qualifiesAsGuaranteed) priority += 0.4;
+            if (candidate.forcedEarly) priority += 0.3;
+            candidate.priority = priority;
+            candidate.intentMatched = matchesIntent;
+            candidate.guaranteed = qualifiesAsGuaranteed;
+            if (
+              !bestPocketView ||
+              (candidate.priority ?? baseScore) >
+                (bestPocketView.priority ?? bestPocketView.score ?? 0)
+            ) {
               bestPocketView = candidate;
             }
           }
           if (bestPocketView) {
+            if (bestPocketView.intentMatched) {
+              pocketSwitchIntentRef.current = null;
+            }
+            lastPocketBallRef.current = bestPocketView.ballId;
             bestPocketView.lastUpdate = performance.now();
             if (cameraRef.current) {
               const cam = cameraRef.current;
