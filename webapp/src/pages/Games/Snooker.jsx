@@ -43,13 +43,15 @@ const jawCapMat = new THREE.MeshPhysicalMaterial({
   clearcoatRoughness: 0.32,
   envMapIntensity: 0.9
 });
-const chromeRimMat = new THREE.MeshPhysicalMaterial({
-  color: 0xdde6f5,
-  roughness: 0.12,
-  metalness: 1,
-  clearcoat: 0.78,
-  clearcoatRoughness: 0.18,
-  envMapIntensity: 1.6
+const plasticRimMat = new THREE.MeshPhysicalMaterial({
+  color: 0x060606,
+  roughness: 0.55,
+  metalness: 0.18,
+  clearcoat: 0.36,
+  clearcoatRoughness: 0.42,
+  sheen: 0.2,
+  sheenRoughness: 0.75,
+  envMapIntensity: 0.6
 });
 function makeJawSector(
   R = POCKET_VIS_R,
@@ -122,6 +124,36 @@ function addPocketJaws(parent, playW, playH) {
     SIDE_SECTOR_SWEEP,
     capHeight
   );
+  const cornerRimGeo = makeJawSector(
+    POCKET_VIS_R * 1.04,
+    JAW_T * 0.54,
+    SECTOR_START,
+    SECTOR_END,
+    capHeight * 0.24
+  );
+  cornerRimGeo.computeBoundingBox();
+  const cornerRimBox = cornerRimGeo.boundingBox;
+  if (cornerRimBox) {
+    const rimShift = -cornerRimBox.max.y;
+    if (Math.abs(rimShift) > 1e-6) cornerRimGeo.translate(0, rimShift, 0);
+  }
+  cornerRimGeo.computeBoundingSphere();
+  cornerRimGeo.computeVertexNormals();
+  const sideRimBaseGeo = makeJawSector(
+    POCKET_VIS_R * 1.02,
+    JAW_T * 0.42,
+    -SIDE_SECTOR_SWEEP,
+    SIDE_SECTOR_SWEEP,
+    capHeight * 0.22
+  );
+  sideRimBaseGeo.computeBoundingBox();
+  const sideRimBox = sideRimBaseGeo.boundingBox;
+  if (sideRimBox) {
+    const rimShift = -sideRimBox.max.y;
+    if (Math.abs(rimShift) > 1e-6) sideRimBaseGeo.translate(0, rimShift, 0);
+  }
+  sideRimBaseGeo.computeBoundingSphere();
+  sideRimBaseGeo.computeVertexNormals();
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -203,25 +235,13 @@ function addPocketJaws(parent, playW, playH) {
         jaw.add(segCap);
         capMeshes.push(segCap);
 
-        const rimGeo = makeJawSector(
-          POCKET_VIS_R * 1.02,
-          JAW_T * 0.42,
-          -SIDE_SECTOR_SWEEP,
-          SIDE_SECTOR_SWEEP,
-          capHeight * 0.22
-        );
-        rimGeo.computeBoundingBox();
-        const rimBox = rimGeo.boundingBox;
-        if (rimBox) {
-          const rimShift = -rimBox.max.y;
-          if (Math.abs(rimShift) > 1e-6) rimGeo.translate(0, rimShift, 0);
-        }
+        const rimGeo = sideRimBaseGeo.clone();
         rimGeo.scale(segmentScale * 1.06, 1, 1);
         rimGeo.computeVertexNormals();
-        const rim = new THREE.Mesh(rimGeo, chromeRimMat);
+        const rim = new THREE.Mesh(rimGeo, plasticRimMat);
         rim.castShadow = false;
         rim.receiveShadow = true;
-        rim.position.set(segment.position.x, capLift + capHeight * 0.95, 0);
+        rim.position.set(segment.position.x, capLift + capHeight * 0.9, 0);
         jaw.add(rim);
       }
     } else {
@@ -239,6 +259,14 @@ function addPocketJaws(parent, playW, playH) {
       cap.position.y = capLift;
       mesh.add(cap);
       capMeshes.push(cap);
+
+      const rimGeo = cornerRimGeo.clone();
+      rimGeo.computeVertexNormals();
+      const rim = new THREE.Mesh(rimGeo, plasticRimMat);
+      rim.castShadow = false;
+      rim.receiveShadow = true;
+      rim.position.y = capLift + capHeight * 0.9;
+      mesh.add(rim);
     }
     jaw.userData = {
       ...(jaw.userData || {}),
