@@ -921,6 +921,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   STANDING_VIEW_PHI + 0.42
 );
 const CUE_VIEW_PHI_LIFT = 0.12;
+const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
@@ -928,10 +929,7 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = 72;
-const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 7.2;
-const POCKET_CAMERA_CORNER_LATERAL = POCKET_VIS_R * 2.4;
-const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 5.4;
+const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -2746,6 +2744,10 @@ function SnookerGame() {
             entry.camera.aspect = aspect;
             entry.camera.updateProjectionMatrix();
           }
+          if (entry.camera.fov !== POCKET_CAMERA_FOV) {
+            entry.camera.fov = POCKET_CAMERA_FOV;
+            entry.camera.updateProjectionMatrix();
+          }
           if (center) {
             entry.center = center.clone();
           }
@@ -3165,8 +3167,6 @@ function SnookerGame() {
             }
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            const baseHeightLocal =
-              TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale;
             let approachDir = activeShotView.approach
               ? activeShotView.approach.clone()
               : new THREE.Vector2(0, -railDir);
@@ -3218,50 +3218,45 @@ function SnookerGame() {
             if (!activeShotView.anchorOutward) {
               activeShotView.anchorOutward = outward.clone();
             }
-            const cameraDistance = THREE.MathUtils.clamp(
-              activeShotView.cameraDistance ?? POCKET_CAM.minOutside,
-              POCKET_CAM.minOutside,
-              POCKET_CAM.maxOutside
-            );
-            const cameraAnchor2D = pocketCenter2D
-              .clone()
-              .add(outward.clone().multiplyScalar(cameraDistance));
-            if (POCKET_CAMERA_IDS.includes(anchorId)) {
-              const lateral = new THREE.Vector2(-outward.y, outward.x);
-              if (lateral.lengthSq() > 1e-6) {
-                lateral.normalize().multiplyScalar(POCKET_CAMERA_CORNER_LATERAL);
-                cameraAnchor2D.add(lateral);
-              }
-            }
-            const lookDir = approachDir.clone().multiplyScalar(-1);
-            if (lookDir.lengthSq() < 1e-6) {
-              lookDir.copy(outward.clone().multiplyScalar(-1));
-            }
-            const focusAim2D = activeShotView.pocketCenter
-              .clone()
-              .add(lookDir.multiplyScalar(POCKET_CAMERA_LOOK_AHEAD));
+            const cameraBounds = cameraBoundsRef.current ?? null;
+            const cueBounds = cameraBounds?.cueShot ?? null;
+            const standingBounds = cameraBounds?.standing ?? null;
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.25;
-            const horizontalDistance = cameraAnchor2D.distanceTo(focusAim2D);
-            const standingMinHeight = computeStandingViewHeight(
-              focusHeightLocal,
-              horizontalDistance,
-              TABLE_Y + TABLE.THICK
-            );
-            let camHeightLocal = Math.max(baseHeightLocal, standingMinHeight);
-            if (POCKET_CAMERA_IDS.includes(anchorId)) {
-              camHeightLocal += POCKET_CAMERA_CORNER_HEIGHT_LIFT;
-            }
             const focusTarget = new THREE.Vector3(
-              focusAim2D.x,
+              0,
               focusHeightLocal,
-              focusAim2D.y
-            );
-            focusTarget.multiplyScalar(worldScaleFactor);
-            const desiredPosition = new THREE.Vector3(
-              cameraAnchor2D.x,
-              camHeightLocal,
-              cameraAnchor2D.y
+              0
             ).multiplyScalar(worldScaleFactor);
+            const pocketDirection2D = pocketCenter2D.clone();
+            if (pocketDirection2D.lengthSq() < 1e-6) {
+              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
+            }
+            const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
+            const baseRadius = (() => {
+              const fallback = clamp(
+                fitRadius(camera, STANDING_VIEW.margin),
+                CAMERA.minR,
+                CAMERA.maxR
+              );
+              const standingRadius = standingBounds?.radius ?? fallback;
+              const pocketRadius = pocketDirection2D.length();
+              return Math.max(standingRadius, pocketRadius + POCKET_CAM.minOutside);
+            })();
+            const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
+            const spherical = new THREE.Spherical(
+              baseRadius * worldScaleFactor,
+              cuePhi,
+              azimuth
+            );
+            const desiredPosition = focusTarget
+              .clone()
+              .add(new THREE.Vector3().setFromSpherical(spherical));
+            const minHeightWorld =
+              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
+              worldScaleFactor;
+            if (desiredPosition.y < minHeightWorld) {
+              desiredPosition.y = minHeightWorld;
+            }
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
