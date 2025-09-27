@@ -448,7 +448,7 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 3.8,
+  triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
   minOutside:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.25 +
@@ -525,7 +525,7 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 });
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
-const POCKET_VIEW_POST_POT_HOLD_MS = 480;
+const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const SPIN_STRENGTH = BALL_R * 0.0625;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
@@ -571,12 +571,20 @@ const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.3;
+const CUE_BUTT_LIFT = BALL_R * 0.38;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
 const MAX_SPIN_SIDE = BALL_R * 0.62;
 const MAX_SPIN_VERTICAL = BALL_R * 0.48;
+const SPIN_BOX_FILL_RATIO =
+  BALL_R > 0
+    ? THREE.MathUtils.clamp(
+        MAX_SPIN_CONTACT_OFFSET / BALL_R,
+        0,
+        1
+      )
+    : 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
@@ -920,13 +928,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.54;
+const CUE_VIEW_RADIUS_RATIO = 0.5;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.42
 );
-const CUE_VIEW_PHI_LIFT = 0.12;
+const CUE_VIEW_PHI_LIFT = 0.09;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
@@ -1397,6 +1405,12 @@ function reflectRails(ball) {
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
+    const stamp =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    ball.lastRailHitAt = stamp;
+    ball.lastRailHitType = 'corner';
     return 'corner';
   }
 
@@ -1429,6 +1443,14 @@ function reflectRails(ball) {
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+  }
+  if (collided) {
+    const stamp =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    ball.lastRailHitAt = stamp;
+    ball.lastRailHitType = collided;
   }
   return collided;
 }
@@ -2344,8 +2366,14 @@ function SnookerGame() {
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
-    dot.style.left = `${50 + x * 50}%`;
-    dot.style.top = `${50 + y * 50}%`;
+    const ranges = spinRangeRef.current || {};
+    const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
+    const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
+    const largest = Math.max(maxSide, maxVertical);
+    const scaledX = (x * maxSide) / largest;
+    const scaledY = (y * maxVertical) / largest;
+    dot.style.left = `${50 + scaledX * 50}%`;
+    dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     dot.style.backgroundColor =
       magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
@@ -3660,7 +3688,9 @@ function SnookerGame() {
             anchorId: anchorId ?? anchorPocketId,
             anchorOutward:
               anchorOutward?.normalize() ?? fallbackOutward,
-            cameraDistance
+            cameraDistance,
+            lastRailHitAt: targetBall.lastRailHitAt ?? null,
+            lastRailHitType: targetBall.lastRailHitType ?? null
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -3854,7 +3884,8 @@ function SnookerGame() {
 
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
         const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.4; // bring fixtures closer so the spot highlight reads on the balls
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
+        const LIGHT_LATERAL_SCALE = 0.45; // pull shadow-casting lights nearer the table centre
 
         const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
@@ -3865,35 +3896,43 @@ function SnookerGame() {
         const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.85);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
-        const triangleRadius = fixtureScale * 1.25;
-        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.75);
+        const triangleRadius = fixtureScale * 0.98;
+        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
         const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.48);
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.18);
-        dirLight.position.set(-triangleRadius, triangleHeight, triangleRadius * 0.5);
-        dirLight.target.position.set(0, tableSurfaceY, 0);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.12);
+        dirLight.position.set(
+          -triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.4
+        );
+        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          18.6,
+          18,
           0,
-          Math.PI * 0.38,
+          Math.PI * 0.36,
           0.42,
           1
         );
-        spot.position.set(triangleRadius, triangleHeight, triangleRadius * 0.5);
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.12, 0);
+        spot.position.set(
+          triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.35
+        );
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00008;
-        spot.shadow.normalBias = 0.015;
+        spot.shadow.bias = -0.00004;
+        spot.shadow.normalBias = 0.006;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
@@ -4025,11 +4064,18 @@ function SnookerGame() {
         group.rotation.x = totalTilt;
         const tipComp = Math.sin(totalTilt) * len * 0.5;
         group.position.y += tipComp;
+        if (group.userData?.buttTilt) {
+          group.userData.buttTilt.current = totalTilt;
+          group.userData.buttTilt.tipCompensation = tipComp;
+          group.userData.buttTilt.extra = extraTilt;
+        }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: buttTipComp,
-        length: cueLen
+        length: cueLen,
+        current: buttTilt,
+        extra: 0
       };
 
       const shaft = new THREE.Mesh(
@@ -4640,22 +4686,27 @@ function SnookerGame() {
           const pull = Math.min(desiredPull, maxPull);
           const side = appliedSpin.x * (ranges.offsetSide ?? 0);
           const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
-          const spinWorld = new THREE.Vector3(
-            perp.x * side,
-            vert,
-            perp.z * side
-          );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP),
+            CUE_Y,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP)
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            const tipGroup = tipGroupRef.current;
+            const tiltInfo = cueStick.userData?.buttTilt;
+            const currentTilt = tiltInfo?.current ?? buttTilt + extraTilt;
+            const cosTilt = Math.cos(currentTilt);
+            const safeCos = Math.abs(cosTilt) > 1e-4 ? cosTilt : 1;
+            const maxLocalY =
+              (ranges.offsetVertical ?? MAX_SPIN_VERTICAL) /
+              Math.max(Math.abs(safeCos), 1e-4);
+            const localY = THREE.MathUtils.clamp(vert / safeCos, -maxLocalY, maxLocalY);
+            const zComp = Math.sin(currentTilt) * localY;
+            tipGroup.position.set(side, localY, -cueLen / 2 - zComp);
           }
           cueStick.visible = true;
           if (afterDir) {
@@ -4675,6 +4726,9 @@ function SnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
           if (!cueAnimating) cueStick.visible = false;
         }
 
@@ -4987,15 +5041,26 @@ function SnookerGame() {
               resumeAfterPocket(pocketView, now);
             }
           } else {
-            const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
-            const dist = toPocket.length();
-            if (dist > 1e-4) {
-              const approachDir = toPocket.clone().normalize();
-              pocketView.approach.copy(approachDir);
-              const speedAlong = focusBall.vel.dot(approachDir);
-              if (speedAlong * frameScale < -STOP_EPS) {
-                if (now >= (pocketView.holdUntil ?? now)) {
-                  resumeAfterPocket(pocketView, now);
+            const newRailHit =
+              focusBall.lastRailHitAt != null &&
+              (pocketView.lastRailHitAt == null ||
+                focusBall.lastRailHitAt > pocketView.lastRailHitAt);
+            if (newRailHit) {
+              pocketView.lastRailHitAt = focusBall.lastRailHitAt;
+              pocketView.lastRailHitType =
+                focusBall.lastRailHitType ?? pocketView.lastRailHitType ?? 'rail';
+              resumeAfterPocket(pocketView, now);
+            } else {
+              const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
+              const dist = toPocket.length();
+              if (dist > 1e-4) {
+                const approachDir = toPocket.clone().normalize();
+                pocketView.approach.copy(approachDir);
+                const speedAlong = focusBall.vel.dot(approachDir);
+                if (speedAlong * frameScale < -STOP_EPS) {
+                  if (now >= (pocketView.holdUntil ?? now)) {
+                    resumeAfterPocket(pocketView, now);
+                  }
                 }
               }
             }
@@ -5343,8 +5408,9 @@ function SnookerGame() {
           id="spinBox"
           className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
           style={{
-            background:
-              'radial-gradient(circle, #ffffff 0%, #ffffff 85%, #facc15 85%, #facc15 100%)'
+            background: `radial-gradient(circle, #ffffff 0%, #ffffff ${
+              SPIN_BOX_FILL_RATIO * 100
+            }%, #facc15 ${SPIN_BOX_FILL_RATIO * 100}%, #facc15 100%)`
           }}
         >
           <div
