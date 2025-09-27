@@ -931,13 +931,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.46;
+const CUE_VIEW_RADIUS_RATIO = 0.42;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.42
+  STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.09;
+const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
@@ -954,6 +954,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
+const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -3637,6 +3638,17 @@ function SnookerGame() {
             }
           }
           if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
+          const predictedTravelForBall =
+            shotPrediction?.ballId === ballId
+              ? shotPrediction?.travel ?? null
+              : null;
+          if (
+            (predictedTravelForBall != null &&
+              predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
+            best.dist < SHORT_SHOT_CAMERA_DISTANCE
+          ) {
+            return null;
+          }
           const anchorPocketId = pocketIdFromCenter(best.center);
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
@@ -4379,6 +4391,9 @@ function SnookerGame() {
           const predictedTravel = Number.isFinite(predictedTravelRaw)
             ? predictedTravelRaw
             : 0;
+          const isShortShot =
+            predictedTravel > 0 &&
+            predictedTravel < SHORT_SHOT_CAMERA_DISTANCE;
           const isLongShot = predictedTravel > LONG_SHOT_DISTANCE;
           shotPrediction = {
             ballId: prediction.targetBall?.id ?? null,
@@ -4396,7 +4411,7 @@ function SnookerGame() {
               : null
           };
           const intentTimestamp = performance.now();
-          if (shotPrediction.ballId) {
+          if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
               shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
             pocketSwitchIntentRef.current = {
@@ -4417,7 +4432,8 @@ function SnookerGame() {
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           const allowLongShotCameraSwitch =
-            !isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD;
+            !isShortShot &&
+            (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const orbitSnapshot = sphRef.current
             ? {
                 radius: sphRef.current.radius,
