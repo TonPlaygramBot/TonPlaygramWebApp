@@ -455,6 +455,10 @@ const POCKET_CAM = Object.freeze({
     POCKET_VIS_R * 1.28,
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 12.6,
+  outwardOffset:
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.65 +
+    POCKET_VIS_R * 0.9,
+  heightDrop: BALL_R * 1.4,
   distanceScale: 1.12,
   heightScale: 1.22
 });
@@ -874,7 +878,7 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86;
+const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
 const STANDING_VIEW_MARGIN = 0.28;
 const STANDING_VIEW_FOV = 66;
@@ -920,7 +924,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.42
 );
-const CUE_VIEW_PHI_LIFT = 0.12;
+const CUE_VIEW_PHI_LIFT = 0.16;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
@@ -3251,12 +3255,23 @@ function SnookerGame() {
             const desiredPosition = focusTarget
               .clone()
               .add(new THREE.Vector3().setFromSpherical(spherical));
+            if (POCKET_CAM.outwardOffset) {
+              const outwardOffset = new THREE.Vector3(outward.x, 0, outward.y);
+              if (outwardOffset.lengthSq() > 1e-6) {
+                outwardOffset
+                  .normalize()
+                  .multiplyScalar(POCKET_CAM.outwardOffset * worldScaleFactor);
+                desiredPosition.add(outwardOffset);
+              }
+            }
             const minHeightWorld =
               (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
               worldScaleFactor;
-            if (desiredPosition.y < minHeightWorld) {
-              desiredPosition.y = minHeightWorld;
-            }
+            const loweredY =
+              desiredPosition.y -
+              (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
+            desiredPosition.y =
+              loweredY < minHeightWorld ? minHeightWorld : loweredY;
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -3845,18 +3860,18 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1.14);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1.0);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 1.25;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.75);
         lightingRig.add(hemisphere);
 
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.78);
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.62);
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.18);
         dirLight.position.set(-triangleRadius, triangleHeight, triangleRadius * 0.5);
         dirLight.target.position.set(0, tableSurfaceY, 0);
         lightingRig.add(dirLight);
@@ -3864,7 +3879,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          15.8976,
+          17.2,
           0,
           Math.PI * 0.38,
           0.48,
@@ -3879,7 +3894,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.06);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.04);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
