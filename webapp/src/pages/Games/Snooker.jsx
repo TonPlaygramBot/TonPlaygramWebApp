@@ -53,6 +53,107 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   sheenRoughness: 0.75,
   envMapIntensity: 0.6
 });
+const chromePlateMat = new THREE.MeshPhysicalMaterial({
+  color: 0xe7edf7,
+  roughness: 0.16,
+  metalness: 1,
+  clearcoat: 0.82,
+  clearcoatRoughness: 0.18,
+  envMapIntensity: 1.3
+});
+
+function makeCornerChromePlateGeometry({
+  innerRadius,
+  extensionX,
+  extensionZ,
+  outerFillet,
+  thickness
+}) {
+  const shape = new THREE.Shape();
+  const outerX = innerRadius + extensionX;
+  const outerZ = innerRadius + extensionZ;
+  const fillet = Math.min(Math.min(outerFillet, extensionX), extensionZ);
+  shape.moveTo(innerRadius, 0);
+  shape.lineTo(outerX - fillet, 0);
+  shape.quadraticCurveTo(outerX, 0, outerX, fillet);
+  shape.lineTo(outerX, outerZ - fillet);
+  shape.quadraticCurveTo(outerX, outerZ, outerX - fillet, outerZ);
+  shape.lineTo(fillet, outerZ);
+  shape.quadraticCurveTo(0, outerZ, 0, outerZ - fillet);
+  shape.lineTo(0, innerRadius);
+  shape.lineTo(innerRadius, innerRadius);
+  shape.lineTo(innerRadius, 0);
+  shape.closePath();
+
+  const pocketCut = new THREE.Path();
+  pocketCut.moveTo(innerRadius, 0);
+  pocketCut.absarc(0, 0, innerRadius, 0, Math.PI / 2, false);
+  pocketCut.lineTo(0, innerRadius);
+  pocketCut.lineTo(0, 0);
+  pocketCut.lineTo(innerRadius, 0);
+  pocketCut.closePath();
+  shape.holes.push(pocketCut);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 96
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.computeBoundingBox();
+  const bbox = geo.boundingBox;
+  if (bbox) {
+    const shift = -bbox.max.y;
+    if (Math.abs(shift) > 1e-6) geo.translate(0, shift, 0);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function makeSideChromePlateGeometry({
+  innerRadius,
+  halfSpan,
+  extension,
+  endFillet,
+  thickness
+}) {
+  const shape = new THREE.Shape();
+  const depth = innerRadius + extension;
+  const fillet = Math.min(endFillet, halfSpan);
+  shape.moveTo(-halfSpan + fillet, 0);
+  shape.lineTo(halfSpan - fillet, 0);
+  shape.quadraticCurveTo(halfSpan, 0, halfSpan, fillet);
+  shape.lineTo(halfSpan, depth - fillet);
+  shape.quadraticCurveTo(halfSpan, depth, halfSpan - fillet, depth);
+  shape.lineTo(-halfSpan + fillet, depth);
+  shape.quadraticCurveTo(-halfSpan, depth, -halfSpan, depth - fillet);
+  shape.lineTo(-halfSpan, fillet);
+  shape.quadraticCurveTo(-halfSpan, 0, -halfSpan + fillet, 0);
+  shape.closePath();
+
+  const pocketCut = new THREE.Path();
+  pocketCut.moveTo(-innerRadius, 0);
+  pocketCut.absarc(0, 0, innerRadius, Math.PI, 0, false);
+  pocketCut.lineTo(innerRadius, 0);
+  pocketCut.lineTo(-innerRadius, 0);
+  pocketCut.closePath();
+  shape.holes.push(pocketCut);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 96
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.computeBoundingBox();
+  const bbox = geo.boundingBox;
+  if (bbox) {
+    const shift = -bbox.max.y;
+    if (Math.abs(shift) > 1e-6) geo.translate(0, shift, 0);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
 function makeJawSector(
   R = POCKET_VIS_R,
   T = JAW_T,
@@ -154,6 +255,24 @@ function addPocketJaws(parent, playW, playH) {
   }
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
+  const chromePlateThickness = capHeight * 0.6;
+  const cornerChromeGeo = makeCornerChromePlateGeometry({
+    innerRadius: POCKET_VIS_R * 1.025,
+    extensionX: ORIGINAL_RAIL_WIDTH * 0.92,
+    extensionZ: ORIGINAL_RAIL_WIDTH * 0.9,
+    outerFillet: ORIGINAL_RAIL_WIDTH * 0.34,
+    thickness: chromePlateThickness
+  });
+  const sideChromeGeo = makeSideChromePlateGeometry({
+    innerRadius: POCKET_VIS_R * 1.04,
+    halfSpan: POCKET_VIS_R * 1.38,
+    extension: ORIGINAL_RAIL_WIDTH * 0.74,
+    endFillet: ORIGINAL_RAIL_WIDTH * 0.22,
+    thickness: chromePlateThickness
+  });
+  const chromeGroup = new THREE.Group();
+  parent.add(chromeGroup);
+  const chromeTopY = jawTopLocal + capLift + capHeight * 0.88;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -236,12 +355,16 @@ function addPocketJaws(parent, playW, playH) {
         capMeshes.push(segCap);
 
         const rimGeo = sideRimBaseGeo.clone();
-        rimGeo.scale(segmentScale * 1.06, 1, 1);
+        rimGeo.scale(segmentScale * 1.12, 1, 1.04);
         rimGeo.computeVertexNormals();
         const rim = new THREE.Mesh(rimGeo, plasticRimMat);
         rim.castShadow = false;
         rim.receiveShadow = true;
-        rim.position.set(segment.position.x, capLift + capHeight * 0.9, 0);
+        rim.position.set(
+          segment.position.x,
+          capLift + capHeight * 0.96,
+          0
+        );
         jaw.add(rim);
       }
     } else {
@@ -261,13 +384,38 @@ function addPocketJaws(parent, playW, playH) {
       capMeshes.push(cap);
 
       const rimGeo = cornerRimGeo.clone();
+      rimGeo.scale(1.05, 1, 1.05);
       rimGeo.computeVertexNormals();
       const rim = new THREE.Mesh(rimGeo, plasticRimMat);
       rim.castShadow = false;
       rim.receiveShadow = true;
-      rim.position.y = capLift + capHeight * 0.9;
+      rim.position.y = capLift + capHeight * 0.96;
       mesh.add(rim);
     }
+    const chromeMesh = new THREE.Mesh(
+      entry.type === 'corner' ? cornerChromeGeo : sideChromeGeo,
+      chromePlateMat
+    );
+    chromeMesh.castShadow = false;
+    chromeMesh.receiveShadow = true;
+    chromeMesh.renderOrder = 6;
+    chromeMesh.position.set(pShift.x, chromeTopY, pShift.y);
+    if (entry.type === 'corner') {
+      const signX = Math.sign(entry.pos[0]);
+      const signZ = Math.sign(entry.pos[1]);
+      let rotation = 0;
+      if (signX > 0 && signZ < 0) {
+        rotation = Math.PI / 2;
+      } else if (signX > 0 && signZ > 0) {
+        rotation = Math.PI;
+      } else if (signX < 0 && signZ > 0) {
+        rotation = -Math.PI / 2;
+      }
+      chromeMesh.rotation.y = rotation;
+    } else {
+      chromeMesh.rotation.y = entry.pos[0] >= 0 ? Math.PI : 0;
+    }
+    chromeGroup.add(chromeMesh);
     jaw.userData = {
       ...(jaw.userData || {}),
       cap: capMeshes[0] ?? null,
