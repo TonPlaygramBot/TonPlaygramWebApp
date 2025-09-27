@@ -454,9 +454,9 @@ const POCKET_CAM = Object.freeze({
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
     POCKET_VIS_R * 1.28,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 9.6,
+  heightOffset: BALL_R * 11.2,
   distanceScale: 1.12,
-  heightScale: 1.08
+  heightScale: 1.12
 });
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -517,9 +517,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 900;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 400;
-const POCKET_VIEW_POST_POT_HOLD_MS = 1100;
+const POCKET_VIEW_MIN_DURATION_MS = 750;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
+const POCKET_VIEW_POST_POT_HOLD_MS = 850;
 const SPIN_STRENGTH = BALL_R * 0.125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
@@ -927,11 +927,11 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
-const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
+const POCKET_VIEW_SMOOTH_TIME = 0.36; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = 72;
 const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 6.4;
 const POCKET_CAMERA_CORNER_LATERAL = POCKET_VIS_R * 2.4;
-const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 3.6;
+const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 4.2;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
