@@ -452,11 +452,11 @@ const POCKET_CAM = Object.freeze({
   dotThreshold: 0.3,
   minOutside:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
-    POCKET_VIS_R * 0.96,
+    POCKET_VIS_R * 1.28,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 7.2,
-  distanceScale: 1.05,
-  heightScale: 0.92
+  heightOffset: BALL_R * 9.6,
+  distanceScale: 1.12,
+  heightScale: 1.08
 });
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -928,8 +928,10 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = 56;
-const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 4.8;
+const POCKET_CAMERA_FOV = 72;
+const POCKET_CAMERA_LOOK_AHEAD = POCKET_VIS_R * 6.4;
+const POCKET_CAMERA_CORNER_LATERAL = POCKET_VIS_R * 2.4;
+const POCKET_CAMERA_CORNER_HEIGHT_LIFT = BALL_R * 3.6;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -3187,6 +3189,13 @@ function SnookerGame() {
             const cameraAnchor2D = pocketCenter2D
               .clone()
               .add(outward.clone().multiplyScalar(cameraDistance));
+            if (POCKET_CAMERA_IDS.includes(anchorId)) {
+              const lateral = new THREE.Vector2(-outward.y, outward.x);
+              if (lateral.lengthSq() > 1e-6) {
+                lateral.normalize().multiplyScalar(POCKET_CAMERA_CORNER_LATERAL);
+                cameraAnchor2D.add(lateral);
+              }
+            }
             const lookDir = approachDir.clone().multiplyScalar(-1);
             if (lookDir.lengthSq() < 1e-6) {
               lookDir.copy(outward.clone().multiplyScalar(-1));
@@ -3201,7 +3210,10 @@ function SnookerGame() {
               horizontalDistance,
               TABLE_Y + TABLE.THICK
             );
-            const camHeightLocal = Math.max(baseHeightLocal, standingMinHeight);
+            let camHeightLocal = Math.max(baseHeightLocal, standingMinHeight);
+            if (POCKET_CAMERA_IDS.includes(anchorId)) {
+              camHeightLocal += POCKET_CAMERA_CORNER_HEIGHT_LIFT;
+            }
             const focusTarget = new THREE.Vector3(
               focusAim2D.x,
               focusHeightLocal,
