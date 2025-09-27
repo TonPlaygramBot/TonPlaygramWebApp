@@ -1873,6 +1873,11 @@ function Table3D(parent) {
   const cushionBackLong = longRailW * 0.5;
   const cushionBackEnd = endRailW * 0.5;
   const railsGroup = new THREE.Group();
+  const railRimDepth = Math.max(
+    MICRO_EPS * 12,
+    Math.min(railH * 0.22, BALL_R * 0.9)
+  );
+  const rimVerticalOffset = MICRO_EPS * 6;
   const NOTCH_R = POCKET_TOP_R * 1.02;
   const xInL = -(halfW + cushionBackLong - MICRO_EPS);
   const xInR = halfW + cushionBackLong - MICRO_EPS;
@@ -2003,6 +2008,20 @@ function Table3D(parent) {
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
     railsGroup.add(mesh);
+
+    const rimGeo = new THREE.ExtrudeGeometry(shape.clone(), {
+      depth: railRimDepth,
+      bevelEnabled: false,
+      curveSegments: 96
+    });
+    const rim = new THREE.Mesh(rimGeo, plasticRimMat);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = frameTopY + railH - railRimDepth + rimVerticalOffset;
+    rim.castShadow = false;
+    rim.receiveShadow = true;
+    const baseRenderOrder = Number.isFinite(mesh.renderOrder) ? mesh.renderOrder : 0;
+    rim.renderOrder = baseRenderOrder + 1;
+    railsGroup.add(rim);
   }
 
   function buildEndRail(signZ) {
@@ -2044,6 +2063,20 @@ function Table3D(parent) {
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = frameTopY;
     railsGroup.add(mesh);
+
+    const rimGeo = new THREE.ExtrudeGeometry(shape.clone(), {
+      depth: railRimDepth,
+      bevelEnabled: false,
+      curveSegments: 96
+    });
+    const rim = new THREE.Mesh(rimGeo, plasticRimMat);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = frameTopY + railH - railRimDepth + rimVerticalOffset;
+    rim.castShadow = false;
+    rim.receiveShadow = true;
+    const baseRenderOrder = Number.isFinite(mesh.renderOrder) ? mesh.renderOrder : 0;
+    rim.renderOrder = baseRenderOrder + 1;
+    railsGroup.add(rim);
   }
 
   buildLongRail(-1);
