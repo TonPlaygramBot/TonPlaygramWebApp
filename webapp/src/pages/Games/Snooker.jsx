@@ -452,14 +452,15 @@ const POCKET_CAM = Object.freeze({
   dotThreshold: 0.3,
   minOutside:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
-    POCKET_VIS_R * 1.6,
+    POCKET_VIS_R * 2.1 +
+    BALL_R * 1.6,
   maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 12.6,
+  heightOffset: BALL_R * 10.8,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.65 +
-    POCKET_VIS_R * 1.15,
-  heightDrop: BALL_R * 0.9,
-  distanceScale: 1.12,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.95 +
+    POCKET_VIS_R * 1.45,
+  heightDrop: BALL_R * 1.2,
+  distanceScale: 1.08,
   heightScale: 1.22
 });
 const ACTION_CAM = Object.freeze({
@@ -880,7 +881,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.24;
+const STANDING_VIEW_MARGIN = 0.18;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -924,7 +925,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.42
 );
-const CUE_VIEW_PHI_LIFT = 0.2;
+const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
