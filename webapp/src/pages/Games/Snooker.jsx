@@ -459,18 +459,18 @@ const POCKET_CAM = Object.freeze({
   heightScale: 0.92
 });
 const ACTION_CAM = Object.freeze({
-  pairMinDistance: BALL_R * 20,
-  pairMaxDistance: BALL_R * 60,
-  pairDistanceScale: 0.9,
+  pairMinDistance: BALL_R * 28,
+  pairMaxDistance: BALL_R * 72,
+  pairDistanceScale: 1.05,
   sideBias: 1.24,
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 8.8,
+  heightOffset: BALL_R * 10.5,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
-  followDistance: BALL_R * 42,
-  followHeightOffset: BALL_R * 6.8,
+  followDistance: BALL_R * 54,
+  followHeightOffset: BALL_R * 8.4,
   followHoldMs: 900
 });
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
@@ -2716,9 +2716,27 @@ function SnookerGame() {
                       );
                 activeShotView.railDir = railDir;
               }
-              if (axis === 'short' && !activeShotView.hasSwitchedRail) {
-                if (cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS) {
-                  railDir = -railDir;
+              if (!activeShotView.hasSwitchedRail) {
+                const cueMoving = cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
+                if (shooting || cueMoving) {
+                  const fallbackRailDir =
+                    axis === 'side'
+                      ? signed(
+                          cueBall.pos.x ??
+                            cueBall.launchDir?.x ??
+                            activeShotView.railNormal?.x ??
+                            1,
+                          1
+                        )
+                      : signed(
+                          cueBall.pos.y ??
+                            cueBall.launchDir?.y ??
+                            activeShotView.railNormal?.y ??
+                            1,
+                          1
+                        );
+                  const currentDir = signed(railDir, fallbackRailDir);
+                  railDir = -currentDir;
                   activeShotView.railDir = railDir;
                   activeShotView.hasSwitchedRail = true;
                 }
@@ -3199,7 +3217,7 @@ function SnookerGame() {
             cueLookAhead: BALL_R * 6,
             axis,
             railDir: initialRailDir,
-            hasSwitchedRail: axis === 'short' ? false : true,
+            hasSwitchedRail: false,
             railNormal: railNormal ? railNormal.clone() : null
           };
         };
