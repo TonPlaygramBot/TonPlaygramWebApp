@@ -900,6 +900,10 @@ const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
 });
+const STANDING_VIEW_COT = (() => {
+  const sinPhi = Math.sin(STANDING_VIEW_PHI);
+  return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
+})();
 const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
@@ -936,6 +940,38 @@ const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
+const computeStandingViewHeight = (
+  targetHeight,
+  horizontalDistance,
+  minHeight = TABLE_Y + TABLE.THICK
+) => {
+  if (!Number.isFinite(horizontalDistance) || horizontalDistance <= 0) {
+    return Math.max(minHeight, targetHeight);
+  }
+  const lift = horizontalDistance * STANDING_VIEW_COT;
+  const desiredHeight = targetHeight + lift;
+  return Math.max(minHeight, desiredHeight);
+};
+const applyStandingViewElevation = (
+  desired,
+  focus,
+  minHeight = TABLE_Y + TABLE.THICK
+) => {
+  if (!desired || !focus) return;
+  const horizontalDistance = Math.hypot(
+    desired.x - focus.x,
+    desired.z - focus.z
+  );
+  const targetHeight = focus.y;
+  const minStandingHeight = computeStandingViewHeight(
+    targetHeight,
+    horizontalDistance,
+    minHeight
+  );
+  if (desired.y < minStandingHeight) {
+    desired.y = minStandingHeight;
+  }
+};
 const TMP_SPIN = new THREE.Vector2();
 const TMP_SPH = new THREE.Spherical();
 const TMP_VEC2_A = new THREE.Vector2();
@@ -2944,6 +2980,7 @@ function SnookerGame() {
                     signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
                   lookAnchor.z +=
                     -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
+                  applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -2962,6 +2999,7 @@ function SnookerGame() {
                   lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
                   lookAnchor.x += -railDir * BALL_R * 4;
                   lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
+                  applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
@@ -3020,6 +3058,7 @@ function SnookerGame() {
                     signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
                   lookAnchor.z +=
                     -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
+                  applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -3038,6 +3077,7 @@ function SnookerGame() {
                   lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
                   lookAnchor.x += -railDir * BALL_R * 4;
                   lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
+                  applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
@@ -3086,9 +3126,8 @@ function SnookerGame() {
             }
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            const camHeight =
-              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
-              worldScaleFactor;
+            const baseHeightLocal =
+              TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale;
             let approachDir = activeShotView.approach
               ? activeShotView.approach.clone()
               : new THREE.Vector2(0, -railDir);
@@ -3148,11 +3187,6 @@ function SnookerGame() {
             const cameraAnchor2D = pocketCenter2D
               .clone()
               .add(outward.clone().multiplyScalar(cameraDistance));
-            const desiredPosition = new THREE.Vector3(
-              cameraAnchor2D.x * worldScaleFactor,
-              camHeight,
-              cameraAnchor2D.y * worldScaleFactor
-            );
             const lookDir = approachDir.clone().multiplyScalar(-1);
             if (lookDir.lengthSq() < 1e-6) {
               lookDir.copy(outward.clone().multiplyScalar(-1));
@@ -3160,12 +3194,25 @@ function SnookerGame() {
             const focusAim2D = activeShotView.pocketCenter
               .clone()
               .add(lookDir.multiplyScalar(POCKET_CAMERA_LOOK_AHEAD));
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.25;
+            const horizontalDistance = cameraAnchor2D.distanceTo(focusAim2D);
+            const standingMinHeight = computeStandingViewHeight(
+              focusHeightLocal,
+              horizontalDistance,
+              TABLE_Y + TABLE.THICK
+            );
+            const camHeightLocal = Math.max(baseHeightLocal, standingMinHeight);
             const focusTarget = new THREE.Vector3(
               focusAim2D.x,
-              BALL_CENTER_Y + BALL_R * 0.25,
+              focusHeightLocal,
               focusAim2D.y
             );
             focusTarget.multiplyScalar(worldScaleFactor);
+            const desiredPosition = new THREE.Vector3(
+              cameraAnchor2D.x,
+              camHeightLocal,
+              cameraAnchor2D.y
+            ).multiplyScalar(worldScaleFactor);
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
