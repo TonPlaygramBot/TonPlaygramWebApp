@@ -373,7 +373,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 1;
+const BALL_SCALE = 0.97;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -452,13 +452,13 @@ const POCKET_CAM = Object.freeze({
   dotThreshold: 0.3,
   minOutside:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) +
-    POCKET_VIS_R * 1.28,
+    POCKET_VIS_R * 1.6,
   maxOutside: BALL_R * 28,
   heightOffset: BALL_R * 12.6,
   outwardOffset:
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.65 +
-    POCKET_VIS_R * 0.9,
-  heightDrop: BALL_R * 1.4,
+    POCKET_VIS_R * 1.15,
+  heightDrop: BALL_R * 0.9,
   distanceScale: 1.12,
   heightScale: 1.22
 });
@@ -524,14 +524,14 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 480;
-const SPIN_STRENGTH = BALL_R * 0.125;
+const SPIN_STRENGTH = BALL_R * 0.0625;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.035;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.12; // reapply stored sideways swerve once the cue ball is rolling after impact
+const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
 const SHOT_FORCE_BOOST = 1.5; // boost cue strike strength by 50%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
@@ -880,7 +880,7 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.28;
+const STANDING_VIEW_MARGIN = 0.24;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -918,13 +918,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.58;
+const CUE_VIEW_RADIUS_RATIO = 0.54;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.42
 );
-const CUE_VIEW_PHI_LIFT = 0.16;
+const CUE_VIEW_PHI_LIFT = 0.2;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
 const CAMERA_MIN_HORIZONTAL =
@@ -1647,8 +1647,8 @@ function Table3D(parent) {
     sheenRoughness: 0.46,
     clearcoat: 0.05,
     clearcoatRoughness: 0.26,
-    emissive: clothPrimary.clone().multiplyScalar(0.09),
-    emissiveIntensity: 1
+    emissive: clothPrimary.clone().multiplyScalar(0.07),
+    emissiveIntensity: 0.65
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
@@ -3860,14 +3860,14 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 1.0);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.85);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 1.25;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.75);
         lightingRig.add(hemisphere);
 
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.62);
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.48);
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
@@ -3879,10 +3879,10 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          17.2,
+          18.6,
           0,
           Math.PI * 0.38,
-          0.48,
+          0.42,
           1
         );
         spot.position.set(triangleRadius, triangleHeight, triangleRadius * 0.5);
@@ -3891,10 +3891,11 @@ function SnookerGame() {
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
         spot.shadow.bias = -0.00008;
+        spot.shadow.normalBias = 0.015;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.04);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.025);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
