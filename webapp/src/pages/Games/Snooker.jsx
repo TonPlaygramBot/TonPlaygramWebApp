@@ -838,15 +838,15 @@ function spotPositions(baulkZ) {
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.22;
-const STANDING_VIEW_MARGIN = 0.32;
+const STANDING_VIEW_MARGIN = 0.28;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14;
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.46;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-const BROADCAST_DISTANCE_MULTIPLIER = 1.04;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.36;
+const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.26;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -887,8 +887,10 @@ const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.48; // seconds to ease pocket camera transitions
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
-const LONG_SHOT_ACTIVATION_DELAY_MS = 320;
-const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.35;
+const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
+const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
+const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
+  SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -3980,6 +3982,15 @@ function SnookerGame() {
               ? prediction.targetBall.pos.clone()
               : null
           };
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const base = aimDir
+            .clone()
+            .multiplyScalar(SHOT_BASE_SPEED * powerScale);
+          const predictedCueSpeed = base.length();
+          shotPrediction.speed = predictedCueSpeed;
+          const allowLongShotCameraSwitch =
+            !isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD;
           const orbitSnapshot = sphRef.current
             ? {
                 radius: sphRef.current.radius,
@@ -3987,17 +3998,36 @@ function SnookerGame() {
                 theta: sphRef.current.theta
               }
             : null;
-          const followView = orbitSnapshot ? { orbitSnapshot } : null;
-          const actionView = makeActionCameraView(
-            cue,
-            shotPrediction.ballId,
-            followView,
-            shotPrediction.railNormal,
-            {
-              longShot: isLongShot,
-              travelDistance: predictedTravel
-            }
-          );
+          const standingBounds = cameraBoundsRef.current?.standing;
+          const followView = standingBounds
+            ? {
+                orbitSnapshot: {
+                  radius: clampOrbitRadius(
+                    standingBounds.radius ?? sphRef.current?.radius ?? BREAK_VIEW.radius
+                  ),
+                  phi: THREE.MathUtils.clamp(
+                    standingBounds.phi,
+                    CAMERA.minPhi,
+                    CAMERA.maxPhi
+                  ),
+                  theta: sphRef.current?.theta ?? 0
+                }
+              }
+            : orbitSnapshot
+              ? { orbitSnapshot }
+              : null;
+          const actionView = allowLongShotCameraSwitch
+            ? makeActionCameraView(
+                cue,
+                shotPrediction.ballId,
+                followView,
+                shotPrediction.railNormal,
+                {
+                  longShot: isLongShot,
+                  travelDistance: predictedTravel
+                }
+              )
+            : null;
           if (actionView) {
             if (cameraRef.current) {
               actionView.smoothedPos = cameraRef.current.position.clone();
@@ -4012,12 +4042,6 @@ function SnookerGame() {
               updateCamera();
             }
           }
-          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
-          const powerScale =
-            SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const base = aimDir
-            .clone()
-            .multiplyScalar(SHOT_BASE_SPEED * powerScale);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const ranges = spinRangeRef.current || {};
           const spinSide = appliedSpin.x * (ranges.side ?? 0);
