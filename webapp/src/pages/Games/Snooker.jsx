@@ -2234,7 +2234,10 @@ function Table3D(parent) {
     Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.35;
 
   function carveLongRailPocketArches(shape, signX, topArc, bottomArcData) {
-    const mirrorSpan = Math.min(topArc.end.y, Math.abs(bottomArcData.start.y));
+    const mirrorSpan = Math.min(
+      Math.abs(topArc.end.y),
+      Math.abs(bottomArcData.start.y)
+    );
     if (mirrorSpan <= MICRO_EPS) {
       return;
     }
@@ -2249,7 +2252,10 @@ function Table3D(parent) {
   }
 
   function carveEndRailPocketArches(shape, signZ, rightArc, leftArcData, zIn) {
-    const mirrorSpan = Math.min(rightArc.end.x, Math.abs(leftArcData.start.x));
+    const mirrorSpan = Math.min(
+      Math.abs(rightArc.end.x),
+      Math.abs(leftArcData.start.x)
+    );
     if (mirrorSpan <= MICRO_EPS) {
       return;
     }
