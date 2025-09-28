@@ -231,6 +231,9 @@ function addPocketJaws(parent, playW, playH) {
   const rimLipHeight = capHeight * 0.28;
   const surfaceRimThickness = capHeight * 0.14;
   const rimSurfaceLift = capLift + capHeight;
+  const rimLipTopY = rimSurfaceLift + POCKET_RIM_LIFT;
+  const rimBaseTopY = rimLipTopY - rimLipHeight;
+  const rimSkirtTopY = rimBaseTopY - rimDeckHeight;
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -261,15 +264,12 @@ function addPocketJaws(parent, playW, playH) {
   );
   cornerRimGeo.computeBoundingBox();
   const cornerRimBox = cornerRimGeo.boundingBox;
-  let cornerRimDepth = 0;
   if (cornerRimBox) {
     const rimShift = -cornerRimBox.max.y;
     if (Math.abs(rimShift) > 1e-6) cornerRimGeo.translate(0, rimShift, 0);
   }
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
-  cornerRimGeo.computeBoundingBox();
-  cornerRimDepth = Math.abs(cornerRimGeo.boundingBox?.min.y ?? 0);
   const cornerRimTopGeo = makeJawSector(
     POCKET_VIS_R * 1.09,
     JAW_T * 0.76,
@@ -279,15 +279,12 @@ function addPocketJaws(parent, playW, playH) {
   );
   cornerRimTopGeo.computeBoundingBox();
   const cornerRimTopBox = cornerRimTopGeo.boundingBox;
-  let cornerRimTopDepth = 0;
   if (cornerRimTopBox) {
     const rimTopShift = -cornerRimTopBox.max.y;
     if (Math.abs(rimTopShift) > 1e-6) cornerRimTopGeo.translate(0, rimTopShift, 0);
   }
   cornerRimTopGeo.computeBoundingSphere();
   cornerRimTopGeo.computeVertexNormals();
-  cornerRimTopGeo.computeBoundingBox();
-  cornerRimTopDepth = Math.abs(cornerRimTopGeo.boundingBox?.min.y ?? 0);
   const sideRimBaseGeo = makeJawSector(
     POCKET_VIS_R * 1.05,
     JAW_T * 0.52,
@@ -297,15 +294,12 @@ function addPocketJaws(parent, playW, playH) {
   );
   sideRimBaseGeo.computeBoundingBox();
   const sideRimBox = sideRimBaseGeo.boundingBox;
-  let sideRimDepth = 0;
   if (sideRimBox) {
     const rimShift = -sideRimBox.max.y;
     if (Math.abs(rimShift) > 1e-6) sideRimBaseGeo.translate(0, rimShift, 0);
   }
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
-  sideRimBaseGeo.computeBoundingBox();
-  sideRimDepth = Math.abs(sideRimBaseGeo.boundingBox?.min.y ?? 0);
   const sideRimTopGeo = makeJawSector(
     POCKET_VIS_R * 1.07,
     JAW_T * 0.62,
@@ -315,15 +309,12 @@ function addPocketJaws(parent, playW, playH) {
   );
   sideRimTopGeo.computeBoundingBox();
   const sideRimTopBox = sideRimTopGeo.boundingBox;
-  let sideRimTopDepth = 0;
   if (sideRimTopBox) {
     const rimTopShift = -sideRimTopBox.max.y;
     if (Math.abs(rimTopShift) > 1e-6) sideRimTopGeo.translate(0, rimTopShift, 0);
   }
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
-  sideRimTopGeo.computeBoundingBox();
-  sideRimTopDepth = Math.abs(sideRimTopGeo.boundingBox?.min.y ?? 0);
   const cornerSurfaceRimGeo = makeJawSector(
     POCKET_VIS_R * 1.04,
     JAW_T * 0.4,
@@ -333,17 +324,12 @@ function addPocketJaws(parent, playW, playH) {
   );
   cornerSurfaceRimGeo.computeBoundingBox();
   const cornerSurfaceRimBox = cornerSurfaceRimGeo.boundingBox;
-  let cornerSurfaceRimDepth = 0;
   if (cornerSurfaceRimBox) {
     const rimShift = -cornerSurfaceRimBox.max.y;
     if (Math.abs(rimShift) > 1e-6) cornerSurfaceRimGeo.translate(0, rimShift, 0);
   }
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
-  cornerSurfaceRimGeo.computeBoundingBox();
-  cornerSurfaceRimDepth = Math.abs(
-    cornerSurfaceRimGeo.boundingBox?.min.y ?? 0
-  );
   const sideSurfaceRimGeo = makeJawSector(
     POCKET_VIS_R * 1.015,
     JAW_T * 0.32,
@@ -353,16 +339,13 @@ function addPocketJaws(parent, playW, playH) {
   );
   sideSurfaceRimGeo.computeBoundingBox();
   const sideSurfaceRimBox = sideSurfaceRimGeo.boundingBox;
-  let sideSurfaceRimDepth = 0;
   if (sideSurfaceRimBox) {
     const rimShift = -sideSurfaceRimBox.max.y;
     if (Math.abs(rimShift) > 1e-6) sideSurfaceRimGeo.translate(0, rimShift, 0);
   }
   sideSurfaceRimGeo.computeBoundingSphere();
   sideSurfaceRimGeo.computeVertexNormals();
-  sideSurfaceRimGeo.computeBoundingBox();
-  sideSurfaceRimDepth = Math.abs(sideSurfaceRimGeo.boundingBox?.min.y ?? 0);
-  const rimSkirtHeight = capHeight * 1.32;
+  const rimSkirtHeight = POCKET_RECESS_DEPTH * 0.5;
   const cornerSkirtGeo = makePocketSkirtGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
     outerRadius: cornerPocketRadius + surfaceRimThickness * 0.78,
@@ -373,7 +356,7 @@ function addPocketJaws(parent, playW, playH) {
   const sideSkirtGeo = makePocketSkirtGeometry({
     innerRadius: sidePocketRadius + surfaceRimThickness * 0.24,
     outerRadius: sidePocketRadius + surfaceRimThickness * 0.64,
-    height: capHeight * 1.18,
+    height: rimSkirtHeight,
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
@@ -477,27 +460,27 @@ function addPocketJaws(parent, playW, playH) {
         capMeshes.push(segCap);
 
         const rimGeo = sideRimBaseGeo.clone();
-        rimGeo.scale(segmentScale * 1.16, 1, 1.08);
+        rimGeo.scale(segmentScale, 1, 1);
         rimGeo.computeVertexNormals();
         const rim = new THREE.Mesh(rimGeo, plasticRimMat);
         rim.castShadow = false;
         rim.receiveShadow = true;
         rim.position.set(
           segment.position.x,
-          capLift + capHeight * 0.58 + sideRimDepth,
+          rimBaseTopY,
           0
         );
         jaw.add(rim);
 
         const rimTopGeo = sideRimTopGeo.clone();
-        rimTopGeo.scale(segmentScale * 1.2, 1, 1.12);
+        rimTopGeo.scale(segmentScale, 1, 1);
         rimTopGeo.computeVertexNormals();
         const rimTop = new THREE.Mesh(rimTopGeo, plasticRimMat);
         rimTop.castShadow = false;
         rimTop.receiveShadow = true;
         rimTop.position.set(
           segment.position.x,
-          capLift + capHeight + sideRimTopDepth,
+          rimLipTopY,
           0
         );
         jaw.add(rimTop);
@@ -509,18 +492,18 @@ function addPocketJaws(parent, playW, playH) {
         surfaceRim.receiveShadow = true;
         surfaceRim.position.set(
           segment.position.x,
-          rimSurfaceLift + sideSurfaceRimDepth * 0.55,
+          rimLipTopY,
           0
         );
-        surfaceRim.scale.set(segmentScale * 1.1, 0.4, 1.04);
+        surfaceRim.scale.set(segmentScale, 1, 1);
         jaw.add(surfaceRim);
 
         const skirtGeo = sideSkirtGeo.clone();
         const skirt = new THREE.Mesh(skirtGeo, plasticRimMat);
         skirt.castShadow = false;
         skirt.receiveShadow = true;
-        skirt.position.set(segment.position.x, rimSurfaceLift, 0);
-        skirt.scale.set(segmentScale * 1.05, 1, 1);
+        skirt.position.set(segment.position.x, rimSkirtTopY, 0);
+        skirt.scale.set(segmentScale, 1, 1);
         jaw.add(skirt);
       }
     } else {
@@ -540,21 +523,21 @@ function addPocketJaws(parent, playW, playH) {
       capMeshes.push(cap);
 
       const rimGeo = cornerRimGeo.clone();
-      rimGeo.scale(1.06, 1, 1.06);
+      rimGeo.scale(1, 1, 1);
       rimGeo.computeVertexNormals();
       const rim = new THREE.Mesh(rimGeo, plasticRimMat);
       rim.castShadow = false;
       rim.receiveShadow = true;
-      rim.position.y = capLift + capHeight * 0.58 + cornerRimDepth;
+      rim.position.y = rimBaseTopY;
       mesh.add(rim);
 
       const rimTopGeo = cornerRimTopGeo.clone();
-      rimTopGeo.scale(1.08, 1, 1.08);
+      rimTopGeo.scale(1, 1, 1);
       rimTopGeo.computeVertexNormals();
       const rimTop = new THREE.Mesh(rimTopGeo, plasticRimMat);
       rimTop.castShadow = false;
       rimTop.receiveShadow = true;
-      rimTop.position.y = capLift + capHeight + cornerRimTopDepth;
+      rimTop.position.y = rimLipTopY;
       mesh.add(rimTop);
 
       const surfaceRimGeo = cornerSurfaceRimGeo.clone();
@@ -562,14 +545,14 @@ function addPocketJaws(parent, playW, playH) {
       const surfaceRim = new THREE.Mesh(surfaceRimGeo, plasticRimMat);
       surfaceRim.castShadow = false;
       surfaceRim.receiveShadow = true;
-      surfaceRim.position.y = rimSurfaceLift + cornerSurfaceRimDepth * 0.55;
-      surfaceRim.scale.set(1.02, 0.42, 1.02);
+      surfaceRim.position.y = rimLipTopY;
+      surfaceRim.scale.set(1, 1, 1);
       mesh.add(surfaceRim);
 
       const skirt = new THREE.Mesh(cornerSkirtGeo.clone(), plasticRimMat);
       skirt.castShadow = false;
       skirt.receiveShadow = true;
-      skirt.position.y = rimSurfaceLift;
+      skirt.position.y = rimSkirtTopY;
       mesh.add(skirt);
     }
     const chromeMesh = new THREE.Mesh(
@@ -963,7 +946,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xa87344;
+const WOOD_TONE = 0x8b6238;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
