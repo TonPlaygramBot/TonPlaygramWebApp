@@ -155,6 +155,28 @@ function makeSideChromePlateGeometry({
   geo.computeVertexNormals();
   return geo;
 }
+
+function makePocketSkirtGeometry({
+  innerRadius,
+  outerRadius,
+  height,
+  startAngle,
+  endAngle
+}) {
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, outerRadius, startAngle, endAngle, false);
+  shape.absarc(0, 0, innerRadius, endAngle, startAngle, true);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: height,
+    bevelEnabled: false,
+    curveSegments: 96
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(0, -height, 0);
+  geo.computeVertexNormals();
+  return geo;
+}
 function makeJawSector(
   R = POCKET_VIS_R,
   T = JAW_T,
@@ -340,6 +362,21 @@ function addPocketJaws(parent, playW, playH) {
   sideSurfaceRimGeo.computeVertexNormals();
   sideSurfaceRimGeo.computeBoundingBox();
   sideSurfaceRimDepth = Math.abs(sideSurfaceRimGeo.boundingBox?.min.y ?? 0);
+  const rimSkirtHeight = capHeight * 1.32;
+  const cornerSkirtGeo = makePocketSkirtGeometry({
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
+    outerRadius: cornerPocketRadius + surfaceRimThickness * 0.78,
+    height: rimSkirtHeight,
+    startAngle: 0,
+    endAngle: Math.PI / 2
+  });
+  const sideSkirtGeo = makePocketSkirtGeometry({
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.24,
+    outerRadius: sidePocketRadius + surfaceRimThickness * 0.64,
+    height: capHeight * 1.18,
+    startAngle: -Math.PI / 2,
+    endAngle: Math.PI / 2
+  });
   const chromePlateThickness = capHeight * 0.6;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
@@ -478,6 +515,14 @@ function addPocketJaws(parent, playW, playH) {
         );
         surfaceRim.scale.set(segmentScale * 1.1, 0.4, 1.04);
         jaw.add(surfaceRim);
+
+        const skirtGeo = sideSkirtGeo.clone();
+        const skirt = new THREE.Mesh(skirtGeo, plasticRimMat);
+        skirt.castShadow = false;
+        skirt.receiveShadow = true;
+        skirt.position.set(segment.position.x, rimSurfaceLift, 0);
+        skirt.scale.set(segmentScale * 1.05, 1, 1);
+        jaw.add(skirt);
       }
     } else {
       const mesh = new THREE.Mesh(geom, jawMat);
@@ -521,6 +566,12 @@ function addPocketJaws(parent, playW, playH) {
       surfaceRim.position.y = rimSurfaceLift + cornerSurfaceRimDepth * 0.55;
       surfaceRim.scale.set(1.02, 0.42, 1.02);
       mesh.add(surfaceRim);
+
+      const skirt = new THREE.Mesh(cornerSkirtGeo.clone(), plasticRimMat);
+      skirt.castShadow = false;
+      skirt.receiveShadow = true;
+      skirt.position.y = rimSurfaceLift;
+      mesh.add(skirt);
     }
     const chromeMesh = new THREE.Mesh(
       entry.type === 'corner' ? cornerChromeGeo : sideChromeGeo,
@@ -912,8 +963,11 @@ const UI_SCALE = SIZE_REDUCTION;
 const WOOD_TONE = 0xb6814f;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
+const CLOTH_TEXTURE_INTENSITY = 0.56;
+const CLOTH_BUMP_INTENSITY = 0.48;
+
 const COLORS = Object.freeze({
-  cloth: 0x28a64d,
+  cloth: 0x2c7d4f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -995,40 +1049,42 @@ const createClothTextures = (() => {
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const fuzz = Math.pow(fiber, 1.2);
-        const tonal = THREE.MathUtils.clamp(
-          0.56 +
-            (weave - 0.5) * 0.6 +
-            (cross - 0.5) * 0.48 +
-            (diamond - 0.5) * 0.54 +
-            (fiber - 0.5) * 0.32 +
-            (fuzz - 0.5) * 0.24 +
-            (micro - 0.5) * 0.18,
-          0,
-          1
-        );
-        const tonalEnhanced = THREE.MathUtils.clamp(
-          0.5 + (tonal - 0.5) * 1.56,
-          0,
-          1
-        );
-        const highlightMix = THREE.MathUtils.clamp(
-          0.34 +
-            (cross - 0.5) * 0.44 +
-            (diamond - 0.5) * 0.66 +
-            (sparkle - 0.5) * 0.38,
-          0,
-          1
-        );
-        const accentMix = THREE.MathUtils.clamp(
-          0.48 + (diamond - 0.5) * 1.12 + (fuzz - 0.5) * 0.3,
-          0,
-          1
-        );
-        const highlightEnhanced = THREE.MathUtils.clamp(
-          0.38 + (highlightMix - 0.5) * 1.68,
-          0,
-          1
-        );
+    const tonal = THREE.MathUtils.clamp(
+      0.56 +
+        (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
+        (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
+        (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
+        (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
+        (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+        (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY,
+      0,
+      1
+    );
+    const tonalEnhanced = THREE.MathUtils.clamp(
+      0.5 + (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY),
+      0,
+      1
+    );
+    const highlightMix = THREE.MathUtils.clamp(
+      0.34 +
+        (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
+        (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
+        (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY,
+      0,
+      1
+    );
+    const accentMix = THREE.MathUtils.clamp(
+      0.48 +
+        (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
+        (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY,
+      0,
+      1
+    );
+    const highlightEnhanced = THREE.MathUtils.clamp(
+      0.38 + (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY),
+      0,
+      1
+    );
         const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
         const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
         const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
@@ -1081,12 +1137,12 @@ const createClothTextures = (() => {
         const fuzz = Math.pow(fiber, 1.22);
         const bump = THREE.MathUtils.clamp(
           0.56 +
-            (weave - 0.5) * 0.9 +
-            (cross - 0.5) * 0.46 +
-            (diamond - 0.5) * 0.58 +
-            (fiber - 0.5) * 0.36 +
-            (fuzz - 0.5) * 0.24 +
-            (micro - 0.5) * 0.26,
+            (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
+            (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
+            (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY,
           0,
           1
         );
@@ -2252,7 +2308,7 @@ function Table3D(parent) {
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.25;
-  const baseBumpScale = 0.98;
+  const baseBumpScale = 0.52;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -2766,9 +2822,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.68; // shorten cushions so they finish where the frame arcs begin
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.6; // trim the straight rails to line up with the start of the chrome arc
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.22; // ensure side cushions stop before the pocket rim curves
+  const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.34; // ensure side cushions stop before the pocket rim curves
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
@@ -5794,19 +5850,24 @@ function SnookerGame() {
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               const dropStart = performance.now();
+              const fromX = b.pos.x;
+              const fromZ = b.pos.y;
               const dropEntry = {
                 start: dropStart,
                 duration: POCKET_DROP_ANIMATION_MS,
                 fromY: BALL_CENTER_Y,
                 toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
-                x: c.x,
-                z: c.y,
+                fromX,
+                fromZ,
+                toX: c.x,
+                toZ: c.y,
+                lateralDelay: 0.35,
                 mesh: b.mesh,
                 endScale: POCKET_DROP_SCALE
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
-              b.mesh.position.set(c.x, BALL_CENTER_Y, c.y);
+              b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const colorId = b.id === 'cue'
@@ -5889,15 +5950,27 @@ function SnookerGame() {
               const elapsed = now - entry.start;
               const duration = entry.duration > 0 ? entry.duration : 1;
               const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
-              const eased = t * t * (3 - 2 * t);
-              const y = THREE.MathUtils.lerp(entry.fromY, entry.toY, eased);
-              mesh.position.set(entry.x, y, entry.z);
-              const scale = THREE.MathUtils.lerp(1, entry.endScale ?? 1, eased);
+              const fall = t * t;
+              const y = THREE.MathUtils.lerp(entry.fromY, entry.toY, fall);
+              const lateralDelay = entry.lateralDelay ?? 0.3;
+              let lateralT = 0;
+              if (t > lateralDelay) {
+                const normalized = THREE.MathUtils.clamp(
+                  (t - lateralDelay) / (1 - lateralDelay),
+                  0,
+                  1
+                );
+                lateralT = normalized * normalized * (3 - 2 * normalized);
+              }
+              const x = THREE.MathUtils.lerp(entry.fromX, entry.toX, lateralT);
+              const z = THREE.MathUtils.lerp(entry.fromZ, entry.toZ, lateralT);
+              mesh.position.set(x, y, z);
+              const scale = THREE.MathUtils.lerp(1, entry.endScale ?? 1, fall);
               mesh.scale.set(scale, scale, scale);
               if (t >= 1) {
                 mesh.visible = false;
                 mesh.scale.set(1, 1, 1);
-                mesh.position.set(entry.x, BALL_CENTER_Y, entry.z);
+                mesh.position.set(entry.toX, BALL_CENTER_Y, entry.toZ);
                 pocketDropRef.current.delete(key);
               }
             });
