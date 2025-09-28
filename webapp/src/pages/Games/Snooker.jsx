@@ -616,7 +616,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.62; // lift pockets slightly higher so the rims sit more prominently above the cloth
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.68; // lift pockets slightly higher so the rims sit more prominently above the cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -1899,8 +1899,8 @@ function Table3D(parent) {
   });
 
   const clothExtend = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.18,
-    Math.min(PLAY_W, PLAY_H) * 0.0055
+    SIDE_RAIL_INNER_THICKNESS * 0.24,
+    Math.min(PLAY_W, PLAY_H) * 0.0065
   );
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
