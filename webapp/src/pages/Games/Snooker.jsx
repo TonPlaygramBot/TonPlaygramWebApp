@@ -2307,35 +2307,25 @@ function Table3D(parent) {
     shape.lineTo(outerHalfW, zIn);
     const rightArc = addCornerArcEnd(shape, signZ, 1);
     const leftArcData = computeCornerArcEndData(signZ, -1);
-    if (signZ < 0) {
-      // Add a mirrored pair of decorative arches on the baulk (D-line) short rail
-      const innerSpanStart = rightArc.end.x;
-      const mirrorSpan = Math.min(innerSpanStart, Math.abs(leftArcData.start.x));
-      const archDepth = END_RAIL_INNER_THICKNESS * 1.35;
-      const archOuter = mirrorSpan * 0.92;
-      const archGapHalf = mirrorSpan * 0.08;
-      const firstArchCenter = (archOuter + archGapHalf) * 0.5;
-      const secondArchCenter = -firstArchCenter;
-      const firstArchStart = archOuter;
-      const firstArchEnd = archGapHalf;
-      const secondArchStart = -archGapHalf;
-      const secondArchEnd = -archOuter;
-      shape.lineTo(firstArchStart, zIn);
-      shape.quadraticCurveTo(
-        firstArchCenter,
-        zIn - archDepth,
-        firstArchEnd,
-        zIn
-      );
-      // keep a short straight run between the mirrored arches so they don't overlap
-      shape.lineTo(secondArchStart, zIn);
-      shape.quadraticCurveTo(
-        secondArchCenter,
-        zIn - archDepth,
-        secondArchEnd,
-        zIn
-      );
-    }
+    // Add a mirrored pair of decorative arches on both short rails so each pocket
+    // corner is formed by matching cut-outs on the adjoining cushions.
+    const innerSpanStart = rightArc.end.x;
+    const mirrorSpan = Math.min(innerSpanStart, Math.abs(leftArcData.start.x));
+    const archDepth = END_RAIL_INNER_THICKNESS * 1.35;
+    const archOuter = mirrorSpan * 0.92;
+    const archGapHalf = mirrorSpan * 0.08;
+    const firstArchCenter = (archOuter + archGapHalf) * 0.5;
+    const secondArchCenter = -firstArchCenter;
+    const firstArchStart = archOuter;
+    const firstArchEnd = archGapHalf;
+    const secondArchStart = -archGapHalf;
+    const secondArchEnd = -archOuter;
+    const archSag = zIn + signZ * archDepth;
+    shape.lineTo(firstArchStart, zIn);
+    shape.quadraticCurveTo(firstArchCenter, archSag, firstArchEnd, zIn);
+    // keep a short straight run between the mirrored arches so they don't overlap
+    shape.lineTo(secondArchStart, zIn);
+    shape.quadraticCurveTo(secondArchCenter, archSag, secondArchEnd, zIn);
     shape.lineTo(leftArcData.start.x, leftArcData.start.y);
     addCornerArcEnd(shape, signZ, -1);
     shape.lineTo(-outerHalfW, zIn);
