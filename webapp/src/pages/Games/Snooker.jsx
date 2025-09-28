@@ -203,7 +203,7 @@ function addPocketJaws(parent, playW, playH) {
   const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
   const jawDepthTarget = CLOTH_THICKNESS;
   const capHeight = CLOTH_THICKNESS * 0.36;
-  const capLift = CLOTH_THICKNESS * 0.28; // lift jaw caps so pocket lips read above the cloth plane
+  const capLift = CLOTH_THICKNESS * 0.36; // lift jaw caps a bit more so pocket lips clear the cloth plane
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -616,7 +616,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.05; // lift pockets so the rims stay clearly above the cloth plane
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.18; // lift pockets slightly more so the rims stay clearly above the cloth plane
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -1899,10 +1899,12 @@ function Table3D(parent) {
   });
 
   const clothExtendBase = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.3,
-    Math.min(PLAY_W, PLAY_H) * 0.008
+    SIDE_RAIL_INNER_THICKNESS * 0.34,
+    Math.min(PLAY_W, PLAY_H) * 0.009
   );
-  const clothExtend = clothExtendBase + Math.min(PLAY_W, PLAY_H) * 0.0025; // extend the cloth to eliminate gaps beside the rails
+  const clothExtend =
+    clothExtendBase +
+    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
