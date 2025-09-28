@@ -881,8 +881,6 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.42;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
-const MAX_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
-const OBSTRUCTION_CLEARANCE_DISTANCE = BALL_R * 6;
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
@@ -4728,27 +4726,17 @@ function SnookerGame() {
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
         const tipComp = Math.sin(totalTilt) * len * 0.5;
+        group.position.y += tipComp;
         if (info) {
-          const { baseY } = info;
-          const newBase = Number.isFinite(baseY)
-            ? baseY
-            : group.position.y;
-          group.position.y = newBase + tipComp;
-          info.baseY = newBase;
-          info.current = totalTilt;
           info.tipCompensation = tipComp;
+          info.current = totalTilt;
           info.extra = extraTilt;
-        } else {
-          group.position.y += tipComp;
         }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: buttTipComp,
-        length: cueLen,
-        current: buttTilt,
-        extra: 0,
-        baseY: cueStick.position.y
+        length: cueLen
       };
 
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
@@ -4879,9 +4867,6 @@ function SnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
-      if (cueStick.userData?.buttTilt) {
-        cueStick.userData.buttTilt.baseY = cueStick.position.y;
-      }
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
@@ -5411,54 +5396,23 @@ function SnookerGame() {
           const pull = Math.min(desiredPull, maxPull);
           const side = appliedSpin.x * (ranges.offsetSide ?? 0);
           const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP),
-            CUE_Y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP)
+          const spinWorld = new THREE.Vector3(
+            perp.x * side,
+            vert,
+            perp.z * side
           );
-          if (cueStick.userData?.buttTilt) {
-            cueStick.userData.buttTilt.baseY = cueStick.position.y;
-          }
-          const lateralDir = perp.lengthSq() > 1e-6 ? perp.clone().normalize() : new THREE.Vector3(1, 0, 0);
+          cueStick.position.set(
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            CUE_Y + spinWorld.y,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+          );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const clearanceDistance = Number.isFinite(backInfo.tHit)
-            ? backInfo.tHit - cueLen - CUE_TIP_GAP
-            : Infinity;
-          const obstructionRatio =
-            clearanceDistance < OBSTRUCTION_CLEARANCE_DISTANCE
-              ? THREE.MathUtils.clamp(
-                  1 -
-                    clearanceDistance /
-                      Math.max(OBSTRUCTION_CLEARANCE_DISTANCE, 1e-4),
-                  0,
-                  1
-                )
-              : 0;
-          const obstructionTilt = MAX_OBSTRUCTION_TILT * obstructionRatio;
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + obstructionTilt;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
-          const tiltInfo = cueStick.userData?.buttTilt;
-          const currentTilt = tiltInfo?.current ?? buttTilt + extraTilt;
-          const cosTilt = Math.cos(currentTilt);
-          const safeCos = Math.abs(cosTilt) > 1e-4 ? cosTilt : 1;
-          const maxLocalY =
-            (ranges.offsetVertical ?? MAX_SPIN_VERTICAL) /
-            Math.max(Math.abs(safeCos), 1e-4);
-          const localY = THREE.MathUtils.clamp(vert / safeCos, -maxLocalY, maxLocalY);
-          const zComp = Math.sin(currentTilt) * localY;
-          const cueBody = cueBodyRef.current;
-          if (cueBody) {
-            cueBody.position.set(side, localY, -zComp);
-          }
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2 + zComp);
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          aimFocusRef.current = new THREE.Vector3(
-            cue.pos.x + lateralDir.x * side - dir.x * BALL_R * 0.4,
-            BALL_CENTER_Y + localY,
-            cue.pos.y + lateralDir.z * side - dir.z * BALL_R * 0.4
-          );
           cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
@@ -5477,12 +5431,8 @@ function SnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
-          const cueBody = cueBodyRef.current;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
-          }
-          if (cueBody) {
-            cueBody.position.set(0, 0, 0);
           }
           if (!cueAnimating) cueStick.visible = false;
         }
