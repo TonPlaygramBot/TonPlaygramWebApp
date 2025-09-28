@@ -1311,6 +1311,7 @@ const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
+const TMP_VEC2_VIEW = new THREE.Vector2();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -1345,7 +1346,6 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.06;
-const SPIN_LEGALITY_DOT_THRESHOLD = 0.5;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
 
 const clampToUnitCircle = (x, y) => {
@@ -1357,7 +1357,32 @@ const clampToUnitCircle = (x, y) => {
   return { x: x * scale, y: y * scale };
 };
 
-function checkSpinLegality2D(cueBall, spinVec, balls = []) {
+const prepareSpinAxes = (aimDir) => {
+  if (!aimDir) {
+    return {
+      axis: new THREE.Vector2(0, 1),
+      perp: new THREE.Vector2(1, 0)
+    };
+  }
+  const axis = new THREE.Vector2(aimDir.x ?? 0, aimDir.y ?? 0);
+  if (axis.lengthSq() < 1e-8) axis.set(0, 1);
+  else axis.normalize();
+  const perp = new THREE.Vector2(-axis.y, axis.x);
+  if (perp.lengthSq() < 1e-8) perp.set(1, 0);
+  else perp.normalize();
+  return { axis, perp };
+};
+
+const computeCueViewVector = (cueBall, camera) => {
+  if (!cueBall?.pos || !camera?.position) return null;
+  const cx = camera.position.x - cueBall.pos.x;
+  const cz = camera.position.z - cueBall.pos.y;
+  TMP_VEC2_VIEW.set(cx, cz);
+  if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
+  return TMP_VEC2_VIEW.clone().normalize();
+};
+
+function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   if (!cueBall || !cueBall.pos) {
     return { blocked: false, reason: '' };
   }
@@ -1367,12 +1392,18 @@ function checkSpinLegality2D(cueBall, spinVec, balls = []) {
   if (magnitude < SPIN_INPUT_DEAD_ZONE) {
     return { blocked: false, reason: '' };
   }
-  const dir = new THREE.Vector2(sx, sy);
-  if (dir.lengthSq() < 1e-8) {
+  const axes = options.axes;
+  TMP_VEC2_SPIN.set(0, 0);
+  if (axes?.perp) TMP_VEC2_SPIN.addScaledVector(axes.perp, sx);
+  if (axes?.axis) TMP_VEC2_SPIN.addScaledVector(axes.axis, sy);
+  if (!axes) TMP_VEC2_SPIN.set(sx, sy);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) {
     return { blocked: false, reason: '' };
   }
-  dir.normalize();
-  const contact = cueBall.pos.clone().add(dir.clone().multiplyScalar(BALL_R));
+  TMP_VEC2_SPIN.normalize();
+  const contact = cueBall.pos
+    .clone()
+    .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
   const cushionClearX = RAIL_LIMIT_X - SPIN_CUSHION_EPS;
   const cushionClearY = RAIL_LIMIT_Y - SPIN_CUSHION_EPS;
   if (
@@ -1381,14 +1412,28 @@ function checkSpinLegality2D(cueBall, spinVec, balls = []) {
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
+  const view = options.view;
+  if (view) {
+    TMP_VEC2_LIMIT.set(view.x ?? 0, view.y ?? 0);
+    if (TMP_VEC2_LIMIT.lengthSq() > 1e-8) {
+      TMP_VEC2_LIMIT.normalize();
+      if (TMP_VEC2_SPIN.dot(TMP_VEC2_LIMIT) <= 0) {
+        return { blocked: true, reason: 'Contact point not visible' };
+      }
+    }
+  }
+  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
+  const blockingRadiusSq = blockingRadius * blockingRadius;
   const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
     if (!other || other === cueBall || !other.active) continue;
     const offset = other.pos.clone().sub(cueBall.pos);
     const dist = offset.length();
     if (dist >= combinedRadius) continue;
-    const dot = offset.normalize().dot(dir);
-    if (dot > SPIN_LEGALITY_DOT_THRESHOLD) {
+    const proj = offset.dot(TMP_VEC2_SPIN);
+    if (!(proj > 0)) continue;
+    const lateralSq = Math.max(offset.lengthSq() - proj * proj, 0);
+    if (lateralSq < blockingRadiusSq) {
       return { blocked: true, reason: 'Another ball blocks that side' };
     }
   }
@@ -1421,11 +1466,17 @@ function applyAxisClearance(
   if (soft) {
     const total = MAX_SPIN_CONTACT_OFFSET + margin;
     if (total <= 0) return;
-    const normalized = clamp(
-      (clearance + margin * 0.2) / total,
-      0,
-      1
-    );
+    if (clearance <= 0) {
+      if (positive) {
+        if (key === 'maxX') limits.maxX = Math.min(limits.maxX, 0);
+        if (key === 'maxY') limits.maxY = Math.min(limits.maxY, 0);
+      } else {
+        if (key === 'minX') limits.minX = Math.max(limits.minX, 0);
+        if (key === 'minY') limits.minY = Math.max(limits.minY, 0);
+      }
+      return;
+    }
+    const normalized = clamp(clearance / total, 0, 1);
     if (positive) {
       if (key === 'maxX') limits.maxX = Math.min(limits.maxX, normalized);
       if (key === 'maxY') limits.maxY = Math.min(limits.maxY, normalized);
@@ -1458,19 +1509,16 @@ function applyAxisClearance(
   }
 }
 
-function computeSpinLimits(cueBall, aimDir, balls = []) {
+function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
-  TMP_VEC2_AXIS.set(aimDir.x, aimDir.y);
-  if (TMP_VEC2_AXIS.lengthSq() < 1e-8) TMP_VEC2_AXIS.set(0, 1);
-  else TMP_VEC2_AXIS.normalize();
-  TMP_VEC2_LIMIT.set(-TMP_VEC2_AXIS.y, TMP_VEC2_AXIS.x);
-  if (TMP_VEC2_LIMIT.lengthSq() < 1e-8) TMP_VEC2_LIMIT.set(1, 0);
-  else TMP_VEC2_LIMIT.normalize();
+  const spinAxes = axesInput || prepareSpinAxes(aimDir);
+  const forward = spinAxes.axis;
+  const lateral = spinAxes.perp;
   const axes = [
-    { key: 'maxX', dir: TMP_VEC2_LIMIT.clone(), positive: true },
-    { key: 'minX', dir: TMP_VEC2_LIMIT.clone().multiplyScalar(-1), positive: false },
-    { key: 'minY', dir: TMP_VEC2_AXIS.clone(), positive: false },
-    { key: 'maxY', dir: TMP_VEC2_AXIS.clone().multiplyScalar(-1), positive: true }
+    { key: 'maxX', dir: lateral.clone(), positive: true },
+    { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
+    { key: 'minY', dir: forward.clone(), positive: false },
+    { key: 'maxY', dir: forward.clone().multiplyScalar(-1), positive: true }
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
   const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
@@ -4229,12 +4277,20 @@ function SnookerGame() {
           let legality = spinLegalityRef.current || { blocked: false, reason: '' };
           const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
           if (cueBall && aimVec) {
-            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls);
+            const axes = prepareSpinAxes(aimVec);
+            const activeCamera = activeRenderCameraRef.current ?? camera;
+            const viewVec = computeCueViewVector(cueBall, activeCamera);
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
               y: 0
             };
-            legality = checkSpinLegality2D(cueBall, requested, ballsList);
+            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
+              axes,
+              view: viewVec
+                ? { x: viewVec.x, y: viewVec.y }
+                : null
+            });
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
@@ -5817,10 +5873,20 @@ function SnookerGame() {
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
         : undefined;
+      const aimVec = aimDirRef.current;
+      const axes = aimVec ? prepareSpinAxes(aimVec) : null;
+      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const viewVec = cueBall && activeCamera
+        ? computeCueViewVector(cueBall, activeCamera)
+        : null;
       const legality = checkSpinLegality2D(
         cueBall,
         normalized,
-        ballsList || []
+        ballsList || [],
+        {
+          axes,
+          view: viewVec ? { x: viewVec.x, y: viewVec.y } : null
+        }
       );
       spinLegalityRef.current = legality;
       updateSpinDotPosition(limited, legality.blocked);
