@@ -60,7 +60,7 @@ const chromePlateMat = new THREE.MeshPhysicalMaterial({
   metalness: 1,
   clearcoat: 0.82,
   clearcoatRoughness: 0.18,
-  envMapIntensity: 1.3
+  envMapIntensity: 1.6
 });
 
 function makeCornerChromePlateGeometry({
@@ -377,7 +377,7 @@ function addPocketJaws(parent, playW, playH) {
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
-  const chromePlateThickness = capHeight * 0.6;
+  const chromePlateThickness = capHeight * 0.8;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
     extensionX: longRailW * 0.88 + cornerChamfer * 0.35,
@@ -394,8 +394,7 @@ function addPocketJaws(parent, playW, playH) {
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeTopY =
-    rimSurfaceLift + chromePlateThickness * 0.5 - MICRO_EPS * 0.5;
+  const chromeTopY = TABLE_RAIL_TOP_Y + MICRO_EPS;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -738,13 +737,14 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
+const RAIL_HEIGHT = TABLE.THICK * 1.82;
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
+const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 const CLOTH_LIFT = (() => {
   const ballR = 2 * BALL_SCALE;
   const microEpsRatio = 0.022857142857142857;
   const eps = ballR * microEpsRatio;
-  const railH = TABLE.THICK * 1.82;
-  return Math.max(0, railH - ballR - eps);
+  return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
@@ -963,7 +963,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0x5a3a20;
+const WOOD_TONE = 0xa87344;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
@@ -2496,7 +2496,8 @@ function Table3D(parent) {
     pocketMeshes.push(pocket);
   });
 
-  const railH = TABLE.THICK * 1.82;
+  const railH = RAIL_HEIGHT;
+  const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
   const frameExpansion = TABLE.WALL * 0.08;
@@ -2651,14 +2652,17 @@ function Table3D(parent) {
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
 
-  const rimMaterial = new THREE.MeshStandardMaterial({
+  const rimMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x050505,
-    roughness: 0.4,
-    metalness: 0.1
+    roughness: 0.38,
+    metalness: 0.12,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.22,
+    envMapIntensity: 0.9
   });
-  const rimTubeR = POCKET_VIS_R * 0.12;
-  const rimLift = POCKET_VIS_R * 0.015;
-  const rimY = frameTopY + rimLift;
+  const rimTubeR = POCKET_VIS_R * 0.18;
+  const rimTopY = railsTopY + MICRO_EPS * 1.5;
+  const rimY = rimTopY - rimTubeR;
 
   class ArcXZ extends THREE.Curve {
     constructor(cx, cz, r, a0, a1) {
@@ -2722,7 +2726,7 @@ function Table3D(parent) {
       start + cornerGap - cornerExtend,
       end - cornerGap + cornerExtend
     );
-    addRimArc(cx, cz, cornerPocketRadius, a0, a1);
+    addRimArc(cx, cz, cornerPocketRadius + rimTubeR * 0.4, a0, a1);
   });
 
   const sideGap = Math.atan2(sideInset * 0.5, sidePocketRadius);
@@ -2734,7 +2738,7 @@ function Table3D(parent) {
     const cx = sx * (innerHalfW - sideInset);
     const cz = 0;
     const { a0, a1 } = adjustArc(start + sideGap, end - sideGap);
-    addRimArc(cx, cz, sidePocketRadius, a0, a1);
+    addRimArc(cx, cz, sidePocketRadius + rimTubeR * 0.35, a0, a1);
   });
 
   table.add(railsGroup);
