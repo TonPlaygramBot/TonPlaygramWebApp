@@ -2230,6 +2230,39 @@ function Table3D(parent) {
     return arc;
   }
 
+  const sharedPocketArchDepth =
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.35;
+
+  function carveLongRailPocketArches(shape, signX, topArc, bottomArcData) {
+    const mirrorSpan = Math.min(topArc.end.y, Math.abs(bottomArcData.start.y));
+    if (mirrorSpan <= MICRO_EPS) {
+      return;
+    }
+
+    const archOuter = mirrorSpan * 0.94;
+    const archMid = archOuter * 0.5;
+    const archSagX = topArc.xIn + signX * sharedPocketArchDepth;
+
+    shape.lineTo(topArc.xIn, archOuter);
+    shape.quadraticCurveTo(archSagX, archMid, topArc.xIn, 0);
+    shape.quadraticCurveTo(archSagX, -archMid, topArc.xIn, -archOuter);
+  }
+
+  function carveEndRailPocketArches(shape, signZ, rightArc, leftArcData, zIn) {
+    const mirrorSpan = Math.min(rightArc.end.x, Math.abs(leftArcData.start.x));
+    if (mirrorSpan <= MICRO_EPS) {
+      return;
+    }
+
+    const archOuter = mirrorSpan * 0.94;
+    const archMid = archOuter * 0.5;
+    const archSag = zIn + signZ * sharedPocketArchDepth;
+
+    shape.lineTo(archOuter, zIn);
+    shape.quadraticCurveTo(archMid, archSag, 0, zIn);
+    shape.quadraticCurveTo(-archMid, archSag, -archOuter, zIn);
+  }
+
   function buildLongRail(signX) {
     const xIn = signX < 0 ? xInL : xInR;
     const xOut = signX < 0 ? -outerHalfW : outerHalfW;
@@ -2252,25 +2285,8 @@ function Table3D(parent) {
     const topArc = addCornerArcLong(shape, signX, 1);
     const bottomArcData = computeCornerArcLongData(signX, -1);
     // Mirror the decorative pocket arches on the long rails so both adjoining
-    // cushions carve out the same corner profile.
-    const innerSpanStart = topArc.end.y;
-    const mirrorSpan = Math.min(innerSpanStart, Math.abs(bottomArcData.start.y));
-    const archDepth = SIDE_RAIL_INNER_THICKNESS * 1.35;
-    const archOuter = mirrorSpan * 0.92;
-    const archGapHalf = mirrorSpan * 0.08;
-    const firstArchCenter = (archOuter + archGapHalf) * 0.5;
-    const secondArchCenter = -firstArchCenter;
-    const firstArchStart = archOuter;
-    const firstArchEnd = archGapHalf;
-    const secondArchStart = -archGapHalf;
-    const secondArchEnd = -archOuter;
-    const archSagX = topArc.xIn + signX * archDepth;
-    shape.lineTo(topArc.xIn, firstArchStart);
-    shape.quadraticCurveTo(archSagX, firstArchCenter, topArc.xIn, firstArchEnd);
-    // Maintain a straight run between the mirrored arches so they stay visually
-    // distinct and don't overlap.
-    shape.lineTo(topArc.xIn, secondArchStart);
-    shape.quadraticCurveTo(archSagX, secondArchCenter, topArc.xIn, secondArchEnd);
+    // cushions carve out the same corner profile with a continuous mirrored span.
+    carveLongRailPocketArches(shape, signX, topArc, bottomArcData);
     shape.lineTo(bottomArcData.start.x, bottomArcData.start.y);
     addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
@@ -2314,23 +2330,7 @@ function Table3D(parent) {
     const leftArcData = computeCornerArcEndData(signZ, -1);
     // Add a mirrored pair of decorative arches on both short rails so each pocket
     // corner is formed by matching cut-outs on the adjoining cushions.
-    const innerSpanStart = rightArc.end.x;
-    const mirrorSpan = Math.min(innerSpanStart, Math.abs(leftArcData.start.x));
-    const archDepth = END_RAIL_INNER_THICKNESS * 1.35;
-    const archOuter = mirrorSpan * 0.92;
-    const archGapHalf = mirrorSpan * 0.08;
-    const firstArchCenter = (archOuter + archGapHalf) * 0.5;
-    const secondArchCenter = -firstArchCenter;
-    const firstArchStart = archOuter;
-    const firstArchEnd = archGapHalf;
-    const secondArchStart = -archGapHalf;
-    const secondArchEnd = -archOuter;
-    const archSag = zIn + signZ * archDepth;
-    shape.lineTo(firstArchStart, zIn);
-    shape.quadraticCurveTo(firstArchCenter, archSag, firstArchEnd, zIn);
-    // keep a short straight run between the mirrored arches so they don't overlap
-    shape.lineTo(secondArchStart, zIn);
-    shape.quadraticCurveTo(secondArchCenter, archSag, secondArchEnd, zIn);
+    carveEndRailPocketArches(shape, signZ, rightArc, leftArcData, zIn);
     shape.lineTo(leftArcData.start.x, leftArcData.start.y);
     addCornerArcEnd(shape, signZ, -1);
     shape.lineTo(-outerHalfW, zIn);
