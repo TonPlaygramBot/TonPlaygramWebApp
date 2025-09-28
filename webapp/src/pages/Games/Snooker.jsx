@@ -1360,9 +1360,33 @@ function distanceToTableEdge(pos, dir) {
   return minT;
 }
 
-function applyAxisClearance(limits, key, positive, clearance) {
+function applyAxisClearance(
+  limits,
+  key,
+  positive,
+  clearance,
+  { margin = SPIN_TIP_MARGIN, soft = false } = {}
+) {
   if (!Number.isFinite(clearance)) return;
-  const safeClearance = clearance - SPIN_TIP_MARGIN;
+  if (soft) {
+    const total = MAX_SPIN_CONTACT_OFFSET + margin;
+    if (total <= 0) return;
+    const normalized = clamp(
+      (clearance + margin * 0.2) / total,
+      0,
+      1
+    );
+    if (positive) {
+      if (key === 'maxX') limits.maxX = Math.min(limits.maxX, normalized);
+      if (key === 'maxY') limits.maxY = Math.min(limits.maxY, normalized);
+    } else {
+      const limit = -normalized;
+      if (key === 'minX') limits.minX = Math.max(limits.minX, limit);
+      if (key === 'minY') limits.minY = Math.max(limits.minY, limit);
+    }
+    return;
+  }
+  const safeClearance = clearance - margin;
   if (safeClearance <= 0) {
     if (positive) {
       if (key === 'maxX') limits.maxX = Math.min(limits.maxX, 0);
@@ -1407,7 +1431,10 @@ function computeSpinLimits(cueBall, aimDir, balls = []) {
     const centerToEdge = distanceToTableEdge(cueBall.pos, axis.dir);
     if (centerToEdge !== Infinity) {
       const clearance = centerToEdge - BALL_R;
-      applyAxisClearance(limits, axis.key, axis.positive, clearance);
+      applyAxisClearance(limits, axis.key, axis.positive, clearance, {
+        soft: true,
+        margin: SPIN_TIP_MARGIN * 0.75
+      });
     }
     let nearest = Infinity;
     for (const other of balls) {
@@ -5147,7 +5174,7 @@ function SnookerGame() {
             cueBody.position.set(side, localY, -zComp);
           }
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2 + zComp);
           }
           aimFocusRef.current = new THREE.Vector3(
             cue.pos.x + lateralDir.x * side - dir.x * BALL_R * 0.4,
