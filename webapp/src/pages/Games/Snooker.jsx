@@ -618,7 +618,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.36; // lift pockets a touch more so the rims stay clear of the cloth edge
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.18; // lower the pocket rims slightly while keeping them above the cloth edge
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -742,10 +742,7 @@ const LEG_ROOM_HEIGHT =
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SIDE_POST_CLEARANCE = 0.18; // keep the side posts slightly above the floor
-const SIDE_POST_SPREAD = 0.55; // how far towards each end the vertical side posts sit
-const SIDE_POST_THICKNESS_SCALE = 0.55; // width of each vertical side post relative to the rail width
-const SIDE_POST_DEPTH_SCALE = 1.4; // depth of each side post to make them read as solid beams
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
@@ -2365,7 +2362,7 @@ function Table3D(parent) {
   });
   const skirt = new THREE.Mesh(skirtGeo, woodMat);
   skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = frameTopY - skirtH + MICRO_EPS * 0.5;
+  skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   table.add(skirt);
@@ -2376,32 +2373,6 @@ function Table3D(parent) {
   const legBottomWorld = FLOOR_Y;
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
-  const sidePostTopLocal = legTopLocal - TABLE.THICK * 0.05;
-  const maxSidePostHeight = sidePostTopLocal - FLOOR_Y;
-  const sidePostHeight = Math.max(
-    TABLE_H * 0.85,
-    maxSidePostHeight - SIDE_POST_CLEARANCE
-  );
-  const sidePostThickness = baseRailWidth * SIDE_POST_THICKNESS_SCALE;
-  const sidePostDepth = baseRailWidth * SIDE_POST_DEPTH_SCALE;
-  const sidePostGeo = new THREE.BoxGeometry(
-    sidePostThickness,
-    sidePostHeight,
-    sidePostDepth
-  );
-  const sidePostY = sidePostTopLocal - sidePostHeight / 2;
-  const sidePostOffsetX =
-    frameOuterX - sidePostThickness / 2 - baseRailWidth * 0.2;
-  const sidePostZ = frameOuterZ * SIDE_POST_SPREAD;
-  [-sidePostZ, sidePostZ].forEach((zPos) => {
-    [-1, 1].forEach((dir) => {
-      const post = new THREE.Mesh(sidePostGeo, woodMat);
-      post.position.set(dir * sidePostOffsetX, sidePostY, zPos);
-      post.castShadow = true;
-      post.receiveShadow = true;
-      table.add(post);
-    });
-  });
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const legInset = baseRailWidth * 2.2;
   const legPositions = [
