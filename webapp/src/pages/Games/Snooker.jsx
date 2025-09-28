@@ -611,7 +611,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL +
   CLOTH_LIFT +
-  BALL_R * 0.0625; // lift the pocket rims slightly so they sit more prominently above the cloth
+  BALL_R * 0.0725; // lift the pocket rims slightly higher so they sit more prominently above the cloth
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
