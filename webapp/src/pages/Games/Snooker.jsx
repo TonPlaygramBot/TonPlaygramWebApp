@@ -395,7 +395,7 @@ function addPocketJaws(parent, playW, playH) {
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   const chromeTopY =
-    jawTopLocal + capLift + capHeight + chromePlateThickness * 0.5;
+    rimSurfaceLift + chromePlateThickness * 0.5 - MICRO_EPS * 0.5;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -802,6 +802,9 @@ const POCKET_RIM_LIFT = 0; // keep pocket rims level with the surrounding cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
+const POCKET_DROP_MIN_MS = Math.round(POCKET_DROP_ANIMATION_MS * 0.57);
+const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
+const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -960,7 +963,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xb6814f;
+const WOOD_TONE = 0x5a3a20;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
@@ -2824,7 +2827,7 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.34; // ensure side cushions stop before the pocket rim curves
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.08; // extend side cushions until they meet the pocket arcs
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
@@ -5842,6 +5845,7 @@ function SnookerGame() {
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
             if (b.pos.distanceTo(c) < CAPTURE_R) {
+              const entrySpeed = b.vel.length();
               b.active = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
@@ -5852,18 +5856,28 @@ function SnookerGame() {
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
+              const speedFactor = THREE.MathUtils.clamp(
+                entrySpeed / POCKET_DROP_SPEED_REFERENCE,
+                0,
+                1
+              );
+              const dropDuration = THREE.MathUtils.lerp(
+                POCKET_DROP_MAX_MS,
+                POCKET_DROP_MIN_MS,
+                speedFactor
+              );
               const dropEntry = {
                 start: dropStart,
-                duration: POCKET_DROP_ANIMATION_MS,
+                duration: dropDuration,
                 fromY: BALL_CENTER_Y,
                 toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
                 fromX,
                 fromZ,
                 toX: c.x,
                 toZ: c.y,
-                lateralDelay: 0.35,
                 mesh: b.mesh,
-                endScale: POCKET_DROP_SCALE
+                endScale: POCKET_DROP_SCALE,
+                entrySpeed
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
@@ -5950,18 +5964,15 @@ function SnookerGame() {
               const elapsed = now - entry.start;
               const duration = entry.duration > 0 ? entry.duration : 1;
               const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
-              const fall = t * t;
+              const speedFactor = THREE.MathUtils.clamp(
+                (entry.entrySpeed ?? 0) / POCKET_DROP_SPEED_REFERENCE,
+                0,
+                1
+              );
+              const gravityEase = THREE.MathUtils.lerp(t * t, t, speedFactor * 0.25);
+              const fall = THREE.MathUtils.clamp(gravityEase, 0, 1);
               const y = THREE.MathUtils.lerp(entry.fromY, entry.toY, fall);
-              const lateralDelay = entry.lateralDelay ?? 0.3;
-              let lateralT = 0;
-              if (t > lateralDelay) {
-                const normalized = THREE.MathUtils.clamp(
-                  (t - lateralDelay) / (1 - lateralDelay),
-                  0,
-                  1
-                );
-                lateralT = normalized * normalized * (3 - 2 * normalized);
-              }
+              const lateralT = THREE.MathUtils.clamp(t, 0, 1);
               const x = THREE.MathUtils.lerp(entry.fromX, entry.toX, lateralT);
               const z = THREE.MathUtils.lerp(entry.fromZ, entry.toZ, lateralT);
               mesh.position.set(x, y, z);
