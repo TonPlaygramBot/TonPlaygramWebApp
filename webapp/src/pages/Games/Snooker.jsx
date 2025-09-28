@@ -579,6 +579,7 @@ const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
+const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
@@ -587,7 +588,8 @@ const POCKET_VIS_R = POCKET_R / 0.985;
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
-const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
+const BALL_CENTER_Y =
+  CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
@@ -1931,7 +1933,7 @@ function Table3D(parent) {
   clothGeo.translate(0, 0, -CLOTH_THICKNESS);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
-  cloth.position.y = clothPlaneLocal;
+  cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
@@ -1943,7 +1945,7 @@ function Table3D(parent) {
     opacity: 0.9,
     side: THREE.DoubleSide
   });
-  const markingHeight = clothPlaneLocal + MICRO_EPS * 2;
+  const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
   const lineThickness = Math.max(BALL_R * 0.08, 0.1);
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
