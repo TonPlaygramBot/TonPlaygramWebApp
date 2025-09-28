@@ -584,7 +584,7 @@ const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
 // slightly larger visual radius so rails align with pocket rings
 const POCKET_VIS_R = POCKET_R / 0.985;
-const POCKET_CUT_EXPANSION = 1.07; // widen cloth openings a little further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y = CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R; // rest balls directly on the cloth plane
@@ -616,7 +616,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.28; // lift pockets slightly more so the rims sit clear of the cloth edge
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.36; // lift pockets a touch more so the rims stay clear of the cloth edge
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -1074,7 +1074,7 @@ const STANDING_VIEW_MARGIN = 0.18;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.44;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
@@ -1116,7 +1116,10 @@ const CUE_VIEW_MIN_PHI = Math.min(
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
-const CAMERA_RAIL_APPROACH_PHI = STANDING_VIEW_PHI + 0.32;
+const CAMERA_RAIL_APPROACH_PHI = Math.min(
+  STANDING_VIEW_PHI + 0.32,
+  CAMERA_MAX_PHI - 0.02
+); // ensure rail clamp activates within the lowered camera tilt limit
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
