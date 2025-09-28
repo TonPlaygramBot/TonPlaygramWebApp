@@ -742,7 +742,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL +
   CLOTH_LIFT -
-  CLOTH_THICKNESS * 0.08; // sink the pocket lips to ride nearly level with the cloth without dipping below it
+  CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -750,6 +750,9 @@ const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners w
 const POCKET_RIM_LIFT = 0; // keep pocket rims level with the surrounding cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
+const POCKET_DROP_ANIMATION_MS = 420;
+const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
+const POCKET_DROP_SCALE = 0.55;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
@@ -905,9 +908,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
-// includes separate tones for rails, base wood and cloth markings
-const RAIL_WOOD_COLOR = 0x3a2a1a;
-const BASE_WOOD_COLOR = 0xa26b42;
+// keep rails and frame in the same warm wood tone so the finish matches reference tables
+const WOOD_TONE = 0x8f5536;
+const RAIL_WOOD_COLOR = WOOD_TONE;
+const BASE_WOOD_COLOR = WOOD_TONE;
 const COLORS = Object.freeze({
   cloth: 0x28a64d,
   rail: RAIL_WOOD_COLOR,
@@ -2294,6 +2298,16 @@ function Table3D(parent) {
     metalness: 0.3,
     roughness: 0.8
   });
+  if (woodMap) {
+    railWoodMat.map = woodMap;
+    railWoodMat.map.repeat.set(2.6, 1.6);
+    railWoodMat.map.needsUpdate = true;
+  }
+  if (woodRoughness) {
+    railWoodMat.roughnessMap = woodRoughness;
+    railWoodMat.roughnessMap.repeat.set(2.6, 1.6);
+    railWoodMat.roughnessMap.needsUpdate = true;
+  }
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.34,
@@ -2386,6 +2400,7 @@ function Table3D(parent) {
 
   const POCKET_TOP_R = POCKET_VIS_R * 0.96;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+  const pocketSurfaceOffset = TABLE.THICK * 0.06;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -2400,7 +2415,11 @@ function Table3D(parent) {
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
-    pocket.position.set(p.x, clothPlaneLocal - TABLE.THICK / 2, p.y);
+    pocket.position.set(
+      p.x,
+      clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
+      p.y
+    );
     pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
@@ -2409,14 +2428,11 @@ function Table3D(parent) {
   const railH = TABLE.THICK * 1.82;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
-  const frameWidthLong = Math.max(
-    0,
-    ORIGINAL_OUTER_HALF_W - halfW - 2 * longRailW
-  );
-  const frameWidthEnd = Math.max(
-    0,
-    ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW
-  );
+  const frameExpansion = TABLE.WALL * 0.08;
+  const frameWidthLong =
+    Math.max(0, ORIGINAL_OUTER_HALF_W - halfW - 2 * longRailW) + frameExpansion;
+  const frameWidthEnd =
+    Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const railsGroup = new THREE.Group();
@@ -2429,9 +2445,9 @@ function Table3D(parent) {
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.42;
-  const cornerInset = POCKET_VIS_R * 0.54;
+  const cornerInset = POCKET_VIS_R * 0.5;
   const sidePocketRadius = POCKET_VIS_R * 0.92;
-  const sideInset = POCKET_VIS_R * 0.48;
+  const sideInset = POCKET_VIS_R * 0.42;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -2570,7 +2586,7 @@ function Table3D(parent) {
     metalness: 0.1
   });
   const rimTubeR = POCKET_VIS_R * 0.12;
-  const rimLift = POCKET_VIS_R * 0.04;
+  const rimLift = POCKET_VIS_R * 0.015;
   const rimY = frameTopY + rimLift;
 
   class ArcXZ extends THREE.Curve {
@@ -2738,9 +2754,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.7; // leave a little more clearance so cushions meet the pocket arcs without overlap
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.68; // shorten long cushions slightly so they finish where the pocket arch begins
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.22; // extend side cushions just up to the start of the arch
+  const POCKET_GAP = POCKET_VIS_R * 0.56; // keep cushions close so they kiss the pocket arcs without visible gaps
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.44; // trim just enough so the long rails align with the pocket jaw radius
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.16; // extend side cushions right up to the start of the rounded entry
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
@@ -2859,7 +2875,7 @@ function Table3D(parent) {
   });
 
   pocketMeshes.forEach((mesh) => {
-    mesh.position.y = clothPlaneLocal - TABLE.THICK / 2;
+    mesh.position.y = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
   });
 
   alignRailsToCushions(table, railsGroup);
@@ -3018,6 +3034,7 @@ function SnookerGame() {
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
+  const pocketDropRef = useRef(new Map());
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
@@ -5262,6 +5279,8 @@ function SnookerGame() {
           if (!simBall || !stateBall) return;
           if (stateBall.onTable) {
             if (!simBall.active) {
+              pocketDropRef.current.delete(simBall.id);
+              simBall.mesh.scale.set(1, 1, 1);
               const [sx, sy] = SPOTS[name];
               simBall.active = true;
               simBall.mesh.visible = true;
@@ -5274,11 +5293,13 @@ function SnookerGame() {
             }
           } else {
             simBall.active = false;
+            pocketDropRef.current.delete(simBall.id);
             simBall.mesh.visible = false;
           }
         });
         if (cueBallPotted) {
           cue.active = false;
+          pocketDropRef.current.delete(cue.id);
           cue.mesh.visible = false;
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
@@ -5754,13 +5775,27 @@ function SnookerGame() {
             const c = centers[pocketIndex];
             if (b.pos.distanceTo(c) < CAPTURE_R) {
               b.active = false;
-              b.mesh.visible = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
               if (b.pendingSpin) b.pendingSpin.set(0, 0);
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
+              const dropStart = performance.now();
+              const dropEntry = {
+                start: dropStart,
+                duration: POCKET_DROP_ANIMATION_MS,
+                fromY: BALL_CENTER_Y,
+                toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
+                x: c.x,
+                z: c.y,
+                mesh: b.mesh,
+                endScale: POCKET_DROP_SCALE
+              };
+              b.mesh.visible = true;
+              b.mesh.scale.set(1, 1, 1);
+              b.mesh.position.set(c.x, BALL_CENTER_Y, c.y);
+              pocketDropRef.current.set(b.id, dropEntry);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const colorId = b.id === 'cue'
                 ? 'CUE'
@@ -5832,6 +5867,29 @@ function SnookerGame() {
             );
             if (!any) resolve();
           }
+          if (pocketDropRef.current.size > 0) {
+            pocketDropRef.current.forEach((entry, key) => {
+              const { mesh } = entry;
+              if (!mesh) {
+                pocketDropRef.current.delete(key);
+                return;
+              }
+              const elapsed = now - entry.start;
+              const duration = entry.duration > 0 ? entry.duration : 1;
+              const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
+              const eased = t * t * (3 - 2 * t);
+              const y = THREE.MathUtils.lerp(entry.fromY, entry.toY, eased);
+              mesh.position.set(entry.x, y, entry.z);
+              const scale = THREE.MathUtils.lerp(1, entry.endScale ?? 1, eased);
+              mesh.scale.set(scale, scale, scale);
+              if (t >= 1) {
+                mesh.visible = false;
+                mesh.scale.set(1, 1, 1);
+                mesh.position.set(entry.x, BALL_CENTER_Y, entry.z);
+                pocketDropRef.current.delete(key);
+              }
+            });
+          }
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
             const limX =
@@ -5884,6 +5942,7 @@ function SnookerGame() {
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
+          pocketDropRef.current.clear();
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
