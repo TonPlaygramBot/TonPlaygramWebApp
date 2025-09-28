@@ -1346,8 +1346,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.06;
-const SPIN_CUSHION_EPS = BALL_R * 0.25;
-const CUSHION_SPIN_ALLOWANCE = BALL_R * 0.4;
+const SPIN_CUSHION_EPS = BALL_R * 0.5;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
@@ -1405,10 +1404,8 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   const contact = cueBall.pos
     .clone()
     .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
-  const cushionClearX =
-    RAIL_LIMIT_X - Math.max(SPIN_CUSHION_EPS - CUSHION_SPIN_ALLOWANCE, 0);
-  const cushionClearY =
-    RAIL_LIMIT_Y - Math.max(SPIN_CUSHION_EPS - CUSHION_SPIN_ALLOWANCE, 0);
+  const cushionClearX = RAIL_LIMIT_X - SPIN_CUSHION_EPS;
+  const cushionClearY = RAIL_LIMIT_Y - SPIN_CUSHION_EPS;
   if (
     Math.abs(contact.x) > cushionClearX ||
     Math.abs(contact.y) > cushionClearY
@@ -1531,7 +1528,7 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   for (const axis of axes) {
     const centerToEdge = distanceToTableEdge(cueBall.pos, axis.dir);
     if (centerToEdge !== Infinity) {
-      const clearance = centerToEdge - BALL_R + CUSHION_SPIN_ALLOWANCE;
+      const clearance = centerToEdge - BALL_R;
       applyAxisClearance(limits, axis.key, axis.positive, clearance, {
         soft: true,
         margin: SPIN_TIP_MARGIN * 0.75
@@ -4737,8 +4734,7 @@ function SnookerGame() {
         cueBody.add(stripe);
       }
 
-      const cueBaseY = table?.userData?.cushionTopWorld ?? CUE_Y;
-      cueStick.position.set(cue.pos.x, cueBaseY, cue.pos.y + 1.2 * SCALE);
+      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       if (cueStick.userData?.buttTilt) {
         cueStick.userData.buttTilt.baseY = cueStick.position.y;
       }
@@ -5269,33 +5265,11 @@ function SnookerGame() {
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
-          const maxSideRange = Math.max(ranges.offsetSide ?? 0, 0);
-          const maxVerticalRange = Math.max(ranges.offsetVertical ?? 0, 0);
-          let side = appliedSpin.x * maxSideRange;
-          let vert = -appliedSpin.y * maxVerticalRange;
-          if (maxSideRange > 1e-6 || maxVerticalRange > 1e-6) {
-            const normX = maxSideRange > 1e-6 ? side / maxSideRange : 0;
-            const normY = maxVerticalRange > 1e-6 ? vert / maxVerticalRange : 0;
-            const normMag = Math.hypot(normX, normY);
-            if (normMag > 1) {
-              side /= normMag;
-              vert /= normMag;
-            }
-          }
-          const contactRadius = Math.min(
-            MAX_SPIN_CONTACT_OFFSET,
-            Math.max(maxSideRange, maxVerticalRange)
-          );
-          const offsetMag = Math.hypot(side, vert);
-          if (contactRadius > 1e-6 && offsetMag > contactRadius) {
-            const scale = contactRadius / offsetMag;
-            side *= scale;
-            vert *= scale;
-          }
-          const cueBaseY = table?.userData?.cushionTopWorld ?? CUE_Y;
+          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
+          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP),
-            cueBaseY,
+            CUE_Y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP)
           );
           if (cueStick.userData?.buttTilt) {
