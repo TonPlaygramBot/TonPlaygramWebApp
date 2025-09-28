@@ -835,7 +835,7 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const SPIN_STRENGTH = BALL_R * 0.0625;
+const SPIN_STRENGTH = BALL_R * 0.03125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
@@ -879,6 +879,9 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.42;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
+const MAX_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const OBSTRUCTION_CLEARANCE_DISTANCE = BALL_R * 6;
+const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
 const MAX_SPIN_SIDE = BALL_R * 0.62;
@@ -4440,18 +4443,47 @@ function SnookerGame() {
         extra: 0
       };
 
-      const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.008 * SCALE, 0.025 * SCALE, cueLen, 32),
-        new THREE.MeshPhysicalMaterial({ color: 0xdeb887, roughness: 0.6 })
+      const shaftMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xdeb887,
+        roughness: 0.6
+      });
+      const frontLength = THREE.MathUtils.clamp(
+        cueLen * CUE_FRONT_SECTION_RATIO,
+        cueLen * 0.1,
+        cueLen * 0.5
       );
-      shaft.rotation.x = -Math.PI / 2;
-      cueStick.add(shaft);
+      const rearLength = Math.max(cueLen - frontLength, 1e-4);
+      const tipShaftRadius = 0.008 * SCALE;
+      const buttShaftRadius = 0.025 * SCALE;
+      const joinRadius = THREE.MathUtils.lerp(
+        tipShaftRadius,
+        buttShaftRadius,
+        THREE.MathUtils.clamp(frontLength / Math.max(cueLen, 1e-4), 0, 1)
+      );
 
-      // group for tip & connector so only the thin end moves for spin
+      const rearShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearLength, 32),
+        shaftMaterial
+      );
+      rearShaft.rotation.x = -Math.PI / 2;
+      rearShaft.position.z = frontLength / 2;
+      cueStick.add(rearShaft);
+
+      // group for tip & front shaft so the whole thin end moves for spin
       const tipGroup = new THREE.Group();
       tipGroup.position.z = -cueLen / 2;
       cueStick.add(tipGroup);
       tipGroupRef.current = tipGroup;
+
+      if (frontLength > 1e-4) {
+        const frontShaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(tipShaftRadius, joinRadius, frontLength, 32),
+          shaftMaterial
+        );
+        frontShaft.rotation.x = -Math.PI / 2;
+        frontShaft.position.z = frontLength / 2;
+        tipGroup.add(frontShaft);
+      }
 
       // subtle leather-like texture for the tip
       const tipCanvas = document.createElement('canvas');
@@ -5074,7 +5106,21 @@ function SnookerGame() {
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP)
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const clearanceDistance = Number.isFinite(backInfo.tHit)
+            ? backInfo.tHit - cueLen - CUE_TIP_GAP
+            : Infinity;
+          const obstructionRatio =
+            clearanceDistance < OBSTRUCTION_CLEARANCE_DISTANCE
+              ? THREE.MathUtils.clamp(
+                  1 -
+                    clearanceDistance /
+                      Math.max(OBSTRUCTION_CLEARANCE_DISTANCE, 1e-4),
+                  0,
+                  1
+                )
+              : 0;
+          const obstructionTilt = MAX_OBSTRUCTION_TILT * obstructionRatio;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + obstructionTilt;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
