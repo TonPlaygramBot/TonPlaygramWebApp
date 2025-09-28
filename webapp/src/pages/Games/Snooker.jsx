@@ -1344,6 +1344,56 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
+const SPIN_INPUT_DEAD_ZONE = 0.06;
+const SPIN_LEGALITY_DOT_THRESHOLD = 0.5;
+const SPIN_CUSHION_EPS = BALL_R * 0.5;
+
+const clampToUnitCircle = (x, y) => {
+  const L = Math.hypot(x, y);
+  if (!Number.isFinite(L) || L <= 1) {
+    return { x, y };
+  }
+  const scale = L > 1e-6 ? 1 / L : 0;
+  return { x: x * scale, y: y * scale };
+};
+
+function checkSpinLegality2D(cueBall, spinVec, balls = []) {
+  if (!cueBall || !cueBall.pos) {
+    return { blocked: false, reason: '' };
+  }
+  const sx = spinVec?.x ?? 0;
+  const sy = spinVec?.y ?? 0;
+  const magnitude = Math.hypot(sx, sy);
+  if (magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { blocked: false, reason: '' };
+  }
+  const dir = new THREE.Vector2(sx, sy);
+  if (dir.lengthSq() < 1e-8) {
+    return { blocked: false, reason: '' };
+  }
+  dir.normalize();
+  const contact = cueBall.pos.clone().add(dir.clone().multiplyScalar(BALL_R));
+  const cushionClearX = RAIL_LIMIT_X - SPIN_CUSHION_EPS;
+  const cushionClearY = RAIL_LIMIT_Y - SPIN_CUSHION_EPS;
+  if (
+    Math.abs(contact.x) > cushionClearX ||
+    Math.abs(contact.y) > cushionClearY
+  ) {
+    return { blocked: true, reason: 'Cushion blocks that strike point' };
+  }
+  const combinedRadius = BALL_R * 2 + 0.003;
+  for (const other of balls) {
+    if (!other || other === cueBall || !other.active) continue;
+    const offset = other.pos.clone().sub(cueBall.pos);
+    const dist = offset.length();
+    if (dist >= combinedRadius) continue;
+    const dot = offset.normalize().dot(dir);
+    if (dot > SPIN_LEGALITY_DOT_THRESHOLD) {
+      return { blocked: true, reason: 'Another ball blocks that side' };
+    }
+  }
+  return { blocked: false, reason: '' };
+}
 
 function distanceToTableEdge(pos, dir) {
   let minT = Infinity;
@@ -2738,6 +2788,7 @@ function SnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const spinRef = useRef({ x: 0, y: 0 });
+  const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
@@ -2750,8 +2801,9 @@ function SnookerGame() {
   const spinLimitsRef = useRef({ ...DEFAULT_SPIN_LIMITS });
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
+  const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, TABLE_Y + 0.05, 0));
-  const updateSpinDotPosition = useCallback((value) => {
+  const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
     if (!dot) return;
@@ -2766,8 +2818,13 @@ function SnookerGame() {
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
-    dot.style.backgroundColor =
-      magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
+    const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
+    dot.style.backgroundColor = showBlocked
+      ? '#9ca3af'
+      : magnitude >= SWERVE_THRESHOLD
+        ? '#facc15'
+        : '#dc2626';
+    dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
@@ -4157,31 +4214,38 @@ function SnookerGame() {
         dom.style.touchAction = 'none';
         const balls = [];
         let project;
-        const clampSpinToLimits = (updateUi = false) => {
+        const clampSpinToLimits = () => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = spinRef.current || { x: 0, y: 0 };
           const clamped = {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
             y: clamp(current.y ?? 0, limits.minY, limits.maxY)
           };
-          if (clamped.x !== current.x || clamped.y !== current.y) {
-            spinRef.current = clamped;
-            if (updateUi) updateSpinDotPosition(clamped);
-          } else if (updateUi) {
-            updateSpinDotPosition(clamped);
-          }
-          return spinRef.current;
+          spinRef.current = clamped;
+          return clamped;
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
           const cueBall = cueRef.current || cue;
+          let legality = spinLegalityRef.current || { blocked: false, reason: '' };
+          const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
           if (cueBall && aimVec) {
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls);
+            const requested = spinRequestRef.current || spinRef.current || {
+              x: 0,
+              y: 0
+            };
+            legality = checkSpinLegality2D(cueBall, requested, ballsList);
+            spinLegalityRef.current = legality;
           }
-          const applied = clampSpinToLimits(updateUi);
-          const magnitude = Math.hypot(applied.x ?? 0, applied.y ?? 0);
+          const applied = clampSpinToLimits();
+          if (updateUi) {
+            updateSpinDotPosition(applied, legality.blocked);
+          }
+          const result = legality.blocked ? { x: 0, y: 0 } : applied;
+          const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
-          spinAppliedRef.current = { ...applied, magnitude, mode };
-          return applied;
+          spinAppliedRef.current = { ...result, magnitude, mode };
+          return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
         let lastInteraction = performance.now();
@@ -5731,9 +5795,21 @@ function SnookerGame() {
     };
 
     const setSpin = (nx, ny) => {
-      const limited = clampToLimits(nx, ny);
+      const normalized = clampToUnitCircle(nx, ny);
+      spinRequestRef.current = normalized;
+      const limited = clampToLimits(normalized.x, normalized.y);
       spinRef.current = limited;
-      updateSpinDotPosition(limited);
+      const cueBall = cueRef.current;
+      const ballsList = ballsRef.current?.length
+        ? ballsRef.current
+        : undefined;
+      const legality = checkSpinLegality2D(
+        cueBall,
+        normalized,
+        ballsList || []
+      );
+      spinLegalityRef.current = legality;
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -5745,13 +5821,7 @@ function SnookerGame() {
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      const L = Math.hypot(nx, ny) || 1;
-      if (L > 1) {
-        nx /= L;
-        ny /= L;
-      }
-      const limited = clampToLimits(nx, ny);
-      setSpin(limited.x, limited.y);
+      setSpin(nx, ny);
     };
 
     const scaleBox = (value) => {
@@ -5823,6 +5893,8 @@ function SnookerGame() {
       releasePointer();
       clearTimer();
       resetSpinRef.current = () => {};
+      spinRequestRef.current = { x: 0, y: 0 };
+      spinLegalityRef.current = { blocked: false, reason: '' };
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
