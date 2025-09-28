@@ -4567,9 +4567,6 @@ function SnookerGame() {
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE;
       const cueStick = new THREE.Group();
-      cueStick.rotation.order = 'YXZ';
-      // Yaw the cue toward the aim direction before pitching so side-rail shots
-      // lower the butt the same way as short-rail setups.
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
