@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import polygonClipping from 'polygon-clipping';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -2300,216 +2301,237 @@ function Table3D(parent) {
   );
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  const cushionBackLong = longRailW * 0.5;
-  const cushionBackEnd = endRailW * 0.5;
   const railsGroup = new THREE.Group();
-  const NOTCH_R = POCKET_TOP_R * 1.02;
-  const xInL = -(halfW + cushionBackLong - MICRO_EPS);
-  const xInR = halfW + cushionBackLong - MICRO_EPS;
-  const zInB = -(halfH + cushionBackEnd - MICRO_EPS);
-  const zInT = halfH + cushionBackEnd - MICRO_EPS;
+  const outerCornerRadius = Math.min(
+    Math.min(longRailW, endRailW) * 1.6,
+    Math.min(outerHalfW, outerHalfH) * 0.2
+  );
 
-  function computeCornerArcLongData(signX, signZ) {
-    const xIn = signX < 0 ? xInL : xInR;
-    const cx = signX < 0 ? -halfW : halfW;
-    const cz = signZ < 0 ? -halfH : halfH;
-    const u = Math.abs(xIn - cx);
-    const radius = Math.max(NOTCH_R, u + 0.001);
-    const dz = Math.sqrt(Math.max(0, radius * radius - u * u));
-    return {
-      xIn,
-      center: new THREE.Vector2(cx, cz),
-      radius,
-      dz,
-      start: new THREE.Vector2(xIn, cz + signZ * dz),
-      end: new THREE.Vector2(xIn, cz - signZ * dz)
-    };
+  const innerHalfW = halfWext;
+  const innerHalfH = halfHext;
+  const cornerPocketRadius = POCKET_VIS_R * 1.08;
+  const cornerChamfer = POCKET_VIS_R * 0.42;
+  const cornerInset = POCKET_VIS_R * 0.54;
+  const sidePocketRadius = POCKET_VIS_R * 0.92;
+  const sideInset = POCKET_VIS_R * 0.48;
+
+  const circlePoly = (cx, cz, r, seg = 96) => {
+    const pts = [];
+    for (let i = 0; i < seg; i++) {
+      const t = (i / seg) * Math.PI * 2;
+      pts.push([cx + Math.cos(t) * r, cz + Math.sin(t) * r]);
+    }
+    pts.push(pts[0]);
+    return [[pts]];
+  };
+  const rectPoly = (w, h) => [[[
+    [-w / 2, -h / 2],
+    [w / 2, -h / 2],
+    [w / 2, h / 2],
+    [-w / 2, h / 2],
+    [-w / 2, -h / 2]
+  ]]];
+  const boxPoly = (minx, minz, maxx, maxz) => [[[
+    [minx, minz],
+    [maxx, minz],
+    [maxx, maxz],
+    [minx, maxz],
+    [minx, minz]
+  ]]];
+  const ringArea = (ring) => {
+    let area = 0;
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, z1] = ring[i];
+      const [x2, z2] = ring[i + 1];
+      area += x1 * z2 - x2 * z1;
+    }
+    return area * 0.5;
+  };
+
+  const cornerNotchMP = (sx, sz) => {
+    const cx = sx * (innerHalfW - cornerInset);
+    const cz = sz * (innerHalfH - cornerInset);
+    const notchCircle = circlePoly(cx, cz, cornerPocketRadius);
+    const x1 = cx;
+    const x2 = cx + sx * cornerChamfer;
+    const z1 = cz - sz * cornerChamfer;
+    const z2 = cz + sz * cornerChamfer;
+    const boxX = boxPoly(Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2));
+    const x3 = cx - sx * cornerChamfer;
+    const x4 = cx + sx * cornerChamfer;
+    const z3 = cz;
+    const z4 = cz + sz * cornerChamfer;
+    const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
+    return polygonClipping.union(notchCircle, boxX, boxZ);
+  };
+
+  let openingMP = polygonClipping.union(
+    rectPoly(innerHalfW * 2, innerHalfH * 2),
+    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
+    ...circlePoly(innerHalfW - sideInset, 0, sidePocketRadius)
+  );
+  openingMP = polygonClipping.union(
+    openingMP,
+    ...cornerNotchMP(1, 1),
+    ...cornerNotchMP(-1, 1),
+    ...cornerNotchMP(-1, -1),
+    ...cornerNotchMP(1, -1)
+  );
+
+  const railsOuter = new THREE.Shape();
+  railsOuter.moveTo(-outerHalfW + outerCornerRadius, -outerHalfH);
+  railsOuter.lineTo(outerHalfW - outerCornerRadius, -outerHalfH);
+  railsOuter.absarc(
+    outerHalfW - outerCornerRadius,
+    -outerHalfH + outerCornerRadius,
+    outerCornerRadius,
+    -Math.PI / 2,
+    0,
+    false
+  );
+  railsOuter.lineTo(outerHalfW, outerHalfH - outerCornerRadius);
+  railsOuter.absarc(
+    outerHalfW - outerCornerRadius,
+    outerHalfH - outerCornerRadius,
+    outerCornerRadius,
+    0,
+    Math.PI / 2,
+    false
+  );
+  railsOuter.lineTo(-outerHalfW + outerCornerRadius, outerHalfH);
+  railsOuter.absarc(
+    -outerHalfW + outerCornerRadius,
+    outerHalfH - outerCornerRadius,
+    outerCornerRadius,
+    Math.PI / 2,
+    Math.PI,
+    false
+  );
+  railsOuter.lineTo(-outerHalfW, -outerHalfH + outerCornerRadius);
+  railsOuter.absarc(
+    -outerHalfW + outerCornerRadius,
+    -outerHalfH + outerCornerRadius,
+    outerCornerRadius,
+    Math.PI,
+    1.5 * Math.PI,
+    false
+  );
+
+  openingMP.forEach((poly) => {
+    if (!poly?.length) return;
+    const ring = poly[0];
+    if (!ring?.length) return;
+    const pts = ring.slice(0, -1);
+    if (!pts.length) return;
+    const clockwise = ringArea(ring) < 0;
+    const ordered = clockwise ? pts : pts.slice().reverse();
+    const hole = new THREE.Path();
+    hole.moveTo(ordered[0][0], ordered[0][1]);
+    for (let i = 1; i < ordered.length; i++) {
+      hole.lineTo(ordered[i][0], ordered[i][1]);
+    }
+    hole.closePath();
+    railsOuter.holes.push(hole);
+  });
+
+  const railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
+    depth: railH,
+    bevelEnabled: false,
+    curveSegments: 96
+  });
+  const railsMesh = new THREE.Mesh(railsGeom, railWoodMat);
+  railsMesh.rotation.x = -Math.PI / 2;
+  railsMesh.position.y = frameTopY;
+  railsMesh.castShadow = true;
+  railsMesh.receiveShadow = true;
+  railsGroup.add(railsMesh);
+
+  const rimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x050505,
+    roughness: 0.4,
+    metalness: 0.1
+  });
+  const rimTubeR = POCKET_VIS_R * 0.12;
+  const rimLift = POCKET_VIS_R * 0.04;
+  const rimY = frameTopY + rimLift;
+
+  class ArcXZ extends THREE.Curve {
+    constructor(cx, cz, r, a0, a1) {
+      super();
+      this.cx = cx;
+      this.cz = cz;
+      this.r = r;
+      this.a0 = a0;
+      this.a1 = a1;
+    }
+    getPoint(t) {
+      const angle = this.a0 + (this.a1 - this.a0) * t;
+      return new THREE.Vector3(
+        this.cx + Math.cos(angle) * this.r,
+        rimY,
+        this.cz + Math.sin(angle) * this.r
+      );
+    }
   }
 
-  function addCornerArcLong(shape, signX, signZ) {
-    const arc = computeCornerArcLongData(signX, signZ);
-    const { center, radius, start, end } = arc;
-    shape.lineTo(start.x, start.y);
-    let startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-    let endAngle = Math.atan2(end.y - center.y, end.x - center.x);
-    let delta = endAngle - startAngle;
-    if (delta > Math.PI) {
-      endAngle -= Math.PI * 2;
-      delta = endAngle - startAngle;
-    } else if (delta < -Math.PI) {
-      endAngle += Math.PI * 2;
-      delta = endAngle - startAngle;
-    }
-    shape.absarc(center.x, center.y, radius, startAngle, endAngle, delta < 0);
-    return arc;
-  }
-
-  function computeCornerArcEndData(signZ, signX) {
-    const zIn = signZ < 0 ? zInB : zInT;
-    const cx = signX < 0 ? -halfW : halfW;
-    const cz = signZ < 0 ? -halfH : halfH;
-    const v = Math.abs(zIn - cz);
-    const radius = Math.max(NOTCH_R, v + 0.001);
-    const dx = Math.sqrt(Math.max(0, radius * radius - v * v));
-    return {
-      zIn,
-      center: new THREE.Vector2(cx, cz),
-      radius,
-      dx,
-      start: new THREE.Vector2(cx + signX * dx, zIn),
-      end: new THREE.Vector2(cx - signX * dx, zIn)
-    };
-  }
-
-  function addCornerArcEnd(shape, signZ, signX) {
-    const arc = computeCornerArcEndData(signZ, signX);
-    const { center, radius, start, end } = arc;
-    shape.lineTo(start.x, start.y);
-    let startAngle = Math.atan2(start.y - center.y, start.x - center.x);
-    let endAngle = Math.atan2(end.y - center.y, end.x - center.x);
-    let delta = endAngle - startAngle;
-    if (delta > Math.PI) {
-      endAngle -= Math.PI * 2;
-      delta = endAngle - startAngle;
-    } else if (delta < -Math.PI) {
-      endAngle += Math.PI * 2;
-      delta = endAngle - startAngle;
-    }
-    shape.absarc(center.x, center.y, radius, startAngle, endAngle, delta < 0);
-    return arc;
-  }
-
-  const sharedPocketArchDepth =
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.35;
-
-  function carveLongRailPocketArches(shape, signX, topArc, bottomArcData) {
-    const mirrorSpan = Math.min(
-      Math.abs(topArc.end.y),
-      Math.abs(bottomArcData.start.y)
-    );
-    if (mirrorSpan <= MICRO_EPS) {
-      return;
-    }
-
-    const archOuter = mirrorSpan * 0.94;
-    const archMid = archOuter * 0.5;
-    const archSagX = topArc.xIn + signX * sharedPocketArchDepth;
-
-    shape.lineTo(topArc.xIn, archOuter);
-    shape.quadraticCurveTo(archSagX, archMid, topArc.xIn, 0);
-    shape.quadraticCurveTo(archSagX, -archMid, topArc.xIn, -archOuter);
-  }
-
-  function carveEndRailPocketArches(shape, signZ, rightArc, leftArcData, zIn) {
-    const mirrorSpan = Math.min(
-      Math.abs(rightArc.end.x),
-      Math.abs(leftArcData.start.x)
-    );
-    if (mirrorSpan <= MICRO_EPS) {
-      return;
-    }
-
-    const archOuter = mirrorSpan * 0.94;
-    const archMid = archOuter * 0.5;
-    const archSag = zIn + signZ * sharedPocketArchDepth;
-
-    shape.lineTo(archOuter, zIn);
-    shape.quadraticCurveTo(archMid, archSag, 0, zIn);
-    shape.quadraticCurveTo(-archMid, archSag, -archOuter, zIn);
-  }
-
-  function buildLongRail(signX) {
-    const xIn = signX < 0 ? xInL : xInR;
-    const xOut = signX < 0 ? -outerHalfW : outerHalfW;
-    const shape = new THREE.Shape();
-    const edgeRadius = Math.min(
-      longRailW * RAIL_OUTER_EDGE_RADIUS_RATIO,
-      Math.abs(outerHalfH) * 0.4
-    );
-    const radius = Math.max(edgeRadius, 0);
-    const startX = xOut - signX * radius;
-    shape.moveTo(startX, -outerHalfH);
-    if (radius > 0) {
-      shape.quadraticCurveTo(xOut, -outerHalfH, xOut, -outerHalfH + radius);
-      shape.lineTo(xOut, outerHalfH - radius);
-      shape.quadraticCurveTo(xOut, outerHalfH, xOut - signX * radius, outerHalfH);
-    } else {
-      shape.lineTo(xOut, outerHalfH);
-    }
-    shape.lineTo(xIn, outerHalfH);
-    const topArc = addCornerArcLong(shape, signX, 1);
-    const bottomArcData = computeCornerArcLongData(signX, -1);
-    // Mirror the decorative pocket arches on the long rails so both adjoining
-    // cushions carve out the same corner profile with a continuous mirrored span.
-    carveLongRailPocketArches(shape, signX, topArc, bottomArcData);
-    shape.lineTo(bottomArcData.start.x, bottomArcData.start.y);
-    addCornerArcLong(shape, signX, -1);
-    shape.lineTo(xIn, -outerHalfH);
-    if (radius > 0) {
-      shape.lineTo(startX, -outerHalfH);
-    } else {
-      shape.lineTo(xOut, -outerHalfH);
-    }
-    shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
-      bevelEnabled: false,
-      curveSegments: 96
-    });
-    const mesh = new THREE.Mesh(geo, railWoodMat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = frameTopY;
+  const addRimArc = (cx, cz, r, a0, a1) => {
+    if (!isFinite(a0) || !isFinite(a1) || a0 === a1) return;
+    const path = new ArcXZ(cx, cz, r, a0, a1);
+    const geom = new THREE.TubeGeometry(path, 64, rimTubeR, 24, false);
+    const mesh = new THREE.Mesh(geom, rimMaterial);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     railsGroup.add(mesh);
-  }
+  };
 
-  function buildEndRail(signZ) {
-    const zIn = signZ < 0 ? zInB : zInT;
-    const zOut = signZ < 0 ? -outerHalfH : outerHalfH;
-    const shape = new THREE.Shape();
-    const edgeRadius = Math.min(
-      endRailW * RAIL_OUTER_EDGE_RADIUS_RATIO,
-      Math.abs(outerHalfW) * 0.4
+  const wrapAngle = (a) => {
+    const twoPi = Math.PI * 2;
+    let out = a % twoPi;
+    if (out < 0) out += twoPi;
+    return out;
+  };
+  const adjustArc = (start, end) => {
+    const twoPi = Math.PI * 2;
+    let a0 = wrapAngle(start);
+    let a1 = wrapAngle(end);
+    if (end - start >= twoPi) {
+      a1 = a0 + twoPi;
+    } else if (a1 <= a0) {
+      a1 += twoPi;
+    }
+    return { a0, a1 };
+  };
+
+  const cornerGap = Math.atan2(cornerChamfer, cornerPocketRadius);
+  const cornerExtend = Math.PI * 0.08;
+  const cornerAngles = [
+    { sx: 1, sz: 1, start: 0, end: Math.PI / 2 },
+    { sx: -1, sz: 1, start: Math.PI / 2, end: Math.PI },
+    { sx: -1, sz: -1, start: Math.PI, end: 1.5 * Math.PI },
+    { sx: 1, sz: -1, start: 1.5 * Math.PI, end: Math.PI * 2 }
+  ];
+  cornerAngles.forEach(({ sx, sz, start, end }) => {
+    const cx = sx * (innerHalfW - cornerInset);
+    const cz = sz * (innerHalfH - cornerInset);
+    const { a0, a1 } = adjustArc(
+      start + cornerGap - cornerExtend,
+      end - cornerGap + cornerExtend
     );
-    const radius = Math.max(edgeRadius, 0);
-    const startZ = zOut - signZ * radius;
-    shape.moveTo(-outerHalfW, startZ);
-    if (radius > 0) {
-      shape.quadraticCurveTo(-outerHalfW, zOut, -outerHalfW + radius, zOut);
-      shape.lineTo(outerHalfW - radius, zOut);
-      shape.quadraticCurveTo(outerHalfW, zOut, outerHalfW, zOut - signZ * radius);
-    } else {
-      shape.lineTo(outerHalfW, zOut);
-    }
-    shape.lineTo(outerHalfW, zIn);
-    const rightArc = addCornerArcEnd(shape, signZ, 1);
-    const leftArcData = computeCornerArcEndData(signZ, -1);
-    // Add a mirrored pair of decorative arches on both short rails so each pocket
-    // corner is formed by matching cut-outs on the adjoining cushions.
-    carveEndRailPocketArches(shape, signZ, rightArc, leftArcData, zIn);
-    shape.lineTo(leftArcData.start.x, leftArcData.start.y);
-    addCornerArcEnd(shape, signZ, -1);
-    shape.lineTo(-outerHalfW, zIn);
-    if (radius > 0) {
-      shape.lineTo(-outerHalfW, startZ);
-    } else {
-      shape.lineTo(-outerHalfW, zOut);
-    }
-    shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: railH,
-      bevelEnabled: false,
-      curveSegments: 96
-    });
-    const mesh = new THREE.Mesh(geo, railWoodMat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = frameTopY;
-    railsGroup.add(mesh);
-  }
+    addRimArc(cx, cz, cornerPocketRadius, a0, a1);
+  });
 
-  buildLongRail(-1);
-  buildLongRail(1);
-  buildEndRail(-1);
-  buildEndRail(1);
+  const sideGap = Math.atan2(sideInset * 0.5, sidePocketRadius);
+  const sideAngles = [
+    { sx: -1, start: Math.PI / 2, end: 1.5 * Math.PI },
+    { sx: 1, start: -Math.PI / 2, end: Math.PI / 2 }
+  ];
+  sideAngles.forEach(({ sx, start, end }) => {
+    const cx = sx * (innerHalfW - sideInset);
+    const cz = 0;
+    const { a0, a1 } = adjustArc(start + sideGap, end - sideGap);
+    addRimArc(cx, cz, sidePocketRadius, a0, a1);
+  });
+
   table.add(railsGroup);
 
   const FACE_SHRINK_LONG = 0.955;
