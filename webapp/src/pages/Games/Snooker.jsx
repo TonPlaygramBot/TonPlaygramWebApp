@@ -202,10 +202,10 @@ function addPocketJaws(parent, playW, playH) {
   const jaws = [];
   const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
   const jawDepthTarget = CLOTH_THICKNESS;
-  const capHeight = CLOTH_THICKNESS * 0.38;
-  const capLift = CLOTH_THICKNESS * 0.48; // lift jaw caps a touch more so pocket lips stay safely above the cloth
-  const rimDeckHeight = capHeight * 0.52;
-  const rimLipHeight = capHeight * 0.32;
+  const capHeight = CLOTH_THICKNESS * 0.36;
+  const capLift = CLOTH_THICKNESS * 0.42; // lift jaw caps a touch more so pocket lips stay safely above the cloth
+  const rimDeckHeight = capHeight * 0.46;
+  const rimLipHeight = capHeight * 0.28;
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
@@ -227,9 +227,8 @@ function addPocketJaws(parent, playW, playH) {
     SIDE_SECTOR_SWEEP,
     capHeight
   );
-  const cornerFlangeRadius = CORNER_FLANGE_RADIUS;
   const cornerRimGeo = makeJawSector(
-    cornerFlangeRadius,
+    POCKET_VIS_R * 1.07,
     JAW_T * 0.68,
     SECTOR_START,
     SECTOR_END,
@@ -247,7 +246,7 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingBox();
   cornerRimDepth = Math.abs(cornerRimGeo.boundingBox?.min.y ?? 0);
   const cornerRimTopGeo = makeJawSector(
-    cornerFlangeRadius * 1.015,
+    POCKET_VIS_R * 1.09,
     JAW_T * 0.76,
     SECTOR_START,
     SECTOR_END,
@@ -300,11 +299,11 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeVertexNormals();
   sideRimTopGeo.computeBoundingBox();
   sideRimTopDepth = Math.abs(sideRimTopGeo.boundingBox?.min.y ?? 0);
-  const chromePlateThickness = capHeight * 0.72;
+  const chromePlateThickness = capHeight * 0.6;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
-    innerRadius: cornerFlangeRadius,
-    extensionX: ORIGINAL_RAIL_WIDTH * 0.98,
-    extensionZ: ORIGINAL_RAIL_WIDTH * 0.96,
+    innerRadius: POCKET_VIS_R * 1.025,
+    extensionX: ORIGINAL_RAIL_WIDTH * 0.92,
+    extensionZ: ORIGINAL_RAIL_WIDTH * 0.9,
     outerFillet: ORIGINAL_RAIL_WIDTH * 0.34,
     thickness: chromePlateThickness
   });
@@ -317,10 +316,8 @@ function addPocketJaws(parent, playW, playH) {
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeSeatY = jawTopLocal + capLift + capHeight;
-  const chromeTopTarget = FRAME_TOP_Y + chromePlateThickness * 0.42;
-  const chromeBase = Math.max(chromeSeatY, chromeTopTarget - chromePlateThickness);
-  const chromeTopY = chromeBase + chromePlateThickness * 0.5;
+  const chromeTopY =
+    jawTopLocal + capLift + capHeight + chromePlateThickness * 0.5;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -410,7 +407,7 @@ function addPocketJaws(parent, playW, playH) {
         rim.receiveShadow = true;
         rim.position.set(
           segment.position.x,
-          capLift + capHeight * 0.64 + sideRimDepth,
+          capLift + capHeight * 0.58 + sideRimDepth,
           0
         );
         jaw.add(rim);
@@ -423,7 +420,7 @@ function addPocketJaws(parent, playW, playH) {
         rimTop.receiveShadow = true;
         rimTop.position.set(
           segment.position.x,
-          capLift + capHeight * 1.08 + sideRimTopDepth,
+          capLift + capHeight + sideRimTopDepth,
           0
         );
         jaw.add(rimTop);
@@ -450,7 +447,7 @@ function addPocketJaws(parent, playW, playH) {
       const rim = new THREE.Mesh(rimGeo, plasticRimMat);
       rim.castShadow = false;
       rim.receiveShadow = true;
-      rim.position.y = capLift + capHeight * 0.68 + cornerRimDepth;
+      rim.position.y = capLift + capHeight * 0.58 + cornerRimDepth;
       mesh.add(rim);
 
       const rimTopGeo = cornerRimTopGeo.clone();
@@ -459,7 +456,7 @@ function addPocketJaws(parent, playW, playH) {
       const rimTop = new THREE.Mesh(rimTopGeo, plasticRimMat);
       rimTop.castShadow = false;
       rimTop.receiveShadow = true;
-      rimTop.position.y = capLift + capHeight * 1.08 + cornerRimTopDepth;
+      rimTop.position.y = capLift + capHeight + cornerRimTopDepth;
       mesh.add(rimTop);
     }
     const chromeMesh = new THREE.Mesh(
@@ -679,11 +676,10 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const POCKET_LIP_EXTRA_DROP = BALL_R * 0.12;
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL +
-  CLOTH_LIFT -
-  POCKET_LIP_EXTRA_DROP; // drop the pocket rims further so they sit deeper beneath the rail caps
+  CLOTH_LIFT +
+  BALL_R * 0.06; // nudge the pocket rims down so they sit closer to the rail cloth
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -693,7 +689,6 @@ const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
-const CORNER_FLANGE_RADIUS = POCKET_VIS_R * 1.12;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -2098,7 +2093,7 @@ function Table3D(parent) {
   const cushionBackLong = longRailW * 0.5;
   const cushionBackEnd = endRailW * 0.5;
   const railsGroup = new THREE.Group();
-  const NOTCH_R = Math.max(POCKET_TOP_R * 1.02, CORNER_FLANGE_RADIUS * 1.01);
+  const NOTCH_R = POCKET_TOP_R * 1.02;
   const xInL = -(halfW + cushionBackLong - MICRO_EPS);
   const xInR = halfW + cushionBackLong - MICRO_EPS;
   const zInB = -(halfH + cushionBackEnd - MICRO_EPS);
@@ -2109,7 +2104,7 @@ function Table3D(parent) {
     const cx = signX < 0 ? -halfW : halfW;
     const cz = signZ < 0 ? -halfH : halfH;
     const u = Math.abs(xIn - cx);
-    const radius = Math.max(NOTCH_R, CORNER_FLANGE_RADIUS, u + 0.001);
+    const radius = Math.max(NOTCH_R, u + 0.001);
     const dz = Math.sqrt(Math.max(0, radius * radius - u * u));
     return {
       xIn,
@@ -2144,7 +2139,7 @@ function Table3D(parent) {
     const cx = signX < 0 ? -halfW : halfW;
     const cz = signZ < 0 ? -halfH : halfH;
     const v = Math.abs(zIn - cz);
-    const radius = Math.max(NOTCH_R, CORNER_FLANGE_RADIUS, v + 0.001);
+    const radius = Math.max(NOTCH_R, v + 0.001);
     const dx = Math.sqrt(Math.max(0, radius * radius - v * v));
     return {
       zIn,
@@ -2195,19 +2190,16 @@ function Table3D(parent) {
     shape.lineTo(xIn, outerHalfH);
     const topArc = addCornerArcLong(shape, signX, 1);
     const cx = signX < 0 ? -halfW : halfW;
-    const cz = topArc.center.y;
     const archRadius = topArc.radius;
-    const zTop = topArc.start.y;
-    const zBot = topArc.end.y;
+    const archDz = topArc.dz;
+    const zTop = archDz;
+    const zBot = -archDz;
     shape.lineTo(topArc.xIn, zTop);
     const steps = 40;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const z = zTop + (zBot - zTop) * t;
-      const zOffset = z - cz;
-      const xDelta = Math.sqrt(
-        Math.max(0, archRadius * archRadius - zOffset * zOffset)
-      );
+      const xDelta = Math.sqrt(Math.max(0, archRadius * archRadius - z * z));
       const x = cx + (signX > 0 ? xDelta : -xDelta);
       shape.lineTo(x, z);
     }
