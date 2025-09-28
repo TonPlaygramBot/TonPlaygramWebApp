@@ -342,17 +342,17 @@ function addPocketJaws(parent, playW, playH) {
   sideSurfaceRimDepth = Math.abs(sideSurfaceRimGeo.boundingBox?.min.y ?? 0);
   const chromePlateThickness = capHeight * 0.6;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
-    innerRadius: POCKET_VIS_R * 1.025,
-    extensionX: ORIGINAL_RAIL_WIDTH * 0.92,
-    extensionZ: ORIGINAL_RAIL_WIDTH * 0.9,
-    outerFillet: ORIGINAL_RAIL_WIDTH * 0.34,
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
+    extensionX: longRailW * 0.88 + cornerChamfer * 0.35,
+    extensionZ: endRailW * 0.9 + cornerChamfer * 0.35,
+    outerFillet: Math.min(longRailW, endRailW) * 0.48,
     thickness: chromePlateThickness
   });
   const sideChromeGeo = makeSideChromePlateGeometry({
-    innerRadius: POCKET_VIS_R * 1.04,
-    halfSpan: POCKET_VIS_R * 1.38,
-    extension: ORIGINAL_RAIL_WIDTH * 0.74,
-    endFillet: ORIGINAL_RAIL_WIDTH * 0.22,
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.28,
+    halfSpan: POCKET_VIS_R * 1.32,
+    extension: longRailW * 0.64,
+    endFillet: longRailW * 0.26,
     thickness: chromePlateThickness
   });
   const chromeGroup = new THREE.Group();
@@ -909,7 +909,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0x8f5536;
+const WOOD_TONE = 0xb6814f;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const COLORS = Object.freeze({
@@ -1138,21 +1138,21 @@ const createWoodTexture = (() => {
     const tempColor = new THREE.Color();
     for (let x = 0; x < SIZE; x += 1) {
       const t = x / SIZE;
-      const wave1 = Math.sin(t * Math.PI * 8);
-      const wave2 = Math.sin((t + 0.2) * Math.PI * 28);
+      const wave1 = Math.sin(t * Math.PI * 6);
+      const wave2 = Math.sin((t + 0.2) * Math.PI * 18);
       const hue = THREE.MathUtils.euclideanModulo(
-        baseHSL.h + wave1 * 0.02 + wave2 * 0.01,
+        baseHSL.h + wave1 * 0.014 + wave2 * 0.006,
         1
       );
       const sat = THREE.MathUtils.clamp(
-        baseHSL.s + wave1 * 0.12 + wave2 * 0.05,
-        0.15,
-        0.9
+        baseHSL.s + wave1 * 0.08 + wave2 * 0.03,
+        0.12,
+        0.75
       );
       const light = THREE.MathUtils.clamp(
-        baseHSL.l + wave1 * 0.18 + wave2 * 0.08,
-        0.15,
-        0.65
+        baseHSL.l + wave1 * 0.12 + wave2 * 0.05,
+        0.26,
+        0.72
       );
       tempColor.setHSL(hue, sat, light);
       ctx.fillStyle = `#${tempColor.getHexString()}`;
@@ -1165,10 +1165,10 @@ const createWoodTexture = (() => {
       for (let x = 0; x < SIZE; x += 1) {
         const idx = (y * SIZE + x) * 4;
         const seed = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-        const noise = (seed - Math.floor(seed) - 0.5) * 22;
+        const noise = (seed - Math.floor(seed) - 0.5) * 10;
         data[idx] = clamp255(data[idx] + noise);
-        data[idx + 1] = clamp255(data[idx + 1] + noise * 0.7);
-        data[idx + 2] = clamp255(data[idx + 2] + noise * 0.4);
+        data[idx + 1] = clamp255(data[idx + 1] + noise * 0.55);
+        data[idx + 2] = clamp255(data[idx + 2] + noise * 0.3);
       }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -1186,9 +1186,9 @@ const createWoodTexture = (() => {
       for (let x = 0; x < SIZE; x += 1) {
         const idx = (y * SIZE + x) * 4;
         const seed = Math.sin((x + 11.2) * 10.123 + y * 53.321) * 19341.17;
-        const n = (seed - Math.floor(seed) - 0.5) * 60;
-        const stripe = Math.sin((x / SIZE) * Math.PI * 6) * 24;
-        const value = clamp255(160 + n + stripe);
+        const n = (seed - Math.floor(seed) - 0.5) * 28;
+        const stripe = Math.sin((x / SIZE) * Math.PI * 4) * 16;
+        const value = clamp255(178 + n + stripe);
         roughData[idx] = value;
         roughData[idx + 1] = value;
         roughData[idx + 2] = value;
@@ -2277,10 +2277,16 @@ function Table3D(parent) {
 
   const cushionMat = clothMat.clone();
   const { map: woodMap, roughness: woodRoughness } = createWoodTexture();
-  const woodMat = new THREE.MeshStandardMaterial({
+  const woodMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.base,
-    metalness: 0.15,
-    roughness: 0.68
+    metalness: 0.28,
+    roughness: 0.38,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.18,
+    sheen: 0.1,
+    sheenRoughness: 0.55,
+    reflectivity: 0.45,
+    envMapIntensity: 0.9
   });
   if (woodMap) {
     woodMat.map = woodMap;
@@ -2293,10 +2299,16 @@ function Table3D(parent) {
     woodMat.roughnessMap.needsUpdate = true;
   }
   woodMat.needsUpdate = true;
-  const railWoodMat = new THREE.MeshStandardMaterial({
+  const railWoodMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.rail,
-    metalness: 0.3,
-    roughness: 0.8
+    metalness: 0.32,
+    roughness: 0.42,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.2,
+    sheen: 0.12,
+    sheenRoughness: 0.6,
+    reflectivity: 0.48,
+    envMapIntensity: 1.0
   });
   if (woodMap) {
     railWoodMat.map = woodMap;
@@ -2754,9 +2766,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.56; // keep cushions close so they kiss the pocket arcs without visible gaps
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.44; // trim just enough so the long rails align with the pocket jaw radius
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.16; // extend side cushions right up to the start of the rounded entry
+  const POCKET_GAP = POCKET_VIS_R * 0.68; // shorten cushions so they finish where the frame arcs begin
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.6; // trim the straight rails to line up with the start of the chrome arc
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.22; // ensure side cushions stop before the pocket rim curves
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
