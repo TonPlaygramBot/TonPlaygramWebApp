@@ -745,7 +745,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.18; // drop the visible pocket rims almost flush with the surrounding cloth surface
+const POCKET_RIM_LIFT = 0; // keep pocket rims level with the surrounding cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -757,18 +757,18 @@ const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
   minOutside:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.25 +
-    POCKET_VIS_R * 2.85 +
-    BALL_R * 2.4,
-  maxOutside: BALL_R * 28,
-  heightOffset: BALL_R * 10.8,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.95 +
+    POCKET_VIS_R * 3.4 +
+    BALL_R * 3.1,
+  maxOutside: BALL_R * 30,
+  heightOffset: BALL_R * 11.4,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.45 +
-    POCKET_VIS_R * 2.3 +
-    BALL_R * 1.8,
-  heightDrop: BALL_R * 1.2,
-  distanceScale: 1.08,
-  heightScale: 1.22
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.4 +
+    POCKET_VIS_R * 3.6 +
+    BALL_R * 2.4,
+  heightDrop: BALL_R * 1.6,
+  distanceScale: 1.14,
+  heightScale: 1.28
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -844,7 +844,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.5; // boost cue strike strength by 50%
+const SHOT_FORCE_BOOST = 1.2; // trim strike strength by 20% to soften shots
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -1254,6 +1254,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
+const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -1398,12 +1399,32 @@ function computeSpinLimits(cueBall, aimDir, balls = []) {
     { key: 'maxY', dir: TMP_VEC2_AXIS.clone().multiplyScalar(-1), positive: true }
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
+  const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
+  const combinedRadius = BALL_R * 2 + CUE_TIP_RADIUS * 1.1;
+  const combinedRadiusSq = combinedRadius * combinedRadius;
 
   for (const axis of axes) {
     const centerToEdge = distanceToTableEdge(cueBall.pos, axis.dir);
     if (centerToEdge !== Infinity) {
       const clearance = centerToEdge - BALL_R;
       applyAxisClearance(limits, axis.key, axis.positive, clearance);
+    }
+    let nearest = Infinity;
+    for (const other of balls) {
+      if (!other || other === cueBall || !other.active) continue;
+      const otherPos = new THREE.Vector2(other.pos.x, other.pos.y);
+      const offset = otherPos.sub(cueCenter);
+      const proj = offset.dot(axis.dir);
+      if (!(proj > 0)) continue;
+      const offsetSq = offset.lengthSq();
+      const lateralSq = Math.max(offsetSq - proj * proj, 0);
+      if (lateralSq >= combinedRadiusSq) continue;
+      const penetration = Math.sqrt(Math.max(combinedRadiusSq - lateralSq, 0));
+      const clearance = proj - penetration;
+      if (clearance < nearest) nearest = clearance;
+    }
+    if (nearest !== Infinity) {
+      applyAxisClearance(limits, axis.key, axis.positive, nearest);
     }
   }
 
@@ -2692,6 +2713,7 @@ function SnookerGame() {
   const spinRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
+  const cueBodyRef = useRef(null);
   const spinRangeRef = useRef({
     side: 0,
     forward: 0,
@@ -2803,33 +2825,6 @@ function SnookerGame() {
     setHud((s) => ({ ...s, power: 0.5 }));
     fireRef.current?.();
   });
-
-  // determine which sides of the cue ball are blocked by nearby balls or rails
-  const getBlockedSides = () => {
-    const cue = cueRef.current;
-    const balls = ballsRef.current;
-    const sides = { left: false, right: false, up: false, down: false };
-    if (!cue) return sides;
-    const thresh = BALL_R * 2 + CUE_TIP_GAP;
-    for (const b of balls) {
-      if (!b.active || b === cue) continue;
-      const dx = b.pos.x - cue.pos.x;
-      const dz = b.pos.y - cue.pos.y;
-      if (Math.hypot(dx, dz) < thresh) {
-        if (dx > 0) sides.right = true;
-        if (dx < 0) sides.left = true;
-        if (dz > 0) sides.up = true;
-        if (dz < 0) sides.down = true;
-      }
-    }
-    const halfW = PLAY_W / 2 - CUSHION_FACE_INSET;
-    const halfH = PLAY_H / 2 - CUSHION_FACE_INSET;
-    if (cue.pos.x + BALL_R >= halfW) sides.right = true;
-    if (cue.pos.x - BALL_R <= -halfW) sides.left = true;
-    if (cue.pos.y + BALL_R >= halfH) sides.up = true;
-    if (cue.pos.y - BALL_R <= -halfH) sides.down = true;
-    return sides;
-  };
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
     const c = ctx.canvas;
@@ -4185,9 +4180,19 @@ function SnookerGame() {
           if (drag.moved) {
             drag.x = x;
             drag.y = y;
-            sph.theta -= dx * 0.0035;
+            const blend = THREE.MathUtils.clamp(
+              cameraBlendRef.current ?? 1,
+              0,
+              1
+            );
+            const precisionScale = THREE.MathUtils.lerp(
+              CUE_VIEW_AIM_SLOW_FACTOR,
+              1,
+              blend
+            );
+            sph.theta -= dx * 0.0035 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const phiDelta = dy * 0.0025;
+            const phiDelta = dy * 0.0025 * precisionScale;
             const blendDelta =
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
@@ -4415,6 +4420,10 @@ function SnookerGame() {
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE;
       const cueStick = new THREE.Group();
+      const cueBody = new THREE.Group();
+      cueStick.add(cueBody);
+      cueStick.userData.body = cueBody;
+      cueBodyRef.current = cueBody;
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
@@ -4467,12 +4476,12 @@ function SnookerGame() {
       );
       rearShaft.rotation.x = -Math.PI / 2;
       rearShaft.position.z = frontLength / 2;
-      cueStick.add(rearShaft);
+      cueBody.add(rearShaft);
 
       // group for tip & front shaft so the whole thin end moves for spin
       const tipGroup = new THREE.Group();
       tipGroup.position.z = -cueLen / 2;
-      cueStick.add(tipGroup);
+      cueBody.add(tipGroup);
       tipGroupRef.current = tipGroup;
 
       if (frontLength > 1e-4) {
@@ -4554,7 +4563,7 @@ function SnookerGame() {
         new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.5 })
       );
       buttCap.position.z = cueLen / 2;
-      cueStick.add(buttCap);
+      cueBody.add(buttCap);
 
       const stripeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
       for (let i = 0; i < 12; i++) {
@@ -4567,7 +4576,7 @@ function SnookerGame() {
         stripe.position.y = Math.sin(angle) * 0.02 * SCALE;
         stripe.position.z = 0.55 * SCALE;
         stripe.rotation.z = angle;
-        cueStick.add(stripe);
+        cueBody.add(stripe);
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
@@ -5105,6 +5114,7 @@ function SnookerGame() {
             CUE_Y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP)
           );
+          const lateralDir = perp.lengthSq() > 1e-6 ? perp.clone().normalize() : new THREE.Vector3(1, 0, 0);
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const clearanceDistance = Number.isFinite(backInfo.tHit)
             ? backInfo.tHit - cueLen - CUE_TIP_GAP
@@ -5123,19 +5133,27 @@ function SnookerGame() {
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + obstructionTilt;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
-          if (tipGroupRef.current) {
-            const tipGroup = tipGroupRef.current;
-            const tiltInfo = cueStick.userData?.buttTilt;
-            const currentTilt = tiltInfo?.current ?? buttTilt + extraTilt;
-            const cosTilt = Math.cos(currentTilt);
-            const safeCos = Math.abs(cosTilt) > 1e-4 ? cosTilt : 1;
-            const maxLocalY =
-              (ranges.offsetVertical ?? MAX_SPIN_VERTICAL) /
-              Math.max(Math.abs(safeCos), 1e-4);
-            const localY = THREE.MathUtils.clamp(vert / safeCos, -maxLocalY, maxLocalY);
-            const zComp = Math.sin(currentTilt) * localY;
-            tipGroup.position.set(side, localY, -cueLen / 2 - zComp);
+          const tiltInfo = cueStick.userData?.buttTilt;
+          const currentTilt = tiltInfo?.current ?? buttTilt + extraTilt;
+          const cosTilt = Math.cos(currentTilt);
+          const safeCos = Math.abs(cosTilt) > 1e-4 ? cosTilt : 1;
+          const maxLocalY =
+            (ranges.offsetVertical ?? MAX_SPIN_VERTICAL) /
+            Math.max(Math.abs(safeCos), 1e-4);
+          const localY = THREE.MathUtils.clamp(vert / safeCos, -maxLocalY, maxLocalY);
+          const zComp = Math.sin(currentTilt) * localY;
+          const cueBody = cueBodyRef.current;
+          if (cueBody) {
+            cueBody.position.set(side, localY, -zComp);
           }
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
+          aimFocusRef.current = new THREE.Vector3(
+            cue.pos.x + lateralDir.x * side - dir.x * BALL_R * 0.4,
+            BALL_CENTER_Y + localY,
+            cue.pos.y + lateralDir.z * side - dir.z * BALL_R * 0.4
+          );
           cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
@@ -5154,8 +5172,12 @@ function SnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          const cueBody = cueBodyRef.current;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
+          if (cueBody) {
+            cueBody.position.set(0, 0, 0);
           }
           if (!cueAnimating) cueStick.visible = false;
         }
@@ -5608,6 +5630,8 @@ function SnookerGame() {
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           activeRenderCameraRef.current = null;
+          cueBodyRef.current = null;
+          tipGroupRef.current = null;
           try {
             host.removeChild(renderer.domElement);
           } catch {}
