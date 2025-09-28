@@ -992,36 +992,36 @@ const createClothTextures = (() => {
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const fuzz = Math.pow(fiber, 1.2);
         const tonal = THREE.MathUtils.clamp(
-          0.58 +
-            (weave - 0.5) * 0.72 +
-            (cross - 0.5) * 0.58 +
-            (diamond - 0.5) * 0.66 +
-            (fiber - 0.5) * 0.22 +
-            (fuzz - 0.5) * 0.18 +
-            (micro - 0.5) * 0.1,
+          0.56 +
+            (weave - 0.5) * 0.6 +
+            (cross - 0.5) * 0.48 +
+            (diamond - 0.5) * 0.54 +
+            (fiber - 0.5) * 0.32 +
+            (fuzz - 0.5) * 0.24 +
+            (micro - 0.5) * 0.18,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
-          0.52 + (tonal - 0.5) * 1.74,
+          0.5 + (tonal - 0.5) * 1.56,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
-          0.36 +
-            (cross - 0.5) * 0.56 +
-            (diamond - 0.5) * 0.78 +
-            (sparkle - 0.5) * 0.42,
+          0.34 +
+            (cross - 0.5) * 0.44 +
+            (diamond - 0.5) * 0.66 +
+            (sparkle - 0.5) * 0.38,
           0,
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.5 + (diamond - 0.5) * 1.24 + (fuzz - 0.5) * 0.26,
+          0.48 + (diamond - 0.5) * 1.12 + (fuzz - 0.5) * 0.3,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
-          0.4 + (highlightMix - 0.5) * 1.82,
+          0.38 + (highlightMix - 0.5) * 1.68,
           0,
           1
         );
@@ -1076,17 +1076,17 @@ const createClothTextures = (() => {
         const micro = microNoise(x + 31.8, y + 17.3);
         const fuzz = Math.pow(fiber, 1.22);
         const bump = THREE.MathUtils.clamp(
-          0.6 +
-            (weave - 0.5) * 1.05 +
-            (cross - 0.5) * 0.62 +
-            (diamond - 0.5) * 0.74 +
-            (fiber - 0.5) * 0.22 +
-            (fuzz - 0.5) * 0.16 +
-            (micro - 0.5) * 0.14,
+          0.56 +
+            (weave - 0.5) * 0.9 +
+            (cross - 0.5) * 0.46 +
+            (diamond - 0.5) * 0.58 +
+            (fiber - 0.5) * 0.36 +
+            (fuzz - 0.5) * 0.24 +
+            (micro - 0.5) * 0.26,
           0,
           1
         );
-        const value = clamp255(138 + (bump - 0.5) * 210);
+        const value = clamp255(130 + (bump - 0.5) * 234);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -2039,13 +2039,11 @@ function Table3D(parent) {
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
   const clothTextureScale = 0.032; // keep the weave legible after increasing texture resolution
-  const patternScale = 1.2; // shrink the cloth weave pattern by roughly 20%
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
-    clothTextureScale *
-    patternScale;
+    clothTextureScale;
   const repeatRatio = 3.25;
-  const baseBumpScale = 0.9;
+  const baseBumpScale = 0.98;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -4303,8 +4301,6 @@ function SnookerGame() {
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
-        const overheadHeight =
-          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift;
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.12);
         dirLight.position.set(
           -triangleRadius * LIGHT_LATERAL_SCALE,
@@ -4315,34 +4311,34 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const targetHeight = tableSurfaceY + TABLE_H * 0.18;
-        const lateralOffset = triangleRadius * LIGHT_LATERAL_SCALE;
-        const makeSpotlight = (x) => {
-          const overheadSpot = new THREE.SpotLight(
-            0xffffff,
-            16,
-            0,
-            Math.PI * 0.36,
-            0.42,
-            1
-          );
-          overheadSpot.position.set(x, overheadHeight, 0);
-          overheadSpot.target.position.set(0, targetHeight, 0);
-          overheadSpot.decay = 1.0;
-          overheadSpot.castShadow = true;
-          overheadSpot.shadow.mapSize.set(2048, 2048);
-          overheadSpot.shadow.bias = -0.00004;
-          overheadSpot.shadow.normalBias = 0.006;
-          lightingRig.add(overheadSpot);
-          lightingRig.add(overheadSpot.target);
-          return overheadSpot;
-        };
-
-        makeSpotlight(lateralOffset);
-        makeSpotlight(-lateralOffset);
+        const spot = new THREE.SpotLight(
+          0xffffff,
+          18,
+          0,
+          Math.PI * 0.36,
+          0.42,
+          1
+        );
+        spot.position.set(
+          triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.35
+        );
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
+        spot.decay = 1.0;
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(2048, 2048);
+        spot.shadow.bias = -0.00004;
+        spot.shadow.normalBias = 0.006;
+        lightingRig.add(spot);
+        lightingRig.add(spot.target);
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.025);
-        ambient.position.set(0, overheadHeight, 0);
+        ambient.position.set(
+          0,
+          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
+          0
+        );
         lightingRig.add(ambient);
       };
 
