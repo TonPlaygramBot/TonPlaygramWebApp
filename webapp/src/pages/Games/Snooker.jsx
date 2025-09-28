@@ -2250,23 +2250,28 @@ function Table3D(parent) {
     }
     shape.lineTo(xIn, outerHalfH);
     const topArc = addCornerArcLong(shape, signX, 1);
-    const cx = signX < 0 ? -halfW : halfW;
-    const archRadius = topArc.radius;
-    const archDz = topArc.dz;
-    const zTop = archDz;
-    const zBot = -archDz;
-    shape.lineTo(topArc.xIn, zTop);
-    const steps = 40;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const z = zTop + (zBot - zTop) * t;
-      const xDelta = Math.sqrt(Math.max(0, archRadius * archRadius - z * z));
-      const x = cx + (signX > 0 ? xDelta : -xDelta);
-      shape.lineTo(x, z);
-    }
-    shape.lineTo(topArc.xIn, zBot);
-    const bottomArcStart = computeCornerArcLongData(signX, -1).start;
-    shape.lineTo(bottomArcStart.x, bottomArcStart.y);
+    const bottomArcData = computeCornerArcLongData(signX, -1);
+    // Mirror the decorative pocket arches on the long rails so both adjoining
+    // cushions carve out the same corner profile.
+    const innerSpanStart = topArc.end.y;
+    const mirrorSpan = Math.min(innerSpanStart, Math.abs(bottomArcData.start.y));
+    const archDepth = SIDE_RAIL_INNER_THICKNESS * 1.35;
+    const archOuter = mirrorSpan * 0.92;
+    const archGapHalf = mirrorSpan * 0.08;
+    const firstArchCenter = (archOuter + archGapHalf) * 0.5;
+    const secondArchCenter = -firstArchCenter;
+    const firstArchStart = archOuter;
+    const firstArchEnd = archGapHalf;
+    const secondArchStart = -archGapHalf;
+    const secondArchEnd = -archOuter;
+    const archSagX = topArc.xIn + signX * archDepth;
+    shape.lineTo(topArc.xIn, firstArchStart);
+    shape.quadraticCurveTo(archSagX, firstArchCenter, topArc.xIn, firstArchEnd);
+    // Maintain a straight run between the mirrored arches so they stay visually
+    // distinct and don't overlap.
+    shape.lineTo(topArc.xIn, secondArchStart);
+    shape.quadraticCurveTo(archSagX, secondArchCenter, topArc.xIn, secondArchEnd);
+    shape.lineTo(bottomArcData.start.x, bottomArcData.start.y);
     addCornerArcLong(shape, signX, -1);
     shape.lineTo(xIn, -outerHalfH);
     if (radius > 0) {
