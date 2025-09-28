@@ -740,12 +740,12 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL +
   CLOTH_LIFT +
-  BALL_R * 0.02; // drop the pocket rims closer to the cloth so the lip sits lower on the rails
+  BALL_R * 0.0075; // drop the pocket rims almost flush with the cloth so the lip sits lower on the rails
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 1.04; // lower the pocket rims slightly while keeping them above the cloth edge
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.36; // sink the pocket rims nearer to the cloth while keeping them above the surface
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -2305,9 +2305,35 @@ function Table3D(parent) {
       shape.lineTo(outerHalfW, zOut);
     }
     shape.lineTo(outerHalfW, zIn);
-    addCornerArcEnd(shape, signZ, 1);
-    const leftArcStart = computeCornerArcEndData(signZ, -1).start;
-    shape.lineTo(leftArcStart.x, leftArcStart.y);
+    const rightArc = addCornerArcEnd(shape, signZ, 1);
+    const leftArcData = computeCornerArcEndData(signZ, -1);
+    if (signZ < 0) {
+      // Add a mirrored pair of decorative arches on the baulk (D-line) short rail
+      const innerSpanStart = rightArc.end.x;
+      const archCenterOffset = innerSpanStart * 0.42;
+      const archHalfWidth = innerSpanStart * 0.18;
+      const archDepth = END_RAIL_INNER_THICKNESS * 1.35;
+      const firstArchStart = archCenterOffset + archHalfWidth;
+      const firstArchEnd = archCenterOffset - archHalfWidth;
+      shape.lineTo(firstArchStart, zIn);
+      shape.quadraticCurveTo(
+        archCenterOffset,
+        zIn - archDepth,
+        firstArchEnd,
+        zIn
+      );
+      const secondArchCenter = -archCenterOffset;
+      const secondArchStart = secondArchCenter + archHalfWidth;
+      const secondArchEnd = secondArchCenter - archHalfWidth;
+      shape.lineTo(secondArchStart, zIn);
+      shape.quadraticCurveTo(
+        secondArchCenter,
+        zIn - archDepth,
+        secondArchEnd,
+        zIn
+      );
+    }
+    shape.lineTo(leftArcData.start.x, leftArcData.start.y);
     addCornerArcEnd(shape, signZ, -1);
     shape.lineTo(-outerHalfW, zIn);
     if (radius > 0) {
