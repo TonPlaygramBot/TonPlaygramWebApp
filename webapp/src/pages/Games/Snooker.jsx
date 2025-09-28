@@ -45,14 +45,14 @@ const jawCapMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.9
 });
 const plasticRimMat = new THREE.MeshPhysicalMaterial({
-  color: 0x060606,
-  roughness: 0.55,
-  metalness: 0.18,
-  clearcoat: 0.36,
-  clearcoatRoughness: 0.42,
-  sheen: 0.2,
-  sheenRoughness: 0.75,
-  envMapIntensity: 0.6
+  color: 0x050505,
+  roughness: 0.42,
+  metalness: 0.08,
+  clearcoat: 0.2,
+  clearcoatRoughness: 0.38,
+  sheen: 0.12,
+  sheenRoughness: 0.68,
+  envMapIntensity: 0.55
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
   color: 0xe7edf7,
@@ -207,7 +207,7 @@ function addPocketJaws(parent, playW, playH) {
   const capLift = CLOTH_THICKNESS * 0.24; // keep jaw caps hovering slightly above the lowered cloth level
   const rimDeckHeight = capHeight * 0.46;
   const rimLipHeight = capHeight * 0.28;
-  const surfaceRimThickness = capHeight * 0.22;
+  const surfaceRimThickness = capHeight * 0.14;
   const rimSurfaceLift = capLift + capHeight;
   const cornerJawGeo = makeJawSector();
   const sideJawGeo = makeJawSector(
@@ -303,8 +303,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingBox();
   sideRimTopDepth = Math.abs(sideRimTopGeo.boundingBox?.min.y ?? 0);
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.05,
-    JAW_T * 0.54,
+    POCKET_VIS_R * 1.04,
+    JAW_T * 0.4,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -323,11 +323,11 @@ function addPocketJaws(parent, playW, playH) {
     cornerSurfaceRimGeo.boundingBox?.min.y ?? 0
   );
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.02,
-    JAW_T * 0.42,
+    POCKET_VIS_R * 1.015,
+    JAW_T * 0.32,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
-    surfaceRimThickness * 0.9
+    surfaceRimThickness * 0.78
   );
   sideSurfaceRimGeo.computeBoundingBox();
   const sideSurfaceRimBox = sideSurfaceRimGeo.boundingBox;
@@ -467,16 +467,16 @@ function addPocketJaws(parent, playW, playH) {
         jaw.add(rimTop);
 
         const surfaceRimGeo = sideSurfaceRimGeo.clone();
-        surfaceRimGeo.scale(segmentScale * 1.08, 1, 1.05);
         surfaceRimGeo.computeVertexNormals();
         const surfaceRim = new THREE.Mesh(surfaceRimGeo, plasticRimMat);
         surfaceRim.castShadow = false;
         surfaceRim.receiveShadow = true;
         surfaceRim.position.set(
           segment.position.x,
-          rimSurfaceLift + sideSurfaceRimDepth * 0.12,
+          rimSurfaceLift + sideSurfaceRimDepth * 0.55,
           0
         );
+        surfaceRim.scale.set(segmentScale * 1.1, 0.4, 1.04);
         jaw.add(surfaceRim);
       }
     } else {
@@ -518,7 +518,8 @@ function addPocketJaws(parent, playW, playH) {
       const surfaceRim = new THREE.Mesh(surfaceRimGeo, plasticRimMat);
       surfaceRim.castShadow = false;
       surfaceRim.receiveShadow = true;
-      surfaceRim.position.y = rimSurfaceLift + cornerSurfaceRimDepth * 0.12;
+      surfaceRim.position.y = rimSurfaceLift + cornerSurfaceRimDepth * 0.55;
+      surfaceRim.scale.set(1.02, 0.42, 1.02);
       mesh.add(surfaceRim);
     }
     const chromeMesh = new THREE.Mesh(
@@ -908,7 +909,7 @@ const UI_SCALE = SIZE_REDUCTION;
 // Updated colors for dark cloth and standard balls
 // includes separate tones for rails, base wood and cloth markings
 const RAIL_WOOD_COLOR = 0x3a2a1a;
-const BASE_WOOD_COLOR = 0x8c5a33;
+const BASE_WOOD_COLOR = 0xa26b42;
 const COLORS = Object.freeze({
   cloth: 0x28a64d,
   rail: RAIL_WOOD_COLOR,
@@ -1106,6 +1107,113 @@ const createClothTextures = (() => {
     bumpMap.magFilter = THREE.LinearFilter;
 
     cache = { map: colorMap, bump: bumpMap };
+    return cache;
+  };
+})();
+
+const createWoodTexture = (() => {
+  let cache = null;
+  const clamp255 = (value) => Math.max(0, Math.min(255, value));
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { map: null, roughness: null };
+      return cache;
+    }
+
+    const SIZE = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      cache = { map: null, roughness: null };
+      return cache;
+    }
+
+    const baseColor = new THREE.Color(BASE_WOOD_COLOR);
+    const baseHSL = { h: 0, s: 0, l: 0 };
+    baseColor.getHSL(baseHSL);
+    const tempColor = new THREE.Color();
+    for (let x = 0; x < SIZE; x += 1) {
+      const t = x / SIZE;
+      const wave1 = Math.sin(t * Math.PI * 8);
+      const wave2 = Math.sin((t + 0.2) * Math.PI * 28);
+      const hue = THREE.MathUtils.euclideanModulo(
+        baseHSL.h + wave1 * 0.02 + wave2 * 0.01,
+        1
+      );
+      const sat = THREE.MathUtils.clamp(
+        baseHSL.s + wave1 * 0.12 + wave2 * 0.05,
+        0.15,
+        0.9
+      );
+      const light = THREE.MathUtils.clamp(
+        baseHSL.l + wave1 * 0.18 + wave2 * 0.08,
+        0.15,
+        0.65
+      );
+      tempColor.setHSL(hue, sat, light);
+      ctx.fillStyle = `#${tempColor.getHexString()}`;
+      ctx.fillRect(x, 0, 1, SIZE);
+    }
+
+    const imageData = ctx.getImageData(0, 0, SIZE, SIZE);
+    const { data } = imageData;
+    for (let y = 0; y < SIZE; y += 1) {
+      for (let x = 0; x < SIZE; x += 1) {
+        const idx = (y * SIZE + x) * 4;
+        const seed = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+        const noise = (seed - Math.floor(seed) - 0.5) * 22;
+        data[idx] = clamp255(data[idx] + noise);
+        data[idx + 1] = clamp255(data[idx + 1] + noise * 0.7);
+        data[idx + 2] = clamp255(data[idx + 2] + noise * 0.4);
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    const roughCanvas = document.createElement('canvas');
+    roughCanvas.width = roughCanvas.height = SIZE;
+    const roughCtx = roughCanvas.getContext('2d');
+    if (!roughCtx) {
+      cache = { map: null, roughness: null };
+      return cache;
+    }
+    const roughImage = roughCtx.createImageData(SIZE, SIZE);
+    const roughData = roughImage.data;
+    for (let y = 0; y < SIZE; y += 1) {
+      for (let x = 0; x < SIZE; x += 1) {
+        const idx = (y * SIZE + x) * 4;
+        const seed = Math.sin((x + 11.2) * 10.123 + y * 53.321) * 19341.17;
+        const n = (seed - Math.floor(seed) - 0.5) * 60;
+        const stripe = Math.sin((x / SIZE) * Math.PI * 6) * 24;
+        const value = clamp255(160 + n + stripe);
+        roughData[idx] = value;
+        roughData[idx + 1] = value;
+        roughData[idx + 2] = value;
+        roughData[idx + 3] = 255;
+      }
+    }
+    roughCtx.putImageData(roughImage, 0, 0);
+
+    const map = new THREE.CanvasTexture(canvas);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.anisotropy = 8;
+    map.needsUpdate = true;
+    if ('colorSpace' in map) {
+      map.colorSpace = THREE.SRGBColorSpace;
+    } else {
+      map.encoding = THREE.sRGBEncoding;
+    }
+
+    const roughness = new THREE.CanvasTexture(roughCanvas);
+    roughness.wrapS = roughness.wrapT = THREE.RepeatWrapping;
+    roughness.anisotropy = 4;
+    roughness.needsUpdate = true;
+    if ('colorSpace' in roughness) {
+      roughness.colorSpace = THREE.LinearSRGBColorSpace;
+    }
+
+    cache = { map, roughness };
     return cache;
   };
 })();
@@ -2166,11 +2274,23 @@ function Table3D(parent) {
   };
 
   const cushionMat = clothMat.clone();
+  const { map: woodMap, roughness: woodRoughness } = createWoodTexture();
   const woodMat = new THREE.MeshStandardMaterial({
     color: COLORS.base,
-    metalness: 0.2,
-    roughness: 0.8
+    metalness: 0.15,
+    roughness: 0.68
   });
+  if (woodMap) {
+    woodMat.map = woodMap;
+    woodMat.map.repeat.set(2.6, 1.6);
+    woodMat.map.needsUpdate = true;
+  }
+  if (woodRoughness) {
+    woodMat.roughnessMap = woodRoughness;
+    woodMat.roughnessMap.repeat.set(2.6, 1.6);
+    woodMat.roughnessMap.needsUpdate = true;
+  }
+  woodMat.needsUpdate = true;
   const railWoodMat = new THREE.MeshStandardMaterial({
     color: COLORS.rail,
     metalness: 0.3,
@@ -2706,6 +2826,8 @@ function Table3D(parent) {
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
     [frameOuterX - legInset, -frameOuterZ + legInset],
+    [-frameOuterX + legInset, 0],
+    [frameOuterX - legInset, 0],
     [-frameOuterX + legInset, frameOuterZ - legInset],
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
