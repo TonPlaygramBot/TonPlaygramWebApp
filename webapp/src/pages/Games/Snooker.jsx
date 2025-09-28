@@ -392,6 +392,20 @@ function addPocketJaws(parent, playW, playH) {
     endFillet: longRailW * 0.26,
     thickness: chromePlateThickness
   });
+  const chromeCornerSkirtGeo = makePocketSkirtGeometry({
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.18,
+    outerRadius: cornerPocketRadius + surfaceRimThickness * 0.32,
+    height: chromePlateThickness * 1.25,
+    startAngle: 0,
+    endAngle: Math.PI / 2
+  });
+  const chromeSideSkirtGeo = makePocketSkirtGeometry({
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.24,
+    outerRadius: sidePocketRadius + surfaceRimThickness * 0.34,
+    height: chromePlateThickness * 1.1,
+    startAngle: -Math.PI / 2,
+    endAngle: Math.PI / 2
+  });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   const chromeTopY =
@@ -597,6 +611,18 @@ function addPocketJaws(parent, playW, playH) {
       chromeMesh.rotation.y = entry.pos[0] >= 0 ? Math.PI : 0;
     }
     chromeGroup.add(chromeMesh);
+    const chromeSkirtGeo =
+      entry.type === 'corner' ? chromeCornerSkirtGeo : chromeSideSkirtGeo;
+    const chromeSkirt = new THREE.Mesh(chromeSkirtGeo.clone(), chromePlateMat);
+    chromeSkirt.castShadow = false;
+    chromeSkirt.receiveShadow = true;
+    chromeSkirt.position.set(
+      pShift.x,
+      chromeTopY - chromePlateThickness * 0.5 + MICRO_EPS,
+      pShift.y
+    );
+    chromeSkirt.rotation.y = chromeMesh.rotation.y;
+    chromeGroup.add(chromeSkirt);
     jaw.userData = {
       ...(jaw.userData || {}),
       cap: capMeshes[0] ?? null,
@@ -802,6 +828,11 @@ const POCKET_RIM_LIFT = 0; // keep pocket rims level with the surrounding cloth
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
+const POCKET_DROP_MIN_MS = POCKET_DROP_ANIMATION_MS * 0.52;
+const POCKET_DROP_MAX_MS = POCKET_DROP_ANIMATION_MS * 1.24;
+const POCKET_DROP_SPEED_REF = SHOT_BASE_SPEED * 1.35;
+const POCKET_DROP_MIN_DELAY = 0.08;
+const POCKET_DROP_MAX_DELAY = 0.38;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
@@ -959,10 +990,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
-// keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xb6814f;
-const RAIL_WOOD_COLOR = WOOD_TONE;
-const BASE_WOOD_COLOR = WOOD_TONE;
+// top frame gets a darker coffee finish while the base keeps a warmer brown tone
+const BASE_WOOD_COLOR = 0x6b3f23; // warmer brown for legs & skirts to match reference photo
+const RAIL_WOOD_COLOR = 0x24150f; // darker coffee tone for the top frame
+const FRAME_CARBON_TINT = 0x1a0f0a; // subtle carbon fibre tint used for the rail weave
 const CLOTH_TEXTURE_INTENSITY = 0.56;
 const CLOTH_BUMP_INTENSITY = 0.48;
 
@@ -1265,6 +1296,89 @@ const createWoodTexture = (() => {
 
     const roughness = new THREE.CanvasTexture(roughCanvas);
     roughness.wrapS = roughness.wrapT = THREE.RepeatWrapping;
+    roughness.anisotropy = 4;
+    roughness.needsUpdate = true;
+    if ('colorSpace' in roughness) {
+      roughness.colorSpace = THREE.LinearSRGBColorSpace;
+    }
+
+    cache = { map, roughness };
+    return cache;
+  };
+})();
+
+const createCarbonFiberTexture = (() => {
+  let cache = null;
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { map: null, roughness: null };
+      return cache;
+    }
+
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      cache = { map: null, roughness: null };
+      return cache;
+    }
+
+    const base = new THREE.Color(RAIL_WOOD_COLOR).convertLinearToSRGB();
+    const tint = new THREE.Color(FRAME_CARBON_TINT).convertLinearToSRGB();
+    const fiber = 8;
+    const stripe = 4;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const fiberMask = ((Math.floor(x / fiber) + Math.floor(y / fiber)) % 2) === 0 ? 1 : 0;
+        const weave = ((Math.floor(x / stripe) % 2) ^ (Math.floor(y / stripe) % 2)) ? 0.12 : -0.12;
+        const lerp = fiberMask ? 0.58 : 0.42;
+        const color = base.clone().lerp(tint, lerp);
+        color.offsetHSL(0, 0, weave);
+        ctx.fillStyle = `#${color.getHexString()}`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+
+    const roughCanvas = document.createElement('canvas');
+    roughCanvas.width = roughCanvas.height = size;
+    const roughCtx = roughCanvas.getContext('2d');
+    if (!roughCtx) {
+      cache = { map: null, roughness: null };
+      return cache;
+    }
+    const roughImage = roughCtx.createImageData(size, size);
+    const { data } = roughImage;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const idx = (y * size + x) * 4;
+        const noiseSeed = Math.sin((x + 13.7) * 9.23 + (y + 5.1) * 7.17) * 43758.5453;
+        const noise = noiseSeed - Math.floor(noiseSeed);
+        const grid = ((x ^ y) & 3) / 3;
+        const value = Math.round(165 + (noise - 0.5) * 40 + grid * 18);
+        data[idx] = value;
+        data[idx + 1] = value;
+        data[idx + 2] = value;
+        data[idx + 3] = 255;
+      }
+    }
+    roughCtx.putImageData(roughImage, 0, 0);
+
+    const map = new THREE.CanvasTexture(canvas);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(4, 4);
+    map.anisotropy = 8;
+    map.needsUpdate = true;
+    if ('colorSpace' in map) {
+      map.colorSpace = THREE.SRGBColorSpace;
+    } else {
+      map.encoding = THREE.sRGBEncoding;
+    }
+
+    const roughness = new THREE.CanvasTexture(roughCanvas);
+    roughness.wrapS = roughness.wrapT = THREE.RepeatWrapping;
+    roughness.repeat.set(4, 4);
     roughness.anisotropy = 4;
     roughness.needsUpdate = true;
     if ('colorSpace' in roughness) {
@@ -2333,6 +2447,10 @@ function Table3D(parent) {
 
   const cushionMat = clothMat.clone();
   const { map: woodMap, roughness: woodRoughness } = createWoodTexture();
+  const {
+    map: carbonMap,
+    roughness: carbonRoughness
+  } = createCarbonFiberTexture();
   const woodMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.base,
     metalness: 0.28,
@@ -2357,23 +2475,21 @@ function Table3D(parent) {
   woodMat.needsUpdate = true;
   const railWoodMat = new THREE.MeshPhysicalMaterial({
     color: COLORS.rail,
-    metalness: 0.32,
-    roughness: 0.42,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
-    sheen: 0.12,
-    sheenRoughness: 0.6,
-    reflectivity: 0.48,
-    envMapIntensity: 1.0
+    metalness: 0.36,
+    roughness: 0.32,
+    clearcoat: 0.38,
+    clearcoatRoughness: 0.16,
+    sheen: 0.08,
+    sheenRoughness: 0.52,
+    reflectivity: 0.5,
+    envMapIntensity: 1.1
   });
-  if (woodMap) {
-    railWoodMat.map = woodMap;
-    railWoodMat.map.repeat.set(2.6, 1.6);
+  if (carbonMap) {
+    railWoodMat.map = carbonMap;
     railWoodMat.map.needsUpdate = true;
   }
-  if (woodRoughness) {
-    railWoodMat.roughnessMap = woodRoughness;
-    railWoodMat.roughnessMap.repeat.set(2.6, 1.6);
+  if (carbonRoughness) {
+    railWoodMat.roughnessMap = carbonRoughness;
     railWoodMat.roughnessMap.needsUpdate = true;
   }
 
@@ -2533,13 +2649,6 @@ function Table3D(parent) {
     [-w / 2, h / 2],
     [-w / 2, -h / 2]
   ]]];
-  const boxPoly = (minx, minz, maxx, maxz) => [[[
-    [minx, minz],
-    [maxx, minz],
-    [maxx, maxz],
-    [minx, maxz],
-    [minx, minz]
-  ]]];
   const ringArea = (ring) => {
     let area = 0;
     for (let i = 0; i < ring.length - 1; i++) {
@@ -2553,18 +2662,25 @@ function Table3D(parent) {
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
-    const notchCircle = circlePoly(cx, cz, cornerPocketRadius);
-    const x1 = cx;
-    const x2 = cx + sx * cornerChamfer;
-    const z1 = cz - sz * cornerChamfer;
-    const z2 = cz + sz * cornerChamfer;
-    const boxX = boxPoly(Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2));
-    const x3 = cx - sx * cornerChamfer;
-    const x4 = cx + sx * cornerChamfer;
-    const z3 = cz;
-    const z4 = cz + sz * cornerChamfer;
-    const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    return polygonClipping.union(notchCircle, boxX, boxZ);
+    const extendX = cornerChamfer;
+    const extendZ = cornerChamfer;
+    const arcSteps = 48;
+    const localPoints = [];
+    localPoints.push([cornerPocketRadius, -extendZ]);
+    localPoints.push([cornerPocketRadius + extendX, -extendZ]);
+    localPoints.push([cornerPocketRadius + extendX, cornerPocketRadius + extendZ]);
+    localPoints.push([-extendX, cornerPocketRadius + extendZ]);
+    localPoints.push([-extendX, cornerPocketRadius]);
+    for (let i = 0; i <= arcSteps; i += 1) {
+      const t = i / arcSteps;
+      const angle = Math.PI / 2 - t * (Math.PI / 2);
+      const lx = Math.cos(angle) * cornerPocketRadius;
+      const lz = Math.sin(angle) * cornerPocketRadius;
+      localPoints.push([lx, lz]);
+    }
+    const points = localPoints.map(([px, pz]) => [cx + sx * px, cz + sz * pz]);
+    points.push(points[0]);
+    return [[points]];
   };
 
   let openingMP = polygonClipping.union(
@@ -5842,6 +5958,7 @@ function SnookerGame() {
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
             if (b.pos.distanceTo(c) < CAPTURE_R) {
+              const entrySpeed = b.vel.length();
               b.active = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
@@ -5852,16 +5969,33 @@ function SnookerGame() {
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
+              const speedFactor = THREE.MathUtils.clamp(
+                entrySpeed / POCKET_DROP_SPEED_REF,
+                0,
+                1
+              );
+              const dropDuration = THREE.MathUtils.lerp(
+                POCKET_DROP_MAX_MS,
+                POCKET_DROP_MIN_MS,
+                speedFactor
+              );
+              const lateralDelay = THREE.MathUtils.lerp(
+                POCKET_DROP_MAX_DELAY,
+                POCKET_DROP_MIN_DELAY,
+                speedFactor
+              );
+              const fallPower = THREE.MathUtils.lerp(2.2, 1.35, speedFactor);
               const dropEntry = {
                 start: dropStart,
-                duration: POCKET_DROP_ANIMATION_MS,
+                duration: dropDuration,
                 fromY: BALL_CENTER_Y,
                 toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
                 fromX,
                 fromZ,
                 toX: c.x,
                 toZ: c.y,
-                lateralDelay: 0.35,
+                lateralDelay,
+                fallPower,
                 mesh: b.mesh,
                 endScale: POCKET_DROP_SCALE
               };
@@ -5950,9 +6084,10 @@ function SnookerGame() {
               const elapsed = now - entry.start;
               const duration = entry.duration > 0 ? entry.duration : 1;
               const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
-              const fall = t * t;
+              const fallPower = entry.fallPower ?? 2;
+              const fall = Math.pow(t, fallPower);
               const y = THREE.MathUtils.lerp(entry.fromY, entry.toY, fall);
-              const lateralDelay = entry.lateralDelay ?? 0.3;
+              const lateralDelay = entry.lateralDelay ?? POCKET_DROP_MAX_DELAY;
               let lateralT = 0;
               if (t > lateralDelay) {
                 const normalized = THREE.MathUtils.clamp(
