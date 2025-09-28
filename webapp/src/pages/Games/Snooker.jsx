@@ -4528,11 +4528,18 @@ function SnookerGame() {
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
         const tipComp = Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
-        if (group.userData?.buttTilt) {
-          group.userData.buttTilt.current = totalTilt;
-          group.userData.buttTilt.tipCompensation = tipComp;
-          group.userData.buttTilt.extra = extraTilt;
+        if (info) {
+          const { baseY } = info;
+          const newBase = Number.isFinite(baseY)
+            ? baseY
+            : group.position.y;
+          group.position.y = newBase + tipComp;
+          info.baseY = newBase;
+          info.current = totalTilt;
+          info.tipCompensation = tipComp;
+          info.extra = extraTilt;
+        } else {
+          group.position.y += tipComp;
         }
       };
       cueStick.userData.buttTilt = {
@@ -4540,7 +4547,8 @@ function SnookerGame() {
         tipCompensation: buttTipComp,
         length: cueLen,
         current: buttTilt,
-        extra: 0
+        extra: 0,
+        baseY: cueStick.position.y
       };
 
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
@@ -4671,6 +4679,9 @@ function SnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
+      if (cueStick.userData?.buttTilt) {
+        cueStick.userData.buttTilt.baseY = cueStick.position.y;
+      }
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
@@ -5205,6 +5216,9 @@ function SnookerGame() {
             CUE_Y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP)
           );
+          if (cueStick.userData?.buttTilt) {
+            cueStick.userData.buttTilt.baseY = cueStick.position.y;
+          }
           const lateralDir = perp.lengthSq() > 1e-6 ? perp.clone().normalize() : new THREE.Vector3(1, 0, 0);
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const clearanceDistance = Number.isFinite(backInfo.tHit)
