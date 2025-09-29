@@ -18,8 +18,6 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
-import currentRimsReference from '../../assets/snooker/current-rims-reference.svg';
-import targetRimsReference from '../../assets/snooker/target-rims-reference.svg';
 
 // --------------------------------------------------
 // Pocket jaws
@@ -263,8 +261,8 @@ function addPocketJaws(parent, playW, playH) {
     capHeight
   );
   const cornerRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.2,
-    JAW_T * 1.04,
+    POCKET_VIS_R * 1.12,
+    JAW_T * 0.82,
     SECTOR_START,
     SECTOR_END,
     rimDeckHeight
@@ -278,8 +276,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
   const cornerRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.24,
-    JAW_T * 1.12,
+    POCKET_VIS_R * 1.16,
+    JAW_T * 0.92,
     SECTOR_START,
     SECTOR_END,
     rimLipHeight
@@ -293,8 +291,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimTopGeo.computeBoundingSphere();
   cornerRimTopGeo.computeVertexNormals();
   const sideRimBaseGeo = makeJawSector(
-    POCKET_VIS_R * 0.96,
-    JAW_T * 0.36,
+    POCKET_VIS_R * 1.02,
+    JAW_T * 0.48,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     rimDeckHeight * 0.92
@@ -308,8 +306,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
   const sideRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 0.98,
-    JAW_T * 0.4,
+    POCKET_VIS_R * 1.04,
+    JAW_T * 0.54,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     rimLipHeight * 0.9
@@ -323,8 +321,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.26,
-    JAW_T * 0.78,
+    POCKET_VIS_R * 1.18,
+    JAW_T * 0.58,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -338,8 +336,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 0.88,
-    JAW_T * 0.16,
+    POCKET_VIS_R * 0.95,
+    JAW_T * 0.22,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     surfaceRimThickness * 0.82
@@ -377,15 +375,15 @@ function addPocketJaws(parent, playW, playH) {
   });
   const sideChromeGeo = makeSideChromePlateGeometry({
     innerRadius: sidePocketRadius + surfaceRimThickness * 0.9,
-    halfSpan: POCKET_VIS_R * 1.48,
-    extension: longRailW * 1.05,
+    halfSpan: POCKET_VIS_R * 1.64,
+    extension: longRailW * 0.98,
     endFillet: longRailW * 0.42,
     thickness: chromePlateThickness
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
-  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.45 + MICRO_EPS * 12;
+  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.12 + MICRO_EPS * 12;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
@@ -443,8 +441,8 @@ function addPocketJaws(parent, playW, playH) {
       const width = adjustedBox
         ? adjustedBox.max.x - adjustedBox.min.x
         : POCKET_VIS_R * 1.2;
-      const segmentScale = 0.56;
-      const offset = width * 0.18;
+      const segmentScale = 0.62;
+      const offset = width * 0.24;
       for (const dir of [-1, 1]) {
         const segmentGeom = geom.clone();
         segmentGeom.scale(segmentScale, 1, 1);
@@ -962,7 +960,7 @@ const CLOTH_TEXTURE_INTENSITY = 0.56;
 const CLOTH_BUMP_INTENSITY = 0.48;
 
 const COLORS = Object.freeze({
-  cloth: 0x339a5a,
+  cloth: 0x2c7d4f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -1015,10 +1013,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x1a, g: 0x5b, b: 0x36 };
-    const base = { r: 0x2c, g: 0x86, b: 0x45 };
-    const accent = { r: 0x3b, g: 0x9d, b: 0x52 };
-    const highlight = { r: 0x5d, g: 0xc8, b: 0x79 };
+    const shadow = { r: 0x14, g: 0x52, b: 0x2d };
+    const base = { r: 0x24, g: 0x7a, b: 0x3b };
+    const accent = { r: 0x33, g: 0x93, b: 0x49 };
+    const highlight = { r: 0x52, g: 0xba, b: 0x6f };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -6253,25 +6251,6 @@ function SnookerGame() {
   const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
   const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
   const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
-  const referenceImages = useMemo(
-    () => [
-      {
-        key: 'current',
-        src: currentRimsReference,
-        alt: 'Pamja aktuale e tavolinës në lojë',
-        caption:
-          'Aktualisht xhepat anësorë janë më të ngushtë dhe pllakat e kromit nuk dallohen.'
-      },
-      {
-        key: 'target',
-        src: targetRimsReference,
-        alt: 'Pamja e dëshiruar e tavolinës me krom',
-        caption:
-          'Synimi: rime të hapura në cepat dhe pllakat e kromit të ekspozuara mbi rail.'
-      }
-    ],
-    []
-  );
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -6339,24 +6318,6 @@ function SnookerGame() {
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
-        </div>
-      </div>
-
-      <div
-        className={`absolute top-20 left-0 right-0 z-40 flex justify-center px-4 transition-opacity duration-300 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
-      >
-        <div className="pointer-events-none w-full max-w-sm flex flex-col gap-3">
-          {referenceImages.map(({ key, src, alt, caption }) => (
-            <figure
-              key={key}
-              className="pointer-events-none overflow-hidden rounded-xl border border-white/15 bg-black/70 backdrop-blur-sm shadow-lg shadow-black/40"
-            >
-              <img src={src} alt={alt} className="w-full h-auto object-cover" loading="lazy" />
-              <figcaption className="px-3 py-2 text-xs leading-relaxed text-emerald-100">
-                {caption}
-              </figcaption>
-            </figure>
-          ))}
         </div>
       </div>
 
