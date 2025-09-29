@@ -29,8 +29,8 @@ const JAW_CENTER_PULL_SCALE = 0.03;
 const SECTOR_SWEEP = Math.PI * 0.52;
 const SIDE_SECTOR_SWEEP = Math.PI * 0.32;
 const SIDE_JAW_SWEEP_SCALE = 0.86;
-const CORNER_JAW_RADIUS_SCALE = 0.94;
-const CORNER_JAW_THICKNESS_SCALE = 0.72;
+const CORNER_JAW_RADIUS_SCALE = 0.98;
+const CORNER_JAW_THICKNESS_SCALE = 1.12;
 const SECTOR_START = -SECTOR_SWEEP;
 const SECTOR_END = SECTOR_SWEEP;
 const jawMat = new THREE.MeshPhysicalMaterial({
@@ -71,99 +71,6 @@ chromePlateMat.polygonOffset = true;
 chromePlateMat.polygonOffsetFactor = -0.75;
 chromePlateMat.polygonOffsetUnits = -2;
 chromePlateMat.depthWrite = false;
-
-function makeCornerChromePlateGeometry({
-  innerRadius,
-  extensionX,
-  extensionZ,
-  outerFillet,
-  thickness
-}) {
-  const shape = new THREE.Shape();
-  const outerX = innerRadius + extensionX;
-  const outerZ = innerRadius + extensionZ;
-  const fillet = Math.min(Math.min(outerFillet, extensionX), extensionZ);
-  shape.moveTo(innerRadius, 0);
-  shape.lineTo(outerX - fillet, 0);
-  shape.quadraticCurveTo(outerX, 0, outerX, fillet);
-  shape.lineTo(outerX, outerZ - fillet);
-  shape.quadraticCurveTo(outerX, outerZ, outerX - fillet, outerZ);
-  shape.lineTo(fillet, outerZ);
-  shape.quadraticCurveTo(0, outerZ, 0, outerZ - fillet);
-  shape.lineTo(0, innerRadius);
-  shape.lineTo(innerRadius, innerRadius);
-  shape.lineTo(innerRadius, 0);
-  shape.closePath();
-
-  const pocketCut = new THREE.Path();
-  pocketCut.moveTo(innerRadius, 0);
-  pocketCut.absarc(0, 0, innerRadius, 0, Math.PI / 2, false);
-  pocketCut.lineTo(0, innerRadius);
-  pocketCut.lineTo(0, 0);
-  pocketCut.lineTo(innerRadius, 0);
-  pocketCut.closePath();
-  shape.holes.push(pocketCut);
-
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: thickness,
-    bevelEnabled: false,
-    curveSegments: 96
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.computeBoundingBox();
-  const bbox = geo.boundingBox;
-  if (bbox) {
-    const shift = -bbox.max.y;
-    if (Math.abs(shift) > 1e-6) geo.translate(0, shift, 0);
-  }
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function makeSideChromePlateGeometry({
-  innerRadius,
-  halfSpan,
-  extension,
-  endFillet,
-  thickness
-}) {
-  const shape = new THREE.Shape();
-  const depth = innerRadius + extension;
-  const fillet = Math.min(endFillet, halfSpan);
-  shape.moveTo(-halfSpan + fillet, 0);
-  shape.lineTo(halfSpan - fillet, 0);
-  shape.quadraticCurveTo(halfSpan, 0, halfSpan, fillet);
-  shape.lineTo(halfSpan, depth - fillet);
-  shape.quadraticCurveTo(halfSpan, depth, halfSpan - fillet, depth);
-  shape.lineTo(-halfSpan + fillet, depth);
-  shape.quadraticCurveTo(-halfSpan, depth, -halfSpan, depth - fillet);
-  shape.lineTo(-halfSpan, fillet);
-  shape.quadraticCurveTo(-halfSpan, 0, -halfSpan + fillet, 0);
-  shape.closePath();
-
-  const pocketCut = new THREE.Path();
-  pocketCut.moveTo(-innerRadius, 0);
-  pocketCut.absarc(0, 0, innerRadius, Math.PI, 0, false);
-  pocketCut.lineTo(innerRadius, 0);
-  pocketCut.lineTo(-innerRadius, 0);
-  pocketCut.closePath();
-  shape.holes.push(pocketCut);
-
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: thickness,
-    bevelEnabled: false,
-    curveSegments: 96
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.computeBoundingBox();
-  const bbox = geo.boundingBox;
-  if (bbox) {
-    const shift = -bbox.max.y;
-    if (Math.abs(shift) > 1e-6) geo.translate(0, shift, 0);
-  }
-  geo.computeVertexNormals();
-  return geo;
-}
 
 function makePocketSkirtGeometry({
   innerRadius,
@@ -256,7 +163,7 @@ function addPocketJaws(parent, playW, playH) {
   );
   const cornerCapGeo = makeJawSector(
     POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE,
-    JAW_T * 0.82,
+    JAW_T * 1.08,
     SECTOR_START,
     SECTOR_END,
     capHeight
@@ -269,8 +176,8 @@ function addPocketJaws(parent, playW, playH) {
     capHeight
   );
   const cornerRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.26,
-    JAW_T * 1.02,
+    POCKET_VIS_R * 1.32,
+    JAW_T * 1.38,
     SECTOR_START,
     SECTOR_END,
     rimDeckHeight
@@ -284,8 +191,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
   const cornerRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.34,
-    JAW_T * 1.14,
+    POCKET_VIS_R * 1.38,
+    JAW_T * 1.46,
     SECTOR_START,
     SECTOR_END,
     rimLipHeight
@@ -329,8 +236,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.36,
-    JAW_T * 0.74,
+    POCKET_VIS_R * 1.42,
+    JAW_T * 0.94,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -361,7 +268,7 @@ function addPocketJaws(parent, playW, playH) {
   const rimSkirtHeight = POCKET_RECESS_DEPTH * 0.62;
   const cornerSkirtGeo = makePocketSkirtGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
-    outerRadius: cornerPocketRadius + surfaceRimThickness * 1.34,
+    outerRadius: cornerPocketRadius + surfaceRimThickness * 1.82,
     height: rimSkirtHeight,
     startAngle: 0,
     endAngle: Math.PI / 2
@@ -373,26 +280,6 @@ function addPocketJaws(parent, playW, playH) {
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
-  const chromePlateThickness = capHeight * 1.8;
-  const cornerChromeGeo = makeCornerChromePlateGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.56,
-    extensionX: longRailW * 1.26 + cornerChamfer * 0.6,
-    extensionZ: endRailW * 1.18 + cornerChamfer * 0.6,
-    outerFillet: Math.min(longRailW, endRailW) * 0.7,
-    thickness: chromePlateThickness
-  });
-  const sideChromeGeo = makeSideChromePlateGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.72,
-    halfSpan: POCKET_VIS_R * 1.72,
-    extension: longRailW * 1.08,
-    endFillet: longRailW * 0.5,
-    thickness: chromePlateThickness
-  });
-  const chromeGroup = new THREE.Group();
-  parent.add(chromeGroup);
-  // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
-  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.85 + MICRO_EPS * 24;
-  const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -570,30 +457,6 @@ function addPocketJaws(parent, playW, playH) {
       skirt.position.y = rimSkirtTopY;
       mesh.add(skirt);
     }
-    const chromeMesh = new THREE.Mesh(
-      entry.type === 'corner' ? cornerChromeGeo : sideChromeGeo,
-      chromePlateMat
-    );
-    chromeMesh.castShadow = false;
-    chromeMesh.receiveShadow = true;
-    chromeMesh.renderOrder = 12;
-    chromeMesh.position.set(pShift.x, chromeTopY, pShift.y);
-    if (entry.type === 'corner') {
-      const signX = Math.sign(entry.pos[0]);
-      const signZ = Math.sign(entry.pos[1]);
-      let rotation = 0;
-      if (signX > 0 && signZ < 0) {
-        rotation = Math.PI / 2;
-      } else if (signX > 0 && signZ > 0) {
-        rotation = Math.PI;
-      } else if (signX < 0 && signZ > 0) {
-        rotation = -Math.PI / 2;
-      }
-      chromeMesh.rotation.y = rotation;
-    } else {
-      chromeMesh.rotation.y = entry.pos[0] >= 0 ? Math.PI : 0;
-    }
-    chromeGroup.add(chromeMesh);
     jaw.userData = {
       ...(jaw.userData || {}),
       cap: capMeshes[0] ?? null,
@@ -2291,15 +2154,16 @@ function Table3D(parent) {
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothPrimary = new THREE.Color(COLORS.cloth);
+  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.04);
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: clothPrimary,
-    roughness: 0.8,
+    color: clothColor,
+    roughness: 0.78,
     sheen: 0.85,
-    sheenRoughness: 0.46,
+    sheenRoughness: 0.44,
     clearcoat: 0.05,
-    clearcoatRoughness: 0.26,
-    emissive: clothPrimary.clone().multiplyScalar(0.07),
-    emissiveIntensity: 0.65
+    clearcoatRoughness: 0.24,
+    emissive: clothColor.clone().multiplyScalar(0.08),
+    emissiveIntensity: 0.7
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
@@ -2334,47 +2198,55 @@ function Table3D(parent) {
 
   const cushionMat = clothMat.clone();
   const { map: woodMap, roughness: woodRoughness } = createWoodTexture();
+  const woodColor = new THREE.Color(COLORS.base).lerp(
+    new THREE.Color(0xffffff),
+    0.06
+  );
   const woodMat = new THREE.MeshPhysicalMaterial({
-    color: COLORS.base,
-    metalness: 0.28,
-    roughness: 0.38,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.18,
+    color: woodColor,
+    metalness: 0.24,
+    roughness: 0.42,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.2,
     sheen: 0.1,
-    sheenRoughness: 0.55,
-    reflectivity: 0.45,
-    envMapIntensity: 0.9
+    sheenRoughness: 0.58,
+    reflectivity: 0.38,
+    envMapIntensity: 0.78
   });
   if (woodMap) {
     woodMat.map = woodMap;
-    woodMat.map.repeat.set(2.6, 1.6);
+    woodMat.map.repeat.set(2.0, 1.3);
     woodMat.map.needsUpdate = true;
   }
   if (woodRoughness) {
     woodMat.roughnessMap = woodRoughness;
-    woodMat.roughnessMap.repeat.set(2.6, 1.6);
+    woodMat.roughnessMap.repeat.set(2.0, 1.3);
     woodMat.roughnessMap.needsUpdate = true;
   }
   woodMat.needsUpdate = true;
+  const railWoodColor = new THREE.Color(COLORS.rail).lerp(
+    new THREE.Color(0xffffff),
+    0.05
+  );
   const railWoodMat = new THREE.MeshPhysicalMaterial({
-    color: COLORS.rail,
-    metalness: 0.32,
-    roughness: 0.42,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
+    color: railWoodColor,
+    metalness: 0.28,
+    roughness: 0.46,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.22,
     sheen: 0.12,
-    sheenRoughness: 0.6,
-    reflectivity: 0.48,
-    envMapIntensity: 1.0
+    sheenRoughness: 0.62,
+    reflectivity: 0.4,
+    envMapIntensity: 0.82
   });
   if (woodMap) {
     railWoodMat.map = woodMap;
-    railWoodMat.map.repeat.set(2.6, 1.6);
+    railWoodMat.map.repeat.set(2.0, 1.3);
     railWoodMat.map.needsUpdate = true;
   }
   if (woodRoughness) {
     railWoodMat.roughnessMap = woodRoughness;
-    railWoodMat.roughnessMap.repeat.set(2.6, 1.6);
+    railWoodMat.roughnessMap.repeat.set(2.0, 1.3);
     railWoodMat.roughnessMap.needsUpdate = true;
   }
 
@@ -2650,6 +2522,47 @@ function Table3D(parent) {
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
 
+  const chromePlateThickness = TABLE.THICK * 0.04;
+  const chromeLift = railsTopY + chromePlateThickness * 0.5 + MICRO_EPS * 6;
+  const addChromePlate = (width, depth, x, z) => {
+    const plateGeo = new THREE.BoxGeometry(width, chromePlateThickness, depth);
+    const plate = new THREE.Mesh(plateGeo, chromePlateMat);
+    plate.position.set(x, chromeLift, z);
+    plate.castShadow = false;
+    plate.receiveShadow = true;
+    plate.renderOrder = 12;
+    railsGroup.add(plate);
+  };
+
+  const cornerPlateSize = {
+    w: longRailW * 1.32,
+    d: endRailW * 1.28
+  };
+  const cornerPlateOffsetX = outerHalfW - longRailW * 0.58;
+  const cornerPlateOffsetZ = outerHalfH - endRailW * 0.58;
+  [
+    [1, 1],
+    [-1, 1],
+    [-1, -1],
+    [1, -1]
+  ].forEach(([sx, sz]) => {
+    addChromePlate(
+      cornerPlateSize.w,
+      cornerPlateSize.d,
+      sx * cornerPlateOffsetX,
+      sz * cornerPlateOffsetZ
+    );
+  });
+
+  const sidePlateSize = {
+    w: longRailW * 1.48,
+    d: longRailW * 0.56
+  };
+  const sidePlateOffsetX = outerHalfW - longRailW * 0.6;
+  [-1, 1].forEach((sx) => {
+    addChromePlate(sidePlateSize.w, sidePlateSize.d, sx * sidePlateOffsetX, 0);
+  });
+
   const rimMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x050505,
     roughness: 0.38,
@@ -2892,17 +2805,94 @@ function Table3D(parent) {
   const skirtShape = new THREE.Shape();
   const outW = frameOuterX + baseOverhang;
   const outZ = frameOuterZ + baseOverhang;
-  skirtShape.moveTo(-outW, -outZ);
-  skirtShape.lineTo(outW, -outZ);
-  skirtShape.lineTo(outW, outZ);
-  skirtShape.lineTo(-outW, outZ);
-  skirtShape.lineTo(-outW, -outZ);
+  const skirtOuterRadius = Math.min(
+    outerCornerRadius + baseOverhang * 0.4,
+    Math.min(outW, outZ)
+  );
+  skirtShape.moveTo(-outW + skirtOuterRadius, -outZ);
+  skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
+  skirtShape.absarc(
+    outW - skirtOuterRadius,
+    -outZ + skirtOuterRadius,
+    skirtOuterRadius,
+    -Math.PI / 2,
+    0,
+    false
+  );
+  skirtShape.lineTo(outW, outZ - skirtOuterRadius);
+  skirtShape.absarc(
+    outW - skirtOuterRadius,
+    outZ - skirtOuterRadius,
+    skirtOuterRadius,
+    0,
+    Math.PI / 2,
+    false
+  );
+  skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
+  skirtShape.absarc(
+    -outW + skirtOuterRadius,
+    outZ - skirtOuterRadius,
+    skirtOuterRadius,
+    Math.PI / 2,
+    Math.PI,
+    false
+  );
+  skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
+  skirtShape.absarc(
+    -outW + skirtOuterRadius,
+    -outZ + skirtOuterRadius,
+    skirtOuterRadius,
+    Math.PI,
+    1.5 * Math.PI,
+    false
+  );
   const inner = new THREE.Path();
-  inner.moveTo(-frameOuterX, -frameOuterZ);
-  inner.lineTo(frameOuterX, -frameOuterZ);
-  inner.lineTo(frameOuterX, frameOuterZ);
-  inner.lineTo(-frameOuterX, frameOuterZ);
-  inner.lineTo(-frameOuterX, -frameOuterZ);
+  const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
+  if (skirtInnerRadius > 1e-4) {
+    inner.moveTo(-frameOuterX + skirtInnerRadius, -frameOuterZ);
+    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
+    inner.absarc(
+      frameOuterX - skirtInnerRadius,
+      -frameOuterZ + skirtInnerRadius,
+      skirtInnerRadius,
+      -Math.PI / 2,
+      0,
+      false
+    );
+    inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
+    inner.absarc(
+      frameOuterX - skirtInnerRadius,
+      frameOuterZ - skirtInnerRadius,
+      skirtInnerRadius,
+      0,
+      Math.PI / 2,
+      false
+    );
+    inner.lineTo(-frameOuterX + skirtInnerRadius, frameOuterZ);
+    inner.absarc(
+      -frameOuterX + skirtInnerRadius,
+      frameOuterZ - skirtInnerRadius,
+      skirtInnerRadius,
+      Math.PI / 2,
+      Math.PI,
+      false
+    );
+    inner.lineTo(-frameOuterX, -frameOuterZ + skirtInnerRadius);
+    inner.absarc(
+      -frameOuterX + skirtInnerRadius,
+      -frameOuterZ + skirtInnerRadius,
+      skirtInnerRadius,
+      Math.PI,
+      1.5 * Math.PI,
+      false
+    );
+  } else {
+    inner.moveTo(-frameOuterX, -frameOuterZ);
+    inner.lineTo(frameOuterX, -frameOuterZ);
+    inner.lineTo(frameOuterX, frameOuterZ);
+    inner.lineTo(-frameOuterX, frameOuterZ);
+    inner.lineTo(-frameOuterX, -frameOuterZ);
+  }
   skirtShape.holes.push(inner);
   const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
     depth: skirtH,
