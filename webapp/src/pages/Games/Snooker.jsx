@@ -2509,6 +2509,8 @@ function Table3D(parent) {
     return geo;
   }
 
+  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.02;
+
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
@@ -2520,11 +2522,10 @@ function Table3D(parent) {
     if (!horizontal) group.rotation.y = Math.PI / 2;
     if (flip) group.rotation.y += Math.PI;
 
-    const EDGE_BIAS = MICRO_EPS;
     if (horizontal) {
-      group.position.z = z > 0 ? halfH + EDGE_BIAS : -halfH - EDGE_BIAS;
+      group.position.z = z > 0 ? halfH - CUSHION_RAIL_FLUSH : -halfH + CUSHION_RAIL_FLUSH;
     } else {
-      group.position.x = x > 0 ? halfW + EDGE_BIAS : -halfW - EDGE_BIAS;
+      group.position.x = x > 0 ? halfW - CUSHION_RAIL_FLUSH : -halfW + CUSHION_RAIL_FLUSH;
     }
 
     group.userData = group.userData || {};
@@ -2535,9 +2536,12 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
+  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.06; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.04; // nudge long rail cushions toward the middle pockets
+  const horizLen =
+    PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
@@ -2547,7 +2551,8 @@ function Table3D(parent) {
 
   addCushion(0, bottomZ, horizLen, true, false);
   addCushion(0, topZ, horizLen, true, true);
-  const sideCushionOffset = POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE;
+  const sideCushionOffset =
+    POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
 
   addCushion(
     leftX,
