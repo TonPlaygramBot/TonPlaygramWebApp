@@ -294,8 +294,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideRimBaseGeo = makeJawSector(
     POCKET_VIS_R * 0.92,
     JAW_T * 0.36,
-    -SIDE_SECTOR_SWEEP * 0.9,
-    SIDE_SECTOR_SWEEP * 0.9,
+    -SIDE_SECTOR_SWEEP * 0.64,
+    SIDE_SECTOR_SWEEP * 0.64,
     rimDeckHeight * 0.9
   );
   sideRimBaseGeo.computeBoundingBox();
@@ -309,8 +309,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideRimTopGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
     JAW_T * 0.42,
-    -SIDE_SECTOR_SWEEP * 0.92,
-    SIDE_SECTOR_SWEEP * 0.92,
+    -SIDE_SECTOR_SWEEP * 0.7,
+    SIDE_SECTOR_SWEEP * 0.7,
     rimLipHeight * 0.86
   );
   sideRimTopGeo.computeBoundingBox();
@@ -339,8 +339,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideSurfaceRimGeo = makeJawSector(
     POCKET_VIS_R * 0.82,
     JAW_T * 0.16,
-    -SIDE_SECTOR_SWEEP * 0.85,
-    SIDE_SECTOR_SWEEP * 0.85,
+    -SIDE_SECTOR_SWEEP * 0.62,
+    SIDE_SECTOR_SWEEP * 0.62,
     surfaceRimThickness * 0.8
   );
   sideSurfaceRimGeo.computeBoundingBox();
@@ -2835,7 +2835,7 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.08; // extend side cushions until they meet the pocket arcs
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.03; // extend side cushions until they meet the pocket arcs
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
