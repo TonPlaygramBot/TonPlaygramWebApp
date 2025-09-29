@@ -55,12 +55,13 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.55
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf4f6fb,
-  roughness: 0.12,
+  color: 0xf7f8fd,
+  roughness: 0.06,
   metalness: 1,
-  clearcoat: 0.88,
-  clearcoatRoughness: 0.12,
-  envMapIntensity: 2.2
+  clearcoat: 0.95,
+  clearcoatRoughness: 0.08,
+  reflectivity: 1,
+  envMapIntensity: 2.8
 });
 
 function makeCornerChromePlateGeometry({
@@ -360,24 +361,25 @@ function addPocketJaws(parent, playW, playH) {
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
-  const chromePlateThickness = capHeight * 1.25;
+  const chromePlateThickness = capHeight * 1.6;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.34,
-    extensionX: longRailW * 1.08 + cornerChamfer * 0.5,
-    extensionZ: endRailW * 1.04 + cornerChamfer * 0.5,
-    outerFillet: Math.min(longRailW, endRailW) * 0.56,
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.42,
+    extensionX: longRailW * 1.18 + cornerChamfer * 0.55,
+    extensionZ: endRailW * 1.12 + cornerChamfer * 0.55,
+    outerFillet: Math.min(longRailW, endRailW) * 0.64,
     thickness: chromePlateThickness
   });
   const sideChromeGeo = makeSideChromePlateGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.8,
-    halfSpan: POCKET_VIS_R * 1.48,
-    extension: longRailW * 0.82,
-    endFillet: longRailW * 0.32,
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.9,
+    halfSpan: POCKET_VIS_R * 1.64,
+    extension: longRailW * 0.98,
+    endFillet: longRailW * 0.42,
     thickness: chromePlateThickness
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeTopY = TABLE_RAIL_TOP_Y + MICRO_EPS * 6 + capHeight * 0.12;
+  const chromeLift = capHeight * 0.52 + MICRO_EPS * 4;
+  const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
