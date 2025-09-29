@@ -2638,54 +2638,44 @@ function Table3D(parent) {
   const chromeRailWidthX = Math.max(longRailW, 0.001);
   const chromeRailWidthZ = Math.max(endRailW, 0.001);
   const chromeRailSpan = Math.min(chromeRailWidthX, chromeRailWidthZ);
-  const midPocketRadius = Math.max(sidePocketRadius, POCKET_VIS_R * 0.6);
-  const midChromeRadius = midPocketRadius + POCKET_VIS_R * 0.05;
-  const midPlateSpan = Math.min(innerHalfH * 0.9, midChromeRadius * 2.2);
-  const midPlateDepth = chromeRailSpan * 1.05;
-  const midInset = sideInset + POCKET_VIS_R * 0.1;
 
-  const addMidChromePlate = (signX) => {
-    const halfSpan = Math.min(midPlateSpan / 2, midChromeRadius * 0.98);
-    const centerX = signX * (PLAY_W / 2 - midInset);
-    const outerX = signX * (innerHalfW + midPlateDepth);
-    const innerRailX = signX * (innerHalfW + POCKET_VIS_R * 0.02);
-    const delta = Math.sqrt(Math.max(0, midChromeRadius * midChromeRadius - halfSpan * halfSpan));
-    const innerX = centerX - signX * delta;
-    const shape = new THREE.Shape();
-    if (signX > 0) {
-      shape.moveTo(outerX, -halfSpan);
-      shape.lineTo(outerX, halfSpan);
-      shape.lineTo(innerRailX, halfSpan);
-      const startAngle = Math.atan2(halfSpan, innerX - centerX);
-      const endAngle = Math.atan2(-halfSpan, innerX - centerX);
-      shape.absarc(centerX, 0, midChromeRadius, startAngle, endAngle, true);
-      shape.lineTo(innerRailX, -halfSpan);
-    } else {
-      shape.moveTo(outerX, halfSpan);
-      shape.lineTo(outerX, -halfSpan);
-      shape.lineTo(innerRailX, -halfSpan);
-      const startAngle = Math.atan2(-halfSpan, innerX - centerX);
-      const endAngle = Math.atan2(halfSpan, innerX - centerX);
-      shape.absarc(centerX, 0, midChromeRadius, startAngle, endAngle, true);
-      shape.lineTo(innerRailX, halfSpan);
-    }
-    shape.closePath();
-    const plate = createChromePlateFromShape(shape);
-    railsGroup.add(plate);
-  };
-
-  addMidChromePlate(1);
-  addMidChromePlate(-1);
-
-  const cornerOuterInner = Math.max(
-    outerCornerRadius - chromeRailSpan * 0.52,
+  const sidePlateDepth = chromeRailSpan * 1.05;
+  const sidePlateSpan = Math.min(innerHalfH * 0.48, POCKET_VIS_R * 4.4);
+  const sidePlateHalfSpan = sidePlateSpan / 2;
+  const sidePocketChromeRadius = Math.max(
+    sidePocketRadius + POCKET_VIS_R * 0.22,
     POCKET_VIS_R * 0.8
   );
-  const cornerOuterOuter = outerCornerRadius + chromeRailSpan * 0.32;
-  const cornerInnerRadius = cornerPocketRadius + POCKET_VIS_R * 0.3;
-  const cornerBandWidth = Math.max(POCKET_VIS_R * 0.42, chromeRailSpan * 0.55);
-  const cornerStripLength = chromeRailSpan * 1.25;
-  const cornerStripWidth = Math.min(chromeRailSpan * 0.65, POCKET_VIS_R * 0.9);
+
+  const addSideChromePlate = (signX) => {
+    const insideX = signX * (innerHalfW - POCKET_VIS_R * 0.05);
+    const outsideX = signX * (innerHalfW + sidePlateDepth);
+    const minX = Math.min(insideX, outsideX);
+    const maxX = Math.max(insideX, outsideX);
+    const rect = boxPoly(minX, -sidePlateHalfSpan, maxX, sidePlateHalfSpan);
+    const pocketCircle = circlePoly(
+      signX * (innerHalfW - sideInset),
+      0,
+      sidePocketChromeRadius,
+      192
+    );
+    const plateMP = polygonClipping.difference(rect, ...pocketCircle);
+    multiPolyToShapes(plateMP).forEach((shape) => {
+      railsGroup.add(createChromePlateFromShape(shape));
+    });
+  };
+
+  addSideChromePlate(1);
+  addSideChromePlate(-1);
+
+  const cornerPlateDepth = chromeRailSpan * 1.08;
+  const cornerPocketChromeRadius = cornerPocketRadius + POCKET_VIS_R * 0.28;
+  const cornerBandWidth = Math.max(POCKET_VIS_R * 0.38, chromeRailSpan * 0.55);
+  const outerLipInner = Math.max(
+    outerCornerRadius - chromeRailSpan * 0.28,
+    POCKET_VIS_R * 0.8
+  );
+  const outerLipOuter = outerCornerRadius + chromeRailSpan * 0.12;
 
   const addCornerChrome = (sx, sz) => {
     const baseAngle =
@@ -2697,56 +2687,53 @@ function Table3D(parent) {
             ? Math.PI
             : (3 * Math.PI) / 2;
 
+    const insideX = sx * (innerHalfW - POCKET_VIS_R * 0.05);
+    const insideZ = sz * (innerHalfH - POCKET_VIS_R * 0.05);
+    const outerX = sx * (innerHalfW + cornerPlateDepth);
+    const outerZ = sz * (innerHalfH + cornerPlateDepth);
+
+    const rectLong = boxPoly(
+      Math.min(insideX, outerX),
+      Math.min(insideZ, insideZ + sz * cornerPlateDepth),
+      Math.max(insideX, outerX),
+      Math.max(insideZ, insideZ + sz * cornerPlateDepth)
+    );
+    const rectEnd = boxPoly(
+      Math.min(insideX, insideX + sx * cornerPlateDepth),
+      Math.min(insideZ, outerZ),
+      Math.max(insideX, insideX + sx * cornerPlateDepth),
+      Math.max(insideZ, outerZ)
+    );
+    let baseMP = polygonClipping.union(rectLong, rectEnd);
+    const pocketCircle = circlePoly(
+      sx * (innerHalfW - cornerInset),
+      sz * (innerHalfH - cornerInset),
+      cornerPocketChromeRadius,
+      192
+    );
+    baseMP = polygonClipping.difference(baseMP, ...pocketCircle);
+    multiPolyToShapes(baseMP).forEach((shape) => {
+      railsGroup.add(createChromePlateFromShape(shape));
+    });
+
     const outerCX = sx * (outerHalfW - outerCornerRadius);
     const outerCZ = sz * (outerHalfH - outerCornerRadius);
     makeArcBandChrome(
       outerCX,
       outerCZ,
-      cornerOuterInner,
-      cornerOuterOuter,
+      outerLipInner,
+      outerLipOuter,
       baseAngle,
       baseAngle + Math.PI / 2
     );
 
-    const longStripGeo = new THREE.BoxGeometry(
-      cornerStripLength,
-      chromePlateThickness,
-      cornerStripWidth
-    );
-    const longStrip = new THREE.Mesh(longStripGeo, chromePlateMat);
-    longStrip.position.set(
-      sx * (outerHalfW - cornerStripLength / 2),
-      chromeLift,
-      sz * (outerHalfH - cornerStripWidth / 2)
-    );
-    longStrip.castShadow = false;
-    longStrip.receiveShadow = true;
-    longStrip.renderOrder = 12;
-    railsGroup.add(longStrip);
-
-    const endStripGeo = new THREE.BoxGeometry(
-      cornerStripWidth,
-      chromePlateThickness,
-      cornerStripLength
-    );
-    const endStrip = new THREE.Mesh(endStripGeo, chromePlateMat);
-    endStrip.position.set(
-      sx * (outerHalfW - cornerStripWidth / 2),
-      chromeLift,
-      sz * (outerHalfH - cornerStripLength / 2)
-    );
-    endStrip.castShadow = false;
-    endStrip.receiveShadow = true;
-    endStrip.renderOrder = 12;
-    railsGroup.add(endStrip);
-
-    const pocketCX = sx * (innerHalfW - cornerInset + POCKET_VIS_R * 0.08);
-    const pocketCZ = sz * (innerHalfH - cornerInset + POCKET_VIS_R * 0.08);
+    const pocketCX = sx * (innerHalfW - cornerInset);
+    const pocketCZ = sz * (innerHalfH - cornerInset);
     makeArcBandChrome(
       pocketCX,
       pocketCZ,
-      cornerInnerRadius,
-      cornerInnerRadius + cornerBandWidth,
+      cornerPocketRadius + POCKET_VIS_R * 0.12,
+      cornerPocketRadius + POCKET_VIS_R * 0.12 + cornerBandWidth,
       baseAngle,
       baseAngle + Math.PI / 2
     );
