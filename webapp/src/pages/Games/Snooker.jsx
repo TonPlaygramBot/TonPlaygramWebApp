@@ -45,14 +45,14 @@ const jawCapMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.9
 });
 const plasticRimMat = new THREE.MeshPhysicalMaterial({
-  color: 0x050505,
-  roughness: 0.42,
-  metalness: 0.08,
-  clearcoat: 0.2,
-  clearcoatRoughness: 0.38,
-  sheen: 0.12,
-  sheenRoughness: 0.68,
-  envMapIntensity: 0.55
+  color: 0x101010,
+  roughness: 0.36,
+  metalness: 0.16,
+  clearcoat: 0.32,
+  clearcoatRoughness: 0.34,
+  sheen: 0.18,
+  sheenRoughness: 0.58,
+  envMapIntensity: 0.8
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
   color: 0xf4f6fb,
@@ -67,6 +67,7 @@ const chromePlateMat = new THREE.MeshPhysicalMaterial({
 chromePlateMat.polygonOffset = true;
 chromePlateMat.polygonOffsetFactor = -0.75;
 chromePlateMat.polygonOffsetUnits = -2;
+chromePlateMat.depthWrite = false;
 
 function makeCornerChromePlateGeometry({
   innerRadius,
@@ -383,7 +384,7 @@ function addPocketJaws(parent, playW, playH) {
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
-  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.32 + MICRO_EPS * 12;
+  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.6 + MICRO_EPS * 24;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
@@ -568,7 +569,7 @@ function addPocketJaws(parent, playW, playH) {
     );
     chromeMesh.castShadow = false;
     chromeMesh.receiveShadow = true;
-    chromeMesh.renderOrder = 6;
+    chromeMesh.renderOrder = 12;
     chromeMesh.position.set(pShift.x, chromeTopY, pShift.y);
     if (entry.type === 'corner') {
       const signX = Math.sign(entry.pos[0]);
