@@ -55,12 +55,12 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.55
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
-  color: 0xe7edf7,
-  roughness: 0.16,
+  color: 0xf4f6fb,
+  roughness: 0.12,
   metalness: 1,
-  clearcoat: 0.82,
-  clearcoatRoughness: 0.18,
-  envMapIntensity: 1.6
+  clearcoat: 0.88,
+  clearcoatRoughness: 0.12,
+  envMapIntensity: 2.2
 });
 
 function makeCornerChromePlateGeometry({
@@ -227,9 +227,9 @@ function addPocketJaws(parent, playW, playH) {
   const jawDepthTarget = CLOTH_THICKNESS;
   const capHeight = CLOTH_THICKNESS * 0.36;
   const capLift = CLOTH_THICKNESS * 0.24; // keep jaw caps hovering slightly above the lowered cloth level
-  const rimDeckHeight = capHeight * 0.46;
-  const rimLipHeight = capHeight * 0.28;
-  const surfaceRimThickness = capHeight * 0.14;
+  const rimDeckHeight = capHeight * 0.72;
+  const rimLipHeight = capHeight * 0.36;
+  const surfaceRimThickness = capHeight * 0.18;
   const rimSurfaceLift = capLift + capHeight;
   const rimLipTopY = rimSurfaceLift + POCKET_RIM_LIFT;
   const rimBaseTopY = rimLipTopY - rimLipHeight;
@@ -256,8 +256,8 @@ function addPocketJaws(parent, playW, playH) {
     capHeight
   );
   const cornerRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.07,
-    JAW_T * 0.68,
+    POCKET_VIS_R * 1.12,
+    JAW_T * 0.82,
     SECTOR_START,
     SECTOR_END,
     rimDeckHeight
@@ -271,8 +271,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
   const cornerRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.09,
-    JAW_T * 0.76,
+    POCKET_VIS_R * 1.16,
+    JAW_T * 0.92,
     SECTOR_START,
     SECTOR_END,
     rimLipHeight
@@ -286,8 +286,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimTopGeo.computeBoundingSphere();
   cornerRimTopGeo.computeVertexNormals();
   const sideRimBaseGeo = makeJawSector(
-    POCKET_VIS_R * 1.05,
-    JAW_T * 0.52,
+    POCKET_VIS_R * 1.02,
+    JAW_T * 0.48,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     rimDeckHeight * 0.92
@@ -301,8 +301,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
   const sideRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.07,
-    JAW_T * 0.62,
+    POCKET_VIS_R * 1.04,
+    JAW_T * 0.54,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     rimLipHeight * 0.9
@@ -316,8 +316,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.12,
-    JAW_T * 0.48,
+    POCKET_VIS_R * 1.18,
+    JAW_T * 0.58,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -331,8 +331,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 0.99,
-    JAW_T * 0.26,
+    POCKET_VIS_R * 0.95,
+    JAW_T * 0.22,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     surfaceRimThickness * 0.82
@@ -345,39 +345,39 @@ function addPocketJaws(parent, playW, playH) {
   }
   sideSurfaceRimGeo.computeBoundingSphere();
   sideSurfaceRimGeo.computeVertexNormals();
-  const rimSkirtHeight = POCKET_RECESS_DEPTH * 0.5;
+  const rimSkirtHeight = POCKET_RECESS_DEPTH * 0.62;
   const cornerSkirtGeo = makePocketSkirtGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.18,
-    outerRadius: cornerPocketRadius + surfaceRimThickness * 1.26,
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
+    outerRadius: cornerPocketRadius + surfaceRimThickness * 1.34,
     height: rimSkirtHeight,
     startAngle: 0,
     endAngle: Math.PI / 2
   });
   const sideSkirtGeo = makePocketSkirtGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.22,
-    outerRadius: sidePocketRadius + surfaceRimThickness * 0.72,
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.26,
+    outerRadius: sidePocketRadius + surfaceRimThickness * 0.8,
     height: rimSkirtHeight,
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
-  const chromePlateThickness = capHeight * 1.05;
+  const chromePlateThickness = capHeight * 1.25;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.26,
-    extensionX: longRailW * 0.88 + cornerChamfer * 0.35,
-    extensionZ: endRailW * 0.9 + cornerChamfer * 0.35,
-    outerFillet: Math.min(longRailW, endRailW) * 0.48,
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.34,
+    extensionX: longRailW * 1.08 + cornerChamfer * 0.5,
+    extensionZ: endRailW * 1.04 + cornerChamfer * 0.5,
+    outerFillet: Math.min(longRailW, endRailW) * 0.56,
     thickness: chromePlateThickness
   });
   const sideChromeGeo = makeSideChromePlateGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.72,
-    halfSpan: POCKET_VIS_R * 1.32,
-    extension: longRailW * 0.64,
-    endFillet: longRailW * 0.26,
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.8,
+    halfSpan: POCKET_VIS_R * 1.48,
+    extension: longRailW * 0.82,
+    endFillet: longRailW * 0.32,
     thickness: chromePlateThickness
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeTopY = TABLE_RAIL_TOP_Y + MICRO_EPS * 4;
+  const chromeTopY = TABLE_RAIL_TOP_Y + MICRO_EPS * 6 + capHeight * 0.12;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
@@ -946,7 +946,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xc49a6c;
+const WOOD_TONE = 0xd6a46a;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
