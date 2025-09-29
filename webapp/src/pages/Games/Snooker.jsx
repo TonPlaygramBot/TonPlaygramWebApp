@@ -383,7 +383,7 @@ function addPocketJaws(parent, playW, playH) {
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
-  const chromeLift = rimSurfaceLift + MICRO_EPS * 12;
+  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.12 + MICRO_EPS * 12;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
@@ -953,7 +953,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xd6a46a;
+const WOOD_TONE = 0x8b5a2b;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
@@ -2651,6 +2651,7 @@ function Table3D(parent) {
     envMapIntensity: 0.9
   });
   const rimTubeR = POCKET_VIS_R * 0.18;
+  const rimVerticalScale = 1.6;
   const rimTopY = railsTopY + MICRO_EPS * 1.5;
   const rimY = rimTopY - rimTubeR;
 
@@ -2677,6 +2678,16 @@ function Table3D(parent) {
     if (!isFinite(a0) || !isFinite(a1) || a0 === a1) return;
     const path = new ArcXZ(cx, cz, r, a0, a1);
     const geom = new THREE.TubeGeometry(path, 64, rimTubeR, 24, false);
+    const posAttr = geom.attributes.position;
+    if (posAttr) {
+      for (let i = 0; i < posAttr.count; i++) {
+        const originalY = posAttr.getY(i);
+        const offsetFromTop = rimTopY - originalY;
+        posAttr.setY(i, rimTopY - offsetFromTop * rimVerticalScale);
+      }
+      posAttr.needsUpdate = true;
+      geom.computeVertexNormals();
+    }
     const mesh = new THREE.Mesh(geom, rimMaterial);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -2716,7 +2727,8 @@ function Table3D(parent) {
       start + cornerGap - cornerExtend,
       end - cornerGap + cornerExtend
     );
-    addRimArc(cx, cz, cornerPocketRadius + rimTubeR * 0.4, a0, a1);
+    const rimPathRadius = Math.max(MICRO_EPS, cornerPocketRadius - rimTubeR);
+    addRimArc(cx, cz, rimPathRadius, a0, a1);
   });
 
   const sideGap = Math.atan2(sideInset * 0.5, sidePocketRadius);
@@ -2728,7 +2740,8 @@ function Table3D(parent) {
     const cx = sx * (innerHalfW - sideInset);
     const cz = 0;
     const { a0, a1 } = adjustArc(start + sideGap, end - sideGap);
-    addRimArc(cx, cz, sidePocketRadius + rimTubeR * 0.35, a0, a1);
+    const rimPathRadius = Math.max(MICRO_EPS, sidePocketRadius - rimTubeR);
+    addRimArc(cx, cz, rimPathRadius, a0, a1);
   });
 
   table.add(railsGroup);
