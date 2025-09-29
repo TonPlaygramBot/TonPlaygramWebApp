@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+  <defs>
+    <linearGradient id="cloth" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f5a37" />
+      <stop offset="100%" stop-color="#266c43" />
+    </linearGradient>
+    <linearGradient id="wood" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7f4925" />
+      <stop offset="100%" stop-color="#5d3018" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="640" fill="#101417" />
+  <g transform="translate(80 80)">
+    <rect width="480" height="480" rx="36" fill="url(#wood)" />
+    <rect x="56" y="56" width="368" height="368" rx="12" fill="url(#cloth)" />
+    <g fill="#0d0d0d">
+      <circle cx="56" cy="56" r="32" />
+      <circle cx="424" cy="56" r="32" />
+      <circle cx="56" cy="424" r="32" />
+      <circle cx="424" cy="424" r="32" />
+      <circle cx="240" cy="56" r="28" />
+      <circle cx="240" cy="424" r="28" />
+    </g>
+    <g fill="none" stroke="#0d0d0d" stroke-width="22" stroke-linecap="round">
+      <path d="M56 56 L120 56" />
+      <path d="M424 56 L360 56" />
+      <path d="M56 424 L120 424" />
+      <path d="M424 424 L360 424" />
+      <path d="M240 56 L240 112" />
+      <path d="M240 424 L240 368" />
+    </g>
+  </g>
+  <text x="50%" y="600" fill="#f4f4f4" font-family="'Inter', sans-serif" font-size="42" text-anchor="middle">
+    Current in-game table
+  </text>
+</svg>
