@@ -58,13 +58,13 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.8
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf4f6fb,
-  roughness: 0.045,
+  color: 0xffffff,
   metalness: 1,
-  clearcoat: 0.95,
-  clearcoatRoughness: 0.06,
+  roughness: 0.015,
+  clearcoat: 1,
+  clearcoatRoughness: 0.01,
   reflectivity: 1,
-  envMapIntensity: 3.4,
+  envMapIntensity: 3.2,
   side: THREE.DoubleSide
 });
 chromePlateMat.polygonOffset = true;
@@ -2524,44 +2524,127 @@ function Table3D(parent) {
 
   const chromePlateThickness = TABLE.THICK * 0.04;
   const chromeLift = railsTopY + chromePlateThickness * 0.5 + MICRO_EPS * 6;
-  const addChromePlate = (width, depth, x, z) => {
-    const plateGeo = new THREE.BoxGeometry(width, chromePlateThickness, depth);
-    const plate = new THREE.Mesh(plateGeo, chromePlateMat);
-    plate.position.set(x, chromeLift, z);
-    plate.castShadow = false;
-    plate.receiveShadow = true;
-    plate.renderOrder = 12;
+  const chromeCurveSegments = 160;
+
+  const createChromePlateFromShape = (shape) => {
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: chromePlateThickness,
+      bevelEnabled: false,
+      curveSegments: chromeCurveSegments,
+      steps: 1
+    });
+    geo.translate(0, 0, -chromePlateThickness / 2);
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, chromePlateMat);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.y = chromeLift;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.renderOrder = 12;
+    return mesh;
+  };
+
+  const makeArcBandChrome = (cx, cz, innerR, outerR, a0, a1) => {
+    if (!isFinite(innerR) || !isFinite(outerR) || outerR <= innerR) return;
+    const shape = new THREE.Shape();
+    shape.absarc(cx, cz, outerR, a0, a1, false);
+    shape.absarc(cx, cz, innerR, a1, a0, true);
+    shape.closePath();
+    const band = createChromePlateFromShape(shape);
+    railsGroup.add(band);
+  };
+
+  const chromeRailWidthX = Math.max(longRailW, 0.001);
+  const chromeRailWidthZ = Math.max(endRailW, 0.001);
+  const chromeRailSpan = Math.min(chromeRailWidthX, chromeRailWidthZ);
+  const midPocketRadius = Math.max(sidePocketRadius, POCKET_VIS_R * 0.6);
+  const midChromeRadius = midPocketRadius + POCKET_VIS_R * 0.05;
+  const midPlateSpan = Math.min(innerHalfH * 0.9, midChromeRadius * 2.2);
+
+  const addMidChromePlate = (signX) => {
+    const centerX = signX * (PLAY_W / 2);
+    const halfSpan = Math.min(midPlateSpan / 2, midChromeRadius * 0.98);
+    const outerX = signX * (innerHalfW + (outerHalfW - innerHalfW) * 0.92);
+    const radius = midChromeRadius;
+    const delta = Math.sqrt(Math.max(0, radius * radius - halfSpan * halfSpan));
+    const innerX = centerX - signX * delta;
+    const shape = new THREE.Shape();
+    shape.moveTo(outerX, -halfSpan);
+    shape.lineTo(outerX, halfSpan);
+    shape.lineTo(innerX, halfSpan);
+    const startAngle = Math.atan2(halfSpan, innerX - centerX);
+    const endAngle = Math.atan2(-halfSpan, innerX - centerX);
+    shape.absarc(centerX, 0, radius, startAngle, endAngle, true);
+    shape.lineTo(innerX, -halfSpan);
+    shape.closePath();
+    const plate = createChromePlateFromShape(shape);
     railsGroup.add(plate);
   };
 
-  const cornerPlateSize = {
-    w: longRailW * 1.32,
-    d: endRailW * 1.28
+  addMidChromePlate(1);
+  addMidChromePlate(-1);
+
+  const cornerChromeThickness = Math.max(POCKET_VIS_R * 0.16, chromeRailSpan * 0.35);
+  const cornerOuterInner = Math.max(
+    outerCornerRadius - chromeRailSpan * 0.55,
+    cornerChromeThickness * 0.6
+  );
+  const cornerOuterOuter = outerCornerRadius + chromeRailSpan * 0.35;
+  const cornerInnerRadius = cornerPocketRadius + POCKET_VIS_R * 0.05;
+  const cornerInnerOuter = cornerInnerRadius + cornerChromeThickness;
+  const stripWidth = Math.max(cornerChromeThickness * 0.75, POCKET_VIS_R * 0.4);
+  const stripLong = Math.max(longRailW * 1.22, POCKET_VIS_R * 2.3);
+  const stripEnd = Math.max(endRailW * 1.22, POCKET_VIS_R * 2.3);
+
+  const addCornerChrome = (sx, sz) => {
+    const baseAngle =
+      sx > 0 && sz > 0
+        ? 0
+        : sx < 0 && sz > 0
+          ? Math.PI / 2
+          : sx < 0 && sz < 0
+            ? Math.PI
+            : (3 * Math.PI) / 2;
+
+    const outerCX = sx * (outerHalfW - outerCornerRadius);
+    const outerCZ = sz * (outerHalfH - outerCornerRadius);
+    makeArcBandChrome(outerCX, outerCZ, cornerOuterInner, cornerOuterOuter, baseAngle, baseAngle + Math.PI / 2);
+
+    const longStripGeo = new THREE.BoxGeometry(stripLong, chromePlateThickness, stripWidth);
+    const longStrip = new THREE.Mesh(longStripGeo, chromePlateMat);
+    longStrip.position.set(
+      sx * (outerHalfW - stripLong / 2),
+      chromeLift,
+      sz * (outerHalfH - stripWidth / 2)
+    );
+    longStrip.castShadow = false;
+    longStrip.receiveShadow = true;
+    longStrip.renderOrder = 12;
+    railsGroup.add(longStrip);
+
+    const endStripGeo = new THREE.BoxGeometry(stripWidth, chromePlateThickness, stripEnd);
+    const endStrip = new THREE.Mesh(endStripGeo, chromePlateMat);
+    endStrip.position.set(
+      sx * (outerHalfW - stripWidth / 2),
+      chromeLift,
+      sz * (outerHalfH - stripEnd / 2)
+    );
+    endStrip.castShadow = false;
+    endStrip.receiveShadow = true;
+    endStrip.renderOrder = 12;
+    railsGroup.add(endStrip);
+
+    const innerCX = sx * (innerHalfW - cornerInset);
+    const innerCZ = sz * (innerHalfH - cornerInset);
+    makeArcBandChrome(innerCX, innerCZ, cornerInnerRadius, cornerInnerOuter, baseAngle, baseAngle + Math.PI / 2);
   };
-  const cornerPlateOffsetX = outerHalfW - longRailW * 0.58;
-  const cornerPlateOffsetZ = outerHalfH - endRailW * 0.58;
+
   [
     [1, 1],
     [-1, 1],
     [-1, -1],
     [1, -1]
-  ].forEach(([sx, sz]) => {
-    addChromePlate(
-      cornerPlateSize.w,
-      cornerPlateSize.d,
-      sx * cornerPlateOffsetX,
-      sz * cornerPlateOffsetZ
-    );
-  });
-
-  const sidePlateSize = {
-    w: longRailW * 1.48,
-    d: longRailW * 0.56
-  };
-  const sidePlateOffsetX = outerHalfW - longRailW * 0.6;
-  [-1, 1].forEach((sx) => {
-    addChromePlate(sidePlateSize.w, sidePlateSize.d, sx * sidePlateOffsetX, 0);
-  });
+  ].forEach(([sx, sz]) => addCornerChrome(sx, sz));
 
   const rimMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x050505,
