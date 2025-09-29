@@ -60,11 +60,11 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
   color: 0xffffff,
   metalness: 1,
-  roughness: 0.015,
+  roughness: 0.008,
   clearcoat: 1,
-  clearcoatRoughness: 0.01,
+  clearcoatRoughness: 0.008,
   reflectivity: 1,
-  envMapIntensity: 3.2,
+  envMapIntensity: 3.6,
   side: THREE.DoubleSide
 });
 chromePlateMat.polygonOffset = true;
@@ -2424,6 +2424,77 @@ function Table3D(parent) {
     return area * 0.5;
   };
 
+  const sectorBandPoly = (
+    cx,
+    cz,
+    innerR,
+    outerR,
+    a0,
+    a1,
+    segments = 96
+  ) => {
+    const outer = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const angle = a0 + (a1 - a0) * t;
+      outer.push([cx + Math.cos(angle) * outerR, cz + Math.sin(angle) * outerR]);
+    }
+    if (outer.length && (outer[0][0] !== outer[outer.length - 1][0] || outer[0][1] !== outer[outer.length - 1][1])) {
+      outer.push([...outer[0]]);
+    }
+    const inner = [];
+    for (let i = segments; i >= 0; i--) {
+      const t = i / segments;
+      const angle = a0 + (a1 - a0) * t;
+      inner.push([cx + Math.cos(angle) * innerR, cz + Math.sin(angle) * innerR]);
+    }
+    if (inner.length && (inner[0][0] !== inner[inner.length - 1][0] || inner[0][1] !== inner[inner.length - 1][1])) {
+      inner.push([...inner[0]]);
+    }
+    return [[outer, inner]];
+  };
+
+  const multiPolyToShapes = (mp) => {
+    if (!mp) return [];
+    const shapes = [];
+    mp.forEach((poly) => {
+      if (!poly?.length) return;
+      const outerRing = poly[0];
+      if (!outerRing?.length) return;
+      const outerPts = outerRing[0][0] === outerRing[outerRing.length - 1][0] &&
+        outerRing[0][1] === outerRing[outerRing.length - 1][1]
+          ? outerRing.slice(0, -1)
+          : outerRing.slice();
+      if (ringArea(outerRing) < 0) outerPts.reverse();
+      if (!outerPts.length) return;
+      const shape = new THREE.Shape();
+      shape.moveTo(outerPts[0][0], outerPts[0][1]);
+      for (let i = 1; i < outerPts.length; i++) {
+        shape.lineTo(outerPts[i][0], outerPts[i][1]);
+      }
+      shape.closePath();
+      for (let i = 1; i < poly.length; i++) {
+        const holeRing = poly[i];
+        if (!holeRing?.length) continue;
+        const holePts = holeRing[0][0] === holeRing[holeRing.length - 1][0] &&
+          holeRing[0][1] === holeRing[holeRing.length - 1][1]
+            ? holeRing.slice(0, -1)
+            : holeRing.slice();
+        if (ringArea(holeRing) > 0) holePts.reverse();
+        if (!holePts.length) continue;
+        const holePath = new THREE.Path();
+        holePath.moveTo(holePts[0][0], holePts[0][1]);
+        for (let j = 1; j < holePts.length; j++) {
+          holePath.lineTo(holePts[j][0], holePts[j][1]);
+        }
+        holePath.closePath();
+        shape.holes.push(holePath);
+      }
+      shapes.push(shape);
+    });
+    return shapes;
+  };
+
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
@@ -2596,6 +2667,25 @@ function Table3D(parent) {
   const stripLong = Math.max(longRailW * 1.22, POCKET_VIS_R * 2.3);
   const stripEnd = Math.max(endRailW * 1.22, POCKET_VIS_R * 2.3);
 
+  const cornerChromeCutMP = (sx, sz) => {
+    const chromePocketRadius = cornerInnerRadius + POCKET_VIS_R * 0.18;
+    const chromeChamfer = cornerChamfer + POCKET_VIS_R * 0.22;
+    const cx = sx * (innerHalfW - cornerInset + POCKET_VIS_R * 0.06);
+    const cz = sz * (innerHalfH - cornerInset + POCKET_VIS_R * 0.06);
+    const notchCircle = circlePoly(cx, cz, chromePocketRadius);
+    const x1 = cx;
+    const x2 = cx + sx * chromeChamfer;
+    const z1 = cz - sz * chromeChamfer;
+    const z2 = cz + sz * chromeChamfer;
+    const boxX = boxPoly(Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2));
+    const x3 = cx - sx * chromeChamfer;
+    const x4 = cx + sx * chromeChamfer;
+    const z3 = cz;
+    const z4 = cz + sz * chromeChamfer;
+    const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
+    return polygonClipping.union(notchCircle, boxX, boxZ);
+  };
+
   const addCornerChrome = (sx, sz) => {
     const baseAngle =
       sx > 0 && sz > 0
@@ -2608,35 +2698,39 @@ function Table3D(parent) {
 
     const outerCX = sx * (outerHalfW - outerCornerRadius);
     const outerCZ = sz * (outerHalfH - outerCornerRadius);
-    makeArcBandChrome(outerCX, outerCZ, cornerOuterInner, cornerOuterOuter, baseAngle, baseAngle + Math.PI / 2);
 
-    const longStripGeo = new THREE.BoxGeometry(stripLong, chromePlateThickness, stripWidth);
-    const longStrip = new THREE.Mesh(longStripGeo, chromePlateMat);
-    longStrip.position.set(
-      sx * (outerHalfW - stripLong / 2),
-      chromeLift,
-      sz * (outerHalfH - stripWidth / 2)
+    const longMinX = Math.min(sx * (outerHalfW - stripLong), sx * outerHalfW);
+    const longMaxX = Math.max(sx * (outerHalfW - stripLong), sx * outerHalfW);
+    const longMinZ = Math.min(sz * (outerHalfH - stripWidth), sz * outerHalfH);
+    const longMaxZ = Math.max(sz * (outerHalfH - stripWidth), sz * outerHalfH);
+    const endMinX = Math.min(sx * (outerHalfW - stripWidth), sx * outerHalfW);
+    const endMaxX = Math.max(sx * (outerHalfW - stripWidth), sx * outerHalfW);
+    const endMinZ = Math.min(sz * (outerHalfH - stripEnd), sz * outerHalfH);
+    const endMaxZ = Math.max(sz * (outerHalfH - stripEnd), sz * outerHalfH);
+
+    const outerBandMP = sectorBandPoly(
+      outerCX,
+      outerCZ,
+      cornerOuterInner,
+      cornerOuterOuter,
+      baseAngle,
+      baseAngle + Math.PI / 2,
+      chromeCurveSegments
     );
-    longStrip.castShadow = false;
-    longStrip.receiveShadow = true;
-    longStrip.renderOrder = 12;
-    railsGroup.add(longStrip);
+    const longStripMP = boxPoly(longMinX, longMinZ, longMaxX, longMaxZ);
+    const endStripMP = boxPoly(endMinX, endMinZ, endMaxX, endMaxZ);
 
-    const endStripGeo = new THREE.BoxGeometry(stripWidth, chromePlateThickness, stripEnd);
-    const endStrip = new THREE.Mesh(endStripGeo, chromePlateMat);
-    endStrip.position.set(
-      sx * (outerHalfW - stripWidth / 2),
-      chromeLift,
-      sz * (outerHalfH - stripEnd / 2)
-    );
-    endStrip.castShadow = false;
-    endStrip.receiveShadow = true;
-    endStrip.renderOrder = 12;
-    railsGroup.add(endStrip);
-
-    const innerCX = sx * (innerHalfW - cornerInset);
-    const innerCZ = sz * (innerHalfH - cornerInset);
-    makeArcBandChrome(innerCX, innerCZ, cornerInnerRadius, cornerInnerOuter, baseAngle, baseAngle + Math.PI / 2);
+    const outerMP = polygonClipping.union(outerBandMP, longStripMP, endStripMP);
+    const innerMP = cornerChromeCutMP(sx, sz);
+    const finalMP = polygonClipping.difference(outerMP, innerMP);
+    const chromeShapes = multiPolyToShapes(finalMP);
+    chromeShapes.forEach((shape) => {
+      const plate = createChromePlateFromShape(shape);
+      plate.castShadow = false;
+      plate.receiveShadow = true;
+      plate.renderOrder = 12;
+      railsGroup.add(plate);
+    });
   };
 
   [
