@@ -55,14 +55,18 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.55
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf7f8fd,
-  roughness: 0.06,
+  color: 0xf4f6fb,
+  roughness: 0.045,
   metalness: 1,
   clearcoat: 0.95,
-  clearcoatRoughness: 0.08,
+  clearcoatRoughness: 0.06,
   reflectivity: 1,
-  envMapIntensity: 2.8
+  envMapIntensity: 3.4,
+  side: THREE.DoubleSide
 });
+chromePlateMat.polygonOffset = true;
+chromePlateMat.polygonOffsetFactor = -0.75;
+chromePlateMat.polygonOffsetUnits = -2;
 
 function makeCornerChromePlateGeometry({
   innerRadius,
@@ -378,7 +382,7 @@ function addPocketJaws(parent, playW, playH) {
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeLift = capHeight * 0.52 + MICRO_EPS * 4;
+  const chromeLift = capLift + capHeight * 0.85 + chromePlateThickness * 0.1 + MICRO_EPS * 8;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
