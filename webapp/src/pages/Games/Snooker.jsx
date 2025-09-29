@@ -262,8 +262,8 @@ function addPocketJaws(parent, playW, playH) {
     capHeight
   );
   const cornerRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.18,
-    JAW_T * 0.94,
+    POCKET_VIS_R * 1.26,
+    JAW_T * 1.02,
     SECTOR_START,
     SECTOR_END,
     rimDeckHeight
@@ -277,8 +277,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
   const cornerRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.24,
-    JAW_T * 1.04,
+    POCKET_VIS_R * 1.34,
+    JAW_T * 1.14,
     SECTOR_START,
     SECTOR_END,
     rimLipHeight
@@ -292,11 +292,11 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimTopGeo.computeBoundingSphere();
   cornerRimTopGeo.computeVertexNormals();
   const sideRimBaseGeo = makeJawSector(
-    POCKET_VIS_R * 0.96,
-    JAW_T * 0.4,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP,
-    rimDeckHeight * 0.92
+    POCKET_VIS_R * 0.92,
+    JAW_T * 0.36,
+    -SIDE_SECTOR_SWEEP * 0.9,
+    SIDE_SECTOR_SWEEP * 0.9,
+    rimDeckHeight * 0.9
   );
   sideRimBaseGeo.computeBoundingBox();
   const sideRimBox = sideRimBaseGeo.boundingBox;
@@ -307,11 +307,11 @@ function addPocketJaws(parent, playW, playH) {
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
   const sideRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 0.98,
-    JAW_T * 0.46,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP,
-    rimLipHeight * 0.9
+    POCKET_VIS_R * 0.94,
+    JAW_T * 0.42,
+    -SIDE_SECTOR_SWEEP * 0.92,
+    SIDE_SECTOR_SWEEP * 0.92,
+    rimLipHeight * 0.86
   );
   sideRimTopGeo.computeBoundingBox();
   const sideRimTopBox = sideRimTopGeo.boundingBox;
@@ -322,8 +322,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.26,
-    JAW_T * 0.66,
+    POCKET_VIS_R * 1.36,
+    JAW_T * 0.74,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -337,11 +337,11 @@ function addPocketJaws(parent, playW, playH) {
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 0.88,
-    JAW_T * 0.18,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP,
-    surfaceRimThickness * 0.82
+    POCKET_VIS_R * 0.82,
+    JAW_T * 0.16,
+    -SIDE_SECTOR_SWEEP * 0.85,
+    SIDE_SECTOR_SWEEP * 0.85,
+    surfaceRimThickness * 0.8
   );
   sideSurfaceRimGeo.computeBoundingBox();
   const sideSurfaceRimBox = sideSurfaceRimGeo.boundingBox;
@@ -360,13 +360,13 @@ function addPocketJaws(parent, playW, playH) {
     endAngle: Math.PI / 2
   });
   const sideSkirtGeo = makePocketSkirtGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.26,
-    outerRadius: sidePocketRadius + surfaceRimThickness * 0.8,
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.22,
+    outerRadius: sidePocketRadius + surfaceRimThickness * 0.72,
     height: rimSkirtHeight,
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
-  const chromePlateThickness = capHeight * 1.6;
+  const chromePlateThickness = capHeight * 1.8;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 1.56,
     extensionX: longRailW * 1.26 + cornerChamfer * 0.6,
@@ -384,7 +384,7 @@ function addPocketJaws(parent, playW, playH) {
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
-  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.6 + MICRO_EPS * 24;
+  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.85 + MICRO_EPS * 24;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
@@ -442,8 +442,8 @@ function addPocketJaws(parent, playW, playH) {
       const width = adjustedBox
         ? adjustedBox.max.x - adjustedBox.min.x
         : POCKET_VIS_R * 1.2;
-      const segmentScale = 0.58;
-      const offset = width * 0.22;
+      const segmentScale = 0.54;
+      const offset = width * 0.2;
       for (const dir of [-1, 1]) {
         const segmentGeom = geom.clone();
         segmentGeom.scale(segmentScale, 1, 1);
