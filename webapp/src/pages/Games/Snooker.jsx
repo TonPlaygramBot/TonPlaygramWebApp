@@ -2641,22 +2641,34 @@ function Table3D(parent) {
   const midPocketRadius = Math.max(sidePocketRadius, POCKET_VIS_R * 0.6);
   const midChromeRadius = midPocketRadius + POCKET_VIS_R * 0.05;
   const midPlateSpan = Math.min(innerHalfH * 0.9, midChromeRadius * 2.2);
+  const midPlateDepth = chromeRailSpan * 1.05;
+  const midInset = sideInset + POCKET_VIS_R * 0.1;
 
   const addMidChromePlate = (signX) => {
-    const centerX = signX * (PLAY_W / 2);
     const halfSpan = Math.min(midPlateSpan / 2, midChromeRadius * 0.98);
-    const outerX = signX * (innerHalfW + (outerHalfW - innerHalfW) * 0.92);
-    const radius = midChromeRadius;
-    const delta = Math.sqrt(Math.max(0, radius * radius - halfSpan * halfSpan));
+    const centerX = signX * (PLAY_W / 2 - midInset);
+    const outerX = signX * (innerHalfW + midPlateDepth);
+    const innerRailX = signX * (innerHalfW + POCKET_VIS_R * 0.02);
+    const delta = Math.sqrt(Math.max(0, midChromeRadius * midChromeRadius - halfSpan * halfSpan));
     const innerX = centerX - signX * delta;
     const shape = new THREE.Shape();
-    shape.moveTo(outerX, -halfSpan);
-    shape.lineTo(outerX, halfSpan);
-    shape.lineTo(innerX, halfSpan);
-    const startAngle = Math.atan2(halfSpan, innerX - centerX);
-    const endAngle = Math.atan2(-halfSpan, innerX - centerX);
-    shape.absarc(centerX, 0, radius, startAngle, endAngle, true);
-    shape.lineTo(innerX, -halfSpan);
+    if (signX > 0) {
+      shape.moveTo(outerX, -halfSpan);
+      shape.lineTo(outerX, halfSpan);
+      shape.lineTo(innerRailX, halfSpan);
+      const startAngle = Math.atan2(halfSpan, innerX - centerX);
+      const endAngle = Math.atan2(-halfSpan, innerX - centerX);
+      shape.absarc(centerX, 0, midChromeRadius, startAngle, endAngle, true);
+      shape.lineTo(innerRailX, -halfSpan);
+    } else {
+      shape.moveTo(outerX, halfSpan);
+      shape.lineTo(outerX, -halfSpan);
+      shape.lineTo(innerRailX, -halfSpan);
+      const startAngle = Math.atan2(-halfSpan, innerX - centerX);
+      const endAngle = Math.atan2(halfSpan, innerX - centerX);
+      shape.absarc(centerX, 0, midChromeRadius, startAngle, endAngle, true);
+      shape.lineTo(innerRailX, halfSpan);
+    }
     shape.closePath();
     const plate = createChromePlateFromShape(shape);
     railsGroup.add(plate);
@@ -2665,36 +2677,15 @@ function Table3D(parent) {
   addMidChromePlate(1);
   addMidChromePlate(-1);
 
-  const cornerChromeThickness = Math.max(POCKET_VIS_R * 0.22, chromeRailSpan * 0.42);
   const cornerOuterInner = Math.max(
-    outerCornerRadius - chromeRailSpan * 0.58,
-    cornerChromeThickness * 0.72
+    outerCornerRadius - chromeRailSpan * 0.52,
+    POCKET_VIS_R * 0.8
   );
-  const cornerOuterOuter = outerCornerRadius + chromeRailSpan * 0.42;
-  const cornerInnerRadius = cornerPocketRadius + POCKET_VIS_R * 0.12;
-  const cornerInnerOuter = cornerInnerRadius + cornerChromeThickness;
-  const stripWidth = Math.max(cornerChromeThickness * 0.9, POCKET_VIS_R * 0.52);
-  const stripLong = Math.max(longRailW * 1.32, POCKET_VIS_R * 2.85);
-  const stripEnd = Math.max(endRailW * 1.32, POCKET_VIS_R * 2.85);
-
-  const cornerChromeCutMP = (sx, sz) => {
-    const chromePocketRadius = cornerInnerRadius + POCKET_VIS_R * 0.34;
-    const chromeChamfer = cornerChamfer + POCKET_VIS_R * 0.38;
-    const cx = sx * (innerHalfW - cornerInset + POCKET_VIS_R * 0.08);
-    const cz = sz * (innerHalfH - cornerInset + POCKET_VIS_R * 0.08);
-    const notchCircle = circlePoly(cx, cz, chromePocketRadius);
-    const x1 = cx;
-    const x2 = cx + sx * chromeChamfer;
-    const z1 = cz - sz * chromeChamfer;
-    const z2 = cz + sz * chromeChamfer;
-    const boxX = boxPoly(Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2));
-    const x3 = cx - sx * chromeChamfer;
-    const x4 = cx + sx * chromeChamfer;
-    const z3 = cz;
-    const z4 = cz + sz * chromeChamfer;
-    const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    return polygonClipping.union(notchCircle, boxX, boxZ);
-  };
+  const cornerOuterOuter = outerCornerRadius + chromeRailSpan * 0.32;
+  const cornerInnerRadius = cornerPocketRadius + POCKET_VIS_R * 0.3;
+  const cornerBandWidth = Math.max(POCKET_VIS_R * 0.42, chromeRailSpan * 0.55);
+  const cornerStripLength = chromeRailSpan * 1.25;
+  const cornerStripWidth = Math.min(chromeRailSpan * 0.65, POCKET_VIS_R * 0.9);
 
   const addCornerChrome = (sx, sz) => {
     const baseAngle =
@@ -2708,39 +2699,57 @@ function Table3D(parent) {
 
     const outerCX = sx * (outerHalfW - outerCornerRadius);
     const outerCZ = sz * (outerHalfH - outerCornerRadius);
-
-    const longMinX = Math.min(sx * (outerHalfW - stripLong), sx * outerHalfW);
-    const longMaxX = Math.max(sx * (outerHalfW - stripLong), sx * outerHalfW);
-    const longMinZ = Math.min(sz * (outerHalfH - stripWidth), sz * outerHalfH);
-    const longMaxZ = Math.max(sz * (outerHalfH - stripWidth), sz * outerHalfH);
-    const endMinX = Math.min(sx * (outerHalfW - stripWidth), sx * outerHalfW);
-    const endMaxX = Math.max(sx * (outerHalfW - stripWidth), sx * outerHalfW);
-    const endMinZ = Math.min(sz * (outerHalfH - stripEnd), sz * outerHalfH);
-    const endMaxZ = Math.max(sz * (outerHalfH - stripEnd), sz * outerHalfH);
-
-    const outerBandMP = sectorBandPoly(
+    makeArcBandChrome(
       outerCX,
       outerCZ,
       cornerOuterInner,
       cornerOuterOuter,
       baseAngle,
-      baseAngle + Math.PI / 2,
-      chromeCurveSegments
+      baseAngle + Math.PI / 2
     );
-    const longStripMP = boxPoly(longMinX, longMinZ, longMaxX, longMaxZ);
-    const endStripMP = boxPoly(endMinX, endMinZ, endMaxX, endMaxZ);
 
-    const outerMP = polygonClipping.union(outerBandMP, longStripMP, endStripMP);
-    const innerMP = cornerChromeCutMP(sx, sz);
-    const finalMP = polygonClipping.difference(outerMP, innerMP);
-    const chromeShapes = multiPolyToShapes(finalMP);
-    chromeShapes.forEach((shape) => {
-      const plate = createChromePlateFromShape(shape);
-      plate.castShadow = false;
-      plate.receiveShadow = true;
-      plate.renderOrder = 12;
-      railsGroup.add(plate);
-    });
+    const longStripGeo = new THREE.BoxGeometry(
+      cornerStripLength,
+      chromePlateThickness,
+      cornerStripWidth
+    );
+    const longStrip = new THREE.Mesh(longStripGeo, chromePlateMat);
+    longStrip.position.set(
+      sx * (outerHalfW - cornerStripLength / 2),
+      chromeLift,
+      sz * (outerHalfH - cornerStripWidth / 2)
+    );
+    longStrip.castShadow = false;
+    longStrip.receiveShadow = true;
+    longStrip.renderOrder = 12;
+    railsGroup.add(longStrip);
+
+    const endStripGeo = new THREE.BoxGeometry(
+      cornerStripWidth,
+      chromePlateThickness,
+      cornerStripLength
+    );
+    const endStrip = new THREE.Mesh(endStripGeo, chromePlateMat);
+    endStrip.position.set(
+      sx * (outerHalfW - cornerStripWidth / 2),
+      chromeLift,
+      sz * (outerHalfH - cornerStripLength / 2)
+    );
+    endStrip.castShadow = false;
+    endStrip.receiveShadow = true;
+    endStrip.renderOrder = 12;
+    railsGroup.add(endStrip);
+
+    const pocketCX = sx * (innerHalfW - cornerInset + POCKET_VIS_R * 0.08);
+    const pocketCZ = sz * (innerHalfH - cornerInset + POCKET_VIS_R * 0.08);
+    makeArcBandChrome(
+      pocketCX,
+      pocketCZ,
+      cornerInnerRadius,
+      cornerInnerRadius + cornerBandWidth,
+      baseAngle,
+      baseAngle + Math.PI / 2
+    );
   };
 
   [
