@@ -734,6 +734,7 @@ const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
+const SKIRT_SIDE_EXTENSION = TABLE.THICK * 0.05; // extend the side aprons slightly so they sit flush with the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
@@ -2143,7 +2144,7 @@ function Table3D(parent) {
   const cushionMat = clothMat.clone();
   const woodColor = new THREE.Color(COLORS.base).lerp(
     new THREE.Color(0xffffff),
-    0.2
+    0.16
   );
   const woodMat = new THREE.MeshPhysicalMaterial({
     color: woodColor,
@@ -2159,7 +2160,7 @@ function Table3D(parent) {
   woodMat.needsUpdate = true;
   const railWoodColor = new THREE.Color(COLORS.rail).lerp(
     new THREE.Color(0xffffff),
-    0.18
+    0.15
   );
   const railWoodMat = new THREE.MeshPhysicalMaterial({
     color: railWoodColor,
@@ -2181,9 +2182,12 @@ function Table3D(parent) {
   const clothExtend =
     clothExtendBase +
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
+  const baseHalfWext = halfW + clothExtend;
+  const baseHalfHext = halfH + clothExtend;
+  const CLOTH_BORDER_SCALE = 1.05; // expand the cloth footprint by 5% without moving pockets or rails
+  const halfWext = baseHalfWext * CLOTH_BORDER_SCALE;
+  const halfHext = baseHalfHext * CLOTH_BORDER_SCALE;
   const clothShape = new THREE.Shape();
-  const halfWext = halfW + clothExtend;
-  const halfHext = halfH + clothExtend;
   clothShape.moveTo(-halfWext, -halfHext);
   clothShape.lineTo(halfWext, -halfHext);
   clothShape.lineTo(halfWext, halfHext);
@@ -2307,8 +2311,8 @@ function Table3D(parent) {
     Math.min(outerHalfW, outerHalfH) * 0.2
   );
 
-  const innerHalfW = halfWext;
-  const innerHalfH = halfHext;
+  const innerHalfW = baseHalfWext;
+  const innerHalfH = baseHalfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.42;
   const cornerInset = POCKET_VIS_R * 0.5;
@@ -2539,7 +2543,7 @@ function Table3D(parent) {
   const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.1; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.06; // nudge long rail cushions toward the middle pockets
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.07; // nudge long rail cushions slightly further toward the middle pockets
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
@@ -2589,7 +2593,7 @@ function Table3D(parent) {
   const baseRailWidth = endRailW;
   const baseOverhang = baseRailWidth * SKIRT_SIDE_OVERHANG;
   const skirtShape = new THREE.Shape();
-  const outW = frameOuterX + baseOverhang;
+  const outW = frameOuterX + baseOverhang + SKIRT_SIDE_EXTENSION;
   const outZ = frameOuterZ + baseOverhang;
   const skirtOuterRadius = Math.min(
     outerCornerRadius + baseOverhang * 0.4,
