@@ -2540,6 +2540,7 @@ function Table3D(parent) {
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.9; // trim the straight rails so the long cushions end a bit sooner near the corners
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
   const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.12; // push long rail cushions a touch closer to the middle pockets
+  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.22; // shave a little length off the side cushions near the corner pockets
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
@@ -2553,32 +2554,37 @@ function Table3D(parent) {
   addCushion(0, topZ, horizLen, true, true);
   const sideCushionOffset =
     POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
+  const trimmedVertSeg = Math.max(
+    vertSeg - SIDE_CUSHION_CORNER_TRIM,
+    vertSeg * 0.6
+  );
+  const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
   addCushion(
     leftX,
-    -halfH + sideCushionOffset + vertSeg / 2,
-    vertSeg,
+    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift,
+    trimmedVertSeg,
     false,
     false
   );
   addCushion(
     leftX,
-    halfH - sideCushionOffset - vertSeg / 2,
-    vertSeg,
+    halfH - sideCushionOffset - vertSeg / 2 - cornerShift,
+    trimmedVertSeg,
     false,
     false
   );
   addCushion(
     rightX,
-    -halfH + sideCushionOffset + vertSeg / 2,
-    vertSeg,
+    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift,
+    trimmedVertSeg,
     false,
     true
   );
   addCushion(
     rightX,
-    halfH - sideCushionOffset - vertSeg / 2,
-    vertSeg,
+    halfH - sideCushionOffset - vertSeg / 2 - cornerShift,
+    trimmedVertSeg,
     false,
     true
   );
