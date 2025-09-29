@@ -2311,7 +2311,7 @@ function Table3D(parent) {
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.42;
-  const cornerInset = POCKET_VIS_R * 0.5;
+  const cornerInset = POCKET_VIS_R * 0.56;
   const sidePocketRadius = POCKET_VIS_R * 0.92;
   const sideInset = POCKET_VIS_R * 0.42;
 
