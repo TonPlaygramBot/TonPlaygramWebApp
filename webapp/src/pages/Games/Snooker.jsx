@@ -57,6 +57,14 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   sheenRoughness: 0.58,
   envMapIntensity: 0.8
 });
+const pocketRimMat = new THREE.MeshPhysicalMaterial({
+  color: 0x050505,
+  roughness: 0.28,
+  metalness: 0.24,
+  clearcoat: 0.42,
+  clearcoatRoughness: 0.18,
+  envMapIntensity: 0.88
+});
 function makePocketSkirtGeometry({
   innerRadius,
   outerRadius,
@@ -333,6 +341,15 @@ function addPocketJaws(parent, playW, playH) {
         segment.position.x = offset * dir;
         jaw.add(segment);
 
+        const surfaceRimGeo = sideSurfaceRimGeo.clone();
+        surfaceRimGeo.scale(segmentScale, 1, 1);
+        surfaceRimGeo.computeVertexNormals();
+        const surfaceRim = new THREE.Mesh(surfaceRimGeo, pocketRimMat);
+        surfaceRim.castShadow = false;
+        surfaceRim.receiveShadow = true;
+        surfaceRim.position.set(segment.position.x, rimSurfaceLift, 0);
+        jaw.add(surfaceRim);
+
         const segCapGeo = (entry.type === 'side' ? sideCapGeo : cornerCapGeo)
           .clone()
           .scale(segmentScale, 1, 1);
@@ -359,6 +376,14 @@ function addPocketJaws(parent, playW, playH) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       jaw.add(mesh);
+      const rimSurface = new THREE.Mesh(
+        cornerSurfaceRimGeo.clone(),
+        pocketRimMat
+      );
+      rimSurface.castShadow = false;
+      rimSurface.receiveShadow = true;
+      rimSurface.position.y = rimSurfaceLift;
+      mesh.add(rimSurface);
       const capGeo = cornerCapGeo.clone();
       capGeo.computeBoundingBox();
       capGeo.computeBoundingSphere();
@@ -683,7 +708,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.2; // trim strike strength by 20% to soften shots
+const SHOT_FORCE_BOOST = 1.8; // boost strike strength by 50%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -743,7 +768,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0x94602f;
+const WOOD_TONE = 0xb88752;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
@@ -2116,58 +2141,38 @@ function Table3D(parent) {
   };
 
   const cushionMat = clothMat.clone();
-  const { map: woodMap, roughness: woodRoughness } = createWoodTexture();
   const woodColor = new THREE.Color(COLORS.base).lerp(
     new THREE.Color(0xffffff),
-    0.06
+    0.2
   );
   const woodMat = new THREE.MeshPhysicalMaterial({
     color: woodColor,
-    metalness: 0.24,
-    roughness: 0.42,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
-    sheen: 0.1,
-    sheenRoughness: 0.58,
-    reflectivity: 0.38,
-    envMapIntensity: 0.78
+    metalness: 0.18,
+    roughness: 0.32,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.18,
+    sheen: 0.08,
+    sheenRoughness: 0.48,
+    reflectivity: 0.42,
+    envMapIntensity: 0.7
   });
-  if (woodMap) {
-    woodMat.map = woodMap;
-    woodMat.map.repeat.set(2.0, 1.3);
-    woodMat.map.needsUpdate = true;
-  }
-  if (woodRoughness) {
-    woodMat.roughnessMap = woodRoughness;
-    woodMat.roughnessMap.repeat.set(2.0, 1.3);
-    woodMat.roughnessMap.needsUpdate = true;
-  }
   woodMat.needsUpdate = true;
   const railWoodColor = new THREE.Color(COLORS.rail).lerp(
     new THREE.Color(0xffffff),
-    0.05
+    0.18
   );
   const railWoodMat = new THREE.MeshPhysicalMaterial({
     color: railWoodColor,
-    metalness: 0.28,
-    roughness: 0.46,
+    metalness: 0.2,
+    roughness: 0.34,
     clearcoat: 0.3,
-    clearcoatRoughness: 0.22,
-    sheen: 0.12,
-    sheenRoughness: 0.62,
-    reflectivity: 0.4,
-    envMapIntensity: 0.82
+    clearcoatRoughness: 0.2,
+    sheen: 0.1,
+    sheenRoughness: 0.5,
+    reflectivity: 0.45,
+    envMapIntensity: 0.74
   });
-  if (woodMap) {
-    railWoodMat.map = woodMap;
-    railWoodMat.map.repeat.set(2.0, 1.3);
-    railWoodMat.map.needsUpdate = true;
-  }
-  if (woodRoughness) {
-    railWoodMat.roughnessMap = woodRoughness;
-    railWoodMat.roughnessMap.repeat.set(2.0, 1.3);
-    railWoodMat.roughnessMap.needsUpdate = true;
-  }
+  railWoodMat.needsUpdate = true;
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.34,
