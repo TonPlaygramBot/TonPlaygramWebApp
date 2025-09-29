@@ -261,8 +261,8 @@ function addPocketJaws(parent, playW, playH) {
     capHeight
   );
   const cornerRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.12,
-    JAW_T * 0.82,
+    POCKET_VIS_R * 1.18,
+    JAW_T * 0.94,
     SECTOR_START,
     SECTOR_END,
     rimDeckHeight
@@ -276,8 +276,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
   const cornerRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.16,
-    JAW_T * 0.92,
+    POCKET_VIS_R * 1.24,
+    JAW_T * 1.04,
     SECTOR_START,
     SECTOR_END,
     rimLipHeight
@@ -291,8 +291,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimTopGeo.computeBoundingSphere();
   cornerRimTopGeo.computeVertexNormals();
   const sideRimBaseGeo = makeJawSector(
-    POCKET_VIS_R * 1.02,
-    JAW_T * 0.48,
+    POCKET_VIS_R * 0.96,
+    JAW_T * 0.4,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     rimDeckHeight * 0.92
@@ -306,8 +306,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
   const sideRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.04,
-    JAW_T * 0.54,
+    POCKET_VIS_R * 0.98,
+    JAW_T * 0.46,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     rimLipHeight * 0.9
@@ -321,8 +321,8 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.18,
-    JAW_T * 0.58,
+    POCKET_VIS_R * 1.26,
+    JAW_T * 0.66,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -336,8 +336,8 @@ function addPocketJaws(parent, playW, playH) {
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 0.95,
-    JAW_T * 0.22,
+    POCKET_VIS_R * 0.88,
+    JAW_T * 0.18,
     -SIDE_SECTOR_SWEEP,
     SIDE_SECTOR_SWEEP,
     surfaceRimThickness * 0.82
@@ -367,23 +367,23 @@ function addPocketJaws(parent, playW, playH) {
   });
   const chromePlateThickness = capHeight * 1.6;
   const cornerChromeGeo = makeCornerChromePlateGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.42,
-    extensionX: longRailW * 1.18 + cornerChamfer * 0.55,
-    extensionZ: endRailW * 1.12 + cornerChamfer * 0.55,
-    outerFillet: Math.min(longRailW, endRailW) * 0.64,
+    innerRadius: cornerPocketRadius + surfaceRimThickness * 1.56,
+    extensionX: longRailW * 1.26 + cornerChamfer * 0.6,
+    extensionZ: endRailW * 1.18 + cornerChamfer * 0.6,
+    outerFillet: Math.min(longRailW, endRailW) * 0.7,
     thickness: chromePlateThickness
   });
   const sideChromeGeo = makeSideChromePlateGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.9,
-    halfSpan: POCKET_VIS_R * 1.64,
-    extension: longRailW * 0.98,
-    endFillet: longRailW * 0.42,
+    innerRadius: sidePocketRadius + surfaceRimThickness * 0.72,
+    halfSpan: POCKET_VIS_R * 1.72,
+    extension: longRailW * 1.08,
+    endFillet: longRailW * 0.5,
     thickness: chromePlateThickness
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
   // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
-  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.12 + MICRO_EPS * 12;
+  const chromeLift = rimSurfaceLift + chromePlateThickness * 0.32 + MICRO_EPS * 12;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
@@ -441,8 +441,8 @@ function addPocketJaws(parent, playW, playH) {
       const width = adjustedBox
         ? adjustedBox.max.x - adjustedBox.min.x
         : POCKET_VIS_R * 1.2;
-      const segmentScale = 0.62;
-      const offset = width * 0.24;
+      const segmentScale = 0.58;
+      const offset = width * 0.22;
       for (const dir of [-1, 1]) {
         const segmentGeom = geom.clone();
         segmentGeom.scale(segmentScale, 1, 1);
@@ -953,14 +953,14 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 // keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0x8b5a2b;
+const WOOD_TONE = 0x94602f;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
 const CLOTH_BUMP_INTENSITY = 0.48;
 
 const COLORS = Object.freeze({
-  cloth: 0x2c7d4f,
+  cloth: 0x308a57,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
   markings: 0xffffff,
@@ -1013,10 +1013,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x14, g: 0x52, b: 0x2d };
-    const base = { r: 0x24, g: 0x7a, b: 0x3b };
-    const accent = { r: 0x33, g: 0x93, b: 0x49 };
-    const highlight = { r: 0x52, g: 0xba, b: 0x6f };
+    const shadow = { r: 0x16, g: 0x58, b: 0x32 };
+    const base = { r: 0x27, g: 0x82, b: 0x40 };
+    const accent = { r: 0x37, g: 0x9d, b: 0x50 };
+    const highlight = { r: 0x58, g: 0xc4, b: 0x77 };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
