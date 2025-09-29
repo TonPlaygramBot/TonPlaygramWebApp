@@ -58,15 +58,21 @@ const plasticRimMat = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.8
 });
 const chromePlateMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
+  color: 0xfdfdfd,
   metalness: 1,
-  roughness: 0.008,
+  roughness: 0.002,
   clearcoat: 1,
-  clearcoatRoughness: 0.008,
+  clearcoatRoughness: 0.012,
   reflectivity: 1,
-  envMapIntensity: 3.6,
+  envMapIntensity: 4.6,
+  sheen: 0.12,
+  sheenColor: new THREE.Color(0xffffff),
+  sheenRoughness: 0.38,
   side: THREE.DoubleSide
 });
+chromePlateMat.ior = 2.45;
+chromePlateMat.specularIntensity = 1;
+chromePlateMat.specularColor = new THREE.Color(0xffffff);
 chromePlateMat.polygonOffset = true;
 chromePlateMat.polygonOffsetFactor = -0.75;
 chromePlateMat.polygonOffsetUnits = -2;
@@ -2593,16 +2599,20 @@ function Table3D(parent) {
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
 
-  const chromePlateThickness = TABLE.THICK * 0.04;
+  const chromePlateThickness = TABLE.THICK * 0.065;
+  const chromeBevel = chromePlateThickness * 0.22;
   const chromeLift = railsTopY + chromePlateThickness * 0.5 + MICRO_EPS * 6;
-  const chromeCurveSegments = 160;
+  const chromeCurveSegments = 192;
 
   const createChromePlateFromShape = (shape) => {
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: chromePlateThickness,
-      bevelEnabled: false,
+      bevelEnabled: true,
+      bevelSegments: 6,
+      bevelSize: chromeBevel,
+      bevelThickness: chromeBevel * 0.72,
       curveSegments: chromeCurveSegments,
-      steps: 1
+      steps: 2
     });
     geo.translate(0, 0, -chromePlateThickness / 2);
     geo.computeVertexNormals();
@@ -2655,23 +2665,23 @@ function Table3D(parent) {
   addMidChromePlate(1);
   addMidChromePlate(-1);
 
-  const cornerChromeThickness = Math.max(POCKET_VIS_R * 0.16, chromeRailSpan * 0.35);
+  const cornerChromeThickness = Math.max(POCKET_VIS_R * 0.22, chromeRailSpan * 0.42);
   const cornerOuterInner = Math.max(
-    outerCornerRadius - chromeRailSpan * 0.55,
-    cornerChromeThickness * 0.6
+    outerCornerRadius - chromeRailSpan * 0.58,
+    cornerChromeThickness * 0.72
   );
-  const cornerOuterOuter = outerCornerRadius + chromeRailSpan * 0.35;
-  const cornerInnerRadius = cornerPocketRadius + POCKET_VIS_R * 0.05;
+  const cornerOuterOuter = outerCornerRadius + chromeRailSpan * 0.42;
+  const cornerInnerRadius = cornerPocketRadius + POCKET_VIS_R * 0.12;
   const cornerInnerOuter = cornerInnerRadius + cornerChromeThickness;
-  const stripWidth = Math.max(cornerChromeThickness * 0.75, POCKET_VIS_R * 0.4);
-  const stripLong = Math.max(longRailW * 1.22, POCKET_VIS_R * 2.3);
-  const stripEnd = Math.max(endRailW * 1.22, POCKET_VIS_R * 2.3);
+  const stripWidth = Math.max(cornerChromeThickness * 0.9, POCKET_VIS_R * 0.52);
+  const stripLong = Math.max(longRailW * 1.32, POCKET_VIS_R * 2.85);
+  const stripEnd = Math.max(endRailW * 1.32, POCKET_VIS_R * 2.85);
 
   const cornerChromeCutMP = (sx, sz) => {
-    const chromePocketRadius = cornerInnerRadius + POCKET_VIS_R * 0.18;
-    const chromeChamfer = cornerChamfer + POCKET_VIS_R * 0.22;
-    const cx = sx * (innerHalfW - cornerInset + POCKET_VIS_R * 0.06);
-    const cz = sz * (innerHalfH - cornerInset + POCKET_VIS_R * 0.06);
+    const chromePocketRadius = cornerInnerRadius + POCKET_VIS_R * 0.34;
+    const chromeChamfer = cornerChamfer + POCKET_VIS_R * 0.38;
+    const cx = sx * (innerHalfW - cornerInset + POCKET_VIS_R * 0.08);
+    const cz = sz * (innerHalfH - cornerInset + POCKET_VIS_R * 0.08);
     const notchCircle = circlePoly(cx, cz, chromePocketRadius);
     const x1 = cx;
     const x2 = cx + sx * chromeChamfer;
