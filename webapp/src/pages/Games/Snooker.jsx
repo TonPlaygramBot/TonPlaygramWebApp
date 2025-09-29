@@ -382,7 +382,8 @@ function addPocketJaws(parent, playW, playH) {
   });
   const chromeGroup = new THREE.Group();
   parent.add(chromeGroup);
-  const chromeLift = capLift + capHeight * 0.85 + chromePlateThickness * 0.1 + MICRO_EPS * 8;
+  // Keep the chrome caps sitting on top of the rail surface so that all six plates remain visible.
+  const chromeLift = rimSurfaceLift + MICRO_EPS * 12;
   const chromeTopY = TABLE_RAIL_TOP_Y + chromeLift;
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
