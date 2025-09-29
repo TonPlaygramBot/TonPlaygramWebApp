@@ -28,6 +28,9 @@ const JAW_INNER_SCALE = 0.052;
 const JAW_CENTER_PULL_SCALE = 0.03;
 const SECTOR_SWEEP = Math.PI * 0.52;
 const SIDE_SECTOR_SWEEP = Math.PI * 0.32;
+const SIDE_JAW_SWEEP_SCALE = 0.86;
+const CORNER_JAW_RADIUS_SCALE = 0.94;
+const CORNER_JAW_THICKNESS_SCALE = 0.72;
 const SECTOR_START = -SECTOR_SWEEP;
 const SECTOR_END = SECTOR_SWEEP;
 const jawMat = new THREE.MeshPhysicalMaterial({
@@ -240,16 +243,20 @@ function addPocketJaws(parent, playW, playH) {
   const rimLipTopY = rimSurfaceLift + POCKET_RIM_LIFT;
   const rimBaseTopY = rimLipTopY - rimLipHeight;
   const rimSkirtTopY = rimBaseTopY - rimDeckHeight;
-  const cornerJawGeo = makeJawSector();
+  const sideJawSweep = SIDE_SECTOR_SWEEP * SIDE_JAW_SWEEP_SCALE;
+  const cornerJawGeo = makeJawSector(
+    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE,
+    JAW_T * CORNER_JAW_THICKNESS_SCALE
+  );
   const sideJawGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
     JAW_T * 0.72,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP
+    -sideJawSweep,
+    sideJawSweep
   );
   const cornerCapGeo = makeJawSector(
-    POCKET_VIS_R,
-    JAW_T,
+    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE,
+    JAW_T * 0.82,
     SECTOR_START,
     SECTOR_END,
     capHeight
@@ -257,8 +264,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideCapGeo = makeJawSector(
     POCKET_VIS_R,
     JAW_T * 0.82,
-    -SIDE_SECTOR_SWEEP,
-    SIDE_SECTOR_SWEEP,
+    -sideJawSweep,
+    sideJawSweep,
     capHeight
   );
   const cornerRimGeo = makeJawSector(
@@ -294,8 +301,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideRimBaseGeo = makeJawSector(
     POCKET_VIS_R * 0.92,
     JAW_T * 0.36,
-    -SIDE_SECTOR_SWEEP * 0.64,
-    SIDE_SECTOR_SWEEP * 0.64,
+    -sideJawSweep * 0.64,
+    sideJawSweep * 0.64,
     rimDeckHeight * 0.9
   );
   sideRimBaseGeo.computeBoundingBox();
@@ -309,8 +316,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideRimTopGeo = makeJawSector(
     POCKET_VIS_R * 0.94,
     JAW_T * 0.42,
-    -SIDE_SECTOR_SWEEP * 0.7,
-    SIDE_SECTOR_SWEEP * 0.7,
+    -sideJawSweep * 0.7,
+    sideJawSweep * 0.7,
     rimLipHeight * 0.86
   );
   sideRimTopGeo.computeBoundingBox();
@@ -339,8 +346,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideSurfaceRimGeo = makeJawSector(
     POCKET_VIS_R * 0.82,
     JAW_T * 0.16,
-    -SIDE_SECTOR_SWEEP * 0.62,
-    SIDE_SECTOR_SWEEP * 0.62,
+    -sideJawSweep * 0.62,
+    sideJawSweep * 0.62,
     surfaceRimThickness * 0.8
   );
   sideSurfaceRimGeo.computeBoundingBox();
@@ -2835,7 +2842,7 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.03; // extend side cushions until they meet the pocket arcs
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
