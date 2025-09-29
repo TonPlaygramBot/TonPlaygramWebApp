@@ -2509,7 +2509,7 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.02;
+  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.05;
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2536,10 +2536,10 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
-  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.06; // extend short rail cushions slightly toward the corner pockets
+  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.1; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.04; // nudge long rail cushions toward the middle pockets
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.06; // nudge long rail cushions toward the middle pockets
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
