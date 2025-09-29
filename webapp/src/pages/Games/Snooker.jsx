@@ -139,7 +139,8 @@ function addPocketJaws(parent, playW, playH) {
   const rimDeckHeight = capHeight * 0.72;
   const rimLipHeight = capHeight * 0.36;
   const surfaceRimThickness = capHeight * 0.18;
-  const rimSurfaceLift = capLift + capHeight;
+  const rimSurfaceLift =
+    CLOTH_TOP_LOCAL + CLOTH_LIFT - jawTopLocal + POCKET_RIM_SURFACE_OFFSET;
   const rimLipTopY = rimSurfaceLift + POCKET_RIM_LIFT;
   const rimBaseTopY = rimLipTopY - rimLipHeight;
   const rimSkirtTopY = rimBaseTopY - rimDeckHeight;
@@ -598,15 +599,16 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the pla
 const POCKET_JAW_LIP_HEIGHT =
   CLOTH_TOP_LOCAL +
   CLOTH_LIFT -
-  CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
+  CLOTH_THICKNESS * 0.32; // drop the pocket lips so they finish level with the surrounding cloth surface
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const POCKET_RIM_LIFT = 0; // keep pocket rims level with the surrounding cloth
+const POCKET_RIM_SURFACE_OFFSET = CLOTH_THICKNESS * 0.12; // raise rim meshes so the black rings sit on the cloth surface
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
-const POCKET_DROP_ANIMATION_MS = 420;
+const POCKET_DROP_ANIMATION_MS = 280;
 const POCKET_DROP_MIN_MS = Math.round(POCKET_DROP_ANIMATION_MS * 0.57);
 const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
@@ -733,7 +735,7 @@ const LEG_ROOM_HEIGHT =
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.08; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
@@ -762,6 +764,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
+const CUSHION_CENTER_PULL = POCKET_VIS_R * 0.06; // nudge cushions away from the rail edges to stop overlap
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -2522,9 +2525,11 @@ function Table3D(parent) {
 
     const EDGE_BIAS = MICRO_EPS;
     if (horizontal) {
-      group.position.z = z > 0 ? halfH + EDGE_BIAS : -halfH - EDGE_BIAS;
+      const dir = z >= 0 ? 1 : -1;
+      group.position.z = dir * (halfH - CUSHION_CENTER_PULL) + EDGE_BIAS * dir;
     } else {
-      group.position.x = x > 0 ? halfW + EDGE_BIAS : -halfW - EDGE_BIAS;
+      const dir = x >= 0 ? 1 : -1;
+      group.position.x = dir * (halfW - CUSHION_CENTER_PULL) + EDGE_BIAS * dir;
     }
 
     group.userData = group.userData || {};
@@ -2534,9 +2539,9 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.75; // trim the straight rails to line up with the start of the chrome arc
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
+  const POCKET_GAP = POCKET_VIS_R * 0.86; // shorten cushions so they finish where the frame arcs begin
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.6; // trim the straight rails to line up with the start of the chrome arc
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.02; // extend side cushions so they meet the pocket jaws cleanly
   const horizLen = PLAY_W - 2 * POCKET_GAP - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
