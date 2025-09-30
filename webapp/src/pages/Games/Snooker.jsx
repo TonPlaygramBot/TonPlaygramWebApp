@@ -1302,8 +1302,9 @@ const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.26;
+// Bring the standing/broadcast framing closer to the cloth so the table feels less distant
+const BROADCAST_DISTANCE_MULTIPLIER = 0.95;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.18;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
