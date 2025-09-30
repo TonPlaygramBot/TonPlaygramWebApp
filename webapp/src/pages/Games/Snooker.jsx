@@ -2669,14 +2669,15 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
-const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.02; // pull cushions a touch toward the playfield to avoid overlapping the rails
+const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
+const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // pull cushions a touch toward the playfield to avoid overlapping the rails
+const SHORT_CUSHION_HEIGHT_SCALE = 1.02; // give the short rail cushions a subtle lift to meet the rail tops
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.scale.y = cushionScaleY;
+    mesh.scale.y = cushionScaleY * (horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1);
     mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
@@ -2706,7 +2707,7 @@ const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.02; // pull cushions a touch toward
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.32; // extend the long cushions so they stop right where the pocket arcs begin
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
   const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.2; // push long rail cushions a touch closer to the middle pockets
-  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.08; // extend side cushions toward the corner pockets for longer green rails
+  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.04; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
