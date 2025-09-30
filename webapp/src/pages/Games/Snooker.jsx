@@ -551,8 +551,8 @@ const BALL_D_REF = 52.5;
 const BAULK_FROM_BAULK_REF = 737;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 90;
-const SIDE_MOUTH_REF = 110;
+const CORNER_MOUTH_REF = 86;
+const SIDE_MOUTH_REF = 105;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -608,9 +608,9 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.028; // tighten cloth openings so they hug the enlarged pocket rims without gaps
+const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
-  POCKET_VIS_R * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings, closely hugging the jaws
+  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -638,8 +638,7 @@ const POCKET_JAW_LIP_HEIGHT =
   CLOTH_LIFT -
   CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = BALL_R * 0.02; // keep cushions almost flush with the cloth while retaining a tiny safety margin
-const CUSHION_SUPPORT_CLEARANCE = BALL_R * 0.004; // tiny breathing room so cushions meet the rails without z-fighting
+const CUSHION_EXTRA_LIFT = BALL_R * 0.08; // lift cushions so their lip sits higher and matches the raised frame rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -652,8 +651,8 @@ const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.88;
-const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.66;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
+const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -731,7 +730,7 @@ const ACTION_CAM = Object.freeze({
  * • Pas çdo raundi → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
-const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep the standing camera equally close on every rail
+const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 18;
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -781,13 +780,13 @@ const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.56; // tilt the butt a touch higher so it clears the rails
+const CUE_BUTT_LIFT = BALL_R * 0.42;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
 const MAX_SPIN_SIDE = BALL_R * 0.62;
-const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.48, MAX_SPIN_CONTACT_OFFSET);
+const MAX_SPIN_VERTICAL = BALL_R * 0.48;
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -1294,7 +1293,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.94;
+const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.02;
 const STANDING_VIEW_FOV = 66;
@@ -1304,8 +1303,8 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.7;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.08;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.74;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -1672,6 +1671,30 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_LABELS = Object.freeze({
+  TL: 'Top Left',
+  TR: 'Top Right',
+  BL: 'Bottom Left',
+  BR: 'Bottom Right',
+  TM: 'Top Middle',
+  BM: 'Bottom Middle',
+  SAFETY: 'Safety'
+});
+const formatPocketLabel = (id) => POCKET_LABELS[id] || id || '';
+const BALL_LABELS = Object.freeze({
+  RED: 'Red',
+  YELLOW: 'Yellow',
+  GREEN: 'Green',
+  BROWN: 'Brown',
+  BLUE: 'Blue',
+  PINK: 'Pink',
+  BLACK: 'Black',
+  CUE: 'Cue'
+});
+const formatBallLabel = (colorId) => {
+  if (!colorId) return '';
+  return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
+};
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
@@ -2165,13 +2188,9 @@ const toBallColorId = (id) => {
 function alignRailsToCushions(table, frame) {
   if (!frame || !table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
-  const cushions = table.userData.cushions;
-  let cushionBox = null;
-  for (const cushion of cushions) {
-    const box = new THREE.Box3().setFromObject(cushion);
-    cushionBox = cushionBox ? cushionBox.union(box) : box;
-  }
-  if (!cushionBox) return;
+  const sampleCushion = table.userData.cushions[0];
+  if (!sampleCushion) return;
+  const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
   const frameBox = new THREE.Box3().setFromObject(frame);
   const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
@@ -2305,13 +2324,12 @@ function Table3D(parent) {
   railWoodMat.needsUpdate = true;
 
   const clothExtendBase = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.46,
-    Math.min(PLAY_W, PLAY_H) * 0.012
+    SIDE_RAIL_INNER_THICKNESS * 0.34,
+    Math.min(PLAY_W, PLAY_H) * 0.009
   );
-  const clothExtend = Math.max(
-    clothExtendBase + Math.min(PLAY_W, PLAY_H) * 0.0075,
-    SIDE_RAIL_INNER_THICKNESS * 0.72
-  ); // extend the cloth further so rails meet the cloth with no gaps, even at the rounded corners
+  const clothExtend =
+    clothExtendBase +
+    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
@@ -2449,8 +2467,6 @@ function Table3D(parent) {
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const railSupportOffsetX = Math.max(innerHalfW - halfW, 0);
-  const railSupportOffsetZ = Math.max(innerHalfH - halfH, 0);
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.32;
   const cornerInset = POCKET_VIS_R * 0.56;
@@ -2590,7 +2606,7 @@ function Table3D(parent) {
 
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 1.01; // widen the cushion base so it rests cleanly on the rails
+  const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -2601,17 +2617,10 @@ function Table3D(parent) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
-    const baseBackY = baseRailWidth / 2;
     const baseThickness = baseRailWidth * thicknessScale;
+    const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
-    const baseFrontY = baseBackY - noseThickness;
-    const supportOffset = horizontal ? railSupportOffsetZ : railSupportOffsetX;
-    const supportInset = Math.min(
-      Math.max(supportOffset - CUSHION_SUPPORT_CLEARANCE, 0),
-      baseRailWidth * 0.55
-    );
-    const backY = baseBackY + supportInset;
-    const frontY = baseFrontY;
+    const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
 
@@ -2642,7 +2651,7 @@ function Table3D(parent) {
       if (z > maxZ) maxZ = z;
     }
     const depth = maxZ - minZ;
-    const frontSpan = Math.max(backY - frontY, 1e-4);
+    const frontSpan = backY - frontY;
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
       const z = arr[i + 2];
@@ -2658,7 +2667,7 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = SIDE_RAIL_INNER_THICKNESS * 0.03; // pull cushions slightly toward the centre so they clear the rails
+  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.12;
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2684,15 +2693,14 @@ const CUSHION_RAIL_FLUSH = SIDE_RAIL_INNER_THICKNESS * 0.03; // pull cushions sl
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP =
-    POCKET_VIS_R * 0.72; // pull the pockets outward so the noses sit flush with the rails without overlapping
-  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.08; // trim the short rail cushions just enough for their corners to blend into the pocket arcs
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.12; // let the long cushions finish right at the tightened pocket curves
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // push the side cushions toward the corner jaws while keeping them clear
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.12; // ease the side cushions inward so their seams stay tight
-  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.06; // trim slightly off the side cushions so their tips meet the pocket arcs
+  const POCKET_GAP = POCKET_VIS_R * 0.88; // pull the cushions a touch closer so they land right at the pocket arcs
+  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.12; // extend short rail cushions slightly toward the corner pockets
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.32; // extend the long cushions so they stop right where the pocket arcs begin
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.2; // push long rail cushions a touch closer to the middle pockets
+  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.18; // shave a little length off the side cushions near the corner pockets
   const horizLen =
-    PLAY_W - 2 * (POCKET_GAP + SHORT_CUSHION_TRIM) - LONG_CUSHION_TRIM;
+    PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
@@ -5026,7 +5034,7 @@ function SnookerGame() {
         side: MAX_SPIN_SIDE,
         forward: MAX_SPIN_FORWARD,
         offsetSide: MAX_SPIN_CONTACT_OFFSET,
-        offsetVertical: Math.min(MAX_SPIN_CONTACT_OFFSET, MAX_SPIN_VERTICAL)
+        offsetVertical: MAX_SPIN_VERTICAL
       };
 
       // Pointer → XZ plane
@@ -5123,10 +5131,9 @@ function SnookerGame() {
         const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
         const maxForward = baulkZ + BALL_R * 0.1;
-        const minBackward = baulkZ - D_RADIUS - BALL_R * 0.08;
-        clamped.y = THREE.MathUtils.clamp(clamped.y, minBackward, maxForward);
+        if (clamped.y > maxForward) clamped.y = maxForward;
         const deltaY = clamped.y - baulkZ;
-        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.05, BALL_R);
+        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const insideSq = clamped.x * clamped.x + deltaY * deltaY;
         if (insideSq > maxRadius * maxRadius) {
           const angle = Math.atan2(deltaY, clamped.x);
@@ -5167,22 +5174,11 @@ function SnookerGame() {
         return true;
       };
       const handleInHandDown = (e) => {
-        let currentHud = hudRef.current;
+        const currentHud = hudRef.current;
+        if (!(currentHud?.inHand)) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
-        if (!p) return;
-        if (!(currentHud?.inHand)) {
-          if (!cue?.mesh) return;
-          const activeCamera = activeRenderCameraRef.current ?? camera;
-          ray.setFromCamera(pointer, activeCamera);
-          const intersectsCue = ray.intersectObject(cue.mesh, true);
-          if (intersectsCue.length === 0) return;
-          const nextHud = { ...(currentHud ?? hud), inHand: true };
-          hudRef.current = nextHud;
-          setHud(nextHud);
-          currentHud = nextHud;
-        }
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
@@ -5636,21 +5632,11 @@ function SnookerGame() {
           };
           const potShots = [];
           const safetyShots = [];
-          const blockedCandidates = [];
           activeBalls.forEach((targetBall) => {
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
             if (!colorId || !legalTargets.has(colorId)) return;
             const ignore = new Set([cue.id, targetBall.id]);
-            const directVec = targetBall.pos.clone().sub(cuePos);
-            if (directVec.lengthSq() >= 1e-6) {
-              blockedCandidates.push({
-                targetBall,
-                colorId,
-                cueToTarget: directVec.length(),
-                aimDir: directVec.clone().normalize()
-              });
-            }
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
               if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
@@ -5697,28 +5683,9 @@ function SnookerGame() {
           });
           potShots.sort((a, b) => a.difficulty - b.difficulty);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
-          let fallbackPlan = null;
-          if (potShots.length === 0 && safetyShots.length === 0 && blockedCandidates.length > 0) {
-            blockedCandidates.sort((a, b) => a.cueToTarget - b.cueToTarget);
-            const best = blockedCandidates[0];
-            const cueDist = best.cueToTarget;
-            fallbackPlan = {
-              type: 'safety',
-              aimDir: best.aimDir.clone(),
-              power: computePowerFromDistance(cueDist * 1.1),
-              target: best.colorId,
-              targetBall: best.targetBall,
-              pocketId: 'SAFETY',
-              difficulty: cueDist * 2,
-              cueToTarget: cueDist,
-              targetToPocket: 0,
-              spin: { x: 0, y: 0 }
-            };
-          }
           return {
             bestPot: potShots[0] ?? null,
-            bestSafety: safetyShots[0] ?? null,
-            fallback: fallbackPlan
+            bestSafety: safetyShots[0] ?? null
           };
         };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
@@ -5768,11 +5735,7 @@ function SnookerGame() {
             const elapsed = now - started;
             const remaining = Math.max(0, 15000 - elapsed);
             const options = evaluateShotOptions();
-            const plan =
-              options.bestPot ??
-              options.bestSafety ??
-              options.fallback ??
-              null;
+            const plan = options.bestPot ?? options.bestSafety ?? null;
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -5822,12 +5785,7 @@ function SnookerGame() {
         };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
-          return (
-            options.bestPot ??
-            options.bestSafety ??
-            options.fallback ??
-            null
-          );
+          return options.bestPot ?? options.bestSafety ?? null;
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -5967,23 +5925,9 @@ function SnookerGame() {
         );
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
-        let desiredAim = null;
-        if (hudRef.current?.turn === 1) {
-          const plan = aiPlanRef.current;
-          if (plan?.aimDir && plan.aimDir.lengthSq() > 1e-6) {
-            desiredAim = plan.aimDir;
-          }
-        }
-        if (desiredAim) {
-          tmpAim.copy(desiredAim);
-        } else {
-          camera.getWorldDirection(camFwd);
-          tmpAim.set(camFwd.x, camFwd.z);
-        }
-        if (tmpAim.lengthSq() < 1e-8) tmpAim.set(0, -1);
-        tmpAim.normalize();
-        const aimLerp = hudRef.current?.turn === 1 ? 0.35 : 0.2;
-        aimDir.lerp(tmpAim, aimLerp);
+        camera.getWorldDirection(camFwd);
+        tmpAim.set(camFwd.x, camFwd.z).normalize();
+        aimDir.lerp(tmpAim, 0.2);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
@@ -6031,7 +5975,6 @@ function SnookerGame() {
                 : 0xffffff
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
-          if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
             end.clone().add(perp.clone().multiplyScalar(-1.4))
@@ -6045,25 +5988,8 @@ function SnookerGame() {
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
-          let side = appliedSpin.x * offsetSide;
-          let vert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-            if (
-              spinLegalityRef.current?.blocked &&
-              Math.hypot(side, vert) < 1e-6
-            ) {
-              vert = Math.min(maxContactOffset * 0.25, CUE_TIP_RADIUS * 0.35);
-            }
-          }
+          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
+          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
@@ -6894,16 +6820,16 @@ function SnookerGame() {
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
+          {hud.turn === 1 && aiPlanning?.selected && (
+            <div
+              className="mt-1 text-xs text-emerald-300 text-center whitespace-nowrap"
+              style={{ maxWidth: '100%' }}
+            >
+              {`AI aiming: ${formatBallLabel(aiPlanning.selected.target)} → ${formatPocketLabel(aiPlanning.selected.pocketId)} | P:${aiPlanning.selected.power.toFixed(2)} S:${((aiPlanning.selected.spin?.x ?? 0)).toFixed(2)},${((aiPlanning.selected.spin?.y ?? 0)).toFixed(2)} | t:${Math.max(0, Math.ceil(aiPlanning.countdown ?? 0))}s`}
+            </div>
+          )}
         </div>
       </div>
-
-      {hud.inHand && (
-        <div className="absolute bottom-16 left-0 right-0 flex justify-center pointer-events-none z-40">
-          <div className="px-4 py-2 rounded bg-black/70 text-white text-xs tracking-[0.35em] uppercase">
-            Ball in Hand
-          </div>
-        </div>
-      )}
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
