@@ -608,9 +608,9 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = 1.045; // keep cloth openings snug so there is no visible gap around the pockets
 const POCKET_HOLE_R =
-  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
+  POCKET_VIS_R * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings, closely hugging the jaws
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -2644,7 +2644,7 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = -MICRO_EPS * 0.2; // push cushions slightly into the rails so there is no visible gap
+const CUSHION_RAIL_FLUSH = -MICRO_EPS * 2.2; // push cushions deeper into the rails so the seams stay tight
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
