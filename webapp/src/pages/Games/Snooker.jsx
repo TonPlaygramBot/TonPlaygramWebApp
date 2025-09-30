@@ -1174,14 +1174,14 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 1.02;
+const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.08;
+const STANDING_VIEW_MARGIN = 0.03;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.44;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.26;
@@ -1242,6 +1242,9 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
+const AI_EARLY_SHOT_DIFFICULTY = 120;
+const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
+const AI_EARLY_SHOT_DELAY_MS = 3500;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -2870,6 +2873,39 @@ function SnookerGame() {
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const [shotActive, setShotActive] = useState(false);
+  const shootingRef = useRef(shotActive);
+  useEffect(() => {
+    shootingRef.current = shotActive;
+  }, [shotActive]);
+  const sliderInstanceRef = useRef(null);
+  const suggestionAimKeyRef = useRef(null);
+  const aiEarlyShotIntentRef = useRef(null);
+  const clearEarlyAiShot = useCallback(() => {
+    const intent = aiEarlyShotIntentRef.current;
+    if (intent?.timeout) {
+      clearTimeout(intent.timeout);
+    }
+    aiEarlyShotIntentRef.current = null;
+  }, []);
+  useEffect(() => () => clearEarlyAiShot(), [clearEarlyAiShot]);
+  useEffect(() => {
+    if (hud.turn !== 1) {
+      clearEarlyAiShot();
+    }
+  }, [hud.turn, clearEarlyAiShot]);
+  const applySliderLock = useCallback(() => {
+    const slider = sliderInstanceRef.current;
+    if (!slider) return;
+    const hudState = hudRef.current;
+    const shouldLock =
+      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
+    if (shouldLock) slider.lock();
+    else slider.unlock();
+  }, []);
+  useEffect(() => {
+    applySliderLock();
+  }, [applySliderLock, hud.turn, hud.over, shotActive]);
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
@@ -3162,6 +3198,7 @@ function SnookerGame() {
     }
     if (hud.turn === 1) {
       setUserSuggestion(null);
+      suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = false;
       stopAiThinkingRef.current?.();
       startAiThinkingRef.current?.();
@@ -3169,6 +3206,7 @@ function SnookerGame() {
       stopAiThinkingRef.current?.();
       setAiPlanning(null);
       aiPlanRef.current = null;
+      suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
@@ -3177,6 +3215,7 @@ function SnookerGame() {
   useEffect(() => {
     if (hud.over) return;
     if (hud.turn === 0) {
+      suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
@@ -3236,6 +3275,11 @@ function SnookerGame() {
       let clothMat;
       let cushionMat;
       let shooting = false; // track when a shot is in progress
+      const setShootingState = (value) => {
+        if (shooting === value) return;
+        shooting = value;
+        setShotActive(value);
+      };
       let activeShotView = null;
       let suspendedActionView = null;
       let shotPrediction = null;
@@ -4436,6 +4480,8 @@ function SnookerGame() {
           if (drag.moved) {
             drag.x = x;
             drag.y = y;
+            autoAimRequestRef.current = false;
+            suggestionAimKeyRef.current = null;
             const blend = THREE.MathUtils.clamp(
               cameraBlendRef.current ?? 1,
               0,
@@ -5108,7 +5154,7 @@ function SnookerGame() {
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(1);
         updateCamera();
-        shooting = true;
+        setShootingState(true);
           activeShotView = null;
           aimFocusRef.current = null;
           potted = [];
@@ -5322,6 +5368,35 @@ function SnookerGame() {
             difficulty: plan.difficulty ?? 0
           };
         };
+        const scheduleEarlyAiShot = (plan) => {
+          if (!plan || plan.type !== 'pot') {
+            clearEarlyAiShot();
+            return;
+          }
+          const easyPot =
+            (plan.difficulty ?? Infinity) <= AI_EARLY_SHOT_DIFFICULTY &&
+            (plan.cueToTarget ?? Infinity) <= AI_EARLY_SHOT_CUE_DISTANCE;
+          if (!easyPot) {
+            clearEarlyAiShot();
+            return;
+          }
+          const key = planKey(plan);
+          const currentIntent = aiEarlyShotIntentRef.current;
+          if (currentIntent?.key === key) return;
+          clearEarlyAiShot();
+          const timeout = window.setTimeout(() => {
+            aiEarlyShotIntentRef.current = null;
+            if (
+              hudRef.current?.turn === 1 &&
+              !shooting &&
+              aiPlanRef.current &&
+              planKey(aiPlanRef.current) === key
+            ) {
+              aiShoot.current();
+            }
+          }, AI_EARLY_SHOT_DELAY_MS);
+          aiEarlyShotIntentRef.current = { key, timeout };
+        };
         const MAX_ROUTE_DISTANCE =
           Math.hypot(PLAY_W, PLAY_H) + Math.max(PLAY_W, PLAY_H);
         const computePowerFromDistance = (dist) => {
@@ -5496,6 +5571,7 @@ function SnookerGame() {
             cancelAnimationFrame(aiThinkingHandle);
             aiThinkingHandle = null;
           }
+          clearEarlyAiShot();
         };
         const startAiThinking = () => {
           stopAiThinking();
@@ -5509,6 +5585,7 @@ function SnookerGame() {
               setAiPlanning(null);
               aiPlanRef.current = null;
               aiThinkingHandle = null;
+              clearEarlyAiShot();
               return;
             }
             const now = performance.now();
@@ -5524,6 +5601,7 @@ function SnookerGame() {
               aiPlanRef.current = null;
             }
             updateAiPlanningState(plan, options, remaining / 1000);
+            scheduleEarlyAiShot(plan);
             if (remaining > 0) {
               aiThinkingHandle = requestAnimationFrame(think);
             } else {
@@ -5536,12 +5614,24 @@ function SnookerGame() {
           const options = evaluateShotOptions();
           const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
-          if (plan && autoAimRequestRef.current) {
-            aimDirRef.current.copy(plan.aimDir);
-            alignStandingCameraToAim(cue, plan.aimDir);
-            autoAimRequestRef.current = false;
-          }
           const summary = summarizePlan(plan);
+          if (plan && plan.aimDir) {
+            const shouldApply =
+              autoAimRequestRef.current ||
+              (summary?.key && suggestionAimKeyRef.current !== summary.key);
+            if (shouldApply) {
+              const dir = plan.aimDir.clone();
+              if (dir.lengthSq() > 1e-6) {
+                aimDirRef.current.copy(dir.normalize());
+                alignStandingCameraToAim(cue, aimDirRef.current);
+                autoAimRequestRef.current = false;
+                suggestionAimKeyRef.current = summary?.key ?? null;
+              }
+            }
+          }
+          if (!plan) {
+            suggestionAimKeyRef.current = null;
+          }
           const current = userSuggestionRef.current;
           if (!summary) {
             if (current) setUserSuggestion(null);
@@ -5566,6 +5656,7 @@ function SnookerGame() {
           if (currentHud?.over || currentHud?.inHand || shooting) return;
           const plan = aiPlanRef.current ?? computeAiShot();
           if (!plan) return;
+          clearEarlyAiShot();
           stopAiThinking();
           setAiPlanning(null);
           const dir = plan.aimDir.clone().normalize();
@@ -5645,7 +5736,7 @@ function SnookerGame() {
           cue.launchDir = null;
         }
         setHud((prev) => ({ ...prev, inHand: cueBallPotted }));
-        shooting = false;
+        setShootingState(false);
         shotPrediction = null;
         activeShotView = null;
         suspendedActionView = null;
@@ -6360,10 +6451,13 @@ function SnookerGame() {
         });
       }
     });
+    sliderInstanceRef.current = slider;
+    applySliderLock();
     return () => {
+      sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, []);
+  }, [applySliderLock]);
 
   // Spin controller interactions
   useEffect(() => {
