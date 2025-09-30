@@ -1671,30 +1671,6 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
-const POCKET_LABELS = Object.freeze({
-  TL: 'Top Left',
-  TR: 'Top Right',
-  BL: 'Bottom Left',
-  BR: 'Bottom Right',
-  TM: 'Top Middle',
-  BM: 'Bottom Middle',
-  SAFETY: 'Safety'
-});
-const formatPocketLabel = (id) => POCKET_LABELS[id] || id || '';
-const BALL_LABELS = Object.freeze({
-  RED: 'Red',
-  YELLOW: 'Yellow',
-  GREEN: 'Green',
-  BROWN: 'Brown',
-  BLUE: 'Blue',
-  PINK: 'Pink',
-  BLACK: 'Black',
-  CUE: 'Cue'
-});
-const formatBallLabel = (colorId) => {
-  if (!colorId) return '';
-  return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
-};
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
@@ -2694,7 +2670,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.76; // tighten the cushion gap so the noses meet the pocket arcs without overlap
-  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.12; // trim the short rail cushions slightly more so their corners meet the pocket arcs cleanly
+  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.16; // trim the short rail cushions slightly more so their corners meet the pocket arcs cleanly
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
   const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.14; // ease the side cushions inward so their seams stay tight
@@ -5644,11 +5620,21 @@ function SnookerGame() {
           };
           const potShots = [];
           const safetyShots = [];
+          const blockedCandidates = [];
           activeBalls.forEach((targetBall) => {
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
             if (!colorId || !legalTargets.has(colorId)) return;
             const ignore = new Set([cue.id, targetBall.id]);
+            const directVec = targetBall.pos.clone().sub(cuePos);
+            if (directVec.lengthSq() >= 1e-6) {
+              blockedCandidates.push({
+                targetBall,
+                colorId,
+                cueToTarget: directVec.length(),
+                aimDir: directVec.clone().normalize()
+              });
+            }
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
               if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
@@ -5695,9 +5681,28 @@ function SnookerGame() {
           });
           potShots.sort((a, b) => a.difficulty - b.difficulty);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
+          let fallbackPlan = null;
+          if (potShots.length === 0 && safetyShots.length === 0 && blockedCandidates.length > 0) {
+            blockedCandidates.sort((a, b) => a.cueToTarget - b.cueToTarget);
+            const best = blockedCandidates[0];
+            const cueDist = best.cueToTarget;
+            fallbackPlan = {
+              type: 'safety',
+              aimDir: best.aimDir.clone(),
+              power: computePowerFromDistance(cueDist * 1.1),
+              target: best.colorId,
+              targetBall: best.targetBall,
+              pocketId: 'SAFETY',
+              difficulty: cueDist * 2,
+              cueToTarget: cueDist,
+              targetToPocket: 0,
+              spin: { x: 0, y: 0 }
+            };
+          }
           return {
             bestPot: potShots[0] ?? null,
-            bestSafety: safetyShots[0] ?? null
+            bestSafety: safetyShots[0] ?? null,
+            fallback: fallbackPlan
           };
         };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
@@ -5747,7 +5752,11 @@ function SnookerGame() {
             const elapsed = now - started;
             const remaining = Math.max(0, 15000 - elapsed);
             const options = evaluateShotOptions();
-            const plan = options.bestPot ?? options.bestSafety ?? null;
+            const plan =
+              options.bestPot ??
+              options.bestSafety ??
+              options.fallback ??
+              null;
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -5797,7 +5806,12 @@ function SnookerGame() {
         };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
-          return options.bestPot ?? options.bestSafety ?? null;
+          return (
+            options.bestPot ??
+            options.bestSafety ??
+            options.fallback ??
+            null
+          );
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -5937,9 +5951,23 @@ function SnookerGame() {
         );
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
-        camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
-        aimDir.lerp(tmpAim, 0.2);
+        let desiredAim = null;
+        if (hudRef.current?.turn === 1) {
+          const plan = aiPlanRef.current;
+          if (plan?.aimDir && plan.aimDir.lengthSq() > 1e-6) {
+            desiredAim = plan.aimDir;
+          }
+        }
+        if (desiredAim) {
+          tmpAim.copy(desiredAim);
+        } else {
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z);
+        }
+        if (tmpAim.lengthSq() < 1e-8) tmpAim.set(0, -1);
+        tmpAim.normalize();
+        const aimLerp = hudRef.current?.turn === 1 ? 0.35 : 0.2;
+        aimDir.lerp(tmpAim, aimLerp);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
@@ -6850,14 +6878,6 @@ function SnookerGame() {
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
-          {hud.turn === 1 && aiPlanning?.selected && (
-            <div
-              className="mt-1 text-xs text-emerald-300 text-center whitespace-nowrap"
-              style={{ maxWidth: '100%' }}
-            >
-              {`AI aiming: ${formatBallLabel(aiPlanning.selected.target)} → ${formatPocketLabel(aiPlanning.selected.pocketId)} | P:${aiPlanning.selected.power.toFixed(2)} S:${((aiPlanning.selected.spin?.x ?? 0)).toFixed(2)},${((aiPlanning.selected.spin?.y ?? 0)).toFixed(2)} | t:${Math.max(0, Math.ceil(aiPlanning.countdown ?? 0))}s`}
-            </div>
-          )}
         </div>
       </div>
 
