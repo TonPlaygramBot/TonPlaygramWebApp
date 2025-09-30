@@ -1295,7 +1295,7 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.03;
+const STANDING_VIEW_MARGIN = 0.02;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -5757,21 +5757,18 @@ function SnookerGame() {
           const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
-          if (plan && plan.aimDir) {
-            const shouldApply =
-              autoAimRequestRef.current ||
-              (summary?.key && suggestionAimKeyRef.current !== summary.key);
-            if (shouldApply) {
-              const dir = plan.aimDir.clone();
-              if (dir.lengthSq() > 1e-6) {
-                aimDirRef.current.copy(dir.normalize());
-                alignStandingCameraToAim(cue, aimDirRef.current);
-                autoAimRequestRef.current = false;
-                suggestionAimKeyRef.current = summary?.key ?? null;
-              }
+          if (plan?.aimDir) {
+            const dir = plan.aimDir.clone();
+            if (dir.lengthSq() > 1e-6) {
+              dir.normalize();
+              aimDirRef.current.copy(dir);
+              alignStandingCameraToAim(cue, dir);
+              autoAimRequestRef.current = false;
+              suggestionAimKeyRef.current = summary?.key ?? null;
+            } else {
+              suggestionAimKeyRef.current = null;
             }
-          }
-          if (!plan) {
+          } else {
             suggestionAimKeyRef.current = null;
           }
           const current = userSuggestionRef.current;
@@ -6828,14 +6825,6 @@ function SnookerGame() {
               style={{ maxWidth: '100%' }}
             >
               {`AI aiming: ${formatBallLabel(aiPlanning.selected.target)} → ${formatPocketLabel(aiPlanning.selected.pocketId)} | P:${aiPlanning.selected.power.toFixed(2)} S:${((aiPlanning.selected.spin?.x ?? 0)).toFixed(2)},${((aiPlanning.selected.spin?.y ?? 0)).toFixed(2)} | t:${Math.max(0, Math.ceil(aiPlanning.countdown ?? 0))}s`}
-            </div>
-          )}
-          {hud.turn === 0 && userSuggestion && (
-            <div
-              className="mt-1 text-xs text-emerald-200 text-center whitespace-nowrap"
-              style={{ maxWidth: '100%' }}
-            >
-              {`Suggested: ${formatBallLabel(userSuggestion.target)} → ${formatPocketLabel(userSuggestion.pocketId)}`}
             </div>
           )}
         </div>
