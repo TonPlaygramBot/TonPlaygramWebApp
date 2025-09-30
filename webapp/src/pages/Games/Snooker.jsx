@@ -534,7 +534,6 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const BALL_SCALE = 0.97;
 const TABLE_SCALE = 1.3;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -545,32 +544,70 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.82;
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-const CLOTH_LIFT = (() => {
-  const ballR = 2 * BALL_SCALE;
-  const microEpsRatio = 0.022857142857142857;
-  const eps = ballR * microEpsRatio;
-  return Math.max(0, RAIL_HEIGHT - ballR - eps);
-})();
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
+const WIDTH_REF = 3569;
+const HEIGHT_REF = 1778;
+const BALL_D_REF = 52.5;
+const BAULK_FROM_BAULK_REF = 737;
+const D_RADIUS_REF = 292;
+const BLACK_FROM_TOP_REF = 324;
+const CORNER_MOUTH_REF = 86;
+const SIDE_MOUTH_REF = 105;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-const END_RAIL_INNER_REDUCTION = SIDE_RAIL_INNER_REDUCTION;
-const END_RAIL_INNER_SCALE = 1 - END_RAIL_INNER_REDUCTION;
+const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+const END_RAIL_INNER_SCALE =
+  (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
+  (2 * TABLE.WALL);
+const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
 const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
-const D_RADIUS = PLAY_W * 0.164;
+const innerLong = Math.max(PLAY_W, PLAY_H);
+const innerShort = Math.min(PLAY_W, PLAY_H);
+const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
+console.assert(
+  Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
+  'Snooker table inner ratio must match 3569:1778 after scaling.'
+);
+const MM_TO_UNITS = innerLong / WIDTH_REF;
+const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
+const BALL_SCALE = BALL_DIAMETER / 4;
+const BALL_R = BALL_DIAMETER / 2;
+const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
+const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
+const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
+const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
+const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
+const POCKET_R = POCKET_VIS_R * 0.985;
+const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
+const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
+console.assert(
+  Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
+  'Corner pocket mouth width mismatch.'
+);
+console.assert(
+  Math.abs(POCKET_SIDE_MOUTH - SIDE_POCKET_RADIUS * 2) <= POCKET_MOUTH_TOLERANCE,
+  'Side pocket mouth width mismatch.'
+);
+console.assert(
+  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
+  'Ball diameter mismatch after scaling.'
+);
+const CLOTH_LIFT = (() => {
+  const ballR = BALL_R;
+  const microEpsRatio = 0.022857142857142857;
+  const eps = ballR * microEpsRatio;
+  return Math.max(0, RAIL_HEIGHT - ballR - eps);
+})();
 const ACTION_CAMERA_START_BLEND = 1;
-const BALL_R = 2 * BALL_SCALE;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_R = BALL_R * 1.82; // pockets tightened for a smaller opening
-// slightly larger visual radius so rails align with pocket rings
-const POCKET_VIS_R = POCKET_R / 0.985;
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
@@ -1163,14 +1200,96 @@ const createCarpetTextures = (() => {
 
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
+  const topCushion = halfH;
+  const pinkZ = (topCushion + 0) / 2;
+  const blackZ = topCushion - BLACK_FROM_TOP;
   return {
-    yellow: [-PLAY_W * 0.22, baulkZ],
-    green: [PLAY_W * 0.22, baulkZ],
+    yellow: [-D_RADIUS, baulkZ],
+    green: [D_RADIUS, baulkZ],
     brown: [0, baulkZ],
     blue: [0, 0],
-    pink: [0, PLAY_H * 0.25],
-    black: [0, halfH - PLAY_H * 0.09]
+    pink: [0, pinkZ],
+    black: [0, blackZ]
   };
+}
+
+function applySnookerScaling({
+  tableInnerRect,
+  cushions,
+  pockets,
+  balls,
+  markings,
+  camera,
+  ui
+}) {
+  const width = tableInnerRect?.width ?? innerLong;
+  const height = tableInnerRect?.height ?? innerShort;
+  const center = tableInnerRect?.center ?? new THREE.Vector3();
+  const mmToUnits = width / WIDTH_REF;
+  const ratio = width / Math.max(height, 1e-6);
+  console.assert(
+    Math.abs(ratio - TARGET_RATIO) < 1e-4,
+    'applySnookerScaling: table aspect ratio must remain 3569:1778.'
+  );
+  const expectedCornerMouth = CORNER_MOUTH_REF * mmToUnits;
+  const expectedSideMouth = SIDE_MOUTH_REF * mmToUnits;
+  const actualCornerMouth = POCKET_VIS_R * 2;
+  const actualSideMouth = SIDE_POCKET_RADIUS * 2;
+  console.assert(
+    Math.abs(actualCornerMouth - expectedCornerMouth) <= POCKET_MOUTH_TOLERANCE,
+    'applySnookerScaling: corner pocket mouth mismatch.'
+  );
+  console.assert(
+    Math.abs(actualSideMouth - expectedSideMouth) <= POCKET_MOUTH_TOLERANCE,
+    'applySnookerScaling: side pocket mouth mismatch.'
+  );
+  if (Array.isArray(pockets)) {
+    pockets.forEach((pocket) => {
+      if (pocket?.userData) {
+        pocket.userData.captureRadius = POCKET_R;
+      }
+    });
+  }
+  if (markings?.baulkLine) {
+    const halfWidth = width / 2;
+    const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
+    const markingY = markings.baulkLine.position.y;
+    markings.baulkLine.position.set(center.x, markingY, baulkZ);
+    if (markings.dArc) {
+      markings.dArc.position.set(center.x, markingY, baulkZ);
+    }
+    if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
+      const [yellow, brown, green, blue, pink, black] = markings.spots;
+      const spotY = yellow?.position?.y ?? markingY;
+      if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
+      if (brown) brown.position.set(0, spotY, baulkZ);
+      if (green) green.position.set(D_RADIUS, spotY, baulkZ);
+      if (blue) blue.position.set(0, spotY, center.z);
+      const topCushion = halfWidth;
+      const pinkZ = (topCushion + center.z) / 2;
+      const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
+      if (pink) pink.position.set(0, spotY, pinkZ);
+      if (black) black.position.set(0, spotY, blackZ);
+    }
+  }
+  if (Array.isArray(balls)) {
+    const expectedRadius = BALL_D_REF * mmToUnits * 0.5;
+    balls.forEach((ball) => {
+      if (!ball) return;
+      ball.colliderRadius = expectedRadius;
+      const mesh = ball.mesh;
+      if (!mesh) return;
+      const baseRadius = mesh.geometry?.parameters?.radius;
+      if (Number.isFinite(baseRadius) && baseRadius > 0) {
+        const scale = expectedRadius / baseRadius;
+        mesh.scale.setScalar(scale);
+      }
+    });
+  }
+  void cushions;
+  void camera;
+  void ui;
+  return { mmToUnits };
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
@@ -2121,7 +2240,7 @@ function Table3D(parent) {
 
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
-  const baulkLineZ = -PLAY_H / 4;
+  const baulkLineZ = -PLAY_H / 2 + BAULK_FROM_BAULK;
   const frameTopY = FRAME_TOP_Y;
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
@@ -2270,19 +2389,22 @@ function Table3D(parent) {
   markingsGroup.add(dArc);
 
   const spotRadius = BALL_R * 0.26;
+  const spotMeshes = [];
   const addSpot = (x, z) => {
     const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
     const spot = new THREE.Mesh(spotGeo, markingMat.clone());
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingHeight, z);
     markingsGroup.add(spot);
+    spotMeshes.push(spot);
   };
-  addSpot(-PLAY_W * 0.25, baulkLineZ);
+  addSpot(-D_RADIUS, baulkLineZ);
   addSpot(0, baulkLineZ);
-  addSpot(PLAY_W * 0.25, baulkLineZ);
+  addSpot(D_RADIUS, baulkLineZ);
   addSpot(0, 0);
-  addSpot(0, PLAY_H * 0.25);
-  addSpot(0, PLAY_H * 0.5 - POCKET_VIS_R * 1.3);
+  const topCushionZ = PLAY_H / 2;
+  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -2291,6 +2413,12 @@ function Table3D(parent) {
     }
   });
   table.add(markingsGroup);
+  table.userData.markings = {
+    group: markingsGroup,
+    baulkLine,
+    dArc,
+    spots: spotMeshes
+  };
 
   const POCKET_TOP_R = POCKET_VIS_R * 0.96;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
@@ -2341,8 +2469,8 @@ function Table3D(parent) {
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.42;
   const cornerInset = POCKET_VIS_R * 0.56;
-  const sidePocketRadius = POCKET_VIS_R * 0.92;
-  const sideInset = POCKET_VIS_R * 0.42;
+  const sidePocketRadius = SIDE_POCKET_RADIUS;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4674,6 +4802,20 @@ function SnookerGame() {
       const colors = Object.fromEntries(
         Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
       );
+
+      applySnookerScaling({
+        tableInnerRect: {
+          width: PLAY_H,
+          height: PLAY_W,
+          center: new THREE.Vector3(0, 0, 0)
+        },
+        cushions: table?.userData?.cushions ?? [],
+        pockets: table?.userData?.pockets ?? [],
+        balls,
+        markings: table?.userData?.markings,
+        camera,
+        ui: null
+      });
 
       cueRef.current = cue;
       ballsRef.current = balls;
