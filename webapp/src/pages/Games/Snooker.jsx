@@ -800,6 +800,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
+const CUSHION_BACK_LIFT = 1; // fully lift the rear edge so the cushion meets the rail tops
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
@@ -2653,16 +2654,27 @@ function Table3D(parent) {
       if (z > maxZ) maxZ = z;
     }
     const depth = maxZ - minZ;
-    const frontSpan = backY - frontY;
+    const frontSpan = Math.max(1e-6, backY - frontY);
+    const backSpan = Math.max(1e-6, backY - frontY);
+    const topZ = minZ + depth;
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
-      const z = arr[i + 2];
+      let z = arr[i + 2];
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
-      if (frontFactor <= 0) continue;
-      const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
-      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
-      const minAllowedZ = minZ + depth * lift;
-      if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
+      if (frontFactor > 0) {
+        const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
+        const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
+        const minAllowedZ = minZ + depth * lift;
+        if (z < minAllowedZ) {
+          z = minAllowedZ;
+          arr[i + 2] = z;
+        }
+      }
+      const backFactor = THREE.MathUtils.clamp((y - frontY) / backSpan, 0, 1);
+      if (backFactor > 0) {
+        const elevated = THREE.MathUtils.lerp(z, topZ, backFactor * CUSHION_BACK_LIFT);
+        if (elevated > arr[i + 2]) arr[i + 2] = elevated;
+      }
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
