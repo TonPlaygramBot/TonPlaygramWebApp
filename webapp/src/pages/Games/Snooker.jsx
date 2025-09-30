@@ -1293,9 +1293,9 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.98;
+const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.008;
+const STANDING_VIEW_MARGIN = 0.02;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -1303,8 +1303,8 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.68;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.08;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.74;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -1334,7 +1334,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.32;
+const CUE_VIEW_RADIUS_RATIO = 0.4;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -2667,7 +2667,7 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.22;
+  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.12;
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2693,12 +2693,12 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.92; // keep a tighter gap so the cushion noses kiss the pocket arcs without overlap
-  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.04; // shorten the short-rail cushions so their corners meet the pocket arcs
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.46; // trim the long cushions to prevent them from running under the rail geometry
+  const POCKET_GAP = POCKET_VIS_R * 0.88; // pull the cushions a touch closer so they land right at the pocket arcs
+  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.12; // extend short rail cushions slightly toward the corner pockets
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.32; // extend the long cushions so they stop right where the pocket arcs begin
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.24; // push long rail cushions a touch closer to the middle pockets
-  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.24; // shave a little length off the side cushions near the corner pockets
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.2; // push long rail cushions a touch closer to the middle pockets
+  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.18; // shave a little length off the side cushions near the corner pockets
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
@@ -4496,7 +4496,7 @@ function SnookerGame() {
             cueShot: { phi: cuePhi, radius: cueRadius },
             standing: { phi: standingPhi, radius: standingRadius }
           };
-          applyCameraBlend(1);
+          applyCameraBlend();
           orbitRadiusLimitRef.current = standingRadius;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
@@ -5130,10 +5130,10 @@ function SnookerGame() {
         const clamped = point.clone();
         const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
-        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
-        const maxForward = baulkZ + maxRadius;
+        const maxForward = baulkZ + BALL_R * 0.1;
         if (clamped.y > maxForward) clamped.y = maxForward;
         const deltaY = clamped.y - baulkZ;
+        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const insideSq = clamped.x * clamped.x + deltaY * deltaY;
         if (insideSq > maxRadius * maxRadius) {
           const angle = Math.atan2(deltaY, clamped.x);
@@ -6846,19 +6846,6 @@ function SnookerGame() {
           }}
         />
       </div>
-
-      {hud.inHand && (
-        <div
-          className={[
-            'absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1',
-            'text-xs font-semibold uppercase tracking-widest text-white',
-            'bg-black/60 rounded-full'
-          ].join(' ')}
-          style={{ letterSpacing: '0.22em' }}
-        >
-          Ball in Hand
-        </div>
-      )}
 
       {/* Spin controller */}
       <div
