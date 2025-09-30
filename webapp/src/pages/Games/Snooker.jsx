@@ -639,6 +639,7 @@ const POCKET_JAW_LIP_HEIGHT =
   CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = BALL_R * 0.02; // keep cushions almost flush with the cloth while retaining a tiny safety margin
+const CUSHION_SUPPORT_CLEARANCE = BALL_R * 0.004; // tiny breathing room so cushions meet the rails without z-fighting
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -2448,6 +2449,8 @@ function Table3D(parent) {
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
+  const railSupportOffsetX = Math.max(innerHalfW - halfW, 0);
+  const railSupportOffsetZ = Math.max(innerHalfH - halfH, 0);
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.32;
   const cornerInset = POCKET_VIS_R * 0.56;
@@ -2587,7 +2590,7 @@ function Table3D(parent) {
 
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.995; // widen the cushion base so it rests cleanly on the rails
+  const FACE_SHRINK_LONG = 1.01; // widen the cushion base so it rests cleanly on the rails
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -2598,10 +2601,17 @@ function Table3D(parent) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
+    const baseBackY = baseRailWidth / 2;
     const baseThickness = baseRailWidth * thicknessScale;
-    const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
-    const frontY = backY - noseThickness;
+    const baseFrontY = baseBackY - noseThickness;
+    const supportOffset = horizontal ? railSupportOffsetZ : railSupportOffsetX;
+    const supportInset = Math.min(
+      Math.max(supportOffset - CUSHION_SUPPORT_CLEARANCE, 0),
+      baseRailWidth * 0.55
+    );
+    const backY = baseBackY + supportInset;
+    const frontY = baseFrontY;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
 
@@ -2632,7 +2642,7 @@ function Table3D(parent) {
       if (z > maxZ) maxZ = z;
     }
     const depth = maxZ - minZ;
-    const frontSpan = backY - frontY;
+    const frontSpan = Math.max(backY - frontY, 1e-4);
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
       const z = arr[i + 2];
