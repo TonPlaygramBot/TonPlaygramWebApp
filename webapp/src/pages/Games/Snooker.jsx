@@ -2670,7 +2670,7 @@ function Table3D(parent) {
   }
 
   const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.01; // pull cushions a touch toward the playfield to avoid overlapping the rails
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.015; // pull cushions a touch toward the playfield to avoid overlapping the rails
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
