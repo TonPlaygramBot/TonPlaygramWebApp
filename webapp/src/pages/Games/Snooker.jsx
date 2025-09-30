@@ -2658,7 +2658,7 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = 0; // keep cushions flush with the rails without overlap
+const CUSHION_RAIL_FLUSH = SIDE_RAIL_INNER_THICKNESS * 0.03; // pull cushions slightly toward the centre so they clear the rails
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
