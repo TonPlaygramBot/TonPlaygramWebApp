@@ -1302,8 +1302,6 @@ const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-const BROADCAST_DISTANCE_MULTIPLIER = 1.02;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.26;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -4467,11 +4465,14 @@ function SnookerGame() {
           const standingRadiusRaw = fitRadius(camera, m);
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
-          const broadcastRadius =
-            playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER +
-            BROADCAST_RADIUS_PADDING;
+          const cueRadius = clampOrbitRadius(
+            Math.max(
+              playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
+              CUE_VIEW_MIN_RADIUS
+            )
+          );
           const standingRadius = clamp(
-            broadcastRadius,
+            cueRadius,
             CAMERA.minR,
             CAMERA.maxR
           );
@@ -4479,12 +4480,6 @@ function SnookerGame() {
             STANDING_VIEW.phi,
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-          );
-          const cueRadius = clampOrbitRadius(
-            Math.max(
-              playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
-              CUE_VIEW_MIN_RADIUS
-            )
           );
           const cuePhi = THREE.MathUtils.clamp(
             CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
@@ -5758,32 +5753,19 @@ function SnookerGame() {
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           if (plan && plan.aimDir) {
-            const shouldApply =
-              autoAimRequestRef.current ||
-              (summary?.key && suggestionAimKeyRef.current !== summary.key);
-            if (shouldApply) {
-              const dir = plan.aimDir.clone();
-              if (dir.lengthSq() > 1e-6) {
-                aimDirRef.current.copy(dir.normalize());
-                alignStandingCameraToAim(cue, aimDirRef.current);
-                autoAimRequestRef.current = false;
-                suggestionAimKeyRef.current = summary?.key ?? null;
-              }
+            const dir = plan.aimDir.clone();
+            if (dir.lengthSq() > 1e-6) {
+              aimDirRef.current.copy(dir.normalize());
+              alignStandingCameraToAim(cue, aimDirRef.current);
+              autoAimRequestRef.current = false;
+              suggestionAimKeyRef.current = summary?.key ?? null;
             }
           }
           if (!plan) {
             suggestionAimKeyRef.current = null;
           }
           const current = userSuggestionRef.current;
-          if (!summary) {
-            if (current) setUserSuggestion(null);
-          } else if (
-            !current ||
-            current.key !== summary.key ||
-            Math.abs((current.power ?? 0) - summary.power) > 1e-3
-          ) {
-            setUserSuggestion(summary);
-          }
+          if (current) setUserSuggestion(null);
         };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
