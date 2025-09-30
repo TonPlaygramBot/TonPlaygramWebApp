@@ -2164,9 +2164,13 @@ const toBallColorId = (id) => {
 function alignRailsToCushions(table, frame) {
   if (!frame || !table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
-  const sampleCushion = table.userData.cushions[0];
-  if (!sampleCushion) return;
-  const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
+  const cushions = table.userData.cushions;
+  let cushionBox = null;
+  for (const cushion of cushions) {
+    const box = new THREE.Box3().setFromObject(cushion);
+    cushionBox = cushionBox ? cushionBox.union(box) : box;
+  }
+  if (!cushionBox) return;
   const frameBox = new THREE.Box3().setFromObject(frame);
   const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
@@ -2583,7 +2587,7 @@ function Table3D(parent) {
 
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.955;
+  const FACE_SHRINK_LONG = 0.995; // widen the cushion base so it rests cleanly on the rails
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
@@ -2644,7 +2648,7 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = -MICRO_EPS * 3.6; // push cushions deeper into the rails so the seams stay tight
+const CUSHION_RAIL_FLUSH = 0; // keep cushions flush with the rails without overlap
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
