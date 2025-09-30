@@ -1174,9 +1174,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.94;
+const STANDING_VIEW_PHI = 1.02;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.12;
+const STANDING_VIEW_MARGIN = 0.08;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -1548,6 +1548,30 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_LABELS = Object.freeze({
+  TL: 'Top Left',
+  TR: 'Top Right',
+  BL: 'Bottom Left',
+  BR: 'Bottom Right',
+  TM: 'Top Middle',
+  BM: 'Bottom Middle',
+  SAFETY: 'Safety'
+});
+const formatPocketLabel = (id) => POCKET_LABELS[id] || id || '';
+const BALL_LABELS = Object.freeze({
+  RED: 'Red',
+  YELLOW: 'Yellow',
+  GREEN: 'Green',
+  BROWN: 'Brown',
+  BLUE: 'Blue',
+  PINK: 'Pink',
+  BLACK: 'Black',
+  CUE: 'Cue'
+});
+const formatBallLabel = (colorId) => {
+  if (!colorId) return '';
+  return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
+};
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
@@ -2783,6 +2807,23 @@ function SnookerGame() {
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
+  const [aiPlanning, setAiPlanning] = useState(null);
+  const aiPlanRef = useRef(null);
+  const aiPlanningRef = useRef(null);
+  useEffect(() => {
+    aiPlanningRef.current = aiPlanning;
+  }, [aiPlanning]);
+  const [userSuggestion, setUserSuggestion] = useState(null);
+  const userSuggestionPlanRef = useRef(null);
+  const userSuggestionRef = useRef(userSuggestion);
+  useEffect(() => {
+    userSuggestionRef.current = userSuggestion;
+  }, [userSuggestion]);
+  const startAiThinkingRef = useRef(() => {});
+  const stopAiThinkingRef = useRef(() => {});
+  const startUserSuggestionRef = useRef(() => {});
+  const autoAimRequestRef = useRef(false);
+  const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const loadingClearedRef = useRef(false);
@@ -3092,7 +3133,7 @@ function SnookerGame() {
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
-    const duration = playerTurn === 0 ? 60 : 5;
+    const duration = playerTurn === 0 ? 60 : 15;
     setTimer(duration);
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -3111,6 +3152,42 @@ function SnookerGame() {
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [hud.turn, hud.over]);
+
+  useEffect(() => {
+    if (hud.over) {
+      stopAiThinkingRef.current?.();
+      setAiPlanning(null);
+      aiPlanRef.current = null;
+      return;
+    }
+    if (hud.turn === 1) {
+      setUserSuggestion(null);
+      autoAimRequestRef.current = false;
+      stopAiThinkingRef.current?.();
+      startAiThinkingRef.current?.();
+    } else {
+      stopAiThinkingRef.current?.();
+      setAiPlanning(null);
+      aiPlanRef.current = null;
+      autoAimRequestRef.current = true;
+      startUserSuggestionRef.current?.();
+    }
+  }, [hud.turn, hud.over]);
+
+  useEffect(() => {
+    if (hud.over) return;
+    if (hud.turn === 0) {
+      autoAimRequestRef.current = true;
+      startUserSuggestionRef.current?.();
+    }
+  }, [frameState, hud.turn, hud.over]);
+
+  useEffect(() => {
+    if (hud.over) return;
+    if (hud.turn === 1) {
+      startAiThinkingRef.current?.();
+    }
+  }, [frameState, hud.turn, hud.over]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -5225,9 +5302,83 @@ function SnookerGame() {
           };
           animateCue();
         };
-        const ballValuesMap = rules.getBallValues();
-        const computeAiShot = () => {
-          if (!cue?.active) return null;
+        let aiThinkingHandle = null;
+        const planKey = (plan) =>
+          plan
+            ? `${plan.type}:${plan.target ?? ''}:${plan.pocketId ?? 'SAFETY'}`
+            : 'none';
+        const summarizePlan = (plan) => {
+          if (!plan) return null;
+          return {
+            key: planKey(plan),
+            type: plan.type,
+            target: plan.target,
+            pocketId: plan.pocketId ?? 'SAFETY',
+            power: plan.power,
+            spin: {
+              x: Number.isFinite(plan.spin?.x) ? plan.spin.x : 0,
+              y: Number.isFinite(plan.spin?.y) ? plan.spin.y : 0
+            },
+            difficulty: plan.difficulty ?? 0
+          };
+        };
+        const MAX_ROUTE_DISTANCE =
+          Math.hypot(PLAY_W, PLAY_H) + Math.max(PLAY_W, PLAY_H);
+        const computePowerFromDistance = (dist) => {
+          const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
+          return THREE.MathUtils.lerp(0.35, 0.9, n);
+        };
+        const computePlanSpin = (plan, stateSnapshot) => {
+          const fallback = { x: 0, y: -0.1 };
+          if (!plan || plan.type !== 'pot') return fallback;
+          const colorId = plan.target;
+          if (!colorId) return fallback;
+          try {
+            const events = [
+              { type: 'HIT', firstContact: colorId },
+              { type: 'POTTED', ball: colorId, pocket: plan.pocketId ?? 'TL' }
+            ];
+            const nextState = rules.applyShot(stateSnapshot, events);
+            const nextTargetsRaw = Array.isArray(nextState?.ballOn)
+              ? nextState.ballOn.map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+              : [];
+            const nextTargets = new Set(nextTargetsRaw);
+            let nextBall = null;
+            if (nextTargets.size > 0) {
+              nextBall = balls.find(
+                (b) =>
+                  b.active &&
+                  b !== plan.targetBall &&
+                  nextTargets.has(toBallColorId(b.id))
+              );
+            }
+            if (!nextBall && nextTargets.has('RED')) {
+              nextBall = balls.find(
+                (b) => b.active && toBallColorId(b.id) === 'RED'
+              );
+            }
+            if (!nextBall) return fallback;
+            const aimDir = plan.aimDir.clone();
+            if (aimDir.lengthSq() < 1e-6) return fallback;
+            aimDir.normalize();
+            const nextDir = nextBall.pos.clone().sub(plan.targetBall.pos);
+            if (nextDir.lengthSq() < 1e-6) return fallback;
+            nextDir.normalize();
+            const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
+            const lateral = THREE.MathUtils.clamp(perp.dot(nextDir), -1, 1);
+            const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
+            const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
+            const spinY = THREE.MathUtils.clamp(-forward * 0.35, -0.6, 0.6);
+            return { x: spinX, y: spinY };
+          } catch (err) {
+            console.warn('spin prediction failed', err);
+            return fallback;
+          }
+        };
+        const evaluateShotOptions = () => {
+          if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
           const legalTargetsRaw = Array.isArray(state?.ballOn)
             ? state.ballOn
@@ -5242,10 +5393,9 @@ function SnookerGame() {
           if (legalTargets.size === 0) legalTargets.add('RED');
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
-          const maxTravel = Math.hypot(PLAY_W, PLAY_H);
           const clearance = BALL_R * 2.02;
           const clearanceSq = clearance * clearance;
-          const safetyTarget = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
+          const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -5263,175 +5413,171 @@ function SnookerGame() {
             return true;
           };
           const potShots = [];
-          for (const targetBall of activeBalls) {
-            if (targetBall === cue) continue;
+          const safetyShots = [];
+          activeBalls.forEach((targetBall) => {
+            if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
-            if (!colorId || !legalTargets.has(colorId)) continue;
+            if (!colorId || !legalTargets.has(colorId)) return;
+            const ignore = new Set([cue.id, targetBall.id]);
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
+              if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
+              const cueVec = targetBall.pos.clone().sub(cuePos);
+              if (cueVec.lengthSq() < 1e-6) continue;
+              const cueDist = cueVec.length();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
-              const pocketDist = toPocket.length();
-              if (pocketDist <= BALL_R * 2.2) continue;
-              const pocketDir = toPocket.clone().divideScalar(pocketDist);
-              const contactPoint = targetBall.pos
-                .clone()
-                .sub(pocketDir.clone().multiplyScalar(BALL_R * 2));
-              const cueToContact = contactPoint.clone().sub(cuePos);
-              const distToContact = cueToContact.length();
-              if (distToContact <= BALL_R * 1.2) continue;
-              const aimDir = cueToContact.clone().normalize();
-              const alignment = aimDir.dot(pocketDir.clone().multiplyScalar(-1));
-              if (alignment < 0.9) continue;
-              const ignore = new Set([cue.id, targetBall.id]);
-              if (!isPathClear(cuePos, contactPoint, ignore)) continue;
-              const nearCushion =
-                Math.abs(contactPoint.x) > RAIL_LIMIT_X - BALL_R * 0.5 ||
-                Math.abs(contactPoint.y) > RAIL_LIMIT_Y - BALL_R * 0.5;
-              if (nearCushion) continue;
-              const exitPoint = targetBall.pos
-                .clone()
-                .add(pocketDir.clone().multiplyScalar(pocketDist + BALL_R * 4));
-              if (!isPathClear(targetBall.pos, exitPoint, ignore)) continue;
-              const travel = distToContact + pocketDist;
-              const distanceScore = Math.max(0, maxTravel - travel);
-              const valueWeight = (ballValuesMap[colorId] || 0) * 110;
-              const alignmentScore = THREE.MathUtils.clamp(
-                (alignment - 0.85) / 0.15,
-                0,
-                1
-              );
-              if (alignmentScore <= 0.15) continue;
-              const alignmentBonus =
-                alignmentScore * alignmentScore * 140 + alignment * 35;
-              const travelPenalty =
-                (travel / Math.max(maxTravel, 1e-3)) * 90;
-              const pocketCentrality =
-                1 - Math.min(1, Math.abs(pocketCenter.x) / (PLAY_W / 2));
-              const pocketBonus = pocketCentrality * 30;
-              const shotScore =
-                valueWeight +
-                alignmentBonus +
-                distanceScore * 5 +
-                pocketBonus -
-                travelPenalty;
-              const power = THREE.MathUtils.clamp(
-                0.32 + travel / (maxTravel * 1.4),
-                0.35,
-                0.85
-              );
-              potShots.push({
-                aimDir,
-                power,
-                score: shotScore
-              });
+              if (toPocket.lengthSq() < BALL_R * BALL_R * 4) continue;
+              if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
+              const totalDist = cueDist + toPocket.length();
+              const plan = {
+                type: 'pot',
+                aimDir: cueVec.clone().normalize(),
+                power: computePowerFromDistance(totalDist),
+                target: colorId,
+                targetBall,
+                pocketId: POCKET_IDS[i],
+                pocketCenter: pocketCenter.clone(),
+                difficulty: cueDist + toPocket.length() * 1.2,
+                cueToTarget: cueDist,
+                targetToPocket: toPocket.length()
+              };
+              plan.spin = computePlanSpin(plan, state);
+              potShots.push(plan);
             }
-          }
-          if (potShots.length > 0) {
-            potShots.sort((a, b) => b.score - a.score);
-            const best = potShots[0];
-            return { ...best, type: 'pot' };
-          }
-          const safetyShots = [];
-          for (const targetBall of activeBalls) {
-            if (targetBall === cue) continue;
-            const colorId = toBallColorId(targetBall.id);
-            if (!colorId || !legalTargets.has(colorId)) continue;
-            const toTarget = targetBall.pos.clone().sub(cuePos);
-            const distance = toTarget.length();
-            if (distance <= BALL_R * 1.2) continue;
-            const baseDir = toTarget.clone().normalize();
-            const ignore = new Set([cue.id, targetBall.id]);
-            if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
-            const spacingScore = Math.min(distance, maxTravel);
-            const basePower = THREE.MathUtils.clamp(
-              0.22 + distance / (maxTravel * 2.8),
-              0.2,
-              0.4
-            );
-            safetyShots.push({
-              aimDir: baseDir.clone(),
-              power: basePower,
-              score: spacingScore * 0.35,
-              type: 'safety'
-            });
-            const perp = new THREE.Vector2(-baseDir.y, baseDir.x);
-            if (perp.lengthSq() > 1e-6) {
-              perp.normalize();
-              const baseNormal = baseDir.clone().multiplyScalar(-1);
-              const thinAngles = [Math.PI / 11, Math.PI / 8];
-              for (const side of [-1, 1]) {
-                for (const angle of thinAngles) {
-                  const contactNormal = baseNormal
-                    .clone()
-                    .multiplyScalar(Math.cos(angle))
-                    .add(perp.clone().multiplyScalar(side * Math.sin(angle)))
-                    .normalize();
-                  const aimTarget = targetBall.pos
-                    .clone()
-                    .add(contactNormal.clone().multiplyScalar(BALL_R * 2));
-                  if (!isPathClear(cuePos, aimTarget, ignore)) continue;
-                  const aimVec = aimTarget.clone().sub(cuePos);
-                  if (aimVec.lengthSq() < 1e-6) continue;
-                  const aimDir = aimVec.normalize();
-                  const deflectDir = perp.clone().multiplyScalar(-side);
-                  if (deflectDir.lengthSq() < 1e-6) continue;
-                  deflectDir.normalize();
-                  const predictedCueEnd = cuePos
-                    .clone()
-                    .add(deflectDir.clone().multiplyScalar(BALL_R * 32));
-                  const coverScore =
-                    1 / (1 + predictedCueEnd.distanceTo(safetyTarget));
-                  const power = THREE.MathUtils.clamp(
-                    0.18 + distance / (maxTravel * 3.2),
-                    0.18,
-                    0.42
-                  );
-                  const score =
-                    coverScore * 140 + spacingScore * 0.6 + angle * 10;
-                  safetyShots.push({
-                    aimDir,
-                    power,
-                    score,
-                    type: 'safety'
-                  });
-                }
-              }
-            }
-          }
-          if (safetyShots.length > 0) {
-            safetyShots.sort((a, b) => b.score - a.score);
-            return safetyShots[0];
-          }
-          return null;
+            const cueToBall = targetBall.pos.clone().sub(cuePos);
+            if (cueToBall.lengthSq() < 1e-6) return;
+            if (!isPathClear(cuePos, targetBall.pos, ignore)) return;
+            const cueDist = cueToBall.length();
+            const safetyDist = targetBall.pos.distanceTo(safetyAnchor);
+            const safetyPlan = {
+              type: 'safety',
+              aimDir: cueToBall.clone().normalize(),
+              power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
+              target: colorId,
+              targetBall,
+              pocketId: 'SAFETY',
+              difficulty: cueDist + safetyDist * 1.2,
+              cueToTarget: cueDist,
+              targetToPocket: safetyDist,
+              spin: { x: 0, y: -0.2 }
+            };
+            safetyShots.push(safetyPlan);
+          });
+          potShots.sort((a, b) => a.difficulty - b.difficulty);
+          safetyShots.sort((a, b) => a.difficulty - b.difficulty);
+          return {
+            bestPot: potShots[0] ?? null,
+            bestSafety: safetyShots[0] ?? null
+          };
         };
+        const updateAiPlanningState = (plan, options, countdownSeconds) => {
+          const summary = summarizePlan(plan);
+          const potSummary = summarizePlan(options?.bestPot ?? null);
+          const safetySummary = summarizePlan(options?.bestSafety ?? null);
+          const rounded = Math.ceil(Math.max(countdownSeconds, 0));
+          const key = summary?.key ?? 'none';
+          const last = aiTelemetryRef.current;
+          if (!last || last.key !== key || last.rounded !== rounded) {
+            aiTelemetryRef.current = {
+              key,
+              rounded,
+              countdown: countdownSeconds
+            };
+            setAiPlanning({
+              countdown: countdownSeconds,
+              selected: summary,
+              bestPot: potSummary,
+              bestSafety: safetySummary
+            });
+          }
+        };
+        const stopAiThinking = () => {
+          if (aiThinkingHandle) {
+            cancelAnimationFrame(aiThinkingHandle);
+            aiThinkingHandle = null;
+          }
+        };
+        const startAiThinking = () => {
+          stopAiThinking();
+          if (!cue?.active) {
+            setAiPlanning(null);
+            return;
+          }
+          const started = performance.now();
+          const think = () => {
+            if (shooting || hudRef.current?.turn !== 1) {
+              setAiPlanning(null);
+              aiPlanRef.current = null;
+              aiThinkingHandle = null;
+              return;
+            }
+            const now = performance.now();
+            const elapsed = now - started;
+            const remaining = Math.max(0, 15000 - elapsed);
+            const options = evaluateShotOptions();
+            const plan = options.bestPot ?? options.bestSafety ?? null;
+            if (plan) {
+              aiPlanRef.current = plan;
+              aimDirRef.current.copy(plan.aimDir);
+              alignStandingCameraToAim(cue, plan.aimDir);
+            } else {
+              aiPlanRef.current = null;
+            }
+            updateAiPlanningState(plan, options, remaining / 1000);
+            if (remaining > 0) {
+              aiThinkingHandle = requestAnimationFrame(think);
+            } else {
+              aiThinkingHandle = null;
+            }
+          };
+          think();
+        };
+        const updateUserSuggestion = () => {
+          const options = evaluateShotOptions();
+          const plan = options.bestPot ?? null;
+          userSuggestionPlanRef.current = plan;
+          if (plan && autoAimRequestRef.current) {
+            aimDirRef.current.copy(plan.aimDir);
+            alignStandingCameraToAim(cue, plan.aimDir);
+            autoAimRequestRef.current = false;
+          }
+          const summary = summarizePlan(plan);
+          const current = userSuggestionRef.current;
+          if (!summary) {
+            if (current) setUserSuggestion(null);
+          } else if (
+            !current ||
+            current.key !== summary.key ||
+            Math.abs((current.power ?? 0) - summary.power) > 1e-3
+          ) {
+            setUserSuggestion(summary);
+          }
+        };
+        const computeAiShot = () => {
+          const options = evaluateShotOptions();
+          return options.bestPot ?? options.bestSafety ?? null;
+        };
+        stopAiThinkingRef.current = stopAiThinking;
+        startAiThinkingRef.current = startAiThinking;
+        startUserSuggestionRef.current = updateUserSuggestion;
 
         aiShoot.current = () => {
           const currentHud = hudRef.current;
           if (currentHud?.over || currentHud?.inHand || shooting) return;
-          const plan = computeAiShot();
-          const execute = (aimVec, power) => {
-            if (!aimVec || !Number.isFinite(power)) return;
-            const dir = aimVec.clone().normalize();
-            aimDirRef.current.copy(dir);
-            alignStandingCameraToAim(cue, dir);
-            powerRef.current = power;
-            setHud((s) => ({ ...s, power }));
-            spinRef.current = { x: 0, y: 0 };
-            spinRequestRef.current = { x: 0, y: 0 };
-            resetSpinRef.current?.();
-            fire();
-          };
-          if (plan) {
-            execute(plan.aimDir, plan.power);
-            return;
-          }
-          const randomDir = new THREE.Vector2(
-            Math.random() - 0.5,
-            Math.random() - 0.5
-          );
-          if (randomDir.lengthSq() < 1e-4) randomDir.set(0, 1);
-          randomDir.normalize();
-          execute(randomDir, 0.4);
+          const plan = aiPlanRef.current ?? computeAiShot();
+          if (!plan) return;
+          stopAiThinking();
+          setAiPlanning(null);
+          const dir = plan.aimDir.clone().normalize();
+          aimDirRef.current.copy(dir);
+          alignStandingCameraToAim(cue, dir);
+          powerRef.current = plan.power;
+          setHud((s) => ({ ...s, power: plan.power }));
+          const spinToApply = plan.spin ?? { x: 0, y: 0 };
+          spinRef.current = { ...spinToApply };
+          spinRequestRef.current = { ...spinToApply };
+          resetSpinRef.current?.();
+          fire();
         };
 
         fireRef.current = fire;
@@ -6440,6 +6586,22 @@ function SnookerGame() {
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
+          {hud.turn === 1 && aiPlanning?.selected && (
+            <div
+              className="mt-1 text-xs text-emerald-300 text-center whitespace-nowrap"
+              style={{ maxWidth: '100%' }}
+            >
+              {`AI aiming: ${formatBallLabel(aiPlanning.selected.target)} → ${formatPocketLabel(aiPlanning.selected.pocketId)} | P:${aiPlanning.selected.power.toFixed(2)} S:${((aiPlanning.selected.spin?.x ?? 0)).toFixed(2)},${((aiPlanning.selected.spin?.y ?? 0)).toFixed(2)} | t:${Math.max(0, Math.ceil(aiPlanning.countdown ?? 0))}s`}
+            </div>
+          )}
+          {hud.turn === 0 && userSuggestion && (
+            <div
+              className="mt-1 text-xs text-emerald-200 text-center whitespace-nowrap"
+              style={{ maxWidth: '100%' }}
+            >
+              {`Suggested: ${formatBallLabel(userSuggestion.target)} → ${formatPocketLabel(userSuggestion.pocketId)}`}
+            </div>
+          )}
         </div>
       </div>
 
