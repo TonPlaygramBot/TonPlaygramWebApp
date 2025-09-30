@@ -1671,30 +1671,6 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
-const POCKET_LABELS = Object.freeze({
-  TL: 'Top Left',
-  TR: 'Top Right',
-  BL: 'Bottom Left',
-  BR: 'Bottom Right',
-  TM: 'Top Middle',
-  BM: 'Bottom Middle',
-  SAFETY: 'Safety'
-});
-const formatPocketLabel = (id) => POCKET_LABELS[id] || id || '';
-const BALL_LABELS = Object.freeze({
-  RED: 'Red',
-  YELLOW: 'Yellow',
-  GREEN: 'Green',
-  BROWN: 'Brown',
-  BLUE: 'Blue',
-  PINK: 'Pink',
-  BLACK: 'Black',
-  CUE: 'Cue'
-});
-const formatBallLabel = (colorId) => {
-  if (!colorId) return '';
-  return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
-};
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
@@ -2694,7 +2670,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.76; // tighten the cushion gap so the noses meet the pocket arcs without overlap
-  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.12; // trim the short rail cushions slightly more so their corners meet the pocket arcs cleanly
+  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.16; // trim the short rail cushions slightly more so their corners meet the pocket arcs cleanly
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
   const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.14; // ease the side cushions inward so their seams stay tight
@@ -3325,6 +3301,7 @@ function SnookerGame() {
       aiPlanRef.current = null;
       return;
     }
+    aimFocusRef.current = null;
     if (hud.turn === 1) {
       setUserSuggestion(null);
       suggestionAimKeyRef.current = null;
@@ -4529,6 +4506,19 @@ function SnookerGame() {
         syncBlendToSpherical();
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
+        const standingBounds = cameraBoundsRef.current?.standing;
+        if (standingBounds) {
+          sph.radius = clampOrbitRadius(standingBounds.radius);
+          sph.phi = THREE.MathUtils.clamp(
+            standingBounds.phi,
+            CAMERA.minPhi,
+            CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+          );
+        }
+        sph.theta = 0;
+        syncBlendToSpherical();
+        updateCamera();
+        last3DRef.current = { phi: sph.phi, theta: sph.theta };
         if (!initialOrbitRef.current) {
           initialOrbitRef.current = {
             radius: sph.radius,
@@ -4876,23 +4866,32 @@ function SnookerGame() {
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
       );
       const buttTipComp = Math.sin(buttTilt) * cueLen * 0.5;
-      const applyCueButtTilt = (group, extraTilt = 0) => {
+      const applyCueButtTilt = (group, extraTilt = 0, options = {}) => {
         if (!group) return;
         const info = group.userData?.buttTilt;
+        const preserveButt = options?.preserveButt ?? false;
         const baseTilt = info?.angle ?? buttTilt;
+        const baseReference = info?.baseAngle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
-        const tipComp = Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
+        const baseComp = Math.sin(baseTilt) * len * 0.5;
+        const totalComp = Math.sin(totalTilt) * len * 0.5;
+        group.position.y += totalComp;
+        if (preserveButt) {
+          group.position.y -= totalComp - baseComp;
+        }
         if (info) {
-          info.tipCompensation = tipComp;
+          info.tipCompensation = totalComp;
           info.current = totalTilt;
           info.extra = extraTilt;
+          info.baseCompensation = baseComp;
+          if (info.baseAngle == null) info.baseAngle = baseReference;
         }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
+        baseAngle: buttTilt,
         tipCompensation: buttTipComp,
         length: cueLen
       };
@@ -5752,8 +5751,18 @@ function SnookerGame() {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
               alignStandingCameraToAim(cue, plan.aimDir);
+              if (plan.targetBall) {
+                aimFocusRef.current = new THREE.Vector3(
+                  plan.targetBall.pos.x,
+                  BALL_CENTER_Y,
+                  plan.targetBall.pos.y
+                );
+              } else {
+                aimFocusRef.current = null;
+              }
             } else {
               aiPlanRef.current = null;
+              aimFocusRef.current = null;
             }
             updateAiPlanningState(plan, options, remaining / 1000);
             scheduleEarlyAiShot(plan);
@@ -6032,10 +6041,37 @@ function SnookerGame() {
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(cueStick, extraTilt);
+          const tiltInfo = cueStick.userData?.buttTilt;
+          const backObstacleDistance = Number.isFinite(backInfo?.tHit)
+            ? backInfo.tHit
+            : Infinity;
+          const hasBackObstacle = backObstacleDistance < cueLen + CUE_TIP_GAP + BALL_R * 0.25;
+          const hasBackImpact = Boolean(backInfo?.impact);
+          const hasBackRail = Boolean(backInfo?.railNormal);
+          const spinBlocked = Boolean(spinLegalityRef.current?.blocked);
+          if (tiltInfo) {
+            const defaultAngle =
+              tiltInfo.baseAngle != null ? tiltInfo.baseAngle : buttTilt;
+            const allowLevelCue = !(hasBackObstacle || hasBackImpact || hasBackRail);
+            tiltInfo.angle = allowLevelCue ? 0 : defaultAngle;
+            const preserveButt = allowLevelCue && !spinBlocked;
+            applyCueButtTilt(cueStick, extraTilt, { preserveButt });
+          } else {
+            applyCueButtTilt(cueStick, extraTilt);
+          }
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            const tipGroup = tipGroupRef.current;
+            tipGroup.position.set(0, 0, -cueLen / 2);
+            const sideRoll = THREE.MathUtils.clamp(appliedSpin.x ?? 0, -1, 1);
+            const verticalRoll = THREE.MathUtils.clamp(appliedSpin.y ?? 0, -1, 1);
+            const maxSideTilt = Math.PI / 18;
+            const maxVerticalTilt = Math.PI / 24;
+            tipGroup.rotation.set(
+              -verticalRoll * maxVerticalTilt,
+              sideRoll * maxSideTilt,
+              0
+            );
           }
           cueStick.visible = true;
           if (afterDir) {
@@ -6057,6 +6093,7 @@ function SnookerGame() {
           target.visible = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            tipGroupRef.current.rotation.set(0, 0, 0);
           }
           if (!cueAnimating) cueStick.visible = false;
         }
@@ -6470,10 +6507,25 @@ function SnookerGame() {
                 const approachDir = toPocket.clone().normalize();
                 pocketView.approach.copy(approachDir);
                 const speedAlong = focusBall.vel.dot(approachDir);
-                if (speedAlong * frameScale < -STOP_EPS) {
-                  if (now >= (pocketView.holdUntil ?? now)) {
+                if (pocketView.isSidePocket) {
+                  if (speedAlong * frameScale < -STOP_EPS) {
+                    if (now >= (pocketView.holdUntil ?? now)) {
+                      resumeAfterPocket(pocketView, now);
+                    }
+                  }
+                } else {
+                  const scaledSpeed = focusBall.vel.length() * frameScale;
+                  if (
+                    scaledSpeed < STOP_EPS &&
+                    now >= (pocketView.holdUntil ?? now)
+                  ) {
                     resumeAfterPocket(pocketView, now);
                   }
+                }
+              } else if (!pocketView.isSidePocket) {
+                const scaledSpeed = focusBall.vel.length() * frameScale;
+                if (scaledSpeed < STOP_EPS && now >= (pocketView.holdUntil ?? now)) {
+                  resumeAfterPocket(pocketView, now);
                 }
               }
             }
@@ -6850,14 +6902,6 @@ function SnookerGame() {
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
-          {hud.turn === 1 && aiPlanning?.selected && (
-            <div
-              className="mt-1 text-xs text-emerald-300 text-center whitespace-nowrap"
-              style={{ maxWidth: '100%' }}
-            >
-              {`AI aiming: ${formatBallLabel(aiPlanning.selected.target)} → ${formatPocketLabel(aiPlanning.selected.pocketId)} | P:${aiPlanning.selected.power.toFixed(2)} S:${((aiPlanning.selected.spin?.x ?? 0)).toFixed(2)},${((aiPlanning.selected.spin?.y ?? 0)).toFixed(2)} | t:${Math.max(0, Math.ceil(aiPlanning.countdown ?? 0))}s`}
-            </div>
-          )}
         </div>
       </div>
 
