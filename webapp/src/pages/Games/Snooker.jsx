@@ -786,7 +786,7 @@ const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
 const MAX_SPIN_SIDE = BALL_R * 0.62;
-const MAX_SPIN_VERTICAL = BALL_R * 0.48;
+const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.48, MAX_SPIN_CONTACT_OFFSET);
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -2694,13 +2694,13 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.76; // tighten the cushion gap so the noses meet the pocket arcs without overlap
-  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.03; // further shorten the short rail cushions so their corners meet the pocket arcs cleanly
+  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.05; // trim the short rail cushions slightly so their corners meet the pocket arcs cleanly
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
   const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.14; // ease the side cushions inward so their seams stay tight
   const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.1; // trim less off the side cushions so their tips meet the pocket arcs
   const horizLen =
-    PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
+    PLAY_W - 2 * (POCKET_GAP + SHORT_CUSHION_TRIM) - LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
@@ -5034,7 +5034,7 @@ function SnookerGame() {
         side: MAX_SPIN_SIDE,
         forward: MAX_SPIN_FORWARD,
         offsetSide: MAX_SPIN_CONTACT_OFFSET,
-        offsetVertical: MAX_SPIN_VERTICAL
+        offsetVertical: Math.min(MAX_SPIN_CONTACT_OFFSET, MAX_SPIN_VERTICAL)
       };
 
       // Pointer → XZ plane
@@ -5987,6 +5987,7 @@ function SnookerGame() {
                 : 0xffffff
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
             end.clone().add(perp.clone().multiplyScalar(-1.4))
@@ -6000,8 +6001,25 @@ function SnookerGame() {
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
-          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
-          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
+          const offsetSide = ranges.offsetSide ?? 0;
+          const offsetVertical = ranges.offsetVertical ?? 0;
+          let side = appliedSpin.x * offsetSide;
+          let vert = -appliedSpin.y * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(side, vert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              side *= scale;
+              vert *= scale;
+            }
+            if (
+              spinLegalityRef.current?.blocked &&
+              Math.hypot(side, vert) < 1e-6
+            ) {
+              vert = Math.min(maxContactOffset * 0.25, CUE_TIP_RADIUS * 0.35);
+            }
+          }
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
