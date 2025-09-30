@@ -2300,12 +2300,12 @@ function Table3D(parent) {
   railWoodMat.needsUpdate = true;
 
   const clothExtendBase = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.34,
-    Math.min(PLAY_W, PLAY_H) * 0.009
+    SIDE_RAIL_INNER_THICKNESS * 0.46,
+    Math.min(PLAY_W, PLAY_H) * 0.012
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
+    Math.min(PLAY_W, PLAY_H) * 0.005; // extend the cloth further so rails meet the cloth with no gaps
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
@@ -2669,7 +2669,8 @@ const CUSHION_RAIL_FLUSH = MICRO_EPS * 0.5; // slide cushions almost against the
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.76; // tighten the cushion gap so the noses meet the pocket arcs without overlap
+  const POCKET_GAP =
+    POCKET_VIS_R * 0.82; // ease pocket clearance so noses meet the pocket arcs without overlapping the rails
   const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.16; // trim the short rail cushions slightly more so their corners meet the pocket arcs cleanly
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
