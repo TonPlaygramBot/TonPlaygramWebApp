@@ -1303,8 +1303,8 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.9;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.18;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.82;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2667,7 +2667,7 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.05;
+  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.08;
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2695,9 +2695,9 @@ function Table3D(parent) {
 
   const POCKET_GAP = POCKET_VIS_R * 0.92; // shorten cushions so they finish where the frame arcs begin
   const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.1; // extend short rail cushions slightly toward the corner pockets
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.6; // extend the long cushions so they stop right where the pocket arcs begin
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.45; // extend the long cushions so they stop right where the pocket arcs begin
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.12; // push long rail cushions a touch closer to the middle pockets
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.16; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.22; // shave a little length off the side cushions near the corner pockets
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
