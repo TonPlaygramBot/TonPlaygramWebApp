@@ -1303,8 +1303,8 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.74;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.68;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.08;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2667,7 +2667,7 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.12;
+  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.18;
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2693,12 +2693,12 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.88; // pull the cushions a touch closer so they land right at the pocket arcs
-  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.12; // extend short rail cushions slightly toward the corner pockets
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.32; // extend the long cushions so they stop right where the pocket arcs begin
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.2; // push long rail cushions a touch closer to the middle pockets
-  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.18; // shave a little length off the side cushions near the corner pockets
+  const POCKET_GAP = POCKET_VIS_R * 0.76; // tighten the cushion gap so the noses meet the pocket arcs without overlap
+  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.04; // keep the short rail cushions tucked so their ends kiss the pocket arcs
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.14; // ease the side cushions inward so their seams stay tight
+  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.1; // trim less off the side cushions so their tips meet the pocket arcs
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
@@ -5131,9 +5131,10 @@ function SnookerGame() {
         const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
         const maxForward = baulkZ + BALL_R * 0.1;
-        if (clamped.y > maxForward) clamped.y = maxForward;
+        const minBackward = baulkZ - D_RADIUS - BALL_R * 0.08;
+        clamped.y = THREE.MathUtils.clamp(clamped.y, minBackward, maxForward);
         const deltaY = clamped.y - baulkZ;
-        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.05, BALL_R);
         const insideSq = clamped.x * clamped.x + deltaY * deltaY;
         if (insideSq > maxRadius * maxRadius) {
           const angle = Math.atan2(deltaY, clamped.x);
@@ -5174,11 +5175,22 @@ function SnookerGame() {
         return true;
       };
       const handleInHandDown = (e) => {
-        const currentHud = hudRef.current;
-        if (!(currentHud?.inHand)) return;
+        let currentHud = hudRef.current;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
+        if (!p) return;
+        if (!(currentHud?.inHand)) {
+          if (!cue?.mesh) return;
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          ray.setFromCamera(pointer, activeCamera);
+          const intersectsCue = ray.intersectObject(cue.mesh, true);
+          if (intersectsCue.length === 0) return;
+          const nextHud = { ...(currentHud ?? hud), inHand: true };
+          hudRef.current = nextHud;
+          setHud(nextHud);
+          currentHud = nextHud;
+        }
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
@@ -6830,6 +6842,14 @@ function SnookerGame() {
           )}
         </div>
       </div>
+
+      {hud.inHand && (
+        <div className="absolute bottom-16 left-0 right-0 flex justify-center pointer-events-none z-40">
+          <div className="px-4 py-2 rounded bg-black/70 text-white text-xs tracking-[0.35em] uppercase">
+            Ball in Hand
+          </div>
+        </div>
+      )}
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
