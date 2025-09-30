@@ -638,7 +638,7 @@ const POCKET_JAW_LIP_HEIGHT =
   CLOTH_LIFT -
   CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = BALL_R * 0.14; // lift cushions so their lip aligns flush with the raised frame rails
+const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -2611,7 +2611,9 @@ function Table3D(parent) {
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
-  const cushionRaiseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
+  const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
+  const cushionHeightTarget = railsTopY - cushionBaseY;
+  const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
 
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
@@ -2667,16 +2669,17 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.12;
+  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
+    mesh.scale.y = cushionScaleY;
     mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
-    group.position.set(x, cushionRaiseY, z);
+    group.position.set(x, cushionBaseY, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     if (flip) group.rotation.y += Math.PI;
 
