@@ -2859,6 +2859,11 @@ function SnookerGame() {
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
+  const aiPlanRef = useRef(null);
+  const aiPrepPendingRef = useRef(false);
+  const autoAimRequestRef = useRef(false);
+  const lastBallOnKeyRef = useRef('');
+  const lastTurnRef = useRef(hud.turn);
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
     target: new THREE.Vector3(0, TABLE_Y + 0.05, 0),
@@ -3092,7 +3097,7 @@ function SnookerGame() {
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
-    const duration = playerTurn === 0 ? 60 : 5;
+    const duration = playerTurn === 0 ? 60 : 15;
     setTimer(duration);
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -3111,6 +3116,59 @@ function SnookerGame() {
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [hud.turn, hud.over]);
+
+  useEffect(() => {
+    const previousTurn = lastTurnRef.current;
+    lastTurnRef.current = hud.turn;
+    if (hud.over) {
+      aiPrepPendingRef.current = false;
+      aiPlanRef.current = null;
+      autoAimRequestRef.current = false;
+      return;
+    }
+    if (hud.turn === 1) {
+      if (previousTurn !== 1) {
+        aiPrepPendingRef.current = true;
+      }
+      autoAimRequestRef.current = false;
+    } else {
+      aiPrepPendingRef.current = false;
+      aiPlanRef.current = null;
+      if (!hud.inHand) {
+        autoAimRequestRef.current = true;
+      }
+    }
+  }, [hud.turn, hud.inHand, hud.over]);
+
+  useEffect(() => {
+    const rawBallOn = Array.isArray(frameState?.ballOn)
+      ? frameState.ballOn
+      : typeof frameState?.ballOn === 'string'
+        ? [frameState.ballOn]
+        : [];
+    const normalizedTargets = rawBallOn
+      .map((entry) =>
+        typeof entry === 'string'
+          ? entry.toUpperCase()
+          : typeof entry?.color === 'string'
+            ? entry.color.toUpperCase()
+            : null
+      )
+      .filter(Boolean);
+    const key = normalizedTargets.join('|');
+    if (
+      key !== lastBallOnKeyRef.current &&
+      hud.turn === 0 &&
+      !hud.inHand &&
+      !hud.over
+    ) {
+      autoAimRequestRef.current = true;
+    }
+    lastBallOnKeyRef.current = key;
+    if (hud.turn === 1 && !hud.over) {
+      aiPrepPendingRef.current = true;
+    }
+  }, [frameState.ballOn, hud.turn, hud.inHand, hud.over]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -5226,7 +5284,8 @@ function SnookerGame() {
           animateCue();
         };
         const ballValuesMap = rules.getBallValues();
-        const computeAiShot = () => {
+        const computeAiShot = (options = {}) => {
+          const { preferPotOnly = false } = options ?? {};
           if (!cue?.active) return null;
           const state = frameRef.current ?? frameState;
           const legalTargetsRaw = Array.isArray(state?.ballOn)
@@ -5331,6 +5390,9 @@ function SnookerGame() {
             const best = potShots[0];
             return { ...best, type: 'pot' };
           }
+          if (preferPotOnly) {
+            return null;
+          }
           const safetyShots = [];
           for (const targetBall of activeBalls) {
             if (targetBall === cue) continue;
@@ -5408,7 +5470,10 @@ function SnookerGame() {
         aiShoot.current = () => {
           const currentHud = hudRef.current;
           if (currentHud?.over || currentHud?.inHand || shooting) return;
-          const plan = computeAiShot();
+          const storedPlan = aiPlanRef.current;
+          const plan = storedPlan ?? computeAiShot();
+          aiPlanRef.current = null;
+          aiPrepPendingRef.current = false;
           const execute = (aimVec, power) => {
             if (!aimVec || !Number.isFinite(power)) return;
             const dir = aimVec.clone().normalize();
@@ -5422,7 +5487,8 @@ function SnookerGame() {
             fire();
           };
           if (plan) {
-            execute(plan.aimDir, plan.power);
+            const aimVec = plan.aimDir?.clone ? plan.aimDir.clone() : plan.aimDir;
+            execute(aimVec, plan.power);
             return;
           }
           const randomDir = new THREE.Vector2(
@@ -5553,8 +5619,58 @@ function SnookerGame() {
         aimDir.lerp(tmpAim, 0.2);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
-        // Aiming vizual
         const currentHud = hudRef.current;
+        if (
+          allStopped(balls) &&
+          cue?.active &&
+          !shooting &&
+          !(currentHud?.over)
+        ) {
+          if (
+            currentHud?.turn === 1 &&
+            aiPrepPendingRef.current &&
+            !(currentHud?.inHand)
+          ) {
+            const plan = computeAiShot();
+            aiPlanRef.current = plan
+              ? {
+                  ...plan,
+                  aimDir: plan.aimDir?.clone
+                    ? plan.aimDir.clone()
+                    : plan.aimDir
+                }
+              : null;
+            aiPrepPendingRef.current = false;
+            if (plan?.aimDir) {
+              const dir = plan.aimDir.clone().normalize();
+              aimDir.copy(dir);
+              aimDirRef.current.copy(dir);
+              alignStandingCameraToAim(cue, dir);
+            }
+            if (Number.isFinite(plan?.power)) {
+              const desiredPower = plan.power;
+              if (Math.abs((powerRef.current ?? 0) - desiredPower) > 1e-3) {
+                powerRef.current = desiredPower;
+                setHud((prev) => ({ ...prev, power: desiredPower }));
+              }
+            }
+          }
+          if (
+            currentHud?.turn === 0 &&
+            autoAimRequestRef.current &&
+            !(currentHud?.inHand)
+          ) {
+            const plan = computeAiShot({ preferPotOnly: true });
+            autoAimRequestRef.current = false;
+            if (plan?.aimDir) {
+              const dir = plan.aimDir.clone().normalize();
+              aimDir.copy(dir);
+              aimDirRef.current.copy(dir);
+              alignStandingCameraToAim(cue, dir);
+            }
+          }
+        }
+        // Aiming vizual
         if (
           allStopped(balls) &&
           !(currentHud?.inHand) &&
