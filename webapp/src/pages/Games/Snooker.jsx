@@ -2303,9 +2303,10 @@ function Table3D(parent) {
     SIDE_RAIL_INNER_THICKNESS * 0.46,
     Math.min(PLAY_W, PLAY_H) * 0.012
   );
-  const clothExtend =
-    clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0075; // extend the cloth further so rails meet the cloth with no gaps
+  const clothExtend = Math.max(
+    clothExtendBase + Math.min(PLAY_W, PLAY_H) * 0.0075,
+    SIDE_RAIL_INNER_THICKNESS * 0.72
+  ); // extend the cloth further so rails meet the cloth with no gaps, even at the rounded corners
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
@@ -2643,7 +2644,7 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = MICRO_EPS * 0.12; // nudge cushions closer to the rails so they kiss without overlapping
+const CUSHION_RAIL_FLUSH = -MICRO_EPS * 0.2; // push cushions slightly into the rails so there is no visible gap
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
