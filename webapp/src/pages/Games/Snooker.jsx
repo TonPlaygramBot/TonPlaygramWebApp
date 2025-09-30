@@ -551,8 +551,8 @@ const BALL_D_REF = 52.5;
 const BAULK_FROM_BAULK_REF = 737;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 86;
-const SIDE_MOUTH_REF = 105;
+const CORNER_MOUTH_REF = 90;
+const SIDE_MOUTH_REF = 110;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -608,7 +608,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.045; // keep cloth openings snug so there is no visible gap around the pockets
+const POCKET_CUT_EXPANSION = 1.015; // tighten cloth openings so they hug the enlarged pocket rims without gaps
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings, closely hugging the jaws
 const BALL_CENTER_Y =
@@ -2671,12 +2671,12 @@ const CUSHION_RAIL_FLUSH = -MICRO_EPS * 2.2; // push cushions deeper into the ra
   }
 
   const POCKET_GAP =
-    POCKET_VIS_R * 0.82; // ease pocket clearance so noses meet the pocket arcs without overlapping the rails
-  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.16; // trim the short rail cushions slightly more so their corners meet the pocket arcs cleanly
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.14; // ease the side cushions inward so their seams stay tight
-  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.1; // trim less off the side cushions so their tips meet the pocket arcs
+    POCKET_VIS_R * 0.66; // pull the pockets outward so the noses sit flush with the rails without overlapping
+  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.12; // trim the short rail cushions just enough for their corners to blend into the pocket arcs
+  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.18; // let the long cushions finish right at the tightened pocket curves
+  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.08; // push the side cushions toward the corner jaws while keeping them clear
+  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.1; // ease the side cushions inward so their seams stay tight
+  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.08; // trim slightly off the side cushions so their tips meet the pocket arcs
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP + SHORT_CUSHION_TRIM) - LONG_CUSHION_TRIM;
   const vertSeg =
