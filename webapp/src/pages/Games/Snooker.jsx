@@ -2670,6 +2670,7 @@ function Table3D(parent) {
   }
 
   const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.01; // pull cushions a touch toward the playfield to avoid overlapping the rails
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2684,9 +2685,13 @@ function Table3D(parent) {
     if (flip) group.rotation.y += Math.PI;
 
     if (horizontal) {
-      group.position.z = z > 0 ? halfH - CUSHION_RAIL_FLUSH : -halfH + CUSHION_RAIL_FLUSH;
+      const side = z >= 0 ? 1 : -1;
+      group.position.z =
+        side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
     } else {
-      group.position.x = x > 0 ? halfW - CUSHION_RAIL_FLUSH : -halfW + CUSHION_RAIL_FLUSH;
+      const side = x >= 0 ? 1 : -1;
+      group.position.x =
+        side * (halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
     }
 
     group.userData = group.userData || {};
