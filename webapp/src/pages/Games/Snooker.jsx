@@ -1174,9 +1174,9 @@ function spotPositions(baulkZ) {
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9;
+const STANDING_VIEW_PHI = 0.94;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.18;
+const STANDING_VIEW_MARGIN = 0.12;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
