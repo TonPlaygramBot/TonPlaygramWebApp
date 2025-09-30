@@ -638,7 +638,7 @@ const POCKET_JAW_LIP_HEIGHT =
   CLOTH_LIFT -
   CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = BALL_R * 0.08; // lift cushions so their lip sits higher and matches the raised frame rails
+const CUSHION_EXTRA_LIFT = BALL_R * 0.02; // keep cushions almost flush with the cloth while retaining a tiny safety margin
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -730,7 +730,7 @@ const ACTION_CAM = Object.freeze({
  * • Pas çdo raundi → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
-const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 18;
+const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep the standing camera equally close on every rail
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -2643,7 +2643,7 @@ function Table3D(parent) {
     return geo;
   }
 
-  const CUSHION_RAIL_FLUSH = POCKET_VIS_R * 0.18;
+const CUSHION_RAIL_FLUSH = MICRO_EPS * 0.5; // slide cushions almost against the rails so there's no visible gap
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
