@@ -562,6 +562,7 @@ const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
+const D_RADIUS = PLAY_W * 0.164;
 const ACTION_CAMERA_START_BLEND = 1;
 const BALL_R = 2 * BALL_SCALE;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
@@ -2226,7 +2227,7 @@ function Table3D(parent) {
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(baulkLine);
 
-  const dRadius = PLAY_W * 0.164;
+  const dRadius = D_RADIUS;
   const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
   const dGeom = new THREE.RingGeometry(
     Math.max(0.001, dRadius - dThickness),
@@ -2979,12 +2980,7 @@ function SnookerGame() {
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
   );
-  const aiShoot = useRef(() => {
-    aimDirRef.current.set(Math.random() - 0.5, Math.random() - 0.5).normalize();
-    powerRef.current = 0.5;
-    setHud((s) => ({ ...s, power: 0.5 }));
-    fireRef.current?.();
-  });
+  const aiShoot = useRef(() => {});
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
     const c = ctx.canvas;
@@ -4855,11 +4851,13 @@ function SnookerGame() {
       const onPlace = (e) => {
         if (!hud.inHand) return;
         const p = project(e);
-        if (
-          p.y <= baulkZ &&
-          Math.abs(p.x) <= PLAY_W / 2 - BALL_R * 2 &&
-          free(p.x, p.y)
-        ) {
+        const withinTableBounds = Math.abs(p.x) <= PLAY_W / 2 - BALL_R;
+        const deltaY = p.y - baulkZ;
+        const withinBaulk = p.y <= baulkZ + BALL_R * 0.1;
+        const insideDSq = p.x * p.x + deltaY * deltaY;
+        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+        const withinD = insideDSq <= maxRadius * maxRadius;
+        if (withinTableBounds && withinBaulk && withinD && free(p.x, p.y)) {
           cue.active = true;
           cue.mesh.visible = true;
           cue.pos.set(p.x, p.y);
@@ -5118,6 +5116,145 @@ function SnookerGame() {
           };
           animateCue();
         };
+        const ballValuesMap = rules.getBallValues();
+        const computeAiShot = () => {
+          if (!cue?.active) return null;
+          const state = frameRef.current ?? frameState;
+          const legalTargetsRaw = Array.isArray(state?.ballOn)
+            ? state.ballOn
+            : ['RED'];
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) =>
+                typeof entry === 'string' ? entry.toUpperCase() : entry
+              )
+              .filter(Boolean)
+          );
+          if (legalTargets.size === 0) legalTargets.add('RED');
+          const activeBalls = balls.filter((b) => b.active);
+          const cuePos = cue.pos.clone();
+          const maxTravel = Math.hypot(PLAY_W, PLAY_H);
+          const clearance = BALL_R * 2.02;
+          const clearanceSq = clearance * clearance;
+          const isPathClear = (start, end, ignoreIds = new Set()) => {
+            const delta = end.clone().sub(start);
+            const lenSq = delta.lengthSq();
+            if (lenSq < 1e-6) return true;
+            const len = Math.sqrt(lenSq);
+            const dir = delta.clone().divideScalar(len);
+            for (const ball of activeBalls) {
+              if (!ball.active || ignoreIds.has(ball.id)) continue;
+              const rel = ball.pos.clone().sub(start);
+              const proj = THREE.MathUtils.clamp(rel.dot(dir), 0, len);
+              const closest = start.clone().add(dir.clone().multiplyScalar(proj));
+              const distSq = ball.pos.distanceToSquared(closest);
+              if (distSq < clearanceSq) return false;
+            }
+            return true;
+          };
+          const potShots = [];
+          for (const targetBall of activeBalls) {
+            if (targetBall === cue) continue;
+            const colorId = toBallColorId(targetBall.id);
+            if (!colorId || !legalTargets.has(colorId)) continue;
+            for (let i = 0; i < centers.length; i++) {
+              const pocketCenter = centers[i];
+              const toPocket = pocketCenter.clone().sub(targetBall.pos);
+              const pocketDist = toPocket.length();
+              if (pocketDist <= BALL_R * 2.2) continue;
+              const pocketDir = toPocket.clone().divideScalar(pocketDist);
+              const contactPoint = targetBall.pos
+                .clone()
+                .sub(pocketDir.clone().multiplyScalar(BALL_R * 2));
+              const cueToContact = contactPoint.clone().sub(cuePos);
+              const distToContact = cueToContact.length();
+              if (distToContact <= BALL_R * 1.2) continue;
+              const aimDir = cueToContact.clone().normalize();
+              const alignment = aimDir.dot(pocketDir.clone().multiplyScalar(-1));
+              if (alignment < 0.9) continue;
+              const ignore = new Set([cue.id, targetBall.id]);
+              if (!isPathClear(cuePos, contactPoint, ignore)) continue;
+              const exitPoint = targetBall.pos
+                .clone()
+                .add(pocketDir.clone().multiplyScalar(pocketDist + BALL_R * 4));
+              if (!isPathClear(targetBall.pos, exitPoint, ignore)) continue;
+              const travel = distToContact + pocketDist;
+              const distanceScore = Math.max(0, maxTravel - travel);
+              const shotScore =
+                (ballValuesMap[colorId] || 0) * 100 +
+                distanceScore * 8 +
+                alignment * 50;
+              const power = THREE.MathUtils.clamp(
+                0.32 + travel / (maxTravel * 1.4),
+                0.35,
+                0.85
+              );
+              potShots.push({
+                aimDir,
+                power,
+                score: shotScore
+              });
+            }
+          }
+          if (potShots.length > 0) {
+            potShots.sort((a, b) => b.score - a.score);
+            const best = potShots[0];
+            return { ...best, type: 'pot' };
+          }
+          const safetyShots = [];
+          for (const targetBall of activeBalls) {
+            if (targetBall === cue) continue;
+            const colorId = toBallColorId(targetBall.id);
+            if (!colorId || !legalTargets.has(colorId)) continue;
+            const toTarget = targetBall.pos.clone().sub(cuePos);
+            const distance = toTarget.length();
+            if (distance <= BALL_R * 1.2) continue;
+            const aimDir = toTarget.clone().normalize();
+            const ignore = new Set([cue.id, targetBall.id]);
+            if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
+            const power = THREE.MathUtils.clamp(
+              0.22 + distance / (maxTravel * 2.5),
+              0.2,
+              0.45
+            );
+            const score = 25 - distance;
+            safetyShots.push({ aimDir, power, score, type: 'safety' });
+          }
+          if (safetyShots.length > 0) {
+            safetyShots.sort((a, b) => b.score - a.score);
+            return safetyShots[0];
+          }
+          return null;
+        };
+
+        aiShoot.current = () => {
+          if (hud.over || hud.inHand || shooting) return;
+          const plan = computeAiShot();
+          const execute = (aimVec, power) => {
+            if (!aimVec || !Number.isFinite(power)) return;
+            const dir = aimVec.clone().normalize();
+            aimDirRef.current.copy(dir);
+            alignStandingCameraToAim(cue, dir);
+            powerRef.current = power;
+            setHud((s) => ({ ...s, power }));
+            spinRef.current = { x: 0, y: 0 };
+            spinRequestRef.current = { x: 0, y: 0 };
+            resetSpinRef.current?.();
+            fire();
+          };
+          if (plan) {
+            execute(plan.aimDir, plan.power);
+            return;
+          }
+          const randomDir = new THREE.Vector2(
+            Math.random() - 0.5,
+            Math.random() - 0.5
+          );
+          if (randomDir.lengthSq() < 1e-4) randomDir.set(0, 1);
+          randomDir.normalize();
+          execute(randomDir, 0.4);
+        };
+
         fireRef.current = fire;
 
       // Resolve shot
