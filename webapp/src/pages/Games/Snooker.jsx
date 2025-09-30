@@ -2818,13 +2818,17 @@ function SnookerGame() {
     turn: 0,
     phase: 'reds',
     next: 'red',
-    inHand: false,
+    inHand: true,
     over: false
   });
   const powerRef = useRef(hud.power);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
+  const hudRef = useRef(hud);
+  useEffect(() => {
+    hudRef.current = hud;
+  }, [hud]);
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
@@ -4334,6 +4338,8 @@ function SnookerGame() {
         };
         const down = (e) => {
           registerInteraction();
+          const currentHud = hudRef.current;
+          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           if (e.touches?.length === 2) return;
           if (topViewRef.current) return;
           drag.on = true;
@@ -4343,6 +4349,8 @@ function SnookerGame() {
         };
         const move = (e) => {
           if (topViewRef.current || !drag.on) return;
+          const currentHud = hudRef.current;
+          if (currentHud?.turn === 1) return;
           const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
           const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
           const dx = x - drag.x;
@@ -4379,7 +4387,7 @@ function SnookerGame() {
           if (
             !moved &&
             !topViewRef.current &&
-            !hud.inHand &&
+            !(hudRef.current?.inHand ?? false) &&
             !shooting
           ) {
             if (e?.button !== undefined && e.button !== 0) return;
@@ -4394,6 +4402,8 @@ function SnookerGame() {
         window.addEventListener('touchend', up);
         const keyRot = (e) => {
           if (topViewRef.current) return;
+          const currentHud = hudRef.current;
+          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           const step = e.shiftKey ? 0.08 : 0.035;
           if (e.code === 'ArrowLeft') {
             sph.theta += step;
@@ -4791,7 +4801,8 @@ function SnookerGame() {
       };
 
       const pickOrbitFocus = (ev) => {
-        if (hud.inHand || shooting) return;
+        const currentHud = hudRef.current;
+        if ((currentHud?.inHand ?? false) || shooting) return;
         const rect = dom.getBoundingClientRect();
         const clientX =
           ev?.clientX ?? ev?.changedTouches?.[0]?.clientX ?? drag.x;
@@ -4848,24 +4859,116 @@ function SnookerGame() {
             b === cue ||
             new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
         );
-      const onPlace = (e) => {
-        if (!hud.inHand) return;
-        const p = project(e);
-        const withinTableBounds = Math.abs(p.x) <= PLAY_W / 2 - BALL_R;
-        const deltaY = p.y - baulkZ;
-        const withinBaulk = p.y <= baulkZ + BALL_R * 0.1;
-        const insideDSq = p.x * p.x + deltaY * deltaY;
+      const clampInHandPosition = (point) => {
+        if (!point) return null;
+        const clamped = point.clone();
+        const limitX = PLAY_W / 2 - BALL_R;
+        clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
+        const maxForward = baulkZ + BALL_R * 0.1;
+        if (clamped.y > maxForward) clamped.y = maxForward;
+        const deltaY = clamped.y - baulkZ;
         const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
-        const withinD = insideDSq <= maxRadius * maxRadius;
-        if (withinTableBounds && withinBaulk && withinD && free(p.x, p.y)) {
+        const insideSq = clamped.x * clamped.x + deltaY * deltaY;
+        if (insideSq > maxRadius * maxRadius) {
+          const angle = Math.atan2(deltaY, clamped.x);
+          clamped.x = Math.cos(angle) * maxRadius;
+          clamped.y = baulkZ + Math.sin(angle) * maxRadius;
+        }
+        return clamped;
+      };
+      const inHandDrag = {
+        active: false,
+        pointerId: null,
+        lastPos: null
+      };
+      const updateCuePlacement = (pos) => {
+        if (!cue || !pos) return;
+        cue.mesh.visible = true;
+        cue.pos.set(pos.x, pos.y);
+        cue.mesh.position.set(pos.x, BALL_CENTER_Y, pos.y);
+        cue.vel.set(0, 0);
+        cue.spin?.set(0, 0);
+        cue.pendingSpin?.set(0, 0);
+        cue.spinMode = 'standard';
+      };
+      const tryUpdatePlacement = (raw, commit = false) => {
+        const currentHud = hudRef.current;
+        if (!(currentHud?.inHand)) return false;
+        const clamped = clampInHandPosition(raw);
+        if (!clamped) return false;
+        if (!free(clamped.x, clamped.y)) return false;
+        cue.active = false;
+        updateCuePlacement(clamped);
+        inHandDrag.lastPos = clamped;
+        if (commit) {
           cue.active = true;
-          cue.mesh.visible = true;
-          cue.pos.set(p.x, p.y);
-          cue.mesh.position.set(p.x, BALL_CENTER_Y, p.y);
+          inHandDrag.lastPos = null;
           setHud((s) => ({ ...s, inHand: false }));
         }
+        return true;
       };
-      dom.addEventListener('pointerdown', onPlace);
+      const handleInHandDown = (e) => {
+        const currentHud = hudRef.current;
+        if (!(currentHud?.inHand)) return;
+        if (shooting) return;
+        if (e.button != null && e.button !== 0) return;
+        const p = project(e);
+        if (!tryUpdatePlacement(p, false)) return;
+        inHandDrag.active = true;
+        inHandDrag.pointerId = e.pointerId ?? 'mouse';
+        if (e.pointerId != null && dom.setPointerCapture) {
+          try {
+            dom.setPointerCapture(e.pointerId);
+          } catch {}
+        }
+        e.preventDefault?.();
+      };
+      const handleInHandMove = (e) => {
+        if (!inHandDrag.active) return;
+        if (
+          inHandDrag.pointerId != null &&
+          e.pointerId != null &&
+          e.pointerId !== inHandDrag.pointerId
+        ) {
+          return;
+        }
+        const p = project(e);
+        if (p) tryUpdatePlacement(p, false);
+        e.preventDefault?.();
+      };
+      const endInHandDrag = (e) => {
+        if (!inHandDrag.active) return;
+        if (
+          inHandDrag.pointerId != null &&
+          e.pointerId != null &&
+          e.pointerId !== inHandDrag.pointerId
+        ) {
+          return;
+        }
+        if (e.pointerId != null && dom.releasePointerCapture) {
+          try {
+            dom.releasePointerCapture(e.pointerId);
+          } catch {}
+        }
+        inHandDrag.active = false;
+        const pos = inHandDrag.lastPos;
+        if (pos) {
+          tryUpdatePlacement(pos, true);
+        }
+        e.preventDefault?.();
+      };
+      dom.addEventListener('pointerdown', handleInHandDown);
+      dom.addEventListener('pointermove', handleInHandMove);
+      window.addEventListener('pointerup', endInHandDrag);
+      dom.addEventListener('pointercancel', endInHandDrag);
+      window.addEventListener('pointercancel', endInHandDrag);
+      if (hudRef.current?.inHand) {
+        const startPos = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        if (startPos) {
+          cue.active = false;
+          updateCuePlacement(startPos);
+        }
+      }
 
       // Shot lifecycle
       let potted = [];
@@ -4917,7 +5020,13 @@ function SnookerGame() {
 
       // Fire (slider e thërret në release)
       const fire = () => {
-        if (!cue?.active || hud.inHand || !allStopped(balls) || hud.over)
+        const currentHud = hudRef.current;
+        if (
+          !cue?.active ||
+          currentHud?.inHand ||
+          !allStopped(balls) ||
+          currentHud?.over
+        )
           return;
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(1);
@@ -5136,6 +5245,7 @@ function SnookerGame() {
           const maxTravel = Math.hypot(PLAY_W, PLAY_H);
           const clearance = BALL_R * 2.02;
           const clearanceSq = clearance * clearance;
+          const safetyTarget = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -5174,16 +5284,36 @@ function SnookerGame() {
               if (alignment < 0.9) continue;
               const ignore = new Set([cue.id, targetBall.id]);
               if (!isPathClear(cuePos, contactPoint, ignore)) continue;
+              const nearCushion =
+                Math.abs(contactPoint.x) > RAIL_LIMIT_X - BALL_R * 0.5 ||
+                Math.abs(contactPoint.y) > RAIL_LIMIT_Y - BALL_R * 0.5;
+              if (nearCushion) continue;
               const exitPoint = targetBall.pos
                 .clone()
                 .add(pocketDir.clone().multiplyScalar(pocketDist + BALL_R * 4));
               if (!isPathClear(targetBall.pos, exitPoint, ignore)) continue;
               const travel = distToContact + pocketDist;
               const distanceScore = Math.max(0, maxTravel - travel);
+              const valueWeight = (ballValuesMap[colorId] || 0) * 110;
+              const alignmentScore = THREE.MathUtils.clamp(
+                (alignment - 0.85) / 0.15,
+                0,
+                1
+              );
+              if (alignmentScore <= 0.15) continue;
+              const alignmentBonus =
+                alignmentScore * alignmentScore * 140 + alignment * 35;
+              const travelPenalty =
+                (travel / Math.max(maxTravel, 1e-3)) * 90;
+              const pocketCentrality =
+                1 - Math.min(1, Math.abs(pocketCenter.x) / (PLAY_W / 2));
+              const pocketBonus = pocketCentrality * 30;
               const shotScore =
-                (ballValuesMap[colorId] || 0) * 100 +
-                distanceScore * 8 +
-                alignment * 50;
+                valueWeight +
+                alignmentBonus +
+                distanceScore * 5 +
+                pocketBonus -
+                travelPenalty;
               const power = THREE.MathUtils.clamp(
                 0.32 + travel / (maxTravel * 1.4),
                 0.35,
@@ -5209,16 +5339,64 @@ function SnookerGame() {
             const toTarget = targetBall.pos.clone().sub(cuePos);
             const distance = toTarget.length();
             if (distance <= BALL_R * 1.2) continue;
-            const aimDir = toTarget.clone().normalize();
+            const baseDir = toTarget.clone().normalize();
             const ignore = new Set([cue.id, targetBall.id]);
             if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
-            const power = THREE.MathUtils.clamp(
-              0.22 + distance / (maxTravel * 2.5),
+            const spacingScore = Math.min(distance, maxTravel);
+            const basePower = THREE.MathUtils.clamp(
+              0.22 + distance / (maxTravel * 2.8),
               0.2,
-              0.45
+              0.4
             );
-            const score = 25 - distance;
-            safetyShots.push({ aimDir, power, score, type: 'safety' });
+            safetyShots.push({
+              aimDir: baseDir.clone(),
+              power: basePower,
+              score: spacingScore * 0.35,
+              type: 'safety'
+            });
+            const perp = new THREE.Vector2(-baseDir.y, baseDir.x);
+            if (perp.lengthSq() > 1e-6) {
+              perp.normalize();
+              const baseNormal = baseDir.clone().multiplyScalar(-1);
+              const thinAngles = [Math.PI / 11, Math.PI / 8];
+              for (const side of [-1, 1]) {
+                for (const angle of thinAngles) {
+                  const contactNormal = baseNormal
+                    .clone()
+                    .multiplyScalar(Math.cos(angle))
+                    .add(perp.clone().multiplyScalar(side * Math.sin(angle)))
+                    .normalize();
+                  const aimTarget = targetBall.pos
+                    .clone()
+                    .add(contactNormal.clone().multiplyScalar(BALL_R * 2));
+                  if (!isPathClear(cuePos, aimTarget, ignore)) continue;
+                  const aimVec = aimTarget.clone().sub(cuePos);
+                  if (aimVec.lengthSq() < 1e-6) continue;
+                  const aimDir = aimVec.normalize();
+                  const deflectDir = perp.clone().multiplyScalar(-side);
+                  if (deflectDir.lengthSq() < 1e-6) continue;
+                  deflectDir.normalize();
+                  const predictedCueEnd = cuePos
+                    .clone()
+                    .add(deflectDir.clone().multiplyScalar(BALL_R * 32));
+                  const coverScore =
+                    1 / (1 + predictedCueEnd.distanceTo(safetyTarget));
+                  const power = THREE.MathUtils.clamp(
+                    0.18 + distance / (maxTravel * 3.2),
+                    0.18,
+                    0.42
+                  );
+                  const score =
+                    coverScore * 140 + spacingScore * 0.6 + angle * 10;
+                  safetyShots.push({
+                    aimDir,
+                    power,
+                    score,
+                    type: 'safety'
+                  });
+                }
+              }
+            }
           }
           if (safetyShots.length > 0) {
             safetyShots.sort((a, b) => b.score - a.score);
@@ -5228,7 +5406,8 @@ function SnookerGame() {
         };
 
         aiShoot.current = () => {
-          if (hud.over || hud.inHand || shooting) return;
+          const currentHud = hudRef.current;
+          if (currentHud?.over || currentHud?.inHand || shooting) return;
           const plan = computeAiShot();
           const execute = (aimVec, power) => {
             if (!aimVec || !Number.isFinite(power)) return;
@@ -5306,7 +5485,12 @@ function SnookerGame() {
         if (cueBallPotted) {
           cue.active = false;
           pocketDropRef.current.delete(cue.id);
-          cue.mesh.visible = false;
+          const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+          if (fallback) {
+            updateCuePlacement(fallback);
+          } else {
+            cue.mesh.visible = true;
+          }
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
           cue.pendingSpin?.set(0, 0);
@@ -5370,7 +5554,13 @@ function SnookerGame() {
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         // Aiming vizual
-        if (allStopped(balls) && !hud.inHand && cue?.active && !hud.over) {
+        const currentHud = hudRef.current;
+        if (
+          allStopped(balls) &&
+          !(currentHud?.inHand) &&
+          cue?.active &&
+          !(currentHud?.over)
+        ) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -5987,7 +6177,11 @@ function SnookerGame() {
           dom.removeEventListener('touchmove', move);
           window.removeEventListener('touchend', up);
           window.removeEventListener('keydown', keyRot);
-          dom.removeEventListener('pointerdown', onPlace);
+          dom.removeEventListener('pointerdown', handleInHandDown);
+          dom.removeEventListener('pointermove', handleInHandMove);
+          window.removeEventListener('pointerup', endInHandDrag);
+          dom.removeEventListener('pointercancel', endInHandDrag);
+          window.removeEventListener('pointercancel', endInHandDrag);
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
@@ -5998,7 +6192,7 @@ function SnookerGame() {
         setLoading(false);
         setLoadingProgress(100);
       }
-  }, [hud.inHand, hud.over]);
+  }, []);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
