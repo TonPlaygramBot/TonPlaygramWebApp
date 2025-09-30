@@ -2694,7 +2694,7 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP = POCKET_VIS_R * 0.76; // tighten the cushion gap so the noses meet the pocket arcs without overlap
-  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.05; // trim the short rail cushions slightly so their corners meet the pocket arcs cleanly
+  const SHORT_CUSHION_TRIM = POCKET_VIS_R * 0.08; // trim the short rail cushions slightly so their corners meet the pocket arcs cleanly
   const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.24; // let the long cushions finish right at the pocket curves
   const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.12; // push the side cushions toward the corner jaws without intersecting
   const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.14; // ease the side cushions inward so their seams stay tight
