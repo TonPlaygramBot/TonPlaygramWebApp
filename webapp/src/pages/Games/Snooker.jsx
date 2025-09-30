@@ -2300,12 +2300,12 @@ function Table3D(parent) {
   railWoodMat.needsUpdate = true;
 
   const clothExtendBase = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.46,
-    Math.min(PLAY_W, PLAY_H) * 0.012
+    SIDE_RAIL_INNER_THICKNESS * 0.54,
+    Math.min(PLAY_W, PLAY_H) * 0.015
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.005; // extend the cloth further so rails meet the cloth with no gaps
+    Math.min(PLAY_W, PLAY_H) * 0.008; // extend the cloth further so rails meet the cloth with no gaps
   const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
@@ -2472,6 +2472,48 @@ function Table3D(parent) {
     [minx, maxz],
     [minx, minz]
   ]]];
+  const roundedRectPoly = (
+    minx,
+    minz,
+    maxx,
+    maxz,
+    radius,
+    segments = 12
+  ) => {
+    const width = maxx - minx;
+    const height = maxz - minz;
+    const maxRadius = Math.min(width, height) / 2;
+    const r = Math.max(0, Math.min(radius, maxRadius));
+    if (r <= 0 || !Number.isFinite(r)) {
+      return boxPoly(minx, minz, maxx, maxz);
+    }
+    const pts = [];
+    const addArc = (cx, cz, start, end) => {
+      const span = Math.abs(end - start);
+      const steps = Math.max(1, Math.round((segments * span) / (Math.PI / 2)));
+      for (let i = 0; i <= steps; i++) {
+        const t = THREE.MathUtils.lerp(start, end, i / steps);
+        const x = cx + Math.cos(t) * r;
+        const z = cz + Math.sin(t) * r;
+        const last = pts[pts.length - 1];
+        if (!last || Math.abs(last[0] - x) > 1e-6 || Math.abs(last[1] - z) > 1e-6) {
+          pts.push([x, z]);
+        }
+      }
+    };
+    addArc(maxx - r, minz + r, -Math.PI / 2, 0);
+    addArc(maxx - r, maxz - r, 0, Math.PI / 2);
+    addArc(minx + r, maxz - r, Math.PI / 2, Math.PI);
+    addArc(minx + r, minz + r, Math.PI, 1.5 * Math.PI);
+    if (pts.length) {
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+      if (Math.abs(first[0] - last[0]) > 1e-6 || Math.abs(first[1] - last[1]) > 1e-6) {
+        pts.push([...first]);
+      }
+    }
+    return [[pts]];
+  };
   const ringArea = (ring) => {
     let area = 0;
     for (let i = 0; i < ring.length - 1; i++) {
@@ -2490,12 +2532,24 @@ function Table3D(parent) {
     const x2 = cx + sx * cornerChamfer;
     const z1 = cz - sz * cornerChamfer;
     const z2 = cz + sz * cornerChamfer;
-    const boxX = boxPoly(Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2));
+    const boxX = roundedRectPoly(
+      Math.min(x1, x2),
+      Math.min(z1, z2),
+      Math.max(x1, x2),
+      Math.max(z1, z2),
+      cornerChamfer * 0.6
+    );
     const x3 = cx - sx * cornerChamfer;
     const x4 = cx + sx * cornerChamfer;
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
-    const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
+    const boxZ = roundedRectPoly(
+      Math.min(x3, x4),
+      Math.min(z3, z4),
+      Math.max(x3, x4),
+      Math.max(z3, z4),
+      cornerChamfer * 0.6
+    );
     return polygonClipping.union(notchCircle, boxX, boxZ);
   };
 
@@ -2643,7 +2697,7 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = MICRO_EPS * 0.5; // slide cushions almost against the rails so there's no visible gap
+const CUSHION_RAIL_FLUSH = MICRO_EPS * 0.12; // slide cushions almost against the rails so there's no visible gap
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
