@@ -841,7 +841,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.72; // lower the rails a touch so their top edge sits level with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
@@ -1073,17 +1073,17 @@ const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads mu
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
-const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
-const CUE_BACK_CLEARANCE = BALL_R * 0.6; // keep the cue butt from clipping cushions or other balls
+const CUE_TIP_GAP = BALL_R * 1.3; // keep the tip close so the cue can rest lower over the balls
+const CUE_BACK_CLEARANCE = BALL_R * 0.48; // allow the butt to approach cushions without floating too high
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.42;
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
-const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(4.5);
-const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(32);
+const CUE_BUTT_LIFT = BALL_R * 0.28;
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6);
+const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(2.5);
+const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(18);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
@@ -1605,7 +1605,7 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.74;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.68;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -1992,6 +1992,15 @@ const BALL_LABELS = Object.freeze({
   PINK: 'Pink',
   BLACK: 'Black',
   CUE: 'Cue'
+});
+const SNOOKER_BALL_VALUES = Object.freeze({
+  RED: 1,
+  YELLOW: 2,
+  GREEN: 3,
+  BROWN: 4,
+  BLUE: 5,
+  PINK: 6,
+  BLACK: 7
 });
 const formatBallLabel = (colorId) => {
   if (!colorId) return '';
@@ -2761,8 +2770,8 @@ function Table3D(parent) {
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0015; // keep cushions visually flush with the rail wood while avoiding z-fighting
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // pull cushions a little further toward the playfield to avoid overlapping the rails
+  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0005; // keep cushions visually flush with the rail wood while avoiding z-fighting
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.05; // pull cushions inward slightly while keeping them flush with the rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
@@ -2785,7 +2794,7 @@ function Table3D(parent) {
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateExpansionX = TABLE.THICK * 0.6;
-  const chromePlateExpansionZ = TABLE.THICK * 0.62;
+  const chromePlateExpansionZ = TABLE.THICK * 0.78; // give short-rail chrome plates a broader footprint without shifting them
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -6103,6 +6112,7 @@ function SnookerGame() {
           if (legalTargets.size === 0) legalTargets.add('RED');
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
+          const centers = pocketCenters();
           const clearance = BALL_R * 2.02;
           const clearanceSq = clearance * clearance;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
@@ -6173,7 +6183,59 @@ function SnookerGame() {
             };
             safetyShots.push(safetyPlan);
           });
-          potShots.sort((a, b) => a.difficulty - b.difficulty);
+          if (!potShots.length) {
+            const fallbackPlans = [];
+            activeBalls.forEach((targetBall) => {
+              if (targetBall === cue) return;
+              const colorId = toBallColorId(targetBall.id);
+              if (!colorId || !legalTargets.has(colorId)) return;
+              const cueVec = targetBall.pos.clone().sub(cuePos);
+              if (cueVec.lengthSq() < 1e-6) return;
+              const cueDist = cueVec.length();
+              let bestPocket = null;
+              centers.forEach((center, index) => {
+                const toPocket = center.clone().sub(targetBall.pos);
+                const dist = toPocket.length();
+                if (dist < BALL_R * 1.2) return;
+                if (!bestPocket || dist < bestPocket.dist) {
+                  bestPocket = { center: center.clone(), index, dist };
+                }
+              });
+              if (!bestPocket) return;
+              const fallbackPlan = {
+                type: 'pot',
+                aimDir: cueVec.clone().normalize(),
+                power: computePowerFromDistance(cueDist + bestPocket.dist),
+                target: colorId,
+                targetBall,
+                pocketId: POCKET_IDS[bestPocket.index] ?? 'TL',
+                pocketCenter: bestPocket.center.clone(),
+                difficulty: cueDist + bestPocket.dist * 0.6,
+                cueToTarget: cueDist,
+                targetToPocket: bestPocket.dist
+              };
+              fallbackPlan.spin = computePlanSpin(fallbackPlan, state);
+              fallbackPlans.push(fallbackPlan);
+            });
+            fallbackPlans.sort((a, b) => {
+              const valueDiff =
+                (SNOOKER_BALL_VALUES[b.target] ?? 0) -
+                (SNOOKER_BALL_VALUES[a.target] ?? 0);
+              if (valueDiff !== 0) return valueDiff;
+              return a.difficulty - b.difficulty;
+            });
+            if (fallbackPlans.length) {
+              potShots.push(fallbackPlans[0]);
+            }
+          }
+          const potComparator = (a, b) => {
+            const valueDiff =
+              (SNOOKER_BALL_VALUES[b.target] ?? 0) -
+              (SNOOKER_BALL_VALUES[a.target] ?? 0);
+            if (valueDiff !== 0) return valueDiff;
+            return a.difficulty - b.difficulty;
+          };
+          potShots.sort(potComparator);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
           return {
             bestPot: potShots[0] ?? null,
