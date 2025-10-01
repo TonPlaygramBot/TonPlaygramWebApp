@@ -2721,6 +2721,9 @@ function Table3D(parent) {
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
+  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0015; // keep cushions visually flush with the rail wood while avoiding z-fighting
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // pull cushions a little further toward the playfield to avoid overlapping the rails
+  const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
@@ -2739,13 +2742,15 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
+  const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - halfW - chromePlateInset
+    outerHalfW - chromePlateInset - cushionInnerX
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - halfH - chromePlateInset
+    outerHalfH - chromePlateInset - cushionInnerZ
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.98,
@@ -2794,6 +2799,62 @@ function Table3D(parent) {
     [minx, maxz],
     [minx, minz]
   ]]];
+  const roundedRectPoly = (
+    cx,
+    cz,
+    width,
+    height,
+    radius,
+    segments = 96
+  ) => {
+    const hw = width / 2;
+    const hh = height / 2;
+    if (hw <= MICRO_EPS || hh <= MICRO_EPS) {
+      const pts = [
+        [cx - hw, cz - hh],
+        [cx + hw, cz - hh],
+        [cx + hw, cz + hh],
+        [cx - hw, cz + hh],
+        [cx - hw, cz - hh]
+      ];
+      return [[pts]];
+    }
+    const r = Math.max(0, Math.min(radius, hw, hh));
+    const pts = [];
+    const cornerSegBase = Math.max(2, Math.floor(segments / 4));
+    const addCorner = (centerX, centerZ, start, end, includeFirst = false) => {
+      const sweep = end - start;
+      const steps = Math.max(1, Math.ceil((Math.abs(sweep) / (Math.PI / 2)) * cornerSegBase));
+      for (let i = 0; i <= steps; i++) {
+        if (!includeFirst && i === 0) continue;
+        const t = start + (sweep * i) / steps;
+        const x = cx + centerX + Math.cos(t) * r;
+        const z = cz + centerZ + Math.sin(t) * r;
+        pts.push([x, z]);
+      }
+    };
+
+    if (r <= MICRO_EPS) {
+      pts.push([cx - hw, cz + hh]);
+      pts.push([cx + hw, cz + hh]);
+      pts.push([cx + hw, cz - hh]);
+      pts.push([cx - hw, cz - hh]);
+    } else {
+      addCorner(-hw + r, hh - r, Math.PI, Math.PI / 2, true);
+      addCorner(hw - r, hh - r, Math.PI / 2, 0);
+      addCorner(hw - r, -hh + r, 0, -Math.PI / 2);
+      addCorner(-hw + r, -hh + r, -Math.PI / 2, -Math.PI);
+    }
+
+    if (pts.length) {
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        pts.push([first[0], first[1]]);
+      }
+    }
+    return [[pts]];
+  };
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
@@ -2815,17 +2876,27 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const circle = circlePoly(cx, 0, sidePocketRadius);
+    const circle = circlePoly(cx, 0, sidePocketRadius, 160);
     const xInner = cx - sx * sidePocketRadius * 0.2;
     const xOuter = cx + sx * sidePocketRadius * 1.6;
-    const zWidth = sidePocketRadius * 1.6;
-    const notchRect = boxPoly(
-      Math.min(xInner, xOuter),
-      -zWidth,
-      Math.max(xInner, xOuter),
-      zWidth
+    const minX = Math.min(xInner, xOuter);
+    const maxX = Math.max(xInner, xOuter);
+    const archHeight = sidePocketRadius * 3.2;
+    const archRadius = Math.max(
+      sidePocketRadius * 0.82,
+      Math.min(sidePocketRadius, (maxX - minX) / 2)
     );
-    return polygonClipping.union(circle, notchRect);
+    const arch = roundedRectPoly(
+      (minX + maxX) / 2,
+      0,
+      Math.max(MICRO_EPS, maxX - minX),
+      archHeight,
+      archRadius,
+      160
+    );
+    const topCap = circlePoly(cx, sidePocketRadius * 1.1, archRadius * 0.82, 96);
+    const bottomCap = circlePoly(cx, -sidePocketRadius * 1.1, archRadius * 0.82, 96);
+    return polygonClipping.union(circle, arch, topCap, bottomCap);
   };
 
   const chromePlates = new THREE.Group();
@@ -3034,10 +3105,6 @@ function Table3D(parent) {
     geo.computeVertexNormals();
     return geo;
   }
-
-const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0015; // keep cushions visually flush with the rail wood while avoiding z-fighting
-const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // pull cushions a little further toward the playfield to avoid overlapping the rails
-const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
