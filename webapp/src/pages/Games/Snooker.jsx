@@ -840,8 +840,8 @@ const BALL_D_REF = 52.5;
 const BAULK_FROM_BAULK_REF = 737;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 87;
-const SIDE_MOUTH_REF = 106;
+const CORNER_MOUTH_REF = 89;
+const SIDE_MOUTH_REF = 109;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -2773,8 +2773,8 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.32;
-  const chromePlateExpansionZ = TABLE.THICK * 0.32;
+  const chromePlateExpansionX = TABLE.THICK * 0.44;
+  const chromePlateExpansionZ = TABLE.THICK * 0.46;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -2795,10 +2795,10 @@ function Table3D(parent) {
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sideChromePlateWidth = chromePlateWidth;
-  const sideChromePlateHeight = chromePlateHeight * 1.22;
+  const sideChromePlateWidth = chromePlateWidth * 0.92;
+  const sideChromePlateHeight = chromePlateHeight * 1.18;
   const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.68,
+    chromePlateRadius * 0.74,
     sideChromePlateWidth / 2,
     sideChromePlateHeight / 2
   );
@@ -2911,16 +2911,22 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const radius = sidePocketRadius * 1.05;
-    const throatLength = Math.max(MICRO_EPS, radius * 1.4);
-    const throatHeight = Math.max(MICRO_EPS, radius * 3.1);
+    const radius = sidePocketRadius * 1.08;
+    const throatLength = Math.max(MICRO_EPS, radius * 1.22);
+    const throatHeight = Math.max(MICRO_EPS, radius * 2.7);
+    const throatRadius = Math.max(
+      MICRO_EPS,
+      Math.min(throatHeight / 2, radius * 0.62)
+    );
 
     const circle = circlePoly(cx, 0, radius, 256);
-    const throat = boxPoly(
-      Math.min(cx, cx + sx * throatLength),
-      -throatHeight / 2,
-      Math.max(cx, cx + sx * throatLength),
-      throatHeight / 2
+    const throat = roundedRectPoly(
+      cx + (sx * throatLength) / 2,
+      0,
+      Math.abs(throatLength),
+      throatHeight,
+      throatRadius,
+      192
     );
 
     return polygonClipping.union(circle, throat);
