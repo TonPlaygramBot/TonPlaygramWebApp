@@ -2773,7 +2773,7 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansion = TABLE.THICK * 0.12;
+  const chromePlateExpansion = TABLE.THICK * 0.2;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
