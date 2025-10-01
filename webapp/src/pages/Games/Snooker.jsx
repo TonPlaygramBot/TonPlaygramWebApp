@@ -541,7 +541,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.82;
+const RAIL_HEIGHT = TABLE.THICK * 1.76; // lower the rails a touch so their top edge sits level with the green cushions
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
@@ -634,9 +634,8 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const POCKET_JAW_LIP_HEIGHT =
-  CLOTH_TOP_LOCAL +
-  CLOTH_LIFT -
-  CLOTH_THICKNESS * 0.24; // recess the pocket lips so they sit almost flush with the cloth while staying visible
+  TABLE_RAIL_TOP_Y -
+  CLOTH_THICKNESS * (0.24 + 0.36); // rest the pocket lips directly under the rail surface so the black arc sits flush on top of the rails
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
