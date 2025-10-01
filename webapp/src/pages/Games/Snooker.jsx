@@ -207,7 +207,103 @@ function multiPolygonToShapes(mp) {
   return shapes;
 }
 
+function centroidFromRing(ring) {
+  if (!Array.isArray(ring) || !ring.length) {
+    return { x: 0, y: 0 };
+  }
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const pt = ring[i];
+    if (!Array.isArray(pt) || pt.length < 2) continue;
+    sumX += pt[0];
+    sumY += pt[1];
+    count++;
+  }
+  if (!count) {
+    return { x: 0, y: 0 };
+  }
+  return { x: sumX / count, y: sumY / count };
+}
+
+function scaleMultiPolygon(mp, scale) {
+  if (!Array.isArray(mp) || typeof scale !== 'number') {
+    return [];
+  }
+  const clampedScale = Math.max(0, scale);
+  return mp
+    .map((poly) => {
+      if (!Array.isArray(poly) || !poly.length) return null;
+      const outerRing = poly[0];
+      const centroid = centroidFromRing(outerRing);
+      const scaledPoly = poly
+        .map((ring) => {
+          if (!Array.isArray(ring) || !ring.length) return null;
+          return ring
+            .map((pt) => {
+              if (!Array.isArray(pt) || pt.length < 2) return null;
+              const dx = pt[0] - centroid.x;
+              const dy = pt[1] - centroid.y;
+              return [centroid.x + dx * clampedScale, centroid.y + dy * clampedScale];
+            })
+            .filter(Boolean);
+        })
+        .filter((ring) => Array.isArray(ring) && ring.length > 0);
+      if (!scaledPoly.length) return null;
+      return scaledPoly;
+    })
+    .filter((poly) => Array.isArray(poly) && poly.length > 0);
+}
+
+function createChromePocketRim({
+  notchMP,
+  plateThickness,
+  curveSegments = 64,
+  innerScale = 0.9,
+  depthMultiplier = CHROME_RIM_DEPTH_MULTIPLIER
+}) {
+  if (!Array.isArray(notchMP) || notchMP.length === 0) {
+    return null;
+  }
+  const scaledMP = scaleMultiPolygon(notchMP, innerScale);
+  if (!scaledMP.length) {
+    return null;
+  }
+  let rimMP;
+  try {
+    rimMP = polygonClipping.difference(notchMP, scaledMP);
+  } catch (err) {
+    return null;
+  }
+  const rimShapes = multiPolygonToShapes(rimMP);
+  if (!rimShapes.length) {
+    return null;
+  }
+  const rimDepth = plateThickness * depthMultiplier;
+  const rimGeo = new THREE.ExtrudeGeometry(rimShapes, {
+    depth: rimDepth,
+    bevelEnabled: false,
+    curveSegments: Math.max(12, Math.floor(curveSegments * 0.75))
+  });
+  rimGeo.rotateX(-Math.PI / 2);
+  rimGeo.translate(0, -rimDepth, 0);
+  rimGeo.computeVertexNormals();
+  const rimMesh = new THREE.Mesh(rimGeo, pocketRimMat);
+  rimMesh.position.y = plateThickness;
+  rimMesh.castShadow = false;
+  rimMesh.receiveShadow = false;
+  return rimMesh;
+}
+
 const POCKET_VISUAL_EXPANSION = 1.05;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.02;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.015;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78;
+const CHROME_CORNER_RIM_INNER_SCALE = 0.9;
+const CHROME_SIDE_RIM_INNER_SCALE = 0.88;
+const CHROME_RIM_DEPTH_MULTIPLIER = 1.6;
 
 function buildChromePlateGeometry({
   width,
@@ -255,23 +351,96 @@ function buildChromePlateGeometry({
     }
     shape.lineTo(topStartX, hh);
   } else {
-    if (r > MICRO_EPS) {
-      shape.moveTo(-hw + r, hh);
-      shape.lineTo(hw - r, hh);
-      shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
-      shape.lineTo(hw, -hh + r);
-      shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
-      shape.lineTo(-hw + r, -hh);
-      shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
-      shape.lineTo(-hw, hh - r);
-      shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
-      shape.lineTo(-hw + r, hh);
-    } else {
-      shape.moveTo(TL.x, TL.y);
-      shape.lineTo(TR.x, TR.y);
-      shape.lineTo(BR.x, BR.y);
-      shape.lineTo(BL.x, BL.y);
-      shape.lineTo(TL.x, TL.y);
+    const cornerKey = typeof corner === 'string' ? corner.toLowerCase() : '';
+    switch (cornerKey) {
+      case 'topleft': {
+        if (r > MICRO_EPS) {
+          shape.moveTo(-hw + r, hh);
+          shape.lineTo(hw, hh);
+          shape.lineTo(hw, -hh);
+          shape.lineTo(-hw, -hh);
+          shape.lineTo(-hw, hh - r);
+          shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+        } else {
+          shape.moveTo(TL.x, TL.y);
+          shape.lineTo(TR.x, TR.y);
+          shape.lineTo(BR.x, BR.y);
+          shape.lineTo(BL.x, BL.y);
+          shape.lineTo(TL.x, TL.y);
+        }
+        break;
+      }
+      case 'topright': {
+        if (r > MICRO_EPS) {
+          shape.moveTo(-hw, hh);
+          shape.lineTo(hw - r, hh);
+          shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
+          shape.lineTo(hw, -hh);
+          shape.lineTo(-hw, -hh);
+          shape.lineTo(-hw, hh);
+        } else {
+          shape.moveTo(TL.x, TL.y);
+          shape.lineTo(TR.x, TR.y);
+          shape.lineTo(BR.x, BR.y);
+          shape.lineTo(BL.x, BL.y);
+          shape.lineTo(TL.x, TL.y);
+        }
+        break;
+      }
+      case 'bottomright': {
+        if (r > MICRO_EPS) {
+          shape.moveTo(-hw, hh);
+          shape.lineTo(hw, hh);
+          shape.lineTo(hw, -hh + r);
+          shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
+          shape.lineTo(-hw, -hh);
+          shape.lineTo(-hw, hh);
+        } else {
+          shape.moveTo(TL.x, TL.y);
+          shape.lineTo(TR.x, TR.y);
+          shape.lineTo(BR.x, BR.y);
+          shape.lineTo(BL.x, BL.y);
+          shape.lineTo(TL.x, TL.y);
+        }
+        break;
+      }
+      case 'bottomleft': {
+        if (r > MICRO_EPS) {
+          shape.moveTo(-hw, hh);
+          shape.lineTo(hw, hh);
+          shape.lineTo(hw, -hh);
+          shape.lineTo(-hw + r, -hh);
+          shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
+          shape.lineTo(-hw, hh);
+        } else {
+          shape.moveTo(TL.x, TL.y);
+          shape.lineTo(TR.x, TR.y);
+          shape.lineTo(BR.x, BR.y);
+          shape.lineTo(BL.x, BL.y);
+          shape.lineTo(TL.x, TL.y);
+        }
+        break;
+      }
+      default: {
+        if (r > MICRO_EPS) {
+          shape.moveTo(-hw + r, hh);
+          shape.lineTo(hw - r, hh);
+          shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
+          shape.lineTo(hw, -hh + r);
+          shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
+          shape.lineTo(-hw + r, -hh);
+          shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
+          shape.lineTo(-hw, hh - r);
+          shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+          shape.lineTo(-hw + r, hh);
+        } else {
+          shape.moveTo(TL.x, TL.y);
+          shape.lineTo(TR.x, TR.y);
+          shape.lineTo(BR.x, BR.y);
+          shape.lineTo(BL.x, BL.y);
+          shape.lineTo(TL.x, TL.y);
+        }
+      }
     }
   }
 
@@ -2900,7 +3069,11 @@ function Table3D(parent) {
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
-    const notchCircle = circlePoly(cx, cz, cornerPocketRadius);
+    const notchCircle = circlePoly(
+      cx,
+      cz,
+      cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE
+    );
     const x1 = cx;
     const x2 = cx + sx * cornerChamfer;
     const z1 = cz - sz * cornerChamfer;
@@ -2916,12 +3089,18 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const radius = sidePocketRadius * 1.02;
-    const throatLength = Math.max(MICRO_EPS, radius * 1.1);
-    const throatHeight = Math.max(MICRO_EPS, radius * 2.4);
+    const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
+    const throatLength = Math.max(
+      MICRO_EPS,
+      radius * CHROME_SIDE_NOTCH_THROAT_SCALE
+    );
+    const throatHeight = Math.max(
+      MICRO_EPS,
+      radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
+    );
     const throatRadius = Math.max(
       MICRO_EPS,
-      Math.min(throatHeight / 2, radius * 0.55)
+      Math.min(throatHeight / 2, radius * 0.6)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
@@ -2964,6 +3143,15 @@ function Table3D(parent) {
       }),
       chromePlateMat
     );
+    const rim = createChromePocketRim({
+      notchMP: notchLocalMP,
+      plateThickness: chromePlateThickness,
+      curveSegments: chromePlateShapeSegments,
+      innerScale: CHROME_CORNER_RIM_INNER_SCALE
+    });
+    if (rim) {
+      plate.add(rim);
+    }
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
@@ -2991,6 +3179,15 @@ function Table3D(parent) {
       }),
       chromePlateMat
     );
+    const rim = createChromePocketRim({
+      notchMP: notchLocalMP,
+      plateThickness: chromePlateThickness,
+      curveSegments: chromePlateShapeSegments,
+      innerScale: CHROME_SIDE_RIM_INNER_SCALE
+    });
+    if (rim) {
+      plate.add(rim);
+    }
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
