@@ -508,14 +508,14 @@ function addPocketJaws(parent, playW, playH) {
   const rimDeckHeight = capHeight * 0.72;
   const rimLipHeight = capHeight * 0.36;
   const surfaceRimThickness = capHeight * 0.18;
-  const rimSurfaceLift = capLift + capHeight;
-  const rimLipTopY = rimSurfaceLift + POCKET_RIM_LIFT;
+  const rimSurfaceLift = capLift + capHeight + POCKET_RIM_LIFT;
+  const rimLipTopY = rimSurfaceLift + rimLipHeight * 0.5;
   const rimBaseTopY = rimLipTopY - rimLipHeight;
   const rimSkirtTopY = rimBaseTopY - rimDeckHeight;
   const cornerPocketRadius =
     POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION;
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sideJawSweep = SIDE_SECTOR_SWEEP * SIDE_JAW_SWEEP_SCALE;
+  const sideJawSweep = Math.PI / 2;
   const cornerJawGeo = makeJawSector(
     POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION,
     JAW_T * CORNER_JAW_THICKNESS_SCALE
@@ -525,20 +525,6 @@ function addPocketJaws(parent, playW, playH) {
     JAW_T * 0.72,
     -sideJawSweep,
     sideJawSweep
-  );
-  const cornerCapGeo = makeJawSector(
-    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION,
-    JAW_T * 1.08,
-    SECTOR_START,
-    SECTOR_END,
-    capHeight
-  );
-  const sideCapGeo = makeJawSector(
-    POCKET_VIS_R * POCKET_VISUAL_EXPANSION,
-    JAW_T * 0.82,
-    -sideJawSweep,
-    sideJawSweep,
-    capHeight
   );
   const cornerRimGeo = makeJawSector(
     POCKET_VIS_R * 1.32 * POCKET_VISUAL_EXPANSION,
@@ -573,8 +559,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideRimBaseGeo = makeJawSector(
     POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.36,
-    -sideJawSweep * 0.64,
-    sideJawSweep * 0.64,
+    -sideJawSweep * 0.94,
+    sideJawSweep * 0.94,
     rimDeckHeight * 0.9
   );
   sideRimBaseGeo.computeBoundingBox();
@@ -588,8 +574,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideRimTopGeo = makeJawSector(
     POCKET_VIS_R * 0.94 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.42,
-    -sideJawSweep * 0.7,
-    sideJawSweep * 0.7,
+    -sideJawSweep * 0.96,
+    sideJawSweep * 0.96,
     rimLipHeight * 0.86
   );
   sideRimTopGeo.computeBoundingBox();
@@ -618,8 +604,8 @@ function addPocketJaws(parent, playW, playH) {
   const sideSurfaceRimGeo = makeJawSector(
     POCKET_VIS_R * 0.82 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.16,
-    -sideJawSweep * 0.62,
-    sideJawSweep * 0.62,
+    -sideJawSweep,
+    sideJawSweep,
     surfaceRimThickness * 0.8
   );
   sideSurfaceRimGeo.computeBoundingBox();
@@ -630,7 +616,7 @@ function addPocketJaws(parent, playW, playH) {
   }
   sideSurfaceRimGeo.computeBoundingSphere();
   sideSurfaceRimGeo.computeVertexNormals();
-  const rimSkirtHeight = POCKET_RECESS_DEPTH * 0.62;
+  const rimSkirtHeight = POCKET_RECESS_DEPTH;
   const cornerSkirtGeo = makePocketSkirtGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 0.22,
     outerRadius: cornerPocketRadius + surfaceRimThickness * 1.82,
@@ -645,17 +631,18 @@ function addPocketJaws(parent, playW, playH) {
     startAngle: -Math.PI / 2,
     endAngle: Math.PI / 2
   });
-  const plasticDepth = CLOTH_THICKNESS * 0.44;
+  const plasticDepth = POCKET_RECESS_DEPTH * 0.9;
   const plasticClearance = CLOTH_THICKNESS * 0.04;
   const maxPlasticLift =
     TABLE_RAIL_TOP_Y - jawTopLocal - plasticDepth / 2 - plasticClearance;
+  const plasticTargetLift = rimSurfaceLift - plasticDepth / 2;
   const cornerPlasticLift = Math.max(
     0,
-    Math.min(rimSurfaceLift + surfaceRimThickness * 0.62, maxPlasticLift)
+    Math.min(plasticTargetLift, maxPlasticLift)
   );
   const sidePlasticLift = Math.max(
     0,
-    Math.min(rimSurfaceLift + surfaceRimThickness * 0.48, maxPlasticLift)
+    Math.min(plasticTargetLift, maxPlasticLift)
   );
   const cornerPlasticGeo = makePocketPlasticUGeometry({
     innerRadius: cornerPocketRadius + surfaceRimThickness * 0.36,
@@ -732,14 +719,7 @@ function addPocketJaws(parent, playW, playH) {
       const segmentScale = 0.54;
       const offset = width * 0.2;
       for (const dir of [-1, 1]) {
-        const segmentGeom = geom.clone();
-        segmentGeom.scale(segmentScale, 1, 1);
-        segmentGeom.computeVertexNormals();
-        const segment = new THREE.Mesh(segmentGeom, jawMat);
-        segment.castShadow = true;
-        segment.receiveShadow = true;
-        segment.position.x = offset * dir;
-        jaw.add(segment);
+        const segmentX = offset * dir;
 
         const surfaceRimGeo = sideSurfaceRimGeo.clone();
         surfaceRimGeo.scale(segmentScale, 1, 1);
@@ -747,21 +727,8 @@ function addPocketJaws(parent, playW, playH) {
         const surfaceRim = new THREE.Mesh(surfaceRimGeo, pocketRimMat);
         surfaceRim.castShadow = false;
         surfaceRim.receiveShadow = true;
-        surfaceRim.position.set(segment.position.x, rimSurfaceLift, 0);
+        surfaceRim.position.set(segmentX, rimSurfaceLift, 0);
         jaw.add(surfaceRim);
-
-        const segCapGeo = (entry.type === 'side' ? sideCapGeo : cornerCapGeo)
-          .clone()
-          .scale(segmentScale, 1, 1);
-        segCapGeo.computeBoundingBox();
-        segCapGeo.computeBoundingSphere();
-        segCapGeo.computeVertexNormals();
-        const segCap = new THREE.Mesh(segCapGeo, jawCapMat);
-        segCap.castShadow = false;
-        segCap.receiveShadow = true;
-        segCap.position.set(segment.position.x, capLift, 0);
-        jaw.add(segCap);
-        capMeshes.push(segCap);
 
         const rimBaseGeo = sideRimBaseGeo.clone();
         rimBaseGeo.scale(segmentScale, 1, 1);
@@ -769,7 +736,7 @@ function addPocketJaws(parent, playW, playH) {
         const rimBase = new THREE.Mesh(rimBaseGeo, plasticRimMat);
         rimBase.castShadow = false;
         rimBase.receiveShadow = true;
-        rimBase.position.set(segment.position.x, rimBaseTopY, 0);
+        rimBase.position.set(segmentX, rimBaseTopY, 0);
         jaw.add(rimBase);
 
         const rimLipGeo = sideRimTopGeo.clone();
@@ -778,14 +745,14 @@ function addPocketJaws(parent, playW, playH) {
         const rimLip = new THREE.Mesh(rimLipGeo, plasticRimMat);
         rimLip.castShadow = false;
         rimLip.receiveShadow = true;
-        rimLip.position.set(segment.position.x, rimLipTopY, 0);
+        rimLip.position.set(segmentX, rimLipTopY, 0);
         jaw.add(rimLip);
 
         const skirtGeo = sideSkirtGeo.clone();
         const skirt = new THREE.Mesh(skirtGeo, plasticRimMat);
         skirt.castShadow = false;
         skirt.receiveShadow = true;
-        skirt.position.set(segment.position.x, rimSkirtTopY, 0);
+        skirt.position.set(segmentX, rimSkirtTopY, 0);
         skirt.scale.set(segmentScale, 1, 1);
         jaw.add(skirt);
       }
@@ -795,10 +762,6 @@ function addPocketJaws(parent, playW, playH) {
       plastic.position.y = sidePlasticLift;
       jaw.add(plastic);
     } else {
-      const mesh = new THREE.Mesh(geom, jawMat);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      jaw.add(mesh);
       const rimSurface = new THREE.Mesh(
         cornerSurfaceRimGeo.clone(),
         pocketRimMat
@@ -806,35 +769,25 @@ function addPocketJaws(parent, playW, playH) {
       rimSurface.castShadow = false;
       rimSurface.receiveShadow = true;
       rimSurface.position.y = rimSurfaceLift;
-      mesh.add(rimSurface);
-      const capGeo = cornerCapGeo.clone();
-      capGeo.computeBoundingBox();
-      capGeo.computeBoundingSphere();
-      capGeo.computeVertexNormals();
-      const cap = new THREE.Mesh(capGeo, jawCapMat);
-      cap.castShadow = false;
-      cap.receiveShadow = true;
-      cap.position.y = capLift;
-      mesh.add(cap);
-      capMeshes.push(cap);
+      jaw.add(rimSurface);
 
       const rimBase = new THREE.Mesh(cornerRimGeo.clone(), plasticRimMat);
       rimBase.castShadow = false;
       rimBase.receiveShadow = true;
       rimBase.position.y = rimBaseTopY;
-      mesh.add(rimBase);
+      jaw.add(rimBase);
 
       const rimLip = new THREE.Mesh(cornerRimTopGeo.clone(), plasticRimMat);
       rimLip.castShadow = false;
       rimLip.receiveShadow = true;
       rimLip.position.y = rimLipTopY;
-      mesh.add(rimLip);
+      jaw.add(rimLip);
 
       const skirt = new THREE.Mesh(cornerSkirtGeo.clone(), plasticRimMat);
       skirt.castShadow = false;
       skirt.receiveShadow = true;
       skirt.position.y = rimSkirtTopY;
-      mesh.add(skirt);
+      jaw.add(skirt);
 
       const plastic = new THREE.Mesh(
         cornerPlasticGeo.clone(),
@@ -843,7 +796,7 @@ function addPocketJaws(parent, playW, playH) {
       plastic.castShadow = false;
       plastic.receiveShadow = true;
       plastic.position.y = cornerPlasticLift;
-      mesh.add(plastic);
+      jaw.add(plastic);
     }
     jaw.userData = {
       ...(jaw.userData || {}),
@@ -1092,7 +1045,7 @@ const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the clot
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = 0; // keep pocket rims level with the surrounding cloth
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.12; // lift pocket rims slightly above the chrome trim
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
