@@ -207,9 +207,10 @@ function multiPolygonToShapes(mp) {
   return shapes;
 }
 
-const SIDE_CHROME_PLATE_ARCH_LIFT_RATIO = 0.14;
-const SIDE_CHROME_PLATE_ARCH_MIN_RADIUS_SCALE = 0.24;
-const SIDE_CHROME_PLATE_ARCH_DIM_SCALE = 0.08;
+const SIDE_CHROME_PLATE_ARCH_LIFT_RATIO = 0.22;
+const SIDE_CHROME_PLATE_ARCH_MIN_RADIUS_SCALE = 0.32;
+const SIDE_CHROME_PLATE_ARCH_DIM_SCALE = 0.12;
+const POCKET_VISUAL_EXPANSION = 1.05;
 
 function buildChromePlateGeometry({
   width,
@@ -360,35 +361,36 @@ function addPocketJaws(parent, playW, playH) {
   const rimLipTopY = rimSurfaceLift + POCKET_RIM_LIFT;
   const rimBaseTopY = rimLipTopY - rimLipHeight;
   const rimSkirtTopY = rimBaseTopY - rimDeckHeight;
-  const cornerPocketRadius = POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE;
-  const sidePocketRadius = SIDE_POCKET_RADIUS;
+  const cornerPocketRadius =
+    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION;
+  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sideJawSweep = SIDE_SECTOR_SWEEP * SIDE_JAW_SWEEP_SCALE;
   const cornerJawGeo = makeJawSector(
-    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE,
+    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION,
     JAW_T * CORNER_JAW_THICKNESS_SCALE
   );
   const sideJawGeo = makeJawSector(
-    POCKET_VIS_R * 0.94,
+    POCKET_VIS_R * 0.94 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.72,
     -sideJawSweep,
     sideJawSweep
   );
   const cornerCapGeo = makeJawSector(
-    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE,
+    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION,
     JAW_T * 1.08,
     SECTOR_START,
     SECTOR_END,
     capHeight
   );
   const sideCapGeo = makeJawSector(
-    POCKET_VIS_R,
+    POCKET_VIS_R * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.82,
     -sideJawSweep,
     sideJawSweep,
     capHeight
   );
   const cornerRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.32,
+    POCKET_VIS_R * 1.32 * POCKET_VISUAL_EXPANSION,
     JAW_T * 1.38,
     SECTOR_START,
     SECTOR_END,
@@ -403,7 +405,7 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimGeo.computeBoundingSphere();
   cornerRimGeo.computeVertexNormals();
   const cornerRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 1.38,
+    POCKET_VIS_R * 1.38 * POCKET_VISUAL_EXPANSION,
     JAW_T * 1.46,
     SECTOR_START,
     SECTOR_END,
@@ -418,7 +420,7 @@ function addPocketJaws(parent, playW, playH) {
   cornerRimTopGeo.computeBoundingSphere();
   cornerRimTopGeo.computeVertexNormals();
   const sideRimBaseGeo = makeJawSector(
-    POCKET_VIS_R * 0.92,
+    POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.36,
     -sideJawSweep * 0.64,
     sideJawSweep * 0.64,
@@ -433,7 +435,7 @@ function addPocketJaws(parent, playW, playH) {
   sideRimBaseGeo.computeBoundingSphere();
   sideRimBaseGeo.computeVertexNormals();
   const sideRimTopGeo = makeJawSector(
-    POCKET_VIS_R * 0.94,
+    POCKET_VIS_R * 0.94 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.42,
     -sideJawSweep * 0.7,
     sideJawSweep * 0.7,
@@ -448,7 +450,7 @@ function addPocketJaws(parent, playW, playH) {
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.42,
+    POCKET_VIS_R * 1.42 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.94,
     SECTOR_START,
     SECTOR_END,
@@ -463,7 +465,7 @@ function addPocketJaws(parent, playW, playH) {
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 0.82,
+    POCKET_VIS_R * 0.82 * POCKET_VISUAL_EXPANSION,
     JAW_T * 0.16,
     -sideJawSweep * 0.62,
     sideJawSweep * 0.62,
@@ -521,7 +523,9 @@ function addPocketJaws(parent, playW, playH) {
   for (const entry of POCKET_MAP) {
     const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
     const centerPull =
-      entry.type === 'corner' ? POCKET_VIS_R * JAW_CENTER_PULL_SCALE : 0;
+      entry.type === 'corner'
+        ? POCKET_VIS_R * JAW_CENTER_PULL_SCALE * POCKET_VISUAL_EXPANSION
+        : 0;
     const pullDir =
       entry.type === 'side'
         ? new THREE.Vector2(entry.pos[0] >= 0 ? -1 : 1, 0)
@@ -556,7 +560,7 @@ function addPocketJaws(parent, playW, playH) {
       if (entry.type === 'side') {
         const dir = entry.pos[0] >= 0 ? -1 : 1;
         return new THREE.Vector3(
-          jaw.position.x + dir * POCKET_VIS_R * 1.5,
+          jaw.position.x + dir * POCKET_VIS_R * 1.5 * POCKET_VISUAL_EXPANSION,
           jaw.position.y - 0.05,
           jaw.position.z
         );
@@ -573,7 +577,7 @@ function addPocketJaws(parent, playW, playH) {
     if (entry.type === 'side') {
       const width = adjustedBox
         ? adjustedBox.max.x - adjustedBox.min.x
-        : POCKET_VIS_R * 1.2;
+        : POCKET_VIS_R * 1.2 * POCKET_VISUAL_EXPANSION;
       const segmentScale = 0.54;
       const offset = width * 0.2;
       for (const dir of [-1, 1]) {
@@ -705,8 +709,10 @@ function addPocketJaws(parent, playW, playH) {
 
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
-  const sideDepth = POCKET_VIS_R * 1.12 * POCKET_CUT_EXPANSION;
-  const sideHalfWidth = POCKET_VIS_R * 0.9 * POCKET_CUT_EXPANSION;
+  const sideDepth =
+    POCKET_VIS_R * 1.12 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
+  const sideHalfWidth =
+    POCKET_VIS_R * 0.9 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
   const mat = new THREE.MeshStandardMaterial({
@@ -723,7 +729,8 @@ function addPocketCuts(parent, clothPlane) {
   mat.depthWrite = false;
   mat.depthTest = true;
   const cornerShape = (() => {
-    const innerR = POCKET_VIS_R * 0.98 * POCKET_CUT_EXPANSION;
+    const innerR =
+      POCKET_VIS_R * 0.98 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
     const outerR = innerR + sideDepth;
     const arcInset = Math.PI * 0.04;
     const startAngle = arcInset;
@@ -746,8 +753,10 @@ function addPocketCuts(parent, clothPlane) {
     return s;
   })();
   const sideShape = (() => {
-    const lipInset = POCKET_VIS_R * 0.32 * POCKET_CUT_EXPANSION;
-    const throatHalfWidth = POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION;
+    const lipInset =
+      POCKET_VIS_R * 0.32 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
+    const throatHalfWidth =
+      POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
     const s = new THREE.Shape();
     s.moveTo(-sideHalfWidth, 0);
     s.lineTo(sideHalfWidth, 0);
@@ -782,7 +791,8 @@ function addPocketCuts(parent, clothPlane) {
       const sx = Math.sign(p.x) || 1;
       const sy = Math.sign(p.y) || 1;
       const outward = new THREE.Vector2(sx, sy).normalize();
-      const radialOffset = POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION;
+      const radialOffset =
+        POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
       const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
       // mirror the profile so local axes always point toward the playing surface
       mesh.scale.set(-sx, -sy, 1);
@@ -794,7 +804,8 @@ function addPocketCuts(parent, clothPlane) {
     } else {
       const sy = Math.sign(p.y) || 1;
       mesh.scale.z = sy >= 0 ? -1 : 1;
-      mesh.position.z += sy * POCKET_VIS_R * 0.12 * POCKET_CUT_EXPANSION;
+      mesh.position.z +=
+        sy * POCKET_VIS_R * 0.12 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
     }
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -899,7 +910,7 @@ const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
-  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION; // cloth cutout radius for pocket openings
+  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -939,7 +950,7 @@ const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
@@ -2257,8 +2268,8 @@ function reflectRails(ball) {
   const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const pocketGuard = POCKET_VIS_R * 0.85;
-  const cornerDepthLimit = POCKET_VIS_R * 1.45;
+  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
+  const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cos, -sy * sin);
@@ -2712,7 +2723,7 @@ function Table3D(parent) {
     spots: spotMeshes
   };
 
-  const POCKET_TOP_R = POCKET_VIS_R * 0.96;
+  const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
   const pocketGeo = new THREE.CylinderGeometry(
@@ -2773,8 +2784,8 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.44;
-  const chromePlateExpansionZ = TABLE.THICK * 0.46;
+  const chromePlateExpansionX = TABLE.THICK * 0.6;
+  const chromePlateExpansionZ = TABLE.THICK * 0.62;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -2795,21 +2806,21 @@ function Table3D(parent) {
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sideChromePlateWidth = chromePlateWidth * 0.92;
-  const sideChromePlateHeight = chromePlateHeight * 1.18;
+  const sideChromePlateWidth = chromePlateWidth * 0.86;
+  const sideChromePlateHeight = chromePlateHeight * 1.08;
   const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.74,
+    chromePlateRadius * 0.7,
     sideChromePlateWidth / 2,
     sideChromePlateHeight / 2
   );
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.08;
-  const cornerChamfer = POCKET_VIS_R * 0.32;
-  const cornerInset = POCKET_VIS_R * 0.56;
-  const sidePocketRadius = SIDE_POCKET_RADIUS;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84;
+  const cornerPocketRadius = POCKET_VIS_R * 1.08 * POCKET_VISUAL_EXPANSION;
+  const cornerChamfer = POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = POCKET_VIS_R * 0.56 * POCKET_VISUAL_EXPANSION;
+  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -3168,12 +3179,18 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP = POCKET_VIS_R * 0.88; // pull the cushions a touch closer so they land right at the pocket arcs
-  const SHORT_CUSHION_EXTENSION = POCKET_VIS_R * 0.12; // extend short rail cushions slightly toward the corner pockets
-  const LONG_CUSHION_TRIM = POCKET_VIS_R * 0.32; // extend the long cushions so they stop right where the pocket arcs begin
-  const SIDE_CUSHION_POCKET_CLEARANCE = POCKET_VIS_R * 0.05; // extend side cushions so they meet the pocket jaws cleanly
-  const SIDE_CUSHION_CENTER_PULL = POCKET_VIS_R * 0.2; // push long rail cushions a touch closer to the middle pockets
-  const SIDE_CUSHION_CORNER_TRIM = POCKET_VIS_R * 0.015; // extend side cushions toward the corner pockets for longer green rails
+  const POCKET_GAP =
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
+  const SHORT_CUSHION_EXTENSION =
+    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
+  const LONG_CUSHION_TRIM =
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+  const SIDE_CUSHION_POCKET_CLEARANCE =
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket jaws cleanly
+  const SIDE_CUSHION_CENTER_PULL =
+    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+  const SIDE_CUSHION_CORNER_TRIM =
+    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
     PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
   const vertSeg =
