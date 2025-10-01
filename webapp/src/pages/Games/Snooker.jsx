@@ -207,6 +207,10 @@ function multiPolygonToShapes(mp) {
   return shapes;
 }
 
+const SIDE_CHROME_PLATE_ARCH_LIFT_RATIO = 0.14;
+const SIDE_CHROME_PLATE_ARCH_MIN_RADIUS_SCALE = 0.24;
+const SIDE_CHROME_PLATE_ARCH_DIM_SCALE = 0.08;
+
 function buildChromePlateGeometry({
   width,
   height,
@@ -259,7 +263,13 @@ function buildChromePlateGeometry({
     shape.absarc(BL.x + r, BL.y + r, r, -Math.PI / 2, -Math.PI, true);
     shape.lineTo(TL.x, TL.y);
   } else if (isSidePlate) {
-    const archLift = Math.min(hh * 0.22, Math.max(r * 0.3, Math.min(width, height) * 0.1));
+    const archLift = Math.min(
+      hh * SIDE_CHROME_PLATE_ARCH_LIFT_RATIO,
+      Math.max(
+        r * SIDE_CHROME_PLATE_ARCH_MIN_RADIUS_SCALE,
+        Math.min(width, height) * SIDE_CHROME_PLATE_ARCH_DIM_SCALE
+      )
+    );
     shape.moveTo(-hw + r, hh);
     if (archLift > MICRO_EPS) {
       shape.quadraticCurveTo(0, hh + archLift, hw - r, hh);
@@ -2763,7 +2773,7 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansion = TABLE.THICK * 0.08;
+  const chromePlateExpansion = TABLE.THICK * 0.12;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -2787,7 +2797,7 @@ function Table3D(parent) {
   const sideChromePlateWidth = chromePlateWidth;
   const sideChromePlateHeight = chromePlateHeight * 1.22;
   const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.78,
+    chromePlateRadius * 0.68,
     sideChromePlateWidth / 2,
     sideChromePlateHeight / 2
   );
