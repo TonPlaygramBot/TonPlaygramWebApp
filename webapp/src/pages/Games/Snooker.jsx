@@ -121,6 +121,460 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
+const TWO_PI = Math.PI * 2;
+const CUE_EPS = 1e-6;
+
+function normalizeAngle(angle) {
+  return THREE.MathUtils.euclideanModulo(angle, TWO_PI);
+}
+
+function shortestAngleDiff(target, source) {
+  return THREE.MathUtils.euclideanModulo(target - source + Math.PI, TWO_PI) - Math.PI;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function copyVector3(v) {
+  if (!v) return new THREE.Vector3();
+  if (v.isVector3) return v.clone();
+  const { x = 0, y = 0, z = 0 } = v;
+  return new THREE.Vector3(x, y, z);
+}
+
+function computeRailLimitedLength(angle, pivot, table, shaft) {
+  if (!table || !shaft) {
+    return shaft && typeof shaft.length === 'number' ? Math.max(0, shaft.length) : 0;
+  }
+  const u = new THREE.Vector2(Math.cos(angle), Math.sin(angle));
+  if (u.lengthSq() < CUE_EPS) {
+    return Math.max(0, shaft.length || 0);
+  }
+  const backDir = new THREE.Vector2(-u.x, -u.y);
+  const buttRadius = (shaft.radius || 0) + (shaft.buttExtraRadius || 0);
+  const clearance = (table.railClearance || 0) + buttRadius;
+  const candidates = [];
+
+  if (Math.abs(backDir.x) > CUE_EPS) {
+    if (backDir.x > 0) {
+      const limit = (table.maxX - clearance - pivot.x) / backDir.x;
+      if (limit >= 0) candidates.push(limit);
+    } else {
+      const limit = (pivot.x - (table.minX + clearance)) / -backDir.x;
+      if (limit >= 0) candidates.push(limit);
+    }
+  }
+
+  if (Math.abs(backDir.y) > CUE_EPS) {
+    if (backDir.y > 0) {
+      const limit = (table.maxZ - clearance - pivot.z) / backDir.y;
+      if (limit >= 0) candidates.push(limit);
+    } else {
+      const limit = (pivot.z - (table.minZ + clearance)) / -backDir.y;
+      if (limit >= 0) candidates.push(limit);
+    }
+  }
+
+  if (!candidates.length) {
+    return Math.max(0, shaft.length || 0);
+  }
+
+  const minCandidate = Math.min(...candidates);
+  if (!Number.isFinite(minCandidate)) {
+    return Math.max(0, shaft.length || 0);
+  }
+
+  return Math.max(0, Math.min(shaft.length || 0, minCandidate));
+}
+
+export function resolveXZBlockedIntervals({
+  pivot,
+  objectBalls = [],
+  shaftLength = 0,
+  shaftRadius = 0,
+  eps = 0,
+  minGapVisual = 0
+}) {
+  const inflatedBalls = Array.isArray(objectBalls) ? objectBalls : [];
+  const intervals = [];
+  const hysteresis = THREE.MathUtils.degToRad(0.5);
+
+  for (let i = 0; i < inflatedBalls.length; i++) {
+    const ball = inflatedBalls[i];
+    if (!ball || !ball.pos) continue;
+    const dx = ball.pos.x - pivot.x;
+    const dz = ball.pos.z - pivot.z;
+    const rhoSq = dx * dx + dz * dz;
+    const rho = Math.sqrt(rhoSq);
+    const inflatedR = (ball.radius || 0) + shaftRadius + eps + minGapVisual;
+
+  if (rho <= inflatedR + CUE_EPS) {
+      return {
+        blocked: [{ start: 0, end: TWO_PI }],
+        allowed: []
+      };
+    }
+
+    const alpha = Math.atan2(dz, dx);
+    const center = alpha + Math.PI;
+    const ratio = clamp(inflatedR / rho, -1, 1);
+    const delta = Math.asin(ratio);
+
+    let start = center - delta;
+    let end = center + delta;
+
+    const projRange = { start: alpha + Math.PI / 2, end: alpha + (3 * Math.PI) / 2 };
+    if (shaftLength < rho - CUE_EPS) {
+      const gamma = Math.acos(clamp((shaftLength || 0) / rho, -1, 1));
+      const limitStart = center - gamma;
+      const limitEnd = center + gamma;
+      projRange.start = Math.max(projRange.start, limitStart);
+      projRange.end = Math.min(projRange.end, limitEnd);
+    }
+
+    start = Math.max(start, projRange.start);
+    end = Math.min(end, projRange.end);
+
+    if (end <= start) continue;
+
+    start = Math.max(start - hysteresis, -Infinity);
+    end = Math.min(end + hysteresis, Infinity);
+
+    if (end - start >= TWO_PI - CUE_EPS) {
+      return {
+        blocked: [{ start: 0, end: TWO_PI }],
+        allowed: []
+      };
+    }
+
+    let nStart = normalizeAngle(start);
+    let nEnd = normalizeAngle(end);
+    if (nEnd < nStart) {
+      intervals.push({ start: nStart, end: TWO_PI });
+      intervals.push({ start: 0, end: nEnd });
+    } else {
+      intervals.push({ start: nStart, end: nEnd });
+    }
+  }
+
+  if (!intervals.length) {
+    return {
+      blocked: [],
+      allowed: [{ start: 0, end: TWO_PI }]
+    };
+  }
+
+  intervals.sort((a, b) => a.start - b.start);
+  const merged = [];
+  let current = intervals[0];
+  for (let i = 1; i < intervals.length; i++) {
+    const next = intervals[i];
+    if (next.start <= current.end + CUE_EPS) {
+      current.end = Math.max(current.end, next.end);
+    } else {
+      merged.push(current);
+      current = next;
+    }
+  }
+  merged.push(current);
+
+  const blocked = merged.map((seg) => ({ start: seg.start, end: Math.min(seg.end, TWO_PI) }));
+
+  const allowed = [];
+  if (blocked.length === 1 && blocked[0].start <= 0 && blocked[0].end >= TWO_PI - CUE_EPS) {
+    return { blocked, allowed: [] };
+  }
+
+  let prevEnd = 0;
+  for (let i = 0; i < blocked.length; i++) {
+    const seg = blocked[i];
+    if (seg.start > prevEnd + CUE_EPS) {
+      allowed.push({ start: prevEnd, end: seg.start });
+    }
+    prevEnd = Math.max(prevEnd, seg.end);
+  }
+  if (prevEnd < TWO_PI - CUE_EPS) {
+    allowed.push({ start: prevEnd, end: TWO_PI });
+  }
+
+  return { blocked, allowed };
+}
+
+export function verifyCueClearance3D(pose, params) {
+  const { cueBall, objectBalls = [], shaft = {}, tolerances = {} } = params || {};
+  const result = {
+    ok: true,
+    offenders: [],
+    minMargin: Infinity
+  };
+
+  if (!pose || pose.shaftLengthUsed <= CUE_EPS) {
+    result.minMargin = Infinity;
+    return result;
+  }
+
+  const radius = (shaft.radius || 0) + (tolerances.minGapVisual || 0);
+  const tip = copyVector3(pose.pivot);
+  const dirXZ = pose.dirXZ || 0;
+  const u = new THREE.Vector3(Math.cos(dirXZ), 0, Math.sin(dirXZ));
+  const beta = THREE.MathUtils.degToRad(pose.tiltDeg || 0);
+  const up = new THREE.Vector3(0, 1, 0);
+  const axisDir = u.clone().addScaledVector(up, -Math.tan(beta));
+  const butt = tip.clone().addScaledVector(axisDir, -pose.shaftLengthUsed);
+
+  const segStart = tip;
+  const segEnd = butt;
+  const segDir = segEnd.clone().sub(segStart);
+  const segLenSq = segDir.lengthSq();
+
+  for (let i = 0; i < objectBalls.length; i++) {
+    const ball = objectBalls[i];
+    if (!ball || !ball.pos) continue;
+    const inflatedR = (ball.radius || 0) + radius + (tolerances.eps || 0);
+    const center = ball.pos;
+    const segToCenter = center.clone().sub(segStart);
+    let t = 0;
+    if (segLenSq > CUE_EPS) {
+      t = THREE.MathUtils.clamp(segToCenter.dot(segDir) / segLenSq, 0, 1);
+    }
+    const closest = segStart.clone().addScaledVector(segDir, t);
+    const dist = center.clone().sub(closest);
+    const dSq = dist.lengthSq();
+    const margin = Math.sqrt(dSq) - inflatedR;
+    if (margin < result.minMargin) {
+      result.minMargin = margin;
+    }
+    if (margin < 0) {
+      result.ok = false;
+      result.offenders.push(i);
+    }
+  }
+
+  if (!objectBalls.length) {
+    result.minMargin = Infinity;
+  }
+
+  return result;
+}
+
+export function updateCuePoseSmooth(previous, target, dt, limits = {}) {
+  if (!target) return previous || null;
+  const deltaTime = Number.isFinite(dt) && dt > 0 ? dt : 1 / 60;
+  if (!previous) {
+    return {
+      pivot: copyVector3(target.pivot),
+      dirXZ: target.dirXZ,
+      tiltDeg: target.tiltDeg,
+      shaftLengthUsed: target.shaftLengthUsed,
+      debug: target.debug
+    };
+  }
+
+  const maxSnap = (limits.maxSnapDegPerSec || 360) * THREE.MathUtils.degToRad(1) * deltaTime;
+  const maxTilt = (limits.maxTiltDegPerSec || 360) * deltaTime;
+
+  const diff = shortestAngleDiff(target.dirXZ, previous.dirXZ || 0);
+  const step = clamp(diff, -maxSnap, maxSnap);
+  const dirXZ = previous.dirXZ + step;
+
+  const tiltDiff = target.tiltDeg - (previous.tiltDeg || 0);
+  const tiltStep = clamp(tiltDiff, -maxTilt, maxTilt);
+  const tiltDeg = (previous.tiltDeg || 0) + tiltStep;
+
+  const lengthLerp = clamp(deltaTime * 8, 0, 1);
+  const shaftLengthUsed = THREE.MathUtils.lerp(
+    previous.shaftLengthUsed || 0,
+    target.shaftLengthUsed,
+    lengthLerp
+  );
+
+  const pivot = copyVector3(previous.pivot).lerp(target.pivot || new THREE.Vector3(), clamp(deltaTime * 10, 0, 1));
+
+  return {
+    pivot,
+    dirXZ: normalizeAngle(dirXZ),
+    tiltDeg,
+    shaftLengthUsed,
+    debug: target.debug
+  };
+}
+
+export function computeCuePose(params) {
+  if (!params || !params.cueBall || !params.table || !params.shaft) {
+    return null;
+  }
+
+  const {
+    cueBall,
+    objectBalls = [],
+    desired = {},
+    shaft,
+    tolerances = {},
+    dynamics = {},
+    table,
+    previousPose
+  } = params;
+
+  const desiredAngle = normalizeAngle(desired.phiXZ || 0);
+  const tipOffsetXZ = desired.tipOffsetXZ || new THREE.Vector2(0, 0);
+  const tipOffsetY = clamp(desired.tipOffsetY ?? 0, -0.95, 0.95);
+
+  const u = new THREE.Vector3(Math.cos(desiredAngle), 0, Math.sin(desiredAngle));
+  const centerToPivot = new THREE.Vector3(-u.x, tipOffsetY, -u.z);
+  centerToPivot.add(new THREE.Vector3(tipOffsetXZ.x || 0, 0, tipOffsetXZ.y || 0));
+  if (centerToPivot.lengthSq() < CUE_EPS) {
+    centerToPivot.set(-u.x || 0, tipOffsetY || 0, -u.z || 0);
+  }
+  centerToPivot.normalize().multiplyScalar(cueBall.radius || 0.028575);
+  const pivot = cueBall.pos.clone().add(centerToPivot);
+  pivot.y = cueBall.pos.y + centerToPivot.y;
+  const minPivotY = (table.y ?? 0) + (shaft.radius || 0) * 0.5 + (tolerances.minGapVisual || 0);
+  if (pivot.y < minPivotY) {
+    pivot.y = minPivotY;
+  }
+
+  const railLengthDesired = computeRailLimitedLength(desiredAngle, pivot, table, shaft);
+  const shaftLengthNominal = shaft.length || 0;
+
+  const { blocked, allowed } = resolveXZBlockedIntervals({
+    pivot,
+    objectBalls,
+    shaftLength: Math.min(shaftLengthNominal, railLengthDesired),
+    shaftRadius: shaft.radius || 0,
+    eps: tolerances.eps || 0,
+    minGapVisual: tolerances.minGapVisual || 0
+  });
+
+  const desiredInAllowed = allowed.some(
+    (seg) => normalizeAngle(desiredAngle) >= seg.start - CUE_EPS && normalizeAngle(desiredAngle) <= seg.end + CUE_EPS
+  );
+
+  let dirXZ = desiredAngle;
+  let chosenEdge = null;
+
+  if (!desiredInAllowed && allowed.length) {
+    let bestAngle = dirXZ;
+    let bestDist = Infinity;
+    allowed.forEach((seg) => {
+      const candidates = [seg.start, seg.end];
+      candidates.forEach((candidate) => {
+        const diff = Math.abs(shortestAngleDiff(candidate, desiredAngle));
+        if (diff < bestDist - CUE_EPS) {
+          bestDist = diff;
+          bestAngle = candidate;
+          chosenEdge = candidate;
+        }
+      });
+      if (seg.start <= seg.end && desiredAngle >= seg.start && desiredAngle <= seg.end) {
+        bestAngle = desiredAngle;
+        bestDist = 0;
+      }
+    });
+    dirXZ = normalizeAngle(bestAngle);
+  }
+
+  const railLengthFinal = computeRailLimitedLength(dirXZ, pivot, table, shaft);
+  let shaftLengthUsed = Math.min(shaftLengthNominal, railLengthFinal);
+  if (!Number.isFinite(shaftLengthUsed) || shaftLengthUsed < 0) {
+    shaftLengthUsed = 0;
+  }
+
+  const minTiltFromSpin = Math.abs(tipOffsetY) * 8;
+  const maxTiltDeg = dynamics.maxTiltDeg ?? 45;
+
+  const u2D = new THREE.Vector2(Math.cos(dirXZ), Math.sin(dirXZ));
+  const baseElev = tipOffsetY * (cueBall.radius || 0);
+
+  const inflatedRadius = (ball) => (ball.radius || 0) + (shaft.radius || 0) + (tolerances.eps || 0) + (tolerances.minGapVisual || 0);
+
+  const computeTiltForBalls = () => {
+    let required = minTiltFromSpin;
+    let noPose = false;
+    for (let i = 0; i < objectBalls.length; i++) {
+      const ball = objectBalls[i];
+      if (!ball || !ball.pos) continue;
+      const dx = ball.pos.x - pivot.x;
+      const dz = ball.pos.z - pivot.z;
+      const vec = new THREE.Vector2(dx, dz);
+      const proj = vec.dot(u2D);
+      let along = -proj;
+      if (along < 0) along = 0;
+      if (along > shaftLengthUsed) along = shaftLengthUsed;
+      const closestX = pivot.x + u2D.x * -along;
+      const closestZ = pivot.z + u2D.y * -along;
+      const ddx = ball.pos.x - closestX;
+      const ddz = ball.pos.z - closestZ;
+      const dist2 = ddx * ddx + ddz * ddz;
+      const R = inflatedRadius(ball);
+      if (dist2 >= R * R - CUE_EPS) continue;
+      const dXZ = Math.sqrt(Math.max(0, dist2));
+      const hNeed = Math.sqrt(Math.max(0, R * R - dXZ * dXZ));
+      const rhs = hNeed + (tolerances.minGapVisual || 0) - baseElev;
+      if (rhs <= 0) continue;
+      if (along <= CUE_EPS) {
+        noPose = true;
+        required = maxTiltDeg;
+        break;
+      }
+      const tanNeeded = rhs / along;
+      if (tanNeeded <= 0) continue;
+      const tiltRad = Math.atan(tanNeeded);
+      required = Math.max(required, THREE.MathUtils.radToDeg(tiltRad));
+    }
+    return {
+      tilt: clamp(required, 0, maxTiltDeg),
+      noPose
+    };
+  };
+
+  let { tilt: tiltDeg, noPose } = computeTiltForBalls();
+
+  if (noPose && tiltDeg >= maxTiltDeg) {
+    shaftLengthUsed = Math.max(0, shaftLengthUsed - (tolerances.minGapVisual || 0));
+  }
+
+  const poseTarget = {
+    pivot,
+    dirXZ: normalizeAngle(dirXZ),
+    tiltDeg: clamp(tiltDeg, 0, maxTiltDeg),
+    shaftLengthUsed,
+    debug: {
+      blocked,
+      allowed,
+      chosenEdge,
+      L_eff: railLengthFinal,
+      tiltNeededDeg: tiltDeg
+    }
+  };
+
+  const verified = verifyCueClearance3D(poseTarget, params);
+  if (!verified.ok) {
+    let length = shaftLengthUsed;
+    for (let i = 0; i < 4 && length > CUE_EPS; i++) {
+      length = Math.max(0, length - (tolerances.minGapVisual || 0) * 0.5);
+      const retryPose = {
+        ...poseTarget,
+        shaftLengthUsed: length
+      };
+      const retry = verifyCueClearance3D(retryPose, params);
+      if (retry.ok) {
+        poseTarget.shaftLengthUsed = length;
+        break;
+      }
+      if (i === 3) {
+        poseTarget.shaftLengthUsed = length;
+      }
+    }
+  }
+
+  if (previousPose) {
+    return updateCuePoseSmooth(previousPose, poseTarget, 1 / 60, dynamics);
+  }
+
+  return poseTarget;
+}
+
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.02;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.015;
