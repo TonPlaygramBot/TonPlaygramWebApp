@@ -326,69 +326,53 @@ function addPocketJaws(parent, playW, playH) {
     jaw.lookAt(lookTarget);
     const capMeshes = [];
     if (entry.type === 'side') {
-      const width = adjustedBox
-        ? adjustedBox.max.x - adjustedBox.min.x
-        : POCKET_VIS_R * 1.2;
-      const segmentScale = 0.54;
-      const offset = width * 0.2;
-      for (const dir of [-1, 1]) {
-        const segmentGeom = geom.clone();
-        segmentGeom.scale(segmentScale, 1, 1);
-        segmentGeom.computeVertexNormals();
-        const segment = new THREE.Mesh(segmentGeom, jawMat);
-        segment.castShadow = true;
-        segment.receiveShadow = true;
-        segment.position.x = offset * dir;
-        jaw.add(segment);
+      const mesh = new THREE.Mesh(geom, jawMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      jaw.add(mesh);
 
-        const surfaceRimGeo = sideSurfaceRimGeo.clone();
-        surfaceRimGeo.scale(segmentScale, 1, 1);
-        surfaceRimGeo.computeVertexNormals();
-        const surfaceRim = new THREE.Mesh(surfaceRimGeo, pocketRimMat);
-        surfaceRim.castShadow = false;
-        surfaceRim.receiveShadow = true;
-        surfaceRim.position.set(segment.position.x, rimSurfaceLift, 0);
-        jaw.add(surfaceRim);
+      const surfaceRimGeo = sideSurfaceRimGeo.clone();
+      surfaceRimGeo.computeVertexNormals();
+      const surfaceRim = new THREE.Mesh(surfaceRimGeo, pocketRimMat);
+      surfaceRim.castShadow = false;
+      surfaceRim.receiveShadow = true;
+      surfaceRim.position.y = rimSurfaceLift;
+      mesh.add(surfaceRim);
 
-        const segCapGeo = (entry.type === 'side' ? sideCapGeo : cornerCapGeo)
-          .clone()
-          .scale(segmentScale, 1, 1);
-        segCapGeo.computeBoundingBox();
-        segCapGeo.computeBoundingSphere();
-        segCapGeo.computeVertexNormals();
-        const segCap = new THREE.Mesh(segCapGeo, jawCapMat);
-        segCap.castShadow = false;
-        segCap.receiveShadow = true;
-        segCap.position.set(segment.position.x, capLift, 0);
-        jaw.add(segCap);
-        capMeshes.push(segCap);
+      const capGeo = sideCapGeo.clone();
+      capGeo.computeBoundingBox();
+      capGeo.computeBoundingSphere();
+      capGeo.computeVertexNormals();
+      const cap = new THREE.Mesh(capGeo, jawCapMat);
+      cap.castShadow = false;
+      cap.receiveShadow = true;
+      cap.position.y = capLift;
+      mesh.add(cap);
+      capMeshes.push(cap);
 
-        const rimBaseGeo = sideRimBaseGeo.clone();
-        rimBaseGeo.scale(segmentScale, 1, 1);
-        rimBaseGeo.computeVertexNormals();
-        const rimBase = new THREE.Mesh(rimBaseGeo, plasticRimMat);
-        rimBase.castShadow = false;
-        rimBase.receiveShadow = true;
-        rimBase.position.set(segment.position.x, rimBaseTopY, 0);
-        jaw.add(rimBase);
+      const rimBaseGeo = sideRimBaseGeo.clone();
+      rimBaseGeo.computeVertexNormals();
+      const rimBase = new THREE.Mesh(rimBaseGeo, plasticRimMat);
+      rimBase.castShadow = false;
+      rimBase.receiveShadow = true;
+      rimBase.position.y = rimBaseTopY;
+      mesh.add(rimBase);
 
-        const rimLipGeo = sideRimTopGeo.clone();
-        rimLipGeo.scale(segmentScale, 1, 1);
-        rimLipGeo.computeVertexNormals();
-        const rimLip = new THREE.Mesh(rimLipGeo, plasticRimMat);
-        rimLip.castShadow = false;
-        rimLip.receiveShadow = true;
-        rimLip.position.set(segment.position.x, rimLipTopY, 0);
-        jaw.add(rimLip);
+      const rimLipGeo = sideRimTopGeo.clone();
+      rimLipGeo.computeVertexNormals();
+      const rimLip = new THREE.Mesh(rimLipGeo, plasticRimMat);
+      rimLip.castShadow = false;
+      rimLip.receiveShadow = true;
+      rimLip.position.y = rimLipTopY;
+      mesh.add(rimLip);
 
-        const skirtGeo = sideSkirtGeo.clone();
-        const skirt = new THREE.Mesh(skirtGeo, plasticRimMat);
-        skirt.castShadow = false;
-        skirt.receiveShadow = true;
-        skirt.position.set(segment.position.x, rimSkirtTopY, 0);
-        skirt.scale.set(segmentScale, 1, 1);
-        jaw.add(skirt);
-      }
+      const skirtGeo = sideSkirtGeo.clone();
+      skirtGeo.computeVertexNormals();
+      const skirt = new THREE.Mesh(skirtGeo, plasticRimMat);
+      skirt.castShadow = false;
+      skirt.receiveShadow = true;
+      skirt.position.y = rimSkirtTopY;
+      mesh.add(skirt);
     } else {
       const mesh = new THREE.Mesh(geom, jawMat);
       mesh.castShadow = true;
@@ -571,7 +555,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.72; // lower the rails a touch so their top edge sits level with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.68; // drop the rails slightly more so their top edge stays level with the green cushions
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
@@ -2479,6 +2463,9 @@ function Table3D(parent) {
     table.add(pocket);
     pocketMeshes.push(pocket);
   });
+
+  const pocketJaws = addPocketJaws(table, PLAY_W, PLAY_H);
+  table.userData.pocketJaws = pocketJaws;
 
   const railH = RAIL_HEIGHT;
   const railsTopY = frameTopY + railH;
