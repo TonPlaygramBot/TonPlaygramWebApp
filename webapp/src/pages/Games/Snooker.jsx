@@ -841,7 +841,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise rails slightly so their top edge meets the green cushions cleanly
+const RAIL_HEIGHT = TABLE.THICK * 1.72; // lower the rails a touch so their top edge sits level with the green cushions
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
@@ -880,9 +880,8 @@ const BALL_R = BALL_DIAMETER / 2;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_SIZE_SCALE = 1.33; // pockets are 33% wider than the balls for a friendlier capture window
-const POCKET_CORNER_MOUTH = BALL_DIAMETER * POCKET_SIZE_SCALE;
-const POCKET_SIDE_MOUTH = BALL_DIAMETER * POCKET_SIZE_SCALE;
+const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
@@ -1074,17 +1073,17 @@ const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads mu
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
-const CUE_TIP_GAP = BALL_R * 1.3; // keep the cue tip close to the cue ball for steadier addressing
+const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_BACK_CLEARANCE = BALL_R * 0.6; // keep the cue butt from clipping cushions or other balls
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.3;
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(5.5);
-const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(2.5);
-const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(18);
+const CUE_BUTT_LIFT = BALL_R * 0.42;
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
+const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(4.5);
+const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(32);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
@@ -1534,8 +1533,8 @@ function applySnookerScaling({
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
     'applySnookerScaling: table aspect ratio must remain 3569:1778.'
   );
-  const expectedCornerMouth = BALL_DIAMETER * POCKET_SIZE_SCALE;
-  const expectedSideMouth = BALL_DIAMETER * POCKET_SIZE_SCALE;
+  const expectedCornerMouth = CORNER_MOUTH_REF * mmToUnits;
+  const expectedSideMouth = SIDE_MOUTH_REF * mmToUnits;
   const actualCornerMouth = POCKET_VIS_R * 2;
   const actualSideMouth = SIDE_POCKET_RADIUS * 2;
   console.assert(
@@ -1598,7 +1597,7 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.008;
+const STANDING_VIEW_MARGIN = 0.012;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -1606,7 +1605,7 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.62;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.74;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -2762,8 +2761,8 @@ function Table3D(parent) {
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0006; // keep cushions visually flush with the rail wood while avoiding z-fighting
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.042; // let cushions sit snug against the frame without leaving a gap
+  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0015; // keep cushions visually flush with the rail wood while avoiding z-fighting
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // pull cushions a little further toward the playfield to avoid overlapping the rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
@@ -2783,7 +2782,7 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const chromePlateThickness = railH * 0.08;
+  const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateExpansionX = TABLE.THICK * 0.6;
   const chromePlateExpansionZ = TABLE.THICK * 0.62;
@@ -6132,17 +6131,13 @@ function SnookerGame() {
             const ignore = new Set([cue.id, targetBall.id]);
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
+              if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
+              const cueVec = targetBall.pos.clone().sub(cuePos);
+              if (cueVec.lengthSq() < 1e-6) continue;
+              const cueDist = cueVec.length();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
               if (toPocket.lengthSq() < BALL_R * BALL_R * 4) continue;
               if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
-              const pocketDir = toPocket.clone().normalize();
-              const ghostPos = targetBall.pos
-                .clone()
-                .sub(pocketDir.clone().multiplyScalar(BALL_R * 2));
-              if (!isPathClear(cuePos, ghostPos, ignore)) continue;
-              const cueVec = ghostPos.clone().sub(cuePos);
-              if (cueVec.lengthSq() < 1e-6) continue;
-              const cueDist = cueVec.length();
               const totalDist = cueDist + toPocket.length();
               const plan = {
                 type: 'pot',
@@ -6150,7 +6145,6 @@ function SnookerGame() {
                 power: computePowerFromDistance(totalDist),
                 target: colorId,
                 targetBall,
-                ghostPos,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
                 difficulty: cueDist + toPocket.length() * 1.2,
