@@ -2744,13 +2744,21 @@ function Table3D(parent) {
   const chromePlateInset = TABLE.THICK * 0.02;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const chromePlateInnerLimitX = Math.max(
+    0,
+    cushionInnerX - CUSHION_CENTER_NUDGE
+  );
+  const chromePlateInnerLimitZ = Math.max(
+    0,
+    cushionInnerZ - CUSHION_CENTER_NUDGE
+  );
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - cushionInnerX
+    outerHalfW - chromePlateInset - chromePlateInnerLimitX
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - chromePlateInset - cushionInnerZ
+    outerHalfH - chromePlateInset - chromePlateInnerLimitZ
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.98,
@@ -2761,9 +2769,9 @@ function Table3D(parent) {
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
   const sideChromePlateWidth = chromePlateWidth;
-  const sideChromePlateHeight = chromePlateHeight * 1.18;
+  const sideChromePlateHeight = chromePlateHeight * 1.22;
   const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.72,
+    chromePlateRadius * 0.78,
     sideChromePlateWidth / 2,
     sideChromePlateHeight / 2
   );
@@ -2876,27 +2884,35 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const circle = circlePoly(cx, 0, sidePocketRadius, 160);
-    const xInner = cx - sx * sidePocketRadius * 0.2;
-    const xOuter = cx + sx * sidePocketRadius * 1.6;
-    const minX = Math.min(xInner, xOuter);
-    const maxX = Math.max(xInner, xOuter);
-    const archHeight = sidePocketRadius * 3.2;
-    const archRadius = Math.max(
-      sidePocketRadius * 0.82,
-      Math.min(sidePocketRadius, (maxX - minX) / 2)
-    );
+    const baseCircle = circlePoly(cx, 0, sidePocketRadius * 1.02, 200);
+    const archWidth = Math.max(MICRO_EPS, sidePocketRadius * 2.6);
+    const archHeight = sidePocketRadius * 3.4;
+    const archRadius = sidePocketRadius * 0.96;
     const arch = roundedRectPoly(
-      (minX + maxX) / 2,
+      cx + sx * sidePocketRadius * 0.42,
       0,
-      Math.max(MICRO_EPS, maxX - minX),
+      archWidth,
       archHeight,
       archRadius,
-      160
+      200
     );
-    const topCap = circlePoly(cx, sidePocketRadius * 1.1, archRadius * 0.82, 96);
-    const bottomCap = circlePoly(cx, -sidePocketRadius * 1.1, archRadius * 0.82, 96);
-    return polygonClipping.union(circle, arch, topCap, bottomCap);
+    const wrapWidth = Math.max(MICRO_EPS, sidePocketRadius * 1.8);
+    const wrap = roundedRectPoly(
+      cx + sx * sidePocketRadius * 1.08,
+      0,
+      wrapWidth,
+      archHeight * 0.72,
+      archRadius * 0.82,
+      180
+    );
+    const topCap = circlePoly(cx, sidePocketRadius * 1.28, archRadius * 0.84, 144);
+    const bottomCap = circlePoly(
+      cx,
+      -sidePocketRadius * 1.28,
+      archRadius * 0.84,
+      144
+    );
+    return polygonClipping.union(baseCircle, arch, wrap, topCap, bottomCap);
   };
 
   const chromePlates = new THREE.Group();
