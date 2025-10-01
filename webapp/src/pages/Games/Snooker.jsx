@@ -551,8 +551,8 @@ const BALL_D_REF = 52.5;
 const BAULK_FROM_BAULK_REF = 737;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 86;
-const SIDE_MOUTH_REF = 105;
+const CORNER_MOUTH_REF = 87;
+const SIDE_MOUTH_REF = 106;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -2670,7 +2670,7 @@ function Table3D(parent) {
   }
 
 const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
-const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.045; // pull cushions a touch toward the playfield to avoid overlapping the rails
+const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.055; // pull cushions a little further toward the playfield to avoid overlapping the rails
 const SHORT_CUSHION_HEIGHT_SCALE = 1.045; // give the short rail cushions a subtle lift to meet the rail tops
 
   function addCushion(x, z, len, horizontal, flip = false) {
