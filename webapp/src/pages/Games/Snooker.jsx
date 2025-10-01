@@ -2739,34 +2739,15 @@ function Table3D(parent) {
 
   const chromePlateRadius = outerCornerRadius * 0.98;
   const chromePlateExtra = Math.min(longRailW, endRailW) * 0.52;
+  const chromePlateWidth = chromePlateRadius * 2 + chromePlateExtra;
+  const chromePlateHeight = chromePlateRadius * 2 + chromePlateExtra * 0.9;
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateBaseWidth = chromePlateRadius * 2 + chromePlateExtra;
-  const chromePlateBaseHeight = chromePlateRadius * 2 + chromePlateExtra * 0.9;
-  const chromePlateTargetWidth = Math.max(
-    0,
-    outerHalfW - innerHalfW - chromePlateInset
-  );
-  const chromePlateTargetHeight = Math.max(
-    0,
-    outerHalfH - innerHalfH - chromePlateInset
-  );
-  const chromePlateWidth = Math.max(chromePlateBaseWidth, chromePlateTargetWidth);
-  const chromePlateHeight = Math.max(
-    chromePlateBaseHeight,
-    chromePlateTargetHeight
-  );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sideChromePlateWidth = Math.max(
-    chromePlateHeight,
-    chromePlateTargetWidth
-  );
-  const sideChromePlateHeight = Math.max(
-    chromePlateWidth,
-    chromePlateTargetHeight * 1.1
-  );
+  const sideChromePlateWidth = chromePlateWidth * 1.28;
+  const sideChromePlateHeight = chromePlateHeight * 0.76;
   const sideChromePlateRadius = chromePlateRadius * 0.72;
 
   const innerHalfW = halfWext;
@@ -2819,18 +2800,13 @@ function Table3D(parent) {
     return polygonClipping.union(notchCircle, boxX, boxZ);
   };
 
-  const sideRailNotchMP = (sx) => {
-    const cx = sx * (innerHalfW - sideInset);
-    const circle = circlePoly(cx, 0, sidePocketRadius);
-    const xInner = cx - sx * sidePocketRadius * 0.2;
-    const xOuter = cx + sx * sidePocketRadius * 1.6;
-    const zWidth = sidePocketRadius * 1.6;
-    const notchRect = boxPoly(
-      Math.min(xInner, xOuter),
-      -zWidth,
-      Math.max(xInner, xOuter),
-      zWidth
-    );
+  const sideNotchMP = (sz) => {
+    const cz = sz * (innerHalfH - sideInset);
+    const circle = circlePoly(0, cz, sidePocketRadius);
+    const zInner = cz - sz * sidePocketRadius * 0.2;
+    const zOuter = cz + sz * sidePocketRadius * 1.6;
+    const xWidth = sidePocketRadius * 1.6;
+    const notchRect = boxPoly(-xWidth, Math.min(zInner, zOuter), xWidth, Math.max(zInner, zOuter));
     return polygonClipping.union(circle, notchRect);
   };
 
@@ -2868,12 +2844,12 @@ function Table3D(parent) {
   });
 
   [
-    { id: 'sideLeft', sx: -1 },
-    { id: 'sideRight', sx: 1 }
-  ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
-    const centerZ = 0;
-    const notchLocalMP = sideRailNotchMP(sx).map((poly) =>
+    { id: 'sideTop', sz: -1 },
+    { id: 'sideBottom', sz: 1 }
+  ].forEach(({ id, sz }) => {
+    const centerX = 0;
+    const centerZ = sz * (outerHalfH - sideChromePlateHeight / 2 - chromePlateInset);
+    const notchLocalMP = sideNotchMP(sz).map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
     const plate = new THREE.Mesh(
