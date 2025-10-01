@@ -154,12 +154,67 @@ function makePocketPlasticUGeometry({
   return geo;
 }
 
+function signedRingArea(ring) {
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[i + 1];
+    area += x1 * y2 - x2 * y1;
+  }
+  return area * 0.5;
+}
+
+function multiPolygonToShapes(mp) {
+  const shapes = [];
+  if (!Array.isArray(mp)) return shapes;
+  mp.forEach((poly) => {
+    if (!Array.isArray(poly) || !poly.length) return;
+    const outerRing = poly[0];
+    if (!Array.isArray(outerRing) || outerRing.length < 4) return;
+    const outerPts = outerRing.slice(0, -1);
+    if (!outerPts.length) return;
+    const outerClockwise = signedRingArea(outerRing) < 0;
+    const orderedOuter = outerClockwise
+      ? outerPts.slice().reverse()
+      : outerPts;
+    const shape = new THREE.Shape();
+    shape.moveTo(orderedOuter[0][0], orderedOuter[0][1]);
+    for (let i = 1; i < orderedOuter.length; i++) {
+      shape.lineTo(orderedOuter[i][0], orderedOuter[i][1]);
+    }
+    shape.closePath();
+
+    for (let ringIndex = 1; ringIndex < poly.length; ringIndex++) {
+      const holeRing = poly[ringIndex];
+      if (!Array.isArray(holeRing) || holeRing.length < 4) continue;
+      const holePts = holeRing.slice(0, -1);
+      if (!holePts.length) continue;
+      const holeClockwise = signedRingArea(holeRing) < 0;
+      const orderedHole = holeClockwise
+        ? holePts
+        : holePts.slice().reverse();
+      const hole = new THREE.Path();
+      hole.moveTo(orderedHole[0][0], orderedHole[0][1]);
+      for (let i = 1; i < orderedHole.length; i++) {
+        hole.lineTo(orderedHole[i][0], orderedHole[i][1]);
+      }
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+
+    shapes.push(shape);
+  });
+  return shapes;
+}
+
 function buildChromePlateGeometry({
   width,
   height,
   radius,
   thickness,
-  corner = 'topLeft'
+  corner = 'topLeft',
+  notchMP = null,
+  shapeSegments = 96
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -207,7 +262,29 @@ function buildChromePlateGeometry({
   const bevelSize = Math.min(r * 0.22, Math.min(width, height) * 0.08);
   const bevelThickness = Math.min(thickness * 0.5, bevelSize * 0.75);
 
-  const geo = new THREE.ExtrudeGeometry(shape, {
+  let shapesToExtrude = [shape];
+  if (notchMP?.length) {
+    const extracted = shape.extractPoints(shapeSegments);
+    const basePts = extracted.shape;
+    if (basePts?.length) {
+      const baseRing = basePts.map((pt) => [pt.x, pt.y]);
+      if (baseRing.length) {
+        const first = baseRing[0];
+        const last = baseRing[baseRing.length - 1];
+        if (!first || !last || first[0] !== last[0] || first[1] !== last[1]) {
+          baseRing.push([baseRing[0][0], baseRing[0][1]]);
+        }
+        const baseMP = [[baseRing]];
+        const clipped = polygonClipping.difference(baseMP, notchMP);
+        const clippedShapes = multiPolygonToShapes(clipped);
+        if (clippedShapes.length) {
+          shapesToExtrude = clippedShapes;
+        }
+      }
+    }
+  }
+
+  const geo = new THREE.ExtrudeGeometry(shapesToExtrude, {
     depth: thickness,
     bevelEnabled: true,
     bevelSegments: 3,
@@ -2649,41 +2726,13 @@ function Table3D(parent) {
   });
 
   const chromePlateRadius = outerCornerRadius * 0.98;
-  const chromePlateExtra = Math.min(longRailW, endRailW) * 0.12;
+  const chromePlateExtra = Math.min(longRailW, endRailW) * 0.36;
   const chromePlateWidth = chromePlateRadius * 2 + chromePlateExtra;
   const chromePlateHeight = chromePlateRadius * 2 + chromePlateExtra;
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-
-  const chromePlates = new THREE.Group();
-  [
-    { corner: 'topLeft', sx: -1, sz: -1 },
-    { corner: 'topRight', sx: 1, sz: -1 },
-    { corner: 'bottomRight', sx: 1, sz: 1 },
-    { corner: 'bottomLeft', sx: -1, sz: 1 }
-  ].forEach(({ corner, sx, sz }) => {
-    const plate = new THREE.Mesh(
-      buildChromePlateGeometry({
-        width: chromePlateWidth,
-        height: chromePlateHeight,
-        radius: chromePlateRadius,
-        thickness: chromePlateThickness,
-        corner
-      }),
-      chromePlateMat
-    );
-    plate.position.set(
-      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset),
-      chromePlateY,
-      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset)
-    );
-    plate.castShadow = false;
-    plate.receiveShadow = false;
-    chromePlates.add(plate);
-  });
-  railsGroup.add(chromePlates);
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
@@ -2716,15 +2765,7 @@ function Table3D(parent) {
     [minx, maxz],
     [minx, minz]
   ]]];
-  const ringArea = (ring) => {
-    let area = 0;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [x1, z1] = ring[i];
-      const [x2, z2] = ring[i + 1];
-      area += x1 * z2 - x2 * z1;
-    }
-    return area * 0.5;
-  };
+  const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
@@ -2742,6 +2783,40 @@ function Table3D(parent) {
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
     return polygonClipping.union(notchCircle, boxX, boxZ);
   };
+
+  const chromePlates = new THREE.Group();
+  const chromePlateShapeSegments = 128;
+  [
+    { corner: 'topLeft', sx: -1, sz: -1 },
+    { corner: 'topRight', sx: 1, sz: -1 },
+    { corner: 'bottomRight', sx: 1, sz: 1 },
+    { corner: 'bottomLeft', sx: -1, sz: 1 }
+  ].forEach(({ corner, sx, sz }) => {
+    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
+    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
+    const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
+      )
+    );
+    const plate = new THREE.Mesh(
+      buildChromePlateGeometry({
+        width: chromePlateWidth,
+        height: chromePlateHeight,
+        radius: chromePlateRadius,
+        thickness: chromePlateThickness,
+        corner,
+        notchMP: notchLocalMP,
+        shapeSegments: chromePlateShapeSegments
+      }),
+      chromePlateMat
+    );
+    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.castShadow = false;
+    plate.receiveShadow = false;
+    chromePlates.add(plate);
+  });
+  railsGroup.add(chromePlates);
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
