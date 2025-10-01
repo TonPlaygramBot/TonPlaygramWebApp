@@ -1418,6 +1418,358 @@ const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
+const TWO_PI = Math.PI * 2;
+const ANGLE_EPS = 1e-4;
+
+const normalizeAngle = (angle) => {
+  if (!Number.isFinite(angle)) return 0;
+  let wrapped = angle % TWO_PI;
+  if (wrapped < 0) wrapped += TWO_PI;
+  return wrapped;
+};
+
+const angularDistance = (a, b) => {
+  const diff = Math.abs(normalizeAngle(a) - normalizeAngle(b));
+  return diff > Math.PI ? TWO_PI - diff : diff;
+};
+
+const clampAngleToInterval = (angle, start, end, margin = ANGLE_EPS) => {
+  if (end < start) {
+    return clampAngleToInterval(angle, start, end + TWO_PI, margin);
+  }
+  const span = end - start;
+  if (span <= margin * 2) {
+    return normalizeAngle(start + span * 0.5);
+  }
+  if (angle < start) return normalizeAngle(start + margin);
+  if (angle > end) return normalizeAngle(end - margin);
+  return normalizeAngle(angle);
+};
+
+const addAngularInterval = (list, start, end) => {
+  const s = normalizeAngle(start);
+  const e = normalizeAngle(end);
+  if (Number.isNaN(s) || Number.isNaN(e)) return;
+  if (e < s) {
+    list.push([s, TWO_PI]);
+    list.push([0, e]);
+  } else {
+    list.push([s, e]);
+  }
+};
+
+const mergeIntervals = (intervals) => {
+  if (!intervals.length) return [];
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  let [curStart, curEnd] = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const [start, end] = sorted[i];
+    if (start <= curEnd + ANGLE_EPS) {
+      curEnd = Math.max(curEnd, end);
+    } else {
+      merged.push([curStart, curEnd]);
+      curStart = start;
+      curEnd = end;
+    }
+  }
+  merged.push([curStart, curEnd]);
+  if (merged.length > 1) {
+    const first = merged[0];
+    const last = merged[merged.length - 1];
+    if (first[0] <= ANGLE_EPS && last[1] >= TWO_PI - ANGLE_EPS) {
+      merged[0] = [normalizeAngle(last[0] - TWO_PI), first[1]];
+      merged.pop();
+    }
+  }
+  return merged.map(([start, end]) => [normalizeAngle(start), normalizeAngle(end)]);
+};
+
+const complementIntervals = (intervals) => {
+  if (!intervals.length) return [[0, TWO_PI]];
+  const allowed = [];
+  let cursor = 0;
+  for (const [start, end] of intervals) {
+    if (start > cursor + ANGLE_EPS) {
+      allowed.push([cursor, start]);
+    }
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < TWO_PI - ANGLE_EPS) {
+    allowed.push([cursor, TWO_PI]);
+  }
+  if (allowed.length && allowed[0][0] <= ANGLE_EPS && allowed[allowed.length - 1][1] >= TWO_PI - ANGLE_EPS) {
+    const merged = [
+      [normalizeAngle(allowed[allowed.length - 1][0] - TWO_PI), allowed[0][1]]
+    ];
+    return merged;
+  }
+  return allowed.map(([start, end]) => [normalizeAngle(start), normalizeAngle(end)]);
+};
+
+const distanceToBoundary = (cx, cz, angle, table, shaftLength) => {
+  if (!table) return Math.max(0, shaftLength);
+  const dirX = Math.sin(angle);
+  const dirZ = Math.cos(angle);
+  let maxLen = Math.max(0, shaftLength);
+  const eps = 1e-6;
+  if (Math.abs(dirX) > eps) {
+    const boundX = dirX > 0 ? table.maxX : table.minX;
+    if (Number.isFinite(boundX)) {
+      const t = (boundX - cx) / dirX;
+      if (t >= 0) maxLen = Math.min(maxLen, t);
+      else return 0;
+    }
+  }
+  if (Math.abs(dirZ) > eps) {
+    const boundZ = dirZ > 0 ? table.maxZ : table.minZ;
+    if (Number.isFinite(boundZ)) {
+      const t = (boundZ - cz) / dirZ;
+      if (t >= 0) maxLen = Math.min(maxLen, t);
+      else return 0;
+    }
+  }
+  return Math.max(0, maxLen);
+};
+
+const distanceSqPointToSegment = (px, pz, qx, qz, x, z) => {
+  const vx = qx - px;
+  const vz = qz - pz;
+  const wx = x - px;
+  const wz = z - pz;
+  const lenSq = vx * vx + vz * vz;
+  if (lenSq <= 1e-8) {
+    const dx = x - px;
+    const dz = z - pz;
+    return dx * dx + dz * dz;
+  }
+  let t = (wx * vx + wz * vz) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const cx = px + vx * t;
+  const cz = pz + vz * t;
+  const dx = x - cx;
+  const dz = z - cz;
+  return dx * dx + dz * dz;
+};
+
+const capsuleIntersectsBall = (
+  startX,
+  startZ,
+  endX,
+  endZ,
+  radius,
+  ball,
+  epsilon = ANGLE_EPS
+) => {
+  if (!ball?.active || !ball?.pos) return false;
+  const bx = ball.pos.x;
+  const bz = ball.pos.y;
+  if (!Number.isFinite(bx) || !Number.isFinite(bz)) return false;
+  const inflated = BALL_R + radius + epsilon;
+  const distSq = distanceSqPointToSegment(startX, startZ, endX, endZ, bx, bz);
+  return distSq <= inflated * inflated;
+};
+
+const capsuleClear = (cx, cz, angle, length, radius, balls, cueId) => {
+  if (length <= 0) return true;
+  const dirX = Math.sin(angle);
+  const dirZ = Math.cos(angle);
+  const endX = cx + dirX * length;
+  const endZ = cz + dirZ * length;
+  for (const ball of balls || []) {
+    if (!ball || ball.id === cueId || !ball.active) continue;
+    if (capsuleIntersectsBall(cx, cz, endX, endZ, radius, ball)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+export function getValidCueAngle(
+  phi,
+  cueBall,
+  balls,
+  table,
+  shaftLength,
+  shaftRadius,
+  debug = null
+) {
+  if (!cueBall?.pos) {
+    if (debug) {
+      debug.blocked = [];
+      debug.allowed = [[0, TWO_PI]];
+      debug.backAngle = normalizeAngle(phi + Math.PI);
+      debug.length = 0;
+    }
+    return normalizeAngle(phi);
+  }
+  const cx = cueBall.pos.x;
+  const cz = cueBall.pos.y;
+  if (!Number.isFinite(cx) || !Number.isFinite(cz)) return normalizeAngle(phi);
+  const effectiveTable = table
+    ? {
+        minX: Number.isFinite(table.minX)
+          ? table.minX + shaftRadius
+          : Number.NEGATIVE_INFINITY,
+        maxX: Number.isFinite(table.maxX)
+          ? table.maxX - shaftRadius
+          : Number.POSITIVE_INFINITY,
+        minZ: Number.isFinite(table.minZ)
+          ? table.minZ + shaftRadius
+          : Number.NEGATIVE_INFINITY,
+        maxZ: Number.isFinite(table.maxZ)
+          ? table.maxZ - shaftRadius
+          : Number.POSITIVE_INFINITY
+      }
+    : null;
+  const baseBackAngle = normalizeAngle(phi + Math.PI);
+  const blockedIntervals = [];
+  const epsilon = 1e-4;
+  const nominalLength = Math.max(0, Number.isFinite(shaftLength) ? shaftLength : 0);
+  for (const ball of balls || []) {
+    if (!ball || ball === cueBall || ball.id === cueBall.id || !ball.active) continue;
+    const pos = ball.pos;
+    if (!pos) continue;
+    const bx = pos.x;
+    const bz = pos.y;
+    if (!Number.isFinite(bx) || !Number.isFinite(bz)) continue;
+    const dx = bx - cx;
+    const dz = bz - cz;
+    const distSq = dx * dx + dz * dz;
+    if (distSq <= 1e-8) {
+      blockedIntervals.length = 0;
+      blockedIntervals.push([0, TWO_PI]);
+      break;
+    }
+    const dist = Math.sqrt(distSq);
+    const inflated = BALL_R + shaftRadius + epsilon;
+    if (dist <= inflated + epsilon) {
+      blockedIntervals.length = 0;
+      blockedIntervals.push([0, TWO_PI]);
+      break;
+    }
+    const ratio = clamp(inflated / dist, -1, 1);
+    const delta = Math.asin(ratio);
+    const alpha = Math.atan2(dz, dx);
+    const centerAngle = normalizeAngle(alpha + Math.PI);
+    const startAngle = centerAngle - delta;
+    const endAngle = centerAngle + delta;
+    const lengthCenter = distanceToBoundary(
+      cx,
+      cz,
+      centerAngle,
+      effectiveTable,
+      nominalLength
+    );
+    const lengthStart = distanceToBoundary(
+      cx,
+      cz,
+      startAngle,
+      effectiveTable,
+      nominalLength
+    );
+    const lengthEnd = distanceToBoundary(
+      cx,
+      cz,
+      endAngle,
+      effectiveTable,
+      nominalLength
+    );
+    const effectiveLength = Math.min(lengthCenter, lengthStart, lengthEnd, nominalLength);
+    if (effectiveLength <= epsilon) continue;
+    const reach = Math.sqrt(Math.max(dist * dist - inflated * inflated, 0));
+    if (reach > effectiveLength + epsilon) continue;
+    addAngularInterval(blockedIntervals, startAngle, endAngle);
+  }
+  const mergedBlocked = mergeIntervals(blockedIntervals);
+  const allowed = complementIntervals(mergedBlocked);
+  let correctedBackAngle = baseBackAngle;
+  const isAllowed = allowed.some(
+    ([start, end]) => start <= end
+      ? correctedBackAngle + ANGLE_EPS >= start && correctedBackAngle <= end + ANGLE_EPS
+      : correctedBackAngle >= start || correctedBackAngle <= end
+  );
+  if (!isAllowed && allowed.length) {
+    let bestAngle = correctedBackAngle;
+    let bestDist = Infinity;
+    for (const [start, end] of allowed) {
+      const candidate = clampAngleToInterval(correctedBackAngle, start, end);
+      const dist = angularDistance(correctedBackAngle, candidate);
+      if (dist < bestDist - 1e-6) {
+        bestDist = dist;
+        bestAngle = candidate;
+      }
+    }
+    correctedBackAngle = bestAngle;
+  }
+  correctedBackAngle = normalizeAngle(correctedBackAngle);
+  const finalLength = distanceToBoundary(
+    cx,
+    cz,
+    correctedBackAngle,
+    effectiveTable,
+    nominalLength
+  );
+  if (!capsuleClear(cx, cz, correctedBackAngle, finalLength, shaftRadius, balls, cueBall.id)) {
+    for (const [start, end] of allowed) {
+      const midpoint = normalizeAngle(start + (end - start) * 0.5);
+      const candidates = [
+        clampAngleToInterval(baseBackAngle, start, end),
+        clampAngleToInterval(midpoint, start, end)
+      ];
+      for (const candidate of candidates) {
+        const candidateLen = distanceToBoundary(
+          cx,
+          cz,
+          candidate,
+          effectiveTable,
+          nominalLength
+        );
+        if (
+          capsuleClear(cx, cz, candidate, candidateLen, shaftRadius, balls, cueBall.id)
+        ) {
+          correctedBackAngle = candidate;
+          break;
+        }
+      }
+      if (
+        capsuleClear(
+          cx,
+          cz,
+          correctedBackAngle,
+          distanceToBoundary(
+            cx,
+            cz,
+            correctedBackAngle,
+            effectiveTable,
+            nominalLength
+          ),
+          shaftRadius,
+          balls,
+          cueBall.id
+        )
+      ) {
+        break;
+      }
+    }
+  }
+  const correctedForward = normalizeAngle(correctedBackAngle - Math.PI);
+  if (debug) {
+    debug.blocked = mergedBlocked.map(([start, end]) => [start, end]);
+    debug.allowed = allowed.map(([start, end]) => [start, end]);
+    debug.backAngle = correctedBackAngle;
+    debug.baseBackAngle = baseBackAngle;
+    debug.length = distanceToBoundary(
+      cx,
+      cz,
+      correctedBackAngle,
+      effectiveTable,
+      nominalLength
+    );
+    debug.nominalLength = nominalLength;
+  }
+  return correctedForward;
+}
 const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
@@ -3057,6 +3409,7 @@ function SnookerGame() {
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
+  const angleMaskOverlayRef = useRef(null);
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
@@ -4880,6 +5233,125 @@ function SnookerGame() {
       target.visible = false;
       table.add(target);
 
+      const angleMaskGroup = new THREE.Group();
+      angleMaskGroup.visible = false;
+      table.add(angleMaskGroup);
+      const blockedMaskGeom = new THREE.BufferGeometry();
+      const blockedAttr = new THREE.Float32BufferAttribute(new Float32Array(0), 3);
+      blockedMaskGeom.setAttribute('position', blockedAttr);
+      const blockedMask = new THREE.LineSegments(
+        blockedMaskGeom,
+        new THREE.LineBasicMaterial({
+          color: 0xff4444,
+          transparent: true,
+          opacity: 0.75,
+          depthTest: false
+        })
+      );
+      const allowedMaskGeom = new THREE.BufferGeometry();
+      const allowedAttr = new THREE.Float32BufferAttribute(new Float32Array(0), 3);
+      allowedMaskGeom.setAttribute('position', allowedAttr);
+      const allowedMask = new THREE.LineSegments(
+        allowedMaskGeom,
+        new THREE.LineBasicMaterial({
+          color: 0x4caf50,
+          transparent: true,
+          opacity: 0.65,
+          depthTest: false
+        })
+      );
+      angleMaskGroup.add(blockedMask);
+      angleMaskGroup.add(allowedMask);
+      angleMaskOverlayRef.current = {
+        group: angleMaskGroup,
+        blocked: blockedMaskGeom,
+        allowed: allowedMaskGeom,
+        blockedAttr,
+        allowedAttr
+      };
+
+      const buildAngleMaskPositions = (intervals, center, radius, y) => {
+        if (!intervals || !intervals.length) return new Float32Array(0);
+        const data = [];
+        for (const [startRaw, endRaw] of intervals) {
+          if (!Number.isFinite(startRaw) || !Number.isFinite(endRaw)) continue;
+          let start = startRaw;
+          let end = endRaw;
+          if (end < start) end += TWO_PI;
+          const span = end - start;
+          if (span <= ANGLE_EPS) continue;
+          const steps = Math.max(2, Math.ceil(span / (Math.PI / 24)));
+          let prev = start;
+          for (let i = 1; i <= steps; i++) {
+            const angle = start + (span * i) / steps;
+            const x1 = center.x + Math.sin(prev) * radius;
+            const z1 = center.z + Math.cos(prev) * radius;
+            const x2 = center.x + Math.sin(angle) * radius;
+            const z2 = center.z + Math.cos(angle) * radius;
+            data.push(x1, y, z1, x2, y, z2);
+            prev = angle;
+          }
+        }
+        return new Float32Array(data);
+      };
+
+      const updateCueAngleMaskOverlay = (maskData) => {
+        const overlay = angleMaskOverlayRef.current;
+        if (!overlay?.group) return;
+        if (
+          !maskData ||
+          !maskData.center ||
+          (!maskData.blocked?.length && !maskData.allowed?.length)
+        ) {
+          overlay.group.visible = false;
+          return;
+        }
+        const radius = BALL_R * 3.6;
+        const y = BALL_CENTER_Y + BALL_R * 0.25;
+        const center = maskData.center;
+        const blockedPositions = buildAngleMaskPositions(
+          maskData.blocked,
+          center,
+          radius,
+          y
+        );
+        const allowedPositions = buildAngleMaskPositions(
+          maskData.allowed,
+          center,
+          radius,
+          y
+        );
+        const updateGeometry = (geom, attrKey, data) => {
+          if (!geom) return;
+          if (!data.length) {
+            geom.setDrawRange(0, 0);
+            if (overlay[attrKey]?.array?.length) {
+              overlay[attrKey] = new THREE.Float32BufferAttribute(
+                new Float32Array(0),
+                3
+              );
+              geom.setAttribute('position', overlay[attrKey]);
+            }
+            return;
+          }
+          const count = data.length / 3;
+          let attr = overlay[attrKey];
+          if (!attr || attr.array.length !== data.length) {
+            overlay[attrKey] = new THREE.Float32BufferAttribute(data, 3);
+            geom.setAttribute('position', overlay[attrKey]);
+            attr = overlay[attrKey];
+          } else {
+            attr.array.set(data);
+            attr.needsUpdate = true;
+          }
+          geom.setDrawRange(0, count);
+          if (count > 0) geom.computeBoundingSphere();
+        };
+        updateGeometry(overlay.blocked, 'blockedAttr', blockedPositions);
+        updateGeometry(overlay.allowed, 'allowedAttr', allowedPositions);
+        overlay.group.visible = true;
+      };
+
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE;
@@ -5937,14 +6409,63 @@ function SnookerGame() {
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
+        tmpAim.set(camFwd.x, camFwd.z);
+        if (tmpAim.lengthSq() < 1e-8) tmpAim.set(0, 1);
+        else tmpAim.normalize();
+        const desiredPhi = Math.atan2(tmpAim.x, tmpAim.y);
+        const tableBounds = {
+          minX: -RAIL_LIMIT_X,
+          maxX: RAIL_LIMIT_X,
+          minZ: -RAIL_LIMIT_Y,
+          maxZ: RAIL_LIMIT_Y
+        };
+        const desiredPull = Math.max(
+          0,
+          (powerRef.current ?? 0) * BALL_R * 10 * 0.65 * 1.2
+        );
+        let correctedPhi = desiredPhi;
+        const maskDebug = {};
+        if (cue?.pos) {
+          const shaftLengthForMask = Math.max(
+            0,
+            cueLen + CUE_TIP_GAP + desiredPull - CUE_BACK_CLEARANCE
+          );
+          correctedPhi = getValidCueAngle(
+            desiredPhi,
+            cue,
+            balls,
+            tableBounds,
+            shaftLengthForMask,
+            buttShaftRadius,
+            maskDebug
+          );
+        }
+        tmpAim.set(Math.sin(correctedPhi), Math.cos(correctedPhi));
+        if (tmpAim.lengthSq() < 1e-8) tmpAim.set(0, 1);
+        else tmpAim.normalize();
         aimDir.lerp(tmpAim, 0.2);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
-        // Aiming vizual
         const currentHud = hudRef.current;
+        const allBallsStopped = allStopped(balls);
+        let maskDataForOverlay = null;
         if (
-          allStopped(balls) &&
+          cue?.pos &&
+          (maskDebug.blocked?.length || maskDebug.allowed?.length)
+        ) {
+          maskDebug.center = { x: cue.pos.x, z: cue.pos.y };
+          maskDataForOverlay = maskDebug;
+        }
+        const showMaskOverlay =
+          cue?.active &&
+          allBallsStopped &&
+          !(currentHud?.inHand) &&
+          !(currentHud?.over) &&
+          maskDataForOverlay;
+        updateCueAngleMaskOverlay(showMaskOverlay ? maskDataForOverlay : null);
+        // Aiming vizual
+        if (
+          allBallsStopped &&
           !(currentHud?.inHand) &&
           cue?.active &&
           !(currentHud?.over)
@@ -5991,7 +6512,6 @@ function SnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
@@ -6589,6 +7109,7 @@ function SnookerGame() {
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
+          angleMaskOverlayRef.current = null;
           try {
             host.removeChild(renderer.domElement);
           } catch {}
