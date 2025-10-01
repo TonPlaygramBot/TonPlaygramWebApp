@@ -783,6 +783,8 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.42;
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
+const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(4.5);
+const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(32);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
@@ -6001,6 +6003,7 @@ function SnookerGame() {
           );
           const baseCenterOffset = cueLen / 2 + pull + CUE_TIP_GAP;
           let centerOffset = baseCenterOffset;
+          let clearanceRatio = 0;
           if (Number.isFinite(backInfo.tHit)) {
             const backClearance = backInfo.tHit - CUE_BACK_CLEARANCE;
             if (Number.isFinite(backClearance)) {
@@ -6010,6 +6013,13 @@ function SnookerGame() {
           }
           centerOffset = Math.max(0, centerOffset);
           const tipAdjustRaw = baseCenterOffset - centerOffset;
+          if (baseCenterOffset > 1e-4) {
+            clearanceRatio = THREE.MathUtils.clamp(
+              tipAdjustRaw / baseCenterOffset,
+              0,
+              1
+            );
+          }
           const maxTipAdjust = Math.max(0, cueLen / 2 - 1e-4);
           const tipAdjust = Math.min(Math.max(tipAdjustRaw, 0), maxTipAdjust);
           cueStick.position.set(
@@ -6018,7 +6028,17 @@ function SnookerGame() {
             cue.pos.y - dir.z * centerOffset + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          let clearanceTilt = 0;
+          if (clearanceRatio > 1e-3) {
+            const eased = Math.pow(clearanceRatio, 0.6);
+            const rangeTilt = THREE.MathUtils.lerp(
+              MIN_CLEARANCE_TILT,
+              MAX_CLEARANCE_TILT,
+              eased
+            );
+            clearanceTilt = rangeTilt * eased;
+          }
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + clearanceTilt;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
