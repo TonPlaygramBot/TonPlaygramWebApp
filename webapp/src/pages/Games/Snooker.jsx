@@ -207,9 +207,6 @@ function multiPolygonToShapes(mp) {
   return shapes;
 }
 
-const SIDE_CHROME_PLATE_ARCH_LIFT_RATIO = 0.22;
-const SIDE_CHROME_PLATE_ARCH_MIN_RADIUS_SCALE = 0.32;
-const SIDE_CHROME_PLATE_ARCH_DIM_SCALE = 0.12;
 const POCKET_VISUAL_EXPANSION = 1.05;
 
 function buildChromePlateGeometry({
@@ -264,27 +261,25 @@ function buildChromePlateGeometry({
     shape.absarc(BL.x + r, BL.y + r, r, -Math.PI / 2, -Math.PI, true);
     shape.lineTo(TL.x, TL.y);
   } else if (isSidePlate) {
-    const archLift = Math.min(
-      hh * SIDE_CHROME_PLATE_ARCH_LIFT_RATIO,
-      Math.max(
-        r * SIDE_CHROME_PLATE_ARCH_MIN_RADIUS_SCALE,
-        Math.min(width, height) * SIDE_CHROME_PLATE_ARCH_DIM_SCALE
-      )
-    );
-    shape.moveTo(-hw + r, hh);
-    if (archLift > MICRO_EPS) {
-      shape.quadraticCurveTo(0, hh + archLift, hw - r, hh);
+    const rectRadius = Math.max(0, Math.min(r * 0.6, Math.min(width, height) * 0.04));
+    const topStartX = -hw + rectRadius;
+    shape.moveTo(topStartX, hh);
+    shape.lineTo(hw - rectRadius, hh);
+    if (rectRadius > MICRO_EPS) {
+      shape.absarc(hw - rectRadius, hh - rectRadius, rectRadius, Math.PI / 2, 0, true);
+      shape.lineTo(hw, -hh + rectRadius);
+      shape.absarc(hw - rectRadius, -hh + rectRadius, rectRadius, 0, -Math.PI / 2, true);
+      shape.lineTo(-hw + rectRadius, -hh);
+      shape.absarc(-hw + rectRadius, -hh + rectRadius, rectRadius, -Math.PI / 2, -Math.PI, true);
+      shape.lineTo(-hw, hh - rectRadius);
+      shape.absarc(-hw + rectRadius, hh - rectRadius, rectRadius, Math.PI, Math.PI / 2, true);
     } else {
-      shape.lineTo(hw - r, hh);
+      shape.lineTo(hw, hh);
+      shape.lineTo(hw, -hh);
+      shape.lineTo(-hw, -hh);
+      shape.lineTo(-hw, hh);
     }
-    shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
-    shape.lineTo(hw, -hh + r);
-    shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
-    shape.lineTo(-hw + r, -hh);
-    shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
-    shape.lineTo(-hw, hh - r);
-    shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
-    shape.lineTo(-hw + r, hh);
+    shape.lineTo(topStartX, hh);
   } else {
     // default to a rounded rectangle for other plate variants
     shape.moveTo(-hw + r, hh);
@@ -301,8 +296,14 @@ function buildChromePlateGeometry({
 
   shape.closePath();
 
-  const bevelSize = Math.min(r * 0.22, Math.min(width, height) * 0.08);
-  const bevelThickness = Math.min(thickness * 0.5, bevelSize * 0.75);
+  const bevelBase = Math.min(r * 0.22, Math.min(width, height) * 0.08);
+  const bevelSize = isSidePlate
+    ? Math.min(bevelBase, Math.min(width, height) * 0.04)
+    : bevelBase;
+  const bevelThickness = Math.min(
+    thickness * (isSidePlate ? 0.4 : 0.5),
+    bevelSize * 0.75
+  );
 
   let shapesToExtrude = [shape];
   if (notchMP?.length) {
@@ -841,7 +842,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.72; // lower the rails a touch so their top edge sits level with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
@@ -1080,10 +1081,10 @@ const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.42;
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
-const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(4.5);
-const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(32);
+const CUE_BUTT_LIFT = BALL_R * 0.28;
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(5.5);
+const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(1.8);
+const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(12);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
@@ -1597,7 +1598,7 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.012;
+const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -1605,8 +1606,8 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.74;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.12;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.66;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.08;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2761,8 +2762,8 @@ function Table3D(parent) {
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0015; // keep cushions visually flush with the rail wood while avoiding z-fighting
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // pull cushions a little further toward the playfield to avoid overlapping the rails
+  const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.02; // keep a subtle inset so cushions do not overlap the rail geometry
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
@@ -2782,7 +2783,7 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const chromePlateThickness = railH * 0.2;
+  const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateExpansionX = TABLE.THICK * 0.6;
   const chromePlateExpansionZ = TABLE.THICK * 0.62;
@@ -2806,12 +2807,25 @@ function Table3D(parent) {
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sideChromePlateWidth = chromePlateWidth * 0.86;
-  const sideChromePlateHeight = chromePlateHeight * 1.08;
+  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
+  const sidePlateMaxWidth = Math.max(
+    MICRO_EPS,
+    outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
+  );
+  const sideChromePlateWidth = Math.min(sidePlatePocketWidth, sidePlateMaxWidth);
+  const sidePlateHalfHeightLimit = Math.max(
+    0,
+    chromePlateInnerLimitZ - TABLE.THICK * 0.08
+  );
+  const sidePlateHeightByCushion = sidePlateHalfHeightLimit * 2;
+  const sideChromePlateHeight = Math.min(
+    chromePlateHeight * 0.88,
+    Math.max(MICRO_EPS, sidePlateHeightByCushion)
+  );
   const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.7,
-    sideChromePlateWidth / 2,
-    sideChromePlateHeight / 2
+    chromePlateRadius * 0.3,
+    Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.04
   );
 
   const innerHalfW = halfWext;
@@ -2819,7 +2833,6 @@ function Table3D(parent) {
   const cornerPocketRadius = POCKET_VIS_R * 1.08 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION;
   const cornerInset = POCKET_VIS_R * 0.56 * POCKET_VISUAL_EXPANSION;
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
@@ -5370,7 +5383,11 @@ function SnookerGame() {
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
-        const totalTilt = baseTilt + extraTilt;
+        const prevComp = info?.tipCompensation ?? 0;
+        if (info?.applied && Number.isFinite(prevComp) && prevComp !== 0) {
+          group.position.y -= prevComp;
+        }
+        const totalTilt = Math.max(0, baseTilt + extraTilt);
         group.rotation.x = totalTilt;
         const tipComp = Math.sin(totalTilt) * len * 0.5;
         group.position.y += tipComp;
@@ -5378,12 +5395,14 @@ function SnookerGame() {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
+          info.applied = true;
         }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: buttTipComp,
-        length: cueLen
+        length: cueLen,
+        applied: false
       };
 
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
@@ -5514,6 +5533,9 @@ function SnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
+      if (cueStick.userData?.buttTilt) {
+        cueStick.userData.buttTilt.applied = false;
+      }
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
@@ -6103,8 +6125,9 @@ function SnookerGame() {
           if (legalTargets.size === 0) legalTargets.add('RED');
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
-          const clearance = BALL_R * 2.02;
+          const clearance = BALL_R * 1.85;
           const clearanceSq = clearance * clearance;
+          const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
@@ -6124,41 +6147,75 @@ function SnookerGame() {
           };
           const potShots = [];
           const safetyShots = [];
+          let fallbackPlan = null;
           activeBalls.forEach((targetBall) => {
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
             if (!colorId || !legalTargets.has(colorId)) return;
             const ignore = new Set([cue.id, targetBall.id]);
+            const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
-              if (!isPathClear(cuePos, targetBall.pos, ignore)) continue;
-              const cueVec = targetBall.pos.clone().sub(cuePos);
-              if (cueVec.lengthSq() < 1e-6) continue;
-              const cueDist = cueVec.length();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
-              if (toPocket.lengthSq() < BALL_R * BALL_R * 4) continue;
+              const toPocketLenSq = toPocket.lengthSq();
+              if (toPocketLenSq < ballDiameter * ballDiameter * 0.25) continue;
+              const toPocketLen = Math.sqrt(toPocketLenSq);
+              const toPocketDir = toPocket.clone().divideScalar(toPocketLen);
               if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
-              const totalDist = cueDist + toPocket.length();
+              const ghost = targetBall.pos
+                .clone()
+                .sub(toPocketDir.clone().multiplyScalar(ballDiameter));
+              if (!isPathClear(cuePos, ghost, ignore)) continue;
+              const cueVec = ghost.clone().sub(cuePos);
+              const cueDist = cueVec.length();
+              if (cueDist < 1e-6) continue;
+              const aimDir = cueVec.clone().normalize();
+              const impactNormal = targetBall.pos.clone().sub(ghost).normalize();
+              const cutCos = THREE.MathUtils.clamp(
+                impactNormal.dot(aimDir),
+                -1,
+                1
+              );
+              const cutAngle = Math.acos(Math.abs(cutCos));
+              const totalDist = cueDist + toPocketLen;
               const plan = {
                 type: 'pot',
-                aimDir: cueVec.clone().normalize(),
+                aimDir,
                 power: computePowerFromDistance(totalDist),
                 target: colorId,
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
-                difficulty: cueDist + toPocket.length() * 1.2,
+                difficulty:
+                  cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40,
                 cueToTarget: cueDist,
-                targetToPocket: toPocket.length()
+                targetToPocket: toPocketLen
               };
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
             if (cueToBall.lengthSq() < 1e-6) return;
-            if (!isPathClear(cuePos, targetBall.pos, ignore)) return;
             const cueDist = cueToBall.length();
             const safetyDist = targetBall.pos.distanceTo(safetyAnchor);
+            if (!directClear) {
+              const blockedPlan = {
+                type: 'safety',
+                aimDir: cueToBall.clone().normalize(),
+                power: computePowerFromDistance((cueDist + safetyDist) * 0.6),
+                target: colorId,
+                targetBall,
+                pocketId: 'SAFETY',
+                difficulty: cueDist + safetyDist * 2 + 400,
+                cueToTarget: cueDist,
+                targetToPocket: safetyDist,
+                spin: { x: 0, y: -0.05 }
+              };
+              if (!fallbackPlan || blockedPlan.difficulty < fallbackPlan.difficulty) {
+                fallbackPlan = blockedPlan;
+              }
+              return;
+            }
             const safetyPlan = {
               type: 'safety',
               aimDir: cueToBall.clone().normalize(),
@@ -6175,6 +6232,9 @@ function SnookerGame() {
           });
           potShots.sort((a, b) => a.difficulty - b.difficulty);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
+          if (!potShots.length && !safetyShots.length && fallbackPlan) {
+            safetyShots.push(fallbackPlan);
+          }
           return {
             bestPot: potShots[0] ?? null,
             bestSafety: safetyShots[0] ?? null
@@ -6519,6 +6579,9 @@ function SnookerGame() {
             clearanceTilt = rangeTilt * eased;
           }
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + clearanceTilt;
+          if (cueStick.userData?.buttTilt) {
+            cueStick.userData.buttTilt.applied = false;
+          }
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
