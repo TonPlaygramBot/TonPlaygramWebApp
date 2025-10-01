@@ -159,7 +159,8 @@ function buildChromePlateGeometry({
   height,
   radius,
   thickness,
-  corner = 'topLeft'
+  corner = 'topLeft',
+  pocketCut = null
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -203,6 +204,35 @@ function buildChromePlateGeometry({
   }
 
   shape.closePath();
+
+  if (pocketCut) {
+    const {
+      center: cutCenter,
+      radius: cutRadius,
+      startPoint,
+      endPoint,
+      cornerPoint,
+      startAngle,
+      endAngle,
+      clockwise
+    } = pocketCut;
+
+    if (cutRadius > 0) {
+      const hole = new THREE.Path();
+      hole.moveTo(startPoint.x, startPoint.y);
+      hole.absarc(
+        cutCenter.x,
+        cutCenter.y,
+        cutRadius,
+        startAngle,
+        endAngle,
+        clockwise
+      );
+      hole.lineTo(cornerPoint.x, cornerPoint.y);
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+  }
 
   const bevelSize = Math.min(r * 0.22, Math.min(width, height) * 0.08);
   const bevelThickness = Math.min(thickness * 0.5, bevelSize * 0.75);
@@ -2649,13 +2679,16 @@ function Table3D(parent) {
   });
 
   const chromePlateRadius = outerCornerRadius * 0.98;
-  const chromePlateExtra = Math.min(longRailW, endRailW) * 0.12;
-  const chromePlateWidth = chromePlateRadius * 2 + chromePlateExtra;
-  const chromePlateHeight = chromePlateRadius * 2 + chromePlateExtra;
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
+
+  const cornerInset = POCKET_VIS_R * 0.56;
+  const chromePlatePocketRadius = Math.max(
+    0,
+    POCKET_VIS_R * 1.08 - TABLE.THICK * 0.015
+  );
 
   const chromePlates = new THREE.Group();
   [
@@ -2664,21 +2697,72 @@ function Table3D(parent) {
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
+    const pocketCenterX = sx * (halfW - cornerInset);
+    const pocketCenterZ = sz * (halfH - cornerInset);
+    const innerEdgeX =
+      pocketCenterX + (-sx) * chromePlatePocketRadius;
+    const innerEdgeZ =
+      pocketCenterZ + (-sz) * chromePlatePocketRadius;
+    const outerEdgeX = sx * (outerHalfW - chromePlateInset);
+    const outerEdgeZ = sz * (outerHalfH - chromePlateInset);
+
+    const chromePlateWidth = Math.abs(innerEdgeX - outerEdgeX);
+    const chromePlateHeight = Math.abs(innerEdgeZ - outerEdgeZ);
+    const centerX = (innerEdgeX + outerEdgeX) / 2;
+    const centerZ = (innerEdgeZ + outerEdgeZ) / 2;
+
+    const toShape = (worldX, worldZ) => ({
+      x: worldX - centerX,
+      y: -(worldZ - centerZ)
+    });
+
+    const cutCenterShape = toShape(pocketCenterX, pocketCenterZ);
+    const tangentShapeZ = toShape(pocketCenterX, innerEdgeZ);
+    const tangentShapeX = toShape(innerEdgeX, pocketCenterZ);
+    const innerCornerShape = toShape(innerEdgeX, innerEdgeZ);
+
+    const invertArcOrder = sx * sz < 0;
+    const startPointShape = invertArcOrder ? tangentShapeX : tangentShapeZ;
+    const endPointShape = invertArcOrder ? tangentShapeZ : tangentShapeX;
+
+    let startAngle = Math.atan2(
+      startPointShape.y - cutCenterShape.y,
+      startPointShape.x - cutCenterShape.x
+    );
+    let endAngle = Math.atan2(
+      endPointShape.y - cutCenterShape.y,
+      endPointShape.x - cutCenterShape.x
+    );
+
+    const angleDelta = endAngle - startAngle;
+    if (angleDelta > Math.PI) {
+      endAngle -= Math.PI * 2;
+    } else if (angleDelta < -Math.PI) {
+      endAngle += Math.PI * 2;
+    }
+    const clockwise = startAngle > endAngle;
+
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: chromePlateWidth,
         height: chromePlateHeight,
         radius: chromePlateRadius,
         thickness: chromePlateThickness,
-        corner
+        corner,
+        pocketCut: {
+          radius: chromePlatePocketRadius,
+          center: cutCenterShape,
+          startPoint: startPointShape,
+          endPoint: endPointShape,
+          cornerPoint: innerCornerShape,
+          startAngle,
+          endAngle,
+          clockwise
+        }
       }),
       chromePlateMat
     );
-    plate.position.set(
-      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset),
-      chromePlateY,
-      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset)
-    );
+    plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
@@ -2689,7 +2773,6 @@ function Table3D(parent) {
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.08;
   const cornerChamfer = POCKET_VIS_R * 0.32;
-  const cornerInset = POCKET_VIS_R * 0.56;
   const sidePocketRadius = SIDE_POCKET_RADIUS;
   const sideInset = SIDE_POCKET_RADIUS * 0.84;
 
@@ -2824,6 +2907,46 @@ function Table3D(parent) {
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
 
+  const cushionStripMat = chromePlateMat.clone();
+  cushionStripMat.roughness = 0.22;
+  cushionStripMat.clearcoatRoughness = 0.1;
+
+  const cushionChromeStrips = new THREE.Group();
+  const stripHeight = railH * 0.09;
+  const stripDepth = TABLE.THICK * 0.12;
+  const seamInset = CUSHION_RAIL_FLUSH * 1.5;
+  const stripY = railsTopY - stripHeight / 2 - TABLE.THICK * 0.01;
+
+  (table.userData.cushions || []).forEach((cushion) => {
+    const data = cushion.userData || {};
+    const { horizontal, side, length } = data;
+    if (!length) return;
+
+    const sizeX = horizontal ? length : stripDepth;
+    const sizeZ = horizontal ? stripDepth : length;
+    const geometry = new THREE.BoxGeometry(sizeX, stripHeight, sizeZ);
+    const strip = new THREE.Mesh(geometry, cushionStripMat);
+    strip.castShadow = false;
+    strip.receiveShadow = true;
+    strip.position.y = stripY;
+
+    if (horizontal) {
+      strip.position.x = cushion.position.x;
+      strip.position.z =
+        cushion.position.z + side * (stripDepth / 2 + seamInset);
+    } else {
+      strip.position.x =
+        cushion.position.x + side * (stripDepth / 2 + seamInset);
+      strip.position.z = cushion.position.z;
+    }
+
+    cushionChromeStrips.add(strip);
+  });
+
+  if (cushionChromeStrips.children.length) {
+    railsGroup.add(cushionChromeStrips);
+  }
+
   table.add(railsGroup);
 
   const FACE_SHRINK_LONG = 0.955;
@@ -2918,6 +3041,7 @@ const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match 
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
     group.userData.side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
+    group.userData.length = len;
     table.add(group);
     table.userData.cushions.push(group);
   }
