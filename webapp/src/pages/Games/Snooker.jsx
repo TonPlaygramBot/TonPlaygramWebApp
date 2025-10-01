@@ -775,6 +775,7 @@ const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footpr
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
+const CUE_BACK_CLEARANCE = BALL_R * 0.6; // keep the cue butt from clipping cushions or other balls
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
@@ -5454,7 +5455,10 @@ function SnookerGame() {
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const rawMaxPull = Math.max(
+            0,
+            backInfo.tHit - cueLen - CUE_TIP_GAP - CUE_BACK_CLEARANCE
+          );
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
           cueAnimating = true;
@@ -5983,7 +5987,10 @@ function SnookerGame() {
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const maxPull = Math.max(
+            0,
+            backInfo.tHit - cueLen - CUE_TIP_GAP - CUE_BACK_CLEARANCE
+          );
           const pull = Math.min(desiredPull, maxPull);
           const side = appliedSpin.x * (ranges.offsetSide ?? 0);
           const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
@@ -5992,17 +5999,30 @@ function SnookerGame() {
             vert,
             perp.z * side
           );
+          const baseCenterOffset = cueLen / 2 + pull + CUE_TIP_GAP;
+          let centerOffset = baseCenterOffset;
+          if (Number.isFinite(backInfo.tHit)) {
+            const backClearance = backInfo.tHit - CUE_BACK_CLEARANCE;
+            if (Number.isFinite(backClearance)) {
+              const maxCenterOffset = Math.max(0, backClearance - cueLen / 2);
+              centerOffset = Math.min(centerOffset, maxCenterOffset);
+            }
+          }
+          centerOffset = Math.max(0, centerOffset);
+          const tipAdjustRaw = baseCenterOffset - centerOffset;
+          const maxTipAdjust = Math.max(0, cueLen / 2 - 1e-4);
+          const tipAdjust = Math.min(Math.max(tipAdjustRaw, 0), maxTipAdjust);
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * centerOffset + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * centerOffset + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2 + tipAdjust);
           }
           cueStick.visible = true;
           if (afterDir) {
