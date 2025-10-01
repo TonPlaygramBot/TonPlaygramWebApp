@@ -153,6 +153,72 @@ function makePocketPlasticUGeometry({
   geo.computeVertexNormals();
   return geo;
 }
+
+function buildChromePlateGeometry({
+  width,
+  height,
+  radius,
+  thickness,
+  corner = 'topLeft'
+}) {
+  const shape = new THREE.Shape();
+  const hw = width / 2;
+  const hh = height / 2;
+  const r = Math.min(radius, hw, hh);
+
+  const TL = new THREE.Vector2(-hw, hh);
+  const TR = new THREE.Vector2(hw, hh);
+  const BR = new THREE.Vector2(hw, -hh);
+  const BL = new THREE.Vector2(-hw, -hh);
+
+  if (corner === 'topLeft') {
+    shape.moveTo(-hw + r, hh);
+    shape.lineTo(TR.x, TR.y);
+    shape.lineTo(BR.x, BR.y);
+    shape.lineTo(BL.x, BL.y);
+    shape.lineTo(-hw, -hh + r);
+    shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+    shape.lineTo(-hw + r, hh);
+  } else if (corner === 'topRight') {
+    shape.moveTo(TL.x, TL.y);
+    shape.lineTo(TR.x - r, TR.y);
+    shape.absarc(TR.x - r, TR.y - r, r, Math.PI / 2, 0, true);
+    shape.lineTo(BR.x, BR.y);
+    shape.lineTo(BL.x, BL.y);
+    shape.lineTo(TL.x, TL.y);
+  } else if (corner === 'bottomRight') {
+    shape.moveTo(TL.x, TL.y);
+    shape.lineTo(TR.x, TR.y);
+    shape.lineTo(BR.x, BR.y + r);
+    shape.absarc(BR.x - r, BR.y + r, r, 0, -Math.PI / 2, true);
+    shape.lineTo(BL.x, BL.y);
+    shape.lineTo(TL.x, TL.y);
+  } else {
+    shape.moveTo(TL.x, TL.y);
+    shape.lineTo(TR.x, TR.y);
+    shape.lineTo(BR.x, BR.y);
+    shape.lineTo(BL.x + r, BL.y);
+    shape.absarc(BL.x + r, BL.y + r, r, -Math.PI / 2, -Math.PI, true);
+    shape.lineTo(TL.x, TL.y);
+  }
+
+  shape.closePath();
+
+  const bevelSize = Math.min(r * 0.22, Math.min(width, height) * 0.08);
+  const bevelThickness = Math.min(thickness * 0.5, bevelSize * 0.75);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness,
+    bevelEnabled: true,
+    bevelSegments: 3,
+    bevelSize,
+    bevelThickness,
+    curveSegments: 64
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.computeVertexNormals();
+  return geo;
+}
 function addPocketJaws(parent, playW, playH) {
   const HALF_PLAY_W = playW * 0.5;
   const HALF_PLAY_H = playH * 0.5;
@@ -2571,6 +2637,53 @@ function Table3D(parent) {
     Math.min(longRailW, endRailW) * 1.6,
     Math.min(outerHalfW, outerHalfH) * 0.2
   );
+
+  const chromePlateMat = new THREE.MeshPhysicalMaterial({
+    color: 0xdfe2e8,
+    metalness: 1,
+    roughness: 0.18,
+    reflectivity: 1,
+    clearcoat: 1,
+    clearcoatRoughness: 0.08,
+    envMapIntensity: 1.25
+  });
+
+  const chromePlateRadius = outerCornerRadius * 0.98;
+  const chromePlateExtra = Math.min(longRailW, endRailW) * 0.12;
+  const chromePlateWidth = chromePlateRadius * 2 + chromePlateExtra;
+  const chromePlateHeight = chromePlateRadius * 2 + chromePlateExtra;
+  const chromePlateThickness = railH * 0.2;
+  const chromePlateInset = TABLE.THICK * 0.02;
+  const chromePlateY =
+    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+
+  const chromePlates = new THREE.Group();
+  [
+    { corner: 'topLeft', sx: -1, sz: -1 },
+    { corner: 'topRight', sx: 1, sz: -1 },
+    { corner: 'bottomRight', sx: 1, sz: 1 },
+    { corner: 'bottomLeft', sx: -1, sz: 1 }
+  ].forEach(({ corner, sx, sz }) => {
+    const plate = new THREE.Mesh(
+      buildChromePlateGeometry({
+        width: chromePlateWidth,
+        height: chromePlateHeight,
+        radius: chromePlateRadius,
+        thickness: chromePlateThickness,
+        corner
+      }),
+      chromePlateMat
+    );
+    plate.position.set(
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset),
+      chromePlateY,
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset)
+    );
+    plate.castShadow = false;
+    plate.receiveShadow = false;
+    chromePlates.add(plate);
+  });
+  railsGroup.add(chromePlates);
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
