@@ -226,6 +226,9 @@ function buildChromePlateGeometry({
   const BR = new THREE.Vector2(hw, -hh);
   const BL = new THREE.Vector2(-hw, -hh);
 
+  const isSidePlate =
+    typeof corner === 'string' && corner.toLowerCase().startsWith('side');
+
   if (corner === 'topLeft') {
     shape.moveTo(-hw + r, hh);
     shape.lineTo(TR.x, TR.y);
@@ -255,8 +258,24 @@ function buildChromePlateGeometry({
     shape.lineTo(BL.x + r, BL.y);
     shape.absarc(BL.x + r, BL.y + r, r, -Math.PI / 2, -Math.PI, true);
     shape.lineTo(TL.x, TL.y);
+  } else if (isSidePlate) {
+    const archLift = Math.min(hh * 0.22, Math.max(r * 0.3, Math.min(width, height) * 0.1));
+    shape.moveTo(-hw + r, hh);
+    if (archLift > MICRO_EPS) {
+      shape.quadraticCurveTo(0, hh + archLift, hw - r, hh);
+    } else {
+      shape.lineTo(hw - r, hh);
+    }
+    shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
+    shape.lineTo(hw, -hh + r);
+    shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
+    shape.lineTo(-hw + r, -hh);
+    shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
+    shape.lineTo(-hw, hh - r);
+    shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+    shape.lineTo(-hw + r, hh);
   } else {
-    // default to a rounded rectangle for side plates or unknown variants
+    // default to a rounded rectangle for other plate variants
     shape.moveTo(-hw + r, hh);
     shape.lineTo(hw - r, hh);
     shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
@@ -2744,17 +2763,18 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
+  const chromePlateExpansion = TABLE.THICK * 0.08;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX
+    outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansion
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - chromePlateInset - chromePlateInnerLimitZ
+    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansion
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.98,
