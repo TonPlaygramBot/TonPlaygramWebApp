@@ -363,6 +363,24 @@ function addPocketJaws(parent, playW, playH) {
         jaw.add(segCap);
         capMeshes.push(segCap);
 
+        const rimBaseGeo = sideRimBaseGeo.clone();
+        rimBaseGeo.scale(segmentScale, 1, 1);
+        rimBaseGeo.computeVertexNormals();
+        const rimBase = new THREE.Mesh(rimBaseGeo, plasticRimMat);
+        rimBase.castShadow = false;
+        rimBase.receiveShadow = true;
+        rimBase.position.set(segment.position.x, rimBaseTopY, 0);
+        jaw.add(rimBase);
+
+        const rimLipGeo = sideRimTopGeo.clone();
+        rimLipGeo.scale(segmentScale, 1, 1);
+        rimLipGeo.computeVertexNormals();
+        const rimLip = new THREE.Mesh(rimLipGeo, plasticRimMat);
+        rimLip.castShadow = false;
+        rimLip.receiveShadow = true;
+        rimLip.position.set(segment.position.x, rimLipTopY, 0);
+        jaw.add(rimLip);
+
         const skirtGeo = sideSkirtGeo.clone();
         const skirt = new THREE.Mesh(skirtGeo, plasticRimMat);
         skirt.castShadow = false;
@@ -394,6 +412,18 @@ function addPocketJaws(parent, playW, playH) {
       cap.position.y = capLift;
       mesh.add(cap);
       capMeshes.push(cap);
+
+      const rimBase = new THREE.Mesh(cornerRimGeo.clone(), plasticRimMat);
+      rimBase.castShadow = false;
+      rimBase.receiveShadow = true;
+      rimBase.position.y = rimBaseTopY;
+      mesh.add(rimBase);
+
+      const rimLip = new THREE.Mesh(cornerRimTopGeo.clone(), plasticRimMat);
+      rimLip.castShadow = false;
+      rimLip.receiveShadow = true;
+      rimLip.position.y = rimLipTopY;
+      mesh.add(rimLip);
 
       const skirt = new THREE.Mesh(cornerSkirtGeo.clone(), plasticRimMat);
       skirt.castShadow = false;
@@ -541,7 +571,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.76; // lower the rails a touch so their top edge sits level with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.72; // lower the rails a touch so their top edge sits level with the green cushions
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
