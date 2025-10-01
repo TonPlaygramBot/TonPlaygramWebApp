@@ -2785,8 +2785,8 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.6;
-  const chromePlateExpansionZ = TABLE.THICK * 0.62;
+  const chromePlateExpansionX = TABLE.THICK * 0.74;
+  const chromePlateExpansionZ = TABLE.THICK * 0.86;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -2800,7 +2800,7 @@ function Table3D(parent) {
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ
   );
   const chromePlateRadius = Math.min(
-    outerCornerRadius * 0.98,
+    outerCornerRadius * 0.9,
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
@@ -2816,11 +2816,11 @@ function Table3D(parent) {
   const sideChromePlateWidth = Math.min(sidePlatePocketWidth, sidePlateMaxWidth);
   const sidePlateHalfHeightLimit = Math.max(
     0,
-    chromePlateInnerLimitZ - TABLE.THICK * 0.08
+    chromePlateInnerLimitZ - TABLE.THICK * 0.04
   );
-  const sidePlateHeightByCushion = sidePlateHalfHeightLimit * 2;
+  const sidePlateHeightByCushion = sidePlateHalfHeightLimit * 2 + TABLE.THICK * 0.12;
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.88,
+    chromePlateHeight * 0.95,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
@@ -2935,12 +2935,12 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const radius = sidePocketRadius * 1.08;
-    const throatLength = Math.max(MICRO_EPS, radius * 1.22);
-    const throatHeight = Math.max(MICRO_EPS, radius * 2.7);
+    const radius = sidePocketRadius * 1.02;
+    const throatLength = Math.max(MICRO_EPS, radius * 1.08);
+    const throatHeight = Math.max(MICRO_EPS, radius * 3.1);
     const throatRadius = Math.max(
       MICRO_EPS,
-      Math.min(throatHeight / 2, radius * 0.62)
+      Math.min(throatHeight / 2.4, radius * 0.5)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
