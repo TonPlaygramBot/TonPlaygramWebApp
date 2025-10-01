@@ -2609,8 +2609,8 @@ function Table3D(parent) {
   const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.32;
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const cushionHeightTarget = railsTopY - cushionBaseY;
   const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
@@ -2669,8 +2669,8 @@ function Table3D(parent) {
     return geo;
   }
 
-const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
-const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.055; // pull cushions a little further toward the playfield to avoid overlapping the rails
+const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.0015; // keep cushions visually flush with the rail wood while avoiding z-fighting
+const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // pull cushions a little further toward the playfield to avoid overlapping the rails
 const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
 
   function addCushion(x, z, len, horizontal, flip = false) {
