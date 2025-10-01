@@ -248,13 +248,25 @@ function buildChromePlateGeometry({
     shape.absarc(BR.x - r, BR.y + r, r, 0, -Math.PI / 2, true);
     shape.lineTo(BL.x, BL.y);
     shape.lineTo(TL.x, TL.y);
-  } else {
+  } else if (corner === 'bottomLeft') {
     shape.moveTo(TL.x, TL.y);
     shape.lineTo(TR.x, TR.y);
     shape.lineTo(BR.x, BR.y);
     shape.lineTo(BL.x + r, BL.y);
     shape.absarc(BL.x + r, BL.y + r, r, -Math.PI / 2, -Math.PI, true);
     shape.lineTo(TL.x, TL.y);
+  } else {
+    // default to a rounded rectangle for side plates or unknown variants
+    shape.moveTo(-hw + r, hh);
+    shape.lineTo(hw - r, hh);
+    shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
+    shape.lineTo(hw, -hh + r);
+    shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
+    shape.lineTo(-hw + r, -hh);
+    shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
+    shape.lineTo(-hw, hh - r);
+    shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+    shape.lineTo(-hw + r, hh);
   }
 
   shape.closePath();
@@ -2726,13 +2738,17 @@ function Table3D(parent) {
   });
 
   const chromePlateRadius = outerCornerRadius * 0.98;
-  const chromePlateExtra = Math.min(longRailW, endRailW) * 0.36;
+  const chromePlateExtra = Math.min(longRailW, endRailW) * 0.52;
   const chromePlateWidth = chromePlateRadius * 2 + chromePlateExtra;
-  const chromePlateHeight = chromePlateRadius * 2 + chromePlateExtra;
+  const chromePlateHeight = chromePlateRadius * 2 + chromePlateExtra * 0.9;
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
+
+  const sideChromePlateWidth = chromePlateWidth * 1.28;
+  const sideChromePlateHeight = chromePlateHeight * 0.76;
+  const sideChromePlateRadius = chromePlateRadius * 0.72;
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
@@ -2784,6 +2800,16 @@ function Table3D(parent) {
     return polygonClipping.union(notchCircle, boxX, boxZ);
   };
 
+  const sideNotchMP = (sz) => {
+    const cz = sz * (innerHalfH - sideInset);
+    const circle = circlePoly(0, cz, sidePocketRadius);
+    const zInner = cz - sz * sidePocketRadius * 0.2;
+    const zOuter = cz + sz * sidePocketRadius * 1.6;
+    const xWidth = sidePocketRadius * 1.6;
+    const notchRect = boxPoly(-xWidth, Math.min(zInner, zOuter), xWidth, Math.max(zInner, zOuter));
+    return polygonClipping.union(circle, notchRect);
+  };
+
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
   [
@@ -2806,6 +2832,33 @@ function Table3D(parent) {
         radius: chromePlateRadius,
         thickness: chromePlateThickness,
         corner,
+        notchMP: notchLocalMP,
+        shapeSegments: chromePlateShapeSegments
+      }),
+      chromePlateMat
+    );
+    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.castShadow = false;
+    plate.receiveShadow = false;
+    chromePlates.add(plate);
+  });
+
+  [
+    { id: 'sideTop', sz: -1 },
+    { id: 'sideBottom', sz: 1 }
+  ].forEach(({ id, sz }) => {
+    const centerX = 0;
+    const centerZ = sz * (outerHalfH - sideChromePlateHeight / 2 - chromePlateInset);
+    const notchLocalMP = sideNotchMP(sz).map((poly) =>
+      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
+    );
+    const plate = new THREE.Mesh(
+      buildChromePlateGeometry({
+        width: sideChromePlateWidth,
+        height: sideChromePlateHeight,
+        radius: sideChromePlateRadius,
+        thickness: chromePlateThickness,
+        corner: id,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
