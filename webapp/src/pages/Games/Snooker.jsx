@@ -2773,18 +2773,19 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.2;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansion = TABLE.THICK * 0.2;
+  const chromePlateExpansionX = TABLE.THICK * 0.32;
+  const chromePlateExpansionZ = TABLE.THICK * 0.32;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansion
+    outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansion
+    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.98,
@@ -2910,77 +2911,19 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const radius = sidePocketRadius;
-    const clampRadius = (width, height, desired) =>
-      Math.max(
-        MICRO_EPS,
-        Math.min(desired, width / 2 - MICRO_EPS, height / 2 - MICRO_EPS)
-      );
+    const radius = sidePocketRadius * 1.05;
+    const throatLength = Math.max(MICRO_EPS, radius * 1.4);
+    const throatHeight = Math.max(MICRO_EPS, radius * 3.1);
 
-    const baseCircle = circlePoly(cx, 0, radius * 1.03, 220);
-
-    const archWidth = Math.max(MICRO_EPS, radius * 3.1);
-    const archHeight = Math.max(MICRO_EPS, radius * 3.6);
-    const archRadius = clampRadius(archWidth, archHeight, radius * 1.18);
-    const arch = roundedRectPoly(
-      cx + sx * radius * 0.48,
-      0,
-      archWidth,
-      archHeight,
-      archRadius,
-      220
+    const circle = circlePoly(cx, 0, radius, 256);
+    const throat = boxPoly(
+      Math.min(cx, cx + sx * throatLength),
+      -throatHeight / 2,
+      Math.max(cx, cx + sx * throatLength),
+      throatHeight / 2
     );
 
-    const wrapWidth = Math.max(MICRO_EPS, radius * 2.2);
-    const wrapHeight = archHeight * 0.74;
-    const wrapRadius = clampRadius(wrapWidth, wrapHeight, archRadius * 0.88);
-    const wrap = roundedRectPoly(
-      cx + sx * radius * 1.18,
-      0,
-      wrapWidth,
-      wrapHeight,
-      wrapRadius,
-      196
-    );
-
-    const capRadius = radius * 1.04;
-    const topCap = circlePoly(
-      cx + sx * radius * 0.62,
-      radius * 1.48,
-      capRadius,
-      180
-    );
-    const bottomCap = circlePoly(
-      cx + sx * radius * 0.62,
-      -radius * 1.48,
-      capRadius,
-      180
-    );
-
-    const shoulderWidth = Math.max(MICRO_EPS, radius * 1.5);
-    const shoulderHeight = archHeight * 0.52;
-    const shoulderRadius = clampRadius(
-      shoulderWidth,
-      shoulderHeight,
-      radius * 0.76
-    );
-    const shoulder = roundedRectPoly(
-      cx + sx * radius * 1.72,
-      0,
-      shoulderWidth,
-      shoulderHeight,
-      shoulderRadius,
-      180
-    );
-
-    return polygonClipping.union(
-      baseCircle,
-      arch,
-      wrap,
-      topCap,
-      bottomCap,
-      shoulder
-    );
+    return polygonClipping.union(circle, throat);
   };
 
   const chromePlates = new THREE.Group();
