@@ -1295,7 +1295,7 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.02;
+const STANDING_VIEW_MARGIN = 0.012;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -2671,7 +2671,7 @@ function Table3D(parent) {
 
 const CUSHION_RAIL_FLUSH = TABLE.THICK * 0.002; // keep cushions visually flush with the rail wood while avoiding z-fighting
 const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.055; // pull cushions a little further toward the playfield to avoid overlapping the rails
-const SHORT_CUSHION_HEIGHT_SCALE = 1.045; // give the short rail cushions a subtle lift to meet the rail tops
+const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
 
   function addCushion(x, z, len, horizontal, flip = false) {
     const geo = cushionProfileAdvanced(len, horizontal);
@@ -2954,12 +2954,8 @@ function SnookerGame() {
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
-  const [userSuggestion, setUserSuggestion] = useState(null);
   const userSuggestionPlanRef = useRef(null);
-  const userSuggestionRef = useRef(userSuggestion);
-  useEffect(() => {
-    userSuggestionRef.current = userSuggestion;
-  }, [userSuggestion]);
+  const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
   const stopAiThinkingRef = useRef(() => {});
   const startUserSuggestionRef = useRef(() => {});
@@ -3335,7 +3331,8 @@ function SnookerGame() {
       return;
     }
     if (hud.turn === 1) {
-      setUserSuggestion(null);
+      userSuggestionRef.current = null;
+      userSuggestionPlanRef.current = null;
       suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = false;
       stopAiThinkingRef.current?.();
@@ -5767,6 +5764,7 @@ function SnookerGame() {
           const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
+          userSuggestionRef.current = summary;
           if (plan?.aimDir) {
             const dir = plan.aimDir.clone();
             if (dir.lengthSq() > 1e-6) {
@@ -5780,16 +5778,6 @@ function SnookerGame() {
             }
           } else {
             suggestionAimKeyRef.current = null;
-          }
-          const current = userSuggestionRef.current;
-          if (!summary) {
-            if (current) setUserSuggestion(null);
-          } else if (
-            !current ||
-            current.key !== summary.key ||
-            Math.abs((current.power ?? 0) - summary.power) > 1e-3
-          ) {
-            setUserSuggestion(summary);
           }
         };
         const computeAiShot = () => {
@@ -6829,14 +6817,7 @@ function SnookerGame() {
             </div>
           </div>
           <div className="mt-1 text-sm">Time: {timer}</div>
-          {hud.turn === 1 && aiPlanning?.selected && (
-            <div
-              className="mt-1 text-xs text-emerald-300 text-center whitespace-nowrap"
-              style={{ maxWidth: '100%' }}
-            >
-              {`AI aiming: ${formatBallLabel(aiPlanning.selected.target)} → ${formatPocketLabel(aiPlanning.selected.pocketId)} | P:${aiPlanning.selected.power.toFixed(2)} S:${((aiPlanning.selected.spin?.x ?? 0)).toFixed(2)},${((aiPlanning.selected.spin?.y ?? 0)).toFixed(2)} | t:${Math.max(0, Math.ceil(aiPlanning.countdown ?? 0))}s`}
-            </div>
-          )}
+          {/* Suggestions now run silently without UI overlays */}
         </div>
       </div>
 
