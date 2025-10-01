@@ -231,37 +231,11 @@ function buildChromePlateGeometry({
   const isSidePlate =
     typeof corner === 'string' && corner.toLowerCase().startsWith('side');
 
-  if (corner === 'topLeft') {
-    shape.moveTo(-hw + r, hh);
-    shape.lineTo(TR.x, TR.y);
-    shape.lineTo(BR.x, BR.y);
-    shape.lineTo(BL.x, BL.y);
-    shape.lineTo(-hw, -hh + r);
-    shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
-    shape.lineTo(-hw + r, hh);
-  } else if (corner === 'topRight') {
-    shape.moveTo(TL.x, TL.y);
-    shape.lineTo(TR.x - r, TR.y);
-    shape.absarc(TR.x - r, TR.y - r, r, Math.PI / 2, 0, true);
-    shape.lineTo(BR.x, BR.y);
-    shape.lineTo(BL.x, BL.y);
-    shape.lineTo(TL.x, TL.y);
-  } else if (corner === 'bottomRight') {
-    shape.moveTo(TL.x, TL.y);
-    shape.lineTo(TR.x, TR.y);
-    shape.lineTo(BR.x, BR.y + r);
-    shape.absarc(BR.x - r, BR.y + r, r, 0, -Math.PI / 2, true);
-    shape.lineTo(BL.x, BL.y);
-    shape.lineTo(TL.x, TL.y);
-  } else if (corner === 'bottomLeft') {
-    shape.moveTo(TL.x, TL.y);
-    shape.lineTo(TR.x, TR.y);
-    shape.lineTo(BR.x, BR.y);
-    shape.lineTo(BL.x + r, BL.y);
-    shape.absarc(BL.x + r, BL.y + r, r, -Math.PI / 2, -Math.PI, true);
-    shape.lineTo(TL.x, TL.y);
-  } else if (isSidePlate) {
-    const rectRadius = Math.max(0, Math.min(r * 0.6, Math.min(width, height) * 0.04));
+  if (isSidePlate) {
+    const rectRadius = Math.max(
+      0,
+      Math.min(r * 0.5, Math.min(width, height) * 0.06)
+    );
     const topStartX = -hw + rectRadius;
     shape.moveTo(topStartX, hh);
     shape.lineTo(hw - rectRadius, hh);
@@ -281,28 +255,35 @@ function buildChromePlateGeometry({
     }
     shape.lineTo(topStartX, hh);
   } else {
-    // default to a rounded rectangle for other plate variants
-    shape.moveTo(-hw + r, hh);
-    shape.lineTo(hw - r, hh);
-    shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
-    shape.lineTo(hw, -hh + r);
-    shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
-    shape.lineTo(-hw + r, -hh);
-    shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
-    shape.lineTo(-hw, hh - r);
-    shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
-    shape.lineTo(-hw + r, hh);
+    if (r > MICRO_EPS) {
+      shape.moveTo(-hw + r, hh);
+      shape.lineTo(hw - r, hh);
+      shape.absarc(hw - r, hh - r, r, Math.PI / 2, 0, true);
+      shape.lineTo(hw, -hh + r);
+      shape.absarc(hw - r, -hh + r, r, 0, -Math.PI / 2, true);
+      shape.lineTo(-hw + r, -hh);
+      shape.absarc(-hw + r, -hh + r, r, -Math.PI / 2, -Math.PI, true);
+      shape.lineTo(-hw, hh - r);
+      shape.absarc(-hw + r, hh - r, r, Math.PI, Math.PI / 2, true);
+      shape.lineTo(-hw + r, hh);
+    } else {
+      shape.moveTo(TL.x, TL.y);
+      shape.lineTo(TR.x, TR.y);
+      shape.lineTo(BR.x, BR.y);
+      shape.lineTo(BL.x, BL.y);
+      shape.lineTo(TL.x, TL.y);
+    }
   }
 
   shape.closePath();
 
   const bevelBase = Math.min(r * 0.22, Math.min(width, height) * 0.08);
   const bevelSize = isSidePlate
-    ? Math.min(bevelBase, Math.min(width, height) * 0.04)
-    : bevelBase;
+    ? Math.min(bevelBase * 0.6, Math.min(width, height) * 0.035)
+    : Math.min(bevelBase * 0.45, Math.min(width, height) * 0.05);
   const bevelThickness = Math.min(
-    thickness * (isSidePlate ? 0.4 : 0.5),
-    bevelSize * 0.75
+    thickness * (isSidePlate ? 0.35 : 0.28),
+    bevelSize * 0.65
   );
 
   let shapesToExtrude = [shape];
@@ -2830,9 +2811,9 @@ function Table3D(parent) {
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.08 * POCKET_VISUAL_EXPANSION;
-  const cornerChamfer = POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = POCKET_VIS_R * 0.56 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
@@ -2935,12 +2916,12 @@ function Table3D(parent) {
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const radius = sidePocketRadius * 1.08;
-    const throatLength = Math.max(MICRO_EPS, radius * 1.22);
-    const throatHeight = Math.max(MICRO_EPS, radius * 2.7);
+    const radius = sidePocketRadius * 1.02;
+    const throatLength = Math.max(MICRO_EPS, radius * 1.1);
+    const throatHeight = Math.max(MICRO_EPS, radius * 2.4);
     const throatRadius = Math.max(
       MICRO_EPS,
-      Math.min(throatHeight / 2, radius * 0.62)
+      Math.min(throatHeight / 2, radius * 0.55)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
@@ -3198,6 +3179,8 @@ function Table3D(parent) {
     POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+  const LONG_CUSHION_CORNER_EXTENSION =
+    POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket jaws cleanly
   const SIDE_CUSHION_CENTER_PULL =
@@ -3205,7 +3188,9 @@ function Table3D(parent) {
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
-    PLAY_W - 2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION) - LONG_CUSHION_TRIM;
+    PLAY_W -
+    2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
+    LONG_CUSHION_TRIM;
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
