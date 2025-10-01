@@ -19,141 +19,6 @@ import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 
-// --------------------------------------------------
-// Pocket jaws
-// --------------------------------------------------
-const JAW_H = 2.1;
-const JAW_T = 1.15;
-const JAW_INNER_SCALE = 0.052;
-const JAW_CENTER_PULL_SCALE = 0.03;
-const SECTOR_SWEEP = Math.PI * 0.52;
-const SIDE_SECTOR_SWEEP = Math.PI * 0.32;
-const SIDE_JAW_SWEEP_SCALE = 0.86;
-const CORNER_JAW_RADIUS_SCALE = 0.98;
-const CORNER_JAW_THICKNESS_SCALE = 1.12;
-const SECTOR_START = -SECTOR_SWEEP;
-const SECTOR_END = SECTOR_SWEEP;
-const jawMat = new THREE.MeshPhysicalMaterial({
-  color: 0x1c1c1c,
-  roughness: 0.42,
-  metalness: 0.12,
-  clearcoat: 0.45
-});
-const jawCapMat = new THREE.MeshPhysicalMaterial({
-  color: 0x050505,
-  roughness: 0.32,
-  metalness: 0.65,
-  clearcoat: 0.25,
-  clearcoatRoughness: 0.32,
-  envMapIntensity: 0.9
-});
-const plasticRimMat = new THREE.MeshPhysicalMaterial({
-  color: 0x101010,
-  roughness: 0.36,
-  metalness: 0.16,
-  clearcoat: 0.32,
-  clearcoatRoughness: 0.34,
-  sheen: 0.18,
-  sheenRoughness: 0.58,
-  envMapIntensity: 0.8
-});
-const pocketPlasticUMat = new THREE.MeshPhysicalMaterial({
-  color: 0x080808,
-  roughness: 0.14,
-  metalness: 0,
-  clearcoat: 0.68,
-  clearcoatRoughness: 0.08,
-  reflectivity: 0.72,
-  sheen: 0.12,
-  sheenRoughness: 0.32,
-  envMapIntensity: 0.95
-});
-const pocketRimMat = new THREE.MeshPhysicalMaterial({
-  color: 0x050505,
-  roughness: 0.28,
-  metalness: 0.24,
-  clearcoat: 0.42,
-  clearcoatRoughness: 0.18,
-  envMapIntensity: 0.88
-});
-function makePocketSkirtGeometry({
-  innerRadius,
-  outerRadius,
-  height,
-  startAngle,
-  endAngle
-}) {
-  const shape = new THREE.Shape();
-  shape.absarc(0, 0, outerRadius, startAngle, endAngle, false);
-  shape.absarc(0, 0, innerRadius, endAngle, startAngle, true);
-  shape.closePath();
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: height,
-    bevelEnabled: false,
-    curveSegments: 96
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, -height, 0);
-  geo.computeVertexNormals();
-  return geo;
-}
-function makeJawSector(
-  R = POCKET_VIS_R,
-  T = JAW_T,
-  start = SECTOR_START,
-  end = SECTOR_END,
-  depth = JAW_H
-) {
-  const outer = R + T;
-  const inner = R + Math.max(T * 0.32, R * JAW_INNER_SCALE);
-  const chamfer = Math.min((end - start) * 0.35, Math.PI * 0.18);
-  const innerStart = end - chamfer;
-  const innerEnd = start + chamfer;
-  const s = new THREE.Shape();
-  s.absarc(0, 0, outer, start, end, false);
-  const innerStartVec = new THREE.Vector2(
-    inner * Math.cos(innerStart),
-    inner * Math.sin(innerStart)
-  );
-  s.lineTo(innerStartVec.x, innerStartVec.y);
-  s.absarc(0, 0, inner, innerStart, innerEnd, true);
-  const outerStartVec = new THREE.Vector2(
-    outer * Math.cos(start),
-    outer * Math.sin(start)
-  );
-  s.lineTo(outerStartVec.x, outerStartVec.y);
-  const geo = new THREE.ExtrudeGeometry(s, {
-    depth,
-    bevelEnabled: false
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.rotateY(Math.PI / 2);
-  geo.computeVertexNormals();
-  return geo;
-}
-function makePocketPlasticUGeometry({
-  innerRadius,
-  outerRadius,
-  depth,
-  startAngle,
-  endAngle,
-  segments = 128
-}) {
-  const shape = new THREE.Shape();
-  shape.absarc(0, 0, outerRadius, startAngle, endAngle, false);
-  shape.absarc(0, 0, innerRadius, endAngle, startAngle, true);
-  shape.closePath();
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: false,
-    curveSegments: segments
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, -depth / 2, 0);
-  geo.computeVertexNormals();
-  return geo;
-}
-
 function signedRingArea(ring) {
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
@@ -256,54 +121,11 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
-function createChromePocketRim({
-  notchMP,
-  plateThickness,
-  curveSegments = 64,
-  innerScale = 0.9,
-  depthMultiplier = CHROME_RIM_DEPTH_MULTIPLIER
-}) {
-  if (!Array.isArray(notchMP) || notchMP.length === 0) {
-    return null;
-  }
-  const scaledMP = scaleMultiPolygon(notchMP, innerScale);
-  if (!scaledMP.length) {
-    return null;
-  }
-  let rimMP;
-  try {
-    rimMP = polygonClipping.difference(notchMP, scaledMP);
-  } catch (err) {
-    return null;
-  }
-  const rimShapes = multiPolygonToShapes(rimMP);
-  if (!rimShapes.length) {
-    return null;
-  }
-  const rimDepth = plateThickness * depthMultiplier;
-  const rimGeo = new THREE.ExtrudeGeometry(rimShapes, {
-    depth: rimDepth,
-    bevelEnabled: false,
-    curveSegments: Math.max(12, Math.floor(curveSegments * 0.75))
-  });
-  rimGeo.rotateX(-Math.PI / 2);
-  rimGeo.translate(0, -rimDepth, 0);
-  rimGeo.computeVertexNormals();
-  const rimMesh = new THREE.Mesh(rimGeo, pocketRimMat);
-  rimMesh.position.y = plateThickness;
-  rimMesh.castShadow = false;
-  rimMesh.receiveShadow = false;
-  return rimMesh;
-}
-
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.02;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.015;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78;
-const CHROME_CORNER_RIM_INNER_SCALE = 0.9;
-const CHROME_SIDE_RIM_INNER_SCALE = 0.88;
-const CHROME_RIM_DEPTH_MULTIPLIER = 1.6;
 
 function buildChromePlateGeometry({
   width,
@@ -489,329 +311,6 @@ function buildChromePlateGeometry({
   geo.computeVertexNormals();
   return geo;
 }
-function addPocketJaws(parent, playW, playH) {
-  const HALF_PLAY_W = playW * 0.5;
-  const HALF_PLAY_H = playH * 0.5;
-  const POCKET_MAP = [
-    { id: 'corner_tl', type: 'corner', pos: [-HALF_PLAY_W, -HALF_PLAY_H] },
-    { id: 'corner_tr', type: 'corner', pos: [HALF_PLAY_W, -HALF_PLAY_H] },
-    { id: 'corner_bl', type: 'corner', pos: [-HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'corner_br', type: 'corner', pos: [HALF_PLAY_W, HALF_PLAY_H] },
-    { id: 'side_left', type: 'side', pos: [-HALF_PLAY_W, 0] },
-    { id: 'side_right', type: 'side', pos: [HALF_PLAY_W, 0] }
-  ];
-  const jaws = [];
-  const jawTopLocal = POCKET_JAW_LIP_HEIGHT;
-  const jawDepthTarget = CLOTH_THICKNESS;
-  const capHeight = CLOTH_THICKNESS * 0.36;
-  const capLift = CLOTH_THICKNESS * 0.24; // keep jaw caps hovering slightly above the lowered cloth level
-  const rimDeckHeight = capHeight * 0.88;
-  const rimLipHeight = capHeight * 0.44;
-  const surfaceRimThickness = capHeight * 0.24;
-  const rimRailSweepScale = 0.5; // limit rim coverage to the half that hugs the rails
-  const rimRadiusScale = 0.94; // trim rim radius so it sits tighter over the pocket mouth
-  const rimVerticalNudge = capHeight * 0.18; // keep the rim hovering just above the chrome plates
-  const rimSkirtExtraDrop = POCKET_RECESS_DEPTH * 0.35; // pull the rim skirt down so it meets the pocket throat
-  const rimSurfaceLift = Math.max(
-    capLift + capHeight * 0.72,
-    capLift + capHeight + POCKET_RIM_LIFT - rimVerticalNudge
-  );
-  const rimLipTopY = rimSurfaceLift + rimLipHeight * 0.5;
-  const rimBaseTopY = rimLipTopY - rimLipHeight;
-  const rimSkirtTopY = rimBaseTopY - rimDeckHeight - rimSkirtExtraDrop;
-  const cornerPocketRadius =
-    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION;
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sideJawSweep = Math.PI / 2;
-  const cornerJawGeo = makeJawSector(
-    POCKET_VIS_R * CORNER_JAW_RADIUS_SCALE * POCKET_VISUAL_EXPANSION,
-    JAW_T * CORNER_JAW_THICKNESS_SCALE
-  );
-  const sideJawGeo = makeJawSector(
-    POCKET_VIS_R * 0.94 * POCKET_VISUAL_EXPANSION,
-    JAW_T * 0.72,
-    -sideJawSweep,
-    sideJawSweep
-  );
-  const cornerRimSweep = SECTOR_SWEEP * rimRailSweepScale;
-  const cornerRimStart = -cornerRimSweep;
-  const cornerRimEnd = cornerRimSweep;
-  const cornerRimGeo = makeJawSector(
-    cornerPocketRadius + surfaceRimThickness * 1.05 * rimRadiusScale,
-    JAW_T * 1.56,
-    cornerRimStart,
-    cornerRimEnd,
-    rimDeckHeight
-  );
-  cornerRimGeo.computeBoundingBox();
-  const cornerRimBox = cornerRimGeo.boundingBox;
-  if (cornerRimBox) {
-    const rimShift = -cornerRimBox.max.y;
-    if (Math.abs(rimShift) > 1e-6) cornerRimGeo.translate(0, rimShift, 0);
-  }
-  cornerRimGeo.computeBoundingSphere();
-  cornerRimGeo.computeVertexNormals();
-  const cornerRimTopGeo = makeJawSector(
-    cornerPocketRadius + surfaceRimThickness * 1.24 * rimRadiusScale,
-    JAW_T * 1.82,
-    cornerRimStart,
-    cornerRimEnd,
-    rimLipHeight
-  );
-  cornerRimTopGeo.computeBoundingBox();
-  const cornerRimTopBox = cornerRimTopGeo.boundingBox;
-  if (cornerRimTopBox) {
-    const rimTopShift = -cornerRimTopBox.max.y;
-    if (Math.abs(rimTopShift) > 1e-6) cornerRimTopGeo.translate(0, rimTopShift, 0);
-  }
-  cornerRimTopGeo.computeBoundingSphere();
-  cornerRimTopGeo.computeVertexNormals();
-  const sideRimSweep = sideJawSweep * 0.88 * rimRailSweepScale;
-  const sideRimBaseGeo = makeJawSector(
-    sidePocketRadius + surfaceRimThickness * 0.92 * rimRadiusScale,
-    JAW_T * 0.58,
-    -sideRimSweep,
-    sideRimSweep,
-    rimDeckHeight
-  );
-  sideRimBaseGeo.computeBoundingBox();
-  const sideRimBox = sideRimBaseGeo.boundingBox;
-  if (sideRimBox) {
-    const rimShift = -sideRimBox.max.y;
-    if (Math.abs(rimShift) > 1e-6) sideRimBaseGeo.translate(0, rimShift, 0);
-  }
-  sideRimBaseGeo.computeBoundingSphere();
-  sideRimBaseGeo.computeVertexNormals();
-  const sideRimTopSweep = sideJawSweep * 0.9 * rimRailSweepScale;
-  const sideRimTopGeo = makeJawSector(
-    sidePocketRadius + surfaceRimThickness * 1.04 * rimRadiusScale,
-    JAW_T * 0.74,
-    -sideRimTopSweep,
-    sideRimTopSweep,
-    rimLipHeight
-  );
-  sideRimTopGeo.computeBoundingBox();
-  const sideRimTopBox = sideRimTopGeo.boundingBox;
-  if (sideRimTopBox) {
-    const rimTopShift = -sideRimTopBox.max.y;
-    if (Math.abs(rimTopShift) > 1e-6) sideRimTopGeo.translate(0, rimTopShift, 0);
-  }
-  sideRimTopGeo.computeBoundingSphere();
-  sideRimTopGeo.computeVertexNormals();
-  const cornerSurfaceRimGeo = makeJawSector(
-    cornerPocketRadius + surfaceRimThickness * 0.58 * rimRadiusScale,
-    JAW_T * 0.66,
-    cornerRimStart,
-    cornerRimEnd,
-    surfaceRimThickness * 1.1
-  );
-  cornerSurfaceRimGeo.computeBoundingBox();
-  const cornerSurfaceRimBox = cornerSurfaceRimGeo.boundingBox;
-  if (cornerSurfaceRimBox) {
-    const rimShift = -cornerSurfaceRimBox.max.y;
-    if (Math.abs(rimShift) > 1e-6) cornerSurfaceRimGeo.translate(0, rimShift, 0);
-  }
-  cornerSurfaceRimGeo.computeBoundingSphere();
-  cornerSurfaceRimGeo.computeVertexNormals();
-  const sideSurfaceSweep = sideJawSweep * 0.94 * rimRailSweepScale;
-  const sideSurfaceRimGeo = makeJawSector(
-    sidePocketRadius + surfaceRimThickness * 0.52 * rimRadiusScale,
-    JAW_T * 0.32,
-    -sideSurfaceSweep,
-    sideSurfaceSweep,
-    surfaceRimThickness
-  );
-  sideSurfaceRimGeo.computeBoundingBox();
-  const sideSurfaceRimBox = sideSurfaceRimGeo.boundingBox;
-  if (sideSurfaceRimBox) {
-    const rimShift = -sideSurfaceRimBox.max.y;
-    if (Math.abs(rimShift) > 1e-6) sideSurfaceRimGeo.translate(0, rimShift, 0);
-  }
-  sideSurfaceRimGeo.computeBoundingSphere();
-  sideSurfaceRimGeo.computeVertexNormals();
-  const rimSkirtHeight = POCKET_RECESS_DEPTH + rimSkirtExtraDrop;
-  const cornerSkirtGeo = makePocketSkirtGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.62 * rimRadiusScale,
-    outerRadius: cornerPocketRadius + surfaceRimThickness * 2.35 * rimRadiusScale,
-    height: rimSkirtHeight,
-    startAngle: 0,
-    endAngle: Math.PI / 2
-  });
-  const sideSkirtGeo = makePocketSkirtGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.48 * rimRadiusScale,
-    outerRadius: sidePocketRadius + surfaceRimThickness * 1.45 * rimRadiusScale,
-    height: rimSkirtHeight,
-    startAngle: -Math.PI / 2,
-    endAngle: Math.PI / 2
-  });
-  const plasticDepth = POCKET_RECESS_DEPTH * 1.05;
-  const plasticClearance = CLOTH_THICKNESS * 0.05;
-  const maxPlasticLift =
-    TABLE_RAIL_TOP_Y - jawTopLocal - plasticDepth / 2 - plasticClearance;
-  const plasticTargetLift =
-    rimSurfaceLift - plasticDepth / 2 - rimSkirtExtraDrop * 0.5; // keep the plastic guide flush with the lowered rim skirt
-  const cornerPlasticLift = Math.max(
-    0,
-    Math.min(plasticTargetLift, maxPlasticLift)
-  );
-  const sidePlasticLift = Math.max(
-    0,
-    Math.min(plasticTargetLift, maxPlasticLift)
-  );
-  const cornerPlasticGeo = makePocketPlasticUGeometry({
-    innerRadius: cornerPocketRadius + surfaceRimThickness * 0.74 * rimRadiusScale,
-    outerRadius: cornerPocketRadius + surfaceRimThickness * 2.12 * rimRadiusScale,
-    depth: plasticDepth,
-    startAngle: 0,
-    endAngle: Math.PI / 2
-  });
-  const sidePlasticGeo = makePocketPlasticUGeometry({
-    innerRadius: sidePocketRadius + surfaceRimThickness * 0.68 * rimRadiusScale,
-    outerRadius: sidePocketRadius + surfaceRimThickness * 1.56 * rimRadiusScale,
-    depth: plasticDepth,
-    startAngle: -Math.PI / 2,
-    endAngle: Math.PI / 2
-  });
-  for (const entry of POCKET_MAP) {
-    const p = new THREE.Vector2(entry.pos[0], entry.pos[1]);
-    const centerPull =
-      entry.type === 'corner'
-        ? POCKET_VIS_R * JAW_CENTER_PULL_SCALE * POCKET_VISUAL_EXPANSION
-        : 0;
-    const pullDir =
-      entry.type === 'side'
-        ? new THREE.Vector2(entry.pos[0] >= 0 ? -1 : 1, 0)
-        : p.clone().multiplyScalar(-1);
-    const pShift = p.clone();
-    if (centerPull > 0 && pullDir.lengthSq() > 1e-6) {
-      pullDir.normalize();
-      pShift.add(pullDir.multiplyScalar(centerPull));
-    }
-    const geom = (entry.type === 'side' ? sideJawGeo : cornerJawGeo).clone();
-    geom.computeBoundingBox();
-    const bbox = geom.boundingBox;
-    const topShift = bbox ? -bbox.max.y : 0;
-    if (Math.abs(topShift) > 1e-6) {
-      geom.translate(0, topShift, 0);
-      geom.computeBoundingBox();
-    }
-    const adjustedBox = geom.boundingBox;
-    const currentDepth = adjustedBox
-      ? Math.abs(adjustedBox.min.y)
-      : jawDepthTarget;
-    if (currentDepth > 1e-6 && Math.abs(currentDepth - jawDepthTarget) > 1e-6) {
-      const depthScale = jawDepthTarget / currentDepth;
-      geom.scale(1, depthScale, 1);
-    }
-    geom.computeVertexNormals();
-    geom.computeBoundingBox();
-    geom.computeBoundingSphere();
-    const jaw = new THREE.Group();
-    jaw.position.set(pShift.x, jawTopLocal, pShift.y);
-    const lookTarget = (() => {
-      if (entry.type === 'side') {
-        const dir = entry.pos[0] >= 0 ? -1 : 1;
-        return new THREE.Vector3(
-          jaw.position.x + dir * POCKET_VIS_R * 1.5 * POCKET_VISUAL_EXPANSION,
-          jaw.position.y - 0.05,
-          jaw.position.z
-        );
-      }
-      const towardCenter = new THREE.Vector3(
-        pShift.x * 0.35,
-        jaw.position.y - 0.08,
-        pShift.y * 0.35
-      );
-      return towardCenter;
-    })();
-    jaw.lookAt(lookTarget);
-    const capMeshes = [];
-    if (entry.type === 'side') {
-      const rimSurface = new THREE.Mesh(
-        sideSurfaceRimGeo.clone(),
-        pocketRimMat
-      );
-      rimSurface.castShadow = false;
-      rimSurface.receiveShadow = true;
-      rimSurface.position.y = rimSurfaceLift;
-      jaw.add(rimSurface);
-
-      const rimBase = new THREE.Mesh(sideRimBaseGeo.clone(), plasticRimMat);
-      rimBase.castShadow = false;
-      rimBase.receiveShadow = true;
-      rimBase.position.y = rimBaseTopY;
-      jaw.add(rimBase);
-
-      const rimLip = new THREE.Mesh(sideRimTopGeo.clone(), plasticRimMat);
-      rimLip.castShadow = false;
-      rimLip.receiveShadow = true;
-      rimLip.position.y = rimLipTopY;
-      jaw.add(rimLip);
-
-      const skirt = new THREE.Mesh(sideSkirtGeo.clone(), plasticRimMat);
-      skirt.castShadow = false;
-      skirt.receiveShadow = true;
-      skirt.position.y = rimSkirtTopY;
-      jaw.add(skirt);
-
-      const plastic = new THREE.Mesh(
-        sidePlasticGeo.clone(),
-        pocketPlasticUMat
-      );
-      plastic.castShadow = false;
-      plastic.receiveShadow = true;
-      plastic.position.y = sidePlasticLift;
-      jaw.add(plastic);
-    } else {
-      const rimSurface = new THREE.Mesh(
-        cornerSurfaceRimGeo.clone(),
-        pocketRimMat
-      );
-      rimSurface.castShadow = false;
-      rimSurface.receiveShadow = true;
-      rimSurface.position.y = rimSurfaceLift;
-      jaw.add(rimSurface);
-
-      const rimBase = new THREE.Mesh(cornerRimGeo.clone(), plasticRimMat);
-      rimBase.castShadow = false;
-      rimBase.receiveShadow = true;
-      rimBase.position.y = rimBaseTopY;
-      jaw.add(rimBase);
-
-      const rimLip = new THREE.Mesh(cornerRimTopGeo.clone(), plasticRimMat);
-      rimLip.castShadow = false;
-      rimLip.receiveShadow = true;
-      rimLip.position.y = rimLipTopY;
-      jaw.add(rimLip);
-
-      const skirt = new THREE.Mesh(cornerSkirtGeo.clone(), plasticRimMat);
-      skirt.castShadow = false;
-      skirt.receiveShadow = true;
-      skirt.position.y = rimSkirtTopY;
-      jaw.add(skirt);
-
-      const plastic = new THREE.Mesh(
-        cornerPlasticGeo.clone(),
-        pocketPlasticUMat
-      );
-      plastic.castShadow = false;
-      plastic.receiveShadow = true;
-      plastic.position.y = cornerPlasticLift;
-      jaw.add(plastic);
-    }
-    jaw.userData = {
-      ...(jaw.userData || {}),
-      cap: capMeshes[0] ?? null,
-      caps: capMeshes,
-      capHeight,
-      capLift
-    };
-    parent.add(jaw);
-    jaws.push(jaw);
-  }
-  return jaws;
-}
-
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
   const sideDepth =
@@ -1038,15 +537,12 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const POCKET_JAW_LIP_HEIGHT =
-  TABLE_RAIL_TOP_Y -
-  CLOTH_THICKNESS * (0.24 + 0.36); // rest the pocket lips directly under the rail surface so the black arc sits flush on top of the rails
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.08; // keep pocket rims hovering just above the chrome trim
+const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.08; // keep pocket cut overlays hovering just above the chrome trim
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -2867,7 +2363,7 @@ function Table3D(parent) {
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.02; // keep a subtle inset so cushions do not overlap the rail geometry
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
@@ -3097,15 +2593,6 @@ function Table3D(parent) {
       }),
       chromePlateMat
     );
-    const rim = createChromePocketRim({
-      notchMP: notchLocalMP,
-      plateThickness: chromePlateThickness,
-      curveSegments: chromePlateShapeSegments,
-      innerScale: CHROME_CORNER_RIM_INNER_SCALE
-    });
-    if (rim) {
-      plate.add(rim);
-    }
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
@@ -3133,15 +2620,6 @@ function Table3D(parent) {
       }),
       chromePlateMat
     );
-    const rim = createChromePocketRim({
-      notchMP: notchLocalMP,
-      plateThickness: chromePlateThickness,
-      curveSegments: chromePlateShapeSegments,
-      innerScale: CHROME_SIDE_RIM_INNER_SCALE
-    });
-    if (rim) {
-      plate.add(rim);
-    }
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
@@ -3333,7 +2811,7 @@ function Table3D(parent) {
   const LONG_CUSHION_CORNER_EXTENSION =
     POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket jaws cleanly
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
