@@ -25,7 +25,7 @@ import { useIsMobile } from '../../hooks/useIsMobile.js';
 const JAW_H = 2.1;
 const JAW_T = 1.15;
 const JAW_INNER_SCALE = 0.052;
-const JAW_CENTER_PULL_SCALE = 0.03;
+const JAW_CENTER_PULL_SCALE = 0; // keep pocket jaws seated against the rail edges
 const SECTOR_SWEEP = Math.PI * 0.52;
 const SIDE_SECTOR_SWEEP = Math.PI * 0.32;
 const SIDE_JAW_SWEEP_SCALE = 0.86;
@@ -228,9 +228,13 @@ function addPocketJaws(parent, playW, playH) {
   }
   sideRimTopGeo.computeBoundingSphere();
   sideRimTopGeo.computeVertexNormals();
+  const cornerSurfaceBaseR = Math.max(
+    0,
+    cornerPocketRadius - surfaceRimThickness * 0.25
+  );
   const cornerSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 1.42,
-    JAW_T * 0.94,
+    cornerSurfaceBaseR,
+    surfaceRimThickness * 2.4,
     SECTOR_START,
     SECTOR_END,
     surfaceRimThickness
@@ -243,12 +247,16 @@ function addPocketJaws(parent, playW, playH) {
   }
   cornerSurfaceRimGeo.computeBoundingSphere();
   cornerSurfaceRimGeo.computeVertexNormals();
+  const sideSurfaceBaseR = Math.max(
+    0,
+    sidePocketRadius - surfaceRimThickness * 0.25
+  );
   const sideSurfaceRimGeo = makeJawSector(
-    POCKET_VIS_R * 0.82,
-    JAW_T * 0.16,
-    -sideJawSweep * 0.62,
-    sideJawSweep * 0.62,
-    surfaceRimThickness * 0.8
+    sideSurfaceBaseR,
+    surfaceRimThickness * 1.6,
+    -sideJawSweep * 0.7,
+    sideJawSweep * 0.7,
+    surfaceRimThickness * 0.9
   );
   sideSurfaceRimGeo.computeBoundingBox();
   const sideSurfaceRimBox = sideSurfaceRimGeo.boundingBox;
