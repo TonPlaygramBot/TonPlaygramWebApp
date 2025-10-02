@@ -4061,11 +4061,12 @@ function SnookerGame() {
         PLAY_H / 2 + BALL_R * 8, // keep a modest clearance so the broadcast cameras sit closer to the table
         roomDepth / 2 - wallThickness - broadcastClearance
       );
+      const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
       const broadcastRig = createBroadcastCameras({
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
-        slideLimit: CAMERA_LATERAL_CLAMP.short * 0.92
+        slideLimit: shortRailSlideLimit
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
@@ -4244,18 +4245,26 @@ function SnookerGame() {
         return group;
       };
 
-      const hospitalityOffsetZ = PLAY_H / 2 + BALL_R * 10;
-      const hospitalityOffsetX = TABLE.W / 2 + BALL_R * 14;
+      const hospitalityOffsetZ = shortRailTarget + BALL_R * 6;
+      const hospitalityOffsetX = shortRailSlideLimit + BALL_R * 6;
       const hospitalityLookY = TABLE_Y + TABLE.THICK * 0.5;
 
       const nearHospitality = createHospitalitySet({ mirrorX: false });
       nearHospitality.position.set(-hospitalityOffsetX, floorY, hospitalityOffsetZ);
-      nearHospitality.lookAt(0, hospitalityLookY, 0);
+      nearHospitality.lookAt(
+        -shortRailSlideLimit * 0.35,
+        hospitalityLookY,
+        shortRailTarget * 0.65
+      );
       world.add(nearHospitality);
 
       const farHospitality = createHospitalitySet({ mirrorX: true });
       farHospitality.position.set(hospitalityOffsetX, floorY, -hospitalityOffsetZ);
-      farHospitality.lookAt(0, hospitalityLookY, 0);
+      farHospitality.lookAt(
+        shortRailSlideLimit * 0.35,
+        hospitalityLookY,
+        -shortRailTarget * 0.65
+      );
       world.add(farHospitality);
 
       const aspect = host.clientWidth / host.clientHeight;
