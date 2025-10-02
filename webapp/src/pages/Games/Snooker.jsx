@@ -134,52 +134,94 @@ function buildPlasticUGeometry({
   height,
   bevelSize
 }) {
-  const profileDepth = Math.max(depth, outerRadius + MICRO_EPS);
+  const safeOuterRadius = Math.max(outerRadius, MICRO_EPS * 8);
   const safeInnerRadius = THREE.MathUtils.clamp(
     innerRadius,
-    MICRO_EPS * 2,
-    outerRadius - MICRO_EPS * 2
+    MICRO_EPS * 4,
+    safeOuterRadius - MICRO_EPS * 4
   );
+  const requestedThickness = safeOuterRadius - safeInnerRadius;
+  const lipThickness = Math.max(
+    MICRO_EPS * 4,
+    Math.min(requestedThickness, safeOuterRadius * 0.16)
+  );
+  const finalInnerRadius = safeOuterRadius - lipThickness;
+  const minDepth = safeOuterRadius * 0.62;
+  const maxDepth = safeOuterRadius * 1.12;
+  const arcDepth = THREE.MathUtils.clamp(depth, minDepth, maxDepth);
+  const circleY = (safeOuterRadius * safeOuterRadius - arcDepth * arcDepth) /
+    (2 * arcDepth);
+  const outerCircleRadius = Math.sqrt(
+    safeOuterRadius * safeOuterRadius + circleY * circleY
+  );
+  const startAngle = Math.atan2(-circleY, -safeOuterRadius);
+  const endAngle = Math.atan2(-circleY, safeOuterRadius);
+  const segments = 128;
+  const outerArcPoints = [];
+  const innerArcPoints = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const angle = startAngle + (endAngle - startAngle) * t;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const x = outerCircleRadius * cos;
+    const y = circleY + outerCircleRadius * sin;
+    outerArcPoints.push([x, y]);
+    const innerX = x - cos * lipThickness;
+    const innerY = y - sin * lipThickness;
+    innerArcPoints.push([innerX, innerY]);
+  }
+
+  const topExtra = Math.max(lipThickness * 1.35, safeOuterRadius * 0.1);
+  const innerTopInset = Math.min(
+    Math.max(lipThickness * 0.55, MICRO_EPS * 6),
+    safeOuterRadius - MICRO_EPS * 4
+  );
+  const innerTopLeftX = -safeOuterRadius + innerTopInset;
+  const innerTopRightX = safeOuterRadius - innerTopInset;
+
   const shape = new THREE.Shape();
-  shape.moveTo(-outerRadius, 0);
-  shape.lineTo(-outerRadius, -profileDepth);
-  shape.absarc(0, -profileDepth, outerRadius, Math.PI, 0, false);
-  shape.lineTo(outerRadius, 0);
-  shape.lineTo(-outerRadius, 0);
+  shape.moveTo(-safeOuterRadius - topExtra, 0);
+  shape.lineTo(outerArcPoints[0][0], outerArcPoints[0][1]);
+  for (let i = 1; i < outerArcPoints.length; i++) {
+    shape.lineTo(outerArcPoints[i][0], outerArcPoints[i][1]);
+  }
+  shape.lineTo(safeOuterRadius + topExtra, 0);
+  shape.lineTo(-safeOuterRadius - topExtra, 0);
   shape.closePath();
 
   const inner = new THREE.Path();
-  inner.moveTo(-safeInnerRadius, 0);
-  inner.lineTo(-safeInnerRadius, -profileDepth);
-  inner.absarc(0, -profileDepth, safeInnerRadius, Math.PI, 0, true);
-  inner.lineTo(safeInnerRadius, 0);
-  inner.lineTo(-safeInnerRadius, 0);
+  inner.moveTo(innerTopLeftX, 0);
+  inner.lineTo(innerTopRightX, 0);
+  for (let i = innerArcPoints.length - 1; i >= 0; i--) {
+    inner.lineTo(innerArcPoints[i][0], innerArcPoints[i][1]);
+  }
   inner.closePath();
   shape.holes.push(inner);
 
+  const lipHeight = Math.max(
+    MICRO_EPS * 3,
+    Math.min(height * 0.6, safeOuterRadius * 0.18)
+  );
   const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: height,
+    depth: lipHeight,
     bevelEnabled: true,
     bevelSegments: 2,
-    bevelSize: Math.min(
-      bevelSize,
-      height * 0.45,
-      (outerRadius - safeInnerRadius) * 0.45
-    ),
+    bevelSize: Math.min(bevelSize, lipHeight * 0.45, lipThickness * 0.45),
     bevelThickness: Math.min(
-      height * 0.6,
-      (outerRadius - safeInnerRadius) * 0.6
+      lipHeight * 0.6,
+      lipThickness * 0.6
     ),
-    curveSegments: 64
+    curveSegments: segments
   });
   geo.rotateX(-Math.PI / 2);
   geo.rotateY(Math.PI);
   geo.computeVertexNormals();
   return {
     geometry: geo,
-    profileDepth,
-    innerRadius: safeInnerRadius,
-    outerRadius
+    profileDepth: arcDepth,
+    innerRadius: finalInnerRadius,
+    outerRadius: safeOuterRadius
   };
 }
 
@@ -2693,21 +2735,21 @@ function Table3D(parent) {
     sheen: 0.16,
     sheenRoughness: 0.7
   });
-  const guardHeight = railH * 0.24;
-  const guardLift = chromePlateThickness * 0.4 + MICRO_EPS * 4;
+  const guardHeight = chromePlateThickness * 0.92;
+  const guardLift = chromePlateThickness * 0.18 + MICRO_EPS * 3;
   const cornerGuard = buildPlasticUGeometry({
-    outerRadius: POCKET_VIS_R * 1.32,
-    innerRadius: POCKET_VIS_R * 0.96,
-    depth: POCKET_VIS_R * 1.24,
+    outerRadius: POCKET_VIS_R * 1.26,
+    innerRadius: POCKET_VIS_R * 1.1,
+    depth: POCKET_VIS_R * 1.05,
     height: guardHeight,
-    bevelSize: POCKET_VIS_R * 0.08
+    bevelSize: POCKET_VIS_R * 0.05
   });
   const sideGuard = buildPlasticUGeometry({
-    outerRadius: SIDE_POCKET_RADIUS * 1.2,
-    innerRadius: SIDE_POCKET_RADIUS * 0.94,
-    depth: SIDE_POCKET_RADIUS * 1.28,
+    outerRadius: SIDE_POCKET_RADIUS * 1.18,
+    innerRadius: SIDE_POCKET_RADIUS * 1.04,
+    depth: SIDE_POCKET_RADIUS * 1.08,
     height: guardHeight,
-    bevelSize: SIDE_POCKET_RADIUS * 0.06
+    bevelSize: SIDE_POCKET_RADIUS * 0.04
   });
   const plasticGuards = new THREE.Group();
   pocketCenters().forEach((center) => {
@@ -2720,8 +2762,8 @@ function Table3D(parent) {
     toCenter.normalize();
     const guard = new THREE.Mesh(spec.geometry, plasticGuardMat);
     const offset = isSide
-      ? spec.profileDepth * 0.52
-      : spec.profileDepth * 0.56;
+      ? spec.profileDepth * 0.5
+      : spec.profileDepth * 0.54;
     guard.position.set(
       center.x - toCenter.x * offset,
       railsTopY + guardLift,
