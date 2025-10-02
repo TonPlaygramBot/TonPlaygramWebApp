@@ -601,18 +601,18 @@ const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
   minOutside:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.95 +
-    POCKET_VIS_R * 3.4 +
-    BALL_R * 3.1,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
+    POCKET_VIS_R * 3.9 +
+    BALL_R * 3.3,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 11.4,
+  heightOffset: BALL_R * 12.6,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.4 +
-    POCKET_VIS_R * 3.6 +
-    BALL_R * 2.4,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.9 +
+    POCKET_VIS_R * 4.3 +
+    BALL_R * 2.9,
   heightDrop: BALL_R * 1.6,
-  distanceScale: 1.14,
-  heightScale: 1.28
+  distanceScale: 1.18,
+  heightScale: 1.34
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -1234,7 +1234,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.96;
+const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1274,7 +1274,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.32;
+const CUE_VIEW_RADIUS_RATIO = 0.26;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
