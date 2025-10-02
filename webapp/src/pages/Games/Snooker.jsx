@@ -1180,7 +1180,13 @@ const createCarpetTextures = (() => {
   };
 })();
 
-function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }) {
+function createBroadcastCameras({
+  floorY,
+  cameraHeight,
+  shortRailZ,
+  slideLimit,
+  longRailX = null
+}) {
   const group = new THREE.Group();
   group.name = 'broadcastCameras';
   const cameras = {};
@@ -1234,9 +1240,21 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     0
   );
 
-  const createUnit = (direction) => {
+  const createUnit = (direction, options = {}) => {
+    const {
+      position: overridePosition = null,
+      yaw: overrideYaw = null,
+      directionOverride = null
+    } = options;
     const base = new THREE.Group();
-    base.position.set(0, floorY, shortRailZ * direction);
+    if (overridePosition) {
+      base.position.copy(overridePosition);
+    } else {
+      base.position.set(0, floorY, shortRailZ * direction);
+    }
+    if (typeof overrideYaw === 'number') {
+      base.rotation.y = overrideYaw;
+    }
     group.add(base);
 
     const slider = new THREE.Group();
@@ -1346,11 +1364,47 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
 
     headPivot.lookAt(defaultFocus);
 
-    return { base, slider, head: headPivot, assembly: cameraAssembly, direction };
+    const unitDirection =
+      directionOverride != null ? directionOverride : direction;
+
+    return {
+      base,
+      slider,
+      head: headPivot,
+      assembly: cameraAssembly,
+      direction: unitDirection
+    };
   };
 
   cameras.front = createUnit(-1);
   cameras.back = createUnit(1);
+
+  const cornerDistanceX =
+    typeof longRailX === 'number' && Number.isFinite(longRailX)
+      ? Math.abs(longRailX)
+      : Math.abs(shortRailZ);
+
+  const makeCornerUnit = (xDir, zDir) => {
+    const position = new THREE.Vector3(
+      cornerDistanceX * xDir,
+      floorY,
+      shortRailZ * zDir
+    );
+    const yaw = Math.atan2(-position.x, -position.z);
+    const unit = createUnit(zDir, {
+      position,
+      yaw,
+      directionOverride: { x: xDir, z: zDir }
+    });
+    const key = `corner${zDir < 0 ? 'Front' : 'Back'}${xDir < 0 ? 'Left' : 'Right'}`;
+    cameras[key] = unit;
+    return unit;
+  };
+
+  makeCornerUnit(-1, -1);
+  makeCornerUnit(1, -1);
+  makeCornerUnit(-1, 1);
+  makeCornerUnit(1, 1);
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
@@ -4062,11 +4116,18 @@ function SnookerGame() {
         roomDepth / 2 - wallThickness - broadcastClearance
       );
       const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
+      const longRailAvailable = roomWidth / 2 - wallThickness - broadcastClearance;
+      const longRailMinimum = PLAY_W / 2 + BALL_R * 8;
+      const longRailTarget =
+        longRailAvailable >= longRailMinimum
+          ? Math.min(longRailAvailable, PLAY_W / 2 + BALL_R * 14)
+          : longRailAvailable;
       const broadcastRig = createBroadcastCameras({
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
-        slideLimit: shortRailSlideLimit
+        slideLimit: shortRailSlideLimit,
+        longRailX: longRailTarget
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
@@ -4115,138 +4176,151 @@ function SnookerGame() {
         })
       };
 
+      const createTableSet = () => {
+        const set = new THREE.Group();
+
+        const tableTop = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.35, 0.35, 0.03, 24),
+          hospitalityMats.wood
+        );
+        tableTop.position.y = 0.75;
+        tableTop.castShadow = true;
+        set.add(tableTop);
+
+        const tableStem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.06, 0.7, 16),
+          hospitalityMats.chrome
+        );
+        tableStem.position.y = 0.75 - 0.35;
+        tableStem.castShadow = true;
+        set.add(tableStem);
+
+        const tableBaseRadius = 0.28;
+        const tableBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(tableBaseRadius, tableBaseRadius, 0.04, 24),
+          hospitalityMats.chrome
+        );
+        tableBase.position.y = 0.02;
+        tableBase.receiveShadow = true;
+        set.add(tableBase);
+
+        const bottle = new THREE.Group();
+        bottle.position.set(0.05, 0.875, -0.08);
+        set.add(bottle);
+        bottle.add(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(0.045, 0.05, 0.22, 16),
+            hospitalityMats.glass
+          )
+        );
+        const bottleNeck = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.018, 0.022, 0.05, 12),
+          hospitalityMats.glass
+        );
+        bottleNeck.position.y = 0.135;
+        bottle.add(bottleNeck);
+        const bottleCap = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12),
+          hospitalityMats.chrome
+        );
+        bottleCap.position.y = 0.16;
+        bottle.add(bottleCap);
+        const water = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.043, 0.043, 0.12, 16),
+          hospitalityMats.water
+        );
+        water.position.y = -0.05;
+        bottle.add(water);
+
+        const glassOuterMat = hospitalityMats.glass.clone();
+        glassOuterMat.side = THREE.DoubleSide;
+        const glassOuter = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.036, 0.032, 0.1, 16, 1, true),
+          glassOuterMat
+        );
+        glassOuter.position.set(-0.12, 0.8, 0.05);
+        glassOuter.castShadow = true;
+        set.add(glassOuter);
+        const glassBottom = new THREE.Mesh(
+          new THREE.CircleGeometry(0.032, 16),
+          glassOuterMat
+        );
+        glassBottom.rotation.x = -Math.PI / 2;
+        glassBottom.position.set(-0.12, 0.75, 0.05);
+        glassBottom.receiveShadow = true;
+        set.add(glassBottom);
+        const glassWater = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.029, 0.029, 0.05, 16),
+          hospitalityMats.water
+        );
+        glassWater.position.set(-0.12, 0.775, 0.05);
+        set.add(glassWater);
+
+        return set;
+      };
+
+      const createChair = () => {
+        const chair = new THREE.Group();
+        const chairLegGeom = new THREE.CylinderGeometry(0.022, 0.022, 0.42, 10);
+        [
+          [-0.22, -0.22],
+          [0.22, -0.22],
+          [-0.2, 0.22],
+          [0.2, 0.22]
+        ].forEach(([x, z]) => {
+          const leg = new THREE.Mesh(chairLegGeom, hospitalityMats.chrome);
+          leg.position.set(x, 0.21, z);
+          leg.castShadow = true;
+          chair.add(leg);
+        });
+
+        const seat = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.06, 0.46),
+          hospitalityMats.fabric
+        );
+        seat.position.set(0, 0.46, 0);
+        seat.castShadow = true;
+        chair.add(seat);
+
+        const back = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.5, 0.06),
+          hospitalityMats.fabric
+        );
+        back.position.set(0, 0.71, -0.23);
+        back.rotation.x = Math.PI * 0.05;
+        back.castShadow = true;
+        chair.add(back);
+
+        const armGeom = new THREE.BoxGeometry(0.06, 0.06, 0.46);
+        const armOffset = 0.28;
+        const armL = new THREE.Mesh(armGeom, hospitalityMats.fabric);
+        armL.position.set(-armOffset, 0.56, 0);
+        armL.castShadow = true;
+        chair.add(armL);
+        const armR = new THREE.Mesh(armGeom, hospitalityMats.fabric);
+        armR.position.set(armOffset, 0.56, 0);
+        armR.castShadow = true;
+        chair.add(armR);
+
+        return chair;
+      };
+
+      const createHospitalityPair = () => {
+        const group = new THREE.Group();
+        const table = createTableSet();
+        group.add(table);
+
+        const chair = createChair();
+        chair.position.set(-0.65, 0, 0.3);
+        chair.lookAt(0, chair.position.y + 0.4, 0);
+        group.add(chair);
+
+        return group;
+      };
+
       const createCameraSideHospitalitySet = (side = 1) => {
         const mirror = Math.sign(side) || 1;
         const group = new THREE.Group();
-
-        const createTableSet = () => {
-          const set = new THREE.Group();
-
-          const tableTop = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.35, 0.35, 0.03, 24),
-            hospitalityMats.wood
-          );
-          tableTop.position.y = 0.75;
-          tableTop.castShadow = true;
-          set.add(tableTop);
-
-          const tableStem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.04, 0.06, 0.7, 16),
-            hospitalityMats.chrome
-          );
-          tableStem.position.y = 0.75 - 0.35;
-          tableStem.castShadow = true;
-          set.add(tableStem);
-
-          const tableBaseRadius = 0.28;
-          const tableBase = new THREE.Mesh(
-            new THREE.CylinderGeometry(tableBaseRadius, tableBaseRadius, 0.04, 24),
-            hospitalityMats.chrome
-          );
-          tableBase.position.y = 0.02;
-          tableBase.receiveShadow = true;
-          set.add(tableBase);
-
-          const bottle = new THREE.Group();
-          bottle.position.set(0.05, 0.875, -0.08);
-          set.add(bottle);
-          bottle.add(
-            new THREE.Mesh(
-              new THREE.CylinderGeometry(0.045, 0.05, 0.22, 16),
-              hospitalityMats.glass
-            )
-          );
-          const bottleNeck = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.018, 0.022, 0.05, 12),
-            hospitalityMats.glass
-          );
-          bottleNeck.position.y = 0.135;
-          bottle.add(bottleNeck);
-          const bottleCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12),
-            hospitalityMats.chrome
-          );
-          bottleCap.position.y = 0.16;
-          bottle.add(bottleCap);
-          const water = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.043, 0.043, 0.12, 16),
-            hospitalityMats.water
-          );
-          water.position.y = -0.05;
-          bottle.add(water);
-
-          const glassOuterMat = hospitalityMats.glass.clone();
-          glassOuterMat.side = THREE.DoubleSide;
-          const glassOuter = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.036, 0.032, 0.1, 16, 1, true),
-            glassOuterMat
-          );
-          glassOuter.position.set(-0.12, 0.8, 0.05);
-          glassOuter.castShadow = true;
-          set.add(glassOuter);
-          const glassBottom = new THREE.Mesh(
-            new THREE.CircleGeometry(0.032, 16),
-            glassOuterMat
-          );
-          glassBottom.rotation.x = -Math.PI / 2;
-          glassBottom.position.set(-0.12, 0.75, 0.05);
-          glassBottom.receiveShadow = true;
-          set.add(glassBottom);
-          const glassWater = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.029, 0.029, 0.05, 16),
-            hospitalityMats.water
-          );
-          glassWater.position.set(-0.12, 0.775, 0.05);
-          set.add(glassWater);
-
-          return set;
-        };
-
-        const createChair = () => {
-          const chair = new THREE.Group();
-          const chairLegGeom = new THREE.CylinderGeometry(0.022, 0.022, 0.42, 10);
-          [
-            [-0.22, -0.22],
-            [0.22, -0.22],
-            [-0.2, 0.22],
-            [0.2, 0.22]
-          ].forEach(([x, z]) => {
-            const leg = new THREE.Mesh(chairLegGeom, hospitalityMats.chrome);
-            leg.position.set(x, 0.21, z);
-            leg.castShadow = true;
-            chair.add(leg);
-          });
-
-          const seat = new THREE.Mesh(
-            new THREE.BoxGeometry(0.5, 0.06, 0.46),
-            hospitalityMats.fabric
-          );
-          seat.position.set(0, 0.46, 0);
-          seat.castShadow = true;
-          chair.add(seat);
-
-          const back = new THREE.Mesh(
-            new THREE.BoxGeometry(0.5, 0.5, 0.06),
-            hospitalityMats.fabric
-          );
-          back.position.set(0, 0.71, -0.23);
-          back.rotation.x = Math.PI * 0.05;
-          back.castShadow = true;
-          chair.add(back);
-
-          const armGeom = new THREE.BoxGeometry(0.06, 0.06, 0.46);
-          const armOffset = 0.28;
-          const armL = new THREE.Mesh(armGeom, hospitalityMats.fabric);
-          armL.position.set(-armOffset, 0.56, 0);
-          armL.castShadow = true;
-          chair.add(armL);
-          const armR = new THREE.Mesh(armGeom, hospitalityMats.fabric);
-          armR.position.set(armOffset, 0.56, 0);
-          armR.castShadow = true;
-          chair.add(armR);
-
-          return chair;
-        };
 
         const arrangements = [
           {
@@ -4307,6 +4381,42 @@ function SnookerGame() {
       rightHospitalityBack.position.set(hospitalityXOffset, floorY, -hospitalityZOffset);
       rightHospitalityBack.lookAt(hospitalityLookTarget);
       world.add(rightHospitalityBack);
+
+      const addTablesNextToBroadcastCameras = () => {
+        const rig = broadcastCamerasRef.current;
+        if (!rig?.cameras) return;
+        const up = new THREE.Vector3(0, 1, 0);
+        const offsetDistance = 1.15;
+
+        ['front', 'back'].forEach((key) => {
+          const unit = rig.cameras[key];
+          if (!unit?.base) return;
+          const basePos = new THREE.Vector3();
+          unit.base.getWorldPosition(basePos);
+          const forward = hospitalityLookTarget
+            .clone()
+            .sub(basePos)
+            .setY(0);
+          if (forward.lengthSq() < 1e-6) {
+            forward.set(0, 0, key === 'front' ? 1 : -1);
+          }
+          forward.normalize();
+          const side = new THREE.Vector3().crossVectors(forward, up).normalize();
+          const worldPos = basePos
+            .clone()
+            .addScaledVector(side, offsetDistance)
+            .setY(floorY);
+
+          const hospitalityPair = createHospitalityPair();
+          hospitalityPair.position.copy(worldPos);
+          hospitalityPair.lookAt(
+            new THREE.Vector3(basePos.x, hospitalityPair.position.y + 0.75, basePos.z)
+          );
+          world.add(hospitalityPair);
+        });
+      };
+
+      addTablesNextToBroadcastCameras();
 
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
