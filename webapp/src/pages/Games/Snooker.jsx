@@ -756,9 +756,10 @@ const UI_SCALE = SIZE_REDUCTION;
 const WOOD_TONE = 0xa67748;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
-const CLOTH_TEXTURE_INTENSITY = 0.56;
-const CLOTH_HAIR_INTENSITY = 0.22;
-const CLOTH_BUMP_INTENSITY = 0.48;
+const CLOTH_TEXTURE_INTENSITY = 0.45;
+const CLOTH_HAIR_INTENSITY = 0.18;
+const CLOTH_BUMP_INTENSITY = 0.36;
+const CLOTH_SOFT_BLEND = 0.6;
 
 const COLORS = Object.freeze({
   cloth: 0x2b7e4f,
@@ -785,7 +786,7 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = 4096;
-const CLOTH_THREAD_PITCH = 12;
+const CLOTH_THREAD_PITCH = 12 * 0.8;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -917,10 +918,13 @@ const createClothTextures = (() => {
         const r = accentR + (highlight.r - accentR) * highlightEnhanced;
         const g = accentG + (highlight.g - accentG) * highlightEnhanced;
         const b = accentB + (highlight.b - accentB) * highlightEnhanced;
+        const softR = baseR + (r - baseR) * CLOTH_SOFT_BLEND;
+        const softG = baseG + (g - baseG) * CLOTH_SOFT_BLEND;
+        const softB = baseB + (b - baseB) * CLOTH_SOFT_BLEND;
         const i = (y * SIZE + x) * 4;
-        data[i + 0] = clamp255(r);
-        data[i + 1] = clamp255(g);
-        data[i + 2] = clamp255(b);
+        data[i + 0] = clamp255(softR);
+        data[i + 1] = clamp255(softG);
+        data[i + 2] = clamp255(softB);
         data[i + 3] = 255;
       }
     }
@@ -971,7 +975,7 @@ const createClothTextures = (() => {
           0,
           1
         );
-        const value = clamp255(130 + (bump - 0.5) * 234 + (hair - 0.5) * 48);
+        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 36);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1176,6 +1180,181 @@ const createCarpetTextures = (() => {
   };
 })();
 
+function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }) {
+  const group = new THREE.Group();
+  group.name = 'broadcastCameras';
+  const cameras = {};
+
+  const darkMetal = new THREE.MeshStandardMaterial({
+    color: 0x1f2937,
+    metalness: 0.65,
+    roughness: 0.32
+  });
+  const lightMetal = new THREE.MeshStandardMaterial({
+    color: 0x334155,
+    metalness: 0.58,
+    roughness: 0.36
+  });
+  const plastic = new THREE.MeshStandardMaterial({
+    color: 0x1b2533,
+    metalness: 0.24,
+    roughness: 0.42
+  });
+  const rubber = new THREE.MeshStandardMaterial({
+    color: 0x080c14,
+    metalness: 0.0,
+    roughness: 0.94
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x97c6ff,
+    metalness: 0.0,
+    roughness: 0.08,
+    transparent: true,
+    opacity: 0.42,
+    envMapIntensity: 1.1
+  });
+
+  const footRadius = Math.min(0.85, PLAY_W * 0.22);
+  const headHeight = Math.max(1.45, cameraHeight - floorY);
+  const hubHeight = Math.max(1.08, headHeight - 0.52);
+  const columnHeight = Math.max(0.42, headHeight - hubHeight);
+  const legLength = Math.sqrt(footRadius * footRadius + hubHeight * hubHeight);
+  const legGeo = new THREE.CylinderGeometry(0.034, 0.022, legLength, 14);
+  const footHeight = 0.045;
+  const footGeo = new THREE.CylinderGeometry(0.07, 0.07, footHeight, 16);
+  const columnGeo = new THREE.CylinderGeometry(0.052, 0.05, columnHeight, 16);
+  const hubGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.08, 18);
+  const headBaseGeo = new THREE.CylinderGeometry(0.11, 0.13, 0.05, 18);
+  const panBarGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.32, 12);
+  const gripGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.2, 12);
+
+  const defaultFocus = new THREE.Vector3(
+    0,
+    TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+    0
+  );
+
+  const createUnit = (direction) => {
+    const base = new THREE.Group();
+    base.position.set(0, floorY, shortRailZ * direction);
+    group.add(base);
+
+    const slider = new THREE.Group();
+    base.add(slider);
+
+    const tripod = new THREE.Group();
+    slider.add(tripod);
+
+    const top = new THREE.Vector3(0, hubHeight, 0);
+    [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3].forEach((angle) => {
+      const foot = new THREE.Vector3(
+        Math.cos(angle) * footRadius,
+        0,
+        Math.sin(angle) * footRadius
+      );
+      const mid = top.clone().add(foot).multiplyScalar(0.5);
+      const up = top.clone().sub(foot).normalize();
+      const leg = new THREE.Mesh(legGeo, darkMetal);
+      leg.position.copy(mid);
+      leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      tripod.add(leg);
+
+      const footPad = new THREE.Mesh(footGeo, rubber);
+      footPad.position.set(foot.x, footHeight / 2, foot.z);
+      footPad.receiveShadow = true;
+      tripod.add(footPad);
+    });
+
+    const column = new THREE.Mesh(columnGeo, lightMetal);
+    column.position.y = hubHeight + columnHeight / 2;
+    column.castShadow = true;
+    column.receiveShadow = true;
+    slider.add(column);
+
+    const hub = new THREE.Mesh(hubGeo, lightMetal);
+    hub.position.y = hubHeight;
+    hub.castShadow = true;
+    hub.receiveShadow = true;
+    slider.add(hub);
+
+    const headBase = new THREE.Mesh(headBaseGeo, darkMetal);
+    headBase.position.y = headHeight;
+    headBase.castShadow = true;
+    slider.add(headBase);
+
+    const headPivot = new THREE.Group();
+    headPivot.position.y = headHeight + 0.02;
+    slider.add(headPivot);
+
+    const cameraAssembly = new THREE.Group();
+    headPivot.add(cameraAssembly);
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    cameraAssembly.add(body);
+
+    const lensHousing = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
+      darkMetal
+    );
+    lensHousing.rotation.x = Math.PI / 2;
+    lensHousing.position.set(0, 0, -0.2);
+    lensHousing.castShadow = true;
+    cameraAssembly.add(lensHousing);
+
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
+    hood.position.set(0, 0, -0.32);
+    hood.castShadow = true;
+    cameraAssembly.add(hood);
+
+    const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
+    lensGlass.rotation.x = Math.PI / 2;
+    lensGlass.position.set(0, 0, -0.29);
+    cameraAssembly.add(lensGlass);
+
+    const topHandle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
+      rubber
+    );
+    topHandle.rotation.z = Math.PI / 2;
+    topHandle.position.set(0, 0.16, 0);
+    topHandle.castShadow = true;
+    cameraAssembly.add(topHandle);
+
+    const viewfinder = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.1, 0.08),
+      lightMetal
+    );
+    viewfinder.position.set(-0.22, 0.06, 0.05);
+    viewfinder.castShadow = true;
+    cameraAssembly.add(viewfinder);
+
+    const panBar = new THREE.Mesh(panBarGeo, lightMetal);
+    panBar.rotation.z = Math.PI / 2.3;
+    panBar.position.set(0.26, -0.08, 0);
+    panBar.castShadow = true;
+    headPivot.add(panBar);
+
+    const grip = new THREE.Mesh(gripGeo, rubber);
+    grip.rotation.z = Math.PI / 2.3;
+    grip.position.set(0.37, -0.12, 0);
+    grip.castShadow = true;
+    headPivot.add(grip);
+
+    headPivot.lookAt(defaultFocus);
+
+    return { base, slider, head: headPivot, assembly: cameraAssembly, direction };
+  };
+
+  cameras.front = createUnit(-1);
+  cameras.back = createUnit(1);
+
+  return { group, cameras, slideLimit, cameraHeight, defaultFocus };
+}
+
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
@@ -1312,7 +1491,7 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
-const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.7); // allow the cue camera to move closer without clipping the cue
+const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.6); // allow the cue camera to move closer without clipping the cue
 const CUE_VIEW_RADIUS_RATIO = 0.21;
 const CUE_VIEW_MIN_RADIUS = CUE_APPROACH_MIN_RADIUS;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -2270,12 +2449,12 @@ function Table3D(parent) {
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
-  const clothTextureScale = 0.032; // keep the weave legible after increasing texture resolution
+  const clothTextureScale = 0.032 * 1.2; // shrink the cloth pattern ~20% for finer weave
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.25;
-  const baseBumpScale = 0.52;
+  const baseBumpScale = 0.44;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -3267,6 +3446,7 @@ function SnookerGame() {
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
+  const broadcastCamerasRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
@@ -3705,6 +3885,21 @@ function SnookerGame() {
 
       const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
       rightWall.position.x = roomWidth / 2;
+
+      const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
+      const shortRailTarget = Math.max(
+        PLAY_H / 2 + BALL_R * 12,
+        roomDepth / 2 - wallThickness - broadcastClearance
+      );
+      const broadcastRig = createBroadcastCameras({
+        floorY,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
+        shortRailZ: shortRailTarget,
+        slideLimit: CAMERA_LATERAL_CLAMP.short * 0.92
+      });
+      world.add(broadcastRig.group);
+      broadcastCamerasRef.current = broadcastRig;
+
         const aspect = host.clientWidth / host.clientHeight;
         const camera = new THREE.PerspectiveCamera(
           CAMERA.fov,
@@ -3919,9 +4114,62 @@ function SnookerGame() {
         };
 
 
+        const updateBroadcastCameras = ({
+          railDir = 1,
+          targetWorld = null,
+          focusWorld = null,
+          lerp = 1
+        } = {}) => {
+          const rig = broadcastCamerasRef.current;
+          if (!rig || !rig.cameras) return;
+          const limit = rig.slideLimit ?? CAMERA_LATERAL_CLAMP.short;
+          const activeKey = railDir >= 0 ? 'back' : 'front';
+          const idleKey = railDir >= 0 ? 'front' : 'back';
+          const active = rig.cameras[activeKey];
+          const idle = rig.cameras[idleKey];
+          const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
+          const focusTarget =
+            focusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
+          const clampX = (value) =>
+            THREE.MathUtils.clamp(value, -limit, limit);
+          if (active) {
+            const nextX =
+              targetWorld && Number.isFinite(targetWorld.x)
+                ? clampX(
+                    targetWorld.x / Math.max(worldScaleFactor ?? 1, 1e-6)
+                  )
+                : 0;
+            active.slider.position.x = THREE.MathUtils.lerp(
+              active.slider.position.x,
+              nextX,
+              lerpFactor
+            );
+            if (focusTarget) {
+              active.head.lookAt(focusTarget);
+            }
+          }
+          if (idle) {
+            idle.slider.position.x = THREE.MathUtils.lerp(
+              idle.slider.position.x,
+              0,
+              Math.min(1, lerpFactor * 0.6)
+            );
+            const idleFocus = rig.defaultFocusWorld ?? focusTarget;
+            if (idleFocus) {
+              idle.head.lookAt(idleFocus);
+            }
+          }
+        };
+
         const updateCamera = () => {
           let renderCamera = camera;
           let lookTarget = null;
+          let broadcastArgs = {
+            railDir: 1,
+            targetWorld: null,
+            focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
+            lerp: 0.18
+          };
           if (topViewRef.current) {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
@@ -3929,6 +4177,9 @@ function SnookerGame() {
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
             renderCamera = camera;
+            broadcastArgs.focusWorld =
+              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+            broadcastArgs.targetWorld = null;
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -4159,6 +4410,12 @@ function SnookerGame() {
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
               }
+              broadcastArgs = {
+                railDir,
+                targetWorld: desiredPosition ?? null,
+                focusWorld: focusTargetVec3 ?? null,
+                lerp: lerpT
+              };
               if (focusTargetVec3 && desiredPosition) {
                 if (!activeShotView.smoothedPos) {
                   activeShotView.smoothedPos = desiredPosition.clone();
@@ -4201,6 +4458,12 @@ function SnookerGame() {
             } else {
               railDir = activeShotView.railDir;
             }
+            broadcastArgs = {
+              railDir,
+              targetWorld: null,
+              focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
+              lerp: 0.25
+            };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
             let approachDir = activeShotView.approach
@@ -4382,6 +4645,10 @@ function SnookerGame() {
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
             renderCamera = camera;
+            broadcastArgs.focusWorld =
+              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+            broadcastArgs.targetWorld = null;
+            broadcastArgs.lerp = 0.22;
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -4405,6 +4672,7 @@ function SnookerGame() {
               clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.55, base * 1.4, fade);
             }
           }
+          updateBroadcastCameras(broadcastArgs);
           activeRenderCameraRef.current = renderCamera;
           return renderCamera;
         };
@@ -4546,10 +4814,6 @@ function SnookerGame() {
                 theta: followView.orbitSnapshot.theta
               }
             : null;
-          const baseAxis =
-            railNormal && Math.abs(railNormal.x) > Math.abs(railNormal.y)
-              ? 'side'
-              : 'short';
           const nearRailThresholdX = RAIL_LIMIT_X - RAIL_NEAR_BUFFER;
           const nearRailThresholdY = RAIL_LIMIT_Y - RAIL_NEAR_BUFFER;
           const cueNearRail =
@@ -4559,7 +4823,7 @@ function SnookerGame() {
             ? Math.abs(targetBall.pos.x) > nearRailThresholdX ||
               Math.abs(targetBall.pos.y) > nearRailThresholdY
             : false;
-          const axis = longShot || cueNearRail || targetNearRail ? 'short' : baseAxis;
+          const axis = 'short'; // force short-rail broadcast framing
           const initialRailDir =
             axis === 'side'
               ? signed(
@@ -5036,6 +5300,18 @@ function SnookerGame() {
       sph.radius = clampOrbitRadius(sph.radius);
       worldScaleFactor = WORLD_SCALE;
       world.scale.setScalar(worldScaleFactor);
+      if (broadcastCamerasRef.current) {
+        const rig = broadcastCamerasRef.current;
+        const focusWorld = rig.defaultFocus
+          ? rig.defaultFocus.clone().multiplyScalar(worldScaleFactor)
+          : new THREE.Vector3();
+        rig.defaultFocusWorld = focusWorld;
+        if (rig.cameras) {
+          Object.values(rig.cameras).forEach((cam) => {
+            cam?.head?.lookAt(focusWorld);
+          });
+        }
+      }
       world.updateMatrixWorld(true);
       updateCamera();
       fit(
@@ -7111,7 +7387,7 @@ function SnookerGame() {
   const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
   const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
   const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
-  const bottomHudVisible = hud.turn === 0 && !hud.over;
+  const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -7142,46 +7418,6 @@ function SnookerGame() {
           </div>
         </div>
       )}
-
-      {/* Top HUD */}
-      <div
-        className={`absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
-        aria-hidden={pocketCameraActive}
-      >
-        <div
-          className="bg-gray-800 px-4 py-2 rounded-b flex flex-col items-center text-white"
-          style={{
-            transform: `scale(${UI_SCALE})`,
-            transformOrigin: 'top center'
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <img
-                src={player.avatar || '/assets/icons/profile.svg'}
-                alt="player"
-                className="w-10 h-10 rounded-full object-cover border-2 border-yellow-400"
-              />
-              <span className={hud.turn === 0 ? 'text-yellow-400' : ''}>
-                {player.name}
-              </span>
-            </div>
-            <div className="text-xl font-bold">
-              {hud.A} - {hud.B}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full border-2 border-yellow-400 flex items-center justify-center">
-                <span className="text-3xl leading-none">{aiFlag}</span>
-              </div>
-              <span className={hud.turn === 1 ? 'text-yellow-400' : ''}>
-                AI
-              </span>
-            </div>
-          </div>
-          <div className="mt-1 text-sm">Time: {timer}</div>
-          {/* Suggestions now run silently without UI overlays */}
-        </div>
-      </div>
 
       {bottomHudVisible && (
         <div
