@@ -4115,16 +4115,12 @@ function SnookerGame() {
         })
       };
 
-      const createShortRailHospitalitySet = () => {
+      const createCameraSideHospitalitySet = (side = 1) => {
+        const mirror = Math.sign(side) || 1;
         const group = new THREE.Group();
 
-        const layout = new THREE.Group();
-        layout.position.set(0.9, 0, -0.8);
-        group.add(layout);
-
         const tableSet = new THREE.Group();
-        tableSet.position.set(-0.9, 0, 0.8);
-        layout.add(tableSet);
+        group.add(tableSet);
 
         const tableTop = new THREE.Mesh(
           new THREE.CylinderGeometry(0.35, 0.35, 0.03, 24),
@@ -4201,9 +4197,9 @@ function SnookerGame() {
         tableSet.add(glassWater);
 
         const chair = new THREE.Group();
-        chair.position.set(-1.55, 0, 1.05);
-        chair.rotation.y = -Math.PI * 0.1;
-        layout.add(chair);
+        chair.position.set(mirror * 0.65, 0, 0.25);
+        chair.rotation.y = -Math.PI * 0.1 * mirror;
+        group.add(chair);
 
         const chairLegGeom = new THREE.CylinderGeometry(0.022, 0.022, 0.42, 10);
         [
@@ -4258,15 +4254,19 @@ function SnookerGame() {
       );
       const hospitalityLookTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
 
-      const nearHospitality = createShortRailHospitalitySet();
-      nearHospitality.position.set(0, floorY, hospitalityZOffset);
-      nearHospitality.lookAt(hospitalityLookTarget);
-      world.add(nearHospitality);
+      const hospitalityXMax = roomWidth / 2 - wallThickness - 0.6;
+      const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.65;
+      const hospitalityXOffset = Math.min(hospitalityXMax, hospitalityXDesired);
 
-      const farHospitality = createShortRailHospitalitySet();
-      farHospitality.position.set(0, floorY, -hospitalityZOffset);
-      farHospitality.lookAt(hospitalityLookTarget);
-      world.add(farHospitality);
+      const leftHospitality = createCameraSideHospitalitySet(-1);
+      leftHospitality.position.set(-hospitalityXOffset, floorY, hospitalityZOffset);
+      leftHospitality.lookAt(hospitalityLookTarget);
+      world.add(leftHospitality);
+
+      const rightHospitality = createCameraSideHospitalitySet(1);
+      rightHospitality.position.set(hospitalityXOffset, floorY, hospitalityZOffset);
+      rightHospitality.lookAt(hospitalityLookTarget);
+      world.add(rightHospitality);
 
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
