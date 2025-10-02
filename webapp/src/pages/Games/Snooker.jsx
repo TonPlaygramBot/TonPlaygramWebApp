@@ -601,18 +601,18 @@ const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
   minOutside:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
-    POCKET_VIS_R * 3.9 +
-    BALL_R * 3.6,
-  maxOutside: BALL_R * 34,
-  heightOffset: BALL_R * 12.2,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.95 +
+    POCKET_VIS_R * 3.4 +
+    BALL_R * 3.1,
+  maxOutside: BALL_R * 30,
+  heightOffset: BALL_R * 11.4,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.9 +
-    POCKET_VIS_R * 4.2 +
-    BALL_R * 3.4,
-  heightDrop: BALL_R * 1.2,
-  distanceScale: 1.18,
-  heightScale: 1.32
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.4 +
+    POCKET_VIS_R * 3.6 +
+    BALL_R * 2.4,
+  heightDrop: BALL_R * 1.6,
+  distanceScale: 1.14,
+  heightScale: 1.28
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -1234,7 +1234,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9;
+const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1274,7 +1274,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.26;
+const CUE_VIEW_RADIUS_RATIO = 0.32;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -1291,7 +1291,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
-const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.66; // half the cue length in world units
+const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
 const CAMERA_RAIL_HEIGHT_EPSILON = TABLE.THICK * 0.02;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -2474,64 +2474,6 @@ function Table3D(parent) {
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-
-  const pocketTrimGroup = new THREE.Group();
-  const pocketJawMeshes = [];
-  const pocketRimMeshes = [];
-  const jawTubeRadius = railH * 0.18;
-  const rimTubeRadius = Math.max(chromePlateThickness * 0.65, jawTubeRadius * 0.45);
-  const pocketRimMat = chromePlateMat.clone();
-  pocketRimMat.metalness = Math.min(1, pocketRimMat.metalness * 1.08);
-  pocketRimMat.roughness = Math.max(0, pocketRimMat.roughness * 0.85);
-
-  pocketCenters().forEach((p) => {
-    const isSidePocket = Math.abs(p.y) < 1e-6;
-    const inward = new THREE.Vector2(-p.x, -p.y);
-    if (inward.lengthSq() < 1e-6) {
-      inward.set(isSidePocket ? 1 : 0, isSidePocket ? 0 : 1);
-    }
-    inward.normalize();
-    const baseYaw = Math.atan2(inward.y, inward.x);
-    const jawArc = isSidePocket ? Math.PI * 0.92 : Math.PI * 0.72;
-    const rimArc = isSidePocket ? Math.PI * 0.98 : Math.PI * 0.82;
-    const baseRadius = (isSidePocket ? SIDE_POCKET_RADIUS * 1.22 : POCKET_VIS_R * 1.12) * POCKET_VISUAL_EXPANSION;
-
-    const jaw = new THREE.Mesh(
-      new THREE.TorusGeometry(baseRadius, jawTubeRadius, 24, 96, jawArc),
-      railWoodMat
-    );
-    jaw.rotation.x = Math.PI / 2;
-    jaw.rotation.y = baseYaw - jawArc / 2;
-    jaw.position.set(p.x, railsTopY - jawTubeRadius * 0.35, p.y);
-    jaw.castShadow = true;
-    jaw.receiveShadow = true;
-    pocketTrimGroup.add(jaw);
-    pocketJawMeshes.push(jaw);
-
-    const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(baseRadius * 1.05, rimTubeRadius, 16, 72, rimArc),
-      pocketRimMat
-    );
-    rim.rotation.x = Math.PI / 2;
-    rim.rotation.y = baseYaw - rimArc / 2;
-    rim.position.set(
-      p.x,
-      chromePlateY + chromePlateThickness + rimTubeRadius * 0.6,
-      p.y
-    );
-    rim.castShadow = false;
-    rim.receiveShadow = true;
-    pocketTrimGroup.add(rim);
-    pocketRimMeshes.push(rim);
-  });
-
-  if (pocketJawMeshes.length || pocketRimMeshes.length) {
-    railsGroup.add(pocketTrimGroup);
-    table.userData.pocketTrims = {
-      jaws: pocketJawMeshes,
-      rims: pocketRimMeshes
-    };
-  }
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
