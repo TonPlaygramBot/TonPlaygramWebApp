@@ -127,6 +127,62 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.015;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78;
 
+function buildPlasticUGeometry({
+  outerRadius,
+  innerRadius,
+  depth,
+  height,
+  bevelSize
+}) {
+  const profileDepth = Math.max(depth, outerRadius + MICRO_EPS);
+  const safeInnerRadius = THREE.MathUtils.clamp(
+    innerRadius,
+    MICRO_EPS * 2,
+    outerRadius - MICRO_EPS * 2
+  );
+  const shape = new THREE.Shape();
+  shape.moveTo(-outerRadius, 0);
+  shape.lineTo(-outerRadius, -profileDepth);
+  shape.absarc(0, -profileDepth, outerRadius, Math.PI, 0, false);
+  shape.lineTo(outerRadius, 0);
+  shape.lineTo(-outerRadius, 0);
+  shape.closePath();
+
+  const inner = new THREE.Path();
+  inner.moveTo(-safeInnerRadius, 0);
+  inner.lineTo(-safeInnerRadius, -profileDepth);
+  inner.absarc(0, -profileDepth, safeInnerRadius, Math.PI, 0, true);
+  inner.lineTo(safeInnerRadius, 0);
+  inner.lineTo(-safeInnerRadius, 0);
+  inner.closePath();
+  shape.holes.push(inner);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: height,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    bevelSize: Math.min(
+      bevelSize,
+      height * 0.45,
+      (outerRadius - safeInnerRadius) * 0.45
+    ),
+    bevelThickness: Math.min(
+      height * 0.6,
+      (outerRadius - safeInnerRadius) * 0.6
+    ),
+    curveSegments: 64
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.rotateY(Math.PI);
+  geo.computeVertexNormals();
+  return {
+    geometry: geo,
+    profileDepth,
+    innerRadius: safeInnerRadius,
+    outerRadius
+  };
+}
+
 function buildChromePlateGeometry({
   width,
   height,
@@ -2626,6 +2682,57 @@ function Table3D(parent) {
     chromePlates.add(plate);
   });
   railsGroup.add(chromePlates);
+
+  const plasticGuardMat = new THREE.MeshPhysicalMaterial({
+    color: 0x090c12,
+    metalness: 0.18,
+    roughness: 0.42,
+    reflectivity: 0.28,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.48,
+    sheen: 0.16,
+    sheenRoughness: 0.7
+  });
+  const guardHeight = railH * 0.24;
+  const guardLift = chromePlateThickness * 0.4 + MICRO_EPS * 4;
+  const cornerGuard = buildPlasticUGeometry({
+    outerRadius: POCKET_VIS_R * 1.32,
+    innerRadius: POCKET_VIS_R * 0.96,
+    depth: POCKET_VIS_R * 1.24,
+    height: guardHeight,
+    bevelSize: POCKET_VIS_R * 0.08
+  });
+  const sideGuard = buildPlasticUGeometry({
+    outerRadius: SIDE_POCKET_RADIUS * 1.2,
+    innerRadius: SIDE_POCKET_RADIUS * 0.94,
+    depth: SIDE_POCKET_RADIUS * 1.28,
+    height: guardHeight,
+    bevelSize: SIDE_POCKET_RADIUS * 0.06
+  });
+  const plasticGuards = new THREE.Group();
+  pocketCenters().forEach((center) => {
+    const isSide = Math.abs(center.y) < MICRO_EPS * 4;
+    const spec = isSide ? sideGuard : cornerGuard;
+    const toCenter = new THREE.Vector2(-center.x, -center.y);
+    if (toCenter.lengthSq() < MICRO_EPS * MICRO_EPS) {
+      return;
+    }
+    toCenter.normalize();
+    const guard = new THREE.Mesh(spec.geometry, plasticGuardMat);
+    const offset = isSide
+      ? spec.profileDepth * 0.52
+      : spec.profileDepth * 0.56;
+    guard.position.set(
+      center.x - toCenter.x * offset,
+      railsTopY + guardLift,
+      center.y - toCenter.y * offset
+    );
+    guard.rotation.y = Math.atan2(toCenter.x, toCenter.y);
+    guard.castShadow = false;
+    guard.receiveShadow = false;
+    plasticGuards.add(guard);
+  });
+  railsGroup.add(plasticGuards);
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
