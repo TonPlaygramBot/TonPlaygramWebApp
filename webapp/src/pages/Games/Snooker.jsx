@@ -1256,7 +1256,6 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep orbit height safely above cushion lip
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -1292,6 +1291,8 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
+const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
+const CAMERA_RAIL_HEIGHT_EPSILON = TABLE.THICK * 0.02;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -3767,6 +3768,9 @@ function SnookerGame() {
         const clampOrbitRadius = (value) =>
           clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
+        const getRailTopHeight = () =>
+          Math.max(TABLE.THICK, cushionHeightRef.current ?? TABLE.THICK);
+
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
@@ -3807,10 +3811,10 @@ function SnookerGame() {
               radius = clampOrbitRadius(radius - pull);
             }
           }
-          const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
+          const railTopHeight = getRailTopHeight();
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
-            cushionHeight + CAMERA_CUSHION_CLEARANCE
+            railTopHeight + CAMERA_RAIL_HEIGHT_EPSILON
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -3825,6 +3829,18 @@ function SnookerGame() {
               minRadiusForRails = clampOrbitRadius(CAMERA_MIN_HORIZONTAL / sinPhi);
               finalRadius = Math.max(finalRadius, minRadiusForRails);
             }
+          }
+          const standingRadius = clampOrbitRadius(standing.radius);
+          const cueRadiusBase = clampOrbitRadius(cueShot.radius);
+          const minApproachRadius = Math.max(CAMERA.minR, CUE_CAMERA_MIN_RADIUS);
+          const loweredProgress = 1 - blend;
+          if (loweredProgress > 1e-5) {
+            const cueTargetRadius = Math.max(minApproachRadius, cueRadiusBase);
+            const approachRadius = clampOrbitRadius(
+              THREE.MathUtils.lerp(standingRadius, cueTargetRadius, loweredProgress)
+            );
+            const approachLimit = Math.max(approachRadius, minApproachRadius);
+            finalRadius = Math.min(finalRadius, approachLimit);
           }
           const phiSpan = standing.phi - cueShot.phi;
           let phiProgress = 0;
@@ -3843,6 +3859,10 @@ function SnookerGame() {
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
           }
+          if (minRadiusForRails != null) {
+            finalRadius = Math.max(finalRadius, minRadiusForRails);
+          }
+          finalRadius = Math.max(finalRadius, minApproachRadius);
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius);
           syncBlendToSpherical();
@@ -4398,7 +4418,7 @@ function SnookerGame() {
           const theta = orbit.theta ?? sph.theta;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
+            getRailTopHeight() + CAMERA_RAIL_HEIGHT_EPSILON
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
@@ -4685,7 +4705,7 @@ function SnookerGame() {
           orbitRadiusLimitRef.current = standingRadius;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
+            getRailTopHeight() + CAMERA_RAIL_HEIGHT_EPSILON
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
@@ -6692,18 +6712,33 @@ function SnookerGame() {
               pocketView.lastRailHitAt = focusBall.lastRailHitAt;
               pocketView.lastRailHitType =
                 focusBall.lastRailHitType ?? pocketView.lastRailHitType ?? 'rail';
-              resumeAfterPocket(pocketView, now);
+              const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
+              pocketView.holdUntil =
+                pocketView.holdUntil != null
+                  ? Math.max(pocketView.holdUntil, extendTo)
+                  : extendTo;
             } else {
               const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
               const dist = toPocket.length();
               if (dist > 1e-4) {
                 const approachDir = toPocket.clone().normalize();
                 pocketView.approach.copy(approachDir);
-                const speedAlong = focusBall.vel.dot(approachDir);
-                if (speedAlong * frameScale < -STOP_EPS) {
-                  if (now >= (pocketView.holdUntil ?? now)) {
-                    resumeAfterPocket(pocketView, now);
-                  }
+              }
+              const speed = focusBall.vel.length() * frameScale;
+              if (speed > STOP_EPS) {
+                const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
+                pocketView.holdUntil =
+                  pocketView.holdUntil != null
+                    ? Math.max(pocketView.holdUntil, extendTo)
+                    : extendTo;
+              } else {
+                const holdTarget = Math.max(
+                  pocketView.holdUntil ?? now,
+                  now + POCKET_VIEW_POST_POT_HOLD_MS
+                );
+                pocketView.holdUntil = holdTarget;
+                if (now >= holdTarget) {
+                  resumeAfterPocket(pocketView, now);
                 }
               }
             }
