@@ -1355,6 +1355,178 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
 
+const createTripodBroadcastCamera = (() => {
+  const metalDark = new THREE.MeshStandardMaterial({
+    color: 0x1f2937,
+    metalness: 0.7,
+    roughness: 0.35
+  });
+  const metalLite = new THREE.MeshStandardMaterial({
+    color: 0x374151,
+    metalness: 0.6,
+    roughness: 0.4
+  });
+  const plastic = new THREE.MeshStandardMaterial({
+    color: 0x0ea5e9,
+    metalness: 0.1,
+    roughness: 0.6
+  });
+  const rubber = new THREE.MeshStandardMaterial({
+    color: 0x0b1220,
+    metalness: 0.0,
+    roughness: 0.95
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x9bd3ff,
+    metalness: 0.0,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.35,
+    envMapIntensity: 1.5
+  });
+
+  const hubGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.05, 16);
+  const legGeo = new THREE.CylinderGeometry(0.03, 0.015, 1.2, 12);
+  const footGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.02, 12);
+  const braceGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.7, 8);
+  const ballGeo = new THREE.SphereGeometry(0.07, 16, 16);
+  const plateGeo = new THREE.BoxGeometry(0.22, 0.02, 0.14);
+  const mountGeo = new THREE.BoxGeometry(0.2, 0.02, 0.12);
+  const handleGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.35, 8);
+  const gripGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.12, 10);
+  const bodyGeo = new THREE.BoxGeometry(0.42, 0.22, 0.2);
+  const lensTubeGeo = new THREE.CylinderGeometry(0.06, 0.065, 0.16, 24);
+  const lensGlassGeo = new THREE.CircleGeometry(0.058, 24);
+  const hoodGeo = new THREE.BoxGeometry(0.12, 0.09, 0.12);
+  const vfGeo = new THREE.BoxGeometry(0.14, 0.08, 0.08);
+  const topHandleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.24, 12);
+
+  const LEG_SPREAD = 0.45;
+  const LEG_TILT = 0.38;
+  const HUB_HEIGHT = 0.9;
+
+  return () => {
+    const group = new THREE.Group();
+    group.name = 'shortRailTripodCamera';
+    const base = new THREE.Group();
+    group.add(base);
+
+    const hub = new THREE.Mesh(hubGeo, metalLite);
+    hub.position.y = HUB_HEIGHT;
+    hub.castShadow = true;
+    hub.receiveShadow = true;
+    base.add(hub);
+
+    const legAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+    legAngles.forEach((angle) => {
+      const leg = new THREE.Mesh(legGeo, metalDark);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      const baseX = Math.cos(angle) * LEG_SPREAD;
+      const baseZ = Math.sin(angle) * LEG_SPREAD;
+      const tiltAxis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
+      leg.position.set(baseX * 0.2, HUB_HEIGHT - 0.6, baseZ * 0.2);
+      leg.quaternion.setFromAxisAngle(tiltAxis, LEG_TILT);
+      base.add(leg);
+
+      const foot = new THREE.Mesh(footGeo, rubber);
+      foot.position.set(Math.cos(angle) * 0.65, 0.01, Math.sin(angle) * 0.65);
+      foot.receiveShadow = true;
+      base.add(foot);
+
+      const brace = new THREE.Mesh(braceGeo, metalLite);
+      brace.castShadow = true;
+      const from = new THREE.Vector3(0, HUB_HEIGHT, 0);
+      const to = new THREE.Vector3(Math.cos(angle) * 0.65, 0.02, Math.sin(angle) * 0.65);
+      const dirVec = new THREE.Vector3().subVectors(to, from);
+      const len = dirVec.length();
+      brace.scale.set(1, len / 0.7, 1);
+      brace.position.copy(from.clone().add(to).multiplyScalar(0.5));
+      brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVec.clone().normalize());
+      base.add(brace);
+    });
+
+    const headPivot = new THREE.Group();
+    headPivot.position.set(0, HUB_HEIGHT, 0);
+    base.add(headPivot);
+
+    const ball = new THREE.Mesh(ballGeo, metalDark);
+    ball.position.set(0, 0.1, 0);
+    ball.castShadow = true;
+    ball.receiveShadow = true;
+    headPivot.add(ball);
+
+    const plate = new THREE.Mesh(plateGeo, metalLite);
+    plate.position.set(0, 0.2, 0);
+    plate.castShadow = true;
+    plate.receiveShadow = true;
+    headPivot.add(plate);
+
+    const mount = new THREE.Mesh(mountGeo, metalDark);
+    mount.position.set(0, 0.23, 0);
+    mount.castShadow = true;
+    headPivot.add(mount);
+
+    const handle = new THREE.Mesh(handleGeo, metalLite);
+    handle.castShadow = true;
+    handle.position.set(0.09, 0.16, 0);
+    handle.rotation.z = Math.PI * -0.25;
+    headPivot.add(handle);
+
+    const grip = new THREE.Mesh(gripGeo, rubber);
+    grip.position.set(0.24, 0.07, -0.09);
+    grip.rotation.z = Math.PI * -0.25;
+    grip.castShadow = true;
+    headPivot.add(grip);
+
+    const body = new THREE.Mesh(bodyGeo, plastic);
+    body.position.set(0, 0.32, 0);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    headPivot.add(body);
+
+    const lensTube = new THREE.Mesh(lensTubeGeo, metalDark);
+    lensTube.rotation.z = Math.PI / 2;
+    lensTube.position.set(0.25, 0.32, 0);
+    lensTube.castShadow = true;
+    headPivot.add(lensTube);
+
+    const lensGlass = new THREE.Mesh(lensGlassGeo, glass);
+    lensGlass.rotation.y = Math.PI / 2;
+    lensGlass.position.set(0.33, 0.32, 0);
+    headPivot.add(lensGlass);
+
+    const hood = new THREE.Mesh(hoodGeo, rubber);
+    hood.position.set(0.38, 0.32, 0);
+    hood.castShadow = true;
+    headPivot.add(hood);
+
+    const viewfinder = new THREE.Mesh(vfGeo, metalLite);
+    viewfinder.position.set(-0.2, 0.36, 0.06);
+    viewfinder.castShadow = true;
+    headPivot.add(viewfinder);
+
+    const topHandle = new THREE.Mesh(topHandleGeo, rubber);
+    topHandle.rotation.z = Math.PI / 2;
+    topHandle.position.set(0, 0.43, 0);
+    topHandle.castShadow = true;
+    headPivot.add(topHandle);
+
+    const cableCurve = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(-0.05, 0.4, 0.1),
+      new THREE.Vector3(-0.1, 0.3, 0.2),
+      new THREE.Vector3(-0.2, 0.1, 0.15),
+      new THREE.Vector3(-0.25, 0.02, 0.0)
+    );
+    const cableGeo = new THREE.TubeGeometry(cableCurve, 20, 0.005, 6, false);
+    const cable = new THREE.Mesh(cableGeo, rubber);
+    cable.castShadow = true;
+    headPivot.add(cable);
+
+    return { group, headPivot };
+  };
+})();
+
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
@@ -1492,14 +1664,15 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
 const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.6); // allow the cue camera to move closer without clipping the cue
-const CUE_VIEW_RADIUS_RATIO = 0.21;
-const CUE_VIEW_MIN_RADIUS = CUE_APPROACH_MIN_RADIUS;
-const CUE_VIEW_MIN_PHI = Math.min(
-  CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+const CUE_VIEW_RADIUS_RATIO = 0.3;
+const CUE_VIEW_MIN_RADIUS = Math.max(CUE_APPROACH_MIN_RADIUS, CAMERA.minR * 0.85);
+const CUE_VIEW_MIN_PHI = THREE.MathUtils.clamp(
+  STANDING_VIEW_PHI - 0.14,
+  CAMERA.minPhi + 0.04,
+  CAMERA.maxPhi - CAMERA_RAIL_SAFETY
 );
-const CUE_VIEW_PHI_LIFT = 0.08;
-const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
+const CUE_VIEW_PHI_LIFT = 0.24;
+const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.55;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
   CAMERA_MAX_PHI - 0.02
@@ -3900,10 +4073,26 @@ function SnookerGame() {
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
-        const aspect = host.clientWidth / host.clientHeight;
-        const camera = new THREE.PerspectiveCamera(
-          CAMERA.fov,
-          aspect,
+      const tripodScale =
+        (TABLE_Y + BALL_R * 6 - floorY) / 1.33;
+      const tripodTilt = THREE.MathUtils.degToRad(-12);
+      const tripodZOffset = Math.max(
+        PLAY_H / 2 + BALL_R * 12,
+        shortRailTarget - BALL_R * 6
+      );
+      [-1, 1].forEach((direction) => {
+        const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
+        tripodGroup.scale.setScalar(tripodScale);
+        tripodGroup.position.set(0, floorY, tripodZOffset * direction);
+        tripodGroup.rotation.y = direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+        headPivot.rotation.z = tripodTilt;
+        world.add(tripodGroup);
+      });
+
+      const aspect = host.clientWidth / host.clientHeight;
+      const camera = new THREE.PerspectiveCamera(
+        CAMERA.fov,
+        aspect,
           CAMERA.near,
           CAMERA.far
         );
