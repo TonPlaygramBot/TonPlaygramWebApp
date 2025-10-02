@@ -121,11 +121,52 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
+function adjustCornerNotchDepth(mp, centerZ, sz) {
+  if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
+    return Array.isArray(mp) ? mp : [];
+  }
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                const [x, z] = pt;
+                const deltaZ = z - centerZ;
+                const towardCenter = -sz * deltaZ;
+                if (towardCenter <= 0) return [x, z];
+                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
+              })
+            : ring
+        )
+      : poly
+  );
+}
+
+function adjustSideNotchDepth(mp) {
+  if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                const [x, z] = pt;
+                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+              })
+            : ring
+        )
+      : poly
+  );
+}
+
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.02;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.015;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.992;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.9;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.99;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.88;
 
 function buildChromePlateGeometry({
   width,
@@ -1203,8 +1244,8 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.66;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.08;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.58;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -1957,7 +1998,26 @@ function applySpinImpulse(ball, scale = 1) {
 
 // calculate impact point and post-collision direction for aiming guide
 function calcTarget(cue, dir, balls) {
+  if (!cue) {
+    return {
+      impact: new THREE.Vector2(),
+      afterDir: null,
+      targetBall: null,
+      railNormal: null,
+      tHit: 0
+    };
+  }
   const cuePos = cue.pos.clone();
+  if (!dir || dir.lengthSq() < 1e-8) {
+    return {
+      impact: cuePos.clone(),
+      afterDir: null,
+      targetBall: null,
+      railNormal: null,
+      tHit: 0
+    };
+  }
+  const dirNorm = dir.clone().normalize();
   let tHit = Infinity;
   let targetBall = null;
   let railNormal = null;
@@ -1971,17 +2031,22 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
-  if (dir.x < 0) checkRail((-limX - cuePos.x) / dir.x, new THREE.Vector2(1, 0));
-  if (dir.x > 0) checkRail((limX - cuePos.x) / dir.x, new THREE.Vector2(-1, 0));
-  if (dir.y < 0) checkRail((-limY - cuePos.y) / dir.y, new THREE.Vector2(0, 1));
-  if (dir.y > 0) checkRail((limY - cuePos.y) / dir.y, new THREE.Vector2(0, -1));
+  if (dirNorm.x < -1e-8)
+    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
+  if (dirNorm.x > 1e-8)
+    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
+  if (dirNorm.y < -1e-8)
+    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
+  if (dirNorm.y > 1e-8)
+    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
 
   const diam = BALL_R * 2;
   const diam2 = diam * diam;
-  balls.forEach((b) => {
+  const ballList = Array.isArray(balls) ? balls : [];
+  ballList.forEach((b) => {
     if (!b.active || b === cue) return;
     const v = b.pos.clone().sub(cuePos);
-    const proj = v.dot(dir);
+    const proj = v.dot(dirNorm);
     if (proj <= 0) return;
     const perp2 = v.lengthSq() - proj * proj;
     if (perp2 > diam2) return;
@@ -1994,18 +2059,23 @@ function calcTarget(cue, dir, balls) {
     }
   });
 
-  const impact = cuePos.clone().add(dir.clone().multiplyScalar(tHit));
+  const fallbackDistance = Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H);
+  let travel = Number.isFinite(tHit) ? tHit : fallbackDistance;
+  if (travel <= 0) {
+    travel = fallbackDistance;
+  }
+  const impact = cuePos.clone().add(dirNorm.clone().multiplyScalar(travel));
   let afterDir = null;
   if (targetBall) {
     afterDir = targetBall.pos.clone().sub(impact).normalize();
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
-    afterDir = dir
+    afterDir = dirNorm
       .clone()
-      .sub(n.clone().multiplyScalar(2 * dir.dot(n)))
+      .sub(n.clone().multiplyScalar(2 * dirNorm.dot(n)))
       .normalize();
   }
-  return { impact, afterDir, targetBall, railNormal, tHit };
+  return { impact, afterDir, targetBall, railNormal, tHit: travel };
 }
 
 // --------------------------------------------------
@@ -2531,7 +2601,8 @@ function Table3D(parent) {
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    return polygonClipping.union(notchCircle, boxX, boxZ);
+    const union = polygonClipping.union(notchCircle, boxX, boxZ);
+    return adjustCornerNotchDepth(union, cz, sz);
   };
 
   const sideNotchMP = (sx) => {
@@ -2560,7 +2631,8 @@ function Table3D(parent) {
       192
     );
 
-    return polygonClipping.union(circle, throat);
+    const union = polygonClipping.union(circle, throat);
+    return adjustSideNotchDepth(union);
   };
 
   const chromePlates = new THREE.Group();
