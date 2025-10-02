@@ -757,6 +757,7 @@ const WOOD_TONE = 0xa67748;
 const RAIL_WOOD_COLOR = WOOD_TONE;
 const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.56;
+const CLOTH_HAIR_INTENSITY = 0.22;
 const CLOTH_BUMP_INTENSITY = 0.48;
 
 const COLORS = Object.freeze({
@@ -829,6 +830,27 @@ const createClothTextures = (() => {
     const sparkleNoise = (x, y) =>
       hashNoise(x, y, 73.19, 11.17, 7.2) * 0.45 +
       hashNoise(x, y, 27.73, 61.91, -14.4) * 0.55;
+    const strayWispNoise = (x, y) =>
+      hashNoise(x, y, 91.27, 7.51, 3.3) * 0.6 +
+      hashNoise(x, y, 14.91, 83.11, -5.7) * 0.4;
+    const hairFiber = (x, y) => {
+      const tuftSeed = hashNoise(x, y, 67.41, 3.73, -11.9);
+      const straySeed = strayWispNoise(x + 13.7, y - 21.4);
+      const dir = hashNoise(x, y, 5.19, 14.73, 8.2) * TAU;
+      const wiggle = hashNoise(x, y, 51.11, 33.07, -6.9) * 2.5;
+      const along = Math.sin(
+        (x * Math.cos(dir) + y * Math.sin(dir)) * 0.042 + wiggle
+      );
+      const tuft = Math.pow(tuftSeed, 3.8);
+      const stray = Math.pow(straySeed, 2.4);
+      const filament = Math.pow(Math.abs(along), 1.6);
+      const wisp = Math.pow(strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18), 4.2);
+      return THREE.MathUtils.clamp(
+        tuft * 0.55 + stray * 0.25 + filament * 0.3 + wisp * 0.2,
+        0,
+        1
+      );
+    };
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
@@ -842,42 +864,50 @@ const createClothTextures = (() => {
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const fuzz = Math.pow(fiber, 1.2);
-    const tonal = THREE.MathUtils.clamp(
-      0.56 +
-        (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
-        (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
-        (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
-        (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
-        (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
-        (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY,
-      0,
-      1
-    );
-    const tonalEnhanced = THREE.MathUtils.clamp(
-      0.5 + (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY),
-      0,
-      1
-    );
-    const highlightMix = THREE.MathUtils.clamp(
-      0.34 +
-        (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
-        (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
-        (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY,
-      0,
-      1
-    );
-    const accentMix = THREE.MathUtils.clamp(
-      0.48 +
-        (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
-        (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY,
-      0,
-      1
-    );
-    const highlightEnhanced = THREE.MathUtils.clamp(
-      0.38 + (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY),
-      0,
-      1
-    );
+        const hair = hairFiber(x, y);
+        const tonal = THREE.MathUtils.clamp(
+          0.56 +
+            (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
+            (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const tonalEnhanced = THREE.MathUtils.clamp(
+          0.5 +
+            (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const highlightMix = THREE.MathUtils.clamp(
+          0.34 +
+            (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
+            (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const accentMix = THREE.MathUtils.clamp(
+          0.48 +
+            (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const highlightEnhanced = THREE.MathUtils.clamp(
+          0.38 +
+            (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
         const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
         const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
         const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
@@ -928,6 +958,7 @@ const createClothTextures = (() => {
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const fuzz = Math.pow(fiber, 1.22);
+        const hair = hairFiber(x, y);
         const bump = THREE.MathUtils.clamp(
           0.56 +
             (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
@@ -935,11 +966,12 @@ const createClothTextures = (() => {
             (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
             (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
             (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
-            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY,
+            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY +
+            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
-        const value = clamp255(130 + (bump - 0.5) * 234);
+        const value = clamp255(130 + (bump - 0.5) * 234 + (hair - 0.5) * 48);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -1245,7 +1277,7 @@ const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.34; // keep the orbit camera above cue height so it never dips under the table surface
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.34;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
@@ -1279,8 +1311,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.26;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
+const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
+const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.7); // allow the cue camera to move closer without clipping the cue
+const CUE_VIEW_RADIUS_RATIO = 0.21;
+const CUE_VIEW_MIN_RADIUS = CUE_APPROACH_MIN_RADIUS;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
@@ -1296,7 +1330,6 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
-const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
 const CAMERA_RAIL_HEIGHT_EPSILON = TABLE.THICK * 0.02;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -3804,10 +3837,7 @@ function SnookerGame() {
           );
           cameraBlendRef.current = blend;
           const loweredProgress = 1 - blend;
-          const cueMinRadius = Math.max(
-            0.0001,
-            Math.min(CAMERA.minR, CUE_CAMERA_MIN_RADIUS)
-          );
+          const cueMinRadius = Math.max(0.0001, CUE_APPROACH_MIN_RADIUS);
           const usingCueApproach = loweredProgress > 1e-5;
           const clampMin = usingCueApproach ? cueMinRadius : CAMERA.minR;
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
@@ -7081,6 +7111,7 @@ function SnookerGame() {
   const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
   const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
   const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
+  const bottomHudVisible = hud.turn === 0 && !hud.over;
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -7151,6 +7182,44 @@ function SnookerGame() {
           {/* Suggestions now run silently without UI overlays */}
         </div>
       </div>
+
+      {bottomHudVisible && (
+        <div
+          className={`absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          aria-hidden={pocketCameraActive}
+        >
+          <div
+            className="pointer-events-auto flex items-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            style={{
+              transform: `scale(${UI_SCALE})`,
+              transformOrigin: 'bottom center'
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <img
+                src={player.avatar || '/assets/icons/profile.svg'}
+                alt="player avatar"
+                className="h-12 w-12 rounded-full border-2 border-emerald-300/70 object-cover"
+              />
+              <div className="flex flex-col leading-tight">
+                <span className="text-[10px] uppercase tracking-[0.35em] text-emerald-200/80">
+                  Your turn
+                </span>
+                <span className="text-base font-semibold text-white">{player.name}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-lg font-semibold">
+              <span className="text-amber-300">{hud.A}</span>
+              <span className="text-white/60">-</span>
+              <span>{hud.B}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-white/80">
+              <span className="text-2xl leading-none">{aiFlag}</span>
+              <span>AI</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
