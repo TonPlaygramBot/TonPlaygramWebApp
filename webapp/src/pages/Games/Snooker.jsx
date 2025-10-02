@@ -1234,9 +1234,17 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     0
   );
 
+  const cameraCornerXOffset = TABLE.W / 2 + BALL_R * 10;
+
   const createUnit = (direction) => {
     const base = new THREE.Group();
-    base.position.set(0, floorY, shortRailZ * direction);
+    const xDirection = direction >= 0 ? 1 : -1;
+    base.position.set(xDirection * cameraCornerXOffset, floorY, shortRailZ * direction);
+    const horizontalFocus = defaultFocus.clone();
+    horizontalFocus.y = base.position.y;
+    base.lookAt(horizontalFocus);
+    base.rotation.x = 0;
+    base.rotation.z = 0;
     group.add(base);
 
     const slider = new THREE.Group();
@@ -4282,16 +4290,18 @@ function SnookerGame() {
       const hospitalityXMax = roomWidth / 2 - wallThickness - 0.6;
       const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.65;
       const hospitalityXOffset = Math.min(hospitalityXMax, hospitalityXDesired);
+      const hospitalityZMin = PLAY_H / 2 + BALL_R * 6;
+      const hospitalityZOffset = Math.max(hospitalityZMin, shortRailTarget - BALL_R * 5);
 
-      const leftHospitality = createCameraSideHospitalitySet(-1);
-      leftHospitality.position.set(-hospitalityXOffset, floorY, 0);
-      leftHospitality.lookAt(hospitalityLookTarget);
-      world.add(leftHospitality);
-
-      const rightHospitality = createCameraSideHospitalitySet(1);
-      rightHospitality.position.set(hospitalityXOffset, floorY, 0);
-      rightHospitality.lookAt(hospitalityLookTarget);
-      world.add(rightHospitality);
+      [
+        { mirror: -1, x: -hospitalityXOffset, z: hospitalityZOffset },
+        { mirror: 1, x: hospitalityXOffset, z: -hospitalityZOffset }
+      ].forEach(({ mirror, x, z }) => {
+        const hospitalitySet = createCameraSideHospitalitySet(mirror);
+        hospitalitySet.position.set(x, floorY, z);
+        hospitalitySet.lookAt(hospitalityLookTarget);
+        world.add(hospitalitySet);
+      });
 
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
