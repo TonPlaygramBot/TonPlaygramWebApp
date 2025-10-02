@@ -1622,18 +1622,18 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.82;
+const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.34; // keep the orbit camera above cue height so it never dips under the table surface
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.3;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.47;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.58;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -1644,6 +1644,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep orbit height safely above cushion lip
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -1662,17 +1663,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
-const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.6); // allow the cue camera to move closer without clipping the cue
-const CUE_VIEW_RADIUS_RATIO = 1;
-const CUE_VIEW_MIN_RADIUS = Math.max(CUE_APPROACH_MIN_RADIUS, CAMERA.minR * 0.95);
-const CUE_VIEW_MIN_PHI = THREE.MathUtils.clamp(
-  STANDING_VIEW_PHI - 0.06,
-  CAMERA.minPhi + 0.04,
-  CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+const CUE_VIEW_RADIUS_RATIO = 0.4;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
+const CUE_VIEW_MIN_PHI = Math.min(
+  CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
+  STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.48;
-const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.55;
+const CUE_VIEW_PHI_LIFT = 0.08;
+const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
   CAMERA_MAX_PHI - 0.02
@@ -1682,7 +1680,6 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
-const CAMERA_RAIL_HEIGHT_EPSILON = TABLE.THICK * 0.02;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -4187,11 +4184,8 @@ function SnookerGame() {
             ? CAMERA.maxR
             : Math.min(CAMERA.maxR, orbitRadiusLimitRef.current ?? CAMERA.maxR);
 
-        const clampOrbitRadius = (value, minRadius = CAMERA.minR) =>
-          clamp(value, minRadius, getMaxOrbitRadius());
-
-        const getRailTopHeight = () =>
-          Math.max(TABLE.THICK, cushionHeightRef.current ?? TABLE.THICK);
+        const clampOrbitRadius = (value) =>
+          clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
@@ -4220,27 +4214,23 @@ function SnookerGame() {
             1
           );
           cameraBlendRef.current = blend;
-          const loweredProgress = 1 - blend;
-          const cueMinRadius = Math.max(0.0001, CUE_APPROACH_MIN_RADIUS);
-          const usingCueApproach = loweredProgress > 1e-5;
-          const clampMin = usingCueApproach ? cueMinRadius : CAMERA.minR;
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
           const baseRadius = THREE.MathUtils.lerp(
             cueShot.radius,
             standing.radius,
             blend
           );
-          let radius = clampOrbitRadius(baseRadius, clampMin);
+          let radius = clampOrbitRadius(baseRadius);
           if (CAMERA_DOWNWARD_PULL > 0) {
             const pull = CAMERA_DOWNWARD_PULL * (1 - blend);
             if (pull > 0) {
-              radius = clampOrbitRadius(radius - pull, clampMin);
+              radius = clampOrbitRadius(radius - pull);
             }
           }
-          const railTopHeight = getRailTopHeight();
+          const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
-            railTopHeight + CAMERA_RAIL_HEIGHT_EPSILON
+            cushionHeight + CAMERA_CUSHION_CLEARANCE
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -4252,26 +4242,9 @@ function SnookerGame() {
           if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
             const sinPhi = Math.sin(clampedPhi);
             if (sinPhi > 1e-4) {
-              minRadiusForRails = clampOrbitRadius(
-                CAMERA_MIN_HORIZONTAL / sinPhi,
-                clampMin
-              );
+              minRadiusForRails = clampOrbitRadius(CAMERA_MIN_HORIZONTAL / sinPhi);
               finalRadius = Math.max(finalRadius, minRadiusForRails);
             }
-          }
-          const standingRadius = clampOrbitRadius(standing.radius, clampMin);
-          const minApproachRadius = usingCueApproach ? cueMinRadius : clampMin;
-          if (usingCueApproach) {
-            const cueApproachRadius = THREE.MathUtils.lerp(
-              standingRadius,
-              minApproachRadius,
-              THREE.MathUtils.clamp(loweredProgress, 0, 1)
-            );
-            const approachRadius = clampOrbitRadius(
-              cueApproachRadius,
-              minApproachRadius
-            );
-            finalRadius = Math.min(finalRadius, approachRadius);
           }
           const phiSpan = standing.phi - cueShot.phi;
           let phiProgress = 0;
@@ -4284,21 +4257,14 @@ function SnookerGame() {
           }
           const dynamicPull = CAMERA_DYNAMIC_PULL_RANGE * (1 - phiProgress);
           if (dynamicPull > 1e-5) {
-            const adjusted = clampOrbitRadius(
-              finalRadius - dynamicPull,
-              minApproachRadius
-            );
+            const adjusted = clampOrbitRadius(finalRadius - dynamicPull);
             finalRadius =
               minRadiusForRails != null
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
           }
-          if (minRadiusForRails != null) {
-            finalRadius = Math.max(finalRadius, minRadiusForRails);
-          }
-          finalRadius = Math.max(finalRadius, minApproachRadius);
           sph.phi = clampedPhi;
-          sph.radius = clampOrbitRadius(finalRadius, minApproachRadius);
+          sph.radius = clampOrbitRadius(finalRadius);
           syncBlendToSpherical();
         };
 
@@ -4933,7 +4899,7 @@ function SnookerGame() {
           const theta = orbit.theta ?? sph.theta;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            getRailTopHeight() + CAMERA_RAIL_HEIGHT_EPSILON
+            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
@@ -5204,7 +5170,7 @@ function SnookerGame() {
           );
           const cueRadius = clampOrbitRadius(
             Math.max(
-              standingRadius * CUE_VIEW_RADIUS_RATIO,
+              playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
               CUE_VIEW_MIN_RADIUS
             )
           );
@@ -5221,7 +5187,7 @@ function SnookerGame() {
           orbitRadiusLimitRef.current = standingRadius;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            getRailTopHeight() + CAMERA_RAIL_HEIGHT_EPSILON
+            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
