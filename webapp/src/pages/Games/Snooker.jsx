@@ -127,6 +127,106 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.015;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78;
 
+function buildPlasticUGeometry({
+  outerRadius,
+  innerRadius,
+  depth,
+  height,
+  bevelSize
+}) {
+  const safeOuterRadius = Math.max(outerRadius, MICRO_EPS * 8);
+  const safeInnerRadius = THREE.MathUtils.clamp(
+    innerRadius,
+    MICRO_EPS * 4,
+    safeOuterRadius - MICRO_EPS * 4
+  );
+  const requestedThickness = safeOuterRadius - safeInnerRadius;
+  const lipThickness = Math.max(
+    MICRO_EPS * 4,
+    Math.min(requestedThickness, safeOuterRadius * 0.16)
+  );
+  const finalInnerRadius = safeOuterRadius - lipThickness;
+  const minDepth = safeOuterRadius * 0.62;
+  const maxDepth = safeOuterRadius * 1.12;
+  const arcDepth = THREE.MathUtils.clamp(depth, minDepth, maxDepth);
+  const circleY = (safeOuterRadius * safeOuterRadius - arcDepth * arcDepth) /
+    (2 * arcDepth);
+  const outerCircleRadius = Math.sqrt(
+    safeOuterRadius * safeOuterRadius + circleY * circleY
+  );
+  const startAngle = Math.atan2(-circleY, -safeOuterRadius);
+  const endAngle = Math.atan2(-circleY, safeOuterRadius);
+  const segments = 128;
+  const outerArcPoints = [];
+  const innerArcPoints = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const angle = startAngle + (endAngle - startAngle) * t;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const x = outerCircleRadius * cos;
+    const y = circleY + outerCircleRadius * sin;
+    outerArcPoints.push([x, y]);
+    const innerX = x - cos * lipThickness;
+    const innerY = y - sin * lipThickness;
+    innerArcPoints.push([innerX, innerY]);
+  }
+
+  const arcBottomY = outerArcPoints.reduce(
+    (min, [, y]) => Math.min(min, y),
+    outerArcPoints[0][1]
+  );
+  const pocketContactY = Math.min(
+    -arcDepth,
+    arcBottomY - Math.max(lipThickness * 0.65, safeOuterRadius * 0.08)
+  );
+  const innerPocketContactY = pocketContactY + Math.max(lipThickness * 0.6, MICRO_EPS * 6);
+
+  const shape = new THREE.Shape();
+  shape.moveTo(outerArcPoints[0][0], outerArcPoints[0][1]);
+  for (let i = 1; i < outerArcPoints.length; i++) {
+    shape.lineTo(outerArcPoints[i][0], outerArcPoints[i][1]);
+  }
+  shape.lineTo(outerArcPoints[outerArcPoints.length - 1][0], pocketContactY);
+  shape.lineTo(outerArcPoints[0][0], pocketContactY);
+  shape.closePath();
+
+  const inner = new THREE.Path();
+  inner.moveTo(innerArcPoints[0][0], innerArcPoints[0][1]);
+  for (let i = 1; i < innerArcPoints.length; i++) {
+    inner.lineTo(innerArcPoints[i][0], innerArcPoints[i][1]);
+  }
+  inner.lineTo(innerArcPoints[innerArcPoints.length - 1][0], innerPocketContactY);
+  inner.lineTo(innerArcPoints[0][0], innerPocketContactY);
+  inner.closePath();
+  shape.holes.push(inner);
+
+  const lipHeight = Math.max(
+    MICRO_EPS * 3,
+    Math.min(height * 0.6, safeOuterRadius * 0.18)
+  );
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: lipHeight,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    bevelSize: Math.min(bevelSize, lipHeight * 0.45, lipThickness * 0.45),
+    bevelThickness: Math.min(
+      lipHeight * 0.6,
+      lipThickness * 0.6
+    ),
+    curveSegments: segments
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.rotateY(Math.PI);
+  geo.computeVertexNormals();
+  return {
+    geometry: geo,
+    profileDepth: arcDepth,
+    innerRadius: finalInnerRadius,
+    outerRadius: safeOuterRadius
+  };
+}
+
 function buildChromePlateGeometry({
   width,
   height,
@@ -2627,6 +2727,57 @@ function Table3D(parent) {
   });
   railsGroup.add(chromePlates);
 
+  const plasticGuardMat = new THREE.MeshPhysicalMaterial({
+    color: 0x090c12,
+    metalness: 0.18,
+    roughness: 0.42,
+    reflectivity: 0.28,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.48,
+    sheen: 0.16,
+    sheenRoughness: 0.7
+  });
+  const guardHeight = chromePlateThickness * 0.92;
+  const guardLift = chromePlateThickness * 0.18 + MICRO_EPS * 3;
+  const cornerGuard = buildPlasticUGeometry({
+    outerRadius: POCKET_VIS_R * 1.26,
+    innerRadius: POCKET_VIS_R * 1.1,
+    depth: POCKET_VIS_R * 1.05,
+    height: guardHeight,
+    bevelSize: POCKET_VIS_R * 0.05
+  });
+  const sideGuard = buildPlasticUGeometry({
+    outerRadius: SIDE_POCKET_RADIUS * 1.18,
+    innerRadius: SIDE_POCKET_RADIUS * 1.04,
+    depth: SIDE_POCKET_RADIUS * 1.08,
+    height: guardHeight,
+    bevelSize: SIDE_POCKET_RADIUS * 0.04
+  });
+  const plasticGuards = new THREE.Group();
+  pocketCenters().forEach((center) => {
+    const isSide = Math.abs(center.y) < MICRO_EPS * 4;
+    const spec = isSide ? sideGuard : cornerGuard;
+    const toCenter = new THREE.Vector2(-center.x, -center.y);
+    if (toCenter.lengthSq() < MICRO_EPS * MICRO_EPS) {
+      return;
+    }
+    toCenter.normalize();
+    const guard = new THREE.Mesh(spec.geometry, plasticGuardMat);
+    const offset = isSide
+      ? spec.profileDepth * 0.5
+      : spec.profileDepth * 0.54;
+    guard.position.set(
+      center.x - toCenter.x * offset,
+      railsTopY + guardLift,
+      center.y - toCenter.y * offset
+    );
+    guard.rotation.y = Math.atan2(toCenter.x, toCenter.y);
+    guard.castShadow = false;
+    guard.receiveShadow = false;
+    plasticGuards.add(guard);
+  });
+  railsGroup.add(plasticGuards);
+
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
@@ -2713,6 +2864,8 @@ function Table3D(parent) {
   const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const cushionHeightTarget = railsTopY - cushionBaseY;
   const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
@@ -2744,6 +2897,29 @@ function Table3D(parent) {
       bevelSegments: 2,
       curveSegments: 8
     });
+
+    const pos = geo.attributes.position;
+    const arr = pos.array;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (let i = 0; i < arr.length; i += 3) {
+      const z = arr[i + 2];
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    const depth = maxZ - minZ;
+    const frontSpan = backY - frontY;
+    for (let i = 0; i < arr.length; i += 3) {
+      const y = arr[i + 1];
+      const z = arr[i + 2];
+      const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
+      if (frontFactor <= 0) continue;
+      const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
+      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
+      const minAllowedZ = minZ + depth * lift;
+      if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
+    }
+    pos.needsUpdate = true;
     geo.computeVertexNormals();
     return geo;
   }
