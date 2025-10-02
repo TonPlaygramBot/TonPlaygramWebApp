@@ -675,21 +675,18 @@ const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footpr
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
-const CUE_BACK_CLEARANCE = BALL_R * 0.6; // keep the cue butt from clipping cushions or other balls
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.28;
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(5.5);
-const MIN_CLEARANCE_TILT = THREE.MathUtils.degToRad(1.8);
-const MAX_CLEARANCE_TILT = THREE.MathUtils.degToRad(12);
+const CUE_BUTT_LIFT = BALL_R * 0.56; // tilt the butt a touch higher so it clears the rails
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
 const MAX_SPIN_FORWARD = BALL_R * 0.88;
 const MAX_SPIN_SIDE = BALL_R * 0.62;
-const MAX_SPIN_VERTICAL = BALL_R * 0.48;
+const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.48, MAX_SPIN_CONTACT_OFFSET);
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -4997,11 +4994,7 @@ function SnookerGame() {
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
-        const prevComp = info?.tipCompensation ?? 0;
-        if (info?.applied && Number.isFinite(prevComp) && prevComp !== 0) {
-          group.position.y -= prevComp;
-        }
-        const totalTilt = Math.max(0, baseTilt + extraTilt);
+        const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
         const tipComp = Math.sin(totalTilt) * len * 0.5;
         group.position.y += tipComp;
@@ -5009,14 +5002,12 @@ function SnookerGame() {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
-          info.applied = true;
         }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: buttTipComp,
-        length: cueLen,
-        applied: false
+        length: cueLen
       };
 
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
@@ -5147,9 +5138,6 @@ function SnookerGame() {
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
-      if (cueStick.userData?.buttTilt) {
-        cueStick.userData.buttTilt.applied = false;
-      }
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
@@ -5159,7 +5147,7 @@ function SnookerGame() {
         side: MAX_SPIN_SIDE,
         forward: MAX_SPIN_FORWARD,
         offsetSide: MAX_SPIN_CONTACT_OFFSET,
-        offsetVertical: MAX_SPIN_VERTICAL
+        offsetVertical: Math.min(MAX_SPIN_CONTACT_OFFSET, MAX_SPIN_VERTICAL)
       };
 
       // Pointer → XZ plane
@@ -5573,10 +5561,7 @@ function SnookerGame() {
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const rawMaxPull = Math.max(
-            0,
-            backInfo.tHit - cueLen - CUE_TIP_GAP - CUE_BACK_CLEARANCE
-          );
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
           cueAnimating = true;
@@ -6132,6 +6117,7 @@ function SnookerGame() {
                 : 0xffffff
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(1.4)),
             end.clone().add(perp.clone().multiplyScalar(-1.4))
@@ -6143,63 +6129,43 @@ function SnookerGame() {
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const maxPull = Math.max(
-            0,
-            backInfo.tHit - cueLen - CUE_TIP_GAP - CUE_BACK_CLEARANCE
-          );
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
-          const side = appliedSpin.x * (ranges.offsetSide ?? 0);
-          const vert = -appliedSpin.y * (ranges.offsetVertical ?? 0);
+          const offsetSide = ranges.offsetSide ?? 0;
+          const offsetVertical = ranges.offsetVertical ?? 0;
+          let side = appliedSpin.x * offsetSide;
+          let vert = -appliedSpin.y * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(side, vert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              side *= scale;
+              vert *= scale;
+            }
+            if (
+              spinLegalityRef.current?.blocked &&
+              Math.hypot(side, vert) < 1e-6
+            ) {
+              vert = Math.min(maxContactOffset * 0.25, CUE_TIP_RADIUS * 0.35);
+            }
+          }
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
             perp.z * side
           );
-          const baseCenterOffset = cueLen / 2 + pull + CUE_TIP_GAP;
-          let centerOffset = baseCenterOffset;
-          let clearanceRatio = 0;
-          if (Number.isFinite(backInfo.tHit)) {
-            const backClearance = backInfo.tHit - CUE_BACK_CLEARANCE;
-            if (Number.isFinite(backClearance)) {
-              const maxCenterOffset = Math.max(0, backClearance - cueLen / 2);
-              centerOffset = Math.min(centerOffset, maxCenterOffset);
-            }
-          }
-          centerOffset = Math.max(0, centerOffset);
-          const tipAdjustRaw = baseCenterOffset - centerOffset;
-          if (baseCenterOffset > 1e-4) {
-            clearanceRatio = THREE.MathUtils.clamp(
-              tipAdjustRaw / baseCenterOffset,
-              0,
-              1
-            );
-          }
-          const maxTipAdjust = Math.max(0, cueLen / 2 - 1e-4);
-          const tipAdjust = Math.min(Math.max(tipAdjustRaw, 0), maxTipAdjust);
           cueStick.position.set(
-            cue.pos.x - dir.x * centerOffset + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * centerOffset + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          let clearanceTilt = 0;
-          if (clearanceRatio > 1e-3) {
-            const eased = Math.pow(clearanceRatio, 0.6);
-            const rangeTilt = THREE.MathUtils.lerp(
-              MIN_CLEARANCE_TILT,
-              MAX_CLEARANCE_TILT,
-              eased
-            );
-            clearanceTilt = rangeTilt * eased;
-          }
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + clearanceTilt;
-          if (cueStick.userData?.buttTilt) {
-            cueStick.userData.buttTilt.applied = false;
-          }
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2 + tipAdjust);
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           cueStick.visible = true;
           if (afterDir) {
