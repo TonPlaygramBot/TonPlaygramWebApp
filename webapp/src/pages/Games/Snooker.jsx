@@ -1241,11 +1241,11 @@ const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.34;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.58;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.52;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -1275,7 +1275,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.4;
+const CUE_VIEW_RADIUS_RATIO = 0.32;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -5576,12 +5576,40 @@ function SnookerGame() {
                 }
               )
             : null;
-          if (actionView) {
+          const earlyPocketView =
+            shotPrediction.ballId && followView
+              ? makePocketCameraView(shotPrediction.ballId, followView, {
+                  forceEarly: true
+                })
+              : null;
+          if (actionView && cameraRef.current) {
+            actionView.smoothedPos = cameraRef.current.position.clone();
+            const storedTarget = lastCameraTargetRef.current?.clone();
+            if (storedTarget) actionView.smoothedTarget = storedTarget;
+          }
+          let pocketViewActivated = false;
+          if (earlyPocketView) {
+            const now = performance.now();
+            earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
-              actionView.smoothedPos = cameraRef.current.position.clone();
+              const cam = cameraRef.current;
+              earlyPocketView.smoothedPos = cam.position.clone();
               const storedTarget = lastCameraTargetRef.current?.clone();
-              if (storedTarget) actionView.smoothedTarget = storedTarget;
+              if (storedTarget) {
+                earlyPocketView.smoothedTarget = storedTarget;
+              }
             }
+            if (actionView) {
+              earlyPocketView.resumeAction = actionView;
+              suspendedActionView = actionView;
+            } else {
+              suspendedActionView = null;
+            }
+            updatePocketCameraState(true);
+            activeShotView = earlyPocketView;
+            pocketViewActivated = true;
+          }
+          if (!pocketViewActivated && actionView) {
             if (isLongShot) {
               suspendedActionView = actionView;
             } else {
