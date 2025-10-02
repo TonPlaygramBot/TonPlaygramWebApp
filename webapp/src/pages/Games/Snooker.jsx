@@ -1622,7 +1622,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.93;
+const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1664,14 +1664,14 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
 const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.6); // allow the cue camera to move closer without clipping the cue
-const CUE_VIEW_RADIUS_RATIO = 0.3;
-const CUE_VIEW_MIN_RADIUS = Math.max(CUE_APPROACH_MIN_RADIUS, CAMERA.minR * 0.85);
+const CUE_VIEW_RADIUS_RATIO = 0.4;
+const CUE_VIEW_MIN_RADIUS = Math.max(CUE_APPROACH_MIN_RADIUS, CAMERA.minR * 0.95);
 const CUE_VIEW_MIN_PHI = THREE.MathUtils.clamp(
-  STANDING_VIEW_PHI - 0.1,
+  STANDING_VIEW_PHI - 0.14,
   CAMERA.minPhi + 0.04,
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY
 );
-const CUE_VIEW_PHI_LIFT = 0.25;
+const CUE_VIEW_PHI_LIFT = 0.22;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.55;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
