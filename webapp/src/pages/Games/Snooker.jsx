@@ -4078,11 +4078,28 @@ function SnookerGame() {
         PLAY_H / 2 + BALL_R * 12,
         shortRailTarget - BALL_R * 6
       );
-      [-1, 1].forEach((direction) => {
+      const tripodXOffset = Math.min(
+        roomWidth / 2 - wallThickness - 0.6,
+        TABLE.W / 2 + BALL_R * 12
+      );
+      const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+      const tripodPositions = [
+        { x: tripodXOffset, z: tripodZOffset },
+        { x: -tripodXOffset, z: tripodZOffset },
+        { x: tripodXOffset, z: -tripodZOffset },
+        { x: -tripodXOffset, z: -tripodZOffset }
+      ];
+      tripodPositions.forEach(({ x, z }) => {
         const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
         tripodGroup.scale.setScalar(tripodScale);
-        tripodGroup.position.set(0, floorY, tripodZOffset * direction);
-        tripodGroup.rotation.y = direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+        tripodGroup.position.set(x, floorY, z);
+        const toTarget = new THREE.Vector3()
+          .subVectors(tripodTarget, tripodGroup.position)
+          .setY(0);
+        if (toTarget.lengthSq() > 1e-6) {
+          const yaw = Math.atan2(toTarget.z, toTarget.x);
+          tripodGroup.rotation.y = yaw;
+        }
         headPivot.rotation.z = tripodTilt;
         world.add(tripodGroup);
       });
@@ -4248,65 +4265,33 @@ function SnookerGame() {
           return chair;
         };
 
-        const arrangements = [
-          {
-            table: { x: -0.9, y: 0, z: 0.82 },
-            chair: { x: -1.55, y: 0, z: 1.05 },
-            chairYaw: -Math.PI * 0.1
-          },
-          {
-            table: { x: -0.9, y: 0, z: -0.82 },
-            chair: { x: -1.55, y: 0, z: -1.05 },
-            chairYaw: Math.PI * 0.1
-          }
-        ];
+        const tableSet = createTableSet();
+        tableSet.position.set(mirror * -0.9, 0, 0);
+        group.add(tableSet);
 
-        arrangements.forEach(({ table, chair: chairPos, chairYaw }) => {
-          const tableSet = createTableSet();
-          tableSet.position.set(mirror * table.x, table.y, table.z);
-          group.add(tableSet);
-
-          const chair = createChair();
-          chair.position.set(mirror * chairPos.x, chairPos.y, chairPos.z);
-          chair.rotation.y = chairYaw * mirror;
-          group.add(chair);
-        });
+        const chair = createChair();
+        chair.position.set(mirror * -1.55, 0, 0);
+        chair.rotation.y = Math.PI * 0.1 * mirror;
+        group.add(chair);
 
         return group;
       };
 
-      const hospitalityZMax = roomDepth / 2 - wallThickness - 0.6;
-      const hospitalityZMin = PLAY_H / 2 + BALL_R * 5;
-      const hospitalityZDesired = PLAY_H / 2 + BALL_R * 6.5;
-      const hospitalityZOffset = Math.max(
-        0,
-        Math.min(hospitalityZMax, Math.max(hospitalityZMin, hospitalityZDesired))
-      );
       const hospitalityLookTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
 
       const hospitalityXMax = roomWidth / 2 - wallThickness - 0.6;
       const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.65;
       const hospitalityXOffset = Math.min(hospitalityXMax, hospitalityXDesired);
 
-      const leftHospitalityFront = createCameraSideHospitalitySet(-1);
-      leftHospitalityFront.position.set(-hospitalityXOffset, floorY, hospitalityZOffset);
-      leftHospitalityFront.lookAt(hospitalityLookTarget);
-      world.add(leftHospitalityFront);
+      const leftHospitality = createCameraSideHospitalitySet(-1);
+      leftHospitality.position.set(-hospitalityXOffset, floorY, 0);
+      leftHospitality.lookAt(hospitalityLookTarget);
+      world.add(leftHospitality);
 
-      const rightHospitalityFront = createCameraSideHospitalitySet(1);
-      rightHospitalityFront.position.set(hospitalityXOffset, floorY, hospitalityZOffset);
-      rightHospitalityFront.lookAt(hospitalityLookTarget);
-      world.add(rightHospitalityFront);
-
-      const leftHospitalityBack = createCameraSideHospitalitySet(-1);
-      leftHospitalityBack.position.set(-hospitalityXOffset, floorY, -hospitalityZOffset);
-      leftHospitalityBack.lookAt(hospitalityLookTarget);
-      world.add(leftHospitalityBack);
-
-      const rightHospitalityBack = createCameraSideHospitalitySet(1);
-      rightHospitalityBack.position.set(hospitalityXOffset, floorY, -hospitalityZOffset);
-      rightHospitalityBack.lookAt(hospitalityLookTarget);
-      world.add(rightHospitalityBack);
+      const rightHospitality = createCameraSideHospitalitySet(1);
+      rightHospitality.position.set(hospitalityXOffset, floorY, 0);
+      rightHospitality.lookAt(hospitalityLookTarget);
+      world.add(rightHospitality);
 
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
