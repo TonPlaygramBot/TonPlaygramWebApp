@@ -4120,6 +4120,7 @@ function SnookerGame() {
         const dir = mirrorX ? -1 : 1;
 
         const tableSet = new THREE.Group();
+        tableSet.position.set(-0.9 * dir, 0, 0.8);
         group.add(tableSet);
 
         const tableTop = new THREE.Mesh(
@@ -4197,7 +4198,7 @@ function SnookerGame() {
         tableSet.add(glassWater);
 
         const chair = new THREE.Group();
-        chair.position.set(-0.65 * dir, 0, 0.25);
+        chair.position.set(-1.55 * dir, 0, 1.05);
         chair.rotation.y = -Math.PI * 0.1 * dir;
         group.add(chair);
 
@@ -4245,26 +4246,35 @@ function SnookerGame() {
         return group;
       };
 
-      const hospitalityOffsetZ = shortRailTarget + BALL_R * 6;
+      const hospitalityCameraGap = BALL_R * 10;
+      const hospitalityOffsetZ = Math.max(
+        PLAY_H / 2 + BALL_R * 6,
+        shortRailTarget - hospitalityCameraGap
+      );
       const hospitalityOffsetX = shortRailSlideLimit + BALL_R * 6;
       const hospitalityLookY = TABLE_Y + TABLE.THICK * 0.5;
 
+      const hospitalityTargets = {
+        near: new THREE.Vector3(
+          -shortRailSlideLimit * 0.28,
+          hospitalityLookY,
+          PLAY_H / 2 + BALL_R * 2
+        ),
+        far: new THREE.Vector3(
+          shortRailSlideLimit * 0.28,
+          hospitalityLookY,
+          -PLAY_H / 2 - BALL_R * 2
+        )
+      };
+
       const nearHospitality = createHospitalitySet({ mirrorX: false });
       nearHospitality.position.set(-hospitalityOffsetX, floorY, hospitalityOffsetZ);
-      nearHospitality.lookAt(
-        -shortRailSlideLimit * 0.35,
-        hospitalityLookY,
-        shortRailTarget * 0.65
-      );
+      nearHospitality.lookAt(hospitalityTargets.near);
       world.add(nearHospitality);
 
       const farHospitality = createHospitalitySet({ mirrorX: true });
       farHospitality.position.set(hospitalityOffsetX, floorY, -hospitalityOffsetZ);
-      farHospitality.lookAt(
-        shortRailSlideLimit * 0.35,
-        hospitalityLookY,
-        -shortRailTarget * 0.65
-      );
+      farHospitality.lookAt(hospitalityTargets.far);
       world.add(farHospitality);
 
       const aspect = host.clientWidth / host.clientHeight;
