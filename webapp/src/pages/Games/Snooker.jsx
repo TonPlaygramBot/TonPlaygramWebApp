@@ -601,19 +601,18 @@ const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
   minOutside:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.6 +
-    POCKET_VIS_R * 4.4 +
-    BALL_R * 3.8,
-  maxOutside: BALL_R * 32,
-  heightOffset: BALL_R * 13.4,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
+    POCKET_VIS_R * 3.9 +
+    BALL_R * 3.3,
+  maxOutside: BALL_R * 30,
+  heightOffset: BALL_R * 12.6,
   outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.25 +
-    POCKET_VIS_R * 4.9 +
-    BALL_R * 3.4,
+    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.9 +
+    POCKET_VIS_R * 4.3 +
+    BALL_R * 2.9,
   heightDrop: BALL_R * 1.6,
-  distanceScale: 1.24,
-  heightScale: 1.34,
-  shortRailOutwardBoost: BALL_R * 6.2
+  distanceScale: 1.18,
+  heightScale: 1.34
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -1235,7 +1234,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.84;
+const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1275,7 +1274,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.22;
+const CUE_VIEW_RADIUS_RATIO = 0.26;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -4245,17 +4244,6 @@ function SnookerGame() {
                   .normalize()
                   .multiplyScalar(POCKET_CAM.outwardOffset * worldScaleFactor);
                 desiredPosition.add(outwardOffset);
-              }
-            }
-            if (anchorType !== 'side' && POCKET_CAM.shortRailOutwardBoost) {
-              const shortRailOffset = new THREE.Vector3(outward.x, 0, outward.y);
-              if (shortRailOffset.lengthSq() > 1e-6) {
-                shortRailOffset
-                  .normalize()
-                  .multiplyScalar(
-                    POCKET_CAM.shortRailOutwardBoost * worldScaleFactor
-                  );
-                desiredPosition.add(shortRailOffset);
               }
             }
             const minHeightWorld =
