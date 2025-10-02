@@ -598,13 +598,13 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
-  POCKET_VIS_R * 3.9 +
-  BALL_R * 3.3;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.55 +
+  POCKET_VIS_R * 4.2 +
+  BALL_R * 3.6;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.9 +
-  POCKET_VIS_R * 4.3 +
-  BALL_R * 2.9;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.1 +
+  POCKET_VIS_R * 4.6 +
+  BALL_R * 3.2;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
@@ -1622,7 +1622,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9;
+const STANDING_VIEW_PHI = 0.88;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1632,7 +1632,7 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.34; // keep the orbit camera above cue h
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.34;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.52;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -1673,6 +1673,7 @@ const CUE_VIEW_MIN_PHI = THREE.MathUtils.clamp(
 );
 const CUE_VIEW_PHI_LIFT = 0.22;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.55;
+const CUE_VIEW_LOWERED_ELEVATION_BIAS = 0.08;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
   CAMERA_MAX_PHI - 0.02
@@ -4225,6 +4226,8 @@ function SnookerGame() {
           const usingCueApproach = loweredProgress > 1e-5;
           const clampMin = usingCueApproach ? cueMinRadius : CAMERA.minR;
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
+          const cueElevationBias = loweredProgress * CUE_VIEW_LOWERED_ELEVATION_BIAS;
+          const elevatedPhi = rawPhi - cueElevationBias;
           const baseRadius = THREE.MathUtils.lerp(
             cueShot.radius,
             standing.radius,
@@ -4245,7 +4248,7 @@ function SnookerGame() {
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
-          const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
+          const safePhi = Math.min(elevatedPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
           const clampedPhi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
           let finalRadius = radius;
           let minRadiusForRails = null;
