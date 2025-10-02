@@ -1622,7 +1622,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.93;
+const STANDING_VIEW_PHI = 0.88;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1671,7 +1671,7 @@ const CUE_VIEW_MIN_PHI = THREE.MathUtils.clamp(
   CAMERA.minPhi + 0.04,
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY
 );
-const CUE_VIEW_PHI_LIFT = 0.25;
+const CUE_VIEW_PHI_LIFT = 0.2;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.55;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
