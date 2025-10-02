@@ -4120,7 +4120,7 @@ function SnookerGame() {
         const dir = mirrorX ? -1 : 1;
 
         const tableSet = new THREE.Group();
-        tableSet.position.set(-0.75 * dir, 0, 0.65);
+        tableSet.position.set(-0.75 * dir, 0, 0);
         group.add(tableSet);
 
         const tableTop = new THREE.Mesh(
@@ -4198,7 +4198,7 @@ function SnookerGame() {
         tableSet.add(glassWater);
 
         const chair = new THREE.Group();
-        chair.position.set(-1.45 * dir, 0, 0.95);
+        chair.position.set(-1.45 * dir, 0, 0);
         chair.rotation.y = -Math.PI * 0.1 * dir;
         group.add(chair);
 
@@ -4247,10 +4247,10 @@ function SnookerGame() {
       };
 
       const hospitalityLookY = TABLE_Y + TABLE.THICK * 0.5;
-      const hospitalityWallGap = BALL_R * 4;
-      const hospitalityOffsetX =
-        SIDE_RAIL_CAMERA_DISTANCE - hospitalityWallGap;
-      const hospitalityOffsetZ = BALL_R * 6.5;
+      const hospitalitySideOffset = Math.max(
+        0,
+        roomWidth / 2 - wallThickness - BALL_R * 2
+      );
       const hospitalityLookTarget = new THREE.Vector3(
         0,
         hospitalityLookY,
@@ -4259,18 +4259,18 @@ function SnookerGame() {
 
       const leftHospitality = createHospitalitySet({ mirrorX: false });
       leftHospitality.position.set(
-        -hospitalityOffsetX,
+        -hospitalitySideOffset,
         floorY,
-        hospitalityOffsetZ
+        0
       );
       leftHospitality.lookAt(hospitalityLookTarget);
       world.add(leftHospitality);
 
       const rightHospitality = createHospitalitySet({ mirrorX: true });
       rightHospitality.position.set(
-        hospitalityOffsetX,
+        hospitalitySideOffset,
         floorY,
-        -hospitalityOffsetZ
+        0
       );
       rightHospitality.lookAt(hospitalityLookTarget);
       world.add(rightHospitality);
