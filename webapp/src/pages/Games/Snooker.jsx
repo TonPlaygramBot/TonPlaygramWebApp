@@ -172,30 +172,32 @@ function buildPlasticUGeometry({
     innerArcPoints.push([innerX, innerY]);
   }
 
-  const topExtra = Math.max(lipThickness * 1.35, safeOuterRadius * 0.1);
-  const innerTopInset = Math.min(
-    Math.max(lipThickness * 0.55, MICRO_EPS * 6),
-    safeOuterRadius - MICRO_EPS * 4
+  const arcBottomY = outerArcPoints.reduce(
+    (min, [, y]) => Math.min(min, y),
+    outerArcPoints[0][1]
   );
-  const innerTopLeftX = -safeOuterRadius + innerTopInset;
-  const innerTopRightX = safeOuterRadius - innerTopInset;
+  const pocketContactY = Math.min(
+    -arcDepth,
+    arcBottomY - Math.max(lipThickness * 0.65, safeOuterRadius * 0.08)
+  );
+  const innerPocketContactY = pocketContactY + Math.max(lipThickness * 0.6, MICRO_EPS * 6);
 
   const shape = new THREE.Shape();
-  shape.moveTo(-safeOuterRadius - topExtra, 0);
-  shape.lineTo(outerArcPoints[0][0], outerArcPoints[0][1]);
+  shape.moveTo(outerArcPoints[0][0], outerArcPoints[0][1]);
   for (let i = 1; i < outerArcPoints.length; i++) {
     shape.lineTo(outerArcPoints[i][0], outerArcPoints[i][1]);
   }
-  shape.lineTo(safeOuterRadius + topExtra, 0);
-  shape.lineTo(-safeOuterRadius - topExtra, 0);
+  shape.lineTo(outerArcPoints[outerArcPoints.length - 1][0], pocketContactY);
+  shape.lineTo(outerArcPoints[0][0], pocketContactY);
   shape.closePath();
 
   const inner = new THREE.Path();
-  inner.moveTo(innerTopLeftX, 0);
-  inner.lineTo(innerTopRightX, 0);
-  for (let i = innerArcPoints.length - 1; i >= 0; i--) {
+  inner.moveTo(innerArcPoints[0][0], innerArcPoints[0][1]);
+  for (let i = 1; i < innerArcPoints.length; i++) {
     inner.lineTo(innerArcPoints[i][0], innerArcPoints[i][1]);
   }
+  inner.lineTo(innerArcPoints[innerArcPoints.length - 1][0], innerPocketContactY);
+  inner.lineTo(innerArcPoints[0][0], innerPocketContactY);
   inner.closePath();
   shape.holes.push(inner);
 
