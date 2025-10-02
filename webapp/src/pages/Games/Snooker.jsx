@@ -1622,14 +1622,14 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86;
+const STANDING_VIEW_PHI = 0.82;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.34; // keep the orbit camera above cue height so it never dips under the table surface
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.34;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.3;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.47;
