@@ -1353,6 +1353,7 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     headPivot.add(grip);
 
     headPivot.lookAt(defaultFocus);
+    headPivot.rotateY(Math.PI);
 
     return { base, slider, head: headPivot, assembly: cameraAssembly, direction };
   };
@@ -4118,6 +4119,7 @@ function SnookerGame() {
         tripodGroup.updateWorldMatrix(true, false);
         headPivot.up.set(0, 1, 0);
         headPivot.lookAt(tripodTarget);
+        headPivot.rotateY(Math.PI);
         headPivot.rotateX(tripodTilt);
       });
 
@@ -4303,8 +4305,10 @@ function SnookerGame() {
       const hospitalityZOffset = Math.max(hospitalityZMin, shortRailTarget - BALL_R * 5);
 
       [
-        { mirror: -1, x: 0, z: hospitalityZOffset },
-        { mirror: 1, x: 0, z: -hospitalityZOffset }
+        { mirror: -1, x: hospitalityXOffset, z: hospitalityZOffset },
+        { mirror: 1, x: -hospitalityXOffset, z: hospitalityZOffset },
+        { mirror: -1, x: hospitalityXOffset, z: -hospitalityZOffset },
+        { mirror: 1, x: -hospitalityXOffset, z: -hospitalityZOffset }
       ].forEach(({ mirror, x, z }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror);
         hospitalitySet.position.set(x, floorY, z);
