@@ -4288,15 +4288,25 @@ function SnookerGame() {
       const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.65;
       const hospitalityXOffset = Math.min(hospitalityXMax, hospitalityXDesired);
 
-      const leftHospitality = createCameraSideHospitalitySet(-1);
-      leftHospitality.position.set(-hospitalityXOffset, floorY, hospitalityZOffset);
-      leftHospitality.lookAt(hospitalityLookTarget);
-      world.add(leftHospitality);
+      const leftHospitalityFront = createCameraSideHospitalitySet(-1);
+      leftHospitalityFront.position.set(-hospitalityXOffset, floorY, hospitalityZOffset);
+      leftHospitalityFront.lookAt(hospitalityLookTarget);
+      world.add(leftHospitalityFront);
 
-      const rightHospitality = createCameraSideHospitalitySet(1);
-      rightHospitality.position.set(hospitalityXOffset, floorY, hospitalityZOffset);
-      rightHospitality.lookAt(hospitalityLookTarget);
-      world.add(rightHospitality);
+      const rightHospitalityFront = createCameraSideHospitalitySet(1);
+      rightHospitalityFront.position.set(hospitalityXOffset, floorY, hospitalityZOffset);
+      rightHospitalityFront.lookAt(hospitalityLookTarget);
+      world.add(rightHospitalityFront);
+
+      const leftHospitalityBack = createCameraSideHospitalitySet(-1);
+      leftHospitalityBack.position.set(-hospitalityXOffset, floorY, -hospitalityZOffset);
+      leftHospitalityBack.lookAt(hospitalityLookTarget);
+      world.add(leftHospitalityBack);
+
+      const rightHospitalityBack = createCameraSideHospitalitySet(1);
+      rightHospitalityBack.position.set(hospitalityXOffset, floorY, -hospitalityZOffset);
+      rightHospitalityBack.lookAt(hospitalityLookTarget);
+      world.add(rightHospitalityBack);
 
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
