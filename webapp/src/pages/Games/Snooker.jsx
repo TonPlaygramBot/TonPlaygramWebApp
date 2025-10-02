@@ -4235,6 +4235,38 @@ function SnookerGame() {
           glassWater.position.set(-0.12, 0.775, 0.05);
           set.add(glassWater);
 
+          const flowerPot = new THREE.Group();
+          flowerPot.position.set(0.15, 0.81, 0.08);
+          set.add(flowerPot);
+
+          const pot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.06, 0.08, 16),
+            hospitalityMats.wood
+          );
+          pot.castShadow = true;
+          flowerPot.add(pot);
+
+          const soil = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.045, 0.05, 0.02, 16),
+            new THREE.MeshStandardMaterial({ color: 0x3f2e1c, roughness: 0.9 })
+          );
+          soil.position.y = 0.05;
+          flowerPot.add(soil);
+
+          const flowerStem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.01, 0.012, 0.12, 8),
+            new THREE.MeshStandardMaterial({ color: 0x3f8c3a, roughness: 0.6 })
+          );
+          flowerStem.position.y = 0.11;
+          flowerPot.add(flowerStem);
+
+          const flowerHead = new THREE.Mesh(
+            new THREE.SphereGeometry(0.035, 12, 12),
+            new THREE.MeshStandardMaterial({ color: 0xff8fb1, roughness: 0.6 })
+          );
+          flowerHead.position.y = 0.18;
+          flowerPot.add(flowerHead);
+
           return set;
         };
 
@@ -4285,12 +4317,12 @@ function SnookerGame() {
         };
 
         const tableSet = createTableSet();
-        tableSet.position.set(mirror * -0.9, 0, 0);
+        tableSet.position.set(mirror * -0.35, 0, 0.12);
         group.add(tableSet);
 
         const chair = createChair();
-        chair.position.set(mirror * -1.55, 0, 0);
-        chair.rotation.y = Math.PI * 0.1 * mirror;
+        chair.position.set(mirror * -0.95, 0, -0.2);
+        chair.rotation.y = Math.PI * 0.5 * mirror;
         group.add(chair);
 
         return group;
@@ -4298,20 +4330,16 @@ function SnookerGame() {
 
       const hospitalityLookTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
 
-      const hospitalityXMax = roomWidth / 2 - wallThickness - 0.6;
-      const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.65;
+      const hospitalityXMax = roomWidth / 2 - wallThickness - 0.55;
+      const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.55;
       const hospitalityXOffset = Math.min(hospitalityXMax, hospitalityXDesired);
-      const hospitalityZMin = PLAY_H / 2 + BALL_R * 6;
-      const hospitalityZOffset = Math.max(hospitalityZMin, shortRailTarget - BALL_R * 5);
 
       [
-        { mirror: -1, x: hospitalityXOffset, z: hospitalityZOffset },
-        { mirror: 1, x: -hospitalityXOffset, z: hospitalityZOffset },
-        { mirror: -1, x: hospitalityXOffset, z: -hospitalityZOffset },
-        { mirror: 1, x: -hospitalityXOffset, z: -hospitalityZOffset }
-      ].forEach(({ mirror, x, z }) => {
+        { mirror: -1, x: hospitalityXOffset },
+        { mirror: 1, x: -hospitalityXOffset }
+      ].forEach(({ mirror, x }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror);
-        hospitalitySet.position.set(x, floorY, z);
+        hospitalitySet.position.set(x, floorY, 0);
         hospitalitySet.lookAt(hospitalityLookTarget);
         world.add(hospitalitySet);
       });
