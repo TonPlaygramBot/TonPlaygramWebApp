@@ -1458,67 +1458,73 @@ const createTripodBroadcastCamera = (() => {
     headPivot.position.set(0, HUB_HEIGHT, 0);
     base.add(headPivot);
 
+    const cameraAssembly = new THREE.Group();
+    cameraAssembly.rotation.y = Math.PI / 2;
+    headPivot.add(cameraAssembly);
+
     const ball = new THREE.Mesh(ballGeo, metalDark);
     ball.position.set(0, 0.1, 0);
     ball.castShadow = true;
     ball.receiveShadow = true;
-    headPivot.add(ball);
+    cameraAssembly.add(ball);
 
     const plate = new THREE.Mesh(plateGeo, metalLite);
     plate.position.set(0, 0.2, 0);
     plate.castShadow = true;
     plate.receiveShadow = true;
-    headPivot.add(plate);
+    cameraAssembly.add(plate);
 
     const mount = new THREE.Mesh(mountGeo, metalDark);
     mount.position.set(0, 0.23, 0);
     mount.castShadow = true;
-    headPivot.add(mount);
+    mount.receiveShadow = true;
+    cameraAssembly.add(mount);
 
     const handle = new THREE.Mesh(handleGeo, metalLite);
     handle.castShadow = true;
     handle.position.set(0.09, 0.16, 0);
     handle.rotation.z = Math.PI * -0.25;
-    headPivot.add(handle);
+    cameraAssembly.add(handle);
 
     const grip = new THREE.Mesh(gripGeo, rubber);
     grip.position.set(0.24, 0.07, -0.09);
     grip.rotation.z = Math.PI * -0.25;
     grip.castShadow = true;
-    headPivot.add(grip);
+    cameraAssembly.add(grip);
 
     const body = new THREE.Mesh(bodyGeo, plastic);
     body.position.set(0, 0.32, 0);
     body.castShadow = true;
     body.receiveShadow = true;
-    headPivot.add(body);
+    cameraAssembly.add(body);
 
     const lensTube = new THREE.Mesh(lensTubeGeo, metalDark);
     lensTube.rotation.z = Math.PI / 2;
     lensTube.position.set(0.25, 0.32, 0);
     lensTube.castShadow = true;
-    headPivot.add(lensTube);
+    cameraAssembly.add(lensTube);
 
     const lensGlass = new THREE.Mesh(lensGlassGeo, glass);
     lensGlass.rotation.y = Math.PI / 2;
     lensGlass.position.set(0.33, 0.32, 0);
-    headPivot.add(lensGlass);
+    cameraAssembly.add(lensGlass);
 
     const hood = new THREE.Mesh(hoodGeo, rubber);
     hood.position.set(0.38, 0.32, 0);
     hood.castShadow = true;
-    headPivot.add(hood);
+    hood.receiveShadow = true;
+    cameraAssembly.add(hood);
 
     const viewfinder = new THREE.Mesh(vfGeo, metalLite);
     viewfinder.position.set(-0.2, 0.36, 0.06);
     viewfinder.castShadow = true;
-    headPivot.add(viewfinder);
+    cameraAssembly.add(viewfinder);
 
     const topHandle = new THREE.Mesh(topHandleGeo, rubber);
     topHandle.rotation.z = Math.PI / 2;
     topHandle.position.set(0, 0.43, 0);
     topHandle.castShadow = true;
-    headPivot.add(topHandle);
+    cameraAssembly.add(topHandle);
 
     const cableCurve = new THREE.CubicBezierCurve3(
       new THREE.Vector3(-0.05, 0.4, 0.1),
@@ -1529,7 +1535,7 @@ const createTripodBroadcastCamera = (() => {
     const cableGeo = new THREE.TubeGeometry(cableCurve, 20, 0.005, 6, false);
     const cable = new THREE.Mesh(cableGeo, rubber);
     cable.castShadow = true;
-    headPivot.add(cable);
+    cameraAssembly.add(cable);
 
     return { group, headPivot };
   };
@@ -4108,8 +4114,11 @@ function SnookerGame() {
           const yaw = Math.atan2(toTarget.z, toTarget.x);
           tripodGroup.rotation.y = yaw;
         }
-        headPivot.rotation.z = tripodTilt;
         world.add(tripodGroup);
+        tripodGroup.updateWorldMatrix(true, false);
+        headPivot.up.set(0, 1, 0);
+        headPivot.lookAt(tripodTarget);
+        headPivot.rotateX(tripodTilt);
       });
 
       const hospitalityMats = {
@@ -4294,8 +4303,8 @@ function SnookerGame() {
       const hospitalityZOffset = Math.max(hospitalityZMin, shortRailTarget - BALL_R * 5);
 
       [
-        { mirror: -1, x: -hospitalityXOffset, z: hospitalityZOffset },
-        { mirror: 1, x: hospitalityXOffset, z: -hospitalityZOffset }
+        { mirror: -1, x: 0, z: hospitalityZOffset },
+        { mirror: 1, x: 0, z: -hospitalityZOffset }
       ].forEach(({ mirror, x, z }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror);
         hospitalitySet.position.set(x, floorY, z);
