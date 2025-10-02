@@ -4115,7 +4115,11 @@ function SnookerGame() {
         })
       };
 
-      const createCameraSideHospitalitySet = (side = 1) => {
+      const TABLE_LOCAL_X = -0.9;
+      const CHAIR_LOCAL_X = -1.55;
+      const CHAIR_Z_OFFSET = 0.23;
+
+      const createCameraSideHospitalitySet = (side = 1, zLayout = {}) => {
         const mirror = Math.sign(side) || 1;
         const group = new THREE.Group();
 
@@ -4134,8 +4138,9 @@ function SnookerGame() {
             new THREE.CylinderGeometry(0.04, 0.06, 0.7, 16),
             hospitalityMats.chrome
           );
-          tableStem.position.y = 0.75 - 0.35;
+          tableStem.position.y = 0.4;
           tableStem.castShadow = true;
+          tableStem.receiveShadow = true;
           set.add(tableStem);
 
           const tableBaseRadius = 0.28;
@@ -4214,6 +4219,7 @@ function SnookerGame() {
             const leg = new THREE.Mesh(chairLegGeom, hospitalityMats.chrome);
             leg.position.set(x, 0.21, z);
             leg.castShadow = true;
+            leg.receiveShadow = true;
             chair.add(leg);
           });
 
@@ -4223,6 +4229,7 @@ function SnookerGame() {
           );
           seat.position.set(0, 0.46, 0);
           seat.castShadow = true;
+          seat.receiveShadow = true;
           chair.add(seat);
 
           const back = new THREE.Mesh(
@@ -4232,6 +4239,7 @@ function SnookerGame() {
           back.position.set(0, 0.71, -0.23);
           back.rotation.x = Math.PI * 0.05;
           back.castShadow = true;
+          back.receiveShadow = true;
           chair.add(back);
 
           const armGeom = new THREE.BoxGeometry(0.06, 0.06, 0.46);
@@ -4248,26 +4256,34 @@ function SnookerGame() {
           return chair;
         };
 
-        const arrangements = [
-          {
-            table: { x: -0.9, y: 0, z: 0.82 },
-            chair: { x: -1.55, y: 0, z: 1.05 },
-            chairYaw: -Math.PI * 0.1
-          },
-          {
-            table: { x: -0.9, y: 0, z: -0.82 },
-            chair: { x: -1.55, y: 0, z: -1.05 },
-            chairYaw: Math.PI * 0.1
-          }
-        ];
+        const createArrangement = (tableZ) => {
+          if (!Number.isFinite(tableZ)) return null;
+          const sign = Math.sign(tableZ) || 1;
+          const chairZ =
+            sign *
+            Math.min(
+              hospitalityZMax,
+              Math.max(hospitalityZMin, Math.abs(tableZ) + CHAIR_Z_OFFSET)
+            );
+          return {
+            tableZ,
+            chairZ,
+            chairYaw: -sign * Math.PI * 0.1
+          };
+        };
 
-        arrangements.forEach(({ table, chair: chairPos, chairYaw }) => {
+        const arrangements = [
+          createArrangement(zLayout.front),
+          createArrangement(zLayout.back)
+        ].filter(Boolean);
+
+        arrangements.forEach(({ tableZ, chairZ, chairYaw }) => {
           const tableSet = createTableSet();
-          tableSet.position.set(mirror * table.x, table.y, table.z);
+          tableSet.position.set(mirror * TABLE_LOCAL_X, 0, tableZ);
           group.add(tableSet);
 
           const chair = createChair();
-          chair.position.set(mirror * chairPos.x, chairPos.y, chairPos.z);
+          chair.position.set(mirror * CHAIR_LOCAL_X, 0, chairZ);
           chair.rotation.y = chairYaw * mirror;
           group.add(chair);
         });
@@ -4277,24 +4293,32 @@ function SnookerGame() {
 
       const hospitalityZMax = roomDepth / 2 - wallThickness - 0.6;
       const hospitalityZMin = PLAY_H / 2 + BALL_R * 5;
-      const hospitalityZDesired = PLAY_H / 2 + BALL_R * 6.5;
-      const hospitalityZOffset = Math.max(
-        0,
-        Math.min(hospitalityZMax, Math.max(hospitalityZMin, hospitalityZDesired))
-      );
+      const clampHospitalityZ = (target) => {
+        if (!Number.isFinite(target) || target === 0) return null;
+        const sign = Math.sign(target) || 1;
+        const magnitude = Math.min(
+          hospitalityZMax,
+          Math.max(hospitalityZMin, Math.abs(target))
+        );
+        return sign * magnitude;
+      };
+      const hospitalityZTargets = {
+        front: clampHospitalityZ(shortRailTarget),
+        back: clampHospitalityZ(-shortRailTarget)
+      };
       const hospitalityLookTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
 
       const hospitalityXMax = roomWidth / 2 - wallThickness - 0.6;
       const hospitalityXDesired = TABLE.W / 2 + TABLE.WALL * 0.65;
       const hospitalityXOffset = Math.min(hospitalityXMax, hospitalityXDesired);
 
-      const leftHospitality = createCameraSideHospitalitySet(-1);
-      leftHospitality.position.set(-hospitalityXOffset, floorY, hospitalityZOffset);
+      const leftHospitality = createCameraSideHospitalitySet(-1, hospitalityZTargets);
+      leftHospitality.position.set(-hospitalityXOffset, floorY, 0);
       leftHospitality.lookAt(hospitalityLookTarget);
       world.add(leftHospitality);
 
-      const rightHospitality = createCameraSideHospitalitySet(1);
-      rightHospitality.position.set(hospitalityXOffset, floorY, hospitalityZOffset);
+      const rightHospitality = createCameraSideHospitalitySet(1, hospitalityZTargets);
+      rightHospitality.position.set(hospitalityXOffset, floorY, 0);
       rightHospitality.lookAt(hospitalityLookTarget);
       world.add(rightHospitality);
 
