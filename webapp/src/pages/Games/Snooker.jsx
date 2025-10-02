@@ -4170,6 +4170,9 @@ function SnookerGame() {
         })
       };
 
+      const hospitalityScale = (TABLE_H * 0.48) / 0.75;
+      const toHospitalityUnits = (value = 0) => value * hospitalityScale;
+
       const createTableSet = () => {
         const set = new THREE.Group();
 
@@ -4389,13 +4392,23 @@ function SnookerGame() {
         const group = new THREE.Group();
 
         const tableSet = createTableSet();
-        tableSet.position.set(mirror * -0.25, 0, 0.08);
+        tableSet.scale.setScalar(hospitalityScale);
+        tableSet.position.set(
+          mirror * toHospitalityUnits(-0.9),
+          0,
+          0
+        );
         group.add(tableSet);
 
         const chair = createChair();
-        chair.position.set(mirror * -0.95, 0, -0.22);
-        const chairYaw = Math.PI / 2 - Math.PI * 0.15;
-        chair.rotation.y = mirror < 0 ? -chairYaw : chairYaw;
+        chair.scale.setScalar(hospitalityScale);
+        chair.position.set(
+          mirror * toHospitalityUnits(-1.65),
+          0,
+          0
+        );
+        const chairYaw = Math.PI / 2 - Math.PI * 0.12;
+        chair.rotation.y = mirror < 0 ? chairYaw : -chairYaw;
         group.add(chair);
 
         return group;
@@ -4404,7 +4417,27 @@ function SnookerGame() {
       const sideRailOuter = TABLE.W / 2 + TABLE.WALL * 0.5;
       const innerWall = roomWidth / 2 - wallThickness * 0.5;
       const walkway = Math.max(0, innerWall - sideRailOuter);
-      const hospitalityOffset = sideRailOuter + Math.min(2.8, walkway * 0.35);
+      const minInset = toHospitalityUnits(0.65);
+      const preferredInset = toHospitalityUnits(1.2);
+      const maxInset = Math.max(minInset, walkway - toHospitalityUnits(0.85));
+      const hospitalityInset = THREE.MathUtils.clamp(
+        preferredInset,
+        minInset,
+        maxInset
+      );
+      const outerLimit = innerWall - toHospitalityUnits(0.75);
+      let hospitalityOffset;
+      if (outerLimit <= sideRailOuter) {
+        hospitalityOffset = sideRailOuter + walkway * 0.5;
+      } else {
+        const minOffset = sideRailOuter + minInset;
+        const preferredOffset = sideRailOuter + hospitalityInset;
+        hospitalityOffset = THREE.MathUtils.clamp(
+          preferredOffset,
+          minOffset,
+          outerLimit
+        );
+      }
 
       [
         { mirror: -1 },
