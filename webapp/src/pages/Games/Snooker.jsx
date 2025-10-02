@@ -4086,6 +4086,178 @@ function SnookerGame() {
         world.add(tripodGroup);
       });
 
+      const hospitalityMats = {
+        wood: new THREE.MeshStandardMaterial({
+          color: 0x8b5e3c,
+          roughness: 0.8
+        }),
+        fabric: new THREE.MeshStandardMaterial({
+          color: 0x1f2a44,
+          roughness: 0.9
+        }),
+        chrome: new THREE.MeshStandardMaterial({
+          color: 0xbfc7d5,
+          roughness: 0.25,
+          metalness: 0.9
+        }),
+        glass: new THREE.MeshStandardMaterial({
+          color: 0x9bd3ff,
+          roughness: 0.05,
+          transparent: true,
+          opacity: 0.3
+        }),
+        water: new THREE.MeshStandardMaterial({
+          color: 0x4ea9ff,
+          roughness: 0.1,
+          transparent: true,
+          opacity: 0.55
+        })
+      };
+
+      const createHospitalitySet = ({ mirrorX = false } = {}) => {
+        const group = new THREE.Group();
+        const dir = mirrorX ? -1 : 1;
+
+        const tableSet = new THREE.Group();
+        group.add(tableSet);
+
+        const tableTop = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.35, 0.35, 0.03, 24),
+          hospitalityMats.wood
+        );
+        tableTop.position.y = 0.75;
+        tableTop.castShadow = true;
+        tableSet.add(tableTop);
+
+        const tableStem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.06, 0.7, 16),
+          hospitalityMats.chrome
+        );
+        tableStem.position.y = 0.75 - 0.35;
+        tableStem.castShadow = true;
+        tableSet.add(tableStem);
+
+        const tableBaseRadius = 0.28;
+        const tableBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(tableBaseRadius, tableBaseRadius, 0.04, 24),
+          hospitalityMats.chrome
+        );
+        tableBase.position.y = 0.02;
+        tableBase.receiveShadow = true;
+        tableSet.add(tableBase);
+
+        const bottle = new THREE.Group();
+        bottle.position.set(0.05 * dir, 0.875, -0.08);
+        tableSet.add(bottle);
+        bottle.add(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(0.045, 0.05, 0.22, 16),
+            hospitalityMats.glass
+          )
+        );
+        const bottleNeck = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.018, 0.022, 0.05, 12),
+          hospitalityMats.glass
+        );
+        bottleNeck.position.y = 0.135;
+        bottle.add(bottleNeck);
+        const bottleCap = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12),
+          hospitalityMats.chrome
+        );
+        bottleCap.position.y = 0.16;
+        bottle.add(bottleCap);
+        const water = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.043, 0.043, 0.12, 16),
+          hospitalityMats.water
+        );
+        water.position.y = -0.05;
+        bottle.add(water);
+
+        const glassOuter = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.036, 0.032, 0.1, 16, 1, true),
+          hospitalityMats.glass
+        );
+        glassOuter.position.set(-0.12 * dir, 0.8, 0.05);
+        glassOuter.material.side = THREE.DoubleSide;
+        tableSet.add(glassOuter);
+        const glassBottom = new THREE.Mesh(
+          new THREE.CircleGeometry(0.032, 16),
+          hospitalityMats.glass
+        );
+        glassBottom.rotation.x = -Math.PI / 2;
+        glassBottom.position.set(-0.12 * dir, 0.75, 0.05);
+        tableSet.add(glassBottom);
+        const glassWater = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.029, 0.029, 0.05, 16),
+          hospitalityMats.water
+        );
+        glassWater.position.set(-0.12 * dir, 0.775, 0.05);
+        tableSet.add(glassWater);
+
+        const chair = new THREE.Group();
+        chair.position.set(-0.65 * dir, 0, 0.25);
+        chair.rotation.y = -Math.PI * 0.1 * dir;
+        group.add(chair);
+
+        const chairLegGeom = new THREE.CylinderGeometry(0.022, 0.022, 0.42, 10);
+        [
+          [-0.22, -0.22],
+          [0.22, -0.22],
+          [-0.2, 0.22],
+          [0.2, 0.22]
+        ].forEach(([x, z]) => {
+          const leg = new THREE.Mesh(chairLegGeom, hospitalityMats.chrome);
+          leg.position.set(x * dir, 0.21, z);
+          leg.castShadow = true;
+          chair.add(leg);
+        });
+
+        const seat = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.06, 0.46),
+          hospitalityMats.fabric
+        );
+        seat.position.set(0, 0.46, 0);
+        seat.castShadow = true;
+        chair.add(seat);
+
+        const back = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.5, 0.06),
+          hospitalityMats.fabric
+        );
+        back.position.set(0, 0.71, -0.23);
+        back.rotation.x = Math.PI * 0.05;
+        back.castShadow = true;
+        chair.add(back);
+
+        const armGeom = new THREE.BoxGeometry(0.06, 0.06, 0.46);
+        const armOffset = 0.28;
+        const armL = new THREE.Mesh(armGeom, hospitalityMats.fabric);
+        armL.position.set(-armOffset, 0.56, 0);
+        armL.castShadow = true;
+        chair.add(armL);
+        const armR = new THREE.Mesh(armGeom, hospitalityMats.fabric);
+        armR.position.set(armOffset, 0.56, 0);
+        armR.castShadow = true;
+        chair.add(armR);
+
+        return group;
+      };
+
+      const hospitalityOffsetZ = PLAY_H / 2 + BALL_R * 10;
+      const hospitalityOffsetX = TABLE.W / 2 + BALL_R * 14;
+      const hospitalityLookY = TABLE_Y + TABLE.THICK * 0.5;
+
+      const nearHospitality = createHospitalitySet({ mirrorX: false });
+      nearHospitality.position.set(-hospitalityOffsetX, floorY, hospitalityOffsetZ);
+      nearHospitality.lookAt(0, hospitalityLookY, 0);
+      world.add(nearHospitality);
+
+      const farHospitality = createHospitalitySet({ mirrorX: true });
+      farHospitality.position.set(hospitalityOffsetX, floorY, -hospitalityOffsetZ);
+      farHospitality.lookAt(0, hospitalityLookY, 0);
+      world.add(farHospitality);
+
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
