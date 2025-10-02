@@ -597,19 +597,24 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
+const POCKET_CAM_BASE_MIN_OUTSIDE =
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
+  POCKET_VIS_R * 3.9 +
+  BALL_R * 3.3;
+const POCKET_CAM_BASE_OUTWARD_OFFSET =
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.9 +
+  POCKET_VIS_R * 4.3 +
+  BALL_R * 2.9;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
-  minOutside:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
-    POCKET_VIS_R * 3.9 +
-    BALL_R * 3.3,
+  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 12.6,
-  outwardOffset:
-    Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.9 +
-    POCKET_VIS_R * 4.3 +
-    BALL_R * 2.9,
+  heightOffsetShortMultiplier: 1.05,
+  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
   heightDrop: BALL_R * 1.6,
   distanceScale: 1.18,
   heightScale: 1.34
@@ -3765,8 +3770,8 @@ function SnookerGame() {
             ? CAMERA.maxR
             : Math.min(CAMERA.maxR, orbitRadiusLimitRef.current ?? CAMERA.maxR);
 
-        const clampOrbitRadius = (value) =>
-          clamp(value, CAMERA.minR, getMaxOrbitRadius());
+        const clampOrbitRadius = (value, minRadius = CAMERA.minR) =>
+          clamp(value, minRadius, getMaxOrbitRadius());
 
         const getRailTopHeight = () =>
           Math.max(TABLE.THICK, cushionHeightRef.current ?? TABLE.THICK);
@@ -3798,17 +3803,24 @@ function SnookerGame() {
             1
           );
           cameraBlendRef.current = blend;
+          const loweredProgress = 1 - blend;
+          const cueMinRadius = Math.max(
+            0.0001,
+            Math.min(CAMERA.minR, CUE_CAMERA_MIN_RADIUS)
+          );
+          const usingCueApproach = loweredProgress > 1e-5;
+          const clampMin = usingCueApproach ? cueMinRadius : CAMERA.minR;
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
           const baseRadius = THREE.MathUtils.lerp(
             cueShot.radius,
             standing.radius,
             blend
           );
-          let radius = clampOrbitRadius(baseRadius);
+          let radius = clampOrbitRadius(baseRadius, clampMin);
           if (CAMERA_DOWNWARD_PULL > 0) {
             const pull = CAMERA_DOWNWARD_PULL * (1 - blend);
             if (pull > 0) {
-              radius = clampOrbitRadius(radius - pull);
+              radius = clampOrbitRadius(radius - pull, clampMin);
             }
           }
           const railTopHeight = getRailTopHeight();
@@ -3826,21 +3838,26 @@ function SnookerGame() {
           if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
             const sinPhi = Math.sin(clampedPhi);
             if (sinPhi > 1e-4) {
-              minRadiusForRails = clampOrbitRadius(CAMERA_MIN_HORIZONTAL / sinPhi);
+              minRadiusForRails = clampOrbitRadius(
+                CAMERA_MIN_HORIZONTAL / sinPhi,
+                clampMin
+              );
               finalRadius = Math.max(finalRadius, minRadiusForRails);
             }
           }
-          const standingRadius = clampOrbitRadius(standing.radius);
-          const cueRadiusBase = clampOrbitRadius(cueShot.radius);
-          const minApproachRadius = Math.max(CAMERA.minR, CUE_CAMERA_MIN_RADIUS);
-          const loweredProgress = 1 - blend;
-          if (loweredProgress > 1e-5) {
-            const cueTargetRadius = Math.max(minApproachRadius, cueRadiusBase);
-            const approachRadius = clampOrbitRadius(
-              THREE.MathUtils.lerp(standingRadius, cueTargetRadius, loweredProgress)
+          const standingRadius = clampOrbitRadius(standing.radius, clampMin);
+          const minApproachRadius = usingCueApproach ? cueMinRadius : clampMin;
+          if (usingCueApproach) {
+            const cueApproachRadius = THREE.MathUtils.lerp(
+              standingRadius,
+              minApproachRadius,
+              THREE.MathUtils.clamp(loweredProgress, 0, 1)
             );
-            const approachLimit = Math.max(approachRadius, minApproachRadius);
-            finalRadius = Math.min(finalRadius, approachLimit);
+            const approachRadius = clampOrbitRadius(
+              cueApproachRadius,
+              minApproachRadius
+            );
+            finalRadius = Math.min(finalRadius, approachRadius);
           }
           const phiSpan = standing.phi - cueShot.phi;
           let phiProgress = 0;
@@ -3853,7 +3870,10 @@ function SnookerGame() {
           }
           const dynamicPull = CAMERA_DYNAMIC_PULL_RANGE * (1 - phiProgress);
           if (dynamicPull > 1e-5) {
-            const adjusted = clampOrbitRadius(finalRadius - dynamicPull);
+            const adjusted = clampOrbitRadius(
+              finalRadius - dynamicPull,
+              minApproachRadius
+            );
             finalRadius =
               minRadiusForRails != null
                 ? Math.max(adjusted, minRadiusForRails)
@@ -3864,7 +3884,7 @@ function SnookerGame() {
           }
           finalRadius = Math.max(finalRadius, minApproachRadius);
           sph.phi = clampedPhi;
-          sph.radius = clampOrbitRadius(finalRadius);
+          sph.radius = clampOrbitRadius(finalRadius, minApproachRadius);
           syncBlendToSpherical();
         };
 
@@ -4226,7 +4246,11 @@ function SnookerGame() {
               );
               const standingRadius = standingBounds?.radius ?? fallback;
               const pocketRadius = pocketDirection2D.length();
-              return Math.max(standingRadius, pocketRadius + POCKET_CAM.minOutside);
+              const minOutside =
+                anchorType === 'short'
+                  ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
+                  : POCKET_CAM.minOutside;
+              return Math.max(standingRadius, pocketRadius + minOutside);
             })();
             const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
             const spherical = new THREE.Spherical(
@@ -4237,12 +4261,16 @@ function SnookerGame() {
             const desiredPosition = focusTarget
               .clone()
               .add(new THREE.Vector3().setFromSpherical(spherical));
-            if (POCKET_CAM.outwardOffset) {
+            const outwardOffsetMagnitude =
+              anchorType === 'short'
+                ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
+                : POCKET_CAM.outwardOffset;
+            if (outwardOffsetMagnitude) {
               const outwardOffset = new THREE.Vector3(outward.x, 0, outward.y);
               if (outwardOffset.lengthSq() > 1e-6) {
                 outwardOffset
                   .normalize()
-                  .multiplyScalar(POCKET_CAM.outwardOffset * worldScaleFactor);
+                  .multiplyScalar(outwardOffsetMagnitude * worldScaleFactor);
                 desiredPosition.add(outwardOffset);
               }
             }
@@ -4608,9 +4636,11 @@ function SnookerGame() {
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
+          const shortPocketHeightMultiplier =
+            POCKET_CAM.heightOffsetShortMultiplier ?? 1;
           const heightOffset = isSidePocket
             ? baseHeightOffset * 0.92
-            : baseHeightOffset;
+            : baseHeightOffset * shortPocketHeightMultiplier;
           const railDir = isSidePocket
             ? signed(best.center.x, 1)
             : signed(best.center.y, 1);
@@ -4635,9 +4665,12 @@ function SnookerGame() {
             shotPrediction?.ballId === ballId && shotPrediction?.dir
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
               : null;
+          const minOutside = isSidePocket
+            ? POCKET_CAM.minOutside
+            : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
           const cameraDistance = THREE.MathUtils.clamp(
             effectiveDist * POCKET_CAM.distanceScale,
-            POCKET_CAM.minOutside,
+            minOutside,
             POCKET_CAM.maxOutside
           );
           return {
