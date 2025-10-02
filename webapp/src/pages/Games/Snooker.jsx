@@ -3888,7 +3888,7 @@ function SnookerGame() {
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        PLAY_H / 2 + BALL_R * 12,
+        PLAY_H / 2 + BALL_R * 8, // keep a modest clearance so the broadcast cameras sit closer to the table
         roomDepth / 2 - wallThickness - broadcastClearance
       );
       const broadcastRig = createBroadcastCameras({
