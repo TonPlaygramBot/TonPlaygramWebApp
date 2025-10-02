@@ -1180,13 +1180,7 @@ const createCarpetTextures = (() => {
   };
 })();
 
-function createBroadcastCameras({
-  floorY,
-  cameraHeight,
-  shortRailZ,
-  sideRailX = null,
-  slideLimit
-}) {
+function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }) {
   const group = new THREE.Group();
   group.name = 'broadcastCameras';
   const cameras = {};
@@ -1358,18 +1352,6 @@ function createBroadcastCameras({
   cameras.front = createUnit(-1);
   cameras.back = createUnit(1);
 
-  if (Number.isFinite(sideRailX)) {
-    const createSideUnit = (direction, x, z) => {
-      const unit = createUnit(direction);
-      unit.base.position.set(x, floorY, z);
-      unit.slider.position.set(0, 0, 0);
-      unit.head.lookAt(defaultFocus);
-      return unit;
-    };
-    cameras.shortLeft = createSideUnit(-1, -Math.abs(sideRailX), shortRailZ);
-    cameras.shortRight = createSideUnit(1, Math.abs(sideRailX), -shortRailZ);
-  }
-
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
 
@@ -1510,14 +1492,13 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_CAMERA_MIN_RADIUS = (BALL_R / 0.0525) * 0.75; // half the cue length in world units
 const CUE_APPROACH_MIN_RADIUS = Math.max(CUE_CAMERA_MIN_RADIUS, CAMERA.minR * 0.6); // allow the cue camera to move closer without clipping the cue
-const CUE_VIEW_RADIUS_RATIO = 0.92;
-const CUE_VIEW_FIT_MARGIN = 1.08;
+const CUE_VIEW_RADIUS_RATIO = 0.21;
 const CUE_VIEW_MIN_RADIUS = CUE_APPROACH_MIN_RADIUS;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.34
+  STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.16;
+const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3910,15 +3891,10 @@ function SnookerGame() {
         PLAY_H / 2 + BALL_R * 8, // keep a modest clearance so the broadcast cameras sit closer to the table
         roomDepth / 2 - wallThickness - broadcastClearance
       );
-      const shortRailSideOffset = Math.max(
-        TABLE.W / 2 + BALL_R * 8,
-        roomWidth / 2 - wallThickness - broadcastClearance
-      );
       const broadcastRig = createBroadcastCameras({
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
-        sideRailX: shortRailSideOffset,
         slideLimit: CAMERA_LATERAL_CLAMP.short * 0.92
       });
       world.add(broadcastRig.group);
@@ -4183,16 +4159,6 @@ function SnookerGame() {
               idle.head.lookAt(idleFocus);
             }
           }
-
-          ['shortLeft', 'shortRight'].forEach((key) => {
-            const side = rig.cameras[key];
-            if (!side) return;
-            const sideFocus =
-              focusTarget ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
-            if (sideFocus) {
-              side.head.lookAt(sideFocus);
-            }
-          });
         };
 
         const updateCamera = () => {
@@ -5047,12 +5013,10 @@ function SnookerGame() {
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
-          const cueFitRadius = fitRadius(camera, CUE_VIEW_FIT_MARGIN);
           const cueRadius = clampOrbitRadius(
             Math.max(
               playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
-              CUE_VIEW_MIN_RADIUS,
-              cueFitRadius
+              CUE_VIEW_MIN_RADIUS
             )
           );
           const cuePhi = THREE.MathUtils.clamp(
@@ -6675,19 +6639,6 @@ function SnookerGame() {
           } else {
             target.visible = false;
           }
-          const aimSpan = start.distanceTo(end);
-          const followAnchor = afterDir
-            ? end
-                .clone()
-                .add(
-                  new THREE.Vector3(afterDir.x, 0, afterDir.y)
-                    .normalize()
-                    .multiplyScalar(Math.min(aimSpan * 0.65, BALL_R * 32))
-                )
-            : end.clone();
-          const aimFocusPoint = start.clone().lerp(followAnchor, 0.55);
-          aimFocusPoint.y = BALL_CENTER_Y + BALL_R * 0.25;
-          aimFocusRef.current = aimFocusPoint;
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
