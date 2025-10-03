@@ -161,6 +161,41 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
+function getMultiPolygonBounds(mp) {
+  if (!Array.isArray(mp) || !mp.length) return null;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  mp.forEach((poly) => {
+    if (!Array.isArray(poly)) return;
+    poly.forEach((ring) => {
+      if (!Array.isArray(ring)) return;
+      ring.forEach((pt) => {
+        if (!Array.isArray(pt) || pt.length < 2) return;
+        const [x, z] = pt;
+        if (Number.isFinite(x) && Number.isFinite(z)) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (z < minZ) minZ = z;
+          if (z > maxZ) maxZ = z;
+        }
+      });
+    });
+  });
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null;
+  return { minX, maxX, minZ, maxZ };
+}
+
+function getMultiPolygonCenter(mp) {
+  const bounds = getMultiPolygonBounds(mp);
+  if (!bounds) return null;
+  return {
+    x: (bounds.minX + bounds.maxX) * 0.5,
+    z: (bounds.minZ + bounds.maxZ) * 0.5
+  };
+}
+
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.962;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.82;
@@ -1665,8 +1700,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.05;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.02;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.96;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -3126,6 +3161,24 @@ function Table3D(parent) {
       notchLocalMP,
       scaledCornerPocketMP
     );
+    const notchCenterWorld = {
+      x: sx * (innerHalfW - cornerInset),
+      z: sz * (innerHalfH - cornerInset)
+    };
+    const archCenterLocal = getMultiPolygonCenter(archLocalMP);
+    const notchCenterLocal = archCenterLocal
+      ? {
+          x: notchCenterWorld.x - centerX,
+          z: -(notchCenterWorld.z - centerZ)
+        }
+      : null;
+    const archOffsetLocal =
+      archCenterLocal && notchCenterLocal
+        ? {
+            x: notchCenterLocal.x - archCenterLocal.x,
+            z: notchCenterLocal.z - archCenterLocal.z
+          }
+        : { x: 0, z: 0 };
     const archShapes = multiPolygonToShapes(archLocalMP);
     if (archShapes.length) {
       const linerDepth = railH + MICRO_EPS * 4;
@@ -3134,6 +3187,9 @@ function Table3D(parent) {
         bevelEnabled: false,
         curveSegments: chromePlateShapeSegments
       });
+      if (archOffsetLocal.x || archOffsetLocal.z) {
+        linerGeo.translate(archOffsetLocal.x, archOffsetLocal.z, 0);
+      }
       linerGeo.rotateX(-Math.PI / 2);
       const linerMesh = new THREE.Mesh(linerGeo, chromePlateMat);
       linerMesh.position.set(centerX, frameTopY - MICRO_EPS * 2, centerZ);
@@ -3148,6 +3204,9 @@ function Table3D(parent) {
         bevelEnabled: false,
         curveSegments: chromePlateShapeSegments
       });
+      if (archOffsetLocal.x || archOffsetLocal.z) {
+        capGeo.translate(archOffsetLocal.x, archOffsetLocal.z, 0);
+      }
       capGeo.rotateX(-Math.PI / 2);
       const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
       capMesh.position.set(
@@ -3206,6 +3265,24 @@ function Table3D(parent) {
       notchLocalMP,
       scaledSidePocketMP
     );
+    const notchCenterWorld = {
+      x: sx * (innerHalfW - sideInset),
+      z: 0
+    };
+    const archCenterLocal = getMultiPolygonCenter(archLocalMP);
+    const notchCenterLocal = archCenterLocal
+      ? {
+          x: notchCenterWorld.x - centerX,
+          z: -(notchCenterWorld.z - centerZ)
+        }
+      : null;
+    const archOffsetLocal =
+      archCenterLocal && notchCenterLocal
+        ? {
+            x: notchCenterLocal.x - archCenterLocal.x,
+            z: notchCenterLocal.z - archCenterLocal.z
+          }
+        : { x: 0, z: 0 };
     const archShapes = multiPolygonToShapes(archLocalMP);
     if (archShapes.length) {
       const linerDepth = railH + MICRO_EPS * 4;
@@ -3214,6 +3291,9 @@ function Table3D(parent) {
         bevelEnabled: false,
         curveSegments: chromePlateShapeSegments
       });
+      if (archOffsetLocal.x || archOffsetLocal.z) {
+        linerGeo.translate(archOffsetLocal.x, archOffsetLocal.z, 0);
+      }
       linerGeo.rotateX(-Math.PI / 2);
       const linerMesh = new THREE.Mesh(linerGeo, chromePlateMat);
       linerMesh.position.set(centerX, frameTopY - MICRO_EPS * 2, centerZ);
@@ -3228,6 +3308,9 @@ function Table3D(parent) {
         bevelEnabled: false,
         curveSegments: chromePlateShapeSegments
       });
+      if (archOffsetLocal.x || archOffsetLocal.z) {
+        capGeo.translate(archOffsetLocal.x, archOffsetLocal.z, 0);
+      }
       capGeo.rotateX(-Math.PI / 2);
       const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
       capMesh.position.set(
