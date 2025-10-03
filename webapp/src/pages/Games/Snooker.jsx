@@ -169,9 +169,9 @@ const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.7;
 const CHROME_CORNER_LINER_INNER_SCALE = 0.78;
-const CHROME_CORNER_LINER_DEPTH_SCALE = 0.62;
+const CHROME_CORNER_LINER_DEPTH_SCALE = 0.84;
 const CHROME_SIDE_LINER_INNER_SCALE = 0.76;
-const CHROME_SIDE_LINER_DEPTH_SCALE = 0.6;
+const CHROME_SIDE_LINER_DEPTH_SCALE = 0.8;
 const CHROME_NOTCH_LINER_TOP_OFFSET_SCALE = 0.06;
 const CHROME_NOTCH_LINER_SEGMENTS = 96;
 
@@ -2909,10 +2909,10 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const chromePlateThickness = railH * 0.045;
+  const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.25;
-  const chromePlateExpansionZ = TABLE.THICK * 0.28;
+  const chromePlateExpansionX = TABLE.THICK * 0.6;
+  const chromePlateExpansionZ = TABLE.THICK * 0.62;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
