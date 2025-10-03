@@ -5514,12 +5514,19 @@ function SnookerGame() {
         };
         const fit = (m = STANDING_VIEW.margin) => {
           camera.aspect = host.clientWidth / host.clientHeight;
+          const aspect = camera.aspect;
           const standingRadiusRaw = fitRadius(camera, m);
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
+          const shouldApplyBroadcastPullIn = aspect >= 1;
+          const broadcastBaseRadius = shouldApplyBroadcastPullIn
+            ? Math.max(
+                standingRadiusRaw,
+                playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER
+              )
+            : playerRadiusBase;
           const broadcastRadius =
-            playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER +
-            BROADCAST_RADIUS_PADDING;
+            broadcastBaseRadius + BROADCAST_RADIUS_PADDING;
           const standingRadius = clamp(
             broadcastRadius,
             CAMERA.minR,
