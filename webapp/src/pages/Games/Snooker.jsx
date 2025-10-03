@@ -449,8 +449,45 @@ function addPocketCuts(parent, clothPlane) {
     s.closePath();
     return s;
   })();
-  const cornerGeo = new THREE.ShapeGeometry(cornerShape);
-  const sideGeo = new THREE.ShapeGeometry(sideShape);
+  const CUT_THICKNESS = RAIL_HEIGHT * 0.92;
+  const CUT_UNDERCUT_STRENGTH = 0.62;
+  const makeCutGeometry = (shape, factorFn) => {
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: CUT_THICKNESS,
+      bevelEnabled: false,
+      steps: 1,
+      curveSegments: 64
+    });
+    const pos = geo.attributes.position;
+    const arr = pos.array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const z = arr[i + 2];
+      if (z <= 0) continue;
+      const factor = THREE.MathUtils.clamp(
+        typeof factorFn === 'function' ? factorFn(arr[i], arr[i + 1]) : 0,
+        0,
+        1
+      );
+      if (factor <= 0) continue;
+      const limit = CUT_THICKNESS * (1 - CUT_UNDERCUT_STRENGTH * factor);
+      if (z > limit) {
+        arr[i + 2] = limit;
+      }
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    return geo;
+  };
+
+  const cornerGeo = makeCutGeometry(cornerShape, (x, y) => {
+    const r = Math.hypot(x, y);
+    const denom = Math.max(outerR - innerR, 1e-6);
+    return THREE.MathUtils.clamp((outerR - r) / denom, 0, 1);
+  });
+  const sideGeo = makeCutGeometry(sideShape, (x, y) => {
+    const denom = Math.max(sideDepth, 1e-6);
+    return THREE.MathUtils.clamp(y / denom, 0, 1);
+  });
   pocketCenters().forEach((p) => {
     const isCorner =
       Math.abs(Math.abs(p.x) - PLAY_W / 2) < 1e-3 &&
@@ -1675,7 +1712,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.92;
+const STANDING_VIEW_PHI = 0.88;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -2875,7 +2912,7 @@ function Table3D(parent) {
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.045; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.14; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
