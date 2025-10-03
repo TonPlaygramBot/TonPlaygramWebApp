@@ -3148,6 +3148,7 @@ function Table3D(parent) {
     railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
   const railDiamondSideShift = TABLE.THICK * 0.12;
   const railDiamondAdditionalSideShift = TABLE.THICK * 0.02;
+  const railDiamondRailCenterShift = TABLE.THICK * 0.04;
   const spreadRailDiamond = (value, limit) => {
     if (Math.abs(value) < MICRO_EPS) return value;
     const base = Math.abs(value);
@@ -3180,7 +3181,11 @@ function Table3D(parent) {
     const x = spreadRailDiamond((index * PLAY_W) / 8, longRailDiamondMaxX);
     [-1, 1].forEach((sz) => {
       const diamond = createRailDiamond();
-      diamond.position.set(x, railDiamondHeight, sz * longRailDiamondZ);
+      diamond.position.set(
+        x,
+        railDiamondHeight,
+        sz * (longRailDiamondZ + railDiamondRailCenterShift)
+      );
       railDiamonds.add(diamond);
     });
   });
@@ -3190,7 +3195,11 @@ function Table3D(parent) {
     [-1, 1].forEach((sx) => {
       const diamond = createRailDiamond();
       diamond.rotation.y = Math.PI / 2;
-      diamond.position.set(sx * shortRailDiamondX, railDiamondHeight, z);
+      diamond.position.set(
+        sx * (shortRailDiamondX + railDiamondRailCenterShift),
+        railDiamondHeight,
+        z
+      );
       railDiamonds.add(diamond);
     });
   });
