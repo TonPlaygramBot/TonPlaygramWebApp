@@ -191,6 +191,7 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.92;
+const CHROME_NOTCH_EXPANSION_SCALE = 1.02;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
@@ -348,6 +349,8 @@ function buildChromePlateGeometry({
 
   let shapesToExtrude = [shape];
   if (notchMP?.length) {
+    const expandedNotchMP = scaleMultiPolygon(notchMP, CHROME_NOTCH_EXPANSION_SCALE);
+    const notchToUse = expandedNotchMP.length ? expandedNotchMP : notchMP;
     const extracted = shape.extractPoints(shapeSegments);
     const basePts = extracted.shape;
     if (basePts?.length) {
@@ -359,7 +362,7 @@ function buildChromePlateGeometry({
           baseRing.push([baseRing[0][0], baseRing[0][1]]);
         }
         const baseMP = [[baseRing]];
-        const clipped = polygonClipping.difference(baseMP, notchMP);
+        const clipped = polygonClipping.difference(baseMP, notchToUse);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
           shapesToExtrude = clippedShapes;
