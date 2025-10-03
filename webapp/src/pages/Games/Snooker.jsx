@@ -599,13 +599,13 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.7 +
-  POCKET_VIS_R * 4.45 +
-  BALL_R * 3.9;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.85 +
+  POCKET_VIS_R * 4.7 +
+  BALL_R * 4.1;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.25 +
-  POCKET_VIS_R * 4.95 +
-  BALL_R * 3.45;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
+  POCKET_VIS_R * 5.2 +
+  BALL_R * 3.7;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
@@ -617,8 +617,10 @@ const POCKET_CAM = Object.freeze({
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
   heightDrop: BALL_R * 1.6,
-  distanceScale: 1.18,
-  heightScale: 1.34
+  distanceScale: 1.22,
+  heightScale: 1.34,
+  focusBlend: 0.32,
+  lateralFocusShift: POCKET_VIS_R * 0.5
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -1656,8 +1658,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.08;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.04;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.05;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.02;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -3107,6 +3109,61 @@ function Table3D(parent) {
     plate.receiveShadow = false;
     chromePlates.add(plate);
   });
+
+  const railDiamondThickness = Math.max(railH * 0.12, TABLE.THICK * 0.05);
+  const railDiamondLength = TABLE.THICK * 0.86;
+  const railDiamondWidth = railDiamondLength * 0.56;
+  const railDiamondShape = new THREE.Shape();
+  railDiamondShape.moveTo(0, railDiamondWidth / 2);
+  railDiamondShape.lineTo(railDiamondLength / 2, 0);
+  railDiamondShape.lineTo(0, -railDiamondWidth / 2);
+  railDiamondShape.lineTo(-railDiamondLength / 2, 0);
+  railDiamondShape.closePath();
+  const railDiamondGeometry = new THREE.ExtrudeGeometry(railDiamondShape, {
+    depth: railDiamondThickness,
+    bevelEnabled: true,
+    bevelSegments: 1,
+    bevelSize: railDiamondThickness * 0.28,
+    bevelThickness: railDiamondThickness * 0.32,
+    curveSegments: 24,
+    steps: 1
+  });
+  railDiamondGeometry.translate(0, 0, -railDiamondThickness / 2);
+  railDiamondGeometry.rotateX(-Math.PI / 2);
+  railDiamondGeometry.computeVertexNormals();
+  const createRailDiamond = () => {
+    const diamond = new THREE.Mesh(railDiamondGeometry, chromePlateMat);
+    diamond.castShadow = false;
+    diamond.receiveShadow = false;
+    return diamond;
+  };
+  const railDiamonds = new THREE.Group();
+  const railDiamondHeight =
+    railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
+  const longRailInnerZ =
+    halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08;
+  const shortRailInnerX =
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08;
+  const longRailIndices = [-3, -1, 1, 3];
+  longRailIndices.forEach((index) => {
+    const x = (index * PLAY_W) / 8;
+    [-1, 1].forEach((sz) => {
+      const diamond = createRailDiamond();
+      diamond.position.set(x, railDiamondHeight, sz * longRailInnerZ);
+      railDiamonds.add(diamond);
+    });
+  });
+  const shortRailIndices = [-2, 0, 2];
+  shortRailIndices.forEach((index) => {
+    const z = (index * PLAY_H) / 8;
+    [-1, 1].forEach((sx) => {
+      const diamond = createRailDiamond();
+      diamond.rotation.y = Math.PI / 2;
+      diamond.position.set(sx * shortRailInnerX, railDiamondHeight, z);
+      railDiamonds.add(diamond);
+    });
+  });
+  chromePlates.add(railDiamonds);
   railsGroup.add(chromePlates);
 
   let openingMP = polygonClipping.union(
@@ -5277,6 +5334,32 @@ function SnookerGame() {
               focusHeightLocal,
               0
             ).multiplyScalar(worldScaleFactor);
+            if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
+              const focusBlend = THREE.MathUtils.clamp(
+                POCKET_CAM.focusBlend,
+                0,
+                1
+              );
+              if (focusBlend > 0) {
+                const pocketFocus = new THREE.Vector3(
+                  pocketCenter2D.x * worldScaleFactor,
+                  focusHeightLocal,
+                  pocketCenter2D.y * worldScaleFactor
+                );
+                focusTarget.lerp(pocketFocus, focusBlend);
+              }
+            }
+            if (POCKET_CAM.lateralFocusShift) {
+              const lateral2D = new THREE.Vector2(-outward.y, outward.x);
+              if (lateral2D.lengthSq() > 1e-6) {
+                lateral2D.normalize().multiplyScalar(
+                  POCKET_CAM.lateralFocusShift * worldScaleFactor
+                );
+                focusTarget.add(
+                  new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
+                );
+              }
+            }
             const pocketDirection2D = pocketCenter2D.clone();
             if (pocketDirection2D.lengthSq() < 1e-6) {
               pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
