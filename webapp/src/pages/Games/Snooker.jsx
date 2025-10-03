@@ -728,11 +728,12 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the g
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
-const CUE_BUTT_LIFT = BALL_R * 0.56; // tilt the butt a touch higher so it clears the rails
+const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
@@ -1653,10 +1654,10 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.58;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.54;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.24;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.18;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.16;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.1;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -6166,7 +6167,7 @@ function SnookerGame() {
 
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
-      const cueLen = 1.5 * SCALE;
+      const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
