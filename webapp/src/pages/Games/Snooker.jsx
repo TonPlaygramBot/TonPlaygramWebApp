@@ -362,7 +362,22 @@ function buildChromePlateGeometry({
         const clipped = polygonClipping.difference(baseMP, notchMP);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
-          shapesToExtrude = clippedShapes;
+          const shapeAreas = clippedShapes.map((s) =>
+            Math.abs(typeof s.getArea === 'function' ? s.getArea() : 0)
+          );
+          const maxArea = shapeAreas.reduce(
+            (acc, area) => (area > acc ? area : acc),
+            0
+          );
+          const minArea = maxArea * 0.1;
+          const filteredShapes = clippedShapes.filter((_, idx) =>
+            shapeAreas[idx] >= minArea
+          );
+          if (filteredShapes.length) {
+            shapesToExtrude = filteredShapes;
+          } else {
+            shapesToExtrude = clippedShapes;
+          }
         }
       }
     }
