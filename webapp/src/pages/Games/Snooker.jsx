@@ -162,12 +162,12 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.992;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.9;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.99;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.88;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.962;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.82;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.95;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.72;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.82;
 
 function buildChromePlateGeometry({
   width,
@@ -3115,95 +3115,6 @@ function Table3D(parent) {
     plate.receiveShadow = false;
     chromePlates.add(plate);
   });
-
-  const railDiamondThickness = Math.max(railH * 0.12, TABLE.THICK * 0.05);
-  const railDiamondLength = TABLE.THICK * 0.86;
-  const railDiamondWidth = railDiamondLength * 0.56;
-  const railDiamondShape = new THREE.Shape();
-  railDiamondShape.moveTo(0, railDiamondWidth / 2);
-  railDiamondShape.lineTo(railDiamondLength / 2, 0);
-  railDiamondShape.lineTo(0, -railDiamondWidth / 2);
-  railDiamondShape.lineTo(-railDiamondLength / 2, 0);
-  railDiamondShape.closePath();
-  const railDiamondGeometry = new THREE.ExtrudeGeometry(railDiamondShape, {
-    depth: railDiamondThickness,
-    bevelEnabled: true,
-    bevelSegments: 1,
-    bevelSize: railDiamondThickness * 0.28,
-    bevelThickness: railDiamondThickness * 0.32,
-    curveSegments: 24,
-    steps: 1
-  });
-  railDiamondGeometry.translate(0, 0, -railDiamondThickness / 2);
-  railDiamondGeometry.rotateX(-Math.PI / 2);
-  railDiamondGeometry.computeVertexNormals();
-  const createRailDiamond = () => {
-    const diamond = new THREE.Mesh(railDiamondGeometry, chromePlateMat);
-    diamond.castShadow = false;
-    diamond.receiveShadow = false;
-    return diamond;
-  };
-  const railDiamonds = new THREE.Group();
-  const railDiamondHeight =
-    railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
-  const railDiamondSideShift = TABLE.THICK * 0.12;
-  const railDiamondAdditionalSideShift = TABLE.THICK * 0.02;
-  const railDiamondRailCenterShift = TABLE.THICK * 0.04;
-  const spreadRailDiamond = (value, limit) => {
-    if (Math.abs(value) < MICRO_EPS) return value;
-    const base = Math.abs(value);
-    const desired = base + railDiamondSideShift + railDiamondAdditionalSideShift;
-    const effectiveLimit =
-      Number.isFinite(limit) && limit > 0
-        ? Math.max(base, Math.min(limit, desired))
-        : desired;
-    return Math.sign(value) * effectiveLimit;
-  };
-  const computeRailDiamondOffset = (railWidth) => {
-    const target = Math.max(railWidth * 0.62, TABLE.THICK * 0.12);
-    const maxOffset = Math.max(railWidth - TABLE.THICK * 0.08, TABLE.THICK * 0.12);
-    return Math.min(target, maxOffset);
-  };
-  const longRailDiamondOffset = computeRailDiamondOffset(endRailW);
-  const shortRailDiamondOffset = computeRailDiamondOffset(longRailW);
-  const longRailDiamondMaxX = Math.max(0, cushionInnerX - TABLE.THICK * 0.04);
-  const shortRailDiamondMaxZ = Math.max(0, cushionInnerZ - TABLE.THICK * 0.04);
-  const longRailDiamondZ = Math.max(
-    halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
-    halfH + longRailDiamondOffset
-  );
-  const shortRailDiamondX = Math.max(
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
-    halfW + shortRailDiamondOffset
-  );
-  const longRailIndices = [-3, -1, 1, 3];
-  longRailIndices.forEach((index) => {
-    const x = spreadRailDiamond((index * PLAY_W) / 8, longRailDiamondMaxX);
-    [-1, 1].forEach((sz) => {
-      const diamond = createRailDiamond();
-      diamond.position.set(
-        x,
-        railDiamondHeight,
-        sz * (longRailDiamondZ + railDiamondRailCenterShift)
-      );
-      railDiamonds.add(diamond);
-    });
-  });
-  const shortRailIndices = [-2, 0, 2];
-  shortRailIndices.forEach((index) => {
-    const z = spreadRailDiamond((index * PLAY_H) / 8, shortRailDiamondMaxZ);
-    [-1, 1].forEach((sx) => {
-      const diamond = createRailDiamond();
-      diamond.rotation.y = Math.PI / 2;
-      diamond.position.set(
-        sx * (shortRailDiamondX + railDiamondRailCenterShift),
-        railDiamondHeight,
-        z
-      );
-      railDiamonds.add(diamond);
-    });
-  });
-  chromePlates.add(railDiamonds);
   railsGroup.add(chromePlates);
 
   let openingMP = polygonClipping.union(
