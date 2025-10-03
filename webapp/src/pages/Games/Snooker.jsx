@@ -635,7 +635,6 @@ const BALL_MATERIAL_CACHE = new Map();
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
 const FRICTION = 0.993;
 const CUSHION_RESTITUTION = 0.99;
-const CUSHION_CUT_SLIDE_DAMPING = 0.08;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
@@ -2390,7 +2389,7 @@ function reflectRails(ball) {
   const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const pocketGuard = POCKET_VIS_R * 0.62 * POCKET_VISUAL_EXPANSION;
+  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
   const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
@@ -2399,31 +2398,16 @@ function reflectRails(ball) {
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    const lateral = TMP_VEC2_A.dot(TMP_VEC2_D);
-    const lateralAbs = Math.abs(lateral);
-    if (lateralAbs < pocketGuard) {
-      TMP_VEC2_LIMIT.set((PLAY_W / 2) * sx, (PLAY_H / 2) * sy).sub(ball.pos);
-      const toPocketLenSq = TMP_VEC2_LIMIT.lengthSq();
-      if (toPocketLenSq > 1e-6) {
-        TMP_VEC2_LIMIT.multiplyScalar(1 / Math.sqrt(toPocketLenSq));
-        const approach = ball.vel.dot(TMP_VEC2_LIMIT);
-        if (approach > 0) {
-          continue;
-        }
-      }
-    }
+    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    if (lateral < pocketGuard) continue;
     if (distNormal < -cornerDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
     const vn = ball.vel.dot(TMP_VEC2_B);
     if (vn < 0) {
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + CUSHION_RESTITUTION) * vn);
-      const vt = ball.vel.dot(TMP_VEC2_D);
-      if (vt !== 0) {
-        ball.vel.addScaledVector(TMP_VEC2_D, -vt * CUSHION_CUT_SLIDE_DAMPING);
-      }
+      ball.vel.addScaledVector(TMP_VEC2_B, -2 * vn);
     }
-    ball.vel.multiplyScalar(0.985);
+    ball.vel.multiplyScalar(0.2);
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
@@ -2928,9 +2912,8 @@ function Table3D(parent) {
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.12; // pull cushions slightly farther from the rails so the green lip never overlaps the wood
-  const SHORT_CUSHION_HEIGHT_SCALE = 0.94; // drop the short-rail cushions so their top edge sits flush with the wooden caps
-  const LONG_CUSHION_HEIGHT_SCALE = 0.97; // lower the side cushions a touch so they align with the wooden rail caps
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.09; // nudge cushions slightly farther from the rails so the green lip never overlaps the wood
+  const SHORT_CUSHION_HEIGHT_SCALE = 0.97; // drop the short-rail cushions so their top edge sits flush with the wooden caps
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
@@ -3348,8 +3331,7 @@ function Table3D(parent) {
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.scale.y =
-      cushionScaleY * (horizontal ? SHORT_CUSHION_HEIGHT_SCALE : LONG_CUSHION_HEIGHT_SCALE);
+    mesh.scale.y = cushionScaleY * (horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1);
     mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
@@ -3375,29 +3357,23 @@ function Table3D(parent) {
   }
 
   const POCKET_GAP =
-    POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // pull the cushions closer so they land right at the pocket arcs
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.16 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
+    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.48 * POCKET_VISUAL_EXPANSION; // trim the long cushions so their ends align just before the chrome plates
+    POCKET_VIS_R * 0.42 * POCKET_VISUAL_EXPANSION; // trim the long cushions ever so slightly sooner so their ends align with the chrome plates
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.46 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
+    POCKET_VIS_R * 0.4 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
   const SIDE_CUSHION_CORNER_TRIM =
     0; // eliminate the side-corner trim so there's no triangular filler between cushions and chrome plates
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
     LONG_CUSHION_TRIM;
-  const SHORT_RAIL_CHROME_CLEARANCE =
-    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // shorten the short rails slightly so they stop before the chrome plates
-  const adjustedHorizLen = Math.max(
-    horizLen - SHORT_RAIL_CHROME_CLEARANCE * 2,
-    horizLen * 0.88
-  );
   const vertSeg =
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
@@ -3405,8 +3381,8 @@ function Table3D(parent) {
   const leftX = -halfW;
   const rightX = halfW;
 
-  addCushion(0, bottomZ, adjustedHorizLen, true, false);
-  addCushion(0, topZ, adjustedHorizLen, true, true);
+  addCushion(0, bottomZ, horizLen, true, false);
+  addCushion(0, topZ, horizLen, true, true);
   const sideCushionOffset =
     POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
   const trimmedVertSeg = Math.max(
