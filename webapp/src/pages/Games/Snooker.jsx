@@ -1660,8 +1660,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.05;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.02;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.03;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.01;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -3117,6 +3117,61 @@ function Table3D(parent) {
   });
   railsGroup.add(chromePlates);
 
+  const chromeArchDepth = railH * 0.42;
+  const chromeArchTrim = new THREE.Group();
+  const addArchMeshesFromMP = (mp) => {
+    if (!mp?.length) return;
+    const shapes = multiPolygonToShapes(mp);
+    shapes.forEach((shape) => {
+      if (!shape) return;
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: chromeArchDepth,
+        bevelEnabled: false,
+        curveSegments: 96
+      });
+      geo.rotateX(-Math.PI / 2);
+      const mesh = new THREE.Mesh(geo, chromePlateMat);
+      mesh.position.y = railsTopY - chromeArchDepth;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      chromeArchTrim.add(mesh);
+    });
+  };
+
+  [
+    { sx: -1, sz: -1 },
+    { sx: 1, sz: -1 },
+    { sx: -1, sz: 1 },
+    { sx: 1, sz: 1 }
+  ].forEach(({ sx, sz }) => {
+    const cx = sx * (innerHalfW - cornerInset);
+    const cz = sz * (innerHalfH - cornerInset);
+    const notchMP = cornerNotchMP(sx, sz);
+    const pocketClear = circlePoly(
+      cx,
+      cz,
+      cornerPocketRadius * 0.82,
+      192
+    );
+    const archMP = polygonClipping.difference(notchMP, pocketClear);
+    addArchMeshesFromMP(archMP);
+  });
+
+  [
+    { sx: -1 },
+    { sx: 1 }
+  ].forEach(({ sx }) => {
+    const cx = sx * (innerHalfW - sideInset);
+    const notchMP = sideNotchMP(sx);
+    const pocketClear = circlePoly(cx, 0, sidePocketRadius * 0.82, 256);
+    const archMP = polygonClipping.difference(notchMP, pocketClear);
+    addArchMeshesFromMP(archMP);
+  });
+
+  if (chromeArchTrim.children.length) {
+    railsGroup.add(chromeArchTrim);
+  }
+
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
@@ -3303,7 +3358,7 @@ function Table3D(parent) {
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+    POCKET_VIS_R * 0.24 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets and avoid overlap with rails
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
