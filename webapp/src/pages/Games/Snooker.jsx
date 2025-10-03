@@ -620,7 +620,9 @@ const POCKET_CAM = Object.freeze({
   distanceScale: 1.22,
   heightScale: 1.34,
   focusBlend: 0.32,
-  lateralFocusShift: POCKET_VIS_R * 0.5
+  lateralFocusShift: POCKET_VIS_R * 0.5,
+  railFocusLong: BALL_R * 9,
+  railFocusShort: BALL_R * 6
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -679,7 +681,7 @@ const ACTION_CAM = Object.freeze({
  * • Pas çdo raundi → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
-const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 18;
+const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 15;
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -1768,6 +1770,7 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_VEC3_A = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -3140,16 +3143,27 @@ function Table3D(parent) {
   const railDiamonds = new THREE.Group();
   const railDiamondHeight =
     railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
-  const longRailInnerZ =
-    halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08;
-  const shortRailInnerX =
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08;
+  const computeRailDiamondOffset = (railWidth) => {
+    const target = Math.max(railWidth * 0.62, TABLE.THICK * 0.12);
+    const maxOffset = Math.max(railWidth - TABLE.THICK * 0.08, TABLE.THICK * 0.12);
+    return Math.min(target, maxOffset);
+  };
+  const longRailDiamondOffset = computeRailDiamondOffset(endRailW);
+  const shortRailDiamondOffset = computeRailDiamondOffset(longRailW);
+  const longRailDiamondZ = Math.max(
+    halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
+    halfH + longRailDiamondOffset
+  );
+  const shortRailDiamondX = Math.max(
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
+    halfW + shortRailDiamondOffset
+  );
   const longRailIndices = [-3, -1, 1, 3];
   longRailIndices.forEach((index) => {
     const x = (index * PLAY_W) / 8;
     [-1, 1].forEach((sz) => {
       const diamond = createRailDiamond();
-      diamond.position.set(x, railDiamondHeight, sz * longRailInnerZ);
+      diamond.position.set(x, railDiamondHeight, sz * longRailDiamondZ);
       railDiamonds.add(diamond);
     });
   });
@@ -3159,7 +3173,7 @@ function Table3D(parent) {
     [-1, 1].forEach((sx) => {
       const diamond = createRailDiamond();
       diamond.rotation.y = Math.PI / 2;
-      diamond.position.set(sx * shortRailInnerX, railDiamondHeight, z);
+      diamond.position.set(sx * shortRailDiamondX, railDiamondHeight, z);
       railDiamonds.add(diamond);
     });
   });
@@ -5358,6 +5372,31 @@ function SnookerGame() {
                 focusTarget.add(
                   new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
                 );
+              }
+            }
+            if (
+              anchorType === 'short' &&
+              (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
+            ) {
+              const signX =
+                pocketCenter2D.x !== 0
+                  ? Math.sign(pocketCenter2D.x)
+                  : Math.sign(outward.x);
+              const signZ =
+                pocketCenter2D.y !== 0
+                  ? Math.sign(pocketCenter2D.y)
+                  : Math.sign(outward.y);
+              const offsetX =
+                (POCKET_CAM.railFocusLong ?? 0) * (signX ? -signX : 0);
+              const offsetZ =
+                (POCKET_CAM.railFocusShort ?? 0) * (signZ ? -signZ : 0);
+              if (offsetX || offsetZ) {
+                TMP_VEC3_A.set(
+                  offsetX * worldScaleFactor,
+                  0,
+                  offsetZ * worldScaleFactor
+                );
+                focusTarget.add(TMP_VEC3_A);
               }
             }
             const pocketDirection2D = pocketCenter2D.clone();
