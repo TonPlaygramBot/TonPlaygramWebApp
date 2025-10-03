@@ -18,6 +18,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
+import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -697,6 +698,11 @@ const SHOT_FORCE_BOOST = 1.8; // boost strike strength by 50%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
+const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
+const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
+const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
+const CROWD_VOLUME_SCALE = 1;
+const POCKET_SOUND_TAIL = 1;
 // Make the four round legs dramatically taller so the table surface rides higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
@@ -3661,6 +3667,7 @@ function SnookerGame() {
   const orbitRadiusLimitRef = useRef(null);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
+  const timerWarnedRef = useRef(false);
   const spinRef = useRef({ x: 0, y: 0 });
   const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
@@ -3703,9 +3710,148 @@ function SnookerGame() {
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
+  const audioContextRef = useRef(null);
+  const audioBuffersRef = useRef({
+    cue: null,
+    ball: null,
+    pocket: null,
+    knock: null,
+    cheer: null,
+    shock: null
+  });
+  const activeCrowdSoundRef = useRef(null);
+  const muteRef = useRef(isGameMuted());
+  const volumeRef = useRef(getGameVolume());
+  const railSoundTimeRef = useRef(new Map());
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
+
+  const stopActiveCrowdSound = useCallback(() => {
+    const current = activeCrowdSoundRef.current;
+    if (current) {
+      try {
+        current.stop();
+      } catch {}
+      activeCrowdSoundRef.current = null;
+    }
+  }, []);
+
+  const playCueHit = useCallback((vol = 1) => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.cue;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(vol * volumeRef.current, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain).connect(ctx.destination);
+    source.start(0, 0, 0.5);
+  }, []);
+
+  const playBallHit = useCallback((vol = 1) => {
+    if (vol <= 0) return;
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.ball;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(vol * volumeRef.current * 0.72, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain).connect(ctx.destination);
+    source.start(0);
+  }, []);
+
+  const playPocket = useCallback((vol = 1) => {
+    if (vol <= 0) return;
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.pocket;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(vol * volumeRef.current * 0.8, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain).connect(ctx.destination);
+    const duration = buffer.duration || 0;
+    const offset = Math.max(0, duration - POCKET_SOUND_TAIL);
+    const playbackDuration = duration > 0 ? Math.min(POCKET_SOUND_TAIL, duration) : undefined;
+    if (playbackDuration != null) source.start(0, offset, playbackDuration);
+    else source.start(0);
+  }, []);
+
+  const playTurnKnock = useCallback(() => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.knock;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(volumeRef.current, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain).connect(ctx.destination);
+    source.start(0);
+  }, []);
+
+  const playCheer = useCallback(
+    (vol = 1) => {
+      const ctx = audioContextRef.current;
+      const buffer = audioBuffersRef.current.cheer;
+      if (!ctx || !buffer || muteRef.current) return;
+      const scaled = clamp(vol * volumeRef.current * CROWD_VOLUME_SCALE, 0, 1);
+      if (scaled <= 0) return;
+      ctx.resume().catch(() => {});
+      stopActiveCrowdSound();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = scaled;
+      source.connect(gain).connect(ctx.destination);
+      source.start(0);
+      activeCrowdSoundRef.current = source;
+      source.onended = () => {
+        if (activeCrowdSoundRef.current === source) {
+          activeCrowdSoundRef.current = null;
+        }
+      };
+    },
+    [stopActiveCrowdSound]
+  );
+
+  const playShock = useCallback(
+    (vol = 1) => {
+      const ctx = audioContextRef.current;
+      const buffer = audioBuffersRef.current.shock;
+      if (!ctx || !buffer || muteRef.current) return;
+      const scaled = clamp(vol * volumeRef.current * CROWD_VOLUME_SCALE, 0, 1);
+      if (scaled <= 0) return;
+      ctx.resume().catch(() => {});
+      stopActiveCrowdSound();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = scaled;
+      source.connect(gain).connect(ctx.destination);
+      source.start(0);
+      activeCrowdSoundRef.current = source;
+      source.onended = () => {
+        if (activeCrowdSoundRef.current === source) {
+          activeCrowdSoundRef.current = null;
+        }
+      };
+    },
+    [stopActiveCrowdSound]
+  );
   useEffect(() => {
     document.title = '3D Snooker';
   }, []);
@@ -3728,6 +3874,77 @@ function SnookerGame() {
       };
     });
   }, [player.name]);
+  useEffect(() => {
+    muteRef.current = isGameMuted();
+    volumeRef.current = getGameVolume();
+    const handleMute = () => {
+      muteRef.current = isGameMuted();
+      if (muteRef.current) stopActiveCrowdSound();
+    };
+    const handleVolume = () => {
+      volumeRef.current = getGameVolume();
+    };
+    window.addEventListener('gameMuteChanged', handleMute);
+    window.addEventListener('gameVolumeChanged', handleVolume);
+    return () => {
+      window.removeEventListener('gameMuteChanged', handleMute);
+      window.removeEventListener('gameVolumeChanged', handleVolume);
+    };
+  }, [stopActiveCrowdSound]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return undefined;
+    const ctx = new AudioContextClass();
+    audioContextRef.current = ctx;
+    let cancelled = false;
+    const decode = (arrayBuffer) =>
+      new Promise((resolve, reject) => {
+        ctx.decodeAudioData(arrayBuffer, resolve, reject);
+      });
+    const loadBuffer = async (path) => {
+      const response = await fetch(encodeURI(path));
+      if (!response.ok) throw new Error(`Failed to load ${path}`);
+      const arr = await response.arrayBuffer();
+      return await decode(arr);
+    };
+    (async () => {
+      const entries = [
+        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
+        ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
+        ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
+        ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
+        ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
+        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3']
+      ];
+      const loaded = {};
+      for (const [key, path] of entries) {
+        try {
+          const buffer = await loadBuffer(path);
+          if (!cancelled) loaded[key] = buffer;
+        } catch (err) {
+          console.warn('Snooker audio load failed:', key, err);
+        }
+      }
+      if (!cancelled) {
+        audioBuffersRef.current = { ...audioBuffersRef.current, ...loaded };
+      }
+    })();
+    return () => {
+      cancelled = true;
+      stopActiveCrowdSound();
+      audioBuffersRef.current = {
+        cue: null,
+        ball: null,
+        pocket: null,
+        knock: null,
+        cheer: null,
+        shock: null
+      };
+      audioContextRef.current = null;
+      ctx.close().catch(() => {});
+    };
+  }, [stopActiveCrowdSound]);
   useEffect(() => {
     setHud((prev) => {
       const nextTargets = frameState.ballOn.map((c) => c.toLowerCase());
@@ -3888,10 +4105,21 @@ function SnookerGame() {
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 15;
     setTimer(duration);
+    timerWarnedRef.current = false;
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimer((t) => {
-        if (t <= 1) {
+        const next = t <= 1 ? 0 : t - 1;
+        if (
+          !timerWarnedRef.current &&
+          playerTurn === 0 &&
+          next > 0 &&
+          next <= 5
+        ) {
+          playTurnKnock();
+          timerWarnedRef.current = true;
+        }
+        if (next === 0) {
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
             setHud((s) => ({ ...s, turn: 1 - s.turn }));
@@ -3900,11 +4128,11 @@ function SnookerGame() {
           }
           return 0;
         }
-        return t - 1;
+        return next;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over]);
+  }, [hud.turn, hud.over, playTurnKnock]);
 
   useEffect(() => {
     if (hud.over) {
@@ -4001,6 +4229,8 @@ function SnookerGame() {
       let activeShotView = null;
       let suspendedActionView = null;
       let shotPrediction = null;
+      let lastShotPower = 0;
+      let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
       const legHeight = LEG_ROOM_HEIGHT;
       const floorY = FLOOR_Y;
@@ -6413,6 +6643,8 @@ function SnookerGame() {
           }
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          lastShotPower = clampedPower;
+          playCueHit(clampedPower * 0.6);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const base = aimDir
             .clone()
@@ -6953,6 +7185,23 @@ function SnookerGame() {
         });
         const currentState = frameRef.current ?? frameState;
         const nextState = rules.applyShot(currentState, shotEvents);
+        if (nextState.foul) {
+          const foulPoints = nextState.foul.points ?? 4;
+          const foulVol = clamp(foulPoints / 7, 0, 1);
+          playShock(Math.max(0.4, foulVol));
+        } else {
+          const deltaA =
+            (nextState.players?.A?.score ?? 0) - (currentState.players?.A?.score ?? 0);
+          const deltaB =
+            (nextState.players?.B?.score ?? 0) - (currentState.players?.B?.score ?? 0);
+          const scored = Math.max(deltaA, deltaB);
+          if (scored > 0) {
+            const cheerVol = clamp(scored / 7, 0, 1);
+            playCheer(Math.max(0.35, cheerVol));
+          } else if (nextState.frameOver) {
+            playCheer(1);
+          }
+        }
         frameRef.current = nextState;
         setFrameState(nextState);
         const cueBallPotted =
@@ -7035,6 +7284,7 @@ function SnookerGame() {
           }
           potted = [];
           firstHit = null;
+          lastShotPower = 0;
         }
 
       // Loop
@@ -7055,6 +7305,7 @@ function SnookerGame() {
         aimDir.lerp(tmpAim, 0.2);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
+        const newCollisions = new Set();
         // Aiming vizual
         const currentHud = hudRef.current;
         if (
@@ -7246,6 +7497,20 @@ function SnookerGame() {
             if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
               applySpinImpulse(b, 1);
             }
+            if (hitRail) {
+              const nowRail = performance.now();
+              const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
+              if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
+                const shotScale = 0.35 + 0.65 * lastShotPower;
+                const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
+                const railVolume = clamp(baseVol * shotScale, 0, 1);
+                if (railVolume > 0) {
+                  const railMultiplier = hitRail === 'corner' ? 1.1 : 0.9;
+                  playBallHit(railVolume * railMultiplier);
+                }
+                railSoundTimeRef.current.set(b.id, nowRail);
+              }
+            }
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
             if (scaledSpeed > 0) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
@@ -7268,12 +7533,21 @@ function SnookerGame() {
                 const nx = dx / d,
                   ny = dy / d;
                 const overlap = (BALL_R * 2 - d) / 2;
+                const pairKey =
+                  (a.id ?? i) < (b.id ?? j)
+                    ? `${a.id ?? i}:${b.id ?? j}`
+                    : `${b.id ?? j}:${a.id ?? i}`;
+                const firstPairCollision = !newCollisions.has(pairKey);
+                newCollisions.add(pairKey);
+                const wasColliding = prevCollisions.has(pairKey);
+                const isNewImpact = firstPairCollision && !wasColliding;
                 a.pos.x -= nx * overlap;
                 a.pos.y -= ny * overlap;
                 b.pos.x += nx * overlap;
                 b.pos.y += ny * overlap;
                 const avn = a.vel.x * nx + a.vel.y * ny;
                 const bvn = b.vel.x * nx + b.vel.y * ny;
+                const impulse = Math.abs(bvn - avn);
                 const at = a.vel
                   .clone()
                   .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
@@ -7282,6 +7556,15 @@ function SnookerGame() {
                   .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
                 a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
                 b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+                if (isNewImpact) {
+                  const shotScale = 0.4 + 0.6 * lastShotPower;
+                  const volume = clamp(
+                    (impulse / BALL_COLLISION_SOUND_REFERENCE_SPEED) * shotScale,
+                    0,
+                    1
+                  );
+                  if (volume > 0) playBallHit(volume);
+                }
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
@@ -7491,6 +7774,12 @@ function SnookerGame() {
             const c = centers[pocketIndex];
             if (b.pos.distanceTo(c) < CAPTURE_R) {
               const entrySpeed = b.vel.length();
+              const pocketVolume = THREE.MathUtils.clamp(
+                entrySpeed / POCKET_DROP_SPEED_REFERENCE,
+                0,
+                1
+              );
+              playPocket(pocketVolume);
               b.active = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
@@ -7646,6 +7935,7 @@ function SnookerGame() {
               }
             });
           }
+          prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
             const limX =
