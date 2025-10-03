@@ -168,8 +168,6 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.95;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.72;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.82;
-const CHROME_NOTCH_LINER_CORNER_INNER_SCALE = 0.94;
-const CHROME_NOTCH_LINER_SIDE_INNER_SCALE = 0.9;
 
 function buildChromePlateGeometry({
   width,
@@ -2869,16 +2867,6 @@ function Table3D(parent) {
     sheenRoughness: 0.62,
     envMapIntensity: 1.05
   });
-  const chromeArchMat = new THREE.MeshStandardMaterial({
-    color: 0x0d0d0f,
-    metalness: 0.32,
-    roughness: 0.62,
-    envMapIntensity: 0.48,
-    side: THREE.DoubleSide
-  });
-  chromeArchMat.polygonOffset = true;
-  chromeArchMat.polygonOffsetFactor = -1;
-  chromeArchMat.polygonOffsetUnits = -2;
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -3069,13 +3057,7 @@ function Table3D(parent) {
   };
 
   const chromePlates = new THREE.Group();
-  const chromeNotchLiners = new THREE.Group();
-  const chromeArchCaps = new THREE.Group();
   const chromePlateShapeSegments = 128;
-  const toLocalMP = (mp, cx, cz) =>
-    mp.map((poly) =>
-      poly.map((ring) => ring.map(([x, z]) => [x - cx, -(z - cz)]))
-    );
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
@@ -3084,8 +3066,11 @@ function Table3D(parent) {
   ].forEach(({ corner, sx, sz }) => {
     const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
     const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
-    const notchMPWorld = cornerNotchMP(sx, sz);
-    const notchLocalMP = toLocalMP(notchMPWorld, centerX, centerZ);
+    const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
+      )
+    );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: chromePlateWidth,
@@ -3102,48 +3087,6 @@ function Table3D(parent) {
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
-
-    const pocketCenterX = sx * (PLAY_W / 2);
-    const pocketCenterZ = sz * (PLAY_H / 2);
-    const pocketLocalMP = toLocalMP(
-      circlePoly(
-        pocketCenterX,
-        pocketCenterZ,
-        cornerPocketRadius * CHROME_NOTCH_LINER_CORNER_INNER_SCALE,
-        chromePlateShapeSegments
-      ),
-      centerX,
-      centerZ
-    );
-    const archLocalMP = polygonClipping.difference(notchLocalMP, pocketLocalMP);
-    const archShapes = multiPolygonToShapes(archLocalMP);
-    if (archShapes.length) {
-      const linerDepth = railH + MICRO_EPS * 4;
-      const linerGeo = new THREE.ExtrudeGeometry(archShapes, {
-        depth: linerDepth,
-        bevelEnabled: false,
-        curveSegments: chromePlateShapeSegments
-      });
-      linerGeo.rotateX(-Math.PI / 2);
-      const linerMesh = new THREE.Mesh(linerGeo, chromePlateMat);
-      linerMesh.position.set(centerX, frameTopY - MICRO_EPS * 2, centerZ);
-      linerMesh.castShadow = false;
-      linerMesh.receiveShadow = true;
-      chromeNotchLiners.add(linerMesh);
-
-      const capDepth = chromePlateThickness + MICRO_EPS * 6;
-      const capGeo = new THREE.ExtrudeGeometry(archShapes, {
-        depth: capDepth,
-        bevelEnabled: false,
-        curveSegments: chromePlateShapeSegments
-      });
-      capGeo.rotateX(-Math.PI / 2);
-      const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
-      capMesh.position.set(centerX, chromePlateY + MICRO_EPS * 6, centerZ);
-      capMesh.castShadow = false;
-      capMesh.receiveShadow = false;
-      chromeArchCaps.add(capMesh);
-    }
   });
 
   [
@@ -3152,8 +3095,9 @@ function Table3D(parent) {
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
-    const notchMPWorld = sideNotchMP(sx);
-    const notchLocalMP = toLocalMP(notchMPWorld, centerX, centerZ);
+    const notchLocalMP = sideNotchMP(sx).map((poly) =>
+      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
+    );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: sideChromePlateWidth,
@@ -3170,56 +3114,8 @@ function Table3D(parent) {
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
-
-    const pocketCenterX = sx * (PLAY_W / 2);
-    const pocketCenterZ = 0;
-    const pocketLocalMP = toLocalMP(
-      circlePoly(
-        pocketCenterX,
-        pocketCenterZ,
-        sidePocketRadius * CHROME_NOTCH_LINER_SIDE_INNER_SCALE,
-        chromePlateShapeSegments
-      ),
-      centerX,
-      centerZ
-    );
-    const archLocalMP = polygonClipping.difference(notchLocalMP, pocketLocalMP);
-    const archShapes = multiPolygonToShapes(archLocalMP);
-    if (archShapes.length) {
-      const linerDepth = railH + MICRO_EPS * 4;
-      const linerGeo = new THREE.ExtrudeGeometry(archShapes, {
-        depth: linerDepth,
-        bevelEnabled: false,
-        curveSegments: chromePlateShapeSegments
-      });
-      linerGeo.rotateX(-Math.PI / 2);
-      const linerMesh = new THREE.Mesh(linerGeo, chromePlateMat);
-      linerMesh.position.set(centerX, frameTopY - MICRO_EPS * 2, centerZ);
-      linerMesh.castShadow = false;
-      linerMesh.receiveShadow = true;
-      chromeNotchLiners.add(linerMesh);
-
-      const capDepth = chromePlateThickness + MICRO_EPS * 6;
-      const capGeo = new THREE.ExtrudeGeometry(archShapes, {
-        depth: capDepth,
-        bevelEnabled: false,
-        curveSegments: chromePlateShapeSegments
-      });
-      capGeo.rotateX(-Math.PI / 2);
-      const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
-      capMesh.position.set(centerX, chromePlateY + MICRO_EPS * 6, centerZ);
-      capMesh.castShadow = false;
-      capMesh.receiveShadow = false;
-      chromeArchCaps.add(capMesh);
-    }
   });
   railsGroup.add(chromePlates);
-  if (chromeNotchLiners.children.length) {
-    railsGroup.add(chromeNotchLiners);
-  }
-  if (chromeArchCaps.children.length) {
-    railsGroup.add(chromeArchCaps);
-  }
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
