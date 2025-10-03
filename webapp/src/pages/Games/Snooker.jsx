@@ -3146,7 +3146,7 @@ function Table3D(parent) {
   const railDiamonds = new THREE.Group();
   const railDiamondHeight =
     railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
-  const railDiamondSideShift = TABLE.THICK * 0.1;
+  const railDiamondSideShift = TABLE.THICK * 0.12;
   const spreadRailDiamond = (value, limit) => {
     if (Math.abs(value) < MICRO_EPS) return value;
     const base = Math.abs(value);
