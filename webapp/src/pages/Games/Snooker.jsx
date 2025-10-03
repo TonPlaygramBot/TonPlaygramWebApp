@@ -2894,9 +2894,13 @@ function Table3D(parent) {
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
+  const sidePlateCushionClearance = TABLE.THICK * 0.12 + CUSHION_CENTER_NUDGE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
+    outerHalfW -
+      chromePlateInset -
+      chromePlateInnerLimitX -
+      sidePlateCushionClearance
   );
   const sideChromePlateWidth = Math.min(sidePlatePocketWidth, sidePlateMaxWidth);
   const sidePlateHalfHeightLimit = Math.max(
@@ -3143,20 +3147,37 @@ function Table3D(parent) {
   const railDiamonds = new THREE.Group();
   const railDiamondHeight =
     railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
-  const computeRailDiamondOffset = (railWidth) => {
-    const target = Math.max(railWidth * 0.62, TABLE.THICK * 0.12);
-    const maxOffset = Math.max(railWidth - TABLE.THICK * 0.08, TABLE.THICK * 0.12);
-    return Math.min(target, maxOffset);
+  const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+  const computeRailDiamondCenter = (inner, outer, railWidth) => {
+    const minPos = inner + TABLE.THICK * 0.04;
+    const maxPos = Math.max(minPos, outer - TABLE.THICK * 0.04);
+    return clampValue(inner + railWidth / 2, minPos, maxPos);
   };
-  const longRailDiamondOffset = computeRailDiamondOffset(endRailW);
-  const shortRailDiamondOffset = computeRailDiamondOffset(longRailW);
-  const longRailDiamondZ = Math.max(
-    halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
-    halfH + longRailDiamondOffset
+  const railDiamondInnerZ = Math.max(
+    halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE,
+    TABLE.THICK * 0.02
   );
-  const shortRailDiamondX = Math.max(
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
-    halfW + shortRailDiamondOffset
+  const railDiamondOuterZ = Math.max(
+    railDiamondInnerZ + TABLE.THICK * 0.08,
+    outerHalfH - chromePlateInset - TABLE.THICK * 0.12
+  );
+  const railDiamondInnerX = Math.max(
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE,
+    TABLE.THICK * 0.02
+  );
+  const railDiamondOuterX = Math.max(
+    railDiamondInnerX + TABLE.THICK * 0.08,
+    outerHalfW - chromePlateInset - TABLE.THICK * 0.12
+  );
+  const longRailDiamondZ = computeRailDiamondCenter(
+    railDiamondInnerZ,
+    railDiamondOuterZ,
+    endRailW
+  );
+  const shortRailDiamondX = computeRailDiamondCenter(
+    railDiamondInnerX,
+    railDiamondOuterX,
+    longRailW
   );
   const longRailIndices = [-3, -1, 1, 3];
   longRailIndices.forEach((index) => {
