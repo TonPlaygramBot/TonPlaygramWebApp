@@ -1785,7 +1785,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.58 * GLOBAL_SIZE_FACTOR; // bring standing camera closer while keeping full table in frame
+  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR; // bring standing camera closer while keeping full table in frame
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -2868,7 +2868,7 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const chromePlateThickness = railH * 0.2; // extend chrome trim downward to wrap pocket arches and hide exposed wood
+  const chromePlateThickness = railH * 0.16; // extend chrome trim downward to wrap pocket arches
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateExpansionX = TABLE.THICK * 0.6;
   const chromePlateExpansionZ = TABLE.THICK * 0.62;
@@ -3117,92 +3117,6 @@ function Table3D(parent) {
   });
   railsGroup.add(chromePlates);
 
-  const chromeArchThickness = Math.max(railH * 0.48, TABLE.THICK * 0.22);
-  const chromeArchBevel = Math.min(
-    chromeArchThickness * 0.24,
-    TABLE.THICK * 0.045
-  );
-  const createChromeArchMesh = (mpWorld, innerScale = 0.72) => {
-    if (!Array.isArray(mpWorld) || !mpWorld.length) return null;
-
-    let baseRing = null;
-    for (const poly of mpWorld) {
-      if (Array.isArray(poly) && poly[0]?.length) {
-        baseRing = poly[0];
-        break;
-      }
-    }
-    if (!baseRing?.length) return null;
-
-    const centroid = centroidFromRing(baseRing);
-    const centerX = centroid.x;
-    const centerZ = centroid.y;
-
-    const toLocalMP = (mp) =>
-      mp
-        .map((poly) => {
-          if (!Array.isArray(poly)) return null;
-          const rings = poly
-            .map((ring) => {
-              if (!Array.isArray(ring)) return null;
-              return ring.map(([x, z]) => [x - centerX, -(z - centerZ)]);
-            })
-            .filter((ring) => Array.isArray(ring) && ring.length > 0);
-          return rings.length ? rings : null;
-        })
-        .filter((poly) => Array.isArray(poly) && poly.length > 0);
-
-    const localOuter = toLocalMP(mpWorld);
-    if (!localOuter.length) return null;
-
-    const localInner = scaleMultiPolygon(localOuter, innerScale);
-    if (!localInner?.length) return null;
-
-    const ringMP = polygonClipping.difference(localOuter, localInner);
-    const shapes = multiPolygonToShapes(ringMP);
-    if (!shapes.length) return null;
-
-    const geo = new THREE.ExtrudeGeometry(shapes, {
-      depth: chromeArchThickness,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      bevelSize: chromeArchBevel,
-      bevelThickness: chromeArchBevel * 0.65,
-      curveSegments: 64
-    });
-    geo.rotateX(-Math.PI / 2);
-    geo.computeVertexNormals();
-
-    const mesh = new THREE.Mesh(geo, chromePlateMat);
-    mesh.position.set(centerX, railsTopY - chromeArchThickness + MICRO_EPS * 2, centerZ);
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    return mesh;
-  };
-
-  const chromeArches = new THREE.Group();
-  [
-    { sx: -1, sz: -1 },
-    { sx: 1, sz: -1 },
-    { sx: 1, sz: 1 },
-    { sx: -1, sz: 1 }
-  ].forEach(({ sx, sz }) => {
-    const mpWorld = cornerNotchMP(sx, sz);
-    const arch = createChromeArchMesh(mpWorld, 0.68);
-    if (arch) chromeArches.add(arch);
-  });
-  [
-    { sx: -1 },
-    { sx: 1 }
-  ].forEach(({ sx }) => {
-    const mpWorld = sideNotchMP(sx);
-    const arch = createChromeArchMesh(mpWorld, 0.72);
-    if (arch) chromeArches.add(arch);
-  });
-  if (chromeArches.children.length) {
-    railsGroup.add(chromeArches);
-  }
-
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
@@ -3389,7 +3303,7 @@ function Table3D(parent) {
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
+    POCKET_VIS_R * 0.24 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
