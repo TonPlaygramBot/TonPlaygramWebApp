@@ -3147,10 +3147,11 @@ function Table3D(parent) {
   const railDiamondHeight =
     railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
   const railDiamondSideShift = TABLE.THICK * 0.12;
+  const railDiamondAdditionalSideShift = TABLE.THICK * 0.02;
   const spreadRailDiamond = (value, limit) => {
     if (Math.abs(value) < MICRO_EPS) return value;
     const base = Math.abs(value);
-    const desired = base + railDiamondSideShift;
+    const desired = base + railDiamondSideShift + railDiamondAdditionalSideShift;
     const effectiveLimit =
       Number.isFinite(limit) && limit > 0
         ? Math.max(base, Math.min(limit, desired))
