@@ -729,6 +729,9 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y; // keep cue stick level with the cue ball center
+const CUE_LENGTH_BASE = 1.5;
+const CUE_LENGTH_EXTENSION_RATIO = 0.35;
+const CUE_EXTRA_BUTT_TILT = THREE.MathUtils.degToRad(0.9);
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
@@ -1655,8 +1658,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.58;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.24;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.18;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.16;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.1;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -6166,26 +6169,32 @@ function SnookerGame() {
 
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
-      const cueLen = 1.5 * SCALE;
+      const cueBaseLen = CUE_LENGTH_BASE * SCALE;
+      const cueExtension = cueBaseLen * CUE_LENGTH_EXTENSION_RATIO;
+      const cueLen = cueBaseLen + cueExtension;
+      const cueFrontOffset = cueBaseLen / 2;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
       cueBodyRef.current = cueBody;
-      const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
-      const buttTilt = Math.asin(
-        Math.min(1, buttLift / Math.max(cueLen, 1e-4))
+      const baseTiltAngle = Math.asin(
+        Math.min(1, CUE_BUTT_LIFT / Math.max(cueBaseLen, 1e-4))
       );
-      const buttTipComp = Math.sin(buttTilt) * cueLen * 0.5;
+      const buttTilt = baseTiltAngle + CUE_EXTRA_BUTT_TILT;
+      const tipHeightOffset = Math.sin(buttTilt) * cueFrontOffset;
+      const cueBaseY = CUE_Y - tipHeightOffset;
       const applyCueButtTilt = (group, extraTilt = 0) => {
         if (!group) return;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
-        const len = info?.length ?? cueLen;
+        const frontOffset = info?.frontOffset ?? cueFrontOffset;
+        const baseY = info?.baseY ?? cueBaseY;
+        const dynamicOffset = info?.dynamicOffset ?? 0;
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
-        const tipComp = Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
+        const tipComp = Math.sin(totalTilt) * frontOffset;
+        group.position.y = baseY + dynamicOffset + tipComp;
         if (info) {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
@@ -6194,8 +6203,11 @@ function SnookerGame() {
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
-        tipCompensation: buttTipComp,
-        length: cueLen
+        tipCompensation: tipHeightOffset,
+        length: cueFrontOffset * 2,
+        frontOffset: cueFrontOffset,
+        baseY: cueBaseY,
+        dynamicOffset: 0
       };
 
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
@@ -6203,9 +6215,9 @@ function SnookerGame() {
         roughness: 0.6
       });
       const frontLength = THREE.MathUtils.clamp(
-        cueLen * CUE_FRONT_SECTION_RATIO,
-        cueLen * 0.1,
-        cueLen * 0.5
+        cueBaseLen * CUE_FRONT_SECTION_RATIO,
+        cueBaseLen * 0.1,
+        cueBaseLen * 0.5
       );
       const rearLength = Math.max(cueLen - frontLength, 1e-4);
       const tipShaftRadius = 0.008 * SCALE;
@@ -6213,7 +6225,7 @@ function SnookerGame() {
       const joinRadius = THREE.MathUtils.lerp(
         tipShaftRadius,
         buttShaftRadius,
-        THREE.MathUtils.clamp(frontLength / Math.max(cueLen, 1e-4), 0, 1)
+        THREE.MathUtils.clamp(frontLength / Math.max(cueBaseLen, 1e-4), 0, 1)
       );
 
       const rearShaft = new THREE.Mesh(
@@ -6221,14 +6233,15 @@ function SnookerGame() {
         shaftMaterial
       );
       rearShaft.rotation.x = -Math.PI / 2;
-      rearShaft.position.z = frontLength / 2;
+      rearShaft.position.z = frontLength / 2 + cueExtension / 2;
       cueBody.add(rearShaft);
 
       // group for tip & front shaft so the whole thin end moves for spin
       const tipGroup = new THREE.Group();
-      tipGroup.position.z = -cueLen / 2;
+      tipGroup.position.set(0, 0, -cueFrontOffset);
       cueBody.add(tipGroup);
       tipGroupRef.current = tipGroup;
+      cueStick.userData.tipAnchor = { offsetZ: cueFrontOffset, offsetY: 0 };
 
       if (frontLength > 1e-4) {
         const frontShaft = new THREE.Mesh(
@@ -6325,7 +6338,8 @@ function SnookerGame() {
         cueBody.add(stripe);
       }
 
-      cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
+      cueStick.position.set(cue.pos.x, cueBaseY, cue.pos.y + 1.2 * SCALE);
+      cueStick.userData.buttTilt.dynamicOffset = 0;
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
@@ -7393,16 +7407,21 @@ function SnookerGame() {
             perp.z * side
           );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.x - dir.x * (cueFrontOffset + pull + CUE_TIP_GAP) + spinWorld.x,
+            cueBaseY + spinWorld.y,
+            cue.pos.y - dir.z * (cueFrontOffset + pull + CUE_TIP_GAP) + spinWorld.z
           );
+          const buttInfo = cueStick.userData?.buttTilt;
+          if (buttInfo) buttInfo.dynamicOffset = spinWorld.y;
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            const anchor = cueStick.userData?.tipAnchor;
+            const offsetZ = anchor?.offsetZ ?? cueFrontOffset;
+            const offsetY = anchor?.offsetY ?? 0;
+            tipGroupRef.current.position.set(0, offsetY, -offsetZ);
           }
           cueStick.visible = true;
           if (afterDir) {
@@ -7423,7 +7442,15 @@ function SnookerGame() {
           tick.visible = false;
           target.visible = false;
           if (tipGroupRef.current) {
-            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+            const anchor = cueStick.userData?.tipAnchor;
+            const offsetZ = anchor?.offsetZ ?? cueFrontOffset;
+            const offsetY = anchor?.offsetY ?? 0;
+            tipGroupRef.current.position.set(0, offsetY, -offsetZ);
+          }
+          const buttInfo = cueStick.userData?.buttTilt;
+          if (buttInfo) {
+            buttInfo.dynamicOffset = 0;
+            applyCueButtTilt(cueStick, 0);
           }
           if (!cueAnimating) cueStick.visible = false;
         }
