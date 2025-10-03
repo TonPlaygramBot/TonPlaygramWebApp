@@ -2912,8 +2912,8 @@ function Table3D(parent) {
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.075; // nudge cushions a touch farther from the rails so the green lip never overlaps the wood
-  const SHORT_CUSHION_HEIGHT_SCALE = 0.985; // shave a hint off the short-rail cushions so their top edge sits perfectly level with the wooden caps
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // push cushions slightly farther from the rails to keep the green cushion lip clear of the wood
+  const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep every cushion at the same height as the surrounding wooden rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
@@ -3361,7 +3361,7 @@ function Table3D(parent) {
   const SHORT_CUSHION_EXTENSION =
     POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // trim the long cushions ever so slightly sooner so their ends align with the chrome plates
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
     POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
@@ -3369,7 +3369,7 @@ function Table3D(parent) {
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // let the side cushions stretch a touch closer to the corner pockets without overrunning them
+    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
