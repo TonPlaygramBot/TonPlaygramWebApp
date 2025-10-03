@@ -126,48 +126,75 @@ function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
   }
-  return mp.map((poly) =>
-    Array.isArray(poly)
-      ? poly.map((ring) =>
-          Array.isArray(ring)
-            ? ring.map((pt) => {
-                if (!Array.isArray(pt) || pt.length < 2) return pt;
-                const [x, z] = pt;
-                const deltaZ = z - centerZ;
-                const towardCenter = -sz * deltaZ;
-                if (towardCenter <= 0) return [x, z];
-                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
-              })
-            : ring
-        )
-      : poly
-  );
+  return mp.map((poly) => {
+    if (!Array.isArray(poly)) return poly;
+    let maxToward = 0;
+    poly.forEach((ring) => {
+      if (!Array.isArray(ring)) return;
+      ring.forEach((pt) => {
+        if (!Array.isArray(pt) || pt.length < 2) return;
+        const deltaZ = pt[1] - centerZ;
+        const towardCenter = -sz * deltaZ;
+        if (towardCenter > maxToward) {
+          maxToward = towardCenter;
+        }
+      });
+    });
+    if (maxToward <= 0) return poly;
+    return poly.map((ring) =>
+      Array.isArray(ring)
+        ? ring.map((pt) => {
+            if (!Array.isArray(pt) || pt.length < 2) return pt;
+            const [x, z] = pt;
+            const deltaZ = z - centerZ;
+            const towardCenter = -sz * deltaZ;
+            if (towardCenter <= 0) return [x, z];
+            const normalized = Math.min(1, towardCenter / maxToward);
+            const scale = THREE.MathUtils.lerp(1, CHROME_CORNER_NOTCH_CENTER_SCALE, normalized);
+            return [x, centerZ + deltaZ * scale];
+          })
+        : ring
+    );
+  });
 }
 
 function adjustSideNotchDepth(mp) {
   if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
-  return mp.map((poly) =>
-    Array.isArray(poly)
-      ? poly.map((ring) =>
-          Array.isArray(ring)
-            ? ring.map((pt) => {
-                if (!Array.isArray(pt) || pt.length < 2) return pt;
-                const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
-              })
-            : ring
-        )
-      : poly
-  );
+  return mp.map((poly) => {
+    if (!Array.isArray(poly)) return poly;
+    let maxAbsZ = 0;
+    poly.forEach((ring) => {
+      if (!Array.isArray(ring)) return;
+      ring.forEach((pt) => {
+        if (!Array.isArray(pt) || pt.length < 2) return;
+        const absZ = Math.abs(pt[1]);
+        if (absZ > maxAbsZ) {
+          maxAbsZ = absZ;
+        }
+      });
+    });
+    if (maxAbsZ <= 0) return poly;
+    return poly.map((ring) =>
+      Array.isArray(ring)
+        ? ring.map((pt) => {
+            if (!Array.isArray(pt) || pt.length < 2) return pt;
+            const [x, z] = pt;
+            const normalized = Math.min(1, Math.abs(z) / maxAbsZ);
+            const scale = THREE.MathUtils.lerp(1, CHROME_SIDE_NOTCH_DEPTH_SCALE, normalized);
+            return [x, z * scale];
+          })
+        : ring
+    );
+  });
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.92;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.88;
 
 function buildChromePlateGeometry({
   width,
@@ -1648,7 +1675,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.96;
+const STANDING_VIEW_PHI = 0.92;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -3303,7 +3330,7 @@ function Table3D(parent) {
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.31 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
+    POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
