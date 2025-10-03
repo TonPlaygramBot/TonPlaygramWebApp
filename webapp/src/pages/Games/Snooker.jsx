@@ -163,11 +163,11 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.962;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.82;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.72;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.95;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.72;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.7;
 
 function buildChromePlateGeometry({
   width,
@@ -2908,7 +2908,7 @@ function Table3D(parent) {
   );
   const sidePlateHeightByCushion = sidePlateHalfHeightLimit * 2;
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.88,
+    chromePlateHeight * 0.94,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
