@@ -2898,7 +2898,10 @@ function Table3D(parent) {
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
-  const sideChromePlateWidth = Math.min(sidePlatePocketWidth, sidePlateMaxWidth);
+  const sideChromePlateWidth = Math.max(
+    MICRO_EPS,
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.05
+  );
   const sidePlateHalfHeightLimit = Math.max(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
@@ -3143,6 +3146,17 @@ function Table3D(parent) {
   const railDiamonds = new THREE.Group();
   const railDiamondHeight =
     railsTopY - railDiamondThickness / 2 + TABLE.THICK * 0.012;
+  const railDiamondSideShift = TABLE.THICK * 0.1;
+  const spreadRailDiamond = (value, limit) => {
+    if (Math.abs(value) < MICRO_EPS) return value;
+    const base = Math.abs(value);
+    const desired = base + railDiamondSideShift;
+    const effectiveLimit =
+      Number.isFinite(limit) && limit > 0
+        ? Math.max(base, Math.min(limit, desired))
+        : desired;
+    return Math.sign(value) * effectiveLimit;
+  };
   const computeRailDiamondOffset = (railWidth) => {
     const target = Math.max(railWidth * 0.62, TABLE.THICK * 0.12);
     const maxOffset = Math.max(railWidth - TABLE.THICK * 0.08, TABLE.THICK * 0.12);
@@ -3150,6 +3164,8 @@ function Table3D(parent) {
   };
   const longRailDiamondOffset = computeRailDiamondOffset(endRailW);
   const shortRailDiamondOffset = computeRailDiamondOffset(longRailW);
+  const longRailDiamondMaxX = Math.max(0, cushionInnerX - TABLE.THICK * 0.04);
+  const shortRailDiamondMaxZ = Math.max(0, cushionInnerZ - TABLE.THICK * 0.04);
   const longRailDiamondZ = Math.max(
     halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + TABLE.THICK * 0.08,
     halfH + longRailDiamondOffset
@@ -3160,7 +3176,7 @@ function Table3D(parent) {
   );
   const longRailIndices = [-3, -1, 1, 3];
   longRailIndices.forEach((index) => {
-    const x = (index * PLAY_W) / 8;
+    const x = spreadRailDiamond((index * PLAY_W) / 8, longRailDiamondMaxX);
     [-1, 1].forEach((sz) => {
       const diamond = createRailDiamond();
       diamond.position.set(x, railDiamondHeight, sz * longRailDiamondZ);
@@ -3169,7 +3185,7 @@ function Table3D(parent) {
   });
   const shortRailIndices = [-2, 0, 2];
   shortRailIndices.forEach((index) => {
-    const z = (index * PLAY_H) / 8;
+    const z = spreadRailDiamond((index * PLAY_H) / 8, shortRailDiamondMaxZ);
     [-1, 1].forEach((sx) => {
       const diamond = createRailDiamond();
       diamond.rotation.y = Math.PI / 2;
