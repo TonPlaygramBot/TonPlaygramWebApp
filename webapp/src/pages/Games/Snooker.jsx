@@ -168,6 +168,12 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.95;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.7;
+const CHROME_CORNER_LINER_INNER_SCALE = 0.78;
+const CHROME_CORNER_LINER_DEPTH_SCALE = 0.84;
+const CHROME_SIDE_LINER_INNER_SCALE = 0.76;
+const CHROME_SIDE_LINER_DEPTH_SCALE = 0.8;
+const CHROME_NOTCH_LINER_TOP_OFFSET_SCALE = 0.06;
+const CHROME_NOTCH_LINER_SEGMENTS = 96;
 
 function buildChromePlateGeometry({
   width,
@@ -348,6 +354,41 @@ function buildChromePlateGeometry({
     bevelSize,
     bevelThickness,
     curveSegments: 64
+  });
+  geo.rotateX(-Math.PI / 2);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function buildChromeNotchLinerGeometry({
+  notchMP,
+  innerScale = 0.8,
+  depth = 1,
+  shapeSegments = 48
+}) {
+  if (!Array.isArray(notchMP) || notchMP.length === 0) {
+    return null;
+  }
+  if (!Number.isFinite(innerScale) || innerScale <= 0) {
+    return null;
+  }
+  const scaled = scaleMultiPolygon(notchMP, innerScale);
+  if (!scaled.length) {
+    return null;
+  }
+  const ringMP = polygonClipping.difference(notchMP, scaled);
+  if (!ringMP.length) {
+    return null;
+  }
+  const shapes = multiPolygonToShapes(ringMP);
+  if (!shapes.length) {
+    return null;
+  }
+  const geo = new THREE.ExtrudeGeometry(shapes, {
+    depth: Math.max(MICRO_EPS, depth),
+    bevelEnabled: false,
+    curveSegments: shapeSegments,
+    steps: 1
   });
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
@@ -3116,6 +3157,55 @@ function Table3D(parent) {
     chromePlates.add(plate);
   });
   railsGroup.add(chromePlates);
+
+  const chromeNotchLiners = new THREE.Group();
+  const notchLinerTop = chromePlateY + chromePlateThickness * CHROME_NOTCH_LINER_TOP_OFFSET_SCALE;
+  const cornerLinerDepth = Math.max(
+    MICRO_EPS,
+    railH * CHROME_CORNER_LINER_DEPTH_SCALE
+  );
+  const sideLinerDepth = Math.max(MICRO_EPS, railH * CHROME_SIDE_LINER_DEPTH_SCALE);
+
+  [
+    { sx: -1, sz: -1 },
+    { sx: 1, sz: -1 },
+    { sx: 1, sz: 1 },
+    { sx: -1, sz: 1 }
+  ].forEach(({ sx, sz }) => {
+    const notchMP = cornerNotchMP(sx, sz);
+    const linerGeo = buildChromeNotchLinerGeometry({
+      notchMP,
+      innerScale: CHROME_CORNER_LINER_INNER_SCALE,
+      depth: cornerLinerDepth,
+      shapeSegments: CHROME_NOTCH_LINER_SEGMENTS
+    });
+    if (!linerGeo) return;
+    const liner = new THREE.Mesh(linerGeo, chromePlateMat);
+    liner.position.y = notchLinerTop - cornerLinerDepth;
+    liner.castShadow = false;
+    liner.receiveShadow = false;
+    chromeNotchLiners.add(liner);
+  });
+
+  [
+    { sx: -1 },
+    { sx: 1 }
+  ].forEach(({ sx }) => {
+    const notchMP = sideNotchMP(sx);
+    const linerGeo = buildChromeNotchLinerGeometry({
+      notchMP,
+      innerScale: CHROME_SIDE_LINER_INNER_SCALE,
+      depth: sideLinerDepth,
+      shapeSegments: CHROME_NOTCH_LINER_SEGMENTS
+    });
+    if (!linerGeo) return;
+    const liner = new THREE.Mesh(linerGeo, chromePlateMat);
+    liner.position.y = notchLinerTop - sideLinerDepth;
+    liner.castShadow = false;
+    liner.receiveShadow = false;
+    chromeNotchLiners.add(liner);
+  });
+  railsGroup.add(chromeNotchLiners);
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
