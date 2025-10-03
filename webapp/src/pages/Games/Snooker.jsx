@@ -2912,8 +2912,8 @@ function Table3D(parent) {
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // push cushions slightly farther from the rails to keep the green cushion lip clear of the wood
-  const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep every cushion at the same height as the surrounding wooden rails
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.045; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const SHORT_CUSHION_HEIGHT_SCALE = 1.14; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
@@ -2932,7 +2932,7 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const chromePlateThickness = railH * 0.32; // extend chrome trim downward a touch more so every plate drops uniformly along the rails
+  const chromePlateThickness = railH * 0.28; // extend chrome trim downward to wrap pocket arches
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateExpansionX = TABLE.THICK * 0.78;
   const chromePlateExpansionZ = TABLE.THICK * 0.82;
