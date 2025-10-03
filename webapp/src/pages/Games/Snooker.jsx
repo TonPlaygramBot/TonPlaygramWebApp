@@ -353,76 +353,6 @@ function buildChromePlateGeometry({
   geo.computeVertexNormals();
   return geo;
 }
-
-function buildPocketRingGeometry({
-  notchMP,
-  thickness,
-  innerScale = 0.9,
-  outerScale = 1,
-  shapeSegments = 96
-}) {
-  if (!Array.isArray(notchMP) || notchMP.length === 0) return null;
-  if (!Number.isFinite(thickness) || thickness <= 0) return null;
-
-  const cloneAndClose = (mp) =>
-    mp
-      .map((poly) => {
-        if (!Array.isArray(poly) || !poly.length) return null;
-        const rings = poly
-          .map((ring) => {
-            if (!Array.isArray(ring) || !ring.length) return null;
-            const pts = ring
-              .map((pt) =>
-                Array.isArray(pt) && pt.length >= 2 ? [pt[0], pt[1]] : null
-              )
-              .filter(Boolean);
-            if (!pts.length) return null;
-            const first = pts[0];
-            const last = pts[pts.length - 1];
-            if (
-              first &&
-              last &&
-              (first[0] !== last[0] || first[1] !== last[1])
-            ) {
-              pts.push([first[0], first[1]]);
-            }
-            return pts;
-          })
-          .filter(Boolean);
-        return rings.length ? rings : null;
-      })
-      .filter(Boolean);
-
-  const outerMPSource =
-    typeof outerScale === 'number' && outerScale !== 1
-      ? scaleMultiPolygon(notchMP, outerScale)
-      : notchMP;
-  const innerMPSource = scaleMultiPolygon(notchMP, innerScale);
-  if (!Array.isArray(outerMPSource) || !outerMPSource.length) return null;
-  if (!Array.isArray(innerMPSource) || !innerMPSource.length) return null;
-
-  const outerMP = cloneAndClose(outerMPSource);
-  const innerMP = cloneAndClose(innerMPSource);
-  if (!outerMP.length || !innerMP.length) return null;
-
-  let ringMP;
-  try {
-    ringMP = polygonClipping.difference(outerMP, innerMP);
-  } catch (err) {
-    return null;
-  }
-  const shapes = multiPolygonToShapes(ringMP);
-  if (!shapes.length) return null;
-
-  const geo = new THREE.ExtrudeGeometry(shapes, {
-    depth: thickness,
-    bevelEnabled: false,
-    curveSegments: shapeSegments
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.computeVertexNormals();
-  return geo;
-}
 function addPocketCuts(parent, clothPlane) {
   const cuts = [];
   const sideDepth =
@@ -624,13 +554,6 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_ARCH_INNER_SCALE = 0.86;
-const POCKET_ARCH_RIM_INNER_SCALE = 0.92;
-const POCKET_ARCH_RIM_OUTER_SCALE = 1.01;
-const POCKET_ARCH_OVERLAY_OFFSET = MICRO_EPS * 4;
-const POCKET_ARCH_RIM_OFFSET = MICRO_EPS * 6;
-const POCKET_ARCH_RIM_DEPTH_MIN = MICRO_EPS * 24;
-const POCKET_ARCH_RIM_DEPTH_SCALE = 0.18;
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
@@ -2945,29 +2868,6 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const pocketArchMat = new THREE.MeshPhysicalMaterial({
-    color: 0x111111,
-    metalness: 0.18,
-    roughness: 0.86,
-    reflectivity: 0.18,
-    clearcoat: 0.08,
-    clearcoatRoughness: 0.92,
-    sheen: 0.02,
-    sheenRoughness: 0.78,
-    envMapIntensity: 0.5
-  });
-  const pocketArchRimMat = new THREE.MeshPhysicalMaterial({
-    color: 0x1a1a1a,
-    metalness: 0.16,
-    roughness: 0.78,
-    reflectivity: 0.24,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.82,
-    sheen: 0.04,
-    sheenRoughness: 0.7,
-    envMapIntensity: 0.58
-  });
-
   const chromePlateThickness = railH * 0.28; // extend chrome trim downward to wrap pocket arches
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromePlateExpansionX = TABLE.THICK * 0.78;
@@ -3157,54 +3057,7 @@ function Table3D(parent) {
   };
 
   const chromePlates = new THREE.Group();
-  const pocketArchGroup = new THREE.Group();
   const chromePlateShapeSegments = 128;
-
-  const addPocketArchElements = (notchLocalMP, centerX, centerZ) => {
-    if (!Array.isArray(notchLocalMP) || !notchLocalMP.length) return;
-    const archGeom = buildPocketRingGeometry({
-      notchMP: notchLocalMP,
-      thickness: chromePlateThickness,
-      innerScale: POCKET_ARCH_INNER_SCALE,
-      shapeSegments: chromePlateShapeSegments
-    });
-    if (archGeom) {
-      const archMesh = new THREE.Mesh(archGeom, pocketArchMat);
-      archMesh.position.set(
-        centerX,
-        chromePlateY + POCKET_ARCH_OVERLAY_OFFSET,
-        centerZ
-      );
-      archMesh.castShadow = false;
-      archMesh.receiveShadow = false;
-      archMesh.renderOrder = 5;
-      pocketArchGroup.add(archMesh);
-    }
-
-    const rimThickness = Math.max(
-      POCKET_ARCH_RIM_DEPTH_MIN,
-      chromePlateThickness * POCKET_ARCH_RIM_DEPTH_SCALE
-    );
-    const rimGeom = buildPocketRingGeometry({
-      notchMP: notchLocalMP,
-      thickness: rimThickness,
-      innerScale: POCKET_ARCH_RIM_INNER_SCALE,
-      outerScale: POCKET_ARCH_RIM_OUTER_SCALE,
-      shapeSegments: chromePlateShapeSegments
-    });
-    if (rimGeom) {
-      const rimMesh = new THREE.Mesh(rimGeom, pocketArchRimMat);
-      rimMesh.position.set(
-        centerX,
-        railsTopY + POCKET_ARCH_RIM_OFFSET,
-        centerZ
-      );
-      rimMesh.castShadow = false;
-      rimMesh.receiveShadow = false;
-      rimMesh.renderOrder = 6;
-      pocketArchGroup.add(rimMesh);
-    }
-  };
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
@@ -3234,7 +3087,6 @@ function Table3D(parent) {
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
-    addPocketArchElements(notchLocalMP, centerX, centerZ);
   });
 
   [
@@ -3262,12 +3114,8 @@ function Table3D(parent) {
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
-    addPocketArchElements(notchLocalMP, centerX, centerZ);
   });
   railsGroup.add(chromePlates);
-  if (pocketArchGroup.children.length) {
-    railsGroup.add(pocketArchGroup);
-  }
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
