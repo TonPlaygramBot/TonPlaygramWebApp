@@ -206,10 +206,7 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.82;
 const CHROME_NOTCH_LINER_CORNER_INNER_SCALE = 0.94;
 const CHROME_NOTCH_LINER_SIDE_INNER_SCALE = 0.9;
 const CHROME_ARCH_CAP_INNER_SCALE = 1.06;
-const CHROME_CORNER_NOTCH_ROUND_RADIUS_SCALE = 0.94;
-const CHROME_CORNER_NOTCH_DOWN_SHIFT_SCALE = 0.12;
-const CHROME_CORNER_NOTCH_SIDE_SHIFT_SCALE = 0.04;
-const CHROME_SIDE_NOTCH_ROUND_RADIUS_SCALE = 0.95;
+const CHROME_ARCH_CAP_DEPTH_SCALE = 0.6;
 
 function buildChromePlateGeometry({
   width,
@@ -627,6 +624,7 @@ const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the l
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.08; // keep pocket cut overlays hovering just above the chrome trim
+const CHROME_ARCH_CAP_LIFT = MICRO_EPS * 2;
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -2909,6 +2907,16 @@ function Table3D(parent) {
     sheenRoughness: 0.62,
     envMapIntensity: 1.05
   });
+  const chromeArchMat = new THREE.MeshStandardMaterial({
+    color: 0x0d0d0f,
+    metalness: 0.32,
+    roughness: 0.62,
+    envMapIntensity: 0.48,
+    side: THREE.DoubleSide
+  });
+  chromeArchMat.polygonOffset = true;
+  chromeArchMat.polygonOffsetFactor = -1;
+  chromeArchMat.polygonOffsetUnits = -2;
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -3049,16 +3057,10 @@ function Table3D(parent) {
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
-    const circleShiftX =
-      -sx * (cornerPocketRadius * CHROME_CORNER_NOTCH_SIDE_SHIFT_SCALE);
-    const circleShiftZ =
-      -sz * (cornerPocketRadius * CHROME_CORNER_NOTCH_DOWN_SHIFT_SCALE);
     const notchCircle = circlePoly(
-      cx + circleShiftX,
-      cz + circleShiftZ,
-      cornerPocketRadius *
-        CHROME_CORNER_POCKET_RADIUS_SCALE *
-        CHROME_CORNER_NOTCH_ROUND_RADIUS_SCALE
+      cx,
+      cz,
+      cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE
     );
     const x1 = cx;
     const x2 = cx + sx * cornerChamfer;
@@ -3090,12 +3092,7 @@ function Table3D(parent) {
       Math.min(throatHeight / 2, radius * 0.6)
     );
 
-    const circle = circlePoly(
-      cx,
-      0,
-      radius * CHROME_SIDE_NOTCH_ROUND_RADIUS_SCALE,
-      256
-    );
+    const circle = circlePoly(cx, 0, radius, 256);
     const throat = roundedRectPoly(
       cx + (sx * throatLength) / 2,
       0,
@@ -3111,6 +3108,7 @@ function Table3D(parent) {
 
   const chromePlates = new THREE.Group();
   const chromeNotchLiners = new THREE.Group();
+  const chromeArchCaps = new THREE.Group();
   const chromePlateShapeSegments = 128;
   const toLocalMP = (mp, cx, cz) =>
     mp.map((poly) =>
@@ -3198,6 +3196,27 @@ function Table3D(parent) {
       linerMesh.castShadow = false;
       linerMesh.receiveShadow = true;
       chromeNotchLiners.add(linerMesh);
+
+      const capDepth =
+        chromePlateThickness * CHROME_ARCH_CAP_DEPTH_SCALE + MICRO_EPS * 2;
+      const capGeo = new THREE.ExtrudeGeometry(archShapes, {
+        depth: capDepth,
+        bevelEnabled: false,
+        curveSegments: chromePlateShapeSegments
+      });
+      if (archOffsetLocal.x || archOffsetLocal.z) {
+        capGeo.translate(archOffsetLocal.x, archOffsetLocal.z, 0);
+      }
+      capGeo.rotateX(-Math.PI / 2);
+      const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
+      capMesh.position.set(
+        centerX,
+        railsTopY - capDepth + CHROME_ARCH_CAP_LIFT,
+        centerZ
+      );
+      capMesh.castShadow = false;
+      capMesh.receiveShadow = false;
+      chromeArchCaps.add(capMesh);
     }
   });
 
@@ -3281,11 +3300,35 @@ function Table3D(parent) {
       linerMesh.castShadow = false;
       linerMesh.receiveShadow = true;
       chromeNotchLiners.add(linerMesh);
+
+      const capDepth =
+        chromePlateThickness * CHROME_ARCH_CAP_DEPTH_SCALE + MICRO_EPS * 2;
+      const capGeo = new THREE.ExtrudeGeometry(archShapes, {
+        depth: capDepth,
+        bevelEnabled: false,
+        curveSegments: chromePlateShapeSegments
+      });
+      if (archOffsetLocal.x || archOffsetLocal.z) {
+        capGeo.translate(archOffsetLocal.x, archOffsetLocal.z, 0);
+      }
+      capGeo.rotateX(-Math.PI / 2);
+      const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
+      capMesh.position.set(
+        centerX,
+        railsTopY - capDepth + CHROME_ARCH_CAP_LIFT,
+        centerZ
+      );
+      capMesh.castShadow = false;
+      capMesh.receiveShadow = false;
+      chromeArchCaps.add(capMesh);
     }
   });
   railsGroup.add(chromePlates);
   if (chromeNotchLiners.children.length) {
     railsGroup.add(chromeNotchLiners);
+  }
+  if (chromeArchCaps.children.length) {
+    railsGroup.add(chromeArchCaps);
   }
 
   let openingMP = polygonClipping.union(
