@@ -170,6 +170,8 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.72;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.82;
 const CHROME_NOTCH_LINER_CORNER_INNER_SCALE = 0.94;
 const CHROME_NOTCH_LINER_SIDE_INNER_SCALE = 0.9;
+const CHROME_ARCH_CAP_INNER_SCALE = 1.06;
+const CHROME_ARCH_CAP_DEPTH_SCALE = 0.6;
 
 function buildChromePlateGeometry({
   width,
@@ -587,6 +589,7 @@ const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the l
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.08; // keep pocket cut overlays hovering just above the chrome trim
+const CHROME_ARCH_CAP_LIFT = MICRO_EPS * 2;
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -3115,7 +3118,14 @@ function Table3D(parent) {
       centerX,
       centerZ
     );
-    const archLocalMP = polygonClipping.difference(notchLocalMP, pocketLocalMP);
+    const scaledCornerPocketMP = (() => {
+      const scaled = scaleMultiPolygon(pocketLocalMP, CHROME_ARCH_CAP_INNER_SCALE);
+      return Array.isArray(scaled) && scaled.length ? scaled : pocketLocalMP;
+    })();
+    const archLocalMP = polygonClipping.difference(
+      notchLocalMP,
+      scaledCornerPocketMP
+    );
     const archShapes = multiPolygonToShapes(archLocalMP);
     if (archShapes.length) {
       const linerDepth = railH + MICRO_EPS * 4;
@@ -3131,7 +3141,8 @@ function Table3D(parent) {
       linerMesh.receiveShadow = true;
       chromeNotchLiners.add(linerMesh);
 
-      const capDepth = chromePlateThickness + MICRO_EPS * 6;
+      const capDepth =
+        chromePlateThickness * CHROME_ARCH_CAP_DEPTH_SCALE + MICRO_EPS * 2;
       const capGeo = new THREE.ExtrudeGeometry(archShapes, {
         depth: capDepth,
         bevelEnabled: false,
@@ -3139,7 +3150,11 @@ function Table3D(parent) {
       });
       capGeo.rotateX(-Math.PI / 2);
       const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
-      capMesh.position.set(centerX, chromePlateY + MICRO_EPS * 6, centerZ);
+      capMesh.position.set(
+        centerX,
+        railsTopY - capDepth + CHROME_ARCH_CAP_LIFT,
+        centerZ
+      );
       capMesh.castShadow = false;
       capMesh.receiveShadow = false;
       chromeArchCaps.add(capMesh);
@@ -3183,7 +3198,14 @@ function Table3D(parent) {
       centerX,
       centerZ
     );
-    const archLocalMP = polygonClipping.difference(notchLocalMP, pocketLocalMP);
+    const scaledSidePocketMP = (() => {
+      const scaled = scaleMultiPolygon(pocketLocalMP, CHROME_ARCH_CAP_INNER_SCALE);
+      return Array.isArray(scaled) && scaled.length ? scaled : pocketLocalMP;
+    })();
+    const archLocalMP = polygonClipping.difference(
+      notchLocalMP,
+      scaledSidePocketMP
+    );
     const archShapes = multiPolygonToShapes(archLocalMP);
     if (archShapes.length) {
       const linerDepth = railH + MICRO_EPS * 4;
@@ -3199,7 +3221,8 @@ function Table3D(parent) {
       linerMesh.receiveShadow = true;
       chromeNotchLiners.add(linerMesh);
 
-      const capDepth = chromePlateThickness + MICRO_EPS * 6;
+      const capDepth =
+        chromePlateThickness * CHROME_ARCH_CAP_DEPTH_SCALE + MICRO_EPS * 2;
       const capGeo = new THREE.ExtrudeGeometry(archShapes, {
         depth: capDepth,
         bevelEnabled: false,
@@ -3207,7 +3230,11 @@ function Table3D(parent) {
       });
       capGeo.rotateX(-Math.PI / 2);
       const capMesh = new THREE.Mesh(capGeo, chromeArchMat);
-      capMesh.position.set(centerX, chromePlateY + MICRO_EPS * 6, centerZ);
+      capMesh.position.set(
+        centerX,
+        railsTopY - capDepth + CHROME_ARCH_CAP_LIFT,
+        centerZ
+      );
       capMesh.castShadow = false;
       capMesh.receiveShadow = false;
       chromeArchCaps.add(capMesh);
