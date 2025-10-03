@@ -499,7 +499,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
 const CORNER_MOUTH_REF = 89;
 const SIDE_MOUTH_REF = 109;
-const SIDE_RAIL_INNER_REDUCTION = 0.76;
+const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
@@ -3200,11 +3200,11 @@ function Table3D(parent) {
 
   table.add(railsGroup);
 
-  const FACE_SHRINK_LONG = 0.948;
+  const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
-  const NOSE_REDUCTION = 0.62;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.46;
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.74;
+  const NOSE_REDUCTION = 0.75;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const cushionHeightTarget = railsTopY - cushionBaseY;
   const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
@@ -3218,34 +3218,13 @@ function Table3D(parent) {
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = Math.max(
-      baseThickness * 0.18,
-      (noseThickness / Math.tan(rad)) * 0.85
-    );
+    const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
 
     const shape = new THREE.Shape();
     shape.moveTo(-halfLen, backY);
     shape.lineTo(halfLen, backY);
-    const blendInset = Math.min(straightCut, baseThickness * 0.32);
-    const controlLift = (backY - frontY) * 0.38;
-    shape.quadraticCurveTo(
-      halfLen - blendInset * 0.15,
-      backY - controlLift * 0.35,
-      halfLen - blendInset,
-      frontY + controlLift * 0.15
-    );
-    shape.quadraticCurveTo(
-      0,
-      frontY - controlLift * 0.55,
-      -halfLen + blendInset,
-      frontY + controlLift * 0.15
-    );
-    shape.quadraticCurveTo(
-      -halfLen + blendInset * 0.15,
-      backY - controlLift * 0.35,
-      -halfLen,
-      backY
-    );
+    shape.lineTo(halfLen - straightCut, frontY);
+    shape.lineTo(-halfLen + straightCut, frontY);
     shape.lineTo(-halfLen, backY);
 
     const cushionBevel = Math.min(railH, baseThickness) * 0.12;
