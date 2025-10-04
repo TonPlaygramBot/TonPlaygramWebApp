@@ -82,33 +82,26 @@ function drawPoolNumberBadge(ctx, size, number) {
 
   ctx.save();
 
-  // Draw a perfectly circular badge and keep all shading symmetrical by
-  // clipping to the round silhouette before applying gradients. This avoids
-  // any directional skew that could make the badge appear egg-shaped when the
-  // texture is wrapped onto the sphere.
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
-
-  ctx.save();
-  ctx.clip();
+  const badgePath = new Path2D();
+  badgePath.arc(cx, cy, radius, 0, Math.PI * 2);
 
   const bodyFill = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
   bodyFill.addColorStop(0, 'rgba(255,255,255,1)');
   bodyFill.addColorStop(0.65, 'rgba(244,244,244,1)');
   bodyFill.addColorStop(1, 'rgba(226,226,226,1)');
   ctx.fillStyle = bodyFill;
-  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+  ctx.fill(badgePath);
 
-  // Gentle rim shading to emphasise the circular silhouette evenly.
+  ctx.save();
   ctx.globalCompositeOperation = 'multiply';
   const rimShadow = ctx.createRadialGradient(cx, cy, radius * 0.6, cx, cy, radius);
   rimShadow.addColorStop(0, 'rgba(0,0,0,0)');
   rimShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.fillStyle = rimShadow;
-  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+  ctx.fill(badgePath);
+  ctx.restore();
 
-  // Balanced specular highlight that stays inside the circular mask.
+  ctx.save();
   ctx.globalCompositeOperation = 'screen';
   const gloss = ctx.createRadialGradient(
     cx - radius * 0.24,
@@ -121,14 +114,12 @@ function drawPoolNumberBadge(ctx, size, number) {
   gloss.addColorStop(0, 'rgba(255,255,255,0.82)');
   gloss.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gloss;
-  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
+  ctx.fill(badgePath);
   ctx.restore();
 
-  // Crisp outline with uniform thickness around the badge.
   ctx.lineWidth = size * 0.0115;
   ctx.strokeStyle = 'rgba(0,0,0,0.82)';
-  ctx.stroke();
+  ctx.stroke(badgePath);
 
   const fontSize = size * 0.178;
   ctx.fillStyle = '#0f0f0f';
