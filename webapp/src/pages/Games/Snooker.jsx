@@ -2870,12 +2870,23 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.6;
-  const chromePlateExpansionZ = TABLE.THICK * 0.62;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
+  const innerHalfW = halfWext;
+  const innerHalfH = halfHext;
+  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketReach = Math.sqrt(
+    Math.max(0, cornerPocketRadius * cornerPocketRadius - cornerInset * cornerInset)
+  );
+  const chromePlateTargetInnerX = Math.max(0, innerHalfW - (cornerInset + cornerPocketReach));
+  const chromePlateTargetInnerZ = Math.max(0, innerHalfH - (cornerInset + cornerPocketReach));
+  const chromePlateExpansionX = Math.max(0, chromePlateInnerLimitX - chromePlateTargetInnerX);
+  const chromePlateExpansionZ = Math.max(0, chromePlateInnerLimitZ - chromePlateTargetInnerZ);
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX
@@ -2916,12 +2927,8 @@ function Table3D(parent) {
     Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.04
   );
 
-  const innerHalfW = halfWext;
-  const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
-  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  // chrome plates now stop exactly at the arch where the cushions begin, so reuse the
+  // pocket reach calculations for the notch shapes as well
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -3292,20 +3299,26 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
+  const desiredHorizLen = Math.max(0, chromePlateTargetInnerX * 2);
+  const desiredVertInner = Math.max(0, chromePlateTargetInnerZ);
   const SHORT_CUSHION_EXTENSION =
     POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // trim the long cushions so pocket mouths stay open
   const LONG_CUSHION_CORNER_EXTENSION =
     POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+  const POCKET_GAP =
+    Math.max(0, (PLAY_W - LONG_CUSHION_TRIM - desiredHorizLen) * 0.5) +
+    SHORT_CUSHION_EXTENSION +
+    LONG_CUSHION_CORNER_EXTENSION; // set so the straight cushions finish exactly where the chrome arch begins
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // keep the side cushions flush with the pocket throat
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+  const sideCushionOffset =
+    POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
+    halfH - sideCushionOffset - desiredVertInner; // extend the side cushions so their ends meet the chrome precisely
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3319,8 +3332,6 @@ function Table3D(parent) {
 
   addCushion(0, bottomZ, horizLen, true, false);
   addCushion(0, topZ, horizLen, true, true);
-  const sideCushionOffset =
-    POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
   const trimmedVertSeg = Math.max(
     vertSeg - SIDE_CUSHION_CORNER_TRIM,
     vertSeg * 0.6
