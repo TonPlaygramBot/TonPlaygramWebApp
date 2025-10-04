@@ -172,6 +172,7 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const MIN_CLIPPED_SHAPE_AREA_RATIO = 0.02;
 
 function buildChromePlateGeometry({
   width,
@@ -339,7 +340,21 @@ function buildChromePlateGeometry({
         const clipped = polygonClipping.difference(baseMP, notchMP);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
-          shapesToExtrude = clippedShapes;
+          const areas = clippedShapes.map((s) => Math.abs(s.getArea()));
+          const maxArea = Math.max(...areas);
+          const minArea = Math.max(
+            MICRO_EPS * MICRO_EPS,
+            maxArea * MIN_CLIPPED_SHAPE_AREA_RATIO
+          );
+          shapesToExtrude = clippedShapes.filter((shape, index) => {
+            return Math.abs(areas[index]) >= minArea;
+          });
+          if (!shapesToExtrude.length) {
+            const largestIndex = areas.findIndex((area) => area === maxArea);
+            if (largestIndex >= 0) {
+              shapesToExtrude = [clippedShapes[largestIndex]];
+            }
+          }
         }
       }
     }
@@ -5541,7 +5556,9 @@ function SnookerGame() {
 
       const hospitalityScale = (TABLE_H * 0.48) / 0.75;
       const hospitalityUpscale = 6;
-      const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
+      const HOSPITALITY_FURNITURE_SCALE_MULTIPLIER = 2.5;
+      const furnitureScale =
+        hospitalityScale * 1.18 * hospitalityUpscale * HOSPITALITY_FURNITURE_SCALE_MULTIPLIER;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
 
       const createTableSet = () => {
@@ -5711,23 +5728,21 @@ function SnookerGame() {
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(furnitureScale);
-        tableSet.position.set(
-          0,
-          0,
-          depthOffset * 0.25 * hospitalityUpscale
-        );
+        const tableForwardOffset =
+          depthOffset * 0.25 * hospitalityUpscale * HOSPITALITY_FURNITURE_SCALE_MULTIPLIER;
+        tableSet.position.set(0, 0, tableForwardOffset);
         ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
 
         const chair = createChair();
         chair.scale.setScalar(furnitureScale);
-        chair.position.set(
-          mirror *
-            Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)) *
-            hospitalityUpscale,
-          0,
-          -depthOffset * 0.55 * hospitalityUpscale
-        );
+        const chairSideOffset =
+          Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)) *
+          hospitalityUpscale *
+          HOSPITALITY_FURNITURE_SCALE_MULTIPLIER;
+        const chairForwardOffset =
+          -depthOffset * 0.55 * hospitalityUpscale * HOSPITALITY_FURNITURE_SCALE_MULTIPLIER;
+        chair.position.set(mirror * chairSideOffset, 0, chairForwardOffset);
         chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
         ensureHospitalityVisibility(chair);
         group.add(chair);
@@ -5756,14 +5771,27 @@ function SnookerGame() {
         Math.max(minOffset, Math.min(outerLimit, preferredOffset))
       );
 
+      const hospitalityCornerClearance = Math.max(
+        wallThickness * 0.5,
+        toHospitalityUnits(0.4)
+      );
       [
-        { mirror: -1 },
-        { mirror: 1 }
-      ].forEach(({ mirror }) => {
+        {
+          mirror: -1,
+          x: leftInterior + hospitalityCornerClearance,
+          z: backInterior - hospitalityCornerClearance
+        },
+        {
+          mirror: 1,
+          x: rightInterior - hospitalityCornerClearance,
+          z: frontInterior + hospitalityCornerClearance
+        }
+      ].forEach(({ mirror, x, z }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror, walkway);
-        const cameraNeighborX = mirror * (tripodXOffset * 0.92);
-        const cameraNeighborZ = tripodZOffset * 0.9;
-        hospitalitySet.position.set(cameraNeighborX, floorY, cameraNeighborZ);
+        hospitalitySet.position.set(x, floorY, z);
+        if (x !== 0 || z !== 0) {
+          hospitalitySet.rotation.y = Math.atan2(-x, -z);
+        }
         ensureHospitalityVisibility(hospitalitySet);
         world.add(hospitalitySet);
       });
