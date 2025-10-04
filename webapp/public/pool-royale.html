@@ -1737,14 +1737,14 @@
         if (isAmerican) {
           COL = {
             cue: '#f5f5f5',
-            1: '#f5c400',
-            2: '#2256ff',
-            3: '#d92d30',
-            4: '#7c3aed',
-            5: '#ff8c1a',
-            6: '#1faa4a',
-            7: '#7a2f2f',
-            8: '#111'
+            1: '#FFD700',
+            2: '#1E50FF',
+            3: '#D12C2C',
+            4: '#7D3CB5',
+            5: '#FF7A00',
+            6: '#0FA35A',
+            7: '#7A1E1E',
+            8: '#000000'
           };
           // BALLS – 0..15 — cdo element ka { n, t, c }
           BALLS = [
@@ -1768,15 +1768,15 @@
         } else if (isNineBall) {
           COL = {
             cue: '#f5f5f5',
-            1: '#f5c400',
-            2: '#2256ff',
-            3: '#d92d30',
-            4: '#7c3aed',
-            5: '#ff8c1a',
-            6: '#1faa4a',
-            7: '#7a2f2f',
-            8: '#111',
-            9: '#f5c400'
+            1: '#FFD700',
+            2: '#1E50FF',
+            3: '#D12C2C',
+            4: '#7D3CB5',
+            5: '#FF7A00',
+            6: '#0FA35A',
+            7: '#7A1E1E',
+            8: '#000000',
+            9: '#FFD700'
           };
           BALLS = [
             { n: 0, t: 'cue', c: COL.cue },
@@ -2542,35 +2542,34 @@
             // trup i topit me gradient 2.5D
             ctx.save();
             ctx.translate(px, py);
+            var info = BALL_BY_N[b.n];
+            var stripe = info.t === 'stripe' && (isAmerican || isNineBall);
+            var bodyBaseColor = stripe ? '#f4f4f4' : info.c;
+
             // Snooker-style shading: subtle light on top-left and darker rim
             var grad = ctx.createRadialGradient(
-              -ballR * 0.3,
-              -ballR * 0.3,
+              -ballR * 0.35,
+              -ballR * 0.35,
               ballR * 0.1,
               0,
               0,
-              ballR * 1.05
+              ballR * 1.08
             );
-            grad.addColorStop(0, shadeColor(BALL_BY_N[b.n].c, 50));
-            grad.addColorStop(0.5, shadeColor(BALL_BY_N[b.n].c, 15));
-            grad.addColorStop(1, shadeColor(BALL_BY_N[b.n].c, -35));
+            grad.addColorStop(0, shadeColor(bodyBaseColor, 55));
+            grad.addColorStop(0.5, shadeColor(bodyBaseColor, stripe ? 8 : 18));
+            grad.addColorStop(1, shadeColor(bodyBaseColor, -42));
 
-            // stripe nese duhet
-            var stripe =
-              BALL_BY_N[b.n].t === 'stripe' && (isAmerican || isNineBall);
             var stripeGrad;
             if (stripe) {
-              stripeGrad = ctx.createRadialGradient(
-                -ballR * 0.3,
-                -ballR * 0.3,
-                ballR * 0.1,
+              stripeGrad = ctx.createLinearGradient(
                 0,
+                -ballR * 0.45,
                 0,
-                ballR * 1.05
+                ballR * 0.45
               );
-              stripeGrad.addColorStop(0, shadeColor('#fff', 35));
-              stripeGrad.addColorStop(0.5, '#fff');
-              stripeGrad.addColorStop(1, shadeColor('#fff', -45));
+              stripeGrad.addColorStop(0, shadeColor(info.c, 18));
+              stripeGrad.addColorStop(0.5, info.c);
+              stripeGrad.addColorStop(1, shadeColor(info.c, -18));
             }
 
             // draw base shading without rotation so shadow stays fixed
@@ -2578,7 +2577,7 @@
             ctx.beginPath();
             ctx.arc(0, 0, ballR, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = shadeColor(BALL_BY_N[b.n].c, -60);
+            ctx.strokeStyle = shadeColor(bodyBaseColor, -65);
             ctx.lineWidth = ballR * 0.05;
             ctx.stroke();
 
@@ -2610,39 +2609,46 @@
               ctx.beginPath();
               ctx.arc(0, 0, ballR, 0, Math.PI * 2);
               ctx.clip();
+              ctx.fillStyle = '#f4f4f4';
+              ctx.fillRect(-ballR, -ballR, ballR * 2, ballR * 2);
               ctx.fillStyle = stripeGrad;
-              ctx.fillRect(-ballR, -ballR * 0.3, ballR * 2, ballR * 0.6);
-              // thin white lines at stripe edges
-              ctx.strokeStyle = '#fff';
-              ctx.lineWidth = ballR * 0.06;
-              ctx.beginPath();
-              ctx.moveTo(-ballR, -ballR * 0.3);
-              ctx.lineTo(ballR, -ballR * 0.3);
-              ctx.moveTo(-ballR, ballR * 0.3);
-              ctx.lineTo(ballR, ballR * 0.3);
-              ctx.stroke();
+              ctx.fillRect(-ballR, -ballR * 0.45, ballR * 2, ballR * 0.9);
               ctx.restore();
             }
 
             // numri (vetem per varianten amerikane ose per topin e zi)
-            if (
-              b.n !== 0 &&
-              (isAmerican || isNineBall || BALL_BY_N[b.n].t === 'eight')
-            ) {
-              ctx.fillStyle = stripe
-                ? brighten(BALL_BY_N[b.n].c, 0.05)
-                : '#fff';
-              ctx.beginPath();
-              ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.lineWidth = ballR * 0.05;
-              ctx.strokeStyle = stripe ? '#fff' : '#000';
-              ctx.stroke();
-              ctx.fillStyle = stripe ? '#fff' : '#111';
-              ctx.font = ballR * 0.9 + 'px system-ui,sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(String(b.n), 0, 0);
+            if (b.n !== 0) {
+              if (isAmerican || isNineBall) {
+                var circleYOffset = ballR * 0.12;
+                var circleRadius = ballR * 0.32;
+                var circleFill = info.t === 'eight' ? '#000' : '#fff';
+                ctx.fillStyle = circleFill;
+                ctx.beginPath();
+                ctx.arc(0, circleYOffset, circleRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.lineWidth = ballR * 0.05;
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                ctx.stroke();
+                ctx.fillStyle = info.t === 'eight' ? '#fff' : '#000';
+                ctx.font =
+                  'bold ' + Math.max(ballR * 0.75, 10) + 'px Arial,system-ui,sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(b.n), 0, circleYOffset);
+              } else if (info.t === 'eight') {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(0, 0, ballR * 0.52, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.lineWidth = ballR * 0.05;
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+                ctx.fillStyle = '#111';
+                ctx.font = ballR * 0.9 + 'px system-ui,sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(b.n), 0, 0);
+              }
             }
 
             // cue ball seam hint
@@ -2848,55 +2854,76 @@
           var r = 8,
             cx = 10,
             cy = 10;
-          ctx.fillStyle = info.c;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.fill();
-          var hl = ctx.createRadialGradient(
-            cx - r * 0.4,
-            cy - r * 0.4,
-            2,
-            cx - r * 0.4,
-            cy - r * 0.4,
-            r * 1.2
-          );
-          hl.addColorStop(0, 'rgba(255,255,255,.55)');
-          hl.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.fillStyle = hl;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.fill();
           var stripe = info.t === 'stripe' && (isAmerican || isNineBall);
+          var bodyBaseColor = stripe ? '#f4f4f4' : info.c;
+          var grad = ctx.createRadialGradient(
+            cx - r * 0.45,
+            cy - r * 0.45,
+            r * 0.1,
+            cx,
+            cy,
+            r * 1.05
+          );
+          grad.addColorStop(0, shadeColor(bodyBaseColor, 50));
+          grad.addColorStop(0.5, shadeColor(bodyBaseColor, stripe ? 8 : 15));
+          grad.addColorStop(1, shadeColor(bodyBaseColor, -40));
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = shadeColor(bodyBaseColor, -60);
+          ctx.lineWidth = 1;
+          ctx.stroke();
           if (stripe) {
             ctx.save();
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.clip();
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(cx - r, cy - r * 0.3, r * 2, r * 0.6);
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = r * 0.15;
-            ctx.beginPath();
-            ctx.moveTo(cx - r, cy - r * 0.3);
-            ctx.lineTo(cx + r, cy - r * 0.3);
-            ctx.moveTo(cx - r, cy + r * 0.3);
-            ctx.lineTo(cx + r, cy + r * 0.3);
-            ctx.stroke();
+            ctx.fillStyle = '#f4f4f4';
+            ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+            var stripeGrad = ctx.createLinearGradient(
+              cx,
+              cy - r * 0.45,
+              cx,
+              cy + r * 0.45
+            );
+            stripeGrad.addColorStop(0, shadeColor(info.c, 18));
+            stripeGrad.addColorStop(0.5, info.c);
+            stripeGrad.addColorStop(1, shadeColor(info.c, -18));
+            ctx.fillStyle = stripeGrad;
+            ctx.fillRect(cx - r, cy - r * 0.45, r * 2, r * 0.9);
             ctx.restore();
           }
-          if (n !== 0 && (isAmerican || isNineBall || info.t === 'eight')) {
-            ctx.fillStyle = stripe ? info.c : '#fff';
-            ctx.beginPath();
-            ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.lineWidth = r * 0.1;
-            ctx.strokeStyle = stripe ? '#fff' : '#000';
-            ctx.stroke();
-            ctx.fillStyle = stripe ? '#fff' : '#111';
-            ctx.font = '8px system-ui,sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(n), cx, cy);
+          if (n !== 0) {
+            if (isAmerican || isNineBall) {
+              var miniOffset = r * 0.12;
+              var miniRadius = r * 0.32;
+              ctx.fillStyle = info.t === 'eight' ? '#000' : '#fff';
+              ctx.beginPath();
+              ctx.arc(cx, cy + miniOffset, miniRadius, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+              ctx.lineWidth = r * 0.12;
+              ctx.stroke();
+              ctx.fillStyle = info.t === 'eight' ? '#fff' : '#000';
+              ctx.font = 'bold 7px system-ui,Arial,sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(n), cx, cy + miniOffset);
+            } else if (info.t === 'eight') {
+              ctx.fillStyle = '#fff';
+              ctx.beginPath();
+              ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.lineWidth = r * 0.1;
+              ctx.strokeStyle = '#000';
+              ctx.stroke();
+              ctx.fillStyle = '#111';
+              ctx.font = '8px system-ui,sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(n), cx, cy);
+            }
           }
           return canv;
         }
