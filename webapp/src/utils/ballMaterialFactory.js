@@ -75,6 +75,44 @@ function drawNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
+function drawPoolNumberBadge(ctx, size, number) {
+  const radius = size * 0.16;
+  const cx = size * 0.5;
+  const cy = size * 0.5;
+
+  ctx.save();
+  const badgeGrad = ctx.createRadialGradient(
+    cx,
+    cy - radius * 0.35,
+    radius * 0.2,
+    cx,
+    cy,
+    radius
+  );
+  badgeGrad.addColorStop(0, 'rgba(255,255,255,1)');
+  badgeGrad.addColorStop(0.65, 'rgba(247,247,247,1)');
+  badgeGrad.addColorStop(1, 'rgba(228,228,228,1)');
+
+  ctx.fillStyle = badgeGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.lineWidth = size * 0.012;
+  ctx.strokeStyle = 'rgba(0,0,0,0.78)';
+  ctx.stroke();
+
+  const fontSize = size * 0.18;
+  ctx.fillStyle = '#0f0f0f';
+  ctx.font = `700 ${fontSize}px "Arial"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), cx, cy + size * 0.002);
+
+  ctx.restore();
+}
+
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
@@ -89,16 +127,7 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   }
 
   if (Number.isFinite(number)) {
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(size * 0.5, size * 0.5, size * 0.16, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#000000';
-    ctx.font = `${size * 0.18}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), size * 0.5, size * 0.5 + size * 0.0025);
+    drawPoolNumberBadge(ctx, size, number);
   }
 }
 
