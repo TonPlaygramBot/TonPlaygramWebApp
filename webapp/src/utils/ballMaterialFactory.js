@@ -75,30 +75,119 @@ function drawNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
+function drawPoolNumberBadge(ctx, size, number) {
+  const radius = size * 0.135;
+  const cx = size * 0.5;
+  const cy = size * 0.5;
+
+  ctx.save();
+  const badgeGradient = ctx.createRadialGradient(
+    cx,
+    cy,
+    radius * 0.15,
+    cx,
+    cy,
+    radius
+  );
+  badgeGradient.addColorStop(0, 'rgba(255,255,255,1)');
+  badgeGradient.addColorStop(1, 'rgba(224,224,224,1)');
+  ctx.fillStyle = badgeGradient;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.lineWidth = size * 0.009;
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.stroke();
+
+  ctx.fillStyle = '#111111';
+  ctx.font = `600 ${size * 0.16}px "Arial"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), cx, cy + size * 0.0025);
+  ctx.restore();
+}
+
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
-  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, size, size);
 
   if (pattern === 'stripe') {
-    ctx.fillStyle = baseHex;
-    const stripeHeight = size * 0.45;
+    const stripeHeight = size * 0.46;
     const stripeY = (size - stripeHeight) / 2;
+    const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.25));
+    stripeGrad.addColorStop(0.45, lighten(baseHex, 0.12));
+    stripeGrad.addColorStop(1, darken(baseHex, 0.12));
+    ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
+  } else {
+    const radial = ctx.createRadialGradient(
+      size * 0.32,
+      size * 0.28,
+      size * 0.08,
+      size * 0.5,
+      size * 0.58,
+      size * 0.5
+    );
+    radial.addColorStop(0, lighten(baseHex, 0.35));
+    radial.addColorStop(0.45, lighten(baseHex, 0.15));
+    radial.addColorStop(1, darken(baseHex, 0.12));
+    ctx.fillStyle = radial;
+    ctx.fillRect(0, 0, size, size);
   }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.72)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.34)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.2)');
+  ctx.fillStyle = diagonalShade;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const highlight = ctx.createRadialGradient(
+    size * 0.35,
+    size * 0.28,
+    size * 0.04,
+    size * 0.35,
+    size * 0.28,
+    size * 0.28
+  );
+  highlight.addColorStop(0, 'rgba(255,255,255,0.95)');
+  highlight.addColorStop(1, 'rgba(255,255,255,0.05)');
+  ctx.fillStyle = highlight;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  const lowerShadow = ctx.createRadialGradient(
+    size * 0.55,
+    size * 0.74,
+    size * 0.1,
+    size * 0.55,
+    size * 0.74,
+    size * 0.48
+  );
+  lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = lowerShadow;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  addNoise(ctx, size, 0.03, 4200);
 
   if (Number.isFinite(number)) {
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(size * 0.5, size * 0.5, size * 0.18, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#000000';
-    ctx.font = `${size * 0.22}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), size * 0.5, size * 0.5);
+    drawPoolNumberBadge(ctx, size, number);
   }
 }
 
