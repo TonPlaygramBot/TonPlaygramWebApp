@@ -766,102 +766,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
-// keep rails and frame finishes controllable through preset styles
-const TABLE_STYLE_PRESETS = Object.freeze({
-  classic: {
-    name: 'Classic Wood Finish',
-    baseColor: 0x5e3d24,
-    railColor: 0x5e3d24,
-    baseHighlight: 0.16,
-    railHighlight: 0.12,
-    baseMaterial: {
-      metalness: 0.16,
-      roughness: 0.38,
-      clearcoat: 0.32,
-      clearcoatRoughness: 0.2,
-      sheen: 0.32,
-      sheenRoughness: 0.58,
-      envMapIntensity: 0.6
-    },
-    railMaterial: {
-      metalness: 0.18,
-      roughness: 0.36,
-      clearcoat: 0.34,
-      clearcoatRoughness: 0.24,
-      sheen: 0.26,
-      sheenRoughness: 0.54,
-      envMapIntensity: 0.64
-    }
-  },
-  graphite: {
-    name: 'Matte Graphite',
-    baseColor: 0x2b2b2b,
-    railColor: 0x2b2b2b,
-    baseHighlight: 0.04,
-    railHighlight: 0.04,
-    baseMaterial: {
-      metalness: 0.22,
-      roughness: 0.62,
-      clearcoat: 0.1,
-      clearcoatRoughness: 0.45,
-      sheen: 0.02,
-      sheenRoughness: 0.8,
-      envMapIntensity: 0.4
-    },
-    railMaterial: {
-      metalness: 0.24,
-      roughness: 0.58,
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.48,
-      sheen: 0.04,
-      sheenRoughness: 0.78,
-      envMapIntensity: 0.45
-    },
-    accent: {
-      color: 0x22c1ff,
-      opacity: 0.85,
-      lift: 0.02
-    }
-  },
-  hybrid: {
-    name: 'Two-Tone Hybrid',
-    baseColor: 0x362517,
-    railColor: 0x08090b,
-    baseHighlight: 0.08,
-    railHighlight: 0.02,
-    baseMaterial: {
-      metalness: 0.32,
-      roughness: 0.44,
-      clearcoat: 0.24,
-      clearcoatRoughness: 0.22,
-      sheen: 0.22,
-      sheenRoughness: 0.52,
-      envMapIntensity: 0.66
-    },
-    railMaterial: {
-      metalness: 0.52,
-      roughness: 0.32,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.18,
-      sheen: 0.08,
-      sheenRoughness: 0.44,
-      envMapIntensity: 0.82
-    },
-    accent: {
-      color: 0xf4c542,
-      opacity: 0.95,
-      lift: 0.018
-    }
-  }
-});
-
-const TABLE_STYLE_KEY = 'hybrid';
-const TABLE_STYLE =
-  TABLE_STYLE_PRESETS[TABLE_STYLE_KEY] ?? TABLE_STYLE_PRESETS.classic;
-
-const WOOD_TONE = TABLE_STYLE.baseColor;
-const RAIL_WOOD_COLOR = TABLE_STYLE.railColor;
-const BASE_WOOD_COLOR = TABLE_STYLE.baseColor;
+// keep rails and frame in the same warm wood tone so the finish matches reference tables
+const WOOD_TONE = 0xa67748;
+const RAIL_WOOD_COLOR = WOOD_TONE;
+const BASE_WOOD_COLOR = WOOD_TONE;
 const CLOTH_TEXTURE_INTENSITY = 0.45;
 const CLOTH_HAIR_INTENSITY = 0.18;
 const CLOTH_BUMP_INTENSITY = 0.36;
@@ -871,7 +779,6 @@ const COLORS = Object.freeze({
   cloth: 0x2b7e4f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
-  accent: TABLE_STYLE.accent?.color ?? null,
   markings: 0xffffff,
   cue: 0xffffff,
   red: 0xff0000,
@@ -2802,10 +2709,9 @@ function Table3D(parent) {
   };
 
   const cushionMat = clothMat.clone();
-  const baseHighlight = TABLE_STYLE.baseHighlight ?? 0.2;
   const woodColor = new THREE.Color(COLORS.base).lerp(
     new THREE.Color(0xffffff),
-    baseHighlight
+    0.2
   );
   const woodMat = new THREE.MeshPhysicalMaterial({
     color: woodColor,
@@ -2816,14 +2722,12 @@ function Table3D(parent) {
     sheen: 0.08,
     sheenRoughness: 0.48,
     reflectivity: 0.42,
-    envMapIntensity: 0.7,
-    ...(TABLE_STYLE.baseMaterial || {})
+    envMapIntensity: 0.7
   });
   woodMat.needsUpdate = true;
-  const railHighlight = TABLE_STYLE.railHighlight ?? 0.18;
   const railWoodColor = new THREE.Color(COLORS.rail).lerp(
     new THREE.Color(0xffffff),
-    railHighlight
+    0.18
   );
   const railWoodMat = new THREE.MeshPhysicalMaterial({
     color: railWoodColor,
@@ -2834,8 +2738,7 @@ function Table3D(parent) {
     sheen: 0.1,
     sheenRoughness: 0.5,
     reflectivity: 0.45,
-    envMapIntensity: 0.74,
-    ...(TABLE_STYLE.railMaterial || {})
+    envMapIntensity: 0.74
   });
   railWoodMat.needsUpdate = true;
 
@@ -3377,45 +3280,6 @@ function Table3D(parent) {
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
-
-  if (TABLE_STYLE.accent?.color) {
-    const edges = new THREE.EdgesGeometry(railsGeom);
-    const posAttr = edges.attributes.position;
-    const accentPositions = [];
-    const topThreshold = railH - 1e-3;
-    for (let i = 0; i < posAttr.count; i += 2) {
-      const ax = posAttr.getX(i);
-      const ay = posAttr.getY(i);
-      const az = posAttr.getZ(i);
-      const bx = posAttr.getX(i + 1);
-      const by = posAttr.getY(i + 1);
-      const bz = posAttr.getZ(i + 1);
-      if (az >= topThreshold && bz >= topThreshold) {
-        accentPositions.push(ax, ay, az, bx, by, bz);
-      }
-    }
-    if (accentPositions.length) {
-      const accentGeom = new THREE.BufferGeometry();
-      accentGeom.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(accentPositions, 3)
-      );
-      const accentOpacity = TABLE_STYLE.accent.opacity ?? 1;
-      const accentMat = new THREE.LineBasicMaterial({
-        color: TABLE_STYLE.accent.color,
-        transparent: accentOpacity < 1,
-        opacity: accentOpacity,
-        toneMapped: false
-      });
-      const accent = new THREE.LineSegments(accentGeom, accentMat);
-      accent.rotation.copy(railsMesh.rotation);
-      accent.position.copy(railsMesh.position);
-      const lift = TABLE_STYLE.accent.lift ?? 0;
-      accent.position.y += lift * railH;
-      accent.renderOrder = railsMesh.renderOrder + 1;
-      railsGroup.add(accent);
-    }
-  }
 
   table.add(railsGroup);
 
@@ -4840,20 +4704,19 @@ function SnookerGame() {
         );
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
-        const tvOffsetY = signageHeight * 0.38 + tvHeight * 0.36;
-        const tvSideOffset = signageWidth / 2 + tvDepth * 1.25;
-        const tvForwardOffset = tvDepth * 0.45;
+        const tvOffsetY = signageHeight * 0.5 + tvHeight * 0.55;
+        const tvSideOffset = signageWidth / 2 + tvDepth * 0.8;
         const leftTv = createTv(cryptoTexture);
-        leftTv.position.set(-tvSideOffset, tvOffsetY, -tvForwardOffset);
-        leftTv.rotation.set(-Math.PI * 0.015, 0, Math.PI * 0.02);
+        leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
+        leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
         assembly.add(leftTv);
         const rightTv = createTv(matchTexture);
-        rightTv.position.set(tvSideOffset, tvOffsetY, tvForwardOffset);
-        rightTv.rotation.set(-Math.PI * 0.015, 0, -Math.PI * 0.02);
+        rightTv.position.set(tvSideOffset, tvOffsetY, 0);
+        rightTv.rotation.set(-Math.PI * 0.02, 0, 0);
         assembly.add(rightTv);
         return assembly;
       };
-      const signageY = floorY + wallHeight * 0.52;
+      const signageY = floorY + wallHeight * 0.58;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
@@ -5121,29 +4984,24 @@ function SnookerGame() {
         const group = new THREE.Group();
 
         const depthRoom = Math.max(0, roomDepth / 2 - wallThickness * 0.85);
-        const depthOffset = Math.min(toHospitalityUnits(0.72), depthRoom * 0.52);
-        const loungeForward = depthOffset * 0.6 + toHospitalityUnits(0.12);
+        const depthOffset = Math.min(toHospitalityUnits(0.55), depthRoom * 0.45);
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(furnitureScale);
-        tableSet.position.set(0, 0, loungeForward);
+        tableSet.position.set(
+          0,
+          0,
+          depthOffset * 0.25
+        );
         ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
 
         const chair = createChair();
         chair.scale.setScalar(furnitureScale);
-        const chairLateral = Math.min(
-          walkwayWidth * 0.4,
-          toHospitalityUnits(0.74)
-        );
-        const chairRetreat = Math.max(
-          toHospitalityUnits(0.38),
-          loungeForward - depthOffset * 0.35
-        );
         chair.position.set(
-          mirror * chairLateral,
+          mirror * Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)),
           0,
-          loungeForward - chairRetreat
+          -depthOffset * 0.55
         );
         chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
         ensureHospitalityVisibility(chair);
