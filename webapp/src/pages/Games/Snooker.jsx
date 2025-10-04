@@ -20,6 +20,21 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 
+const VARIANT_CONFIG = globalThis.__SNOOKER_VARIANT_CONFIG__ ?? {};
+
+function getVariant(path, fallback) {
+  if (!path) return fallback;
+  const segments = Array.isArray(path) ? path : String(path).split('.');
+  let current = VARIANT_CONFIG;
+  for (const segment of segments) {
+    if (current == null || typeof current !== 'object') {
+      return fallback;
+    }
+    current = current[segment];
+  }
+  return current === undefined ? fallback : current;
+}
+
 function signedRingArea(ring) {
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
@@ -478,34 +493,48 @@ function addPocketCuts(parent, clothPlane) {
 // --------------------------------------------------
 // separate scales for table and balls
 // Dimensions enlarged for a roomier snooker table but globally reduced by 30%
-const SIZE_REDUCTION = 0.7;
-const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
+const VARIANT_TEXT = Object.freeze({
+  documentTitle: getVariant('documentTitle', '3D Snooker'),
+  scoreboardTitle: getVariant('strings.scoreboardTitle', 'Snooker Match of the Day'),
+  broadcastTitle: getVariant('strings.broadcastTitle', 'Snooker Match of the Day'),
+  gameName: getVariant('strings.gameName', 'Snooker')
+});
+
+const SIZE_REDUCTION = getVariant('scale.sizeReduction', 0.7);
+const GLOBAL_SIZE_FACTOR = getVariant(
+  'scale.globalFactor',
+  0.85 * SIZE_REDUCTION
+); // apply uniform shrink from previous tuning
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
-const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const TABLE_SCALE = 1.3;
+const WORLD_SCALE = getVariant(
+  'scale.world',
+  0.85 * GLOBAL_SIZE_FACTOR * 0.7
+);
+const TABLE_SCALE = getVariant('scale.table', 1.3);
 const TABLE = {
-  W: 66 * TABLE_SCALE,
-  H: 132 * TABLE_SCALE,
-  THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE
+  W: getVariant('table.width', 66 * TABLE_SCALE),
+  H: getVariant('table.height', 132 * TABLE_SCALE),
+  THICK: getVariant('table.thickness', 1.8 * TABLE_SCALE),
+  WALL: getVariant('table.wall', 2.6 * TABLE_SCALE)
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
-const WIDTH_REF = 3569;
-const HEIGHT_REF = 1778;
-const BALL_D_REF = 52.5;
-const BAULK_FROM_BAULK_REF = 737;
-const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 89;
-const SIDE_MOUTH_REF = 109;
-const SIDE_RAIL_INNER_REDUCTION = 0.8;
+const WIDTH_REF = getVariant('table.widthRef', 3569);
+const HEIGHT_REF = getVariant('table.heightRef', 1778);
+const BALL_D_REF = getVariant('table.ballDiameter', 52.5);
+const BAULK_FROM_BAULK_REF = getVariant('table.baulkFromBaulk', 737);
+const D_RADIUS_REF = getVariant('table.dRadius', 292);
+const BLACK_FROM_TOP_REF = getVariant('table.blackFromTop', 324);
+const CORNER_MOUTH_REF = getVariant('table.cornerMouth', 89);
+const SIDE_MOUTH_REF = getVariant('table.sideMouth', 109);
+const SIDE_RAIL_INNER_REDUCTION = getVariant('table.sideRailInnerReduction', 0.8);
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+const TARGET_RATIO_LABEL = `${WIDTH_REF}:${HEIGHT_REF}`;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
@@ -518,10 +547,10 @@ const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const innerLong = Math.max(PLAY_W, PLAY_H);
 const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
-console.assert(
-  Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-  'Snooker table inner ratio must match 3569:1778 after scaling.'
-);
+  console.assert(
+    Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
+    `${VARIANT_TEXT.gameName} table inner ratio must match ${TARGET_RATIO_LABEL} after scaling.`
+  );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
 const BALL_SCALE = BALL_DIAMETER / 4;
@@ -767,14 +796,14 @@ const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
 const BASE_BALL_COLORS = Object.freeze({
-  cue: 0xffffff,
-  red: 0xff0000,
-  yellow: 0xffff00,
-  green: 0x006400,
-  brown: 0x8b4513,
-  blue: 0x0000ff,
-  pink: 0xff69b4,
-  black: 0x000000
+  cue: getVariant('ballColors.cue', 0xffffff),
+  red: getVariant('ballColors.red', 0xff0000),
+  yellow: getVariant('ballColors.yellow', 0xffff00),
+  green: getVariant('ballColors.green', 0x006400),
+  brown: getVariant('ballColors.brown', 0x8b4513),
+  blue: getVariant('ballColors.blue', 0x0000ff),
+  pink: getVariant('ballColors.pink', 0xff69b4),
+  black: getVariant('ballColors.black', 0x000000)
 });
 const CLOTH_TEXTURE_INTENSITY = 0.45;
 const CLOTH_HAIR_INTENSITY = 0.18;
@@ -789,7 +818,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   ...BASE_BALL_COLORS
 });
 
-const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
+const DEFAULT_TABLE_FINISH_ID = getVariant('defaultFinish', 'matteGraphite');
 
 const TABLE_FINISHES = Object.freeze({
   classicWood: {
@@ -2069,7 +2098,7 @@ function applySnookerScaling({
   const ratio = width / Math.max(height, 1e-6);
   console.assert(
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
-    'applySnookerScaling: table aspect ratio must remain 3569:1778.'
+    `applySnookerScaling: table aspect ratio must remain ${TARGET_RATIO_LABEL}.`
   );
   const expectedCornerMouth = CORNER_MOUTH_REF * mmToUnits;
   const expectedSideMouth = SIDE_MOUTH_REF * mmToUnits;
@@ -4687,7 +4716,7 @@ function SnookerGame() {
     [stopActiveCrowdSound]
   );
   useEffect(() => {
-    document.title = '3D Snooker';
+    document.title = VARIANT_TEXT.documentTitle;
   }, []);
   useEffect(() => {
     setPlayer({
@@ -4757,7 +4786,7 @@ function SnookerGame() {
           const buffer = await loadBuffer(path);
           if (!cancelled) loaded[key] = buffer;
         } catch (err) {
-          console.warn('Snooker audio load failed:', key, err);
+          console.warn(`${VARIANT_TEXT.gameName} audio load failed:`, key, err);
         }
       }
       if (!cancelled) {
@@ -5196,7 +5225,7 @@ function SnookerGame() {
             ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('Snooker Match of the Day', canvas.width / 2, 60);
+            ctx.fillText(VARIANT_TEXT.scoreboardTitle, canvas.width / 2, 60);
             const drawCompetitor = ({
               x,
               name,
