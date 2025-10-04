@@ -126,75 +126,48 @@ function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
   }
-  return mp.map((poly) => {
-    if (!Array.isArray(poly)) return poly;
-    let maxToward = 0;
-    poly.forEach((ring) => {
-      if (!Array.isArray(ring)) return;
-      ring.forEach((pt) => {
-        if (!Array.isArray(pt) || pt.length < 2) return;
-        const deltaZ = pt[1] - centerZ;
-        const towardCenter = -sz * deltaZ;
-        if (towardCenter > maxToward) {
-          maxToward = towardCenter;
-        }
-      });
-    });
-    if (maxToward <= 0) return poly;
-    return poly.map((ring) =>
-      Array.isArray(ring)
-        ? ring.map((pt) => {
-            if (!Array.isArray(pt) || pt.length < 2) return pt;
-            const [x, z] = pt;
-            const deltaZ = z - centerZ;
-            const towardCenter = -sz * deltaZ;
-            if (towardCenter <= 0) return [x, z];
-            const normalized = Math.min(1, towardCenter / maxToward);
-            const scale = THREE.MathUtils.lerp(1, CHROME_CORNER_NOTCH_CENTER_SCALE, normalized);
-            return [x, centerZ + deltaZ * scale];
-          })
-        : ring
-    );
-  });
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                const [x, z] = pt;
+                const deltaZ = z - centerZ;
+                const towardCenter = -sz * deltaZ;
+                if (towardCenter <= 0) return [x, z];
+                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
+              })
+            : ring
+        )
+      : poly
+  );
 }
 
 function adjustSideNotchDepth(mp) {
   if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
-  return mp.map((poly) => {
-    if (!Array.isArray(poly)) return poly;
-    let maxAbsZ = 0;
-    poly.forEach((ring) => {
-      if (!Array.isArray(ring)) return;
-      ring.forEach((pt) => {
-        if (!Array.isArray(pt) || pt.length < 2) return;
-        const absZ = Math.abs(pt[1]);
-        if (absZ > maxAbsZ) {
-          maxAbsZ = absZ;
-        }
-      });
-    });
-    if (maxAbsZ <= 0) return poly;
-    return poly.map((ring) =>
-      Array.isArray(ring)
-        ? ring.map((pt) => {
-            if (!Array.isArray(pt) || pt.length < 2) return pt;
-            const [x, z] = pt;
-            const normalized = Math.min(1, Math.abs(z) / maxAbsZ);
-            const scale = THREE.MathUtils.lerp(1, CHROME_SIDE_NOTCH_DEPTH_SCALE, normalized);
-            return [x, z * scale];
-          })
-        : ring
-    );
-  });
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                const [x, z] = pt;
+                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+              })
+            : ring
+        )
+      : poly
+  );
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.92;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.88;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 
 function buildChromePlateGeometry({
   width,
@@ -362,22 +335,7 @@ function buildChromePlateGeometry({
         const clipped = polygonClipping.difference(baseMP, notchMP);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
-          const shapeAreas = clippedShapes.map((s) =>
-            Math.abs(typeof s.getArea === 'function' ? s.getArea() : 0)
-          );
-          const maxArea = shapeAreas.reduce(
-            (acc, area) => (area > acc ? area : acc),
-            0
-          );
-          const minArea = maxArea * 0.1;
-          const filteredShapes = clippedShapes.filter((_, idx) =>
-            shapeAreas[idx] >= minArea
-          );
-          if (filteredShapes.length) {
-            shapesToExtrude = filteredShapes;
-          } else {
-            shapesToExtrude = clippedShapes;
-          }
+          shapesToExtrude = clippedShapes;
         }
       }
     }
@@ -464,45 +422,8 @@ function addPocketCuts(parent, clothPlane) {
     s.closePath();
     return s;
   })();
-  const CUT_THICKNESS = RAIL_HEIGHT * 0.92;
-  const CUT_UNDERCUT_STRENGTH = 0.62;
-  const makeCutGeometry = (shape, factorFn) => {
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: CUT_THICKNESS,
-      bevelEnabled: false,
-      steps: 1,
-      curveSegments: 64
-    });
-    const pos = geo.attributes.position;
-    const arr = pos.array;
-    for (let i = 0; i < arr.length; i += 3) {
-      const z = arr[i + 2];
-      if (z <= 0) continue;
-      const factor = THREE.MathUtils.clamp(
-        typeof factorFn === 'function' ? factorFn(arr[i], arr[i + 1]) : 0,
-        0,
-        1
-      );
-      if (factor <= 0) continue;
-      const limit = CUT_THICKNESS * (1 - CUT_UNDERCUT_STRENGTH * factor);
-      if (z > limit) {
-        arr[i + 2] = limit;
-      }
-    }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-    return geo;
-  };
-
-  const cornerGeo = makeCutGeometry(cornerShape, (x, y) => {
-    const r = Math.hypot(x, y);
-    const denom = Math.max(outerR - innerR, 1e-6);
-    return THREE.MathUtils.clamp((outerR - r) / denom, 0, 1);
-  });
-  const sideGeo = makeCutGeometry(sideShape, (x, y) => {
-    const denom = Math.max(sideDepth, 1e-6);
-    return THREE.MathUtils.clamp(y / denom, 0, 1);
-  });
+  const cornerGeo = new THREE.ShapeGeometry(cornerShape);
+  const sideGeo = new THREE.ShapeGeometry(sideShape);
   pocketCenters().forEach((p) => {
     const isCorner =
       Math.abs(Math.abs(p.x) - PLAY_W / 2) < 1e-3 &&
@@ -1727,7 +1648,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.88;
+const STANDING_VIEW_PHI = 0.96;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.005;
 const STANDING_VIEW_FOV = 66;
@@ -1737,11 +1658,11 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.42;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.05;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.02;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.025;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -1864,7 +1785,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.58 * GLOBAL_SIZE_FACTOR; // bring standing camera closer while keeping full table in frame
+  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -2927,8 +2848,8 @@ function Table3D(parent) {
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.065; // push cushions slightly farther from the rails to keep the green cushion lip clear of the wood
-  const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep every cushion at the same height as the surrounding wooden rails
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   const outerCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
@@ -2947,10 +2868,10 @@ function Table3D(parent) {
     envMapIntensity: 1.05
   });
 
-  const chromePlateThickness = railH * 0.32; // extend chrome trim downward a touch more so every plate drops uniformly along the rails
+  const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.78;
-  const chromePlateExpansionZ = TABLE.THICK * 0.82;
+  const chromePlateExpansionX = TABLE.THICK * 0.6;
+  const chromePlateExpansionZ = TABLE.THICK * 0.62;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -2979,7 +2900,7 @@ function Table3D(parent) {
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.14
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.05
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -3000,7 +2921,7 @@ function Table3D(parent) {
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
-  const sideInset = SIDE_POCKET_RADIUS * 0.8 * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -3382,7 +3303,7 @@ function Table3D(parent) {
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // pull green side cushions slightly farther from the wooden rails
+    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
