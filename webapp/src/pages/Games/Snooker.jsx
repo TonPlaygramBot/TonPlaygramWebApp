@@ -766,20 +766,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
-// keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xa67748;
-const RAIL_WOOD_COLOR = WOOD_TONE;
-const BASE_WOOD_COLOR = WOOD_TONE;
-const CLOTH_TEXTURE_INTENSITY = 0.45;
-const CLOTH_HAIR_INTENSITY = 0.18;
-const CLOTH_BUMP_INTENSITY = 0.36;
-const CLOTH_SOFT_BLEND = 0.6;
-
-const COLORS = Object.freeze({
-  cloth: 0x2b7e4f,
-  rail: RAIL_WOOD_COLOR,
-  base: BASE_WOOD_COLOR,
-  markings: 0xffffff,
+const BASE_BALL_COLORS = Object.freeze({
   cue: 0xffffff,
   red: 0xff0000,
   yellow: 0xffff00,
@@ -789,6 +776,203 @@ const COLORS = Object.freeze({
   pink: 0xff69b4,
   black: 0x000000
 });
+const CLOTH_TEXTURE_INTENSITY = 0.45;
+const CLOTH_HAIR_INTENSITY = 0.18;
+const CLOTH_BUMP_INTENSITY = 0.36;
+const CLOTH_SOFT_BLEND = 0.6;
+
+const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
+  cloth,
+  rail,
+  base,
+  markings,
+  ...BASE_BALL_COLORS
+});
+
+const DEFAULT_TABLE_FINISH_ID = 'classicWood';
+
+const TABLE_FINISHES = Object.freeze({
+  classicWood: {
+    id: 'classicWood',
+    label: 'Classic Wood',
+    colors: makeColorPalette({
+      cloth: 0x2b7e4f,
+      rail: 0x5e3d24,
+      base: 0x5e3d24
+    }),
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#5e3d24');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.18,
+        roughness: 0.32,
+        clearcoat: 0.28,
+        clearcoatRoughness: 0.18,
+        sheen: 0.12,
+        sheenRoughness: 0.52,
+        reflectivity: 0.42,
+        envMapIntensity: 0.7
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0, 0.02, 0.08),
+        metalness: 0.2,
+        roughness: 0.34,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.22,
+        sheen: 0.14,
+        sheenRoughness: 0.5,
+        reflectivity: 0.45,
+        envMapIntensity: 0.74
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xcda87b,
+        metalness: 0.65,
+        roughness: 0.38,
+        clearcoat: 0.42,
+        clearcoatRoughness: 0.28,
+        envMapIntensity: 0.9
+      });
+      return {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent: null
+      };
+    }
+  },
+  matteGraphite: {
+    id: 'matteGraphite',
+    label: 'Matte Graphite',
+    colors: makeColorPalette({
+      cloth: 0x2b7e4f,
+      rail: 0x2f2f2f,
+      base: 0x2b2b2b
+    }),
+    createMaterials: () => {
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: 0x2b2b2b,
+        metalness: 0.22,
+        roughness: 0.6,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.46,
+        sheen: 0.05,
+        sheenRoughness: 0.72
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: 0x303030,
+        metalness: 0.28,
+        roughness: 0.54,
+        clearcoat: 0.12,
+        clearcoatRoughness: 0.4,
+        sheen: 0.04,
+        sheenRoughness: 0.64
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: 0x232323,
+        metalness: 0.26,
+        roughness: 0.58,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.44
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0x11161c,
+        metalness: 0.78,
+        roughness: 0.32,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.34,
+        envMapIntensity: 1.1
+      });
+      const neon = new THREE.Color('#00c8ff');
+      const accentMaterial = new THREE.MeshStandardMaterial({
+        color: neon,
+        emissive: neon.clone().multiplyScalar(0.55),
+        emissiveIntensity: 1.4,
+        metalness: 0.32,
+        roughness: 0.34
+      });
+      return {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: {
+          material: accentMaterial,
+          thickness: 0.055,
+          height: 0.028,
+          inset: 0.045,
+          verticalOffset: 0.82
+        }
+      };
+    }
+  },
+  twoToneHybrid: {
+    id: 'twoToneHybrid',
+    label: 'Two-Tone Hybrid',
+    colors: makeColorPalette({
+      cloth: 0x2b7e4f,
+      rail: 0x151a1f,
+      base: 0x1c2026
+    }),
+    createMaterials: () => {
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: 0x1c2026,
+        metalness: 0.58,
+        roughness: 0.38,
+        clearcoat: 0.26,
+        clearcoatRoughness: 0.32,
+        sheen: 0.08,
+        sheenRoughness: 0.52
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: 0x13171d,
+        metalness: 0.72,
+        roughness: 0.32,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.28,
+        sheen: 0.06,
+        sheenRoughness: 0.46
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: 0x302218,
+        metalness: 0.22,
+        roughness: 0.52,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.42
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xc9a65c,
+        metalness: 0.86,
+        roughness: 0.26,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 1.18
+      });
+      const accentMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffd369,
+        emissive: new THREE.Color(0xffd369).multiplyScalar(0.22),
+        emissiveIntensity: 0.9,
+        metalness: 0.48,
+        roughness: 0.38
+      });
+      return {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: {
+          material: accentMaterial,
+          thickness: 0.05,
+          height: 0.024,
+          inset: 0.06,
+          verticalOffset: 0.74
+        }
+      };
+    }
+  }
+});
+
+const TABLE_FINISH_OPTIONS = Object.freeze(Object.values(TABLE_FINISHES));
 
 const ORIGINAL_RAIL_WIDTH = TABLE.WALL * 0.7;
 const ORIGINAL_FRAME_WIDTH = ORIGINAL_RAIL_WIDTH * 2.5;
@@ -1194,7 +1378,14 @@ const createCarpetTextures = (() => {
   };
 })();
 
-function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }) {
+function createBroadcastCameras({
+  floorY,
+  cameraHeight,
+  shortRailZ,
+  slideLimit,
+  arenaHalfWidth = null,
+  arenaHalfDepth = null
+}) {
   const group = new THREE.Group();
   group.name = 'broadcastCameras';
   const cameras = {};
@@ -1248,11 +1439,19 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     0
   );
 
-  const cameraCornerXOffset = TABLE.W / 2 + BALL_R * 14;
-  const cameraCornerZOffset = Math.max(
+  const fallbackCornerX = TABLE.W / 2 + BALL_R * 14;
+  const fallbackCornerZ = Math.max(
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
   );
+  const cameraCornerXOffset =
+    typeof arenaHalfWidth === 'number'
+      ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
+      : fallbackCornerX;
+  const cameraCornerZOffset =
+    typeof arenaHalfDepth === 'number'
+      ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
+      : fallbackCornerZ;
   const cameraScale = 1.2;
 
   const createUnit = (xSign, zSign) => {
@@ -2143,14 +2342,16 @@ const pocketIdFromCenter = (center) => {
 };
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
-function makeClothTexture() {
+function makeClothTexture(
+  palette = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]?.colors
+) {
   const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const clothColor = new THREE.Color(COLORS.cloth);
+  const clothColor = new THREE.Color(palette?.cloth ?? 0x2b7e4f);
   const baseCloth = `#${clothColor.getHexString()}`;
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
@@ -2653,7 +2854,49 @@ function updateRailLimitsFromTable(table) {
 // Table with CUT pockets + markings (fresh)
 // --------------------------------------------------
 
-function Table3D(parent) {
+function createAccentMesh(accent, dims) {
+  if (!accent?.material || !dims) return null;
+  const { outerHalfW, outerHalfH, railH, frameTopY } = dims;
+  const thickness = Math.max(MICRO_EPS, (accent.thickness ?? 0.05) * TABLE.THICK);
+  const height = Math.max(MICRO_EPS, (accent.height ?? 0.02) * TABLE.THICK);
+  const inset = Math.max(0, (accent.inset ?? 0.05) * TABLE.THICK);
+  const vertical = THREE.MathUtils.clamp(accent.verticalOffset ?? 0.75, 0, 1);
+  const outerHalfWidth = Math.max(thickness, outerHalfW - inset);
+  const outerHalfHeight = Math.max(thickness, outerHalfH - inset);
+  const innerHalfWidth = Math.max(MICRO_EPS, outerHalfWidth - thickness);
+  const innerHalfHeight = Math.max(MICRO_EPS, outerHalfHeight - thickness);
+  if (innerHalfWidth <= MICRO_EPS || innerHalfHeight <= MICRO_EPS) return null;
+  const shape = new THREE.Shape();
+  shape.moveTo(-outerHalfWidth, -outerHalfHeight);
+  shape.lineTo(outerHalfWidth, -outerHalfHeight);
+  shape.lineTo(outerHalfWidth, outerHalfHeight);
+  shape.lineTo(-outerHalfWidth, outerHalfHeight);
+  shape.lineTo(-outerHalfWidth, -outerHalfHeight);
+  const hole = new THREE.Path();
+  hole.moveTo(-innerHalfWidth, -innerHalfHeight);
+  hole.lineTo(innerHalfWidth, -innerHalfHeight);
+  hole.lineTo(innerHalfWidth, innerHalfHeight);
+  hole.lineTo(-innerHalfWidth, innerHalfHeight);
+  hole.lineTo(-innerHalfWidth, -innerHalfHeight);
+  shape.holes.push(hole);
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: height,
+    bevelEnabled: false,
+    curveSegments: 48
+  });
+  const mesh = new THREE.Mesh(geom, accent.material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = frameTopY + railH * vertical - height / 2;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.name = 'tableAccent';
+  return mesh;
+}
+
+function Table3D(
+  parent,
+  finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]
+) {
   const table = new THREE.Group();
   table.userData = table.userData || {};
   table.userData.cushions = [];
@@ -2664,8 +2907,50 @@ function Table3D(parent) {
   const frameTopY = FRAME_TOP_Y;
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
+  const resolvedFinish =
+    (finish && TABLE_FINISHES[finish.id]) ||
+    (finish?.id && TABLE_FINISHES[finish.id]) ||
+    finish ||
+    TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
+
+  const createMaterialsFn =
+    typeof resolvedFinish?.createMaterials === 'function'
+      ? resolvedFinish.createMaterials
+      : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
+  const rawMaterials = createMaterialsFn();
+  let fallbackMaterials = null;
+  const getFallbackMaterial = (key) => {
+    if (!fallbackMaterials) {
+      fallbackMaterials = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials();
+    }
+    return fallbackMaterials[key];
+  };
+  const frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
+  const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
+  const legMat = rawMaterials.leg ?? frameMat;
+  const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
+  const accentConfig = rawMaterials.accent ?? null;
+  frameMat.needsUpdate = true;
+  railMat.needsUpdate = true;
+  legMat.needsUpdate = true;
+  trimMat.needsUpdate = true;
+  if (accentConfig?.material) {
+    accentConfig.material.needsUpdate = true;
+  }
+
+  const finishParts = {
+    frameMeshes: [],
+    legMeshes: [],
+    railMeshes: [],
+    trimMeshes: [],
+    accentParent: null,
+    accentMesh: null,
+    dimensions: null
+  };
+
   const { map: clothMap, bump: clothBump } = createClothTextures();
-  const clothPrimary = new THREE.Color(COLORS.cloth);
+  const clothPrimary = new THREE.Color(palette.cloth);
   const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.12);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
@@ -2709,38 +2994,20 @@ function Table3D(parent) {
   };
 
   const cushionMat = clothMat.clone();
-  const woodColor = new THREE.Color(COLORS.base).lerp(
-    new THREE.Color(0xffffff),
-    0.2
-  );
-  const woodMat = new THREE.MeshPhysicalMaterial({
-    color: woodColor,
-    metalness: 0.18,
-    roughness: 0.32,
-    clearcoat: 0.28,
-    clearcoatRoughness: 0.18,
-    sheen: 0.08,
-    sheenRoughness: 0.48,
-    reflectivity: 0.42,
-    envMapIntensity: 0.7
-  });
-  woodMat.needsUpdate = true;
-  const railWoodColor = new THREE.Color(COLORS.rail).lerp(
-    new THREE.Color(0xffffff),
-    0.18
-  );
-  const railWoodMat = new THREE.MeshPhysicalMaterial({
-    color: railWoodColor,
-    metalness: 0.2,
-    roughness: 0.34,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.2,
-    sheen: 0.1,
-    sheenRoughness: 0.5,
-    reflectivity: 0.45,
-    envMapIntensity: 0.74
-  });
-  railWoodMat.needsUpdate = true;
+  const finishInfo = {
+    id: resolvedFinish?.id ?? DEFAULT_TABLE_FINISH_ID,
+    palette,
+    materials: {
+      frame: frameMat,
+      rail: railMat,
+      leg: legMat,
+      trim: trimMat,
+      accent: accentConfig
+    },
+    clothMat,
+    cushionMat,
+    parts: finishParts
+  };
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.34,
@@ -2779,7 +3046,7 @@ function Table3D(parent) {
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: COLORS.markings,
+    color: palette.markings,
     transparent: true,
     opacity: 0.9,
     side: THREE.DoubleSide
@@ -2878,10 +3145,12 @@ function Table3D(parent) {
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
+  finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
+  finishParts.accentParent = railsGroup;
   const outerCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
     Math.min(outerHalfW, outerHalfH) * 0.2
@@ -2914,18 +3183,6 @@ function Table3D(parent) {
     vertSeg * 0.6
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
-
-  const chromePlateMat = new THREE.MeshPhysicalMaterial({
-    color: 0xe9edf2,
-    metalness: 0.92,
-    roughness: 0.36,
-    reflectivity: 0.82,
-    clearcoat: 0.62,
-    clearcoatRoughness: 0.34,
-    sheen: 0.08,
-    sheenRoughness: 0.62,
-    envMapIntensity: 1.05
-  });
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -3164,12 +3421,13 @@ function Table3D(parent) {
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
-      chromePlateMat
+      trimMat
     );
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
+    finishParts.trimMeshes.push(plate);
   });
 
   [
@@ -3191,14 +3449,23 @@ function Table3D(parent) {
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
-      chromePlateMat
+      trimMat
     );
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
+    finishParts.trimMeshes.push(plate);
   });
   railsGroup.add(chromePlates);
+
+  if (accentConfig && finishParts.dimensions) {
+    const accentMesh = createAccentMesh(accentConfig, finishParts.dimensions);
+    if (accentMesh) {
+      railsGroup.add(accentMesh);
+      finishParts.accentMesh = accentMesh;
+    }
+  }
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
@@ -3274,12 +3541,13 @@ function Table3D(parent) {
     bevelEnabled: false,
     curveSegments: 96
   });
-  const railsMesh = new THREE.Mesh(railsGeom, railWoodMat);
+  const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
+  finishParts.railMeshes.push(railsMesh);
 
   table.add(railsGroup);
 
@@ -3513,12 +3781,13 @@ function Table3D(parent) {
     depth: skirtH,
     bevelEnabled: false
   });
-  const skirt = new THREE.Mesh(skirtGeo, woodMat);
+  const skirt = new THREE.Mesh(skirtGeo, frameMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
   skirt.castShadow = true;
   skirt.receiveShadow = true;
   table.add(skirt);
+  finishParts.frameMeshes.push(skirt);
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
@@ -3538,11 +3807,12 @@ function Table3D(parent) {
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, woodMat);
+    const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(lx, legY, lz);
     leg.castShadow = true;
     leg.receiveShadow = true;
     table.add(leg);
+    finishParts.legMeshes.push(leg);
   });
 
   table.updateMatrixWorld(true);
@@ -3577,6 +3847,7 @@ function Table3D(parent) {
   table.userData.cushionTopLocal = cushionTopLocal;
   table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
   table.userData.cushionLipClearance = clothPlaneWorld;
+  table.userData.finish = finishInfo;
   parent.add(table);
 
   const baulkZ = baulkLineZ;
@@ -3590,6 +3861,105 @@ function Table3D(parent) {
   };
 }
 
+function applyTableFinishToTable(table, finish) {
+  if (!table || !finish) return;
+  const finishInfo = table.userData?.finish;
+  if (!finishInfo?.parts) return;
+  const resolvedFinish =
+    (finish && TABLE_FINISHES[finish.id]) ||
+    (finish?.id && TABLE_FINISHES[finish.id]) ||
+    finish ||
+    TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const createMaterialsFn =
+    typeof resolvedFinish?.createMaterials === 'function'
+      ? resolvedFinish.createMaterials
+      : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
+  const rawMaterials = createMaterialsFn();
+  let fallbackMaterials = null;
+  const getFallbackMaterial = (key) => {
+    if (!fallbackMaterials) {
+      fallbackMaterials = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials();
+    }
+    return fallbackMaterials[key];
+  };
+  const frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
+  const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
+  const legMat = rawMaterials.leg ?? frameMat;
+  const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
+  const accentConfig = rawMaterials.accent ?? null;
+  frameMat.needsUpdate = true;
+  railMat.needsUpdate = true;
+  legMat.needsUpdate = true;
+  trimMat.needsUpdate = true;
+  if (accentConfig?.material) {
+    accentConfig.material.needsUpdate = true;
+  }
+
+  const disposed = new Set();
+  const swapMaterial = (mesh, material) => {
+    if (!mesh || !material) return;
+    if (mesh.material !== material) {
+      const current = mesh.material;
+      if (current?.dispose && !disposed.has(current)) {
+        current.dispose();
+        disposed.add(current);
+      }
+      mesh.material = material;
+    }
+  };
+
+  finishInfo.parts.frameMeshes.forEach((mesh) => swapMaterial(mesh, frameMat));
+  finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
+  finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
+  finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
+
+  const { accentMesh, accentParent, dimensions } = finishInfo.parts;
+  if (accentMesh) {
+    if (accentMesh.parent) {
+      accentMesh.parent.remove(accentMesh);
+    }
+    if (accentMesh.geometry) {
+      accentMesh.geometry.dispose();
+    }
+    const accentMaterial = accentMesh.material;
+    if (accentMaterial?.dispose && !disposed.has(accentMaterial)) {
+      accentMaterial.dispose();
+      disposed.add(accentMaterial);
+    }
+    finishInfo.parts.accentMesh = null;
+  }
+  if (accentConfig && accentParent && dimensions) {
+    const accentMeshNext = createAccentMesh(accentConfig, dimensions);
+    if (accentMeshNext) {
+      accentParent.add(accentMeshNext);
+      finishInfo.parts.accentMesh = accentMeshNext;
+    }
+  }
+
+  const clothColor = new THREE.Color(resolvedFinish.colors.cloth);
+  const emissiveColor = clothColor.clone().multiplyScalar(0.06);
+  if (finishInfo.clothMat) {
+    finishInfo.clothMat.color.copy(clothColor);
+    finishInfo.clothMat.emissive.copy(emissiveColor);
+    finishInfo.clothMat.needsUpdate = true;
+  }
+  if (finishInfo.cushionMat) {
+    finishInfo.cushionMat.color.copy(clothColor);
+    finishInfo.cushionMat.emissive.copy(emissiveColor);
+    finishInfo.cushionMat.needsUpdate = true;
+  }
+
+  finishInfo.id = resolvedFinish.id;
+  finishInfo.palette = resolvedFinish.colors;
+  finishInfo.materials = {
+    frame: frameMat,
+    rail: railMat,
+    leg: legMat,
+    trim: trimMat,
+    accent: accentConfig
+  };
+}
+
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
@@ -3597,6 +3967,27 @@ function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new UnitySnookerRules(), []);
+  const [tableFinishId, setTableFinishId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerTableFinish');
+      if (stored && TABLE_FINISHES[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_TABLE_FINISH_ID;
+  });
+  const tableFinish =
+    TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const tableFinishRef = useRef(tableFinish);
+  useEffect(() => {
+    tableFinishRef.current = tableFinish;
+  }, [tableFinish]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerTableFinish', tableFinishId);
+    }
+  }, [tableFinishId]);
+  const applyFinishRef = useRef(() => {});
   const [frameState, setFrameState] = useState(() =>
     rules.getInitialFrame('Player', 'AI')
   );
@@ -4704,7 +5095,7 @@ function SnookerGame() {
         );
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
-        const tvOffsetY = signageHeight * 0.5 + tvHeight * 0.55;
+        const tvOffsetY = 0;
         const tvSideOffset = signageWidth / 2 + tvDepth * 0.8;
         const leftTv = createTv(cryptoTexture);
         leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
@@ -4744,7 +5135,9 @@ function SnookerGame() {
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
-        slideLimit: shortRailSlideLimit
+        slideLimit: shortRailSlideLimit,
+        arenaHalfWidth: roomWidth / 2 - wallThickness - BALL_R * 4,
+        arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
@@ -6453,15 +6846,21 @@ function SnookerGame() {
       addMobileLighting();
 
       // Table
+      const finishForScene = tableFinishRef.current;
       const {
         centers,
         baulkZ,
         group: table,
         clothMat: tableCloth,
         cushionMat: tableCushion
-      } = Table3D(world);
+      } = Table3D(world, finishForScene);
       clothMat = tableCloth;
       cushionMat = tableCushion;
+      applyFinishRef.current = (nextFinish) => {
+        if (table && nextFinish) {
+          applyTableFinishToTable(table, nextFinish);
+        }
+      };
       if (table?.userData) {
         const cushionLip = table.userData.cushionTopLocal ?? TABLE.THICK;
         cushionHeightRef.current = Math.max(TABLE.THICK + 0.1, cushionLip - 0.02);
@@ -6493,12 +6892,13 @@ function SnookerGame() {
       );
 
       // Balls (ONLY Guret)
+      const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
       const add = (id, color, x, z) => {
         const b = Guret(table, id, color, x, z);
         balls.push(b);
         return b;
       };
-      cue = add('cue', COLORS.cue, -BALL_R * 2, baulkZ);
+      cue = add('cue', finishPalette.cue, -BALL_R * 2, baulkZ);
       const SPOTS = spotPositions(baulkZ);
 
       // 15 red balls arranged in triangle behind the pink
@@ -6509,13 +6909,13 @@ function SnookerGame() {
           if (rid >= 15) break;
           const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
           const z = startZ + row * (BALL_R * 1.9);
-          add(`red_${rid++}`, COLORS.red, x, z);
+          add(`red_${rid++}`, finishPalette.red, x, z);
         }
       }
 
       // colours
       const colors = Object.fromEntries(
-        Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, COLORS[k], x, z)])
+        Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, finishPalette[k], x, z)])
       );
 
       applySnookerScaling({
@@ -8426,6 +8826,7 @@ function SnookerGame() {
           window.removeEventListener('pointerup', endInHandDrag);
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
+          applyFinishRef.current = () => {};
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
@@ -8437,6 +8838,10 @@ function SnookerGame() {
         setLoadingProgress(100);
       }
   }, []);
+
+  useEffect(() => {
+    applyFinishRef.current?.(tableFinish);
+  }, [tableFinish]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
@@ -8626,6 +9031,32 @@ function SnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
+        <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
+          Table Finish
+        </span>
+        <div className="flex flex-col gap-2">
+          {TABLE_FINISH_OPTIONS.map((option) => {
+            const active = option.id === tableFinishId;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setTableFinishId(option.id)}
+                aria-pressed={active}
+                className={`min-w-[9rem] rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                  active
+                    ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {(loading || displayedProgress < 100) && (
         <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
