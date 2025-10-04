@@ -165,10 +165,10 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.1;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.06;
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.02;
+const CHROME_CORNER_EXPANSION_SCALE = 0.25;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.22;
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0.04;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
@@ -3631,7 +3631,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.09 * POCKET_VISUAL_EXPANSION; // extend short rail cushions so the green meets the chrome arch cleanly
+    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // keep short rail cushions flush without sliding into the pocket mouth
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3662,27 +3662,28 @@ function Table3D(
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
-  const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
-  const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromeCornerMeetX = Math.max(0, horizLen / 2);
-  const bottomVerticalCenterZ =
-    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
   const chromeCornerMeetZ = Math.max(
     0,
-    Math.abs(bottomVerticalCenterZ - trimmedVertSeg / 2)
+    halfH - sideCushionOffset - SIDE_CUSHION_CORNER_TRIM
   );
-  const sideChromeMeetZ = Math.max(
+  const chromePlateInnerLimitX = Math.max(
     0,
-    Math.abs(bottomVerticalCenterZ + trimmedVertSeg / 2)
+    Math.min(cushionInnerX, chromeCornerMeetX)
+  );
+  const chromePlateInnerLimitZ = Math.max(
+    0,
+    Math.min(cushionInnerZ, chromeCornerMeetZ)
   );
   const chromePlateExpansionX = Math.max(
     0,
-    (chromePlateInnerLimitX - chromeCornerMeetX) * CHROME_CORNER_EXPANSION_SCALE
+    (cushionInnerX - chromePlateInnerLimitX) * CHROME_CORNER_EXPANSION_SCALE
   );
   const chromePlateExpansionZ = Math.max(
     0,
-    (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
+    (cushionInnerZ - chromePlateInnerLimitZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
+  const sideChromeMeetZ = chromePlateInnerLimitZ;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
