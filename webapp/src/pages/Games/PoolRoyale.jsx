@@ -992,9 +992,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_NOISE_TEXTURE_SIZE = 128;
-const CLOTH_TEXTURE_REPEAT_X = 16;
-const CLOTH_TEXTURE_REPEAT_Y = 10;
+const CLOTH_TEXTURE_INTENSITY = 0.45;
+const CLOTH_HAIR_INTENSITY = 0.18;
+const CLOTH_BUMP_INTENSITY = 0.36;
+const CLOTH_SOFT_BLEND = 0.6;
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   cloth,
@@ -1011,7 +1012,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'classicWood',
     label: 'Classic Wood',
     colors: makeColorPalette({
-      cloth: 0x0b8b3b,
+      cloth: 0x2b7e4f,
       rail: 0x5e3d24,
       base: 0x5e3d24
     }),
@@ -1060,7 +1061,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'goldenMaple',
     label: 'Golden Maple',
     colors: makeColorPalette({
-      cloth: 0x0b8b3b,
+      cloth: 0x2b7e4f,
       rail: 0xc98738,
       base: 0xc27a2f
     }),
@@ -1109,7 +1110,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'nordicBirch',
     label: 'Nordic Birch',
     colors: makeColorPalette({
-      cloth: 0x0b8b3b,
+      cloth: 0x2b7e4f,
       rail: 0xd8b47c,
       base: 0xd2a86a
     }),
@@ -1158,7 +1159,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'matteGraphite',
     label: 'Matte Graphite',
     colors: makeColorPalette({
-      cloth: 0x0b8b3b,
+      cloth: 0x2b7e4f,
       rail: 0x2f2f2f,
       base: 0x2b2b2b
     }),
@@ -1209,7 +1210,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'matteGraphiteNeon',
     label: 'Matte Graphite Neon',
     colors: makeColorPalette({
-      cloth: 0x0b8b3b,
+      cloth: 0x2b7e4f,
       rail: 0x2f2f2f,
       base: 0x2b2b2b
     }),
@@ -1274,7 +1275,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'twoToneHybrid',
     label: 'Two-Tone Hybrid',
     colors: makeColorPalette({
-      cloth: 0x0b8b3b,
+      cloth: 0x2b7e4f,
       rail: 0x151a1f,
       base: 0x1c2026
     }),
@@ -1380,7 +1381,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'proDark';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'proDark', label: 'Tournament Dark', color: 0x0b8b3b },
+  { id: 'proDark', label: 'Tournament Dark', color: 0x2b7e4f },
   { id: 'freshGreen', label: 'Fresh Green', color: 0x379a5f },
   { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 }
 ]);
@@ -1401,8 +1402,13 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
+const CLOTH_TEXTURE_SIZE = 4096;
+const CLOTH_THREAD_PITCH = 12 * 0.8;
+const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
+
 const createClothTextures = (() => {
   let cache = null;
+  const clamp255 = (value) => Math.max(0, Math.min(255, value));
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
@@ -1410,25 +1416,132 @@ const createClothTextures = (() => {
       return cache;
     }
 
+    const SIZE = CLOTH_TEXTURE_SIZE;
+    const THREAD_PITCH = CLOTH_THREAD_PITCH;
+    const DIAG = Math.PI / 4;
+    const COS = Math.cos(DIAG);
+    const SIN = Math.sin(DIAG);
+    const TAU = Math.PI * 2;
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = CLOTH_NOISE_TEXTURE_SIZE;
+    canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       cache = { map: null, bump: null };
       return cache;
     }
 
-    const image = ctx.createImageData(CLOTH_NOISE_TEXTURE_SIZE, CLOTH_NOISE_TEXTURE_SIZE);
+    const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    for (let y = 0; y < CLOTH_NOISE_TEXTURE_SIZE; y++) {
-      for (let x = 0; x < CLOTH_NOISE_TEXTURE_SIZE; x++) {
-        const noise =
-          Math.random() * 0.5 + Math.random() * 0.35 + Math.random() * 0.15;
-        const value = Math.floor(180 + noise * 60);
-        const i = (y * CLOTH_NOISE_TEXTURE_SIZE + x) * 4;
-        data[i + 0] = value;
-        data[i + 1] = value;
-        data[i + 2] = value;
+    const shadow = { r: 0x16, g: 0x58, b: 0x32 };
+    const base = { r: 0x27, g: 0x82, b: 0x40 };
+    const accent = { r: 0x37, g: 0x9d, b: 0x50 };
+    const highlight = { r: 0x58, g: 0xc4, b: 0x77 };
+    const hashNoise = (x, y, seedX, seedY, phase = 0) =>
+      Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
+    const fiberNoise = (x, y) =>
+      hashNoise(x, y, 12.9898, 78.233, 1.5) * 0.7 +
+      hashNoise(x, y, 32.654, 23.147, 15.73) * 0.2 +
+      hashNoise(x, y, 63.726, 12.193, -9.21) * 0.1;
+    const microNoise = (x, y) =>
+      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.5 +
+      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.5;
+    const sparkleNoise = (x, y) =>
+      hashNoise(x, y, 73.19, 11.17, 7.2) * 0.45 +
+      hashNoise(x, y, 27.73, 61.91, -14.4) * 0.55;
+    const strayWispNoise = (x, y) =>
+      hashNoise(x, y, 91.27, 7.51, 3.3) * 0.6 +
+      hashNoise(x, y, 14.91, 83.11, -5.7) * 0.4;
+    const hairFiber = (x, y) => {
+      const tuftSeed = hashNoise(x, y, 67.41, 3.73, -11.9);
+      const straySeed = strayWispNoise(x + 13.7, y - 21.4);
+      const dir = hashNoise(x, y, 5.19, 14.73, 8.2) * TAU;
+      const wiggle = hashNoise(x, y, 51.11, 33.07, -6.9) * 2.5;
+      const along = Math.sin(
+        (x * Math.cos(dir) + y * Math.sin(dir)) * 0.042 + wiggle
+      );
+      const tuft = Math.pow(tuftSeed, 3.8);
+      const stray = Math.pow(straySeed, 2.4);
+      const filament = Math.pow(Math.abs(along), 1.6);
+      const wisp = Math.pow(strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18), 4.2);
+      return THREE.MathUtils.clamp(
+        tuft * 0.55 + stray * 0.25 + filament * 0.3 + wisp * 0.2,
+        0,
+        1
+      );
+    };
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
+        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.68);
+        const cross = Math.pow(warp * weft, 0.9);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.6);
+        const fiber = fiberNoise(x, y);
+        const micro = microNoise(x + 31.8, y + 17.3);
+        const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
+        const fuzz = Math.pow(fiber, 1.2);
+        const hair = hairFiber(x, y);
+        const tonal = THREE.MathUtils.clamp(
+          0.56 +
+            (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
+            (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const tonalEnhanced = THREE.MathUtils.clamp(
+          0.5 +
+            (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const highlightMix = THREE.MathUtils.clamp(
+          0.34 +
+            (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
+            (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const accentMix = THREE.MathUtils.clamp(
+          0.48 +
+            (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const highlightEnhanced = THREE.MathUtils.clamp(
+          0.38 +
+            (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
+        const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
+        const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
+        const accentR = baseR + (accent.r - baseR) * accentMix;
+        const accentG = baseG + (accent.g - baseG) * accentMix;
+        const accentB = baseB + (accent.b - baseB) * accentMix;
+        const r = accentR + (highlight.r - accentR) * highlightEnhanced;
+        const g = accentG + (highlight.g - accentG) * highlightEnhanced;
+        const b = accentB + (highlight.b - accentB) * highlightEnhanced;
+        const softR = baseR + (r - baseR) * CLOTH_SOFT_BLEND;
+        const softG = baseG + (g - baseG) * CLOTH_SOFT_BLEND;
+        const softB = baseB + (b - baseB) * CLOTH_SOFT_BLEND;
+        const i = (y * SIZE + x) * 4;
+        data[i + 0] = clamp255(softR);
+        data[i + 1] = clamp255(softG);
+        data[i + 2] = clamp255(softB);
         data[i + 3] = 255;
       }
     }
@@ -1436,13 +1549,68 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(CLOTH_TEXTURE_REPEAT_X, CLOTH_TEXTURE_REPEAT_Y);
-    colorMap.anisotropy = 8;
+    colorMap.repeat.set(16, 64);
+    colorMap.anisotropy = 64;
+    colorMap.generateMipmaps = true;
+    colorMap.minFilter = THREE.LinearMipmapLinearFilter;
+    colorMap.magFilter = THREE.LinearFilter;
     if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
     else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
-    cache = { map: colorMap, bump: null };
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = SIZE;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (!bumpCtx) {
+      cache = { map: colorMap, bump: null };
+      return cache;
+    }
+    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
+    const bumpData = bumpImage.data;
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
+        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.58);
+        const cross = Math.pow(warp * weft, 0.94);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
+        const fiber = fiberNoise(x, y);
+        const micro = microNoise(x + 31.8, y + 17.3);
+        const fuzz = Math.pow(fiber, 1.22);
+        const hair = hairFiber(x, y);
+        const bump = THREE.MathUtils.clamp(
+          0.56 +
+            (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
+            (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
+            (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY +
+            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 36);
+        const i = (y * SIZE + x) * 4;
+        bumpData[i + 0] = value;
+        bumpData[i + 1] = value;
+        bumpData[i + 2] = value;
+        bumpData[i + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+
+    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+    bumpMap.repeat.copy(colorMap.repeat);
+    bumpMap.anisotropy = colorMap.anisotropy;
+    bumpMap.generateMipmaps = true;
+    bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
+    bumpMap.magFilter = THREE.LinearFilter;
+
+    cache = { map: colorMap, bump: bumpMap };
     return cache;
   };
 })();
@@ -2661,7 +2829,7 @@ function makeClothTexture(
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const clothColor = new THREE.Color(palette?.cloth ?? 0x0b8b3b);
+  const clothColor = new THREE.Color(palette?.cloth ?? 0x2b7e4f);
   const baseCloth = `#${clothColor.getHexString()}`;
   ctx.fillStyle = baseCloth;
   ctx.fillRect(0, 0, size, size);
@@ -3253,32 +3421,47 @@ function Table3D(
     dimensions: null
   };
 
-  const { map: clothMap } = createClothTextures();
-  const clothColor = new THREE.Color(palette.cloth);
+  const { map: clothMap, bump: clothBump } = createClothTextures();
+  const clothPrimary = new THREE.Color(palette.cloth);
+  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.12);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.85,
-    metalness: 0.05,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.25
+    roughness: 0.74,
+    sheen: 0.92,
+    sheenRoughness: 0.38,
+    clearcoat: 0.06,
+    clearcoatRoughness: 0.26,
+    emissive: clothColor.clone().multiplyScalar(0.06),
+    emissiveIntensity: 0.48
   });
-  const baseRepeat = CLOTH_TEXTURE_REPEAT_X;
-  const repeatRatio = CLOTH_TEXTURE_REPEAT_Y / CLOTH_TEXTURE_REPEAT_X;
+  const ballDiameter = BALL_R * 2;
+  const ballsAcrossWidth = PLAY_W / ballDiameter;
+  const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
+  const clothTextureScale = 0.032 * 1.35; // tighten the cloth pattern for a crisper weave
+  const baseRepeat =
+    ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
+    clothTextureScale;
+  const repeatRatio = 3.25;
+  const baseBumpScale = 0.52;
   if (clothMap) {
     clothMat.map = clothMap;
-    clothMat.roughnessMap = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.map.needsUpdate = true;
-    clothMat.roughnessMap.repeat.copy(clothMat.map.repeat);
-    clothMat.roughnessMap.needsUpdate = true;
   }
-  clothMat.bumpScale = 0;
+  if (clothBump) {
+    clothMat.bumpMap = clothBump;
+    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.bumpScale = baseBumpScale;
+    clothMat.bumpMap.needsUpdate = true;
+  } else {
+    clothMat.bumpScale = baseBumpScale;
+  }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat,
-    farRepeat: baseRepeat,
+    nearRepeat: baseRepeat * 1.18,
+    farRepeat: baseRepeat * 0.5,
     bumpScale: clothMat.bumpScale
   };
 
