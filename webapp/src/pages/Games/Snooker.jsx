@@ -841,6 +841,104 @@ const TABLE_FINISHES = Object.freeze({
       };
     }
   },
+  goldenMaple: {
+    id: 'goldenMaple',
+    label: 'Golden Maple',
+    colors: makeColorPalette({
+      cloth: 0x2b7e4f,
+      rail: 0xc98738,
+      base: 0xc27a2f
+    }),
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#c98738');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.16,
+        roughness: 0.28,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.16,
+        sheen: 0.14,
+        sheenRoughness: 0.48,
+        reflectivity: 0.46,
+        envMapIntensity: 0.82
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.01, 0.06, 0.12),
+        metalness: 0.2,
+        roughness: 0.3,
+        clearcoat: 0.38,
+        clearcoatRoughness: 0.18,
+        sheen: 0.16,
+        sheenRoughness: 0.46,
+        reflectivity: 0.52,
+        envMapIntensity: 0.88
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xe8c387,
+        metalness: 0.68,
+        roughness: 0.34,
+        clearcoat: 0.44,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 1
+      });
+      return {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent: null
+      };
+    }
+  },
+  nordicBirch: {
+    id: 'nordicBirch',
+    label: 'Nordic Birch',
+    colors: makeColorPalette({
+      cloth: 0x2b7e4f,
+      rail: 0xd8b47c,
+      base: 0xd2a86a
+    }),
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#d8b47c');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.12,
+        roughness: 0.26,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.14,
+        sheen: 0.18,
+        sheenRoughness: 0.44,
+        reflectivity: 0.48,
+        envMapIntensity: 0.9
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.02, 0.04, 0.1),
+        metalness: 0.16,
+        roughness: 0.28,
+        clearcoat: 0.42,
+        clearcoatRoughness: 0.18,
+        sheen: 0.2,
+        sheenRoughness: 0.4,
+        reflectivity: 0.5,
+        envMapIntensity: 0.95
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xf4e0b8,
+        metalness: 0.6,
+        roughness: 0.32,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.22,
+        envMapIntensity: 1.05
+      });
+      return {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent: null
+      };
+    }
+  },
   matteGraphite: {
     id: 'matteGraphite',
     label: 'Matte Graphite',
@@ -5309,7 +5407,9 @@ function SnookerGame() {
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
         const tvOffsetY = 0;
-        const tvSideOffset = signageWidth / 2 + tvDepth * 0.8 + tvWidth * 0.45;
+        const tvClearance = tvWidth * 0.32;
+        const tvSideOffset =
+          signageWidth / 2 + tvDepth * 0.9 + tvWidth * 0.45 + tvClearance;
         const leftTv = createTv(cryptoTexture);
         leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
         leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
