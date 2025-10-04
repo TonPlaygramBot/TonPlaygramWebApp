@@ -28,7 +28,7 @@ function darken(hex, amount) {
   return mixHex(hex, 0x000000, amount);
 }
 
-function addNoise(ctx, size, strength = 0.04, samples = 2800) {
+function addNoise(ctx, size, strength = 0.03, samples = 2800) {
   ctx.save();
   ctx.globalAlpha = strength;
   for (let i = 0; i < samples; i++) {
@@ -41,7 +41,7 @@ function addNoise(ctx, size, strength = 0.04, samples = 2800) {
 }
 
 function drawNumberBadge(ctx, size, number) {
-  const radius = size * 0.18;
+  const radius = size * 0.15;
   const cx = size * 0.5;
   const cy = size * 0.56;
 
@@ -65,8 +65,8 @@ function drawNumberBadge(ctx, size, number) {
   ctx.strokeStyle = 'rgba(0,0,0,0.18)';
   ctx.stroke();
 
-  const fontSize = size * 0.24;
-  ctx.fillStyle = '#111111';
+  const fontSize = size * 0.19;
+  ctx.fillStyle = '#161616';
   ctx.font = `bold ${fontSize}px "Arial"`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -90,14 +90,14 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
 
   ctx.save();
   if (pattern === 'stripe') {
-    ctx.fillStyle = '#fefefe';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, size, size);
     const stripeHeight = size * 0.46;
     const stripeY = (size - stripeHeight) / 2;
     const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.2));
-    stripeGrad.addColorStop(0.5, baseHex);
-    stripeGrad.addColorStop(1, darken(baseHex, 0.15));
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.32));
+    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.12));
+    stripeGrad.addColorStop(1, darken(baseHex, 0.08));
     ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
 
@@ -120,9 +120,9 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
       size * 0.55,
       size * 0.5
     );
-    radial.addColorStop(0, lighten(baseHex, 0.3));
-    radial.addColorStop(0.45, baseHex);
-    radial.addColorStop(1, darken(baseHex, 0.25));
+    radial.addColorStop(0, lighten(baseHex, 0.42));
+    radial.addColorStop(0.45, lighten(baseHex, 0.18));
+    radial.addColorStop(1, darken(baseHex, 0.16));
     ctx.fillStyle = radial;
     ctx.fillRect(0, 0, size, size);
   }
@@ -130,9 +130,9 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
 
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.75)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.35)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.5)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.82)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.45)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.35)');
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
@@ -148,8 +148,8 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
     size * 0.28,
     size * 0.28
   );
-  highlight.addColorStop(0, 'rgba(255,255,255,0.95)');
-  highlight.addColorStop(1, 'rgba(255,255,255,0)');
+  highlight.addColorStop(0, 'rgba(255,255,255,0.98)');
+  highlight.addColorStop(1, 'rgba(255,255,255,0.05)');
   ctx.fillStyle = highlight;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
@@ -165,12 +165,12 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
     size * 0.45
   );
   lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.55)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.35)');
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
 
-  addNoise(ctx, size, 0.05, 4500);
+  addNoise(ctx, size, 0.035, 4500);
 
   if (Number.isFinite(number)) {
     drawNumberBadge(ctx, size, number);
