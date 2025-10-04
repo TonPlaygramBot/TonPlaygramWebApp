@@ -5155,52 +5155,6 @@ function SnookerGame() {
           }
         };
       };
-      const createCryptoBoardEntry = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 4;
-        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-        else texture.encoding = THREE.sRGBEncoding;
-        return {
-          texture,
-          update() {
-            if (!ctx) return;
-            const list = coinTicker.list();
-            ctx.fillStyle = '#030712';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#0ea5e9';
-            ctx.font = 'bold 72px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText('Top 10 Crypto Prices', canvas.width / 2, 36);
-            ctx.font = '600 56px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.textBaseline = 'middle';
-            const maxEntries = Math.min(10, list.length);
-            const rowGap = 60;
-            const startY = 150;
-            for (let i = 0; i < maxEntries; i++) {
-              const entry = list[i];
-              const col = i < 5 ? 0 : 1;
-              const row = i % 5;
-              const baseX = col === 0 ? canvas.width * 0.12 : canvas.width * 0.57;
-              const priceX = baseX + canvas.width * 0.23;
-              const y = startY + row * rowGap;
-              ctx.textAlign = 'left';
-              ctx.fillStyle = '#cbd5f5';
-              ctx.fillText(entry.symbol, baseX, y);
-              ctx.textAlign = 'right';
-              ctx.fillStyle = '#38bdf8';
-              ctx.fillText(`$${entry.price.toFixed(0)}`, priceX, y);
-            }
-            texture.needsUpdate = true;
-          }
-        };
-      };
       const createMatchTvEntry = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 1024;
@@ -5338,7 +5292,7 @@ function SnookerGame() {
       const carpetDepth = roomDepth - wallThickness + carpetInset;
       const carpetTextures = createCarpetTextures();
       const carpetMat = new THREE.MeshStandardMaterial({
-        color: 0x7a0a18,
+        color: 0xb01224,
         roughness: 0.92,
         metalness: 0.04
       });
@@ -5393,7 +5347,6 @@ function SnookerGame() {
       rightWall.position.x = roomWidth / 2;
 
       const billboardTexture = registerDynamicTexture(createTickerEntry());
-      const cryptoTexture = registerDynamicTexture(createCryptoBoardEntry());
       const matchTexture = registerDynamicTexture(createMatchTvEntry());
       const signageFrameMat = new THREE.MeshStandardMaterial({
         color: 0x1f2937,
@@ -5460,18 +5413,12 @@ function SnookerGame() {
         );
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
-        const tvOffsetY = 0;
-        const tvClearance = tvWidth * 0.5;
-        const tvSideOffset =
-          signageWidth / 2 + tvDepth * 1.1 + tvWidth * 0.5 + tvClearance;
-        const leftTv = createTv(cryptoTexture);
-        leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
-        leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
-        assembly.add(leftTv);
-        const rightTv = createTv(matchTexture);
-        rightTv.position.set(tvSideOffset, tvOffsetY, 0);
-        rightTv.rotation.set(-Math.PI * 0.02, 0, 0);
-        assembly.add(rightTv);
+        return assembly;
+      };
+      const createMatchTvAssembly = () => {
+        const assembly = new THREE.Group();
+        const tv = createTv(matchTexture);
+        assembly.add(tv);
         return assembly;
       };
       const signageY = floorY + wallHeight * 0.58;
@@ -5481,12 +5428,21 @@ function SnookerGame() {
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
       [
-        { position: [0, signageY, frontInterior], rotationY: 0 },
-        { position: [0, signageY, backInterior], rotationY: Math.PI },
-        { position: [leftInterior, signageY, 0], rotationY: Math.PI / 2 },
-        { position: [rightInterior, signageY, 0], rotationY: -Math.PI / 2 }
-      ].forEach(({ position, rotationY }) => {
-        const signage = createBillboardAssembly();
+        { position: [0, signageY, frontInterior], rotationY: 0, type: 'tv' },
+        { position: [0, signageY, backInterior], rotationY: Math.PI, type: 'tv' },
+        {
+          position: [leftInterior, signageY, 0],
+          rotationY: Math.PI / 2,
+          type: 'billboard'
+        },
+        {
+          position: [rightInterior, signageY, 0],
+          rotationY: -Math.PI / 2,
+          type: 'billboard'
+        }
+      ].forEach(({ position, rotationY, type }) => {
+        const signage =
+          type === 'tv' ? createMatchTvAssembly() : createBillboardAssembly();
         signage.position.set(position[0], position[1], position[2]);
         signage.rotation.y = rotationY;
         world.add(signage);
