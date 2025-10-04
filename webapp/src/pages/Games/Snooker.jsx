@@ -165,6 +165,7 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.06;
 const CHROME_CORNER_EXPANSION_SCALE = 0.94;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.92;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.01;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
@@ -2923,7 +2924,7 @@ function Table3D(parent) {
   );
   const chromePlateExpansionZ = Math.max(
     0,
-    (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_EXPANSION_SCALE
+    (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
   const chromePlateWidth = Math.max(
     MICRO_EPS,
