@@ -789,7 +789,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   ...BASE_BALL_COLORS
 });
 
-const DEFAULT_TABLE_FINISH_ID = 'classicWood';
+const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 
 const TABLE_FINISHES = Object.freeze({
   classicWood: {
@@ -844,6 +844,57 @@ const TABLE_FINISHES = Object.freeze({
   matteGraphite: {
     id: 'matteGraphite',
     label: 'Matte Graphite',
+    colors: makeColorPalette({
+      cloth: 0x2b7e4f,
+      rail: 0x2f2f2f,
+      base: 0x2b2b2b
+    }),
+    createMaterials: () => {
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: 0x2b2b2b,
+        metalness: 0.22,
+        roughness: 0.6,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.46,
+        sheen: 0.05,
+        sheenRoughness: 0.72
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: 0x303030,
+        metalness: 0.28,
+        roughness: 0.54,
+        clearcoat: 0.12,
+        clearcoatRoughness: 0.4,
+        sheen: 0.04,
+        sheenRoughness: 0.64
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: 0x232323,
+        metalness: 0.26,
+        roughness: 0.58,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.44
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0x2a2f34,
+        metalness: 0.82,
+        roughness: 0.34,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.32,
+        envMapIntensity: 1.1
+      });
+      return {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: null
+      };
+    }
+  },
+  matteGraphiteNeon: {
+    id: 'matteGraphiteNeon',
+    label: 'Matte Graphite Neon',
     colors: makeColorPalette({
       cloth: 0x2b7e4f,
       rail: 0x2f2f2f,
@@ -973,6 +1024,60 @@ const TABLE_FINISHES = Object.freeze({
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze(Object.values(TABLE_FINISHES));
+
+const DEFAULT_CHROME_COLOR_ID = 'chrome';
+const CHROME_COLOR_OPTIONS = Object.freeze([
+  {
+    id: 'chrome',
+    label: 'Chrome',
+    color: 0xc0c9d5,
+    metalness: 0.92,
+    roughness: 0.28,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.18
+  },
+  {
+    id: 'gold',
+    label: 'Gold',
+    color: 0xd4af37,
+    metalness: 0.88,
+    roughness: 0.35,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.2
+  },
+  {
+    id: 'matteBlack',
+    label: 'Matte Black',
+    color: 0x1a1a1a,
+    metalness: 0.64,
+    roughness: 0.58,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.4
+  },
+  {
+    id: 'brown',
+    label: 'Brown',
+    color: 0x6b4128,
+    metalness: 0.76,
+    roughness: 0.44,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.28
+  }
+]);
+
+const DEFAULT_CLOTH_COLOR_ID = 'proDark';
+const CLOTH_COLOR_OPTIONS = Object.freeze([
+  { id: 'proDark', label: 'Tournament Dark', color: 0x2b7e4f },
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x379a5f },
+  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 }
+]);
+
+const toHexColor = (value) => {
+  if (typeof value === 'number') {
+    return `#${value.toString(16).padStart(6, '0')}`;
+  }
+  return value ?? '#ffffff';
+};
 
 const ORIGINAL_RAIL_WIDTH = TABLE.WALL * 0.7;
 const ORIGINAL_FRAME_WIDTH = ORIGINAL_RAIL_WIDTH * 2.5;
@@ -1444,14 +1549,17 @@ function createBroadcastCameras({
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerXOffset =
+  const cameraCornerExtra = BALL_R * 6;
+  const baseCornerX =
     typeof arenaHalfWidth === 'number'
       ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
       : fallbackCornerX;
-  const cameraCornerZOffset =
+  const baseCornerZ =
     typeof arenaHalfDepth === 'number'
       ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
       : fallbackCornerZ;
+  const cameraCornerXOffset = baseCornerX + cameraCornerExtra;
+  const cameraCornerZOffset = baseCornerZ + cameraCornerExtra;
   const cameraScale = 1.2;
 
   const createUnit = (xSign, zSign) => {
@@ -2908,10 +3016,11 @@ function Table3D(
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
 
   const resolvedFinish =
-    (finish && TABLE_FINISHES[finish.id]) ||
-    (finish?.id && TABLE_FINISHES[finish.id]) ||
-    finish ||
-    TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+    (finish && typeof finish === 'object')
+      ? finish
+      : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
+        (finish?.id && TABLE_FINISHES[finish.id]) ||
+        TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
 
   const createMaterialsFn =
@@ -3866,10 +3975,11 @@ function applyTableFinishToTable(table, finish) {
   const finishInfo = table.userData?.finish;
   if (!finishInfo?.parts) return;
   const resolvedFinish =
-    (finish && TABLE_FINISHES[finish.id]) ||
-    (finish?.id && TABLE_FINISHES[finish.id]) ||
-    finish ||
-    TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+    (finish && typeof finish === 'object')
+      ? finish
+      : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
+        (finish?.id && TABLE_FINISHES[finish.id]) ||
+        TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
       ? resolvedFinish.createMaterials
@@ -3976,8 +4086,79 @@ function SnookerGame() {
     }
     return DEFAULT_TABLE_FINISH_ID;
   });
-  const tableFinish =
-    TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const [chromeColorId, setChromeColorId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerChromeColor');
+      if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_CHROME_COLOR_ID;
+  });
+  const [clothColorId, setClothColorId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerClothColor');
+      if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_CLOTH_COLOR_ID;
+  });
+  const activeChromeOption = useMemo(
+    () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
+    [chromeColorId]
+  );
+  const activeClothOption = useMemo(
+    () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
+    [clothColorId]
+  );
+  const [configOpen, setConfigOpen] = useState(false);
+  const configPanelRef = useRef(null);
+  const configButtonRef = useRef(null);
+  const tableFinish = useMemo(() => {
+    const baseFinish =
+      TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+    const baseCreateMaterials =
+      typeof baseFinish?.createMaterials === 'function'
+        ? baseFinish.createMaterials
+        : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
+    const chromeSelection = activeChromeOption;
+    const clothSelection = activeClothOption;
+    return {
+      ...baseFinish,
+      colors: {
+        ...baseFinish.colors,
+        cloth: clothSelection.color
+      },
+      createMaterials: () => {
+        const baseMaterials = baseCreateMaterials();
+        const materials = { ...baseMaterials };
+        if (materials.trim) {
+          materials.trim = materials.trim.clone();
+        } else {
+          materials.trim = new THREE.MeshPhysicalMaterial({
+            color: chromeSelection.color,
+            metalness: chromeSelection.metalness,
+            roughness: chromeSelection.roughness,
+            clearcoat: chromeSelection.clearcoat,
+            clearcoatRoughness: chromeSelection.clearcoatRoughness
+          });
+        }
+        materials.trim.color.set(chromeSelection.color);
+        materials.trim.metalness = chromeSelection.metalness;
+        materials.trim.roughness = chromeSelection.roughness;
+        materials.trim.clearcoat = chromeSelection.clearcoat;
+        materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
+        if (materials.accent?.material) {
+          materials.accent = {
+            ...materials.accent,
+            material: materials.accent.material.clone()
+          };
+        }
+        return materials;
+      }
+    };
+  }, [tableFinishId, activeChromeOption, activeClothOption]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -3987,6 +4168,38 @@ function SnookerGame() {
       window.localStorage.setItem('snookerTableFinish', tableFinishId);
     }
   }, [tableFinishId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerChromeColor', chromeColorId);
+    }
+  }, [chromeColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerClothColor', clothColorId);
+    }
+  }, [clothColorId]);
+  useEffect(() => {
+    if (!configOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setConfigOpen(false);
+      }
+    };
+    const handlePointerDown = (event) => {
+      const panel = configPanelRef.current;
+      const button = configButtonRef.current;
+      if (!panel) return;
+      if (panel.contains(event.target)) return;
+      if (button?.contains(event.target)) return;
+      setConfigOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [configOpen]);
   const applyFinishRef = useRef(() => {});
   const [frameState, setFrameState] = useState(() =>
     rules.getInitialFrame('Player', 'AI')
@@ -5096,7 +5309,7 @@ function SnookerGame() {
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
         const tvOffsetY = 0;
-        const tvSideOffset = signageWidth / 2 + tvDepth * 0.8;
+        const tvSideOffset = signageWidth / 2 + tvDepth * 0.8 + tvWidth * 0.45;
         const leftTv = createTv(cryptoTexture);
         leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
         leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
@@ -5145,14 +5358,15 @@ function SnookerGame() {
       const tripodScale =
         (TABLE_Y + BALL_R * 6 - floorY) / 1.33;
       const tripodTilt = THREE.MathUtils.degToRad(-12);
-      const tripodZOffset = Math.max(
-        PLAY_H / 2 + BALL_R * 12,
-        shortRailTarget - BALL_R * 6
-      );
-      const tripodXOffset = Math.min(
-        roomWidth / 2 - wallThickness - 0.6,
-        TABLE.W / 2 + BALL_R * 12
-      );
+      const tripodExtra = BALL_R * 6;
+      const tripodDesiredZ =
+        Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
+        tripodExtra;
+      const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
+      const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
+      const tripodDesiredX = TABLE.W / 2 + BALL_R * 12 + tripodExtra;
+      const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
+      const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
       const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       const tripodPositions = [
         { x: tripodXOffset, z: tripodZOffset },
@@ -9032,30 +9246,160 @@ function SnookerGame() {
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
-        <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
-          Table Finish
-        </span>
-        <div className="flex flex-col gap-2">
-          {TABLE_FINISH_OPTIONS.map((option) => {
-            const active = option.id === tableFinishId;
-            return (
+      <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
+        <button
+          ref={configButtonRef}
+          type="button"
+          onClick={() => setConfigOpen((prev) => !prev)}
+          aria-expanded={configOpen}
+          aria-controls="snooker-config-panel"
+          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+            configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+          }`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            className="h-6 w-6"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+            />
+          </svg>
+          <span className="sr-only">Toggle table setup</span>
+        </button>
+        {configOpen && (
+          <div
+            id="snooker-config-panel"
+            ref={configPanelRef}
+            className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
+                Table Setup
+              </span>
               <button
-                key={option.id}
                 type="button"
-                onClick={() => setTableFinishId(option.id)}
-                aria-pressed={active}
-                className={`min-w-[9rem] rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                  active
-                    ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                    : 'bg-white/10 text-white/80 hover:bg-white/20'
-                }`}
+                onClick={() => setConfigOpen(false)}
+                className="rounded-full p-1 text-white/70 transition-colors duration-150 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                aria-label="Close setup"
               >
-                {option.label}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-4 w-4"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+                </svg>
               </button>
-            );
-          })}
-        </div>
+            </div>
+            <div className="mt-4 space-y-4">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Finish
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {TABLE_FINISH_OPTIONS.map((option) => {
+                    const active = option.id === tableFinishId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableFinishId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plates
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CHROME_COLOR_OPTIONS.map((option) => {
+                    const active = option.id === chromeColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChromeColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Cloth Color
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CLOTH_COLOR_OPTIONS.map((option) => {
+                    const active = option.id === clothColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setClothColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {(loading || displayedProgress < 100) && (
