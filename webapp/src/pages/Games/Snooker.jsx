@@ -1248,14 +1248,22 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     0
   );
 
-  const cameraCornerXOffset = TABLE.W / 2 + BALL_R * 10;
+  const cameraCornerXOffset = TABLE.W / 2 + BALL_R * 14;
+  const cameraCornerZOffset = Math.max(
+    shortRailZ + BALL_R * 10,
+    PLAY_H / 2 + BALL_R * 14
+  );
   const cameraScale = 1.2;
 
   const createUnit = (xSign, zSign) => {
     const base = new THREE.Group();
     const xDirection = Math.sign(xSign) || 1;
     const zDirection = Math.sign(zSign) || 1;
-    base.position.set(xDirection * cameraCornerXOffset, floorY, shortRailZ * zDirection);
+    base.position.set(
+      xDirection * cameraCornerXOffset,
+      floorY,
+      zDirection * cameraCornerZOffset
+    );
     const horizontalFocus = defaultFocus.clone();
     horizontalFocus.y = base.position.y;
     base.lookAt(horizontalFocus);
@@ -2658,26 +2666,26 @@ function Table3D(parent) {
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothPrimary = new THREE.Color(COLORS.cloth);
-  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.04);
+  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.12);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.78,
-    sheen: 0.85,
-    sheenRoughness: 0.44,
-    clearcoat: 0.05,
-    clearcoatRoughness: 0.24,
-    emissive: clothColor.clone().multiplyScalar(0.08),
-    emissiveIntensity: 0.7
+    roughness: 0.74,
+    sheen: 0.92,
+    sheenRoughness: 0.38,
+    clearcoat: 0.06,
+    clearcoatRoughness: 0.26,
+    emissive: clothColor.clone().multiplyScalar(0.06),
+    emissiveIntensity: 0.48
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
-  const clothTextureScale = 0.032 * 1.2; // shrink the cloth pattern ~20% for finer weave
+  const clothTextureScale = 0.032 * 1.35; // tighten the cloth pattern for a crisper weave
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.25;
-  const baseBumpScale = 0.44;
+  const baseBumpScale = 0.52;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -2695,8 +2703,8 @@ function Table3D(parent) {
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.12,
-    farRepeat: baseRepeat * 0.48,
+    nearRepeat: baseRepeat * 1.18,
+    farRepeat: baseRepeat * 0.5,
     bumpScale: clothMat.bumpScale
   };
 
@@ -4700,11 +4708,11 @@ function SnookerGame() {
         const tvSideOffset = signageWidth / 2 + tvDepth * 0.8;
         const leftTv = createTv(cryptoTexture);
         leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
-        leftTv.rotation.set(-Math.PI * 0.02, Math.PI / 2, 0);
+        leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
         assembly.add(leftTv);
         const rightTv = createTv(matchTexture);
         rightTv.position.set(tvSideOffset, tvOffsetY, 0);
-        rightTv.rotation.set(-Math.PI * 0.02, -Math.PI / 2, 0);
+        rightTv.rotation.set(-Math.PI * 0.02, 0, 0);
         assembly.add(rightTv);
         return assembly;
       };
@@ -4810,6 +4818,7 @@ function SnookerGame() {
       };
 
       const hospitalityScale = (TABLE_H * 0.48) / 0.75;
+      const furnitureScale = hospitalityScale * 1.18;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
 
       const createTableSet = () => {
@@ -4970,39 +4979,31 @@ function SnookerGame() {
         });
       };
 
-      const createCameraSideHospitalitySet = (side = 1) => {
+      const createCameraSideHospitalitySet = (side = 1, walkwayWidth = 0) => {
         const mirror = Math.sign(side) || 1;
         const group = new THREE.Group();
 
-        const interiorDepth = roomDepth / 2 - wallThickness * 0.75;
-        const tableZ = Math.min(
-          toHospitalityUnits(0.8),
-          interiorDepth * 0.85
-        );
-        const chairZ = Math.min(
-          toHospitalityUnits(1.05),
-          interiorDepth * 0.9
-        );
+        const depthRoom = Math.max(0, roomDepth / 2 - wallThickness * 0.85);
+        const depthOffset = Math.min(toHospitalityUnits(0.55), depthRoom * 0.45);
 
         const tableSet = createTableSet();
-        tableSet.scale.setScalar(hospitalityScale);
+        tableSet.scale.setScalar(furnitureScale);
         tableSet.position.set(
-          mirror * toHospitalityUnits(-0.9),
           0,
-          tableZ
+          0,
+          depthOffset * 0.25
         );
         ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
 
         const chair = createChair();
-        chair.scale.setScalar(hospitalityScale);
+        chair.scale.setScalar(furnitureScale);
         chair.position.set(
-          mirror * toHospitalityUnits(-1.55),
+          mirror * Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)),
           0,
-          chairZ
+          -depthOffset * 0.55
         );
-        const chairYaw = Math.PI * 0.1;
-        chair.rotation.y = mirror < 0 ? -chairYaw : chairYaw;
+        chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
         ensureHospitalityVisibility(chair);
         group.add(chair);
 
@@ -5020,25 +5021,21 @@ function SnookerGame() {
         minInset,
         maxInset
       );
-      const outerLimit = innerWall - toHospitalityUnits(0.75);
-      let hospitalityOffset;
-      if (outerLimit <= sideRailOuter) {
-        hospitalityOffset = sideRailOuter + walkway * 0.5;
-      } else {
-        const minOffset = sideRailOuter + minInset;
-        const preferredOffset = sideRailOuter + hospitalityInset * 0.85;
-        hospitalityOffset = THREE.MathUtils.clamp(
-          preferredOffset,
-          minOffset,
-          outerLimit
-        );
-      }
+      const outerLimit = innerWall - toHospitalityUnits(0.6);
+      const walkwayCenter = sideRailOuter + walkway * 0.55;
+      const minOffset = sideRailOuter + minInset;
+      const preferredOffset = sideRailOuter + hospitalityInset * 0.9;
+      const hospitalityOffset = THREE.MathUtils.clamp(
+        walkwayCenter,
+        minOffset,
+        Math.max(minOffset, Math.min(outerLimit, preferredOffset))
+      );
 
       [
         { mirror: -1 },
         { mirror: 1 }
       ].forEach(({ mirror }) => {
-        const hospitalitySet = createCameraSideHospitalitySet(mirror);
+        const hospitalitySet = createCameraSideHospitalitySet(mirror, walkway);
         hospitalitySet.position.set(mirror * hospitalityOffset, floorY, 0);
         ensureHospitalityVisibility(hospitalitySet);
         world.add(hospitalitySet);
