@@ -837,25 +837,27 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
     ],
     objectNumbers: [
       1,
-      10,
-      9,
-      3,
-      8,
-      6,
-      15,
-      13,
-      12,
-      11,
       2,
+      3,
       4,
       5,
+      6,
       7,
-      14
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
     ],
     objectPatterns: [
       'solid',
-      'stripe',
-      'stripe',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
       'solid',
       'solid',
       'solid',
@@ -863,10 +865,8 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'stripe',
       'stripe',
       'stripe',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
+      'stripe',
+      'stripe',
       'stripe'
     ]
   },
@@ -887,17 +887,17 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       0x111111,
       0xffc52c
     ],
-    objectNumbers: [1, 2, 3, 4, 9, 5, 6, 7, 8],
+    objectNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
     objectPatterns: [
       'solid',
       'solid',
       'solid',
       'solid',
-      'stripe',
       'solid',
       'solid',
       'solid',
-      'solid'
+      'solid',
+      'stripe'
     ]
   }
 });
