@@ -2856,6 +2856,34 @@ function Table3D(parent) {
     Math.min(outerHalfW, outerHalfH) * 0.2
   );
 
+  const POCKET_GAP =
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
+  const SHORT_CUSHION_EXTENSION =
+    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
+  const LONG_CUSHION_TRIM =
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+  const LONG_CUSHION_CORNER_EXTENSION =
+    POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+  const SIDE_CUSHION_POCKET_CLEARANCE =
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+  const SIDE_CUSHION_CENTER_PULL =
+    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+  const SIDE_CUSHION_CORNER_TRIM =
+    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
+  const horizLen =
+    PLAY_W -
+    2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
+    LONG_CUSHION_TRIM;
+  const vertSeg =
+    PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
+  const sideCushionOffset =
+    POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
+  const trimmedVertSeg = Math.max(
+    vertSeg - SIDE_CUSHION_CORNER_TRIM,
+    vertSeg * 0.6
+  );
+  const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
+
   const chromePlateMat = new THREE.MeshPhysicalMaterial({
     color: 0xe9edf2,
     metalness: 0.92,
@@ -2870,12 +2898,29 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateExpansionX = TABLE.THICK * 0.6;
-  const chromePlateExpansionZ = TABLE.THICK * 0.62;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
+  const chromeCornerMeetX = Math.max(0, horizLen / 2);
+  const bottomVerticalCenterZ =
+    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
+  const chromeCornerMeetZ = Math.max(
+    0,
+    Math.abs(bottomVerticalCenterZ - trimmedVertSeg / 2)
+  );
+  const sideChromeMeetZ = Math.max(
+    0,
+    Math.abs(bottomVerticalCenterZ + trimmedVertSeg / 2)
+  );
+  const chromePlateExpansionX = Math.max(
+    0,
+    chromePlateInnerLimitX - chromeCornerMeetX
+  );
+  const chromePlateExpansionZ = Math.max(
+    0,
+    chromePlateInnerLimitZ - chromeCornerMeetZ
+  );
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX
@@ -2906,7 +2951,10 @@ function Table3D(parent) {
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
   );
-  const sidePlateHeightByCushion = sidePlateHalfHeightLimit * 2;
+  const sidePlateHeightByCushion = Math.max(
+    MICRO_EPS,
+    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
+  );
   const sideChromePlateHeight = Math.min(
     chromePlateHeight * 0.94,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
@@ -3292,26 +3340,6 @@ function Table3D(parent) {
     table.userData.cushions.push(group);
   }
 
-  const POCKET_GAP =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
-  const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
-  const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
-  const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
-  const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
-  const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
-  const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
-  const horizLen =
-    PLAY_W -
-    2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
-    LONG_CUSHION_TRIM;
-  const vertSeg =
-    PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const bottomZ = -halfH;
   const topZ = halfH;
   const leftX = -halfW;
@@ -3319,13 +3347,6 @@ function Table3D(parent) {
 
   addCushion(0, bottomZ, horizLen, true, false);
   addCushion(0, topZ, horizLen, true, true);
-  const sideCushionOffset =
-    POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
-  const trimmedVertSeg = Math.max(
-    vertSeg - SIDE_CUSHION_CORNER_TRIM,
-    vertSeg * 0.6
-  );
-  const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
   addCushion(
     leftX,
