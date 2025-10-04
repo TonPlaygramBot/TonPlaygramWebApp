@@ -3101,13 +3101,7 @@ function Table3D(parent) {
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    const cornerWedge = [[[ 
-      [cx, cz],
-      [cx + sx * cornerChamfer, cz],
-      [cx, cz + sz * cornerChamfer],
-      [cx, cz]
-    ]]];
-    const union = polygonClipping.union(notchCircle, boxX, boxZ, cornerWedge);
+    const union = polygonClipping.union(notchCircle, boxX, boxZ);
     return adjustCornerNotchDepth(union, cz, sz);
   };
 
