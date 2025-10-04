@@ -55,10 +55,12 @@ const TABLE_LEG_INSET = 0.45;
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
-const CHAIR_CLEARANCE = 0.4;
+const CHAIR_CLEARANCE = 0.55;
 const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
 const CAMERA_MIN_RADIUS_FACTOR = 0.95;
 const CAMERA_MAX_RADIUS_FACTOR = 2.4;
+const PLAYER_CAMERA_PHI = 0.96;
+const PLAYER_CAMERA_THETA = Math.PI;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -81,8 +83,8 @@ const CAM = {
   far: 5000,
   minR: BOARD_DISPLAY_SIZE * CAMERA_MIN_RADIUS_FACTOR,
   maxR: BOARD_DISPLAY_SIZE * CAMERA_MAX_RADIUS_FACTOR,
-  phiMin: 1.05,
-  phiMax: 1.25
+  phiMin: 0.9,
+  phiMax: 1.27
 };
 
 // =============== Materials & simple builders ===============
@@ -817,14 +819,16 @@ function Chess3D({ avatar, username }) {
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const initialRadius = Math.max(
-      BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
-      CAM.minR + 0.6
+    const seatRadius = clamp(
+      chairDistance - 0.15,
+      CAM.minR + 0.05,
+      CAM.maxR - 0.05
     );
+    const baseRadius = seatRadius;
     sph = new THREE.Spherical(
-      initialRadius,
-      (CAM.phiMin + CAM.phiMax) / 2,
-      Math.PI * 0.25
+      seatRadius,
+      clamp(PLAYER_CAMERA_PHI, CAM.phiMin, CAM.phiMax),
+      PLAYER_CAMERA_THETA
     );
     const fit = () => {
       const w = host.clientWidth;
@@ -844,12 +848,12 @@ function Chess3D({ avatar, username }) {
 
     zoomRef.current = {
       zoomIn: () => {
-        const r = sph.radius || initialRadius;
+        const r = sph.radius || baseRadius;
         sph.radius = clamp(r - 1.2, CAM.minR, CAM.maxR);
         fit();
       },
       zoomOut: () => {
-        const r = sph.radius || initialRadius;
+        const r = sph.radius || baseRadius;
         sph.radius = clamp(r + 1.2, CAM.minR, CAM.maxR);
         fit();
       }
