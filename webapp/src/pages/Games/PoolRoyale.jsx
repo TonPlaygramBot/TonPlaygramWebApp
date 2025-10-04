@@ -165,8 +165,8 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.06;
-const CHROME_CORNER_EXPANSION_SCALE = 0.94;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.92;
+const CHROME_CORNER_EXPANSION_SCALE = 1.05;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.02;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.01;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
@@ -569,6 +569,8 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.height
 );
 const BALL_MATERIAL_CACHE = new Map();
+const BALL_NUMBER_TEXTURE_CACHE = new Map();
+const BALL_NUMBER_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
@@ -771,73 +773,149 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
     id: 'uk',
     label: '8-Ball UK',
     cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: true,
     objectColors: [
-      0xfff04d,
+      0xf4d33b,
+      0xf4d33b,
       0xd62828,
-      0xfff04d,
+      0xf4d33b,
+      0x0a0a0a,
       0xd62828,
-      0x101010,
-      0xfff04d,
       0xd62828,
-      0xfff04d,
+      0xf4d33b,
       0xd62828,
-      0xfff04d,
+      0xf4d33b,
       0xd62828,
-      0xfff04d,
+      0xf4d33b,
       0xd62828,
-      0xfff04d,
+      0xf4d33b,
       0xd62828
-    ]
+    ],
+    objectNumbers: [
+      null,
+      null,
+      null,
+      null,
+      8,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    objectPatterns: new Array(15).fill('solid')
   },
   american: {
     id: 'american',
     label: 'American 8-Ball',
     cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: true,
     objectColors: [
-      0xffd700,
+      0xfdd835,
       0x1e4dd8,
       0xd62828,
-      0x7f00ff,
+      0x7b1fa2,
       0xff7f00,
       0x15803d,
       0x6d213c,
       0x0a0a0a,
-      0xfff089,
-      0x9fb8ff,
-      0xff9f9f,
-      0xd4a0ff,
-      0xffc590,
-      0xa8d5b0,
-      0xd7b0b8
+      0xfdd835,
+      0x1e4dd8,
+      0xd62828,
+      0x7b1fa2,
+      0xff7f00,
+      0x15803d,
+      0x6d213c
+    ],
+    objectNumbers: [
+      1,
+      10,
+      9,
+      3,
+      8,
+      6,
+      15,
+      13,
+      12,
+      11,
+      2,
+      4,
+      5,
+      7,
+      14
+    ],
+    objectPatterns: [
+      'solid',
+      'stripe',
+      'stripe',
+      'solid',
+      'solid',
+      'solid',
+      'stripe',
+      'stripe',
+      'stripe',
+      'stripe',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'stripe'
     ]
   },
   '9ball': {
     id: '9ball',
     label: '9-Ball',
     cueColor: 0xffffff,
+    rackLayout: 'diamond',
+    disableSnookerMarkings: true,
     objectColors: [
-      0xffd700,
+      0xfdd835,
       0x1e4dd8,
       0xd62828,
-      0x7f00ff,
+      0x7b1fa2,
       0xff7f00,
       0x15803d,
       0x6d213c,
       0x0a0a0a,
-      0xfff089,
-      0x1e4dd8,
-      0xd62828,
-      0x7f00ff,
-      0xff7f00,
-      0x15803d,
-      0x6d213c
+      0xfdd835
+    ],
+    objectNumbers: [1, 2, 3, 4, 9, 5, 6, 7, 8],
+    objectPatterns: [
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'stripe',
+      'solid',
+      'solid',
+      'solid',
+      'solid'
     ]
   }
 });
 
+const TABLE_SIZE_OPTIONS = Object.freeze({
+  '7ft': { id: '7ft', label: '7 ft', scale: 0.78 },
+  '8ft': { id: '8ft', label: '8 ft', scale: 0.88 },
+  '9ft': { id: '9ft', label: '9 ft', scale: 1 }
+});
+const DEFAULT_TABLE_SIZE_ID = '9ft';
+
 function resolvePoolVariant(variantId) {
   const key = typeof variantId === 'string' ? variantId.toLowerCase() : '';
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
+}
+
+function resolveTableSize(sizeId) {
+  const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
+  return TABLE_SIZE_OPTIONS[key] || TABLE_SIZE_OPTIONS[DEFAULT_TABLE_SIZE_ID];
 }
 
 function getPoolBallColor(variant, index) {
@@ -846,6 +924,60 @@ function getPoolBallColor(variant, index) {
   if (index < 0) return colors[0];
   const wrapped = index % colors.length;
   return colors[wrapped];
+}
+
+function getPoolBallNumber(variant, index) {
+  const numbers = variant?.objectNumbers || [];
+  if (!numbers.length || index < 0 || index >= numbers.length) {
+    return null;
+  }
+  return numbers[index] ?? null;
+}
+
+function getPoolBallPattern(variant, index) {
+  const patterns = variant?.objectPatterns || [];
+  if (!patterns.length || index < 0 || index >= patterns.length) {
+    return 'solid';
+  }
+  return patterns[index] || 'solid';
+}
+
+function generateRackPositions(ballCount, layout, ballRadius, startZ) {
+  const positions = [];
+  if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
+    return positions;
+  }
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
+  if (layout === 'diamond') {
+    const rows = [1, 2, 3, 2, 1];
+    let index = 0;
+    for (let r = 0; r < rows.length && index < ballCount; r++) {
+      const count = rows[r];
+      const centerOffset = (count - 1) / 2;
+      for (let i = 0; i < count && index < ballCount; i++) {
+        const x = (i - centerOffset) * columnSpacing;
+        const z = startZ + r * rowSpacing;
+        positions.push({ x, z });
+        index++;
+      }
+    }
+    return positions;
+  }
+  let row = 0;
+  let placed = 0;
+  while (placed < ballCount) {
+    const count = row + 1;
+    const centerOffset = row / 2;
+    for (let i = 0; i < count && placed < ballCount; i++) {
+      const x = (i - centerOffset) * columnSpacing;
+      const z = startZ + row * rowSpacing;
+      positions.push({ x, z });
+      placed++;
+    }
+    row++;
+  }
+  return positions;
 }
 
 // Updated colors for dark cloth (ball colors overridden per variant at runtime)
@@ -3076,19 +3208,110 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
-function Guret(parent, id, color, x, y) {
-  if (!BALL_MATERIAL_CACHE.has(color)) {
+function getBallMaterial(baseColor) {
+  const key = `base:${baseColor}`;
+  if (!BALL_MATERIAL_CACHE.has(key)) {
     BALL_MATERIAL_CACHE.set(
-      color,
+      key,
       new THREE.MeshPhysicalMaterial({
-        color,
+        color: baseColor,
         roughness: 0.18,
         clearcoat: 1,
         clearcoatRoughness: 0.12
       })
     );
   }
-  const material = BALL_MATERIAL_CACHE.get(color);
+  return BALL_MATERIAL_CACHE.get(key);
+}
+
+function addStripeOverlay(mesh, stripeColor) {
+  const stripeGeo = new THREE.CylinderGeometry(
+    BALL_R * 1.0025,
+    BALL_R * 1.0025,
+    BALL_R * 0.9,
+    48,
+    1,
+    true
+  );
+  const stripeMat = new THREE.MeshBasicMaterial({
+    color: stripeColor,
+    transparent: true,
+    opacity: 0.95,
+    side: THREE.DoubleSide
+  });
+  stripeMat.depthWrite = false;
+  const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+  stripe.rotation.x = Math.PI / 2;
+  stripe.renderOrder = 1;
+  stripe.castShadow = false;
+  stripe.receiveShadow = false;
+  mesh.add(stripe);
+}
+
+function getBallNumberMaterial(number) {
+  const key = `num:${number}`;
+  if (BALL_NUMBER_MATERIAL_CACHE.has(key)) {
+    return BALL_NUMBER_MATERIAL_CACHE.get(key);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = canvas.width * 0.03;
+    ctx.stroke();
+    ctx.fillStyle = '#0b0b0b';
+    ctx.font = `bold ${canvas.width * 0.48}px "Segoe UI", "Helvetica Neue", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(number), canvas.width / 2, canvas.height / 2 * 1.05);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
+  BALL_NUMBER_TEXTURE_CACHE.set(key, texture);
+  const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  mat.depthWrite = false;
+  mat.side = THREE.DoubleSide;
+  BALL_NUMBER_MATERIAL_CACHE.set(key, mat);
+  return mat;
+}
+
+function addBallNumberMarkers(mesh, number) {
+  if (number == null) return;
+  const markerGeom = new THREE.CircleGeometry(BALL_R * 0.36, 48);
+  const markerMat = getBallNumberMaterial(number);
+  const markerOffset = BALL_R - BALL_R * 0.12;
+  const localForward = new THREE.Vector3(0, 0, 1);
+  const normals = [
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(-1, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(0, 0, 1),
+    new THREE.Vector3(0, 0, -1)
+  ];
+  normals.forEach((normal) => {
+    const marker = new THREE.Mesh(markerGeom, markerMat.clone());
+    marker.position.copy(normal).multiplyScalar(markerOffset);
+    marker.quaternion.setFromUnitVectors(localForward, normal);
+    marker.renderOrder = 2;
+    marker.castShadow = false;
+    marker.receiveShadow = false;
+    mesh.add(marker);
+  });
+}
+
+function Guret(parent, id, color, x, y, options = {}) {
+  const pattern = options.pattern || 'solid';
+  const baseColor = pattern === 'stripe' ? 0xffffff : color;
+  const material = getBallMaterial(baseColor);
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
@@ -3122,6 +3345,13 @@ function Guret(parent, id, color, x, y) {
       marker.renderOrder = 2;
       mesh.add(marker);
     });
+  } else {
+    if (pattern === 'stripe') {
+      addStripeOverlay(mesh, color);
+    }
+    if (options.number != null) {
+      addBallNumberMarkers(mesh, options.number);
+    }
   }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
@@ -3505,17 +3735,17 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // extend short rail cushions slightly toward the corner pockets
+    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // pull back short rail cushions so they finish before the chrome arch begins
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+    POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // shorten the long cushions slightly so pocket entrances stay unobstructed
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // keep the long cushions from overlapping the chrome arch at the corners
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // widen clearance around the pockets for the green cushions
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+    POCKET_VIS_R * 0.16 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.015 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
+    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -4310,13 +4540,17 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({ variantKey }) {
+function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new UnitySnookerRules(), []);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
     [variantKey]
+  );
+  const activeTableSize = useMemo(
+    () => resolveTableSize(tableSizeKey),
+    [tableSizeKey]
   );
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -4356,6 +4590,10 @@ function PoolRoyaleGame({ variantKey }) {
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
+  const tableSizeRef = useRef(activeTableSize);
+  useEffect(() => {
+    tableSizeRef.current = activeTableSize;
+  }, [activeTableSize]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -7286,7 +7524,8 @@ function PoolRoyaleGame({ variantKey }) {
       }
       // ensure the camera respects the configured zoom limits
       sph.radius = clampOrbitRadius(sph.radius);
-      worldScaleFactor = WORLD_SCALE;
+      const tableScale = tableSizeRef.current?.scale ?? 1;
+      worldScaleFactor = WORLD_SCALE * tableScale;
       world.scale.setScalar(worldScaleFactor);
       if (broadcastCamerasRef.current) {
         const rig = broadcastCamerasRef.current;
@@ -7313,8 +7552,8 @@ function PoolRoyaleGame({ variantKey }) {
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
       const variantConfig = activeVariantRef.current;
-      const add = (id, color, x, z) => {
-        const b = Guret(table, id, color, x, z);
+      const add = (id, color, x, z, extra = {}) => {
+        const b = Guret(table, id, color, x, z, extra);
         balls.push(b);
         return b;
       };
@@ -7322,23 +7561,44 @@ function PoolRoyaleGame({ variantKey }) {
       cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
       const SPOTS = spotPositions(baulkZ);
 
-      // 15 red balls arranged in triangle behind the pink
-      const startZ = SPOTS.pink[1] + BALL_R * 2;
-      let rid = 0;
-      for (let row = 0; row < 5; row++) {
-        for (let i = 0; i <= row; i++) {
-          if (rid >= 15) break;
-          const x = (i - row / 2) * (BALL_R * 2 + 0.002 * (BALL_R / 0.0525));
-          const z = startZ + row * (BALL_R * 1.9);
-          const color = getPoolBallColor(variantConfig, rid);
-          add(`red_${rid++}`, color, x, z);
+      if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
+        const { dArc, spots } = table.userData.markings;
+        if (dArc) dArc.visible = false;
+        if (Array.isArray(spots)) {
+          spots.forEach((spot) => {
+            if (spot) spot.visible = false;
+          });
         }
       }
 
-      // colours
-      const colors = Object.fromEntries(
-        Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, finishPalette[k], x, z)])
+      const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
+      const rackLayout = variantConfig?.rackLayout || 'triangle';
+      const rackColors = Array.isArray(variantConfig?.objectColors)
+        ? variantConfig.objectColors
+        : [];
+      const rackPositions = generateRackPositions(
+        rackColors.length,
+        rackLayout,
+        BALL_R,
+        rackStartZ
       );
+      for (let rid = 0; rid < rackColors.length; rid++) {
+        const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
+          x: 0,
+          z: rackStartZ + rid * BALL_R * 1.9
+        };
+        const color = getPoolBallColor(variantConfig, rid);
+        const number = getPoolBallNumber(variantConfig, rid);
+        const pattern = getPoolBallPattern(variantConfig, rid);
+        add(`red_${rid}`, color, pos.x, pos.z, { number, pattern });
+      }
+
+      // colours
+      const colors = variantConfig?.disableSnookerMarkings
+        ? {}
+        : Object.fromEntries(
+            Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, finishPalette[k], x, z)])
+          );
 
       applySnookerScaling({
         tableInnerRect: {
@@ -9725,6 +9985,11 @@ export default function PoolRoyale() {
     const requested = params.get('variant');
     return resolvePoolVariant(requested).id;
   }, [location.search]);
+  const tableSizeKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('tableSize');
+    return resolveTableSize(requested).id;
+  }, [location.search]);
 
   if (!isMobileOrTablet) {
     return (
@@ -9734,5 +9999,5 @@ export default function PoolRoyale() {
     );
   }
 
-  return <PoolRoyaleGame variantKey={variantKey} />;
+  return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
 }
