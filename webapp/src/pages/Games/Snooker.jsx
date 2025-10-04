@@ -2344,9 +2344,16 @@ function reflectRails(ball) {
     ball.pos.addScaledVector(TMP_VEC2_B, push);
     const vn = ball.vel.dot(TMP_VEC2_B);
     if (vn < 0) {
-      ball.vel.addScaledVector(TMP_VEC2_B, -2 * vn);
+      const restitution = CUSHION_RESTITUTION;
+      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+      const vt = TMP_VEC2_D.copy(ball.vel).sub(
+        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+      );
+      const tangentDamping = 0.96;
+      ball.vel
+        .sub(vt)
+        .add(vt.multiplyScalar(tangentDamping));
     }
-    ball.vel.multiplyScalar(0.2);
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
@@ -3708,6 +3715,10 @@ function SnookerGame() {
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const timerWarnedRef = useRef(false);
+  const timerValueRef = useRef(timer);
+  useEffect(() => {
+    timerValueRef.current = timer;
+  }, [timer]);
   const spinRef = useRef({ x: 0, y: 0 });
   const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
@@ -3764,6 +3775,10 @@ function SnookerGame() {
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
   const [player, setPlayer] = useState({ name: '', avatar: '' });
+  const playerInfoRef = useRef(player);
+  useEffect(() => {
+    playerInfoRef.current = player;
+  }, [player]);
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
 
@@ -4272,6 +4287,265 @@ function SnookerGame() {
       let lastShotPower = 0;
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
+      const dynamicTextureEntries = [];
+      const registerDynamicTexture = (entry) => {
+        if (!entry || !entry.texture || typeof entry.update !== 'function') {
+          return null;
+        }
+        dynamicTextureEntries.push(entry);
+        return entry.texture;
+      };
+      const coinTicker = (() => {
+        const coins = [
+          'BTC',
+          'ETH',
+          'BNB',
+          'SOL',
+          'XRP',
+          'ADA',
+          'DOGE',
+          'AVAX',
+          'DOT',
+          'TRX'
+        ];
+        const prices = coins.map(() => 1000 + Math.random() * 45000);
+        let accumulator = 0;
+        return {
+          update(delta) {
+            accumulator += delta;
+            const step = 0.25;
+            while (accumulator >= step) {
+              accumulator -= step;
+              for (let i = 0; i < prices.length; i++) {
+                const drift = (Math.random() - 0.5) * 120;
+                prices[i] = Math.max(0, prices[i] + drift);
+              }
+            }
+          },
+          list() {
+            return coins.map((symbol, index) => ({
+              symbol,
+              price: prices[index] ?? 0
+            }));
+          },
+          text() {
+            return this.list()
+              .map(({ symbol, price }) => `${symbol}: $${price.toFixed(0)}`)
+              .join('   ');
+          }
+        };
+      })();
+      const createTickerEntry = ({
+        color = '#34d399',
+        background = '#020617',
+        fontSize = 88,
+        speed = 220
+      } = {}) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2048;
+        canvas.height = 320;
+        const ctx = canvas.getContext('2d');
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = 4;
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
+        let offset = 0;
+        return {
+          texture,
+          update(delta) {
+            if (!ctx) return;
+            const text = coinTicker.text();
+            const tileText = `${text}     `;
+            ctx.fillStyle = background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = color;
+            ctx.font = `bold ${fontSize}px "Segoe UI", "Helvetica Neue", sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            const tileWidth = Math.max(1, ctx.measureText(tileText).width);
+            offset = (offset + speed * delta) % tileWidth;
+            let x = -offset;
+            const centerY = canvas.height / 2;
+            while (x < canvas.width + tileWidth) {
+              ctx.fillText(tileText, x, centerY);
+              x += tileWidth;
+            }
+            texture.needsUpdate = true;
+          }
+        };
+      };
+      const createCryptoBoardEntry = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = 4;
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
+        return {
+          texture,
+          update() {
+            if (!ctx) return;
+            const list = coinTicker.list();
+            ctx.fillStyle = '#030712';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0ea5e9';
+            ctx.font = 'bold 72px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText('Top 10 Crypto Prices', canvas.width / 2, 36);
+            ctx.font = '600 56px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.textBaseline = 'middle';
+            const maxEntries = Math.min(10, list.length);
+            const rowGap = 60;
+            const startY = 150;
+            for (let i = 0; i < maxEntries; i++) {
+              const entry = list[i];
+              const col = i < 5 ? 0 : 1;
+              const row = i % 5;
+              const baseX = col === 0 ? canvas.width * 0.12 : canvas.width * 0.57;
+              const priceX = baseX + canvas.width * 0.23;
+              const y = startY + row * rowGap;
+              ctx.textAlign = 'left';
+              ctx.fillStyle = '#cbd5f5';
+              ctx.fillText(entry.symbol, baseX, y);
+              ctx.textAlign = 'right';
+              ctx.fillStyle = '#38bdf8';
+              ctx.fillText(`$${entry.price.toFixed(0)}`, priceX, y);
+            }
+            texture.needsUpdate = true;
+          }
+        };
+      };
+      const createMatchTvEntry = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = 8;
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
+        let pulse = 0;
+        return {
+          texture,
+          update(delta) {
+            if (!ctx) return;
+            pulse += delta;
+            const hudState = hudRef.current ?? {};
+            const playerState = playerInfoRef.current ?? {};
+            const frameStateCurrent = frameRef.current ?? {};
+            const playerName =
+              playerState.name || frameStateCurrent.players?.A?.name || 'Player';
+            const aiName = frameStateCurrent.players?.B?.name || 'AI';
+            const timerValue = Math.max(
+              0,
+              Math.floor(timerValueRef.current ?? 0)
+            );
+            const minutes = Math.floor(timerValue / 60);
+            const seconds = timerValue % 60;
+            const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            ctx.fillStyle = '#050b18';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            headerGrad.addColorStop(0, '#0f172a');
+            headerGrad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = headerGrad;
+            ctx.fillRect(0, 0, canvas.width, 120);
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Snooker Match of the Day', canvas.width / 2, 60);
+            const drawCompetitor = ({
+              x,
+              name,
+              score,
+              accent,
+              tag,
+              active,
+              badge
+            }) => {
+              const scoreY = canvas.height * 0.3;
+              ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.shadowColor = active
+                ? 'rgba(56,189,248,0.45)'
+                : 'transparent';
+              ctx.shadowBlur = active ? 24 : 0;
+              ctx.fillStyle = active ? '#f8fafc' : '#e2e8f0';
+              ctx.fillText(String(score ?? 0), x, scoreY);
+              ctx.shadowBlur = 0;
+              const avatarY = canvas.height * 0.55;
+              const avatarRadius = 70;
+              ctx.save();
+              ctx.translate(x, avatarY);
+              ctx.fillStyle = accent;
+              ctx.globalAlpha = active ? 1 : 0.9;
+              ctx.beginPath();
+              ctx.arc(0, 0, avatarRadius, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.fillStyle = '#0b1120';
+              ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(badge, 0, 0);
+              ctx.restore();
+              ctx.fillStyle = active ? '#f1f5f9' : '#cbd5f5';
+              ctx.font = 'bold 56px "Segoe UI", "Helvetica Neue", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'top';
+              ctx.fillText(name, x, avatarY + avatarRadius + 12);
+              ctx.fillStyle = '#94a3b8';
+              ctx.font = '500 32px "Segoe UI", "Helvetica Neue", sans-serif';
+              ctx.fillText(tag, x, avatarY + avatarRadius + 52);
+            };
+            const activeTurn = hudState.turn === 0 ? 'A' : 'B';
+            drawCompetitor({
+              x: canvas.width * 0.25,
+              name: playerName,
+              score: hudState.A ?? 0,
+              accent: '#0ea5e9',
+              tag: 'PLAYER ONE',
+              active: activeTurn === 'A',
+              badge:
+                (playerName || 'P').trim().charAt(0).toUpperCase() || 'P'
+            });
+            drawCompetitor({
+              x: canvas.width * 0.75,
+              name: aiName,
+              score: hudState.B ?? 0,
+              accent: '#f97316',
+              tag: 'CHALLENGER',
+              active: activeTurn === 'B',
+              badge: aiFlag || (aiName || 'A').charAt(0).toUpperCase()
+            });
+            const timerY = canvas.height * 0.18;
+            const warn = timerValue <= 5 && timerValue > 0;
+            const timerColor = warn
+              ? pulse % 0.4 < 0.2
+                ? '#f87171'
+                : '#facc15'
+              : '#38bdf8';
+            ctx.fillStyle = timerColor;
+            ctx.font = 'bold 110px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.fillText(timerText, canvas.width / 2, timerY);
+            ctx.fillStyle = '#cbd5f5';
+            ctx.font = '600 32px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.fillText('SHOT CLOCK', canvas.width / 2, timerY + 70);
+            texture.needsUpdate = true;
+          }
+        };
+      };
       const legHeight = LEG_ROOM_HEIGHT;
       const floorY = FLOOR_Y;
       const roomDepth = TABLE.H * 3.6;
@@ -4340,6 +4614,102 @@ function SnookerGame() {
 
       const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
       rightWall.position.x = roomWidth / 2;
+
+      const billboardTexture = registerDynamicTexture(createTickerEntry());
+      const cryptoTexture = registerDynamicTexture(createCryptoBoardEntry());
+      const matchTexture = registerDynamicTexture(createMatchTvEntry());
+      const signageFrameMat = new THREE.MeshStandardMaterial({
+        color: 0x1f2937,
+        roughness: 0.5,
+        metalness: 0.6
+      });
+      const tvBezelMat = new THREE.MeshStandardMaterial({
+        color: 0x0b1323,
+        roughness: 0.35,
+        metalness: 0.55
+      });
+      const signageDepth = 0.8;
+      const signageWidth = Math.min(roomWidth * 0.58, 52);
+      const signageHeight = Math.min(wallHeight * 0.28, 12);
+      const tvWidth = 9;
+      const tvHeight = 5.4;
+      const tvDepth = 0.42;
+      const makeScreenMaterial = (texture) => {
+        const material = new THREE.MeshBasicMaterial({ toneMapped: false });
+        if (texture) {
+          material.map = texture;
+        } else {
+          material.color = new THREE.Color(0x0f172a);
+        }
+        return material;
+      };
+      const createTv = (texture) => {
+        const group = new THREE.Group();
+        const bezel = new THREE.Mesh(
+          new THREE.BoxGeometry(tvWidth, tvHeight, tvDepth),
+          tvBezelMat
+        );
+        bezel.castShadow = false;
+        bezel.receiveShadow = true;
+        group.add(bezel);
+        const screen = new THREE.Mesh(
+          new THREE.PlaneGeometry(tvWidth * 0.92, tvHeight * 0.88),
+          makeScreenMaterial(texture)
+        );
+        screen.position.z = tvDepth / 2 + 0.02;
+        group.add(screen);
+        const mount = new THREE.Mesh(
+          new THREE.BoxGeometry(tvWidth * 0.18, tvHeight * 0.6, tvDepth * 0.3),
+          tvBezelMat
+        );
+        mount.position.set(0, -tvHeight * 0.55, -tvDepth * 0.35);
+        group.add(mount);
+        return group;
+      };
+      const createBillboardAssembly = () => {
+        const assembly = new THREE.Group();
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(signageWidth, signageHeight, signageDepth),
+          signageFrameMat
+        );
+        frame.castShadow = false;
+        frame.receiveShadow = true;
+        assembly.add(frame);
+        const billboardScreen = new THREE.Mesh(
+          new THREE.PlaneGeometry(signageWidth * 0.94, signageHeight * 0.82),
+          makeScreenMaterial(billboardTexture)
+        );
+        billboardScreen.position.z = signageDepth / 2 + 0.03;
+        assembly.add(billboardScreen);
+        const tvOffsetY = signageHeight * 0.5 + tvHeight * 0.55;
+        const tvForward = signageDepth / 2 + 0.22;
+        const leftTv = createTv(cryptoTexture);
+        leftTv.position.set(-signageWidth * 0.32, tvOffsetY, tvForward);
+        leftTv.rotation.x = -Math.PI * 0.02;
+        assembly.add(leftTv);
+        const rightTv = createTv(matchTexture);
+        rightTv.position.set(signageWidth * 0.32, tvOffsetY, tvForward);
+        rightTv.rotation.x = -Math.PI * 0.02;
+        assembly.add(rightTv);
+        return assembly;
+      };
+      const signageY = floorY + wallHeight * 0.58;
+      const wallInset = wallThickness / 2 + 0.2;
+      const frontInterior = -roomDepth / 2 + wallInset;
+      const backInterior = roomDepth / 2 - wallInset;
+      const leftInterior = -roomWidth / 2 + wallInset;
+      const rightInterior = roomWidth / 2 - wallInset;
+      [
+        { position: [0, signageY, frontInterior], rotationY: 0 },
+        { position: [0, signageY, backInterior], rotationY: Math.PI },
+        { position: [leftInterior, signageY, 0], rotationY: Math.PI / 2 },
+        { position: [rightInterior, signageY, 0], rotationY: -Math.PI / 2 }
+      ].forEach(({ position, rotationY }) => {
+        const signage = createBillboardAssembly();
+        signage.position.set(position[0], position[1], position[2]);
+        signage.rotation.y = rotationY;
+        world.add(signage);
+      });
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
@@ -7383,6 +7753,9 @@ function SnookerGame() {
       const step = (now) => {
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
+        const deltaSeconds = deltaMs / 1000;
+        coinTicker.update(deltaSeconds);
+        dynamicTextureEntries.forEach((entry) => entry.update(deltaSeconds));
         const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS;
         const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
         const physicsSubsteps = Math.min(
