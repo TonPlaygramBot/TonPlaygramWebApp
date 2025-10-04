@@ -75,18 +75,34 @@ function drawNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
-function createBallTexture({ baseColor, pattern, number, variantKey }) {
-  const key = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}`;
-  if (BALL_TEXTURE_CACHE.has(key)) {
-    return BALL_TEXTURE_CACHE.get(key);
+function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
+  const baseHex = toHexString(baseColor);
+
+  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
+  ctx.fillRect(0, 0, size, size);
+
+  if (pattern === 'stripe') {
+    ctx.fillStyle = baseHex;
+    const stripeHeight = size * 0.45;
+    const stripeY = (size - stripeHeight) / 2;
+    ctx.fillRect(0, stripeY, size, stripeHeight);
   }
 
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = BALL_TEXTURE_SIZE;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
+  if (Number.isFinite(number)) {
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(size * 0.5, size * 0.55, size * 0.16, 0, Math.PI * 2);
+    ctx.fill();
 
-  const size = BALL_TEXTURE_SIZE;
+    ctx.fillStyle = number === 8 ? '#ffffff' : '#000000';
+    ctx.font = `${size * 0.22}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(number), size * 0.5, size * 0.56);
+  }
+}
+
+function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
   ctx.save();
@@ -175,6 +191,25 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
 
   if (Number.isFinite(number)) {
     drawNumberBadge(ctx, size, number);
+  }
+}
+
+function createBallTexture({ baseColor, pattern, number, variantKey }) {
+  const key = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}`;
+  if (BALL_TEXTURE_CACHE.has(key)) {
+    return BALL_TEXTURE_CACHE.get(key);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = BALL_TEXTURE_SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const size = BALL_TEXTURE_SIZE;
+  if (variantKey === 'pool') {
+    drawPoolBallTexture(ctx, size, baseColor, pattern, number);
+  } else {
+    drawDefaultBallTexture(ctx, size, baseColor, pattern, number);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
