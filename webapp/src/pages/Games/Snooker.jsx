@@ -1249,11 +1249,13 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
   );
 
   const cameraCornerXOffset = TABLE.W / 2 + BALL_R * 10;
+  const cameraScale = 1.2;
 
-  const createUnit = (direction) => {
+  const createUnit = (xSign, zSign) => {
     const base = new THREE.Group();
-    const xDirection = direction >= 0 ? 1 : -1;
-    base.position.set(xDirection * cameraCornerXOffset, floorY, shortRailZ * direction);
+    const xDirection = Math.sign(xSign) || 1;
+    const zDirection = Math.sign(zSign) || 1;
+    base.position.set(xDirection * cameraCornerXOffset, floorY, shortRailZ * zDirection);
     const horizontalFocus = defaultFocus.clone();
     horizontalFocus.y = base.position.y;
     base.lookAt(horizontalFocus);
@@ -1263,6 +1265,7 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
 
     const slider = new THREE.Group();
     base.add(slider);
+    slider.scale.setScalar(cameraScale);
 
     const tripod = new THREE.Group();
     slider.add(tripod);
@@ -1369,11 +1372,21 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     headPivot.lookAt(defaultFocus);
     headPivot.rotateY(Math.PI);
 
-    return { base, slider, head: headPivot, assembly: cameraAssembly, direction };
+    return {
+      base,
+      slider,
+      head: headPivot,
+      assembly: cameraAssembly,
+      direction: zDirection,
+      xDirection,
+      rail: zDirection >= 0 ? 'back' : 'front'
+    };
   };
 
-  cameras.front = createUnit(-1);
-  cameras.back = createUnit(1);
+  cameras.frontLeft = createUnit(-1, -1);
+  cameras.frontRight = createUnit(1, -1);
+  cameras.backLeft = createUnit(-1, 1);
+  cameras.backRight = createUnit(1, 1);
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
@@ -1651,9 +1664,9 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.96;
+const STANDING_VIEW_PHI = 0.92;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.005;
+const STANDING_VIEW_MARGIN = 0.0035;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -1663,8 +1676,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.05;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.02;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -4628,12 +4641,14 @@ function SnookerGame() {
         roughness: 0.35,
         metalness: 0.55
       });
-      const signageDepth = 0.8;
-      const signageWidth = Math.min(roomWidth * 0.58, 52);
-      const signageHeight = Math.min(wallHeight * 0.28, 12);
-      const tvWidth = 9;
-      const tvHeight = 5.4;
-      const tvDepth = 0.42;
+      const signageScale = 3;
+      const signageDepth = 0.8 * signageScale;
+      const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
+      const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
+      const tvScale = 5;
+      const tvWidth = 9 * tvScale;
+      const tvHeight = 5.4 * tvScale;
+      const tvDepth = 0.42 * tvScale;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -4682,14 +4697,14 @@ function SnookerGame() {
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
         const tvOffsetY = signageHeight * 0.5 + tvHeight * 0.55;
-        const tvForward = signageDepth / 2 + 0.22;
+        const tvSideOffset = signageWidth / 2 + tvDepth * 0.8;
         const leftTv = createTv(cryptoTexture);
-        leftTv.position.set(-signageWidth * 0.32, tvOffsetY, tvForward);
-        leftTv.rotation.x = -Math.PI * 0.02;
+        leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
+        leftTv.rotation.set(-Math.PI * 0.02, Math.PI / 2, 0);
         assembly.add(leftTv);
         const rightTv = createTv(matchTexture);
-        rightTv.position.set(signageWidth * 0.32, tvOffsetY, tvForward);
-        rightTv.rotation.x = -Math.PI * 0.02;
+        rightTv.position.set(tvSideOffset, tvOffsetY, 0);
+        rightTv.rotation.set(-Math.PI * 0.02, -Math.PI / 2, 0);
         assembly.add(rightTv);
         return assembly;
       };
@@ -4943,13 +4958,31 @@ function SnookerGame() {
         return chair;
       };
 
+      const ensureHospitalityVisibility = (object) => {
+        if (!object) return;
+        object.traverse((child) => {
+          child.visible = true;
+          child.frustumCulled = false;
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+      };
+
       const createCameraSideHospitalitySet = (side = 1) => {
         const mirror = Math.sign(side) || 1;
         const group = new THREE.Group();
 
         const interiorDepth = roomDepth / 2 - wallThickness * 0.75;
-        const tableZ = Math.min(toHospitalityUnits(0.8), interiorDepth);
-        const chairZ = Math.min(toHospitalityUnits(1.05), interiorDepth);
+        const tableZ = Math.min(
+          toHospitalityUnits(0.8),
+          interiorDepth * 0.85
+        );
+        const chairZ = Math.min(
+          toHospitalityUnits(1.05),
+          interiorDepth * 0.9
+        );
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(hospitalityScale);
@@ -4958,6 +4991,7 @@ function SnookerGame() {
           0,
           tableZ
         );
+        ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
 
         const chair = createChair();
@@ -4969,6 +5003,7 @@ function SnookerGame() {
         );
         const chairYaw = Math.PI * 0.1;
         chair.rotation.y = mirror < 0 ? -chairYaw : chairYaw;
+        ensureHospitalityVisibility(chair);
         group.add(chair);
 
         return group;
@@ -4991,7 +5026,7 @@ function SnookerGame() {
         hospitalityOffset = sideRailOuter + walkway * 0.5;
       } else {
         const minOffset = sideRailOuter + minInset;
-        const preferredOffset = sideRailOuter + hospitalityInset;
+        const preferredOffset = sideRailOuter + hospitalityInset * 0.85;
         hospitalityOffset = THREE.MathUtils.clamp(
           preferredOffset,
           minOffset,
@@ -5005,6 +5040,7 @@ function SnookerGame() {
       ].forEach(({ mirror }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror);
         hospitalitySet.position.set(mirror * hospitalityOffset, floorY, 0);
+        ensureHospitalityVisibility(hospitalitySet);
         world.add(hospitalitySet);
       });
 
@@ -5200,42 +5236,44 @@ function SnookerGame() {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
           const limit = rig.slideLimit ?? CAMERA_LATERAL_CLAMP.short;
-          const activeKey = railDir >= 0 ? 'back' : 'front';
-          const idleKey = railDir >= 0 ? 'front' : 'back';
-          const active = rig.cameras[activeKey];
-          const idle = rig.cameras[idleKey];
           const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
           const focusTarget =
             focusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
           const clampX = (value) =>
             THREE.MathUtils.clamp(value, -limit, limit);
-          if (active) {
-            const nextX =
-              targetWorld && Number.isFinite(targetWorld.x)
-                ? clampX(
-                    targetWorld.x / Math.max(worldScaleFactor ?? 1, 1e-6)
-                  )
-                : 0;
-            active.slider.position.x = THREE.MathUtils.lerp(
-              active.slider.position.x,
-              nextX,
-              lerpFactor
-            );
-            if (focusTarget) {
-              active.head.lookAt(focusTarget);
+          const scale = Math.max(worldScaleFactor ?? 1, 1e-6);
+          const nextX =
+            targetWorld && Number.isFinite(targetWorld.x)
+              ? clampX(targetWorld.x / scale)
+              : 0;
+          const applyFocus = (unit, target, t, lookAt) => {
+            if (!unit) return;
+            if (unit.slider) {
+              unit.slider.position.x = THREE.MathUtils.lerp(
+                unit.slider.position.x,
+                target,
+                t
+              );
             }
-          }
-          if (idle) {
-            idle.slider.position.x = THREE.MathUtils.lerp(
-              idle.slider.position.x,
-              0,
-              Math.min(1, lerpFactor * 0.6)
-            );
-            const idleFocus = rig.defaultFocusWorld ?? focusTarget;
-            if (idleFocus) {
-              idle.head.lookAt(idleFocus);
+            if (lookAt && unit.head) {
+              unit.head.lookAt(lookAt);
             }
-          }
+          };
+          const frontUnits = [
+            rig.cameras.frontLeft,
+            rig.cameras.frontRight
+          ].filter(Boolean);
+          const backUnits = [
+            rig.cameras.backLeft,
+            rig.cameras.backRight
+          ].filter(Boolean);
+          const activeUnits = railDir >= 0 ? backUnits : frontUnits;
+          const idleUnits = railDir >= 0 ? frontUnits : backUnits;
+          activeUnits.forEach((unit) => applyFocus(unit, nextX, lerpFactor, focusTarget));
+          const idleFocus = rig.defaultFocusWorld ?? focusTarget;
+          idleUnits.forEach((unit) =>
+            applyFocus(unit, 0, Math.min(1, lerpFactor * 0.6), idleFocus)
+          );
         };
 
         const updateCamera = () => {
