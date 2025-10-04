@@ -5539,7 +5539,7 @@ function SnookerGame() {
       };
 
       const hospitalityScale = (TABLE_H * 0.48) / 0.75;
-      const furnitureScale = hospitalityScale * 1.18;
+      const furnitureScale = hospitalityScale * 1.18 * 5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
 
       const createTableSet = () => {
@@ -5706,14 +5706,13 @@ function SnookerGame() {
 
         const depthRoom = Math.max(0, roomDepth / 2 - wallThickness * 0.85);
         const depthOffset = Math.min(toHospitalityUnits(0.55), depthRoom * 0.45);
+        const wallPush = Math.max(0, depthRoom - toHospitalityUnits(0.2));
+        const wallOffset = Math.min(depthOffset * 0.2, toHospitalityUnits(0.05));
+        const chairDepthOffset = Math.min(depthOffset * 0.3, toHospitalityUnits(0.12));
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(furnitureScale);
-        tableSet.position.set(
-          0,
-          0,
-          depthOffset * 0.25
-        );
+        tableSet.position.set(0, 0, wallOffset);
         ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
 
@@ -5722,11 +5721,13 @@ function SnookerGame() {
         chair.position.set(
           mirror * Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)),
           0,
-          -depthOffset * 0.55
+          chairDepthOffset
         );
         chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
         ensureHospitalityVisibility(chair);
         group.add(chair);
+
+        group.position.z = wallPush;
 
         return group;
       };
@@ -5757,7 +5758,8 @@ function SnookerGame() {
         { mirror: 1 }
       ].forEach(({ mirror }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror, walkway);
-        hospitalitySet.position.set(mirror * hospitalityOffset, floorY, 0);
+        hospitalitySet.position.x = mirror * hospitalityOffset;
+        hospitalitySet.position.y = floorY;
         ensureHospitalityVisibility(hospitalitySet);
         world.add(hospitalitySet);
       });
