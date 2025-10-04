@@ -49,8 +49,16 @@ const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
 const TABLE_TOP_SIZE = BOARD_DISPLAY_SIZE + 0.6;
 const TABLE_TOP_THICKNESS = 0.18;
-const TABLE_LEG_HEIGHT = 0.85;
+const TABLE_LEG_HEIGHT = 0.85 * 2; // Twice the original height
 const TABLE_LEG_INSET = 0.45;
+
+const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
+const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
+const CHAIR_SCALE = 4; // Chairs are 4x larger
+const CHAIR_CLEARANCE = 0.4;
+const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
+const CAMERA_MIN_RADIUS_FACTOR = 0.95;
+const CAMERA_MAX_RADIUS_FACTOR = 2.4;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -71,10 +79,10 @@ const CAM = {
   fov: 52,
   near: 0.1,
   far: 5000,
-  minR: BOARD_DISPLAY_SIZE * 1.1,
-  maxR: BOARD_DISPLAY_SIZE * 4.2,
-  phiMin: 0.9,
-  phiMax: 1.35
+  minR: BOARD_DISPLAY_SIZE * CAMERA_MIN_RADIUS_FACTOR,
+  maxR: BOARD_DISPLAY_SIZE * CAMERA_MAX_RADIUS_FACTOR,
+  phiMin: 1.05,
+  phiMax: 1.25
 };
 
 // =============== Materials & simple builders ===============
@@ -538,11 +546,13 @@ function Chess3D({ avatar, username }) {
     const arenaHalfWidth = CHESS_ARENA.width / 2;
     const arenaHalfDepth = CHESS_ARENA.depth / 2;
     const wallInset = 0.5;
-    const halfRoomX = arenaHalfWidth - wallInset;
-    const halfRoomZ = arenaHalfDepth - wallInset;
+    const halfRoomX = (arenaHalfWidth - wallInset) * WALL_PROXIMITY_FACTOR;
+    const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
+    const roomHalfWidth = halfRoomX + wallInset;
+    const roomHalfDepth = halfRoomZ + wallInset;
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(arenaHalfWidth * 2, arenaHalfDepth * 2),
+      new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
       new THREE.MeshStandardMaterial({
         color: 0x0f1222,
         roughness: 0.95,
@@ -553,7 +563,7 @@ function Chess3D({ avatar, username }) {
     arena.add(floor);
 
     const carpet = new THREE.Mesh(
-      new THREE.PlaneGeometry(arenaHalfWidth * 1.2, arenaHalfDepth * 1.2),
+      new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
       new THREE.MeshStandardMaterial({
         color: 0x9c0b18,
         roughness: 0.8,
@@ -564,7 +574,7 @@ function Chess3D({ avatar, username }) {
     carpet.position.y = 0.002;
     arena.add(carpet);
 
-    const wallH = 3;
+    const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
     const wallT = 0.1;
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0x273360,
@@ -707,11 +717,13 @@ function Chess3D({ avatar, username }) {
         leg.position.set(x, y, z);
         g.add(leg);
       });
+      g.scale.setScalar(CHAIR_SCALE);
       return g;
     }
 
     const chairA = makeChair();
-    const chairDistance = TABLE_TOP_SIZE / 2 + 0.9;
+    const seatHalfDepth = 0.25 * CHAIR_SCALE;
+    const chairDistance = TABLE_TOP_SIZE / 2 + seatHalfDepth + CHAIR_CLEARANCE;
     chairA.position.set(0, 0, -chairDistance);
     arena.add(chairA);
     const chairB = makeChair();
@@ -806,8 +818,8 @@ function Chess3D({ avatar, username }) {
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const initialRadius = Math.max(
-      BOARD_DISPLAY_SIZE * 2.4,
-      CAM.minR + 1
+      BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
+      CAM.minR + 0.6
     );
     sph = new THREE.Spherical(
       initialRadius,
