@@ -41,36 +41,37 @@ function addNoise(ctx, size, strength = 0.03, samples = 2800) {
 }
 
 function drawNumberBadge(ctx, size, number) {
-  const radius = size * 0.15;
+  const radius = size * 0.132;
   const cx = size * 0.5;
-  const cy = size * 0.56;
+  const cy = size * 0.55;
 
   ctx.save();
   const badgeGrad = ctx.createRadialGradient(
     cx,
-    cy - radius * 0.4,
-    radius * 0.2,
+    cy - radius * 0.35,
+    radius * 0.25,
     cx,
     cy,
     radius
   );
   badgeGrad.addColorStop(0, 'rgba(255,255,255,1)');
-  badgeGrad.addColorStop(1, 'rgba(220,220,220,1)');
+  badgeGrad.addColorStop(1, 'rgba(222,222,222,1)');
   ctx.fillStyle = badgeGrad;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
   ctx.fill();
 
-  ctx.lineWidth = size * 0.01;
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = size * 0.008;
+  ctx.strokeStyle = 'rgba(0,0,0,0.16)';
   ctx.stroke();
 
-  const fontSize = size * 0.19;
-  ctx.fillStyle = '#161616';
-  ctx.font = `bold ${fontSize}px "Arial"`;
+  const fontSize = size * 0.164;
+  ctx.fillStyle = '#121212';
+  ctx.font = `600 ${fontSize}px "Arial"`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(number), cx, cy + size * 0.01);
+  ctx.fillText(String(number), cx, cy + size * 0.005);
   ctx.restore();
 }
 
@@ -95,9 +96,9 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
     const stripeHeight = size * 0.46;
     const stripeY = (size - stripeHeight) / 2;
     const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.32));
-    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.12));
-    stripeGrad.addColorStop(1, darken(baseHex, 0.08));
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.28));
+    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.1));
+    stripeGrad.addColorStop(1, darken(baseHex, 0.06));
     ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
 
@@ -120,9 +121,9 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
       size * 0.55,
       size * 0.5
     );
-    radial.addColorStop(0, lighten(baseHex, 0.42));
-    radial.addColorStop(0.45, lighten(baseHex, 0.18));
-    radial.addColorStop(1, darken(baseHex, 0.16));
+    radial.addColorStop(0, lighten(baseHex, 0.34));
+    radial.addColorStop(0.45, lighten(baseHex, 0.12));
+    radial.addColorStop(1, darken(baseHex, 0.08));
     ctx.fillStyle = radial;
     ctx.fillRect(0, 0, size, size);
   }
@@ -130,9 +131,9 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
 
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.82)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.45)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.35)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.78)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.38)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
@@ -165,12 +166,12 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
     size * 0.45
   );
   lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.35)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.22)');
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
 
-  addNoise(ctx, size, 0.035, 4500);
+  addNoise(ctx, size, 0.03, 4200);
 
   if (Number.isFinite(number)) {
     drawNumberBadge(ctx, size, number);
