@@ -169,21 +169,170 @@
         flex: 1 1 auto;
         display: flex;
         overflow: hidden;
-        /* Ensure background image fits exactly within the wrap so the
-         wooden rails are clipped by the viewport, matching the expected
-         field appearance. The brightness filter is applied to a
-         pseudo-element so the balls and other children remain
-         unaffected. */
+        background: radial-gradient(
+          circle at 50% 25%,
+          #2b3f67 0%,
+          #1a2b4d 52%,
+          #0a1222 100%
+        );
       }
       #wrap::before {
         content: '';
         position: absolute;
         inset: 0;
-        background: url('/assets/icons/64e79228-35e3-4fdc-b914-fca635a40220.webp')
-          top center/100% 100% no-repeat;
-        filter: brightness(var(--table-brightness));
+        background:
+          radial-gradient(ellipse at 50% 20%, rgba(30, 48, 84, 0.5), transparent 60%),
+          radial-gradient(ellipse at 50% 110%, rgba(0, 0, 0, 0.55), transparent 70%);
+        z-index: -1;
+        filter: brightness(calc(var(--table-brightness) * 0.7));
+      }
+
+      #table3d {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 3;
+        pointer-events: none;
+        width: 100%;
+        height: 100%;
+        --table-rail-thickness: 9%;
+        --table-cushion-height: 3%;
+        --table-corner-radius: 6%;
+        --table-shadow-size: 18%;
+        --table-felt-color: #145b3c;
+        --table-felt-highlight: #1e7b53;
+        --table-rail-color: #3a2414;
+        --table-rail-highlight: #613a1f;
+        --table-base-color: #1b120a;
+        --table-shadow-color: rgba(0, 0, 0, 0.55);
+        --table-metal-color: #c9bda2;
+        transition: filter 0.3s ease;
+        filter: brightness(calc(var(--table-brightness) * 0.55));
+      }
+      #table3d .table-3d__shadow {
+        position: absolute;
+        inset: calc(var(--table-shadow-size) * -0.35)
+          calc(var(--table-shadow-size) * -0.55);
+        background: radial-gradient(
+          ellipse at 50% 60%,
+          var(--table-shadow-color),
+          transparent 70%
+        );
+        filter: blur(22px);
+        transform: translateY(calc(var(--table-shadow-size) * 0.06));
+      }
+      #table3d .table-3d__frame {
+        position: absolute;
+        inset: 0;
+        border-radius: calc(var(--table-corner-radius) * 1.35);
+        background: linear-gradient(
+          140deg,
+          var(--table-rail-highlight),
+          var(--table-rail-color)
+        );
+        box-shadow:
+          0 20px 32px rgba(0, 0, 0, 0.45),
+          0 0 0 2px rgba(0, 0, 0, 0.4) inset,
+          0 0 0 6px rgba(255, 255, 255, 0.08) inset;
+      }
+      #table3d .table-3d__frame::before {
+        content: '';
+        position: absolute;
+        inset: -4%;
+        border-radius: calc(var(--table-corner-radius) * 1.55);
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 65%),
+          linear-gradient(180deg, var(--table-base-color), transparent 85%);
         z-index: -1;
       }
+      #table3d .table-3d__frame::after {
+        content: '';
+        position: absolute;
+        inset: 6%;
+        border-radius: calc(var(--table-corner-radius) * 1.1);
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent);
+        mix-blend-mode: screen;
+        opacity: 0.35;
+      }
+      #table3d .table-3d__felt {
+        position: absolute;
+        inset: var(--table-rail-thickness);
+        border-radius: var(--table-corner-radius);
+        background:
+          radial-gradient(circle at 50% 35%, var(--table-felt-highlight), transparent 55%),
+          linear-gradient(120deg, rgba(0, 0, 0, 0.35), transparent 65%),
+          var(--table-felt-color);
+        box-shadow:
+          0 0 0 calc(var(--table-cushion-height) * 0.45) rgba(0, 0, 0, 0.4) inset,
+          0 0 0 calc(var(--table-cushion-height) * 1.25) rgba(0, 0, 0, 0.72) inset,
+          0 0 0 calc(var(--table-cushion-height) * 0.9) rgba(255, 255, 255, 0.14) inset;
+      }
+      #table3d .table-3d__felt::after {
+        content: '';
+        position: absolute;
+        inset: 8% 14%;
+        border-radius: calc(var(--table-corner-radius) * 0.85);
+        background: radial-gradient(
+          circle at 50% 20%,
+          rgba(255, 255, 255, 0.12),
+          transparent 65%
+        );
+        opacity: 0.6;
+      }
+      #table3d .table-3d__pocket {
+        position: absolute;
+        background:
+          radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.08), transparent 45%),
+          radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.65), #000 78%);
+        box-shadow:
+          0 0 0 2px rgba(0, 0, 0, 0.7) inset,
+          0 0 0 6px var(--table-metal-color) inset;
+        border-radius: 50%;
+        width: 13%;
+        height: 13%;
+        opacity: 0.95;
+      }
+      #table3d .table-3d__pocket::after {
+        content: '';
+        position: absolute;
+        inset: 24%;
+        border-radius: inherit;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 70%);
+        opacity: 0.4;
+      }
+      #table3d .table-3d__pocket--tl {
+        top: calc(var(--table-rail-thickness) * 0.3);
+        left: calc(var(--table-rail-thickness) * 0.3);
+      }
+      #table3d .table-3d__pocket--tr {
+        top: calc(var(--table-rail-thickness) * 0.3);
+        right: calc(var(--table-rail-thickness) * 0.3);
+      }
+      #table3d .table-3d__pocket--bl {
+        bottom: calc(var(--table-rail-thickness) * 0.3);
+        left: calc(var(--table-rail-thickness) * 0.3);
+      }
+      #table3d .table-3d__pocket--br {
+        bottom: calc(var(--table-rail-thickness) * 0.3);
+        right: calc(var(--table-rail-thickness) * 0.3);
+      }
+      #table3d .table-3d__pocket--lc,
+      #table3d .table-3d__pocket--rc {
+        width: 12%;
+        height: 18%;
+        border-radius: 50% / 60%;
+      }
+      #table3d .table-3d__pocket--lc {
+        left: calc(var(--table-rail-thickness) * 0.18);
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
+      #table3d .table-3d__pocket--rc {
+        right: calc(var(--table-rail-thickness) * 0.18);
+        top: 50%;
+        transform: translate(50%, -50%);
+      }
+
 
 
       :root {
@@ -774,6 +923,18 @@
       </div>
 
       <div id="wrap">
+        <div id="table3d" class="table-3d" aria-hidden="true">
+          <div class="table-3d__shadow"></div>
+          <div class="table-3d__frame">
+            <div class="table-3d__felt"></div>
+            <div class="table-3d__pocket table-3d__pocket--tl"></div>
+            <div class="table-3d__pocket table-3d__pocket--tr"></div>
+            <div class="table-3d__pocket table-3d__pocket--bl"></div>
+            <div class="table-3d__pocket table-3d__pocket--br"></div>
+            <div class="table-3d__pocket table-3d__pocket--lc"></div>
+            <div class="table-3d__pocket table-3d__pocket--rc"></div>
+          </div>
+        </div>
         <canvas id="table"></canvas>
         <div id="cueHint">✋️</div>
 
@@ -865,6 +1026,7 @@
           max="2"
           step="0.1"
       /></label>
+      <label>Table Finish<select id="tableFinish"></select></label>
       <label>Frame Style<select id="playerFrameStyle"></select></label>
       <label
         >Frame Color<select id="playerFrameColor" class="color-select"></select
@@ -922,29 +1084,327 @@
         }
         const planShotPromise = import('/lib/poolAi.js');
 
+        var TABLE_PROFILES = {
+          uk: {
+            label: '8 Pool UK',
+            dimensions: {
+              width: 760,
+              height: 1520,
+              border: 54,
+              greenLine: 18,
+              topBallClearanceMultiplier: 2,
+              bottomLift: 0
+            },
+            ballRadius: 22,
+            trainingBallRadius: 20,
+            pockets: {
+              corner: 36,
+              side: 33,
+              shorten: 6,
+              inset: 6
+            },
+            shotDistances: {
+              short: 30,
+              medium: 58
+            },
+            visual: {
+              railThickness: '10%',
+              cushionHeight: '2.4%',
+              cornerRadius: '6.2%',
+              shadowSize: '16%'
+            },
+            finishes: [
+              {
+                id: 'heritage',
+                label: 'Heritage Walnut',
+                felt: '#14633d',
+                feltHighlight: '#1f7a50',
+                rail: '#402413',
+                railHighlight: '#6b3f22',
+                base: '#1a0f07',
+                shadow: 'rgba(0, 0, 0, 0.55)',
+                metal: '#d2c8a4'
+              },
+              {
+                id: 'emerald',
+                label: 'Emerald Night',
+                felt: '#0f5c43',
+                feltHighlight: '#1c7f59',
+                rail: '#2a2e38',
+                railHighlight: '#4d515c',
+                base: '#171b22',
+                shadow: 'rgba(0, 0, 0, 0.6)',
+                metal: '#b8c6cc'
+              }
+            ],
+            defaultFinish: 'heritage'
+          },
+          '9ball': {
+            label: '9-Ball',
+            dimensions: {
+              width: 780,
+              height: 1560,
+              border: 52,
+              greenLine: 16,
+              topBallClearanceMultiplier: 2,
+              bottomLift: 2
+            },
+            ballRadius: 22,
+            pockets: {
+              corner: 38,
+              side: 34,
+              shorten: 5,
+              inset: 6
+            },
+            shotDistances: {
+              short: 29,
+              medium: 58
+            },
+            visual: {
+              railThickness: '9.5%',
+              cushionHeight: '2.8%',
+              cornerRadius: '5.8%',
+              shadowSize: '18%'
+            },
+            finishes: [
+              {
+                id: 'protour',
+                label: 'Pro Tour Blue',
+                felt: '#1a5d88',
+                feltHighlight: '#2375a8',
+                rail: '#34302c',
+                railHighlight: '#544c43',
+                base: '#1b1814',
+                shadow: 'rgba(0, 0, 0, 0.5)',
+                metal: '#c1c9d6'
+              },
+              {
+                id: 'sunset',
+                label: 'Sunset Maple',
+                felt: '#1f5d5c',
+                feltHighlight: '#297776',
+                rail: '#5b341b',
+                railHighlight: '#804f2a',
+                base: '#241308',
+                shadow: 'rgba(0, 0, 0, 0.58)',
+                metal: '#d9b88a'
+              }
+            ],
+            defaultFinish: 'protour'
+          },
+          american: {
+            label: 'American Billiards',
+            dimensions: {
+              width: 800,
+              height: 1600,
+              border: 58,
+              greenLine: 18,
+              topBallClearanceMultiplier: 2.1,
+              bottomLift: 4
+            },
+            ballRadius: 23,
+            pockets: {
+              corner: 40,
+              side: 36,
+              shorten: 7,
+              inset: 7
+            },
+            shotDistances: {
+              short: 30,
+              medium: 60
+            },
+            visual: {
+              railThickness: '10.5%',
+              cushionHeight: '3.1%',
+              cornerRadius: '6.4%',
+              shadowSize: '20%'
+            },
+            finishes: [
+              {
+                id: 'americana',
+                label: 'Americana Cherry',
+                felt: '#165b46',
+                feltHighlight: '#1f7b5e',
+                rail: '#4e2412',
+                railHighlight: '#7a3a1c',
+                base: '#201008',
+                shadow: 'rgba(0, 0, 0, 0.62)',
+                metal: '#d4b79a'
+              },
+              {
+                id: 'midnight',
+                label: 'Midnight Graphite',
+                felt: '#134c5b',
+                feltHighlight: '#1d6d81',
+                rail: '#262a2f',
+                railHighlight: '#444a51',
+                base: '#12161b',
+                shadow: 'rgba(0, 0, 0, 0.56)',
+                metal: '#c0c3c7'
+              }
+            ],
+            defaultFinish: 'americana'
+          },
+          snooker: {
+            label: 'Snooker Training',
+            dimensions: {
+              width: 768,
+              height: 1216,
+              border: 57,
+              greenLine: 16,
+              topBallClearanceMultiplier: 2,
+              bottomLift: 0
+            },
+            ballRadius: 22,
+            trainingBallRadius: 18,
+            pockets: {
+              corner: 34,
+              side: 32,
+              shorten: 2,
+              inset: 5,
+              trainingShorten: 2
+            },
+            shotDistances: {
+              short: 28,
+              medium: 56
+            },
+            visual: {
+              railThickness: '8.8%',
+              cushionHeight: '2.2%',
+              cornerRadius: '5.4%',
+              shadowSize: '14%'
+            },
+            finishes: [
+              {
+                id: 'classic',
+                label: 'Classic Green',
+                felt: '#165c3f',
+                feltHighlight: '#1f7b55',
+                rail: '#3a2712',
+                railHighlight: '#5f3f1d',
+                base: '#1a1106',
+                shadow: 'rgba(0, 0, 0, 0.52)',
+                metal: '#c6b58e'
+              }
+            ],
+            defaultFinish: 'classic'
+          }
+        };
+        var profile = TABLE_PROFILES[variant] || TABLE_PROFILES.uk;
+        var finishStorageKey = 'poolTableFinish_' + variant;
+        var table3d = document.getElementById('table3d');
+        if (table3d) {
+          table3d.dataset.variant = variant;
+        }
+        function applyProfileVisual(p) {
+          if (!table3d || !p) return;
+          var visual = p.visual || {};
+          if (visual.railThickness) {
+            table3d.style.setProperty('--table-rail-thickness', visual.railThickness);
+          }
+          if (visual.cushionHeight) {
+            table3d.style.setProperty('--table-cushion-height', visual.cushionHeight);
+          }
+          if (visual.cornerRadius) {
+            table3d.style.setProperty('--table-corner-radius', visual.cornerRadius);
+          }
+          if (visual.shadowSize) {
+            table3d.style.setProperty('--table-shadow-size', visual.shadowSize);
+          }
+        }
+        applyProfileVisual(profile);
+
+        var finishOptions =
+          profile && Array.isArray(profile.finishes)
+            ? profile.finishes.slice()
+            : [];
+        var defaultFinishId =
+          (profile && profile.defaultFinish &&
+            finishOptions.some(function (opt) {
+              return opt.id === profile.defaultFinish;
+            }))
+            ? profile.defaultFinish
+            : finishOptions.length
+              ? finishOptions[0].id
+              : '';
+        var storedFinishId = localStorage.getItem(finishStorageKey);
+        if (
+          !storedFinishId ||
+          !finishOptions.some(function (opt) {
+            return opt.id === storedFinishId;
+          })
+        ) {
+          storedFinishId = defaultFinishId;
+        }
+        var activeFinishId = storedFinishId;
+
         /* ==========================================================
        KONSTANTA TE LAYOUT-it DHE FIZIKES (sipas portrait)
        ========================================================= */
-        var TABLE_W = 768; // gjeresi logjike e felt-it
-        var TABLE_H = 1216; // lartesi logjike e felt-it
-        var BORDER = 57; // korniza e drurit pak me e ngushte anash
-        var BALL_R = isSnooker && playType === 'training' ? 18 : 22; // snooker training uses smaller balls
-        var GREEN_LINE = 16; // thickness of the green boundary lines
+        var profileDims = (profile && profile.dimensions) || {};
+        var profilePockets = (profile && profile.pockets) || {};
+        var profileShots = (profile && profile.shotDistances) || {};
+
+        var TABLE_W = profileDims.width || 768; // gjeresi logjike e felt-it
+        var TABLE_H = profileDims.height || 1216; // lartesi logjike e felt-it
+        var BORDER = profileDims.border != null ? profileDims.border : 57; // korniza e drurit pak me e ngushte anash
+        var GREEN_LINE = profileDims.greenLine != null ? profileDims.greenLine : 16; // thickness of the green boundary lines
+        var trainingBallRadius =
+          Object.prototype.hasOwnProperty.call(profile || {}, 'trainingBallRadius')
+            ? profile.trainingBallRadius
+            : Math.round(((profile && profile.ballRadius) || 22) * 0.82);
+        var BALL_R =
+          isSnooker && playType === 'training'
+            ? trainingBallRadius
+            : profile && profile.ballRadius != null
+              ? profile.ballRadius
+              : 22; // snooker training uses smaller balls
         // Gropat pak me te vogla per t'u mbyllur me shume dhe jo per t'u zgjeruar
         var POCKET_R =
-          isSnooker && playType === 'training' ? BALL_R * 0.68 : 34; // pockets slightly larger
+          isSnooker && playType === 'training'
+            ? profile && profile.trainingPocketRadius != null
+              ? profile.trainingPocketRadius
+              : Math.round(
+                  (profilePockets.corner != null ? profilePockets.corner : 34) * 0.9
+                )
+            : profilePockets.corner != null
+              ? profilePockets.corner
+              : 34; // pockets slightly larger
         var SIDE_POCKET_R =
-          isSnooker && playType === 'training' ? POCKET_R : 32; // side pockets also a touch larger
+          isSnooker && playType === 'training'
+            ? profile && profile.trainingSidePocketRadius != null
+              ? profile.trainingSidePocketRadius
+              : POCKET_R
+            : profilePockets.side != null
+              ? profilePockets.side
+              : 32; // side pockets also a touch larger
         // move pockets slightly closer to the center of the table
-        var POCKET_SHORTEN = isSnooker ? 2 : 4; // gropat snooker pak me brenda
-        var POCKET_INSET = 5; // additional inward shift for all pockets
-        var SHORT_DIST = BALL_R * 28;
-        var MED_DIST = BALL_R * 56;
+        var POCKET_SHORTEN = isSnooker
+          ? profilePockets.shorten != null
+            ? profilePockets.shorten
+            : 4
+          : profilePockets.shorten != null
+            ? profilePockets.shorten
+            : 4; // gropat snooker pak me brenda
+        if (isSnooker && playType === 'training' && profilePockets.trainingShorten != null) {
+          POCKET_SHORTEN = profilePockets.trainingShorten;
+        }
+        var POCKET_INSET =
+          profilePockets.inset != null ? profilePockets.inset : 5; // additional inward shift for all pockets
+        var SHORT_DIST = BALL_R * (profileShots.short != null ? profileShots.short : 28);
+        var MED_DIST = BALL_R * (profileShots.medium != null ? profileShots.medium : 56);
+        var topClearMultiplier =
+          profileDims.topBallClearanceMultiplier != null
+            ? profileDims.topBallClearanceMultiplier
+            : 2;
         var BORDER_TOP =
-          BORDER + BALL_R * 2 - 4 - GREEN_LINE; // extend field upward by two green lines
+          BORDER + BALL_R * topClearMultiplier - 4 - GREEN_LINE; // extend field upward by two green lines
         // Raise only the bottom field line by the thickness of one green side
         // marking so the table's lower boundary sits slightly higher.
-        var BORDER_BOTTOM = BORDER + GREEN_LINE; // anet e tjera mbeten te pandryshuara
+        var BORDER_BOTTOM =
+          BORDER +
+          GREEN_LINE +
+          (profileDims.bottomLift != null ? profileDims.bottomLift : 0); // anet e tjera mbeten te pandryshuara
         // Move the rack slightly upward on the table
         var SPOT_Y =
           BORDER_TOP +
@@ -1007,6 +1467,7 @@
         var pocketVolumeInput = document.getElementById('pocketVolume');
         var ballVolumeInput = document.getElementById('ballVolume');
         var brightnessInput = document.getElementById('tableBrightness');
+        var tableFinishSelect = document.getElementById('tableFinish');
         var frameStyleSelect = document.getElementById('playerFrameStyle');
         var frameColorSelect = document.getElementById('playerFrameColor');
         var saveSettingsBtn = document.getElementById('saveSettings');
@@ -1110,6 +1571,38 @@
           frameColorSelect.value = frameColorSetting;
         }
 
+        if (tableFinishSelect) {
+          tableFinishSelect.innerHTML = '';
+          if (finishOptions.length) {
+            finishOptions.forEach(function (finish) {
+              var opt = document.createElement('option');
+              opt.value = finish.id;
+              opt.textContent = finish.label || finish.id;
+              var feltColor = finish.felt || '#145b3c';
+              var railColor = finish.rail || '#3a2414';
+              opt.style.background =
+                'linear-gradient(90deg, ' +
+                feltColor +
+                ' 0 60%, ' +
+                railColor +
+                ' 60% 100%)';
+              tableFinishSelect.appendChild(opt);
+            });
+            if (activeFinishId) {
+              tableFinishSelect.value = activeFinishId;
+            }
+            tableFinishSelect.addEventListener('change', function () {
+              applyTableFinish(tableFinishSelect.value);
+            });
+          } else {
+            var opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Default';
+            tableFinishSelect.appendChild(opt);
+            tableFinishSelect.disabled = true;
+          }
+        }
+
         if (crowdVolumeInput) crowdVolumeInput.value = crowdVolume;
         if (pocketVolumeInput) pocketVolumeInput.value = pocketVolume;
         if (ballVolumeInput) ballVolumeInput.value = ballVolume;
@@ -1140,6 +1633,10 @@
             '--table-brightness',
             tableBrightness
           );
+          if (tableFinishSelect) {
+            var finishValue = tableFinishSelect.value || activeFinishId || defaultFinishId;
+            applyTableFinish(finishValue);
+          }
         }
 
         if (settingsBtn) {
@@ -1156,6 +1653,12 @@
             localStorage.setItem('poolBrightness', brightnessInput.value);
             localStorage.setItem('poolFrameStyle', frameStyleSelect.value);
             localStorage.setItem('poolFrameColor', frameColorSelect.value);
+            if (tableFinishSelect) {
+              localStorage.setItem(
+                finishStorageKey,
+                tableFinishSelect.value || activeFinishId || defaultFinishId
+              );
+            }
             applySettings();
             settingsPanel.classList.remove('active');
           });
@@ -1625,6 +2128,12 @@
           canvas.style.height = ch + 'px';
           canvas.style.left = (w - cw) / 2 + 'px';
           canvas.style.top = (h - ch) / 2 + 'px';
+          if (table3d) {
+            table3d.style.width = cw + 'px';
+            table3d.style.height = ch + 'px';
+            table3d.style.left = canvas.style.left;
+            table3d.style.top = canvas.style.top;
+          }
           sX = cw / TABLE_W;
           sY = ch / TABLE_H;
           scaleFactor = (sX + sY) / 2;
@@ -1651,6 +2160,46 @@
           g = clamp(g + amt, 0, 255);
           b = clamp(b + amt, 0, 255);
           return 'rgb(' + r + ',' + g + ',' + b + ')';
+        }
+        function applyTableFinish(finishId) {
+          if (!table3d) return;
+          var finish =
+            finishOptions.find(function (opt) {
+              return opt.id === finishId;
+            }) || finishOptions[0];
+          if (!finish) {
+            return;
+          }
+          var feltColor = finish.felt || '#145b3c';
+          var railColor = finish.rail || '#3a2414';
+          table3d.style.setProperty('--table-felt-color', feltColor);
+          table3d.style.setProperty(
+            '--table-felt-highlight',
+            finish.feltHighlight || shadeColor(feltColor, 26)
+          );
+          table3d.style.setProperty('--table-rail-color', railColor);
+          table3d.style.setProperty(
+            '--table-rail-highlight',
+            finish.railHighlight || shadeColor(railColor, 32)
+          );
+          table3d.style.setProperty(
+            '--table-base-color',
+            finish.base || railColor
+          );
+          table3d.style.setProperty(
+            '--table-shadow-color',
+            finish.shadow || 'rgba(0, 0, 0, 0.55)'
+          );
+          table3d.style.setProperty(
+            '--table-metal-color',
+            finish.metal || '#c9bda2'
+          );
+          activeFinishId = finish.id;
+        }
+        if (activeFinishId) {
+          applyTableFinish(activeFinishId);
+        } else if (defaultFinishId) {
+          applyTableFinish(defaultFinishId);
         }
         function len(x, y) {
           return Math.hypot(x, y);
