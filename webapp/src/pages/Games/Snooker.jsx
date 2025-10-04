@@ -3619,7 +3619,14 @@ function Table3D(
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    const union = polygonClipping.union(notchCircle, boxX, boxZ);
+    const wedgeDepth = cornerChamfer * 1.2;
+    const wedge = [[[
+      [cx, cz],
+      [cx - sx * wedgeDepth, cz],
+      [cx, cz - sz * wedgeDepth],
+      [cx, cz]
+    ]]];
+    const union = polygonClipping.union(notchCircle, boxX, boxZ, wedge);
     return adjustCornerNotchDepth(union, cz, sz);
   };
 
@@ -5533,7 +5540,8 @@ function SnookerGame() {
       };
 
       const hospitalityScale = (TABLE_H * 0.48) / 0.75;
-      const furnitureScale = hospitalityScale * 1.18;
+      const hospitalityUpscale = 6;
+      const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
 
       const createTableSet = () => {
@@ -5706,7 +5714,7 @@ function SnookerGame() {
         tableSet.position.set(
           0,
           0,
-          depthOffset * 0.25
+          depthOffset * 0.25 * hospitalityUpscale
         );
         ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
@@ -5714,9 +5722,11 @@ function SnookerGame() {
         const chair = createChair();
         chair.scale.setScalar(furnitureScale);
         chair.position.set(
-          mirror * Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)),
+          mirror *
+            Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)) *
+            hospitalityUpscale,
           0,
-          -depthOffset * 0.55
+          -depthOffset * 0.55 * hospitalityUpscale
         );
         chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
         ensureHospitalityVisibility(chair);
@@ -5751,7 +5761,9 @@ function SnookerGame() {
         { mirror: 1 }
       ].forEach(({ mirror }) => {
         const hospitalitySet = createCameraSideHospitalitySet(mirror, walkway);
-        hospitalitySet.position.set(mirror * hospitalityOffset, floorY, 0);
+        const cameraNeighborX = mirror * (tripodXOffset * 0.92);
+        const cameraNeighborZ = tripodZOffset * 0.9;
+        hospitalitySet.position.set(cameraNeighborX, floorY, cameraNeighborZ);
         ensureHospitalityVisibility(hospitalitySet);
         world.add(hospitalitySet);
       });
