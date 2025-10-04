@@ -164,6 +164,8 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.06;
+const CHROME_CORNER_EXPANSION_SCALE = 0.94;
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0.01;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
@@ -2898,7 +2900,8 @@ function Table3D(parent) {
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromeCornerPlateTrim = TABLE.THICK * 0.03;
+  const chromeCornerPlateTrim =
+    TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -2916,11 +2919,11 @@ function Table3D(parent) {
   );
   const chromePlateExpansionX = Math.max(
     0,
-    chromePlateInnerLimitX - chromeCornerMeetX
+    (chromePlateInnerLimitX - chromeCornerMeetX) * CHROME_CORNER_EXPANSION_SCALE
   );
   const chromePlateExpansionZ = Math.max(
     0,
-    chromePlateInnerLimitZ - chromeCornerMeetZ
+    (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_EXPANSION_SCALE
   );
   const chromePlateWidth = Math.max(
     MICRO_EPS,
