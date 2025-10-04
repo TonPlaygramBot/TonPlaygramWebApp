@@ -20,6 +20,7 @@ import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
+import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -568,9 +569,6 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
-const BALL_MATERIAL_CACHE = new Map();
-const BALL_NUMBER_TEXTURE_CACHE = new Map();
-const BALL_NUMBER_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
@@ -3205,115 +3203,15 @@ function calcTarget(cue, dir, balls) {
   return { impact, afterDir, targetBall, railNormal, tHit: travel };
 }
 
-// --------------------------------------------------
-// ONLY kept component: Guret (balls factory)
-// --------------------------------------------------
-function getBallMaterial(baseColor) {
-  const key = `base:${baseColor}`;
-  if (!BALL_MATERIAL_CACHE.has(key)) {
-    BALL_MATERIAL_CACHE.set(
-      key,
-      new THREE.MeshPhysicalMaterial({
-        color: baseColor,
-        roughness: 0.18,
-        clearcoat: 1,
-        clearcoatRoughness: 0.12
-      })
-    );
-  }
-  return BALL_MATERIAL_CACHE.get(key);
-}
-
-function addStripeOverlay(mesh, stripeColor) {
-  const stripeRadius = BALL_R * 1.0025;
-  const stripeThetaLength = THREE.MathUtils.degToRad(52);
-  const stripeGeo = new THREE.SphereGeometry(
-    stripeRadius,
-    96,
-    48,
-    0,
-    Math.PI * 2,
-    Math.PI / 2 - stripeThetaLength / 2,
-    stripeThetaLength
-  );
-  const stripeMat = new THREE.MeshBasicMaterial({
-    color: stripeColor,
-    transparent: true,
-    opacity: 0.95,
-    side: THREE.DoubleSide
-  });
-  stripeMat.depthWrite = false;
-  const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-  stripe.renderOrder = 1;
-  stripe.castShadow = false;
-  stripe.receiveShadow = false;
-  mesh.add(stripe);
-}
-
-function getBallNumberMaterial(number) {
-  const key = `num:${number}`;
-  if (BALL_NUMBER_MATERIAL_CACHE.has(key)) {
-    return BALL_NUMBER_MATERIAL_CACHE.get(key);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = canvas.width * 0.03;
-    ctx.stroke();
-    ctx.fillStyle = '#0b0b0b';
-    ctx.font = `bold ${canvas.width * 0.48}px "Segoe UI", "Helvetica Neue", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), canvas.width / 2, canvas.height / 2 * 1.05);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 4;
-  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-  else texture.encoding = THREE.sRGBEncoding;
-  BALL_NUMBER_TEXTURE_CACHE.set(key, texture);
-  const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-  mat.depthWrite = false;
-  mat.side = THREE.DoubleSide;
-  BALL_NUMBER_MATERIAL_CACHE.set(key, mat);
-  return mat;
-}
-
-function addBallNumberMarkers(mesh, number) {
-  if (number == null) return;
-  const markerGeom = new THREE.CircleGeometry(BALL_R * 0.36, 48);
-  const markerMat = getBallNumberMaterial(number);
-  const markerOffset = BALL_R - BALL_R * 0.12;
-  const localForward = new THREE.Vector3(0, 0, 1);
-  const normals = [
-    new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(-1, 0, 0),
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(0, -1, 0),
-    new THREE.Vector3(0, 0, 1),
-    new THREE.Vector3(0, 0, -1)
-  ];
-  normals.forEach((normal) => {
-    const marker = new THREE.Mesh(markerGeom, markerMat.clone());
-    marker.position.copy(normal).multiplyScalar(markerOffset);
-    marker.quaternion.setFromUnitVectors(localForward, normal);
-    marker.renderOrder = 2;
-    marker.castShadow = false;
-    marker.receiveShadow = false;
-    mesh.add(marker);
-  });
-}
-
 function Guret(parent, id, color, x, y, options = {}) {
   const pattern = options.pattern || 'solid';
-  const baseColor = pattern === 'stripe' ? 0xffffff : color;
-  const material = getBallMaterial(baseColor);
+  const number = options.number ?? null;
+  const material = getBilliardBallMaterial({
+    color,
+    pattern,
+    number,
+    variantKey: 'pool'
+  });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
@@ -3347,13 +3245,6 @@ function Guret(parent, id, color, x, y, options = {}) {
       marker.renderOrder = 2;
       mesh.add(marker);
     });
-  } else {
-    if (pattern === 'stripe') {
-      addStripeOverlay(mesh, color);
-    }
-    if (options.number != null) {
-      addBallNumberMarkers(mesh, options.number);
-    }
   }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
