@@ -17,7 +17,7 @@ export default function MiningTransactionsCard() {
     .filter((t) => t.type === 'daily')
     .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
   const spinPayouts = transactions
-    .filter((t) => t.type === 'spin' || t.type === 'lucky')
+    .filter((t) => t.type === 'spin' || t.type === 'lucky' || t.type === 'roulette')
     .reduce((s, t) => s + Math.abs(t.amount || 0), 0);
   const taskPayouts = transactions
     .filter((t) => t.type === 'task')
@@ -42,7 +42,7 @@ export default function MiningTransactionsCard() {
           <span>{formatValue(dailyPayouts)}</span>
         </div>
         <div className="flex justify-between">
-          <span>Spin &amp; Win</span>
+          <span>Spin &amp; Roulette</span>
           <span>{formatValue(spinPayouts)}</span>
         </div>
         <div className="flex justify-between">
