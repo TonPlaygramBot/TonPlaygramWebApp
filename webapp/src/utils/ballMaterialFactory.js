@@ -76,66 +76,37 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.158;
+  const radius = size * 0.1;
   const cx = size * 0.5;
   const cy = size * 0.5;
 
   ctx.save();
 
-  // Draw a perfectly circular badge and keep all shading symmetrical by
-  // clipping to the round silhouette before applying gradients. This avoids
-  // any directional skew that could make the badge appear egg-shaped when the
-  // texture is wrapped onto the sphere.
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
 
-  ctx.save();
-  ctx.clip();
-
-  const bodyFill = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
-  bodyFill.addColorStop(0, 'rgba(255,255,255,1)');
-  bodyFill.addColorStop(0.65, 'rgba(244,244,244,1)');
-  bodyFill.addColorStop(1, 'rgba(226,226,226,1)');
-  ctx.fillStyle = bodyFill;
-  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
-  // Gentle rim shading to emphasise the circular silhouette evenly.
-  ctx.globalCompositeOperation = 'multiply';
-  const rimShadow = ctx.createRadialGradient(cx, cy, radius * 0.6, cx, cy, radius);
-  rimShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  rimShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
-  ctx.fillStyle = rimShadow;
-  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
-  // Balanced specular highlight that stays inside the circular mask.
-  ctx.globalCompositeOperation = 'screen';
-  const gloss = ctx.createRadialGradient(
-    cx - radius * 0.24,
-    cy - radius * 0.24,
-    radius * 0.04,
-    cx - radius * 0.12,
-    cy - radius * 0.12,
-    radius * 0.48
-  );
-  gloss.addColorStop(0, 'rgba(255,255,255,0.82)');
-  gloss.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gloss;
-  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
-  ctx.restore();
-
-  // Crisp outline with uniform thickness around the badge.
-  ctx.lineWidth = size * 0.0115;
-  ctx.strokeStyle = 'rgba(0,0,0,0.82)';
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
+  ctx.strokeStyle = '#000000';
   ctx.stroke();
 
-  const fontSize = size * 0.178;
-  ctx.fillStyle = '#0f0f0f';
-  ctx.font = `700 ${fontSize}px "Arial"`;
+  ctx.fillStyle = '#000000';
+  ctx.font = `bold ${size * 0.18}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(number), cx, cy);
+
+  const numStr = String(number);
+  if (numStr.length === 2) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(0.9, 1);
+    ctx.fillText(numStr, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.fillText(numStr, cx, cy);
+  }
 
   ctx.restore();
 }
@@ -272,7 +243,7 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 8;
+  texture.anisotropy = 16;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -317,11 +288,11 @@ export function getBallMaterial({
       : new THREE.MeshPhysicalMaterial({
           color: 0xffffff,
           map,
-          roughness: 0.16,
-          metalness: 0.04,
           clearcoat: 1,
-          clearcoatRoughness: 0.08,
-          reflectivity: 0.9
+          clearcoatRoughness: 0.04,
+          metalness: 0.1,
+          roughness: 0.12,
+          reflectivity: 1
         });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
