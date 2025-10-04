@@ -206,7 +206,10 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   if (!ctx) return null;
 
   const size = BALL_TEXTURE_SIZE;
-  if (variantKey === 'pool') {
+  if (variantKey === 'snooker') {
+    ctx.fillStyle = toHexString(baseColor);
+    ctx.fillRect(0, 0, size, size);
+  } else if (variantKey === 'pool') {
     drawPoolBallTexture(ctx, size, baseColor, pattern, number);
   } else {
     drawDefaultBallTexture(ctx, size, baseColor, pattern, number);
@@ -244,15 +247,26 @@ export function getBallMaterial({
     variantKey
   });
 
-  const material = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    map,
-    roughness: 0.16,
-    metalness: 0.04,
-    clearcoat: 1,
-    clearcoatRoughness: 0.08,
-    reflectivity: 0.9
-  });
+  const material =
+    variantKey === 'snooker'
+      ? new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          map,
+          clearcoat: 1,
+          clearcoatRoughness: 0.05,
+          metalness: 0.05,
+          roughness: 0.13,
+          reflectivity: 0.9
+        })
+      : new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          map,
+          roughness: 0.16,
+          metalness: 0.04,
+          clearcoat: 1,
+          clearcoatRoughness: 0.08,
+          reflectivity: 0.9
+        });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
   return material;

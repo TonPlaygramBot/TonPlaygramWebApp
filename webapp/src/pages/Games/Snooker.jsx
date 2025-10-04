@@ -768,11 +768,11 @@ const UI_SCALE = SIZE_REDUCTION;
 // Updated colors for dark cloth and standard balls
 const BASE_BALL_COLORS = Object.freeze({
   cue: 0xffffff,
-  red: 0xff0000,
-  yellow: 0xffff00,
-  green: 0x006400,
+  red: 0xd12c2c,
+  yellow: 0xffd700,
+  green: 0x0fa35a,
   brown: 0x8b4513,
-  blue: 0x0000ff,
+  blue: 0x1e50ff,
   pink: 0xff69b4,
   black: 0x000000
 });
