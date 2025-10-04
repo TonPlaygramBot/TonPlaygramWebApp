@@ -20,6 +20,7 @@ export default function PoolRoyaleLobby() {
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
+  const [tableSize, setTableSize] = useState('9ft');
   const [playType, setPlayType] = useState('regular');
   const [players, setPlayers] = useState(8);
 
@@ -68,6 +69,7 @@ export default function PoolRoyaleLobby() {
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
+    if (tableSize) params.set('tableSize', tableSize);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -143,7 +145,7 @@ export default function PoolRoyaleLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
-            {[ 
+            {[
             { id: 'uk', label: '8 Pool UK' },
             { id: 'american', label: 'American' },
             { id: '9ball', label: '9-Ball' }
@@ -152,6 +154,24 @@ export default function PoolRoyaleLobby() {
               key={id}
               onClick={() => setVariant(id)}
               className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Table Size</h3>
+        <div className="flex gap-2">
+          {[
+            { id: '7ft', label: '7 ft' },
+            { id: '8ft', label: '8 ft' },
+            { id: '9ft', label: '9 ft' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setTableSize(id)}
+              className={`lobby-tile ${tableSize === id ? 'lobby-selected' : ''}`}
             >
               {label}
             </button>
