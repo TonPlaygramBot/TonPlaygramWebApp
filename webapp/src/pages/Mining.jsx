@@ -8,6 +8,7 @@ import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import SpinGame from '../components/SpinGame.jsx';
 import MiningCard from '../components/MiningCard.tsx';
 import LuckyNumber from '../components/LuckyNumber.jsx';
+import RouletteMini from '../components/RouletteMini.jsx';
 import MiningTransactionsCard from '../components/MiningTransactionsCard.jsx';
 import {
   getLeaderboard,
@@ -135,6 +136,7 @@ export default function Mining() {
     <DailyCheckIn />
     <SpinGame />
     <LuckyNumber />
+    <RouletteMini />
     <MiningCard />
     <MiningTransactionsCard />
 
