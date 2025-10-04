@@ -24,15 +24,6 @@ import { getGameVolume } from '../../utils/sound.js';
  */
 
 // ========================= Config =========================
-const CAM = {
-  fov: 52,
-  near: 0.1,
-  far: 5000,
-  minR: 38,
-  maxR: 120,
-  phiMin: 0.9,
-  phiMax: 1.35
-};
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const COLORS = Object.freeze({
@@ -51,6 +42,40 @@ const COLORS = Object.freeze({
 
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
+
+const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
+const BOARD_DISPLAY_SIZE = 3.4;
+const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
+
+const TABLE_TOP_SIZE = BOARD_DISPLAY_SIZE + 0.6;
+const TABLE_TOP_THICKNESS = 0.18;
+const TABLE_LEG_HEIGHT = 0.85;
+const TABLE_LEG_INSET = 0.45;
+
+const SNOOKER_TABLE_SCALE = 1.3;
+const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
+const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
+const SNOOKER_ROOM_DEPTH = SNOOKER_TABLE_H * 3.6;
+const SNOOKER_SIDE_CLEARANCE = SNOOKER_ROOM_DEPTH / 2 - SNOOKER_TABLE_H / 2;
+const SNOOKER_ROOM_WIDTH = SNOOKER_TABLE_W + SNOOKER_SIDE_CLEARANCE * 2;
+const SNOOKER_SIZE_REDUCTION = 0.7;
+const SNOOKER_GLOBAL_SIZE_FACTOR = 0.85 * SNOOKER_SIZE_REDUCTION;
+const SNOOKER_WORLD_SCALE = 0.85 * SNOOKER_GLOBAL_SIZE_FACTOR * 0.7;
+// Match half of the scaled snooker arena footprint
+const CHESS_ARENA = Object.freeze({
+  width: (SNOOKER_ROOM_WIDTH * SNOOKER_WORLD_SCALE) / 2,
+  depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
+});
+
+const CAM = {
+  fov: 52,
+  near: 0.1,
+  far: 5000,
+  minR: BOARD_DISPLAY_SIZE * 1.1,
+  maxR: BOARD_DISPLAY_SIZE * 4.2,
+  phiMin: 0.9,
+  phiMax: 1.35
+};
 
 // =============== Materials & simple builders ===============
 const mat = (c, r = 0.82, m = 0.12) =>
@@ -510,12 +535,14 @@ function Chess3D({ avatar, username }) {
     const arena = new THREE.Group();
     scene.add(arena);
 
-    const arenaHalfSize = 10;
+    const arenaHalfWidth = CHESS_ARENA.width / 2;
+    const arenaHalfDepth = CHESS_ARENA.depth / 2;
     const wallInset = 0.5;
-    const halfRoom = arenaHalfSize - wallInset;
+    const halfRoomX = arenaHalfWidth - wallInset;
+    const halfRoomZ = arenaHalfDepth - wallInset;
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(arenaHalfSize * 2, arenaHalfSize * 2),
+      new THREE.PlaneGeometry(arenaHalfWidth * 2, arenaHalfDepth * 2),
       new THREE.MeshStandardMaterial({
         color: 0x0f1222,
         roughness: 0.95,
@@ -526,7 +553,7 @@ function Chess3D({ avatar, username }) {
     arena.add(floor);
 
     const carpet = new THREE.Mesh(
-      new THREE.PlaneGeometry(6, 9.5),
+      new THREE.PlaneGeometry(arenaHalfWidth * 1.2, arenaHalfDepth * 1.2),
       new THREE.MeshStandardMaterial({
         color: 0x9c0b18,
         roughness: 0.8,
@@ -546,32 +573,32 @@ function Chess3D({ avatar, username }) {
       side: THREE.DoubleSide
     });
     const backWall = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoom * 2, wallH, wallT),
+      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
       wallMat
     );
-    backWall.position.set(0, wallH / 2, halfRoom);
+    backWall.position.set(0, wallH / 2, halfRoomZ);
     arena.add(backWall);
     const frontWall = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoom * 2, wallH, wallT),
+      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
       wallMat
     );
-    frontWall.position.set(0, wallH / 2, -halfRoom);
+    frontWall.position.set(0, wallH / 2, -halfRoomZ);
     arena.add(frontWall);
     const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, halfRoom * 2),
+      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
       wallMat
     );
-    leftWall.position.set(-halfRoom, wallH / 2, 0);
+    leftWall.position.set(-halfRoomX, wallH / 2, 0);
     arena.add(leftWall);
     const rightWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, halfRoom * 2),
+      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
       wallMat
     );
-    rightWall.position.set(halfRoom, wallH / 2, 0);
+    rightWall.position.set(halfRoomX, wallH / 2, 0);
     arena.add(rightWall);
 
     const ceilTrim = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoom * 2, 0.02, halfRoom * 2),
+      new THREE.BoxGeometry(halfRoomX * 2, 0.02, halfRoomZ * 2),
       new THREE.MeshStandardMaterial({
         color: 0x1a233f,
         roughness: 0.9,
@@ -591,45 +618,52 @@ function Chess3D({ avatar, username }) {
       side: THREE.DoubleSide
     });
     const stripBack = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoom * 2, 0.02, 0.01),
+      new THREE.BoxGeometry(halfRoomX * 2, 0.02, 0.01),
       ledMat
     );
-    stripBack.position.set(0, 0.05, halfRoom - wallT / 2);
+    stripBack.position.set(0, 0.05, halfRoomZ - wallT / 2);
     arena.add(stripBack);
     const stripFront = stripBack.clone();
-    stripFront.position.set(0, 0.05, -halfRoom + wallT / 2);
+    stripFront.position.set(0, 0.05, -halfRoomZ + wallT / 2);
     arena.add(stripFront);
     const stripLeft = new THREE.Mesh(
-      new THREE.BoxGeometry(0.01, 0.02, halfRoom * 2),
+      new THREE.BoxGeometry(0.01, 0.02, halfRoomZ * 2),
       ledMat
     );
-    stripLeft.position.set(-halfRoom + wallT / 2, 0.05, 0);
+    stripLeft.position.set(-halfRoomX + wallT / 2, 0.05, 0);
     arena.add(stripLeft);
     const stripRight = stripLeft.clone();
-    stripRight.position.set(halfRoom - wallT / 2, 0.05, 0);
+    stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
     arena.add(stripRight);
 
     const table = new THREE.Group();
     const tableTop = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 0.06, 0.9),
+      new THREE.BoxGeometry(
+        TABLE_TOP_SIZE,
+        TABLE_TOP_THICKNESS,
+        TABLE_TOP_SIZE
+      ),
       new THREE.MeshStandardMaterial({
         color: 0x2a2a2a,
         roughness: 0.6,
         metalness: 0.1
       })
     );
-    tableTop.position.y = 0.78;
+    const tableTopY = TABLE_LEG_HEIGHT + TABLE_TOP_THICKNESS / 2;
+    tableTop.position.y = tableTopY;
     table.add(tableTop);
-    const legGeo = new THREE.BoxGeometry(0.08, 0.7, 0.08);
+    const legGeo = new THREE.BoxGeometry(0.12, TABLE_LEG_HEIGHT, 0.12);
     const legMat = new THREE.MeshStandardMaterial({
       color: 0x3a3a3a,
       roughness: 0.7
     });
+    const legOffsetX = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
+    const legOffsetZ = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
     [
-      [-0.7, 0.35, -0.35],
-      [0.7, 0.35, -0.35],
-      [-0.7, 0.35, 0.35],
-      [0.7, 0.35, 0.35]
+      [-legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
+      [legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
+      [-legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ],
+      [legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ]
     ].forEach(([x, y, z]) => {
       const leg = new THREE.Mesh(legGeo, legMat);
       leg.position.set(x, y, z);
@@ -677,10 +711,11 @@ function Chess3D({ avatar, username }) {
     }
 
     const chairA = makeChair();
-    chairA.position.set(0, 0, -0.95);
+    const chairDistance = TABLE_TOP_SIZE / 2 + 0.9;
+    chairA.position.set(0, 0, -chairDistance);
     arena.add(chairA);
     const chairB = makeChair();
-    chairB.position.set(0, 0, 0.95);
+    chairB.position.set(0, 0, chairDistance);
     chairB.rotation.y = Math.PI;
     arena.add(chairB);
 
@@ -746,20 +781,23 @@ function Chess3D({ avatar, username }) {
       return cam;
     }
 
+    const cameraRigOffsetX = TABLE_TOP_SIZE / 2 + 1.4;
+    const cameraRigOffsetZ = TABLE_TOP_SIZE / 2 + 1.2;
     const studioCamA = makeStudioCamera();
-    studioCamA.position.set(-1.9, 0, -1.8);
+    studioCamA.position.set(-cameraRigOffsetX, 0, -cameraRigOffsetZ);
     arena.add(studioCamA);
     const studioCamB = makeStudioCamera();
-    studioCamB.position.set(1.9, 0, 1.8);
+    studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
     arena.add(studioCamB);
 
-    const tableSurfaceY = 0.78 + 0.03;
+    const tableSurfaceY = tableTopY + TABLE_TOP_THICKNESS / 2;
     const boardGroup = new THREE.Group();
-    boardGroup.position.y = tableSurfaceY + 0.02;
+    boardGroup.position.y = tableSurfaceY + 0.01;
+    boardGroup.scale.setScalar(BOARD_SCALE);
     arena.add(boardGroup);
     const boardLookTarget = new THREE.Vector3(
       0,
-      boardGroup.position.y + BOARD.baseH + 0.12,
+      boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
       0
     );
     studioCamA.lookAt(boardLookTarget);
@@ -767,8 +805,12 @@ function Chess3D({ avatar, username }) {
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+    const initialRadius = Math.max(
+      BOARD_DISPLAY_SIZE * 2.4,
+      CAM.minR + 1
+    );
     sph = new THREE.Spherical(
-      88,
+      initialRadius,
       (CAM.phiMin + CAM.phiMax) / 2,
       Math.PI * 0.25
     );
@@ -778,10 +820,10 @@ function Chess3D({ avatar, username }) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const boardSize = BOARD.N * BOARD.tile + BOARD.rim * 2;
+      const boardSize = RAW_BOARD_SIZE * BOARD_SCALE;
       const needed =
         boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      sph.radius = Math.max(needed, sph.radius);
+      sph.radius = clamp(Math.max(needed, sph.radius), CAM.minR, CAM.maxR);
       const offset = new THREE.Vector3().setFromSpherical(sph);
       camera.position.copy(boardLookTarget).add(offset);
       camera.lookAt(boardLookTarget);
@@ -790,13 +832,13 @@ function Chess3D({ avatar, username }) {
 
     zoomRef.current = {
       zoomIn: () => {
-        const r = sph.radius || 88;
-        sph.radius = clamp(r - 5, CAM.minR, CAM.maxR);
+        const r = sph.radius || initialRadius;
+        sph.radius = clamp(r - 1.2, CAM.minR, CAM.maxR);
         fit();
       },
       zoomOut: () => {
-        const r = sph.radius || 88;
-        sph.radius = clamp(r + 5, CAM.minR, CAM.maxR);
+        const r = sph.radius || initialRadius;
+        sph.radius = clamp(r + 1.2, CAM.minR, CAM.maxR);
         fit();
       }
     };
@@ -830,7 +872,7 @@ function Chess3D({ avatar, username }) {
       N * tile + BOARD.rim * 2,
       COLORS.woodDark
     );
-    base.position.set(0, BOARD.baseH / 2 - 0.01, 0);
+    base.position.set(0, BOARD.baseH / 2, 0);
     boardGroup.add(base);
     const top = box(N * tile, 0.12, N * tile, COLORS.woodLight);
     top.position.set(0, BOARD.baseH + 0.06, 0);
