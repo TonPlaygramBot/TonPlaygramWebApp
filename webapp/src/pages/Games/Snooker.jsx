@@ -4791,22 +4791,6 @@ function SnookerGame() {
           metalness: 0,
           transparent: true,
           opacity: 0.55
-        }),
-        ceramic: new THREE.MeshStandardMaterial({
-          color: 0xe5e7eb,
-          roughness: 0.4
-        }),
-        petal: new THREE.MeshStandardMaterial({
-          color: 0xff6b6b,
-          roughness: 0.7
-        }),
-        leaf: new THREE.MeshStandardMaterial({
-          color: 0x5cc48b,
-          roughness: 0.8
-        }),
-        flowerCenter: new THREE.MeshStandardMaterial({
-          color: 0xffd166,
-          roughness: 0.6
         })
       };
 
@@ -4829,7 +4813,7 @@ function SnookerGame() {
           new THREE.CylinderGeometry(0.04, 0.06, 0.7, 16),
           hospitalityMats.chrome
         );
-        tableStem.position.y = 0.4;
+        tableStem.position.y = 0.75 - 0.35;
         tableStem.castShadow = true;
         tableStem.receiveShadow = true;
         set.add(tableStem);
@@ -4844,7 +4828,7 @@ function SnookerGame() {
         set.add(tableBase);
 
         const bottle = new THREE.Group();
-        bottle.position.set(0.05, 0.905, -0.08);
+        bottle.position.set(0.05, 0.875, -0.08);
         set.add(bottle);
 
         const bottleBody = new THREE.Mesh(
@@ -4881,11 +4865,9 @@ function SnookerGame() {
         bottleWater.castShadow = true;
         bottle.add(bottleWater);
 
-        const glassOuterMat = hospitalityMats.glass.clone();
-        glassOuterMat.side = THREE.DoubleSide;
         const glassOuter = new THREE.Mesh(
           new THREE.CylinderGeometry(0.036, 0.032, 0.1, 16, 1, true),
-          glassOuterMat
+          hospitalityMats.glass
         );
         glassOuter.position.set(-0.12, 0.8, 0.05);
         glassOuter.castShadow = true;
@@ -4909,72 +4891,6 @@ function SnookerGame() {
         glassWater.position.set(-0.12, 0.775, 0.05);
         glassWater.castShadow = true;
         set.add(glassWater);
-
-        const vase = new THREE.Group();
-        vase.position.set(0.18, 0.93, 0.1);
-        set.add(vase);
-
-        const vaseBody = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.06, 0.05, 0.18, 4),
-          hospitalityMats.ceramic
-        );
-        vaseBody.scale.set(1.3, 1, 0.9);
-        vaseBody.castShadow = true;
-        vaseBody.receiveShadow = true;
-        vase.add(vaseBody);
-
-        const vaseWater = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.052, 0.048, 0.1, 4),
-          hospitalityMats.water
-        );
-        vaseWater.position.y = -0.04;
-        vase.add(vaseWater);
-
-        const makeFlower = () => {
-          const flower = new THREE.Group();
-
-          const stem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.003, 0.003, 0.22, 6),
-            hospitalityMats.leaf
-          );
-          stem.position.y = 0.11;
-          stem.castShadow = true;
-          stem.receiveShadow = true;
-          flower.add(stem);
-
-          const petalGeom = new THREE.BoxGeometry(0.03, 0.016, 0.003);
-          [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4].forEach((angle) => {
-            const petal = new THREE.Mesh(petalGeom, hospitalityMats.petal);
-            petal.position.set(0, 0.22, 0);
-            petal.rotation.y = angle;
-            petal.rotation.x = -0.18;
-            petal.castShadow = true;
-            petal.receiveShadow = true;
-            flower.add(petal);
-          });
-
-          const center = new THREE.Mesh(
-            new THREE.BoxGeometry(0.01, 0.01, 0.01),
-            hospitalityMats.flowerCenter
-          );
-          center.position.set(0, 0.215, 0);
-          center.castShadow = true;
-          center.receiveShadow = true;
-          flower.add(center);
-
-          return flower;
-        };
-
-        [
-          [-0.03, 0],
-          [0.03, 0.02],
-          [0, -0.02]
-        ].forEach(([x, z], idx) => {
-          const flower = makeFlower();
-          flower.position.set(x, 0.02, z);
-          flower.rotation.z = (idx - 1) * 0.15;
-          vase.add(flower);
-        });
 
         return set;
       };
@@ -5008,20 +4924,20 @@ function SnookerGame() {
           new THREE.BoxGeometry(0.5, 0.5, 0.06),
           hospitalityMats.fabric
         );
-        back.position.set(0, 0.71, -0.23);
-        back.rotation.x = -Math.PI * 0.05;
+        back.position.set(0, 0.71, 0.23);
+        back.rotation.x = Math.PI * 0.05;
         back.castShadow = true;
         back.receiveShadow = true;
         chair.add(back);
 
-        const armGeom = new THREE.BoxGeometry(0.5, 0.06, 0.08);
+        const armGeom = new THREE.BoxGeometry(0.08, 0.06, 0.46);
         const armL = new THREE.Mesh(armGeom, hospitalityMats.fabric);
-        armL.position.set(0, 0.56, 0.26);
+        armL.position.set(-0.26, 0.56, 0);
         armL.castShadow = true;
         armL.receiveShadow = true;
         chair.add(armL);
         const armR = armL.clone();
-        armR.position.z = -0.26;
+        armR.position.x = 0.26;
         chair.add(armR);
 
         return chair;
@@ -5031,24 +4947,28 @@ function SnookerGame() {
         const mirror = Math.sign(side) || 1;
         const group = new THREE.Group();
 
+        const interiorDepth = roomDepth / 2 - wallThickness * 0.75;
+        const tableZ = Math.min(toHospitalityUnits(0.8), interiorDepth);
+        const chairZ = Math.min(toHospitalityUnits(1.05), interiorDepth);
+
         const tableSet = createTableSet();
         tableSet.scale.setScalar(hospitalityScale);
         tableSet.position.set(
           mirror * toHospitalityUnits(-0.9),
           0,
-          0
+          tableZ
         );
         group.add(tableSet);
 
         const chair = createChair();
         chair.scale.setScalar(hospitalityScale);
         chair.position.set(
-          mirror * toHospitalityUnits(-1.65),
+          mirror * toHospitalityUnits(-1.55),
           0,
-          0
+          chairZ
         );
-        const chairYaw = Math.PI / 2 - Math.PI * 0.12;
-        chair.rotation.y = mirror < 0 ? chairYaw : -chairYaw;
+        const chairYaw = Math.PI * 0.1;
+        chair.rotation.y = mirror < 0 ? -chairYaw : chairYaw;
         group.add(chair);
 
         return group;
