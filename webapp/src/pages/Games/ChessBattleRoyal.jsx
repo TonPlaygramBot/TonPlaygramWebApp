@@ -482,6 +482,8 @@ function Chess3D({ avatar, username }) {
       alpha: false,
       powerPreference: 'high-performance'
     });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
@@ -493,14 +495,272 @@ function Chess3D({ avatar, username }) {
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(COLORS.bg);
+    scene.background = new THREE.Color(0x0c1020);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(-60, 120, 50);
+    key.position.set(1.8, 2.6, 1.6);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x88ccff, 0.35);
-    rim.position.set(80, 60, -40);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.55);
+    fill.position.set(-1.4, 2.2, -2.0);
+    scene.add(fill);
+    const rim = new THREE.PointLight(0xff7373, 0.4, 12, 2.0);
+    rim.position.set(0, 2.1, 0);
     scene.add(rim);
+
+    const arena = new THREE.Group();
+    scene.add(arena);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(8, 8),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f1222,
+        roughness: 0.95,
+        metalness: 0.05
+      })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    arena.add(floor);
+
+    const carpet = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 5.4),
+      new THREE.MeshStandardMaterial({
+        color: 0x9c0b18,
+        roughness: 0.8,
+        metalness: 0.05
+      })
+    );
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = 0.002;
+    arena.add(carpet);
+
+    const wallH = 3;
+    const wallT = 0.1;
+    const halfRoom = 3.5;
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0x273360,
+      roughness: 0.65,
+      metalness: 0.08,
+      side: THREE.DoubleSide
+    });
+    const backWall = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoom * 2, wallH, wallT),
+      wallMat
+    );
+    backWall.position.set(0, wallH / 2, halfRoom);
+    arena.add(backWall);
+    const frontWall = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoom * 2, wallH, wallT),
+      wallMat
+    );
+    frontWall.position.set(0, wallH / 2, -halfRoom);
+    arena.add(frontWall);
+    const leftWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallT, wallH, halfRoom * 2),
+      wallMat
+    );
+    leftWall.position.set(-halfRoom, wallH / 2, 0);
+    arena.add(leftWall);
+    const rightWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallT, wallH, halfRoom * 2),
+      wallMat
+    );
+    rightWall.position.set(halfRoom, wallH / 2, 0);
+    arena.add(rightWall);
+
+    const ceilTrim = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoom * 2, 0.02, halfRoom * 2),
+      new THREE.MeshStandardMaterial({
+        color: 0x1a233f,
+        roughness: 0.9,
+        metalness: 0.02,
+        side: THREE.DoubleSide
+      })
+    );
+    ceilTrim.position.set(0, wallH - 0.02, 0);
+    arena.add(ceilTrim);
+
+    const ledMat = new THREE.MeshStandardMaterial({
+      color: 0x00f7ff,
+      emissive: 0x0099aa,
+      emissiveIntensity: 0.4,
+      roughness: 0.6,
+      metalness: 0.2,
+      side: THREE.DoubleSide
+    });
+    const stripBack = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoom * 2, 0.02, 0.01),
+      ledMat
+    );
+    stripBack.position.set(0, 0.05, halfRoom - wallT / 2);
+    arena.add(stripBack);
+    const stripFront = stripBack.clone();
+    stripFront.position.set(0, 0.05, -halfRoom + wallT / 2);
+    arena.add(stripFront);
+    const stripLeft = new THREE.Mesh(
+      new THREE.BoxGeometry(0.01, 0.02, halfRoom * 2),
+      ledMat
+    );
+    stripLeft.position.set(-halfRoom + wallT / 2, 0.05, 0);
+    arena.add(stripLeft);
+    const stripRight = stripLeft.clone();
+    stripRight.position.set(halfRoom - wallT / 2, 0.05, 0);
+    arena.add(stripRight);
+
+    const table = new THREE.Group();
+    const tableTop = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.06, 0.9),
+      new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a,
+        roughness: 0.6,
+        metalness: 0.1
+      })
+    );
+    tableTop.position.y = 0.78;
+    table.add(tableTop);
+    const legGeo = new THREE.BoxGeometry(0.08, 0.7, 0.08);
+    const legMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3a3a,
+      roughness: 0.7
+    });
+    [
+      [-0.7, 0.35, -0.35],
+      [0.7, 0.35, -0.35],
+      [-0.7, 0.35, 0.35],
+      [0.7, 0.35, 0.35]
+    ].forEach(([x, y, z]) => {
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(x, y, z);
+      table.add(leg);
+    });
+    arena.add(table);
+
+    function makeChair() {
+      const g = new THREE.Group();
+      const seat = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.06, 0.5),
+        new THREE.MeshStandardMaterial({
+          color: 0x2b314e,
+          roughness: 0.6,
+          metalness: 0.1
+        })
+      );
+      seat.position.y = 0.48;
+      g.add(seat);
+      const back = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.5, 0.06),
+        new THREE.MeshStandardMaterial({
+          color: 0x32395c,
+          roughness: 0.6
+        })
+      );
+      back.position.set(0, 0.78, -0.22);
+      g.add(back);
+      const legG = new THREE.CylinderGeometry(0.03, 0.03, 0.46, 12);
+      const legM = new THREE.MeshStandardMaterial({
+        color: 0x444444,
+        roughness: 0.7
+      });
+      [
+        [-0.2, 0.23, -0.2],
+        [0.2, 0.23, -0.2],
+        [-0.2, 0.23, 0.2],
+        [0.2, 0.23, 0.2]
+      ].forEach(([x, y, z]) => {
+        const leg = new THREE.Mesh(legG, legM);
+        leg.position.set(x, y, z);
+        g.add(leg);
+      });
+      return g;
+    }
+
+    const chairA = makeChair();
+    chairA.position.set(0, 0, -0.95);
+    arena.add(chairA);
+    const chairB = makeChair();
+    chairB.position.set(0, 0, 0.95);
+    chairB.rotation.y = Math.PI;
+    arena.add(chairB);
+
+    function makeStudioCamera() {
+      const cam = new THREE.Group();
+      const legLen = 1.2;
+      const legRad = 0.025;
+      const legG = new THREE.CylinderGeometry(legRad, legRad, legLen, 10);
+      const legM = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        roughness: 0.5,
+        metalness: 0.3
+      });
+      const l1 = new THREE.Mesh(legG, legM);
+      l1.position.set(-0.28, legLen / 2, 0);
+      l1.rotation.z = THREE.MathUtils.degToRad(18);
+      const l2 = l1.clone();
+      l2.position.set(0.18, legLen / 2, 0.24);
+      const l3 = l1.clone();
+      l3.position.set(0.18, legLen / 2, -0.24);
+      cam.add(l1, l2, l3);
+      const head = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.1, 0.08, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x2e2e2e,
+          roughness: 0.6,
+          metalness: 0.2
+        })
+      );
+      head.position.set(0, legLen + 0.04, 0);
+      cam.add(head);
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.22, 0.22),
+        new THREE.MeshStandardMaterial({
+          color: 0x151515,
+          roughness: 0.5,
+          metalness: 0.4
+        })
+      );
+      body.position.set(0, legLen + 0.2, 0);
+      cam.add(body);
+      const lens = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.22, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x202020,
+          roughness: 0.4,
+          metalness: 0.5
+        })
+      );
+      lens.rotation.z = Math.PI / 2;
+      lens.position.set(0.22, legLen + 0.2, 0);
+      cam.add(lens);
+      const handle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 0.01, 0.3, 10),
+        new THREE.MeshStandardMaterial({
+          color: 0x444444,
+          roughness: 0.6
+        })
+      );
+      handle.rotation.z = THREE.MathUtils.degToRad(30);
+      handle.position.set(-0.16, legLen + 0.16, -0.1);
+      cam.add(handle);
+      return cam;
+    }
+
+    const studioCamA = makeStudioCamera();
+    studioCamA.position.set(-1.9, 0, -1.8);
+    arena.add(studioCamA);
+    const studioCamB = makeStudioCamera();
+    studioCamB.position.set(1.9, 0, 1.8);
+    arena.add(studioCamB);
+
+    const tableSurfaceY = 0.78 + 0.03;
+    const boardGroup = new THREE.Group();
+    boardGroup.position.y = tableSurfaceY + 0.02;
+    arena.add(boardGroup);
+    const boardLookTarget = new THREE.Vector3(
+      0,
+      boardGroup.position.y + BOARD.baseH + 0.12,
+      0
+    );
+    studioCamA.lookAt(boardLookTarget);
+    studioCamB.lookAt(boardLookTarget);
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
@@ -519,9 +779,9 @@ function Chess3D({ avatar, username }) {
       const needed =
         boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
       sph.radius = Math.max(needed, sph.radius);
-      camera.position.setFromSpherical(sph);
-      // keep the chess board centered on all screens
-      camera.lookAt(0, 0, 0);
+      const offset = new THREE.Vector3().setFromSpherical(sph);
+      camera.position.copy(boardLookTarget).add(offset);
+      camera.lookAt(boardLookTarget);
     };
     fit();
 
@@ -568,15 +828,15 @@ function Chess3D({ avatar, username }) {
       COLORS.woodDark
     );
     base.position.set(0, BOARD.baseH / 2 - 0.01, 0);
-    scene.add(base);
+    boardGroup.add(base);
     const top = box(N * tile, 0.12, N * tile, COLORS.woodLight);
     top.position.set(0, BOARD.baseH + 0.06, 0);
-    scene.add(top);
+    boardGroup.add(top);
 
     // Tiles
     const tiles = [];
     const tileGroup = new THREE.Group();
-    scene.add(tileGroup);
+    boardGroup.add(tileGroup);
     for (let r = 0; r < N; r++) {
       for (let c = 0; c < N; c++) {
         const isDark = (r + c) % 2 === 1;
@@ -611,7 +871,7 @@ function Chess3D({ avatar, username }) {
         BOARD.baseH + 0.13,
         -half - 0.6
       );
-      scene.add(mSmall);
+      boardGroup.add(mSmall);
       const nSmall = new THREE.Mesh(
         new THREE.PlaneGeometry(0.8, 0.08),
         coordMat
@@ -622,7 +882,7 @@ function Chess3D({ avatar, username }) {
         BOARD.baseH + 0.13,
         i * tile - half + tile / 2
       );
-      scene.add(nSmall);
+      boardGroup.add(nSmall);
     }
 
     // Pieces — meshes + state
@@ -634,7 +894,7 @@ function Chess3D({ avatar, username }) {
       const b = BUILDERS[p.t](color);
       b.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
       b.userData = { r, c, w: p.w, t: p.t, type: 'piece' };
-      scene.add(b);
+      boardGroup.add(b);
       pieceMeshes[r][c] = b;
     }
 
@@ -723,15 +983,15 @@ function Chess3D({ avatar, username }) {
         );
         h.position.copy(mesh.position).add(new THREE.Vector3(0, 0.06, 0));
         h.userData.__highlight = true;
-        scene.add(h);
+        boardGroup.add(h);
       });
     }
     function clearHighlights() {
       const toKill = [];
-      scene.traverse((o) => {
+      boardGroup.traverse((o) => {
         if (o.userData && o.userData.__highlight) toKill.push(o);
       });
-      toKill.forEach((o) => scene.remove(o));
+      toKill.forEach((o) => boardGroup.remove(o));
     }
 
     function selectAt(r, c) {
@@ -750,7 +1010,8 @@ function Chess3D({ avatar, username }) {
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
-        const worldPos = targetMesh.position.clone();
+        const worldPos = new THREE.Vector3();
+        targetMesh.getWorldPosition(worldPos);
         const capturingWhite = board[sel.r][sel.c].w;
         const zone = capturingWhite ? capturedByWhite : capturedByBlack;
         const idx = zone.push(targetMesh) - 1;
@@ -823,7 +1084,7 @@ function Chess3D({ avatar, username }) {
     function onClick(e) {
       setPointer(e);
       ray.setFromCamera(pointer, camera);
-      const intersects = ray.intersectObjects(scene.children, true);
+      const intersects = ray.intersectObjects(boardGroup.children, true);
       let obj = null;
       for (const i of intersects) {
         let o = i.object;
