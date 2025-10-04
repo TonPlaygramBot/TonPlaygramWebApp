@@ -19,6 +19,7 @@ import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
+import { getBallMaterial as getTexturedBallMaterial } from '../../three/ballMaterials.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -568,7 +569,6 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
-const BALL_MATERIAL_CACHE = new Map();
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
@@ -2993,19 +2993,12 @@ function calcTarget(cue, dir, balls) {
 // --------------------------------------------------
 // ONLY kept component: Guret (balls factory)
 // --------------------------------------------------
-function Guret(parent, id, color, x, y) {
-  if (!BALL_MATERIAL_CACHE.has(color)) {
-    BALL_MATERIAL_CACHE.set(
-      color,
-      new THREE.MeshPhysicalMaterial({
-        color,
-        roughness: 0.18,
-        clearcoat: 1,
-        clearcoatRoughness: 0.12
-      })
-    );
-  }
-  const material = BALL_MATERIAL_CACHE.get(color);
+function Guret(parent, id, color, x, y, options = {}) {
+  const material = getTexturedBallMaterial({
+    color,
+    pattern: options.pattern || 'solid',
+    number: options.number
+  });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
