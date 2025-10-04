@@ -164,13 +164,13 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.06;
-const CHROME_CORNER_EXPANSION_SCALE = 1.05;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0.01;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
+const CHROME_CORNER_EXPANSION_SCALE = 1.1;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.06;
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.74;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.76;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 
 function buildChromePlateGeometry({
@@ -3225,13 +3225,16 @@ function getBallMaterial(baseColor) {
 }
 
 function addStripeOverlay(mesh, stripeColor) {
-  const stripeGeo = new THREE.CylinderGeometry(
-    BALL_R * 1.0025,
-    BALL_R * 1.0025,
-    BALL_R * 0.9,
+  const stripeRadius = BALL_R * 1.0025;
+  const stripeThetaLength = THREE.MathUtils.degToRad(52);
+  const stripeGeo = new THREE.SphereGeometry(
+    stripeRadius,
+    96,
     48,
-    1,
-    true
+    0,
+    Math.PI * 2,
+    Math.PI / 2 - stripeThetaLength / 2,
+    stripeThetaLength
   );
   const stripeMat = new THREE.MeshBasicMaterial({
     color: stripeColor,
@@ -3241,7 +3244,6 @@ function addStripeOverlay(mesh, stripeColor) {
   });
   stripeMat.depthWrite = false;
   const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-  stripe.rotation.x = Math.PI / 2;
   stripe.renderOrder = 1;
   stripe.castShadow = false;
   stripe.receiveShadow = false;
@@ -3735,17 +3737,17 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // pull back short rail cushions so they finish before the chrome arch begins
+    POCKET_VIS_R * 0.09 * POCKET_VISUAL_EXPANSION; // extend short rail cushions so the green meets the chrome arch cleanly
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // shorten the long cushions slightly so pocket entrances stay unobstructed
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // keep the long cushions from overlapping the chrome arch at the corners
+    POCKET_VIS_R * 0.035 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // widen clearance around the pockets for the green cushions
+    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.16 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
+    POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
