@@ -82,57 +82,53 @@ function drawPoolNumberBadge(ctx, size, number) {
 
   ctx.save();
 
-  // Base badge fill kept perfectly circular without directional bias.
-  const baseGrad = ctx.createRadialGradient(cx, cy, radius * 0.1, cx, cy, radius);
-  baseGrad.addColorStop(0, 'rgba(255,255,255,1)');
-  baseGrad.addColorStop(0.7, 'rgba(244,244,244,1)');
-  baseGrad.addColorStop(1, 'rgba(226,226,226,1)');
-
+  // Draw a perfectly circular badge and keep all shading symmetrical by
+  // clipping to the round silhouette before applying gradients. This avoids
+  // any directional skew that could make the badge appear egg-shaped when the
+  // texture is wrapped onto the sphere.
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.closePath();
-  ctx.fillStyle = baseGrad;
-  ctx.fill();
 
-  // Gentle rim shadow to accentuate the circular silhouette.
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
+  ctx.clip();
+
+  const bodyFill = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
+  bodyFill.addColorStop(0, 'rgba(255,255,255,1)');
+  bodyFill.addColorStop(0.65, 'rgba(244,244,244,1)');
+  bodyFill.addColorStop(1, 'rgba(226,226,226,1)');
+  ctx.fillStyle = bodyFill;
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+  // Gentle rim shading to emphasise the circular silhouette evenly.
   ctx.globalCompositeOperation = 'multiply';
-  const rimShadow = ctx.createRadialGradient(cx, cy, radius * 0.55, cx, cy, radius);
+  const rimShadow = ctx.createRadialGradient(cx, cy, radius * 0.6, cx, cy, radius);
   rimShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  rimShadow.addColorStop(1, 'rgba(0,0,0,0.22)');
+  rimShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.fillStyle = rimShadow;
-  ctx.fill();
-  ctx.restore();
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.lineWidth = size * 0.011;
-  ctx.strokeStyle = 'rgba(0,0,0,0.82)';
-  ctx.stroke();
-
-  // Add a subtle specular highlight to avoid any egg-shaped illusion.
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
+  // Balanced specular highlight that stays inside the circular mask.
   ctx.globalCompositeOperation = 'screen';
   const gloss = ctx.createRadialGradient(
-    cx - radius * 0.35,
-    cy - radius * 0.35,
-    radius * 0.05,
-    cx - radius * 0.35,
-    cy - radius * 0.35,
-    radius * 0.7
+    cx - radius * 0.24,
+    cy - radius * 0.24,
+    radius * 0.04,
+    cx - radius * 0.12,
+    cy - radius * 0.12,
+    radius * 0.48
   );
-  gloss.addColorStop(0, 'rgba(255,255,255,0.85)');
+  gloss.addColorStop(0, 'rgba(255,255,255,0.82)');
   gloss.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gloss;
-  ctx.fill();
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
   ctx.restore();
+
+  // Crisp outline with uniform thickness around the badge.
+  ctx.lineWidth = size * 0.0115;
+  ctx.strokeStyle = 'rgba(0,0,0,0.82)';
+  ctx.stroke();
 
   const fontSize = size * 0.178;
   ctx.fillStyle = '#0f0f0f';
