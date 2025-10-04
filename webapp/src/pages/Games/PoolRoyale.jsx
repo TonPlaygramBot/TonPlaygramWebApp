@@ -836,25 +836,27 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
     ],
     objectNumbers: [
       1,
-      10,
-      9,
-      3,
-      8,
-      6,
-      15,
-      13,
-      12,
-      11,
       2,
+      3,
       4,
       5,
+      6,
       7,
-      14
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
     ],
     objectPatterns: [
       'solid',
-      'stripe',
-      'stripe',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
       'solid',
       'solid',
       'solid',
@@ -862,10 +864,8 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'stripe',
       'stripe',
       'stripe',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
+      'stripe',
+      'stripe',
       'stripe'
     ]
   },
@@ -886,17 +886,17 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       0x0a0a0a,
       0xfdd835
     ],
-    objectNumbers: [1, 2, 3, 4, 9, 5, 6, 7, 8],
+    objectNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
     objectPatterns: [
       'solid',
       'solid',
       'solid',
       'solid',
-      'stripe',
       'solid',
       'solid',
       'solid',
-      'solid'
+      'solid',
+      'stripe'
     ]
   }
 });
@@ -3215,9 +3215,13 @@ function getBallMaterial(baseColor) {
       key,
       new THREE.MeshPhysicalMaterial({
         color: baseColor,
-        roughness: 0.18,
+        roughness: 0.08,
+        metalness: 0.12,
         clearcoat: 1,
-        clearcoatRoughness: 0.12
+        clearcoatRoughness: 0.04,
+        specularIntensity: 0.75,
+        specularColor: new THREE.Color(0xf0f0f0),
+        ior: 1.45
       })
     );
   }
@@ -3260,18 +3264,36 @@ function getBallNumberMaterial(number) {
   const ctx = canvas.getContext('2d');
   if (ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ffffff';
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = canvas.width * 0.4;
+    const gloss = ctx.createRadialGradient(cx, cy - radius * 0.35, radius * 0.1, cx, cy, radius);
+    gloss.addColorStop(0, '#ffffff');
+    gloss.addColorStop(0.6, '#f7f7f7');
+    gloss.addColorStop(1, '#ebebeb');
+    ctx.fillStyle = gloss;
     ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width * 0.4, 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = canvas.width * 0.03;
+    ctx.lineWidth = canvas.width * 0.045;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.stroke();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(cx - radius * 0.2, cy - radius * 0.4, radius * 0.25, radius * 0.22, -Math.PI / 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
     ctx.fillStyle = '#0b0b0b';
-    ctx.font = `bold ${canvas.width * 0.48}px "Segoe UI", "Helvetica Neue", sans-serif`;
+    ctx.font = `600 ${canvas.width * 0.46}px "Segoe UI", "Helvetica Neue", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), canvas.width / 2, canvas.height / 2 * 1.05);
+    const textY = cy + radius * 0.02;
+    ctx.lineWidth = canvas.width * 0.025;
+    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+    ctx.strokeText(String(number), cx, textY);
+    ctx.fillText(String(number), cx, textY);
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.anisotropy = 4;
@@ -3285,20 +3307,31 @@ function getBallNumberMaterial(number) {
   return mat;
 }
 
-function addBallNumberMarkers(mesh, number) {
+function addBallNumberMarkers(mesh, number, pattern = 'solid') {
   if (number == null) return;
-  const markerGeom = new THREE.CircleGeometry(BALL_R * 0.36, 48);
+  const isStripe = pattern === 'stripe';
+  const markerGeom = new THREE.CircleGeometry(
+    BALL_R * (isStripe ? 0.34 : 0.36),
+    48
+  );
   const markerMat = getBallNumberMaterial(number);
-  const markerOffset = BALL_R - BALL_R * 0.12;
+  const markerOffset = BALL_R - BALL_R * (isStripe ? 0.08 : 0.12);
   const localForward = new THREE.Vector3(0, 0, 1);
-  const normals = [
-    new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(-1, 0, 0),
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(0, -1, 0),
-    new THREE.Vector3(0, 0, 1),
-    new THREE.Vector3(0, 0, -1)
-  ];
+  const normals = isStripe
+    ? [
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(-1, 0, 0),
+        new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(0, 0, -1)
+      ]
+    : [
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(-1, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3(0, -1, 0),
+        new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(0, 0, -1)
+      ];
   normals.forEach((normal) => {
     const marker = new THREE.Mesh(markerGeom, markerMat.clone());
     marker.position.copy(normal).multiplyScalar(markerOffset);
@@ -3352,7 +3385,7 @@ function Guret(parent, id, color, x, y, options = {}) {
       addStripeOverlay(mesh, color);
     }
     if (options.number != null) {
-      addBallNumberMarkers(mesh, options.number);
+      addBallNumberMarkers(mesh, options.number, pattern);
     }
   }
   mesh.traverse((node) => {
@@ -3737,7 +3770,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.09 * POCKET_VISUAL_EXPANSION; // extend short rail cushions so the green meets the chrome arch cleanly
+    POCKET_VIS_R * 0.055 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they finish flush with the chrome plates
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
