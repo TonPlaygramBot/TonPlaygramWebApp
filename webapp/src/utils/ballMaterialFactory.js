@@ -91,14 +91,14 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   if (Number.isFinite(number)) {
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(size * 0.5, size * 0.55, size * 0.16, 0, Math.PI * 2);
+    ctx.arc(size * 0.5, size * 0.5, size * 0.18, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = number === 8 ? '#ffffff' : '#000000';
+    ctx.fillStyle = '#000000';
     ctx.font = `${size * 0.22}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), size * 0.5, size * 0.56);
+    ctx.fillText(String(number), size * 0.5, size * 0.5);
   }
 }
 

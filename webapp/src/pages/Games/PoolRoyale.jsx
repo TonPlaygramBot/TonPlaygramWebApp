@@ -766,6 +766,9 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 const DEFAULT_POOL_VARIANT = 'american';
+const UK_POOL_RED = 0xd12c2c;
+const UK_POOL_YELLOW = 0xffd700;
+const UK_POOL_BLACK = 0x000000;
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
   uk: {
     id: 'uk',
@@ -774,21 +777,21 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
     rackLayout: 'triangle',
     disableSnookerMarkings: true,
     objectColors: [
-      0xffc52c,
-      0xffc52c,
-      0xd32232,
-      0xffc52c,
-      0x111111,
-      0xd32232,
-      0xd32232,
-      0xffc52c,
-      0xd32232,
-      0xffc52c,
-      0xd32232,
-      0xffc52c,
-      0xd32232,
-      0xffc52c,
-      0xd32232
+      UK_POOL_YELLOW,
+      UK_POOL_YELLOW,
+      UK_POOL_RED,
+      UK_POOL_YELLOW,
+      UK_POOL_BLACK,
+      UK_POOL_RED,
+      UK_POOL_RED,
+      UK_POOL_YELLOW,
+      UK_POOL_RED,
+      UK_POOL_YELLOW,
+      UK_POOL_RED,
+      UK_POOL_YELLOW,
+      UK_POOL_RED,
+      UK_POOL_YELLOW,
+      UK_POOL_RED
     ],
     objectNumbers: [
       null,
