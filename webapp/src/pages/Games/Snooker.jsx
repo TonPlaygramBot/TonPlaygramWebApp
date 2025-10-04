@@ -757,6 +757,112 @@ const SPIN_BOX_FILL_RATIO =
     : 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
+
+const TABLE_FINISH = 'twoToneHybrid';
+const TABLE_FINISH_PRESETS = Object.freeze({
+  classicWood: {
+    railColor: 0x5e3d24,
+    baseColor: 0x4c2d1a,
+    trimColor: 0x2f1b0d,
+    chromeColor: 0xdcc9b2,
+    neonColor: null,
+    neonIntensity: 0,
+    cornerRadiusMultiplier: 1,
+    baseMaterial: {
+      metalness: 0.2,
+      roughness: 0.38,
+      clearcoat: 0.45,
+      clearcoatRoughness: 0.18,
+      sheen: 0.32,
+      sheenRoughness: 0.52,
+      reflectivity: 0.46,
+      envMapIntensity: 0.82
+    },
+    railMaterial: {
+      metalness: 0.22,
+      roughness: 0.32,
+      clearcoat: 0.48,
+      clearcoatRoughness: 0.16,
+      sheen: 0.24,
+      sheenRoughness: 0.46,
+      reflectivity: 0.48,
+      envMapIntensity: 0.88
+    },
+    legStyle: 'wood',
+    legAccentColor: 0xb8895a,
+    trimStripeColor: 0xb77936,
+    hospitalityWood: 0x5e3d24
+  },
+  matteGraphite: {
+    railColor: 0x2b2b2b,
+    baseColor: 0x1f2024,
+    trimColor: 0x16181d,
+    chromeColor: 0x353c44,
+    neonColor: 0x3b82f6,
+    neonIntensity: 1.4,
+    cornerRadiusMultiplier: 0.38,
+    baseMaterial: {
+      metalness: 0.32,
+      roughness: 0.62,
+      clearcoat: 0.16,
+      clearcoatRoughness: 0.46,
+      sheen: 0.08,
+      sheenRoughness: 0.32,
+      reflectivity: 0.35,
+      envMapIntensity: 0.7
+    },
+    railMaterial: {
+      metalness: 0.42,
+      roughness: 0.58,
+      clearcoat: 0.1,
+      clearcoatRoughness: 0.44,
+      sheen: 0.05,
+      sheenRoughness: 0.28,
+      reflectivity: 0.34,
+      envMapIntensity: 0.8
+    },
+    legStyle: 'metal',
+    legAccentColor: 0x0ea5e9,
+    trimStripeColor: 0x0ea5e9,
+    hospitalityWood: 0x2f3540
+  },
+  twoToneHybrid: {
+    railColor: 0x111827,
+    baseColor: 0x3a2c1f,
+    trimColor: 0x0f172a,
+    chromeColor: 0x1f2a44,
+    neonColor: 0x06b6d4,
+    neonIntensity: 1.25,
+    cornerRadiusMultiplier: 0.68,
+    baseMaterial: {
+      metalness: 0.28,
+      roughness: 0.42,
+      clearcoat: 0.36,
+      clearcoatRoughness: 0.24,
+      sheen: 0.22,
+      sheenRoughness: 0.44,
+      reflectivity: 0.4,
+      envMapIntensity: 0.86
+    },
+    railMaterial: {
+      metalness: 0.48,
+      roughness: 0.36,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.32,
+      sheen: 0.14,
+      sheenRoughness: 0.4,
+      reflectivity: 0.52,
+      envMapIntensity: 0.92
+    },
+    legStyle: 'hybrid',
+    legAccentColor: 0xfacc15,
+    trimStripeColor: 0xfacc15,
+    hospitalityWood: 0x3d2b1d
+  }
+});
+
+const ACTIVE_TABLE_FINISH =
+  TABLE_FINISH_PRESETS[TABLE_FINISH] ?? TABLE_FINISH_PRESETS.classicWood;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -766,10 +872,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 // Updated colors for dark cloth and standard balls
-// keep rails and frame in the same warm wood tone so the finish matches reference tables
-const WOOD_TONE = 0xa67748;
-const RAIL_WOOD_COLOR = WOOD_TONE;
-const BASE_WOOD_COLOR = WOOD_TONE;
+// tie rail/base palette to the active finish preset so we can swap looks quickly
+const RAIL_WOOD_COLOR = ACTIVE_TABLE_FINISH.railColor;
+const BASE_WOOD_COLOR = ACTIVE_TABLE_FINISH.baseColor;
+const TRIM_TONE = ACTIVE_TABLE_FINISH.trimColor ?? ACTIVE_TABLE_FINISH.baseColor;
 const CLOTH_TEXTURE_INTENSITY = 0.45;
 const CLOTH_HAIR_INTENSITY = 0.18;
 const CLOTH_BUMP_INTENSITY = 0.36;
@@ -779,6 +885,7 @@ const COLORS = Object.freeze({
   cloth: 0x2b7e4f,
   rail: RAIL_WOOD_COLOR,
   base: BASE_WOOD_COLOR,
+  trim: TRIM_TONE,
   markings: 0xffffff,
   cue: 0xffffff,
   red: 0xff0000,
@@ -1194,7 +1301,13 @@ const createCarpetTextures = (() => {
   };
 })();
 
-function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }) {
+function createBroadcastCameras({
+  floorY,
+  cameraHeight,
+  shortRailZ,
+  slideLimit,
+  lateralClearance = 0
+}) {
   const group = new THREE.Group();
   group.name = 'broadcastCameras';
   const cameras = {};
@@ -1248,7 +1361,8 @@ function createBroadcastCameras({ floorY, cameraHeight, shortRailZ, slideLimit }
     0
   );
 
-  const cameraCornerXOffset = TABLE.W / 2 + BALL_R * 14;
+  const cameraCornerXOffset =
+    TABLE.W / 2 + BALL_R * 14 + Math.max(0, lateralClearance);
   const cameraCornerZOffset = Math.max(
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
@@ -2709,38 +2823,64 @@ function Table3D(parent) {
   };
 
   const cushionMat = clothMat.clone();
-  const woodColor = new THREE.Color(COLORS.base).lerp(
+  const baseColor = new THREE.Color(COLORS.base).lerp(
     new THREE.Color(0xffffff),
-    0.2
+    0.12
   );
-  const woodMat = new THREE.MeshPhysicalMaterial({
-    color: woodColor,
+  const baseMaterialProps = {
     metalness: 0.18,
     roughness: 0.32,
     clearcoat: 0.28,
-    clearcoatRoughness: 0.18,
-    sheen: 0.08,
+    clearcoatRoughness: 0.2,
+    sheen: 0.12,
     sheenRoughness: 0.48,
     reflectivity: 0.42,
-    envMapIntensity: 0.7
+    envMapIntensity: 0.74,
+    ...(ACTIVE_TABLE_FINISH.baseMaterial || {})
+  };
+  const baseMat = new THREE.MeshPhysicalMaterial({
+    color: baseColor,
+    ...baseMaterialProps
   });
-  woodMat.needsUpdate = true;
-  const railWoodColor = new THREE.Color(COLORS.rail).lerp(
+  baseMat.needsUpdate = true;
+
+  const railColor = new THREE.Color(COLORS.rail).lerp(
     new THREE.Color(0xffffff),
-    0.18
+    0.08
   );
-  const railWoodMat = new THREE.MeshPhysicalMaterial({
-    color: railWoodColor,
-    metalness: 0.2,
+  const railMaterialProps = {
+    metalness: 0.22,
     roughness: 0.34,
     clearcoat: 0.3,
-    clearcoatRoughness: 0.2,
-    sheen: 0.1,
-    sheenRoughness: 0.5,
-    reflectivity: 0.45,
-    envMapIntensity: 0.74
+    clearcoatRoughness: 0.22,
+    sheen: 0.12,
+    sheenRoughness: 0.46,
+    reflectivity: 0.46,
+    envMapIntensity: 0.78,
+    ...(ACTIVE_TABLE_FINISH.railMaterial || {})
+  };
+  const railWoodMat = new THREE.MeshPhysicalMaterial({
+    color: railColor,
+    ...railMaterialProps
   });
   railWoodMat.needsUpdate = true;
+
+  const trimColor = new THREE.Color(COLORS.trim).lerp(
+    new THREE.Color(0xffffff),
+    0.04
+  );
+  const trimMat = new THREE.MeshPhysicalMaterial({
+    color: trimColor,
+    metalness: 0.42,
+    roughness: 0.42,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.26,
+    sheen: 0.1,
+    sheenRoughness: 0.48,
+    reflectivity: 0.4,
+    envMapIntensity: 0.84
+  });
+  trimMat.needsUpdate = true;
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.34,
@@ -2882,9 +3022,18 @@ function Table3D(parent) {
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
-  const outerCornerRadius = Math.min(
+  const cornerRadiusMultiplier =
+    ACTIVE_TABLE_FINISH.cornerRadiusMultiplier ?? 1;
+  const baseCornerRadius = Math.min(
     Math.min(longRailW, endRailW) * 1.6,
     Math.min(outerHalfW, outerHalfH) * 0.2
+  );
+  const outerCornerRadius = Math.max(
+    MICRO_EPS,
+    Math.min(
+      baseCornerRadius * cornerRadiusMultiplier,
+      Math.min(outerHalfW, outerHalfH) * 0.2
+    )
   );
 
   const POCKET_GAP =
@@ -2916,15 +3065,15 @@ function Table3D(parent) {
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
   const chromePlateMat = new THREE.MeshPhysicalMaterial({
-    color: 0xe9edf2,
+    color: ACTIVE_TABLE_FINISH.chromeColor ?? 0xe9edf2,
     metalness: 0.92,
-    roughness: 0.36,
-    reflectivity: 0.82,
-    clearcoat: 0.62,
-    clearcoatRoughness: 0.34,
+    roughness: 0.34,
+    reflectivity: 0.86,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.32,
     sheen: 0.08,
-    sheenRoughness: 0.62,
-    envMapIntensity: 1.05
+    sheenRoughness: 0.58,
+    envMapIntensity: 1.08
   });
 
   const chromePlateThickness = railH * 0.08;
@@ -3281,6 +3430,52 @@ function Table3D(parent) {
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
 
+  if (ACTIVE_TABLE_FINISH.trimStripeColor) {
+    const stripeShape = railsOuter.clone();
+    const stripeScale = 0.986;
+    stripeShape.scale(stripeScale, stripeScale);
+    const stripeDepth = Math.max(MICRO_EPS, railH * 0.08);
+    const stripeGeom = new THREE.ExtrudeGeometry(stripeShape, {
+      depth: stripeDepth,
+      bevelEnabled: false,
+      curveSegments: 64
+    });
+    const stripeMat = trimMat.clone();
+    stripeMat.color.setHex(ACTIVE_TABLE_FINISH.trimStripeColor);
+    if (ACTIVE_TABLE_FINISH.neonColor) {
+      stripeMat.emissive = new THREE.Color(ACTIVE_TABLE_FINISH.neonColor);
+      stripeMat.emissiveIntensity = ACTIVE_TABLE_FINISH.neonIntensity ?? 1.05;
+    } else {
+      stripeMat.emissive = new THREE.Color(
+        ACTIVE_TABLE_FINISH.trimStripeColor
+      );
+      stripeMat.emissiveIntensity = 0.38;
+    }
+    stripeMat.needsUpdate = true;
+    const stripe = new THREE.Mesh(stripeGeom, stripeMat);
+    stripe.rotation.x = -Math.PI / 2;
+    stripe.position.y = frameTopY + railH - stripeDepth + MICRO_EPS * 4;
+    stripe.castShadow = false;
+    stripe.receiveShadow = false;
+    stripe.renderOrder = railsMesh.renderOrder + 1;
+    railsGroup.add(stripe);
+  }
+
+  if (ACTIVE_TABLE_FINISH.neonColor) {
+    const neonGeom = new THREE.EdgesGeometry(railsGeom, 45);
+    const neonMaterial = new THREE.LineBasicMaterial({
+      color: ACTIVE_TABLE_FINISH.neonColor,
+      transparent: true,
+      opacity: 0.82
+    });
+    const neonLine = new THREE.LineSegments(neonGeom, neonMaterial);
+    neonLine.rotation.copy(railsMesh.rotation);
+    neonLine.position.copy(railsMesh.position);
+    neonLine.position.y += railH * 0.42;
+    neonLine.renderOrder = railsMesh.renderOrder + 2;
+    railsGroup.add(neonLine);
+  }
+
   table.add(railsGroup);
 
   const FACE_SHRINK_LONG = 0.955;
@@ -3513,7 +3708,7 @@ function Table3D(parent) {
     depth: skirtH,
     bevelEnabled: false
   });
-  const skirt = new THREE.Mesh(skirtGeo, woodMat);
+  const skirt = new THREE.Mesh(skirtGeo, baseMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
   skirt.castShadow = true;
@@ -3537,12 +3732,52 @@ function Table3D(parent) {
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
+  const legMaterial = (() => {
+    if (ACTIVE_TABLE_FINISH.legStyle === 'metal') {
+      return trimMat.clone();
+    }
+    if (ACTIVE_TABLE_FINISH.legStyle === 'hybrid') {
+      const hybrid = baseMat.clone();
+      hybrid.color.lerp(new THREE.Color(ACTIVE_TABLE_FINISH.baseColor), 0.4);
+      hybrid.metalness = Math.min(1, (hybrid.metalness ?? 0.3) + 0.18);
+      hybrid.roughness = Math.max(0, (hybrid.roughness ?? 0.32) - 0.08);
+      hybrid.clearcoat = Math.min(1, (hybrid.clearcoat ?? 0.3) + 0.12);
+      return hybrid;
+    }
+    return baseMat;
+  })();
+
+  const legAccentMaterial = (() => {
+    if (!ACTIVE_TABLE_FINISH.legAccentColor) return null;
+    const mat = trimMat.clone();
+    mat.color.setHex(ACTIVE_TABLE_FINISH.legAccentColor);
+    mat.emissive = new THREE.Color(ACTIVE_TABLE_FINISH.legAccentColor);
+    mat.emissiveIntensity =
+      ACTIVE_TABLE_FINISH.legStyle === 'metal' ? 0.24 : 0.18;
+    return mat;
+  })();
+
   legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, woodMat);
+    const leg = new THREE.Mesh(legGeo, legMaterial);
     leg.position.set(lx, legY, lz);
     leg.castShadow = true;
     leg.receiveShadow = true;
     table.add(leg);
+
+    if (legAccentMaterial) {
+      const capHeight = Math.min(legH * 0.28, 0.48);
+      const capGeo = new THREE.CylinderGeometry(
+        legR * 0.92,
+        legR * 0.92,
+        capHeight,
+        48
+      );
+      const cap = new THREE.Mesh(capGeo, legAccentMaterial);
+      cap.position.set(lx, legY + legH / 2 - capHeight / 2 + MICRO_EPS * 4, lz);
+      cap.castShadow = true;
+      cap.receiveShadow = true;
+      table.add(cap);
+    }
   });
 
   table.updateMatrixWorld(true);
@@ -4606,6 +4841,24 @@ function SnookerGame() {
       carpet.position.set(0, floorY - carpetThickness / 2, 0);
       world.add(carpet);
 
+      const reflectionPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(roomWidth * 1.04, roomDepth * 1.04),
+        new THREE.MeshStandardMaterial({
+          color: 0x0b0f16,
+          metalness: 0.82,
+          roughness: 0.18,
+          transparent: true,
+          opacity: 0.32,
+          envMapIntensity: 0.65
+        })
+      );
+      reflectionPlane.rotation.x = -Math.PI / 2;
+      reflectionPlane.position.y = floorY + 0.02;
+      reflectionPlane.renderOrder = 1;
+      reflectionPlane.receiveShadow = false;
+      reflectionPlane.name = 'floorReflection';
+      world.add(reflectionPlane);
+
       const wallMat = new THREE.MeshStandardMaterial({
         color: 0xeeeeee,
         roughness: 0.88,
@@ -4656,7 +4909,7 @@ function SnookerGame() {
       const tvScale = 5;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
-      const tvDepth = 0.42 * tvScale;
+      const tvDepth = 0.32 * tvScale;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -4679,13 +4932,13 @@ function SnookerGame() {
           new THREE.PlaneGeometry(tvWidth * 0.92, tvHeight * 0.88),
           makeScreenMaterial(texture)
         );
-        screen.position.z = tvDepth / 2 + 0.02;
+        screen.position.z = tvDepth / 2 + 0.01;
         group.add(screen);
         const mount = new THREE.Mesh(
           new THREE.BoxGeometry(tvWidth * 0.18, tvHeight * 0.6, tvDepth * 0.3),
           tvBezelMat
         );
-        mount.position.set(0, -tvHeight * 0.55, -tvDepth * 0.35);
+        mount.position.set(0, -tvHeight * 0.42, -tvDepth * 0.4);
         group.add(mount);
         return group;
       };
@@ -4704,14 +4957,15 @@ function SnookerGame() {
         );
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
-        const tvOffsetY = signageHeight * 0.5 + tvHeight * 0.55;
-        const tvSideOffset = signageWidth / 2 + tvDepth * 0.8;
+        const tvOffsetY = signageHeight * 0.5 + tvHeight * 0.15;
+        const tvSideOffset = signageWidth / 2 + tvDepth * 0.55;
+        const tvMountOffset = signageDepth / 2 - tvDepth * 0.45;
         const leftTv = createTv(cryptoTexture);
-        leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
+        leftTv.position.set(-tvSideOffset, tvOffsetY, tvMountOffset);
         leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
         assembly.add(leftTv);
         const rightTv = createTv(matchTexture);
-        rightTv.position.set(tvSideOffset, tvOffsetY, 0);
+        rightTv.position.set(tvSideOffset, tvOffsetY, tvMountOffset);
         rightTv.rotation.set(-Math.PI * 0.02, 0, 0);
         assembly.add(rightTv);
         return assembly;
@@ -4740,11 +4994,13 @@ function SnookerGame() {
         roomDepth / 2 - wallThickness - broadcastClearance
       );
       const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
+      const tvLateralClearance = signageWidth / 2 + tvDepth * 0.55;
       const broadcastRig = createBroadcastCameras({
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
-        slideLimit: shortRailSlideLimit
+        slideLimit: shortRailSlideLimit,
+        lateralClearance: tvLateralClearance
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
@@ -4786,19 +5042,24 @@ function SnookerGame() {
         headPivot.rotateX(tripodTilt);
       });
 
+      const hospitalityWoodColor =
+        ACTIVE_TABLE_FINISH.hospitalityWood ?? 0x8b5e3c;
+      const hospitalityAccentColor = ACTIVE_TABLE_FINISH.trimStripeColor ?? 0xbfc7d5;
       const hospitalityMats = {
         wood: new THREE.MeshStandardMaterial({
-          color: 0x8b5e3c,
-          roughness: 0.8
+          color: hospitalityWoodColor,
+          roughness: 0.74,
+          metalness: 0.18
         }),
         fabric: new THREE.MeshStandardMaterial({
-          color: 0x1f2a44,
-          roughness: 0.9
+          color: ACTIVE_TABLE_FINISH.trimColor ?? 0x1f2a44,
+          roughness: 0.86,
+          metalness: 0.12
         }),
         chrome: new THREE.MeshStandardMaterial({
-          color: 0xbfc7d5,
-          roughness: 0.25,
-          metalness: 0.9
+          color: hospitalityAccentColor,
+          roughness: 0.22,
+          metalness: 0.86
         }),
         glass: new THREE.MeshStandardMaterial({
           color: 0x9bd3ff,
@@ -4990,22 +5251,40 @@ function SnookerGame() {
         tableSet.scale.setScalar(furnitureScale);
         tableSet.position.set(
           0,
-          0,
-          depthOffset * 0.25
+          toHospitalityUnits(0.02),
+          depthOffset * 0.6 + walkwayWidth * 0.08
         );
+        tableSet.rotation.y = mirror < 0 ? -Math.PI / 12 : Math.PI / 12;
         ensureHospitalityVisibility(tableSet);
         group.add(tableSet);
 
-        const chair = createChair();
-        chair.scale.setScalar(furnitureScale);
-        chair.position.set(
-          mirror * Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)),
-          0,
-          -depthOffset * 0.55
+        const chairOffsetX = Math.min(
+          walkwayWidth * 0.32,
+          toHospitalityUnits(0.52)
         );
-        chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
-        ensureHospitalityVisibility(chair);
-        group.add(chair);
+        const chairDepthSpacing = depthOffset * 0.48;
+
+        const forwardChair = createChair();
+        forwardChair.scale.setScalar(furnitureScale);
+        forwardChair.position.set(
+          mirror * chairOffsetX,
+          0,
+          -chairDepthSpacing
+        );
+        forwardChair.rotation.y = mirror < 0 ? Math.PI / 2 : -Math.PI / 2;
+        ensureHospitalityVisibility(forwardChair);
+        group.add(forwardChair);
+
+        const loungeChair = createChair();
+        loungeChair.scale.setScalar(furnitureScale);
+        loungeChair.position.set(
+          mirror * chairOffsetX,
+          0,
+          chairDepthSpacing * 0.55
+        );
+        loungeChair.rotation.y = mirror < 0 ? Math.PI / 1.6 : -Math.PI / 1.6;
+        ensureHospitalityVisibility(loungeChair);
+        group.add(loungeChair);
 
         return group;
       };
@@ -6448,6 +6727,32 @@ function SnookerGame() {
           0
         );
         lightingRig.add(ambient);
+
+        const neonAccent = ACTIVE_TABLE_FINISH.neonColor ?? 0xfacc15;
+        const accentDistance = Math.max(PLAY_W, PLAY_H) * 1.5;
+        const accentHeight = tableSurfaceY + Math.max(TABLE_H * 3.2, 3.4);
+        const accentPositions = [
+          new THREE.Vector3(0, accentHeight, 0),
+          new THREE.Vector3(PLAY_W * 0.38, accentHeight * 0.96, PLAY_H * 0.2),
+          new THREE.Vector3(-PLAY_W * 0.38, accentHeight * 0.96, -PLAY_H * 0.2)
+        ];
+        accentPositions.forEach((pos, index) => {
+          const intensity = index === 0 ? 1.4 : 1.0;
+          const light = new THREE.PointLight(
+            index === 0 ? 0xffffff : neonAccent,
+            intensity,
+            accentDistance,
+            1.8
+          );
+          light.position.copy(pos);
+          light.decay = 1.6;
+          light.castShadow = index === 0;
+          if (light.castShadow) {
+            light.shadow.mapSize.set(1024, 1024);
+            light.shadow.bias = -0.00008;
+          }
+          lightingRig.add(light);
+        });
       };
 
       addMobileLighting();
