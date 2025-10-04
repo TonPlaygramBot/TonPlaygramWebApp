@@ -510,8 +510,12 @@ function Chess3D({ avatar, username }) {
     const arena = new THREE.Group();
     scene.add(arena);
 
+    const arenaHalfSize = 10;
+    const wallInset = 0.5;
+    const halfRoom = arenaHalfSize - wallInset;
+
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(8, 8),
+      new THREE.PlaneGeometry(arenaHalfSize * 2, arenaHalfSize * 2),
       new THREE.MeshStandardMaterial({
         color: 0x0f1222,
         roughness: 0.95,
@@ -522,7 +526,7 @@ function Chess3D({ avatar, username }) {
     arena.add(floor);
 
     const carpet = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.2, 5.4),
+      new THREE.PlaneGeometry(6, 9.5),
       new THREE.MeshStandardMaterial({
         color: 0x9c0b18,
         roughness: 0.8,
@@ -535,7 +539,6 @@ function Chess3D({ avatar, username }) {
 
     const wallH = 3;
     const wallT = 0.1;
-    const halfRoom = 3.5;
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0x273360,
       roughness: 0.65,
