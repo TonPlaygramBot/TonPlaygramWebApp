@@ -1509,9 +1509,26 @@ const createWoodTexture = (() => {
 const createCarpetTextures = (() => {
   let cache = null;
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
-  const noise = (x, y) => {
-    const value = Math.sin(x * 2.142 + y * 3.741) * 43758.5453;
-    return value - Math.floor(value);
+  const prng = (seed) => {
+    let value = seed;
+    return () => {
+      value = (value * 1664525 + 1013904223) % 4294967296;
+      return value / 4294967296;
+    };
+  };
+  const drawRoundedRect = (ctx, x, y, w, h, r) => {
+    const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
   };
   return () => {
     if (cache) return cache;
@@ -1519,30 +1536,66 @@ const createCarpetTextures = (() => {
       cache = { map: null, bump: null };
       return cache;
     }
-    const size = 256;
+
+    const size = 1024;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const base = new THREE.Color(0x8c2f2f).convertLinearToSRGB();
-    const image = ctx.createImageData(size, size);
+
+    // rich red textile base with directional variation
+    const gradient = ctx.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, '#7a0a18');
+    gradient.addColorStop(1, '#5e0913');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const rand = prng(987654321);
+    const image = ctx.getImageData(0, 0, size, size);
+    const data = image.data;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const ring = Math.sin(((x * x + y * y) / (size * size)) * Math.PI * 1.4);
-        const fibers =
-          Math.sin((x / size) * Math.PI * 14) * 0.18 +
-          Math.cos((y / size) * Math.PI * 16) * 0.16;
-        const grain = noise(x + ring * 12.5, y + ring * 18.5) * 0.55 - 0.28;
-        const shading = clamp01(0.55 + fibers * 0.6 + ring * 0.12 + grain);
-        image.data[idx] = clamp01(base.r + shading * 0.25) * 255;
-        image.data[idx + 1] = clamp01(base.g + shading * 0.18) * 255;
-        image.data[idx + 2] = clamp01(base.b + shading * 0.15) * 255;
-        image.data[idx + 3] = 255;
+        const fiber = (Math.sin((x / size) * Math.PI * 18) +
+          Math.cos((y / size) * Math.PI * 22)) * 0.12;
+        const grain = (rand() - 0.5) * 0.22;
+        const shade = clamp01(0.96 + fiber + grain);
+        data[idx] = clamp01(data[idx] / 255 * shade) * 255;
+        data[idx + 1] = clamp01(data[idx + 1] / 255 * (0.98 + grain * 0.35)) * 255;
+        data[idx + 2] = clamp01(data[idx + 2] / 255 * (0.95 + grain * 0.2)) * 255;
       }
     }
     ctx.putImageData(image, 0, 0);
+
+    // subtle horizontal ribbing for textile feel
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < size; row += 3) {
+      ctx.fillRect(0, row, size, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // thin continuous gold stripe with rounded corners
+    const insetRatio = 0.055;
+    const stripeInset = size * insetRatio;
+    const stripeRadius = size * 0.08;
+    const stripeWidth = size * 0.012;
+    ctx.lineWidth = stripeWidth;
+    ctx.strokeStyle = '#d4af37';
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = stripeWidth * 0.8;
+    drawRoundedRect(
+      ctx,
+      stripeInset,
+      stripeInset,
+      size - stripeInset * 2,
+      size - stripeInset * 2,
+      stripeRadius
+    );
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
     const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.anisotropy = 8;
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
@@ -1550,27 +1603,28 @@ const createCarpetTextures = (() => {
     if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
     else texture.encoding = THREE.sRGBEncoding;
 
+    // bump map: derive from red base with extra fiber noise
     const bumpCanvas = document.createElement('canvas');
     bumpCanvas.width = bumpCanvas.height = size;
     const bumpCtx = bumpCanvas.getContext('2d');
-    const bumpImage = bumpCtx.createImageData(size, size);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const weaveX = Math.sin((x / size) * Math.PI * 18) * 0.5;
-        const weaveY = Math.cos((y / size) * Math.PI * 20) * 0.45;
-        const speckle = noise(x * 1.4, y * 1.7) * 0.8 - 0.4;
-        const shade = clamp01(0.5 + weaveX + weaveY + speckle);
-        const value = shade * 255;
-        bumpImage.data[idx] = value;
-        bumpImage.data[idx + 1] = value;
-        bumpImage.data[idx + 2] = value;
-        bumpImage.data[idx + 3] = 255;
-      }
+    bumpCtx.drawImage(canvas, 0, 0);
+    const bumpImage = bumpCtx.getImageData(0, 0, size, size);
+    const bumpData = bumpImage.data;
+    const bumpRand = prng(246813579);
+    for (let i = 0; i < bumpData.length; i += 4) {
+      const r = bumpData[i];
+      const g = bumpData[i + 1];
+      const b = bumpData[i + 2];
+      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      const noise = (bumpRand() - 0.5) * 0.18;
+      const v = clamp01(0.55 + lum * 0.35 + noise);
+      const value = Math.floor(v * 255);
+      bumpData[i] = bumpData[i + 1] = bumpData[i + 2] = value;
     }
     bumpCtx.putImageData(bumpImage, 0, 0);
+
     const bump = new THREE.CanvasTexture(bumpCanvas);
-    bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+    bump.wrapS = bump.wrapT = THREE.ClampToEdgeWrapping;
     bump.anisotropy = 6;
     bump.minFilter = THREE.LinearMipMapLinearFilter;
     bump.magFilter = THREE.LinearFilter;
@@ -1648,6 +1702,8 @@ function createBroadcastCameras({
     PLAY_H / 2 + BALL_R * 14
   );
   const cameraCornerExtra = BALL_R * 6;
+  const cameraSideBoost = BALL_R * 10;
+  const cameraDepthBoost = BALL_R * 2;
   const baseCornerX =
     typeof arenaHalfWidth === 'number'
       ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
@@ -1656,8 +1712,8 @@ function createBroadcastCameras({
     typeof arenaHalfDepth === 'number'
       ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
       : fallbackCornerZ;
-  const cameraCornerXOffset = baseCornerX + cameraCornerExtra;
-  const cameraCornerZOffset = baseCornerZ + cameraCornerExtra;
+  const cameraCornerXOffset = baseCornerX + cameraCornerExtra + cameraSideBoost;
+  const cameraCornerZOffset = baseCornerZ + cameraCornerExtra + cameraDepthBoost;
   const cameraScale = 1.2;
 
   const createUnit = (xSign, zSign) => {
@@ -5282,21 +5338,19 @@ function SnookerGame() {
       const carpetDepth = roomDepth - wallThickness + carpetInset;
       const carpetTextures = createCarpetTextures();
       const carpetMat = new THREE.MeshStandardMaterial({
-        color: 0x8c2f2f,
+        color: 0x7a0a18,
         roughness: 0.92,
         metalness: 0.04
       });
-      const carpetRepeatX = Math.max(1.5, (carpetWidth / TABLE.W) * 1.2);
-      const carpetRepeatZ = Math.max(1.5, (carpetDepth / TABLE.H) * 1.2);
       if (carpetTextures.map) {
         carpetMat.map = carpetTextures.map;
-        carpetMat.map.repeat.set(carpetRepeatX, carpetRepeatZ);
+        carpetMat.map.repeat.set(1, 1);
         carpetMat.map.needsUpdate = true;
       }
       if (carpetTextures.bump) {
         carpetMat.bumpMap = carpetTextures.bump;
-        carpetMat.bumpMap.repeat.set(carpetRepeatX, carpetRepeatZ);
-        carpetMat.bumpScale = 0.35;
+        carpetMat.bumpMap.repeat.set(1, 1);
+        carpetMat.bumpScale = 0.24;
         carpetMat.bumpMap.needsUpdate = true;
       }
       const carpet = new THREE.Mesh(
@@ -5355,7 +5409,7 @@ function SnookerGame() {
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvScale = 5;
+      const tvScale = 10;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
       const tvDepth = 0.42 * tvScale;
@@ -5407,9 +5461,9 @@ function SnookerGame() {
         billboardScreen.position.z = signageDepth / 2 + 0.03;
         assembly.add(billboardScreen);
         const tvOffsetY = 0;
-        const tvClearance = tvWidth * 0.32;
+        const tvClearance = tvWidth * 0.5;
         const tvSideOffset =
-          signageWidth / 2 + tvDepth * 0.9 + tvWidth * 0.45 + tvClearance;
+          signageWidth / 2 + tvDepth * 1.1 + tvWidth * 0.5 + tvClearance;
         const leftTv = createTv(cryptoTexture);
         leftTv.position.set(-tvSideOffset, tvOffsetY, 0);
         leftTv.rotation.set(-Math.PI * 0.02, 0, 0);
@@ -5455,16 +5509,20 @@ function SnookerGame() {
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
+      const tripodHeightBoost = 1.04;
       const tripodScale =
-        (TABLE_Y + BALL_R * 6 - floorY) / 1.33;
+        ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
       const tripodTilt = THREE.MathUtils.degToRad(-12);
-      const tripodExtra = BALL_R * 6;
+      const tripodProximityPull = BALL_R * 2.5;
+      const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
       const tripodDesiredZ =
         Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
         tripodExtra;
       const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
       const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-      const tripodDesiredX = TABLE.W / 2 + BALL_R * 12 + tripodExtra;
+      const tripodSideTuck = BALL_R * 1.5;
+      const tripodDesiredX =
+        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
       const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
       const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
       const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
