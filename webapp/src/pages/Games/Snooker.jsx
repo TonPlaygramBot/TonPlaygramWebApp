@@ -3308,10 +3308,18 @@ function Table3D(parent) {
       const z = arr[i + 2];
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
       if (frontFactor <= 0) continue;
-      const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
-      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
-      const minAllowedZ = minZ + depth * lift;
-      if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
+      const taperedRemoval = THREE.MathUtils.clamp(
+        CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor,
+        0,
+        1
+      );
+      const undercutRatio = THREE.MathUtils.clamp(
+        CUSHION_UNDERCUT_BASE_LIFT + taperedRemoval,
+        0,
+        1
+      );
+      const targetZ = Math.max(minZ, maxZ - depth * undercutRatio);
+      if (z > targetZ) arr[i + 2] = targetZ;
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
