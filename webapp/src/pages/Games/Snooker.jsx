@@ -1196,7 +1196,7 @@ const createClothTextures = (() => {
   return () => {
     if (cache) return cache;
     if (typeof document === 'undefined') {
-      cache = { map: null, bump: null, roughness: null };
+      cache = { map: null, bump: null };
       return cache;
     }
 
@@ -1210,13 +1210,12 @@ const createClothTextures = (() => {
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      cache = { map: null, bump: null, roughness: null };
+      cache = { map: null, bump: null };
       return cache;
     }
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const roughSamples = new Float32Array(SIZE * SIZE);
     const shadow = { r: 0x16, g: 0x58, b: 0x32 };
     const base = { r: 0x27, g: 0x82, b: 0x40 };
     const accent = { r: 0x37, g: 0x9d, b: 0x50 };
@@ -1323,21 +1322,11 @@ const createClothTextures = (() => {
         const softR = baseR + (r - baseR) * CLOTH_SOFT_BLEND;
         const softG = baseG + (g - baseG) * CLOTH_SOFT_BLEND;
         const softB = baseB + (b - baseB) * CLOTH_SOFT_BLEND;
-        const roughSample = THREE.MathUtils.clamp(
-          0.78 -
-            (highlightEnhanced - 0.5) * 0.28 * CLOTH_TEXTURE_INTENSITY +
-            (fiber - 0.5) * 0.22 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY +
-            (micro - 0.5) * 0.12 * CLOTH_TEXTURE_INTENSITY,
-          0,
-          1
-        );
         const i = (y * SIZE + x) * 4;
         data[i + 0] = clamp255(softR);
         data[i + 1] = clamp255(softG);
         data[i + 2] = clamp255(softB);
         data[i + 3] = 255;
-        roughSamples[y * SIZE + x] = roughSample;
       }
     }
     ctx.putImageData(image, 0, 0);
@@ -1357,7 +1346,7 @@ const createClothTextures = (() => {
     bumpCanvas.width = bumpCanvas.height = SIZE;
     const bumpCtx = bumpCanvas.getContext('2d');
     if (!bumpCtx) {
-      cache = { map: colorMap, bump: null, roughness: null };
+      cache = { map: colorMap, bump: null };
       return cache;
     }
     const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
@@ -1405,32 +1394,7 @@ const createClothTextures = (() => {
     bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
     bumpMap.magFilter = THREE.LinearFilter;
 
-    const roughnessCanvas = document.createElement('canvas');
-    roughnessCanvas.width = roughnessCanvas.height = SIZE;
-    const roughCtx = roughnessCanvas.getContext('2d');
-    let roughnessMap = null;
-    if (roughCtx) {
-      const roughImage = roughCtx.createImageData(SIZE, SIZE);
-      const roughData = roughImage.data;
-      for (let i = 0; i < roughSamples.length; i++) {
-        const value = clamp255(roughSamples[i] * 255);
-        const idx = i * 4;
-        roughData[idx + 0] = value;
-        roughData[idx + 1] = value;
-        roughData[idx + 2] = value;
-        roughData[idx + 3] = 255;
-      }
-      roughCtx.putImageData(roughImage, 0, 0);
-      roughnessMap = new THREE.CanvasTexture(roughnessCanvas);
-      roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-      roughnessMap.repeat.copy(colorMap.repeat);
-      roughnessMap.anisotropy = colorMap.anisotropy;
-      roughnessMap.generateMipmaps = true;
-      roughnessMap.minFilter = THREE.LinearMipmapLinearFilter;
-      roughnessMap.magFilter = THREE.LinearFilter;
-    }
-
-    cache = { map: colorMap, bump: bumpMap, roughness: roughnessMap };
+    cache = { map: colorMap, bump: bumpMap };
     return cache;
   };
 })();
@@ -3242,18 +3206,16 @@ function Table3D(
     dimensions: null
   };
 
-  const { map: clothMap, bump: clothBump, roughness: clothRoughness } =
-    createClothTextures();
+  const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothPrimary = new THREE.Color(palette.cloth);
   const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.12);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.85,
-    metalness: 0.05,
+    roughness: 0.74,
     sheen: 0.92,
     sheenRoughness: 0.38,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.25,
+    clearcoat: 0.06,
+    clearcoatRoughness: 0.26,
     emissive: clothColor.clone().multiplyScalar(0.06),
     emissiveIntensity: 0.48
   });
@@ -3270,11 +3232,6 @@ function Table3D(
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.map.needsUpdate = true;
-  }
-  if (clothRoughness) {
-    clothMat.roughnessMap = clothRoughness;
-    clothMat.roughnessMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.roughnessMap.needsUpdate = true;
   }
   if (clothBump) {
     clothMat.bumpMap = clothBump;
@@ -5066,7 +5023,7 @@ function SnookerGame() {
       renderer.useLegacyLights = false;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
       const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
@@ -6584,9 +6541,6 @@ function SnookerGame() {
             const targetRepeatY = targetRepeat * ratio;
             if (clothMat.map) {
               clothMat.map.repeat.set(targetRepeat, targetRepeatY);
-            }
-            if (clothMat.roughnessMap) {
-              clothMat.roughnessMap.repeat.set(targetRepeat, targetRepeatY);
             }
             if (clothMat.bumpMap) {
               clothMat.bumpMap.repeat.set(targetRepeat, targetRepeatY);
