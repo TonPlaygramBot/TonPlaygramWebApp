@@ -76,39 +76,70 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.16;
+  const radius = size * 0.158;
   const cx = size * 0.5;
   const cy = size * 0.5;
 
   ctx.save();
-  const badgeGrad = ctx.createRadialGradient(
-    cx,
-    cy - radius * 0.35,
-    radius * 0.2,
-    cx,
-    cy,
-    radius
-  );
-  badgeGrad.addColorStop(0, 'rgba(255,255,255,1)');
-  badgeGrad.addColorStop(0.65, 'rgba(247,247,247,1)');
-  badgeGrad.addColorStop(1, 'rgba(228,228,228,1)');
 
-  ctx.fillStyle = badgeGrad;
+  // Base badge fill kept perfectly circular without directional bias.
+  const baseGrad = ctx.createRadialGradient(cx, cy, radius * 0.1, cx, cy, radius);
+  baseGrad.addColorStop(0, 'rgba(255,255,255,1)');
+  baseGrad.addColorStop(0.7, 'rgba(244,244,244,1)');
+  baseGrad.addColorStop(1, 'rgba(226,226,226,1)');
+
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.closePath();
+  ctx.fillStyle = baseGrad;
   ctx.fill();
 
-  ctx.lineWidth = size * 0.012;
-  ctx.strokeStyle = 'rgba(0,0,0,0.78)';
+  // Gentle rim shadow to accentuate the circular silhouette.
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.globalCompositeOperation = 'multiply';
+  const rimShadow = ctx.createRadialGradient(cx, cy, radius * 0.55, cx, cy, radius);
+  rimShadow.addColorStop(0, 'rgba(0,0,0,0)');
+  rimShadow.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = rimShadow;
+  ctx.fill();
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.lineWidth = size * 0.011;
+  ctx.strokeStyle = 'rgba(0,0,0,0.82)';
   ctx.stroke();
 
-  const fontSize = size * 0.18;
+  // Add a subtle specular highlight to avoid any egg-shaped illusion.
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.globalCompositeOperation = 'screen';
+  const gloss = ctx.createRadialGradient(
+    cx - radius * 0.35,
+    cy - radius * 0.35,
+    radius * 0.05,
+    cx - radius * 0.35,
+    cy - radius * 0.35,
+    radius * 0.7
+  );
+  gloss.addColorStop(0, 'rgba(255,255,255,0.85)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gloss;
+  ctx.fill();
+  ctx.restore();
+
+  const fontSize = size * 0.178;
   ctx.fillStyle = '#0f0f0f';
   ctx.font = `700 ${fontSize}px "Arial"`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(number), cx, cy + size * 0.002);
+  ctx.fillText(String(number), cx, cy);
 
   ctx.restore();
 }
