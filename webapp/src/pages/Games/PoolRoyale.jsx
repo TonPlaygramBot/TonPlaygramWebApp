@@ -2349,9 +2349,9 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.88;
+const STANDING_VIEW_PHI = 0.84;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0035;
+const STANDING_VIEW_MARGIN = 0.0032;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -2359,10 +2359,10 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.44;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.4;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.98;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.97;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.025;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -5764,7 +5764,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       };
 
       const hospitalityScale = (TABLE_H * 0.48) / 0.75;
-      const furnitureScale = hospitalityScale * 1.18;
+      const hospitalityUpscale = 6;
+      const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
+      const hospitalitySizeMultiplier = 2.5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
 
       const createTableSet = () => {
@@ -5925,65 +5927,56 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         });
       };
 
-      const createCameraSideHospitalitySet = (side = 1, walkwayWidth = 0) => {
-        const mirror = Math.sign(side) || 1;
+      const createCornerHospitalitySet = ({ chairOffset, position, rotationY }) => {
         const group = new THREE.Group();
-
-        const depthRoom = Math.max(0, roomDepth / 2 - wallThickness * 0.85);
-        const depthOffset = Math.min(toHospitalityUnits(0.55), depthRoom * 0.45);
+        const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
 
         const tableSet = createTableSet();
-        tableSet.scale.setScalar(furnitureScale);
-        tableSet.position.set(
-          0,
-          0,
-          depthOffset * 0.25
-        );
-        ensureHospitalityVisibility(tableSet);
+        tableSet.scale.setScalar(scaledFurniture);
+        tableSet.position.set(0, 0, 0);
         group.add(tableSet);
 
         const chair = createChair();
-        chair.scale.setScalar(furnitureScale);
-        chair.position.set(
-          mirror * Math.min(walkwayWidth * 0.35, toHospitalityUnits(0.58)),
-          0,
-          -depthOffset * 0.55
-        );
-        chair.rotation.y = mirror < 0 ? Math.PI / 2.1 : -Math.PI / 2.1;
-        ensureHospitalityVisibility(chair);
+        chair.scale.setScalar(scaledFurniture);
+        chair.position.set(chairOffset[0], 0, chairOffset[1]);
+        const dx = tableSet.position.x - chair.position.x;
+        const dz = tableSet.position.z - chair.position.z;
+        chair.rotation.y = Math.atan2(dx, dz);
         group.add(chair);
 
+        group.position.set(position[0], floorY, position[1]);
+        group.rotation.y = rotationY;
+        ensureHospitalityVisibility(group);
         return group;
       };
 
-      const sideRailOuter = TABLE.W / 2 + TABLE.WALL * 0.5;
-      const innerWall = roomWidth / 2 - wallThickness * 0.5;
-      const walkway = Math.max(0, innerWall - sideRailOuter);
-      const minInset = toHospitalityUnits(0.65);
-      const preferredInset = toHospitalityUnits(1.2);
-      const maxInset = Math.max(minInset, walkway - toHospitalityUnits(0.85));
-      const hospitalityInset = THREE.MathUtils.clamp(
-        preferredInset,
-        minInset,
-        maxInset
+      const rawCornerInset =
+        toHospitalityUnits(0.65) * hospitalityUpscale + wallThickness * 0.5;
+      const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
+      const cornerInsetFront = Math.min(
+        rawCornerInset,
+        Math.abs(frontInterior) * 0.92
       );
-      const outerLimit = innerWall - toHospitalityUnits(0.6);
-      const walkwayCenter = sideRailOuter + walkway * 0.55;
-      const minOffset = sideRailOuter + minInset;
-      const preferredOffset = sideRailOuter + hospitalityInset * 0.9;
-      const hospitalityOffset = THREE.MathUtils.clamp(
-        walkwayCenter,
-        minOffset,
-        Math.max(minOffset, Math.min(outerLimit, preferredOffset))
+      const cornerInsetBack = Math.min(
+        rawCornerInset,
+        Math.abs(backInterior) * 0.92
       );
+      const chairSideOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
+      const chairForwardOffset = toHospitalityUnits(0.82) * hospitalityUpscale;
 
       [
-        { mirror: -1 },
-        { mirror: 1 }
-      ].forEach(({ mirror }) => {
-        const hospitalitySet = createCameraSideHospitalitySet(mirror, walkway);
-        hospitalitySet.position.set(mirror * hospitalityOffset, floorY, 0);
-        ensureHospitalityVisibility(hospitalitySet);
+        {
+          position: [leftInterior + cornerInsetX, frontInterior + cornerInsetFront],
+          rotationY: Math.PI / 4,
+          chairOffset: [chairSideOffset, -chairForwardOffset]
+        },
+        {
+          position: [rightInterior - cornerInsetX, backInterior - cornerInsetBack],
+          rotationY: -3 * Math.PI / 4,
+          chairOffset: [-chairSideOffset, chairForwardOffset]
+        }
+      ].forEach((config) => {
+        const hospitalitySet = createCornerHospitalitySet(config);
         world.add(hospitalitySet);
       });
 
