@@ -239,53 +239,89 @@ export default function RouletteMini() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
-      <div className="relative mx-auto w-64 h-64 sm:w-72 sm:h-72">
+      <div
+        className="relative mx-auto w-64 h-64 sm:w-72 sm:h-72"
+        style={{ perspective: '1100px' }}
+      >
         <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 flex flex-col items-center">
           <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[18px] border-l-transparent border-r-transparent border-b-yellow-400 drop-shadow" />
           <div className="w-2 h-2 bg-yellow-400 rounded-full mt-1" />
         </div>
         <div
-          className="relative w-full h-full rounded-full border-[6px] border-border shadow-inner flex items-center justify-center overflow-hidden"
-          style={{
-            background: wheelBackground,
-            transform: `rotate(${spinState.rotation}deg)`,
-            transition: spinning
-              ? 'transform 4.5s cubic-bezier(0.22, 1, 0.36, 1)'
-              : 'transform 0s',
-          }}
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ transform: 'rotateX(14deg)', transformStyle: 'preserve-3d' }}
         >
-          {ROULETTE_ORDER.map((num, idx) => {
-            const angle = idx * SEGMENT_ANGLE;
-            const isWinning = outcome?.number === num;
-            return (
-              <div
-                key={num}
-                className="absolute top-1/2 left-1/2"
-                style={{
-                  transform: `rotate(${angle}deg) translateY(-44%)`,
-                  transformOrigin: '0 0',
-                }}
-              >
+          <div
+            className="relative w-full h-full rounded-full border-[10px] border-[#272c3a] shadow-[inset_0_18px_28px_rgba(255,255,255,0.08),inset_0_-20px_32px_rgba(0,0,0,0.45),0_18px_30px_rgba(0,0,0,0.6)] flex items-center justify-center overflow-hidden bg-[#111827]"
+            style={{
+              background: wheelBackground,
+              transform: `rotate(${spinState.rotation}deg)`,
+              transition: spinning
+                ? 'transform 4.5s cubic-bezier(0.22, 1, 0.36, 1)'
+                : 'transform 0s',
+              boxShadow:
+                'inset 0 18px 28px rgba(255,255,255,0.08), inset 0 -20px 32px rgba(0,0,0,0.45), 0 18px 30px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-[6%] rounded-full border-[8px] border-[#0f172a] shadow-[inset_0_6px_12px_rgba(0,0,0,0.5)]" />
+              <div className="absolute inset-[10%] rounded-full border border-white/10" />
+              <div className="absolute inset-[2%] rounded-full border border-white/10 opacity-60" />
+            </div>
+            {ROULETTE_ORDER.map((num, idx) => {
+              const angle = idx * SEGMENT_ANGLE;
+              const isWinning = outcome?.number === num;
+              return (
                 <div
-                  className={`flex flex-col items-center text-[10px] sm:text-xs font-semibold px-1 py-[2px] rounded-md ${
-                    isWinning
-                      ? 'bg-yellow-400 text-black shadow-lg'
-                      : 'bg-black/40 text-white/90'
-                  }`}
-                  style={{ transform: `rotate(${-angle}deg)` }}
+                  key={num}
+                  className="absolute top-1/2 left-1/2"
+                  style={{
+                    transform: `rotate(${angle}deg) translateY(-44%)`,
+                    transformOrigin: '0 0',
+                  }}
                 >
-                  <span className="text-sm sm:text-base font-bold leading-none">
+                  <div
+                    className={`flex flex-col items-center text-[10px] sm:text-xs font-semibold px-1 py-[2px] rounded-md backdrop-blur-[1px] ${
+                      isWinning
+                        ? 'bg-yellow-400 text-black shadow-lg'
+                        : 'bg-black/35 text-white'
+                    }`}
+                    style={{ transform: `rotate(${-angle}deg)` }}
+                  >
+                    <span className="text-sm sm:text-base font-bold leading-none">
+                      {num}
+                    </span>
+                    <span className="text-[9px] sm:text-[11px] leading-tight">
+                      +{formatPrize(PRIZE_MAP[num])} TPC
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="absolute inset-0 pointer-events-none">
+              {ROULETTE_ORDER.map((num, idx) => {
+                const angle = idx * SEGMENT_ANGLE;
+                const isWinning = outcome?.number === num;
+                return (
+                  <span
+                    key={`rim-${num}`}
+                    className={`absolute text-[11px] sm:text-sm font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${
+                      isWinning ? 'text-yellow-300' : 'text-white'
+                    }`}
+                    style={{
+                      transform: `rotate(${angle}deg) translateY(-49%) rotate(${-angle}deg)`,
+                      transformOrigin: '0 0',
+                    }}
+                  >
                     {num}
                   </span>
-                  <span className="text-[9px] sm:text-[11px] leading-tight">
-                    +{formatPrize(PRIZE_MAP[num])} TPC
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-          <div className="absolute inset-[28%] rounded-full bg-surface/80 border border-border flex items-center justify-center text-xs text-subtext">
-            <span className="uppercase tracking-wide">TPC Rewards</span>
+                );
+              })}
+            </div>
+            <div className="absolute inset-[28%] rounded-full bg-surface/80 border border-border flex items-center justify-center text-xs text-subtext">
+              <span className="uppercase tracking-wide">TPC Rewards</span>
+            </div>
+            <div className="absolute inset-[20%] rounded-full pointer-events-none shadow-[0_12px_18px_rgba(0,0,0,0.35),inset_0_8px_16px_rgba(255,255,255,0.04)]" />
           </div>
         </div>
       </div>
