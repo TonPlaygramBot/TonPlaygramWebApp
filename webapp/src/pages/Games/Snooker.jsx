@@ -20,6 +20,7 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
+import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -5878,6 +5879,35 @@ function SnookerGame() {
         signage.position.set(position[0], position[1], position[2]);
         signage.rotation.y = rotationY;
         world.add(signage);
+      });
+
+      const { group: cueRackPrototype, dimensions: cueRackDimensions } =
+        createCueRackDisplay({
+          THREE,
+          ballRadius: BALL_R,
+          cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
+          cueTipRadius: CUE_TIP_RADIUS
+        });
+      const cueRackHalfWidth = cueRackDimensions.width / 2;
+      const availableHalfDepth =
+        roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
+      const desiredSpacing =
+        signageWidth / 2 + cueRackHalfWidth + BALL_R * 6;
+      const cueRackSpacing = Math.max(
+        cueRackHalfWidth,
+        Math.min(availableHalfDepth, desiredSpacing)
+      );
+      const cueRackY = signageY;
+      [
+        { x: leftInterior, z: -cueRackSpacing, rotationY: Math.PI / 2 },
+        { x: leftInterior, z: cueRackSpacing, rotationY: Math.PI / 2 },
+        { x: rightInterior, z: -cueRackSpacing, rotationY: -Math.PI / 2 },
+        { x: rightInterior, z: cueRackSpacing, rotationY: -Math.PI / 2 }
+      ].forEach((placement, index) => {
+        const rack = index === 0 ? cueRackPrototype : cueRackPrototype.clone();
+        rack.position.set(placement.x, cueRackY, placement.z);
+        rack.rotation.y = placement.rotationY;
+        world.add(rack);
       });
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
