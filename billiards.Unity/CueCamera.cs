@@ -18,15 +18,15 @@ public class CueCamera : MonoBehaviour
     public Transform TargetBall;
 
     // Distance behind the ball in the normal overview.
-    public float normalDistance = 2f;
+    public float normalDistance = 1.45f;
     // Height of the camera above the table surface in the normal overview.
-    public float normalHeight = 0.5f;
+    public float normalHeight = 0.48f;
     // Distance and height when pulling the camera down for a close-up view.
-    public float closeDistance = 0.7f;
-    public float closeHeight = 0.15f;
+    public float closeDistance = 0.55f;
+    public float closeHeight = 0.33f;
     // Additional offsets applied while the action camera is following a shot.
-    public float actionDistanceOffset = 0.25f;
-    public float actionHeightOffset = -0.05f;
+    public float actionDistanceOffset = 0.1f;
+    public float actionHeightOffset = 0f;
     // Rotation speed in degrees per second for horizontal mouse movement.
     public float rotationSpeed = 90f;
     // Speed at which the view blends between normal and close-up when dragging vertically.
