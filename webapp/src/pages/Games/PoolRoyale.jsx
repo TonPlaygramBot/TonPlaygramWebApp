@@ -167,7 +167,7 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.06; // trim chrome along the short rails so no sliver creeps into the pockets
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.025; // trim chrome along the short rails so no sliver creeps into the pockets and keep the chrome narrower on the short sides
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -3719,7 +3719,7 @@ function Table3D(
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.036; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -3731,17 +3731,17 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.02 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs cleanly
+    POCKET_VIS_R * -0.05 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs cleanly
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.035 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
+    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
+    POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -6200,6 +6200,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
       const hospitalitySizeMultiplier = 2.5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
+      const hospitalityTableHeightScale = 0.6; // drop the bistro table height by 40% so it sits lower on the carpet line
+      const hospitalityChairGap =
+        toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
+      const hospitalityCarpetPull =
+        toHospitalityUnits(0.18) * hospitalityUpscale; // shift hospitality props off the wall and onto the nearby carpet border
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -6364,13 +6369,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
 
         const tableSet = createTableSet();
-        tableSet.scale.setScalar(scaledFurniture);
+        tableSet.scale.set(
+          scaledFurniture,
+          scaledFurniture * hospitalityTableHeightScale,
+          scaledFurniture
+        );
         const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
         const chairDistance = chairVector.length();
         if (chairDistance > 1e-6) {
+          const maxPull = Math.max(chairDistance - hospitalityChairGap, 0);
           const tablePull = Math.min(
-            chairDistance * 0.35,
-            toHospitalityUnits(0.12) * hospitalityUpscale
+            maxPull,
+            toHospitalityUnits(0.2) * hospitalityUpscale
           );
           const pullScale = tablePull / chairDistance;
           tableSet.position.set(
@@ -6392,7 +6402,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
-        group.position.set(position[0], floorY, position[1]);
+        const adjustForCarpet = (value) => {
+          const direction = Math.sign(value);
+          const magnitude = Math.max(Math.abs(value) - hospitalityCarpetPull, 0);
+          return direction * magnitude;
+        };
+        group.position.set(
+          adjustForCarpet(position[0]),
+          floorY,
+          adjustForCarpet(position[1])
+        );
         group.rotation.y = rotationY;
         ensureHospitalityVisibility(group);
         return group;
@@ -6409,8 +6428,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         rawCornerInset,
         Math.abs(backInterior) * 0.92
       );
-      const chairSideOffset = toHospitalityUnits(0.56) * hospitalityUpscale;
-      const chairForwardOffset = toHospitalityUnits(0.74) * hospitalityUpscale;
+      const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
+      const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
 
       [
         {
