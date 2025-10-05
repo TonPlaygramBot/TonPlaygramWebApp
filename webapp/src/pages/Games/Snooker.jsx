@@ -4819,45 +4819,11 @@ function SnookerGame() {
   useEffect(() => {
     timerValueRef.current = timer;
   }, [timer]);
-  useEffect(() => {
-    if (!shotActive) return;
-    try {
-      cueGalleryCloseRef.current?.(true);
-    } catch {}
-  }, [shotActive]);
-  useEffect(() => {
-    if (!topView) return;
-    try {
-      cueGalleryCloseRef.current?.(true);
-    } catch {}
-  }, [topView]);
   const spinRef = useRef({ x: 0, y: 0 });
   const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
-  const cueMaterialRef = useRef({ shaft: null });
-  const activeCueStyleRef = useRef({ color: 0xdeb887 });
-  const cueRackEntriesRef = useRef([]);
-  const cueGalleryRef = useRef({
-    active: false,
-    rack: null,
-    focus: null,
-    offset: null,
-    restore: null
-  });
-  const cueGalleryCloseRef = useRef(() => {});
-  const [cueGalleryActive, setCueGalleryActive] = useState(false);
-  const applyCueStyle = useCallback(
-    (color) => {
-      const mats = cueMaterialRef.current;
-      if (!mats?.shaft || color == null) return;
-      mats.shaft.color.setHex(color);
-      mats.shaft.needsUpdate = true;
-      activeCueStyleRef.current = { color };
-    },
-    []
-  );
   const spinRangeRef = useRef({
     side: 0,
     forward: 0,
@@ -5409,9 +5375,6 @@ function SnookerGame() {
       let cue;
       let clothMat;
       let cushionMat;
-      let closeCueGallery = () => {};
-      let openCueGallery = () => {};
-      let attemptCueRackPress = () => false;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
       let shooting = false; // track when a shot is in progress
       const setShootingState = (value) => {
@@ -5935,45 +5898,17 @@ function SnookerGame() {
         Math.min(availableHalfDepth, desiredSpacing)
       );
       const cueRackY = signageY;
-      const cueRackEntries = [];
       [
+        { x: leftInterior, z: -cueRackSpacing, rotationY: Math.PI / 2 },
         { x: leftInterior, z: cueRackSpacing, rotationY: Math.PI / 2 },
-        { x: rightInterior, z: -cueRackSpacing, rotationY: -Math.PI / 2 }
+        { x: rightInterior, z: -cueRackSpacing, rotationY: -Math.PI / 2 },
+        { x: rightInterior, z: cueRackSpacing, rotationY: -Math.PI / 2 }
       ].forEach((placement, index) => {
-        const rack =
-          index === 0 ? cueRackPrototype : cueRackPrototype.clone(true);
+        const rack = index === 0 ? cueRackPrototype : cueRackPrototype.clone();
         rack.position.set(placement.x, cueRackY, placement.z);
         rack.rotation.y = placement.rotationY;
         world.add(rack);
-        rack.updateMatrixWorld(true);
-        const bounds = new THREE.Box3().setFromObject(rack);
-        const center = bounds.getCenter(new THREE.Vector3());
-        const size = bounds.getSize(new THREE.Vector3());
-        const outward = new THREE.Vector3(0, 0, 1).applyQuaternion(
-          rack.quaternion
-        );
-        if (outward.lengthSq() < 1e-6) {
-          outward.set(0, 0, 1);
-        } else {
-          outward.normalize();
-        }
-        const cues = [];
-        rack.traverse((child) => {
-          if (child.userData?.cueIndex != null) cues.push(child);
-        });
-        const distance =
-          Math.max(size.x, size.y) * 0.75 + Math.max(size.z, 0.35) * 5 + BALL_R * 6;
-        const offset = outward.clone().multiplyScalar(distance);
-        offset.y += size.y * 0.18;
-        cueRackEntries.push({
-          group: rack,
-          cues,
-          focus: center.clone(),
-          offset,
-          size
-        });
       });
-      cueRackEntriesRef.current = cueRackEntries;
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
@@ -7030,71 +6965,45 @@ function SnookerGame() {
             }
             lookTarget = activeShotView.smoothedTarget;
           } else {
-            const galleryState = cueGalleryRef.current;
+            const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
+            let focusTarget;
             if (
-              galleryState?.active &&
-              galleryState.focus &&
-              galleryState.offset
+              aimFocus &&
+              Number.isFinite(aimFocus.x) &&
+              Number.isFinite(aimFocus.y) &&
+              Number.isFinite(aimFocus.z)
             ) {
-              const galleryFocus = galleryState.focus
-                .clone()
-                .multiplyScalar(worldScaleFactor);
-              const galleryOffset = galleryState.offset
-                .clone()
-                .multiplyScalar(worldScaleFactor);
-              lookTarget = galleryFocus;
-              camera.position.copy(galleryFocus).add(galleryOffset);
-              camera.lookAt(galleryFocus);
-              renderCamera = camera;
-              broadcastArgs.focusWorld =
-                broadcastCamerasRef.current?.defaultFocusWorld ?? galleryFocus;
-              broadcastArgs.targetWorld = null;
-              broadcastArgs.lerp = 0.22;
+              focusTarget = aimFocus.clone();
+            } else if (cue?.active && !shooting) {
+              focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
-              const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
-              let focusTarget;
-              if (
-                aimFocus &&
-                Number.isFinite(aimFocus.x) &&
-                Number.isFinite(aimFocus.y) &&
-                Number.isFinite(aimFocus.z)
-              ) {
-                focusTarget = aimFocus.clone();
-              } else if (cue?.active && !shooting) {
-                focusTarget = new THREE.Vector3(
-                  cue.pos.x,
-                  BALL_CENTER_Y,
-                  cue.pos.y
-                );
-              } else {
-                const store = ensureOrbitFocus();
-                if (store.ballId) {
-                  const ballsList =
-                    ballsRef.current?.length > 0 ? ballsRef.current : balls;
-                  const focusBall = ballsList.find((b) => b.id === store.ballId);
-                  if (focusBall?.active) {
-                    store.target.set(
-                      focusBall.pos.x,
-                      BALL_CENTER_Y,
-                      focusBall.pos.y
-                    );
-                  } else {
-                    setOrbitFocusToDefault();
-                  }
+              const store = ensureOrbitFocus();
+              if (store.ballId) {
+                const ballsList =
+                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
+                const focusBall = ballsList.find((b) => b.id === store.ballId);
+                if (focusBall?.active) {
+                  store.target.set(
+                    focusBall.pos.x,
+                    BALL_CENTER_Y,
+                    focusBall.pos.y
+                  );
+                } else {
+                  setOrbitFocusToDefault();
                 }
-                focusTarget = store.target.clone();
               }
-              focusTarget.multiplyScalar(worldScaleFactor);
-              lookTarget = focusTarget;
-              TMP_SPH.copy(sph);
-              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-              camera.lookAt(lookTarget);
-              renderCamera = camera;
-              broadcastArgs.focusWorld =
-                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-              broadcastArgs.targetWorld = null;
-              broadcastArgs.lerp = 0.22;
+              focusTarget = store.target.clone();
             }
+            focusTarget.multiplyScalar(worldScaleFactor);
+            lookTarget = focusTarget;
+            TMP_SPH.copy(sph);
+            camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+            camera.lookAt(lookTarget);
+            renderCamera = camera;
+            broadcastArgs.focusWorld =
+              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+            broadcastArgs.targetWorld = null;
+            broadcastArgs.lerp = 0.22;
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -7211,122 +7120,6 @@ function SnookerGame() {
             });
           }
         };
-        closeCueGallery = (immediate = false) => {
-          const state = cueGalleryRef.current;
-          if (!state?.active) return;
-          const restore = state.restore ?? null;
-          cueGalleryRef.current = {
-            active: false,
-            rack: null,
-            focus: null,
-            offset: null,
-            restore: null
-          };
-          setCueGalleryActive(false);
-          cueGalleryCloseRef.current = closeCueGallery;
-          const focusStore = ensureOrbitFocus();
-          if (restore?.focus && focusStore) {
-            focusStore.target.copy(restore.focus);
-            focusStore.ballId = restore.ballId ?? null;
-          }
-          if (restore?.orbitSnapshot) {
-            restoreOrbitCamera({ orbitSnapshot: restore.orbitSnapshot }, immediate);
-          } else {
-            restoreOrbitCamera(null, immediate);
-          }
-          updateCamera();
-        };
-        openCueGallery = (entry) => {
-          if (!entry) return;
-          const state = cueGalleryRef.current;
-          if (state?.active && state.rack === entry) return;
-          const focusStore = ensureOrbitFocus();
-          const sph = sphRef.current;
-          const restore = {
-            orbitSnapshot:
-              sph && Number.isFinite(sph.radius)
-                ? { radius: sph.radius, phi: sph.phi, theta: sph.theta }
-                : null,
-            focus: focusStore?.target ? focusStore.target.clone() : null,
-            ballId: focusStore?.ballId ?? null
-          };
-          if (focusStore) {
-            focusStore.ballId = null;
-            focusStore.target.copy(entry.focus);
-          }
-          cueGalleryRef.current = {
-            active: true,
-            rack: entry,
-            focus: entry.focus.clone(),
-            offset: entry.offset.clone(),
-            restore
-          };
-          setCueGalleryActive(true);
-          cueGalleryCloseRef.current = closeCueGallery;
-          updateCamera();
-        };
-        attemptCueRackPress = (ev) => {
-          const entries = cueRackEntriesRef.current;
-          if (!entries || entries.length === 0) return false;
-          if (ev.touches?.length && ev.touches.length > 1) return false;
-          const rect = dom.getBoundingClientRect();
-          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
-          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
-          if (clientX == null || clientY == null) return false;
-          if (
-            clientX < rect.left ||
-            clientX > rect.right ||
-            clientY < rect.top ||
-            clientY > rect.bottom
-          ) {
-            return false;
-          }
-          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
-          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
-          pointer.set(nx, ny);
-          const currentCamera = activeRenderCameraRef.current ?? camera;
-          ray.setFromCamera(pointer, currentCamera);
-          const galleryState = cueGalleryRef.current;
-          if (galleryState?.active) {
-            const cues = galleryState.rack?.cues ?? [];
-            if (cues.length) {
-              const cueHits = ray.intersectObjects(cues, true);
-              if (cueHits.length > 0) {
-                let hit = cueHits[0].object;
-                while (
-                  hit &&
-                  hit.userData &&
-                  hit.userData.cueIndex == null &&
-                  hit.parent
-                ) {
-                  hit = hit.parent;
-                }
-                if (hit?.userData?.cueColor != null) {
-                  applyCueStyle(hit.userData.cueColor);
-                  closeCueGallery();
-                  return true;
-                }
-              }
-            }
-            const rackGroup = galleryState.rack?.group;
-            if (rackGroup) {
-              const rackHits = ray.intersectObject(rackGroup, true);
-              if (rackHits.length === 0) {
-                closeCueGallery();
-              }
-            }
-            return true;
-          }
-          for (const entry of entries) {
-            const hits = ray.intersectObject(entry.group, true);
-            if (hits.length > 0) {
-              openCueGallery(entry);
-              return true;
-            }
-          }
-          return false;
-        };
-        cueGalleryCloseRef.current = closeCueGallery;
         const resumeAfterPocket = (pocketView, now) => {
           updatePocketCameraState(false);
           const resumeAction =
@@ -7720,11 +7513,6 @@ function SnookerGame() {
         };
         const down = (e) => {
           registerInteraction();
-          if (attemptCueRackPress(e)) {
-            e.preventDefault?.();
-            return;
-          }
-          if (cueGalleryRef.current?.active) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
@@ -7736,7 +7524,6 @@ function SnookerGame() {
           drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
         };
         const move = (e) => {
-          if (cueGalleryRef.current?.active) return;
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -7777,9 +7564,6 @@ function SnookerGame() {
         };
         const up = (e) => {
           registerInteraction();
-          if (cueGalleryRef.current?.active) {
-            return;
-          }
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
@@ -8092,8 +7876,6 @@ function SnookerGame() {
         color: 0xdeb887,
         roughness: 0.6
       });
-      cueMaterialRef.current = { shaft: shaftMaterial };
-      activeCueStyleRef.current = { color: 0xdeb887 };
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,
         cueLen * 0.1,
@@ -10006,20 +9788,6 @@ function SnookerGame() {
       window.addEventListener('resize', onResize);
 
         return () => {
-          try {
-            closeCueGallery(true);
-          } catch {}
-          cueRackEntriesRef.current = [];
-          cueGalleryRef.current = {
-            active: false,
-            rack: null,
-            focus: null,
-            offset: null,
-            restore: null
-          };
-          cueGalleryCloseRef.current = () => {};
-          cueMaterialRef.current = null;
-          setCueGalleryActive(false);
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
