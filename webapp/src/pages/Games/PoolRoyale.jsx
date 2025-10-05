@@ -2509,6 +2509,7 @@ const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
+const TMP_VEC3_BUTT = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -4158,20 +4159,64 @@ function Table3D(
     ];
   };
   const chalkBaseY = railsTopY + chalkHeight / 2;
-  const chalkXOffset = outerHalfW + BALL_R * 2.4;
-  const chalkRailReach = SIDE_RAIL_INNER_THICKNESS * 0.6 + BALL_R * 1.2;
-  const chalkZOffset = baulkLineZ - chalkRailReach;
-  const chalkMesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
-  chalkMesh.position.set(chalkXOffset, chalkBaseY, chalkZOffset);
-  chalkMesh.rotation.y = Math.PI / 9;
-  chalkMesh.castShadow = true;
-  chalkMesh.receiveShadow = true;
-  chalkMesh.userData.isChalk = true;
-  chalkMesh.userData.chalkIndex = 0;
-  chalkGroup.add(chalkMesh);
-  chalkMeshes.push(chalkMesh);
+  const sideRailCenterX = PLAY_W / 2 + longRailW * 0.5;
+  const endRailCenterZ = PLAY_H / 2 + endRailW * 0.5;
+  const segmentOffsetZ = PLAY_H / 4;
+  const chalkDetectionSlack = TABLE.WALL * 0.12;
+  const chalkSideReach = longRailW + frameWidthLong * 0.6 + chalkDetectionSlack;
+  const chalkEndReach = endRailW + frameWidthEnd * 0.6 + chalkDetectionSlack;
+  const chalkSlots = [
+    {
+      index: 0,
+      position: new THREE.Vector3(-sideRailCenterX, chalkBaseY, -segmentOffsetZ),
+      rotationY: Math.PI / 2
+    },
+    {
+      index: 1,
+      position: new THREE.Vector3(-sideRailCenterX, chalkBaseY, segmentOffsetZ),
+      rotationY: Math.PI / 2
+    },
+    {
+      index: 2,
+      position: new THREE.Vector3(sideRailCenterX, chalkBaseY, -segmentOffsetZ),
+      rotationY: -Math.PI / 2
+    },
+    {
+      index: 3,
+      position: new THREE.Vector3(sideRailCenterX, chalkBaseY, segmentOffsetZ),
+      rotationY: -Math.PI / 2
+    },
+    {
+      index: 4,
+      position: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ),
+      rotationY: 0
+    },
+    {
+      index: 5,
+      position: new THREE.Vector3(0, chalkBaseY, endRailCenterZ),
+      rotationY: Math.PI
+    }
+  ];
+  chalkSlots.forEach((slot) => {
+    const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
+    mesh.position.copy(slot.position);
+    mesh.rotation.y = slot.rotationY;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.isChalk = true;
+    mesh.userData.chalkIndex = slot.index;
+    mesh.visible = false;
+    chalkGroup.add(mesh);
+    chalkMeshes.push(mesh);
+  });
   table.add(chalkGroup);
   table.userData.chalks = chalkMeshes;
+  table.userData.chalkSlots = chalkSlots;
+  table.userData.chalkMeta = {
+    sideReach: chalkSideReach,
+    endReach: chalkEndReach,
+    slack: chalkDetectionSlack
+  };
 
   const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
@@ -4646,6 +4691,29 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
   const chalkAssistTargetRef = useRef(false);
+  const visibleChalkIndexRef = useRef(null);
+
+  const updateChalkVisibility = useCallback(
+    (index) => {
+      const previous = visibleChalkIndexRef.current;
+      if (previous === index) return;
+      visibleChalkIndexRef.current = index;
+      const meshes = chalkMeshesRef.current;
+      if (Array.isArray(meshes)) {
+        meshes.forEach((mesh) => {
+          if (!mesh) return;
+          mesh.visible = index != null && mesh.userData?.chalkIndex === index;
+        });
+      }
+      if (
+        activeChalkIndexRef.current !== null &&
+        activeChalkIndexRef.current !== index
+      ) {
+        setActiveChalkIndex(null);
+      }
+    },
+    [setActiveChalkIndex]
+  );
 
   const highlightChalks = useCallback((activeIndex) => {
     const meshes = chalkMeshesRef.current;
@@ -7832,6 +7900,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
         ? table.userData.chalks
         : [];
+      visibleChalkIndexRef.current = null;
       highlightChalks(activeChalkIndexRef.current);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
@@ -9260,6 +9329,52 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          TMP_VEC3_BUTT.set(
+            cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
+            CUE_Y + spinWorld.y,
+            cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
+          );
+          let visibleChalkIndex = null;
+          const chalkMeta = table.userData?.chalkMeta;
+          if (chalkMeta) {
+            const slack = chalkMeta.slack ?? 0;
+            const leftDistance = Math.abs(TMP_VEC3_BUTT.x + PLAY_W / 2);
+            const rightDistance = Math.abs(TMP_VEC3_BUTT.x - PLAY_W / 2);
+            const topDistance = Math.abs(TMP_VEC3_BUTT.z + PLAY_H / 2);
+            const bottomDistance = Math.abs(TMP_VEC3_BUTT.z - PLAY_H / 2);
+            let bestSide = null;
+            let bestValue = Infinity;
+            const considerSide = (side, value, limit) => {
+              if (value > limit + slack) return;
+              if (value < bestValue) {
+                bestValue = value;
+                bestSide = side;
+              }
+            };
+            considerSide('left', leftDistance, chalkMeta.sideReach);
+            considerSide('right', rightDistance, chalkMeta.sideReach);
+            considerSide('top', topDistance, chalkMeta.endReach);
+            considerSide('bottom', bottomDistance, chalkMeta.endReach);
+            if (bestSide) {
+              switch (bestSide) {
+                case 'left':
+                  visibleChalkIndex = TMP_VEC3_BUTT.z <= 0 ? 0 : 1;
+                  break;
+                case 'right':
+                  visibleChalkIndex = TMP_VEC3_BUTT.z <= 0 ? 2 : 3;
+                  break;
+                case 'top':
+                  visibleChalkIndex = 4;
+                  break;
+                case 'bottom':
+                  visibleChalkIndex = 5;
+                  break;
+                default:
+                  visibleChalkIndex = null;
+              }
+            }
+          }
+          updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
           if (afterDir) {
             const tEnd = new THREE.Vector3(
@@ -9282,6 +9397,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
+          updateChalkVisibility(null);
         }
 
         if (!shouldSlowAim) {
@@ -9881,6 +9997,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           applyFinishRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
+          visibleChalkIndexRef.current = null;
           chalkAssistTargetRef.current = false;
           if (loadTimer) {
             clearTimeout(loadTimer);
