@@ -165,10 +165,10 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.22;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.12;
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0.035;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
@@ -631,18 +631,18 @@ const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
-  pairMinDistance: BALL_R * 28,
-  pairMaxDistance: BALL_R * 72,
-  pairDistanceScale: 1.05,
+  pairMinDistance: BALL_R * 24,
+  pairMaxDistance: BALL_R * 64,
+  pairDistanceScale: 0.98,
   sideBias: 1.24,
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 9.2,
+  heightOffset: BALL_R * 7.8,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
-  followDistance: BALL_R * 54,
-  followHeightOffset: BALL_R * 7.4,
+  followDistance: BALL_R * 46,
+  followHeightOffset: BALL_R * 6.2,
   followHoldMs: 900
 });
 /**
@@ -2394,13 +2394,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.4;
+const CUE_VIEW_RADIUS_RATIO = 0.36;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.05;
+const CUE_VIEW_PHI_LIFT = 0.04;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -2409,7 +2409,7 @@ const CAMERA_RAIL_APPROACH_PHI = Math.min(
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.45;
+const CAMERA_DOWNWARD_PULL = 1.85;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
