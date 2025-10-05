@@ -36,18 +36,17 @@ export function createCueRackDisplay({
   const baseCueLength = 2.5; // length used by the reference rack prompt
   const unit = cueLength / baseCueLength;
 
-  // Frame dimensions slightly reduced to hug the cues more tightly
-  const frameWidth = 5.6 * unit;
-  const frameHeight = 3 * unit;
+  // Frame dimensions slightly enlarged so the cues breathe inside the rack
+  const frameWidth = 6.4 * unit;
+  const frameHeight = 3.1 * unit;
   const frameDepth = 0.16 * unit;
 
-  const clothWidth = 5.2 * unit;
-  const clothHeight = 2.8 * unit;
+  const clothWidth = 5.9 * unit;
+  const clothHeight = 2.9 * unit;
   const clothInset = 0.006 * unit;
   const clothDepth = frameDepth / 2 + clothInset;
   const cueDepth = clothDepth + 0.009 * unit;
-  const cueRailWidth = clothWidth * 0.82;
-  const cueVerticalOffset = clothHeight * 0.08;
+  const cueRailWidth = clothWidth * 0.9;
 
   const group = new THREE.Group();
   const disposables = [];
@@ -221,26 +220,14 @@ export function createCueRackDisplay({
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
 
-  const cueEntries = [];
-
   for (let i = 0; i < cueCount; i += 1) {
-    const color = woodPalette[i % woodPalette.length];
-    const cue = makeCue(color, i);
-    cue.position.set(startX + i * stepX, cueVerticalOffset, cueDepth);
-    cue.userData = {
-      ...(cue.userData || {}),
-      cueIndex: i,
-      cueColor: color,
-      isCueDisplay: true
-    };
-    cueEntries.push(cue);
+    const cue = makeCue(woodPalette[i % woodPalette.length], i);
+    cue.position.set(startX + i * stepX, 0, cueDepth);
     group.add(cue);
   }
 
   const dimensions = { width: frameWidth, height: frameHeight, depth: frameDepth };
   group.userData.cueRackDimensions = dimensions;
-  group.userData.isCueRackDisplay = true;
-  group.userData.cues = cueEntries;
 
   const dispose = () => {
     while (disposables.length) {
@@ -251,5 +238,5 @@ export function createCueRackDisplay({
     }
   };
 
-  return { group, dimensions, cues: cueEntries, dispose };
+  return { group, dimensions, dispose };
 }
