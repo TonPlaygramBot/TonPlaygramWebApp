@@ -1400,7 +1400,12 @@ const DEFAULT_CLOTH_COLOR_ID = 'proDark';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
   { id: 'proDark', label: 'Tournament Dark', color: 0x2b7e4f },
   { id: 'freshGreen', label: 'Fresh Green', color: 0x379a5f },
-  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 }
+  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
+  {
+    id: 'emeraldClassic',
+    label: 'Rrobë Jeshile',
+    color: 0x19a34a
+  }
 ]);
 
 const toHexColor = (value) => {
