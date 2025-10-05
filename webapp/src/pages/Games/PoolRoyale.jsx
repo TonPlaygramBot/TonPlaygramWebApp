@@ -2349,21 +2349,21 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9;
+const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0026;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.16);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-// Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.4;
+// Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
+const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.88;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.015;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.008;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2374,8 +2374,8 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep standing orbit safely above cushion lip
-const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.02; // let cue view settle near the rail top without dipping below it
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 1.04; // keep standing orbit safely above cushion lip and align with pocket cam height
+const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.18; // let cue view settle near the rail top without dipping below the cue stick
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2400,7 +2400,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.08;
+const CUE_VIEW_PHI_LIFT = 0.05;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -2409,7 +2409,7 @@ const CAMERA_RAIL_APPROACH_PHI = Math.min(
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.9;
+const CAMERA_DOWNWARD_PULL = 1.45;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -2422,6 +2422,9 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
+const SHORT_RAIL_POCKET_TRIGGER =
+  RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
+const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = 3500;
@@ -3632,7 +3635,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.09 * POCKET_VISUAL_EXPANSION; // extend short rail cushions so the green meets the chrome arch cleanly
+    POCKET_VIS_R * 0.03 * POCKET_VISUAL_EXPANSION; // trim short rail cushions so they stop before the chrome pocket arcs
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -6072,6 +6075,39 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const store = ensureOrbitFocus();
           store.ballId = ball.id;
           store.target.set(ball.pos.x, BALL_CENTER_Y, ball.pos.y);
+        };
+
+        const maybeForceShortRailPocketView = (ball) => {
+          if (!ball?.active) return;
+          const posY = ball.pos?.y;
+          if (!Number.isFinite(posY)) return;
+          if (Math.abs(posY) < SHORT_RAIL_POCKET_TRIGGER) return;
+          TMP_VEC2_VIEW.set(ball.vel?.x ?? 0, ball.vel?.y ?? 0);
+          if (TMP_VEC2_VIEW.lengthSq() < 1e-6 && ball.launchDir) {
+            TMP_VEC2_VIEW.copy(ball.launchDir);
+          }
+          if (TMP_VEC2_VIEW.lengthSq() < 1e-6) return;
+          const forward = TMP_VEC2_VIEW.y;
+          if (!Number.isFinite(forward) || forward === 0) return;
+          const travelSign = forward > 0 ? 1 : -1;
+          const railSign = posY > 0 ? 1 : posY < 0 ? -1 : travelSign;
+          if (travelSign !== railSign) return;
+          const now = performance.now();
+          const currentIntent = pocketSwitchIntentRef.current;
+          if (currentIntent?.ballId === ball.id && currentIntent.forced) {
+            if (
+              currentIntent.createdAt &&
+              now - currentIntent.createdAt < SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS
+            ) {
+              return;
+            }
+          }
+          pocketSwitchIntentRef.current = {
+            ballId: ball.id,
+            forced: true,
+            allowEarly: true,
+            createdAt: now
+          };
         };
 
         const getMaxOrbitRadius = () =>
@@ -9033,6 +9069,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             suspendedActionView = null;
             restoreOrbitCamera(restoreView);
           } else {
+            if (activeShotView.axis === 'short') {
+              maybeForceShortRailPocketView(cueBall);
+            }
             if (cueBall.vel.lengthSq() > 1e-6) {
               activeShotView.lastCueDir = cueBall.vel.clone().normalize();
             }
@@ -9041,6 +9080,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 activeShotView.targetId != null
                   ? balls.find((b) => b.id === activeShotView.targetId)
                   : null;
+              if (activeShotView.axis === 'short' && targetBall) {
+                maybeForceShortRailPocketView(targetBall);
+              }
               if (!targetBall?.active) {
                 activeShotView.stage = 'followCue';
                 activeShotView.holdUntil = now + ACTION_CAM.followHoldMs;
