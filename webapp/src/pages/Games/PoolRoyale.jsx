@@ -4163,6 +4163,8 @@ function Table3D(
   const chalkBaseY = railsTopY + chalkHeight / 2;
   const sideRailCenterX = PLAY_W / 2 + longRailW * 0.5;
   const endRailCenterZ = PLAY_H / 2 + endRailW * 0.5;
+  const chalkSideRailOffset = Math.min(longRailW * 0.18, Math.max(0, longRailW * 0.45 - chalkSize * 0.5));
+  const chalkEndRailOffset = Math.min(endRailW * 0.18, Math.max(0, endRailW * 0.45 - chalkSize * 0.5));
   const chalkDetectionSlack = TABLE.WALL * 0.12;
   const chalkSideReach = longRailW + frameWidthLong * 0.6 + chalkDetectionSlack;
   const chalkEndReach = endRailW + frameWidthEnd * 0.6 + chalkDetectionSlack;
@@ -4178,7 +4180,7 @@ function Table3D(
   const chalkSlots = [
     {
       index: 0,
-      basePosition: new THREE.Vector3(-sideRailCenterX, chalkBaseY, 0),
+      basePosition: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0),
       tangent: new THREE.Vector3(0, 0, 1),
       defaultOffset: chalkLongAxisOffset,
       offsetLimits: {
@@ -4189,7 +4191,7 @@ function Table3D(
     },
     {
       index: 1,
-      basePosition: new THREE.Vector3(sideRailCenterX, chalkBaseY, 0),
+      basePosition: new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0),
       tangent: new THREE.Vector3(0, 0, -1),
       defaultOffset: chalkLongAxisOffset,
       offsetLimits: {
@@ -4200,7 +4202,7 @@ function Table3D(
     },
     {
       index: 2,
-      basePosition: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ),
+      basePosition: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset),
       tangent: new THREE.Vector3(-1, 0, 0),
       defaultOffset: chalkShortAxisOffset,
       offsetLimits: {
@@ -4211,7 +4213,7 @@ function Table3D(
     },
     {
       index: 3,
-      basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ),
+      basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset),
       tangent: new THREE.Vector3(1, 0, 0),
       defaultOffset: chalkShortAxisOffset,
       offsetLimits: {
