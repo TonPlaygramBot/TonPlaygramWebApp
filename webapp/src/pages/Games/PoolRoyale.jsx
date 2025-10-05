@@ -527,6 +527,17 @@ const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const CHALK_TOP_COLOR = 0x1f6d86;
+const CHALK_SIDE_COLOR = 0x162b36;
+const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
+const CHALK_BOTTOM_COLOR = 0x0b1118;
+const CHALK_ACTIVE_COLOR = 0x4bd4ff;
+const CHALK_EMISSIVE_COLOR = 0x071b26;
+const CHALK_ACTIVE_EMISSIVE_COLOR = 0x0d3b5d;
+const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
+const CHALK_AIM_LERP_SLOW = 0.08;
+const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
+const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
@@ -4035,6 +4046,64 @@ function Table3D(
 
   table.add(railsGroup);
 
+  const chalkGroup = new THREE.Group();
+  const chalkMeshes = [];
+  const chalkSize = BALL_R * 1.92;
+  const chalkHeight = BALL_R * 1.35;
+  const chalkGeometry = new THREE.BoxGeometry(chalkSize, chalkHeight, chalkSize);
+  const createChalkMaterials = () => {
+    const top = new THREE.MeshPhysicalMaterial({
+      color: CHALK_TOP_COLOR,
+      roughness: 0.42,
+      metalness: 0.08,
+      sheen: 0.2,
+      sheenRoughness: 0.55,
+      emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
+      emissiveIntensity: 0.2
+    });
+    const bottom = new THREE.MeshPhysicalMaterial({
+      color: CHALK_BOTTOM_COLOR,
+      roughness: 0.85,
+      metalness: 0.02
+    });
+    const side = new THREE.MeshPhysicalMaterial({
+      color: CHALK_SIDE_COLOR,
+      roughness: 0.68,
+      metalness: 0.05,
+      emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
+      emissiveIntensity: 0.16
+    });
+    return [
+      side.clone(),
+      side.clone(),
+      top,
+      bottom,
+      side.clone(),
+      side.clone()
+    ];
+  };
+  const chalkBaseY = railsTopY + chalkHeight / 2;
+  const xSpread = Math.max(outerHalfW * 0.45, outerHalfW - BALL_R * 2.4, BALL_R * 1.4);
+  const xPositions = [-xSpread, 0, xSpread];
+  const zOffset = Math.max(outerHalfH * 0.72, outerHalfH - BALL_R * 1.6, BALL_R * 2.1);
+  const rows = [zOffset, -zOffset];
+  rows.forEach((z, rowIndex) => {
+    xPositions.forEach((x, columnIndex) => {
+      const chalkIndex = rowIndex * xPositions.length + columnIndex;
+      const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
+      mesh.position.set(x, chalkBaseY, z);
+      mesh.rotation.y = ((chalkIndex % 2 === 0 ? 1 : -1) * Math.PI) / 12;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.isChalk = true;
+      mesh.userData.chalkIndex = chalkIndex;
+      chalkGroup.add(mesh);
+      chalkMeshes.push(mesh);
+    });
+  });
+  table.add(chalkGroup);
+  table.userData.chalks = chalkMeshes;
+
   const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
@@ -4498,6 +4567,57 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
+  const chalkMeshesRef = useRef([]);
+  const chalkAreaRef = useRef(null);
+  const [activeChalkIndex, setActiveChalkIndex] = useState(null);
+  const activeChalkIndexRef = useRef(null);
+  const chalkAssistEnabledRef = useRef(false);
+  const chalkAssistTargetRef = useRef(false);
+
+  const highlightChalks = useCallback((activeIndex) => {
+    const meshes = chalkMeshesRef.current;
+    meshes.forEach((mesh, idx) => {
+      if (!mesh) return;
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material];
+      const isActive = idx === activeIndex;
+      materials.forEach((mat, matIndex) => {
+        if (!mat || !mat.color) return;
+        if (matIndex === 2) {
+          mat.color.setHex(isActive ? CHALK_ACTIVE_COLOR : CHALK_TOP_COLOR);
+        } else if (matIndex === 3) {
+          mat.color.setHex(CHALK_BOTTOM_COLOR);
+        } else {
+          mat.color.setHex(
+            isActive ? CHALK_SIDE_ACTIVE_COLOR : CHALK_SIDE_COLOR
+          );
+        }
+        if (mat.emissive) {
+          mat.emissive.setHex(
+            isActive ? CHALK_ACTIVE_EMISSIVE_COLOR : CHALK_EMISSIVE_COLOR
+          );
+          mat.emissiveIntensity = isActive ? 0.42 : 0.18;
+        }
+        mat.needsUpdate = true;
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    activeChalkIndexRef.current = activeChalkIndex;
+    highlightChalks(activeChalkIndex);
+    chalkAssistEnabledRef.current = activeChalkIndex !== null;
+    if (activeChalkIndex === null) {
+      chalkAssistTargetRef.current = false;
+      const area = chalkAreaRef.current;
+      if (area) area.visible = false;
+    }
+  }, [activeChalkIndex, highlightChalks]);
+
+  const toggleChalkAssist = useCallback((index) => {
+    setActiveChalkIndex((prev) => (prev === index ? null : index));
+  }, []);
   const tableSizeRef = useRef(activeTableSize);
   useEffect(() => {
     tableSizeRef.current = activeTableSize;
@@ -5291,6 +5411,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let cue;
       let clothMat;
       let cushionMat;
+      const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
       let shooting = false; // track when a shot is in progress
       const setShootingState = (value) => {
         if (shooting === value) return;
@@ -7290,8 +7411,40 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const registerInteraction = () => {
           lastInteraction = performance.now();
         };
+        const attemptChalkPress = (ev) => {
+          const meshes = chalkMeshesRef.current;
+          if (!meshes || meshes.length === 0) return false;
+          if (ev.touches?.length && ev.touches.length > 1) return false;
+          const rect = dom.getBoundingClientRect();
+          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+          if (clientX == null || clientY == null) return false;
+          if (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          ) {
+            return false;
+          }
+          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+          pointer.set(nx, ny);
+          const currentCamera = activeRenderCameraRef.current ?? camera;
+          ray.setFromCamera(pointer, currentCamera);
+          const intersects = ray.intersectObjects(meshes, true);
+          if (intersects.length === 0) return false;
+          let hit = intersects[0].object;
+          while (hit && !hit.userData?.isChalk && hit.parent) {
+            hit = hit.parent;
+          }
+          if (!hit?.userData?.isChalk) return false;
+          toggleChalkAssist(hit.userData?.chalkIndex ?? null);
+          return true;
+        };
         const down = (e) => {
           registerInteraction();
+          if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           if (e.touches?.length === 2) return;
@@ -7320,11 +7473,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               0,
               1
             );
-            const precisionScale = THREE.MathUtils.lerp(
+            const basePrecisionScale = THREE.MathUtils.lerp(
               CUE_VIEW_AIM_SLOW_FACTOR,
               1,
               blend
             );
+            const slowScale =
+              chalkAssistEnabledRef.current && chalkAssistTargetRef.current
+                ? CHALK_PRECISION_SLOW_MULTIPLIER
+                : 1;
+            const precisionScale = basePrecisionScale * slowScale;
             sph.theta -= dx * 0.0035 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const phiDelta = dy * 0.0025 * precisionScale;
@@ -7360,7 +7518,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (topViewRef.current) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          const step = e.shiftKey ? 0.08 : 0.035;
+          const baseStep = e.shiftKey ? 0.08 : 0.035;
+          const slowScale =
+            chalkAssistEnabledRef.current && chalkAssistTargetRef.current
+              ? CHALK_PRECISION_SLOW_MULTIPLIER
+              : 1;
+          const step = baseStep * slowScale;
           if (e.code === 'ArrowLeft') {
             sph.theta += step;
           } else if (e.code === 'ArrowRight') {
@@ -7384,7 +7547,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
         const SAMPLE_PLAY_W = 1.216;
         const SAMPLE_PLAY_H = 2.536;
         const SAMPLE_TABLE_HEIGHT = 0.75;
@@ -7465,6 +7627,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       } = Table3D(world, finishForScene);
       clothMat = tableCloth;
       cushionMat = tableCushion;
+      chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
+        ? table.userData.chalks
+        : [];
+      highlightChalks(activeChalkIndexRef.current);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
@@ -7610,6 +7776,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       );
       target.visible = false;
       table.add(target);
+
+      const chalkPrecisionArea = new THREE.Mesh(
+        new THREE.CircleGeometry(CHALK_TARGET_RING_RADIUS, 48),
+        new THREE.MeshBasicMaterial({
+          color: CHALK_ACTIVE_COLOR,
+          transparent: true,
+          opacity: CHALK_RING_OPACITY,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        })
+      );
+      chalkPrecisionArea.rotation.x = -Math.PI / 2;
+      chalkPrecisionArea.visible = false;
+      chalkPrecisionArea.renderOrder = 2;
+      table.add(chalkPrecisionArea);
+      chalkAreaRef.current = chalkPrecisionArea;
 
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
@@ -8755,10 +8937,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
-        aimDir.lerp(tmpAim, 0.2);
+        const aimLerpFactor = chalkAssistTargetRef.current
+          ? CHALK_AIM_LERP_SLOW
+          : 0.2;
+        aimDir.lerp(tmpAim, aimLerpFactor);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
+        let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
         if (
@@ -8780,6 +8966,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
+          const slowAssistEnabled = chalkAssistEnabledRef.current;
+          const hasTarget = slowAssistEnabled && (targetBall || railNormal);
+          shouldSlowAim = hasTarget;
+          const precisionArea = chalkAreaRef.current;
+          if (precisionArea) {
+            precisionArea.visible = hasTarget;
+            if (hasTarget) {
+              precisionArea.position.set(
+                end.x,
+                tableSurfaceY + 0.005,
+                end.z
+              );
+              precisionArea.material.color.setHex(
+                targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
+              );
+              precisionArea.material.needsUpdate = true;
+            }
+          }
           const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
           const legalTargetsRaw =
             frameRef.current?.ballOn ?? frameState.ballOn ?? [];
@@ -8877,6 +9081,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           if (!cueAnimating) cueStick.visible = false;
         }
+
+        if (!shouldSlowAim) {
+          const precisionArea = chalkAreaRef.current;
+          if (precisionArea) precisionArea.visible = false;
+        }
+        chalkAssistTargetRef.current = shouldSlowAim;
 
         // Fizika
         for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
@@ -9467,6 +9677,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
+          chalkMeshesRef.current = [];
+          chalkAreaRef.current = null;
+          chalkAssistTargetRef.current = false;
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
