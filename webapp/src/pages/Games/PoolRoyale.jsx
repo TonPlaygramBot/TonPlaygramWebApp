@@ -2361,8 +2361,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.4;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.92;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.9;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.88;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.015;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -2374,7 +2374,8 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep orbit height safely above cushion lip
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep standing orbit safely above cushion lip
+const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.02; // let cue view settle near the rail top without dipping below it
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -6081,6 +6082,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const clampOrbitRadius = (value) =>
           clamp(value, CAMERA.minR, getMaxOrbitRadius());
 
+        const getCameraClearance = (blend = cameraBlendRef.current ?? 1) => {
+          const normalized = THREE.MathUtils.clamp(blend ?? 1, 0, 1);
+          return THREE.MathUtils.lerp(
+            CUE_VIEW_CUSHION_CLEARANCE,
+            CAMERA_CUSHION_CLEARANCE,
+            normalized
+          );
+        };
+
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
@@ -6124,7 +6134,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
-            cushionHeight + CAMERA_CUSHION_CLEARANCE
+            cushionHeight + getCameraClearance(blend)
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -6846,7 +6856,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const theta = orbit.theta ?? sph.theta;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
+            (cushionHeightRef.current ?? TABLE.THICK) + getCameraClearance()
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
@@ -7141,7 +7151,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           orbitRadiusLimitRef.current = standingRadius;
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
+            (cushionHeightRef.current ?? TABLE.THICK) + getCameraClearance()
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
