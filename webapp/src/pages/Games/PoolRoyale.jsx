@@ -167,7 +167,7 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.99; // tighten chrome along the short rails so it stops as the arches begin
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.025; // trim chrome along the short rails so no sliver creeps into the pockets and keep the chrome narrower on the short sides
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -3733,15 +3733,15 @@ function Table3D(
   const SHORT_CUSHION_EXTENSION =
     POCKET_VIS_R * -0.05 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs cleanly
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // shorten the long cushions so the 32° cuts meet the chrome starts cleanly
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * -0.008 * POCKET_VISUAL_EXPANSION; // pull the long cushions back so they finish right where the chrome begins
+    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.11 * POCKET_VISUAL_EXPANSION; // trim the side cushions so all six rails finish flush with the chrome arches
+    POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
