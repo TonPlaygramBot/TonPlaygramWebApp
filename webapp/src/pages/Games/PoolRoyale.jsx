@@ -167,7 +167,7 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.12;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.06; // trim chrome along the short rails so no sliver creeps into the pockets
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -719,19 +719,25 @@ const TABLE_DROP = 0.4;
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
-// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
+const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
+const LEG_ELEVATION_SCALE = 1.2; // lift the entire table an extra 20% by extending the legs further
+const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
+const BASE_LEG_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
+// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
+const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
