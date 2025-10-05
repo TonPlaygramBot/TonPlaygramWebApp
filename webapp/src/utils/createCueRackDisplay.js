@@ -1,5 +1,3 @@
-import { CUE_STYLE_PRESETS } from '../constants/cueStyles.js';
-
 /**
  * Build a wall-mounted cue rack display consisting of a wooden frame,
  * a cloth backdrop, and a lineup of ornamental cues. The geometry is
@@ -10,22 +8,15 @@ import { CUE_STYLE_PRESETS } from '../constants/cueStyles.js';
  * @param {number} params.ballRadius - Radius of a single ball in world units.
  * @param {number} params.cueLengthMultiplier - Multiplier used for the active cue.
  * @param {number} params.cueTipRadius - Radius of the cue tip in world units.
-* @param {Array} [params.cueStyles] - Optional cue style palette for the rack.
-* @returns {{
-*   group: import('three').Group,
-*   dimensions: { width: number, height: number, depth: number },
-*   dispose: () => void,
-*   cues: import('three').Group[],
-*   cueVerticalOffset: number,
-*   cueHighlightLift: number
-* }}
+ * @param {number} [params.cueCount=8] - Number of cues to place inside the rack.
+ * @returns {{ group: import('three').Group, dimensions: { width: number, height: number, depth: number }, dispose: () => void }}
  */
 export function createCueRackDisplay({
   THREE,
   ballRadius,
   cueLengthMultiplier,
   cueTipRadius,
-  cueStyles = CUE_STYLE_PRESETS
+  cueCount = 8
 } = {}) {
   if (!THREE) {
     throw new Error('THREE is required to create the cue rack display.');
@@ -45,24 +36,17 @@ export function createCueRackDisplay({
   const baseCueLength = 2.5; // length used by the reference rack prompt
   const unit = cueLength / baseCueLength;
 
-  const styles =
-    Array.isArray(cueStyles) && cueStyles.length > 0
-      ? cueStyles
-      : CUE_STYLE_PRESETS;
-
-  // Frame dimensions tuned so the cues sit snugly in the rack
-  const frameWidth = 5.25 * unit;
-  const frameHeight = 2.85 * unit;
+  // Frame dimensions slightly enlarged so the cues breathe inside the rack
+  const frameWidth = 6.4 * unit;
+  const frameHeight = 3.1 * unit;
   const frameDepth = 0.16 * unit;
 
-  const clothWidth = 4.85 * unit;
-  const clothHeight = 2.6 * unit;
+  const clothWidth = 5.9 * unit;
+  const clothHeight = 2.9 * unit;
   const clothInset = 0.006 * unit;
   const clothDepth = frameDepth / 2 + clothInset;
   const cueDepth = clothDepth + 0.009 * unit;
-  const cueRailWidth = clothWidth * 0.84;
-  const cueVerticalOffset = clothHeight * 0.08;
-  const cueHighlightLift = clothHeight * 0.12;
+  const cueRailWidth = clothWidth * 0.9;
 
   const group = new THREE.Group();
   const disposables = [];
@@ -108,6 +92,44 @@ export function createCueRackDisplay({
   group.add(cloth);
   disposables.push(cloth.geometry, clothMat, clothTexture);
 
+  const mWhite = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    roughness: 0.18,
+    clearcoat: 1
+  });
+  const mLeatherBlue = new THREE.MeshPhysicalMaterial({
+    color: 0x5a7dc3,
+    roughness: 1,
+    clearcoat: 0
+  });
+  const mBlack = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.35
+  });
+  const mBronze = new THREE.MeshPhysicalMaterial({
+    color: 0xcd7f32,
+    metalness: 1,
+    roughness: 0.25,
+    clearcoat: 0.8
+  });
+  const mEngrave = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    roughness: 0.5,
+    metalness: 0.4
+  });
+  disposables.push(mWhite, mLeatherBlue, mBlack, mBronze, mEngrave);
+
+  const woodPalette = [
+    0xcaa472,
+    0xb17d56,
+    0x8d5a34,
+    0xd7b17e,
+    0x9b633b,
+    0xdeb887,
+    0x6e3b1f,
+    0xa47551
+  ];
+
   const buttRadius = 0.025 * SCALE;
   const shaftRadius = buttRadius * 0.86;
   const tipRadius = cueTipRadius;
@@ -115,54 +137,16 @@ export function createCueRackDisplay({
   const connectorLength = 0.015 * unit * 1.5;
   const cueEndCapRadius = buttRadius * 1.1;
 
-  const cues = [];
-
-  const makeCue = (style, index) => {
+  const makeCue = (color, index) => {
     const cueGroup = new THREE.Group();
-    const shaftColor = style?.rackShaftColor ?? style?.shaftColor ?? 0xcaa472;
-    const accentColor = style?.rackAccentColor ?? style?.stripeColor ?? 0x222222;
-    const connectorColor = style?.connectorColor ?? 0xcd7f32;
-    const tipAccent = style?.tipColor ?? 0x5a7dc3;
-    const buttColor = style?.buttColor ?? 0x111111;
-
     const woodMat = new THREE.MeshPhysicalMaterial({
-      color: shaftColor,
+      color,
       roughness: 0.25,
       metalness: 0.1,
       clearcoat: 1,
       clearcoatRoughness: 0.12
     });
-    woodMat.emissive = new THREE.Color(0x000000);
-    woodMat.emissiveIntensity = 0.08;
     disposables.push(woodMat);
-
-    const tipFaceMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      roughness: 0.18,
-      clearcoat: 1
-    });
-    const tipCapMat = new THREE.MeshPhysicalMaterial({
-      color: tipAccent,
-      roughness: 1,
-      clearcoat: 0
-    });
-    const jointMat = new THREE.MeshPhysicalMaterial({
-      color: connectorColor,
-      metalness: 1,
-      roughness: 0.35,
-      clearcoat: 0.75
-    });
-    const buttCapMat = new THREE.MeshPhysicalMaterial({
-      color: buttColor,
-      roughness: 0.45,
-      metalness: 0.2
-    });
-    const engraveMat = new THREE.MeshStandardMaterial({
-      color: accentColor,
-      roughness: 0.42,
-      metalness: 0.55
-    });
-    disposables.push(tipFaceMat, tipCapMat, jointMat, buttCapMat, engraveMat);
 
     const shaftLength = cueLength * 0.74;
     const buttLength = Math.max(cueLength - shaftLength, 0);
@@ -177,7 +161,7 @@ export function createCueRackDisplay({
 
     const joint = new THREE.Mesh(
       new THREE.CylinderGeometry(shaftRadius * 1.02, shaftRadius * 1.02, jointLength, 32),
-      jointMat
+      mBronze
     );
     joint.rotation.x = Math.PI / 2;
     joint.position.z = -shaftLength;
@@ -185,7 +169,7 @@ export function createCueRackDisplay({
 
     const tip = new THREE.Mesh(
       new THREE.CylinderGeometry(tipRadius, tipRadius, connectorLength * 0.65, 32),
-      tipFaceMat
+      mWhite
     );
     tip.rotation.x = Math.PI / 2;
     tip.position.z = connectorLength * 0.32;
@@ -193,7 +177,7 @@ export function createCueRackDisplay({
 
     const tipCap = new THREE.Mesh(
       new THREE.SphereGeometry(tipRadius * 1.15, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
-      tipCapMat
+      mLeatherBlue
     );
     tipCap.rotation.x = Math.PI / 2;
     tipCap.position.z = connectorLength * 0.8;
@@ -209,7 +193,7 @@ export function createCueRackDisplay({
 
     const engrave = new THREE.Mesh(
       new THREE.TorusKnotGeometry(buttRadius * 0.7, 0.0025 * unit, 64, 8, 2 + index, 3),
-      engraveMat
+      mEngrave
     );
     engrave.rotation.x = Math.PI / 2;
     engrave.position.z = -(shaftLength + buttLength * 0.5);
@@ -217,7 +201,7 @@ export function createCueRackDisplay({
 
     const endCap = new THREE.Mesh(
       new THREE.SphereGeometry(cueEndCapRadius, 32, 16),
-      buttCapMat
+      mBlack
     );
     endCap.rotation.x = Math.PI / 2;
     endCap.position.z = -(shaftLength + buttLength);
@@ -230,29 +214,20 @@ export function createCueRackDisplay({
     bounds.getCenter(center);
     cueGroup.position.sub(center);
     cueGroup.castShadow = true;
-    cueGroup.userData.cueStyleId = style?.id ?? `cue-${index}`;
-    cueGroup.userData.isCueOption = true;
-    cueGroup.userData.baseY = cueVerticalOffset;
-    cueGroup.userData.highlightLift = cueHighlightLift;
-    cueGroup.userData.highlightMaterials = [woodMat];
-    cueGroup.userData.highlightEmissiveColor = accentColor;
     return cueGroup;
   };
 
-  const cueCount = styles.length;
-  const startX = cueCount > 1 ? -cueRailWidth / 2 : 0;
+  const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
 
   for (let i = 0; i < cueCount; i += 1) {
-    const cue = makeCue(styles[i % styles.length], i);
-    cue.position.set(startX + i * stepX, cueVerticalOffset, cueDepth);
-    cues.push(cue);
+    const cue = makeCue(woodPalette[i % woodPalette.length], i);
+    cue.position.set(startX + i * stepX, 0, cueDepth);
     group.add(cue);
   }
 
   const dimensions = { width: frameWidth, height: frameHeight, depth: frameDepth };
   group.userData.cueRackDimensions = dimensions;
-  group.userData.cueGroups = cues;
 
   const dispose = () => {
     while (disposables.length) {
@@ -263,5 +238,5 @@ export function createCueRackDisplay({
     }
   };
 
-  return { group, dimensions, dispose, cues, cueVerticalOffset, cueHighlightLift };
+  return { group, dimensions, dispose };
 }
