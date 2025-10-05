@@ -164,12 +164,12 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.94;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.22;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.12;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.95;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
@@ -497,7 +497,7 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
 const WIDTH_REF = 2540;
 const HEIGHT_REF = 1270;
-const BALL_D_REF = 55.5;
+const BALL_D_REF = 57.15;
 const BAULK_FROM_BAULK_REF = 635;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 635;
@@ -530,17 +530,10 @@ const BALL_R = BALL_DIAMETER / 2;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const PREVIOUS_POCKET_SIZE_REDUCTION = 0.9;
-const POCKET_SIZE_REDUCTION = 0.84; // uniformly tighten pocket mouths while keeping their proportions
-const POCKET_SCALE_RATIO =
-  PREVIOUS_POCKET_SIZE_REDUCTION > 0
-    ? POCKET_SIZE_REDUCTION / PREVIOUS_POCKET_SIZE_REDUCTION
-    : 1;
+const POCKET_SIZE_REDUCTION = 0.9; // uniformly tighten pocket mouths while keeping their proportions
 const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_SIZE_REDUCTION;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIZE_REDUCTION;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_BASE_VIS_R =
-  POCKET_SCALE_RATIO !== 0 ? POCKET_VIS_R / POCKET_SCALE_RATIO : POCKET_VIS_R;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
@@ -2356,9 +2349,9 @@ function applySnookerScaling({
   return { mmToUnits };
 }
 
+// Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
+const STANDING_VIEW_PHI = 0.96; // drop the orbit closer to the rail height for a lower standing look
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-// Kamera: ruaj këndin fillestar të prezantimit edhe për standing view, duke e ulur pak këndin dhe duke e tërhequr larg tavolinës
-const STANDING_VIEW_PHI = CUE_SHOT_PHI - 0.25;
 const STANDING_VIEW_MARGIN = 0.0018;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
@@ -2398,7 +2391,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: CAMERA.minR * 1.08, // start the intro framing a touch farther back for a clearer full-table read
+  radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
@@ -3641,19 +3634,19 @@ function Table3D(
   );
 
   const POCKET_GAP =
-    POCKET_BASE_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // preserve cushion spacing against the smaller pocket arcs
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_BASE_VIS_R * -0.02 * POCKET_VISUAL_EXPANSION; // keep short rail cushions aligned without drifting toward the pockets
+    POCKET_VIS_R * -0.02 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs cleanly
   const LONG_CUSHION_TRIM =
-    POCKET_BASE_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // maintain long cushion trimming while the pockets shrink
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_BASE_VIS_R * 0.018 * POCKET_VISUAL_EXPANSION; // stop the long cushions right at the chrome arcs without overlap
+    POCKET_VIS_R * 0.018 * POCKET_VISUAL_EXPANSION; // stop the long cushions right at the chrome arcs without overlap
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_BASE_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
+    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_BASE_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
+    POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_BASE_VIS_R * 0.07 * POCKET_VISUAL_EXPANSION; // tighten the side cushion length so it ends precisely at the chrome arcs
+    POCKET_VIS_R * 0.07 * POCKET_VISUAL_EXPANSION; // tighten the side cushion length so it ends precisely at the chrome arcs
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
