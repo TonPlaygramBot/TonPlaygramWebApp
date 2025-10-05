@@ -2349,9 +2349,9 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.84;
+const STANDING_VIEW_PHI = 0.9;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0032;
+const STANDING_VIEW_MARGIN = 0.0026;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
@@ -2361,9 +2361,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.4;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.025;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.92;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.9;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.015;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
