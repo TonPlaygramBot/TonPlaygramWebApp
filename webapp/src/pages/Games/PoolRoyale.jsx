@@ -2349,7 +2349,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.92;
+const STANDING_VIEW_PHI = 0.88;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0035;
 const STANDING_VIEW_FOV = 66;
@@ -2359,11 +2359,11 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.44;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.98;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.97;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.025;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
