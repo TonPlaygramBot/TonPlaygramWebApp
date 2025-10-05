@@ -1,3 +1,14 @@
+export const CUE_RACK_PALETTE = [
+  0xcaa472,
+  0xb17d56,
+  0x8d5a34,
+  0xd7b17e,
+  0x9b633b,
+  0xdeb887,
+  0x6e3b1f,
+  0xa47551
+];
+
 /**
  * Build a wall-mounted cue rack display consisting of a wooden frame,
  * a cloth backdrop, and a lineup of ornamental cues. The geometry is
@@ -36,17 +47,17 @@ export function createCueRackDisplay({
   const baseCueLength = 2.5; // length used by the reference rack prompt
   const unit = cueLength / baseCueLength;
 
-  // Frame dimensions slightly enlarged so the cues breathe inside the rack
-  const frameWidth = 6.4 * unit;
-  const frameHeight = 3.1 * unit;
+  // Frame dimensions tuned so the cues sit snugly within the display
+  const frameWidth = 5.5 * unit;
+  const frameHeight = 3.05 * unit;
   const frameDepth = 0.16 * unit;
 
-  const clothWidth = 5.9 * unit;
-  const clothHeight = 2.9 * unit;
+  const clothWidth = 5.1 * unit;
+  const clothHeight = 2.78 * unit;
   const clothInset = 0.006 * unit;
   const clothDepth = frameDepth / 2 + clothInset;
   const cueDepth = clothDepth + 0.009 * unit;
-  const cueRailWidth = clothWidth * 0.9;
+  const cueRailWidth = clothWidth * 0.8;
 
   const group = new THREE.Group();
   const disposables = [];
@@ -60,6 +71,8 @@ export function createCueRackDisplay({
   const frameGeom = new THREE.BoxGeometry(frameWidth, frameHeight, frameDepth);
   const frameMesh = new THREE.Mesh(frameGeom, frameMat);
   frameMesh.receiveShadow = true;
+  frameMesh.userData = frameMesh.userData || {};
+  frameMesh.userData.isCueRackFrame = true;
   group.add(frameMesh);
   disposables.push(frameGeom, frameMat);
 
@@ -119,17 +132,6 @@ export function createCueRackDisplay({
   });
   disposables.push(mWhite, mLeatherBlue, mBlack, mBronze, mEngrave);
 
-  const woodPalette = [
-    0xcaa472,
-    0xb17d56,
-    0x8d5a34,
-    0xd7b17e,
-    0x9b633b,
-    0xdeb887,
-    0x6e3b1f,
-    0xa47551
-  ];
-
   const buttRadius = 0.025 * SCALE;
   const shaftRadius = buttRadius * 0.86;
   const tipRadius = cueTipRadius;
@@ -146,6 +148,10 @@ export function createCueRackDisplay({
       clearcoat: 1,
       clearcoatRoughness: 0.12
     });
+    woodMat.userData = woodMat.userData || {};
+    woodMat.userData.isCueWood = true;
+    woodMat.userData.cueOptionIndex = index;
+    woodMat.userData.cueOptionColor = color;
     disposables.push(woodMat);
 
     const shaftLength = cueLength * 0.74;
@@ -208,6 +214,10 @@ export function createCueRackDisplay({
     cueGroup.add(endCap);
 
     cueGroup.rotation.x = -Math.PI / 2;
+    cueGroup.userData = cueGroup.userData || {};
+    cueGroup.userData.isCueOption = true;
+    cueGroup.userData.cueOptionIndex = index;
+    cueGroup.userData.cueOptionColor = color;
 
     const bounds = new THREE.Box3().setFromObject(cueGroup);
     const center = new THREE.Vector3();
@@ -219,12 +229,17 @@ export function createCueRackDisplay({
 
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
+  const cueLift = clothHeight * 0.14;
 
   for (let i = 0; i < cueCount; i += 1) {
-    const cue = makeCue(woodPalette[i % woodPalette.length], i);
-    cue.position.set(startX + i * stepX, 0, cueDepth);
+    const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
+    const cue = makeCue(color, i);
+    cue.position.set(startX + i * stepX, cueLift, cueDepth);
     group.add(cue);
   }
+
+  group.userData = group.userData || {};
+  group.userData.isCueRack = true;
 
   const dimensions = { width: frameWidth, height: frameHeight, depth: frameDepth };
   group.userData.cueRackDimensions = dimensions;

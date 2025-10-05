@@ -21,7 +21,10 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
-import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
+import {
+  createCueRackDisplay,
+  CUE_RACK_PALETTE
+} from '../../utils/createCueRackDisplay.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -487,6 +490,7 @@ function addPocketCuts(parent, clothPlane) {
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_SCALE = 0.93;
 const TABLE = {
   W: 66 * TABLE_SCALE,
@@ -4739,6 +4743,91 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const chalkAssistEnabledRef = useRef(false);
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
+  const [cueStyleIndex, setCueStyleIndex] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
+      if (stored != null) {
+        const parsed = Number.parseInt(stored, 10);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          return parsed % CUE_RACK_PALETTE.length;
+        }
+      }
+    }
+    return 0;
+  });
+  const cueStyleIndexRef = useRef(cueStyleIndex);
+  const cueRackGroupsRef = useRef([]);
+  const cueOptionGroupsRef = useRef([]);
+  const cueRackMetaRef = useRef(new Map());
+  const cueMaterialsRef = useRef({ shaft: null });
+  const cueGalleryStateRef = useRef({
+    active: false,
+    rackId: null,
+    position: new THREE.Vector3(),
+    target: new THREE.Vector3(),
+    prev: null
+  });
+
+  const getCueColorFromIndex = useCallback((index) => {
+    if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
+      return 0xdeb887;
+    }
+    const paletteLength = CUE_RACK_PALETTE.length;
+    const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
+    return CUE_RACK_PALETTE[normalized];
+  }, []);
+
+  const updateCueRackHighlights = useCallback(() => {
+    const selectedIndex = cueStyleIndexRef.current ?? 0;
+    const groups = cueOptionGroupsRef.current;
+    if (!Array.isArray(groups)) return;
+    groups.forEach((group) => {
+      if (!group) return;
+      const isSelected =
+        group.userData?.cueOptionIndex === selectedIndex &&
+        group.userData?.cueOptionIndex != null;
+      group.traverse((node) => {
+        if (!node?.isMesh) return;
+        const materials = Array.isArray(node.material)
+          ? node.material
+          : [node.material];
+        materials.forEach((material) => {
+          if (!material?.userData?.isCueWood) return;
+          if (!material.emissive) {
+            material.emissive = new THREE.Color(0, 0, 0);
+          }
+          material.emissiveIntensity = isSelected ? 0.32 : 0.08;
+          material.emissive.setHex(isSelected ? 0x442200 : 0x000000);
+          material.needsUpdate = true;
+        });
+      });
+    });
+  }, []);
+
+  const applySelectedCueStyle = useCallback(
+    (index) => {
+      const color = getCueColorFromIndex(index);
+      cueStyleIndexRef.current = index;
+      const shaftMaterial = cueMaterialsRef.current?.shaft;
+      if (shaftMaterial && typeof color === 'number') {
+        shaftMaterial.color.setHex(color);
+        shaftMaterial.needsUpdate = true;
+      }
+      updateCueRackHighlights();
+    },
+    [getCueColorFromIndex, updateCueRackHighlights]
+  );
+
+  useEffect(() => {
+    cueStyleIndexRef.current = cueStyleIndex;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        CUE_STYLE_STORAGE_KEY,
+        String(cueStyleIndex)
+      );
+    }
+    applySelectedCueStyle(cueStyleIndex);
+  }, [cueStyleIndex, applySelectedCueStyle]);
 
   const highlightChalks = useCallback(
     (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
@@ -5571,6 +5660,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const host = mountRef.current;
     if (!host) return;
     let loadTimer = null;
+    const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -6119,34 +6209,69 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         world.add(signage);
       });
 
-      const { group: cueRackPrototype, dimensions: cueRackDimensions } =
+      cueRackGroupsRef.current = [];
+      cueOptionGroupsRef.current = [];
+      cueRackMetaRef.current = new Map();
+
+      const registerCueRack = (rack, dispose, dims) => {
+        if (!rack) return;
+        const rackId = `rack-${cueRackGroupsRef.current.length}`;
+        rack.userData = rack.userData || {};
+        rack.userData.rackId = rackId;
+        cueRackGroupsRef.current.push(rack);
+        cueRackMetaRef.current.set(rackId, {
+          id: rackId,
+          group: rack,
+          dimensions: dims,
+          dispose
+        });
+        rack.traverse((child) => {
+          if (!child) return;
+          child.userData = child.userData || {};
+          child.userData.cueRackId = rackId;
+          if (child.userData.isCueOption) {
+            cueOptionGroupsRef.current.push(child);
+          }
+        });
+      };
+
+      const createRackEntry = () =>
         createCueRackDisplay({
           THREE,
           ballRadius: BALL_R,
           cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
           cueTipRadius: CUE_TIP_RADIUS
         });
+
+      const baseRackEntry = createRackEntry();
+      const cueRackDimensions = baseRackEntry.dimensions;
       const cueRackHalfWidth = cueRackDimensions.width / 2;
       const availableHalfDepth =
         roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-      const desiredSpacing =
-        signageWidth / 2 + cueRackHalfWidth + BALL_R * 6;
-      const cueRackSpacing = Math.max(
+      const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
+      const cueRackOffset = Math.max(
         cueRackHalfWidth,
-        Math.min(availableHalfDepth, desiredSpacing)
+        Math.min(availableHalfDepth, desiredOffset)
       );
       const cueRackY = signageY;
-      [
-        { x: leftInterior, z: -cueRackSpacing, rotationY: Math.PI / 2 },
-        { x: leftInterior, z: cueRackSpacing, rotationY: Math.PI / 2 },
-        { x: rightInterior, z: -cueRackSpacing, rotationY: -Math.PI / 2 },
-        { x: rightInterior, z: cueRackSpacing, rotationY: -Math.PI / 2 }
-      ].forEach((placement, index) => {
-        const rack = index === 0 ? cueRackPrototype : cueRackPrototype.clone();
+      const cueRackPlacements = [
+        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
+        { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
+      ];
+
+      cueRackPlacements.forEach((placement, index) => {
+        const entry = index === 0 ? baseRackEntry : createRackEntry();
+        const rack = entry.group;
+        if (!rack) return;
         rack.position.set(placement.x, cueRackY, placement.z);
         rack.rotation.y = placement.rotationY;
         world.add(rack);
+        registerCueRack(rack, entry.dispose, entry.dimensions);
+        if (typeof entry.dispose === 'function') {
+          cueRackDisposers.push(entry.dispose);
+        }
       });
+      updateCueRackHighlights();
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
@@ -6772,7 +6897,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
             lerp: 0.18
           };
-          if (topViewRef.current) {
+          const galleryState = cueGalleryStateRef.current;
+          if (galleryState?.active) {
+            const galleryTarget = galleryState.target?.clone() ?? new THREE.Vector3();
+            const galleryPosition = galleryState.position?.clone() ?? new THREE.Vector3();
+            camera.position.copy(galleryPosition);
+            camera.lookAt(galleryTarget);
+            renderCamera = camera;
+            lookTarget = galleryTarget;
+            broadcastArgs.focusWorld = galleryTarget.clone();
+            broadcastArgs.targetWorld = galleryTarget.clone();
+            broadcastArgs.lerp = 0.08;
+          } else if (topViewRef.current) {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
             );
@@ -7821,6 +7957,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
         const down = (e) => {
           registerInteraction();
+          if (attemptCueSelection(e)) return;
+          if (cueGalleryStateRef.current.active) return;
+          if (attemptCueGalleryPress(e)) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
@@ -7832,6 +7971,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
         };
         const move = (e) => {
+          if (cueGalleryStateRef.current.active) return;
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -7872,6 +8012,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
         const up = (e) => {
           registerInteraction();
+          if (cueGalleryStateRef.current.active) {
+            drag.on = false;
+            drag.moved = false;
+            return;
+          }
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
@@ -8209,6 +8354,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         color: 0xdeb887,
         roughness: 0.6
       });
+      cueMaterialsRef.current.shaft = shaftMaterial;
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,
         cueLen * 0.1,
@@ -8337,6 +8483,166 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
+      applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
+
+      const closeCueGallery = () => {
+        const state = cueGalleryStateRef.current;
+        if (!state?.active) return;
+        const prev = state.prev;
+        state.active = false;
+        state.rackId = null;
+        state.prev = null;
+        if (prev) {
+          topViewRef.current = prev.topView ?? false;
+          const focusStore = ensureOrbitFocus();
+          if (prev.focus?.target) {
+            focusStore.target.copy(prev.focus.target);
+          }
+          focusStore.ballId = prev.focus?.ballId ?? null;
+          if (prev.spherical) {
+            sph.radius = prev.spherical.radius ?? sph.radius;
+            sph.phi = prev.spherical.phi ?? sph.phi;
+            sph.theta = prev.spherical.theta ?? sph.theta;
+          }
+          applyCameraBlend(prev.blend ?? cameraBlendRef.current);
+        }
+        updateCamera();
+      };
+
+      const openCueGallery = (rackId) => {
+        if (!rackId) return;
+        const meta = cueRackMetaRef.current.get(rackId);
+        if (!meta?.group) return;
+        const state = cueGalleryStateRef.current;
+        const rack = meta.group;
+        rack.updateMatrixWorld(true);
+        const rackPos = new THREE.Vector3();
+        rack.getWorldPosition(rackPos);
+        const rackQuat = new THREE.Quaternion();
+        rack.getWorldQuaternion(rackQuat);
+        const forward = new THREE.Vector3(0, 0, 1)
+          .applyQuaternion(rackQuat)
+          .normalize();
+        const upVec = new THREE.Vector3(0, 1, 0)
+          .applyQuaternion(rackQuat)
+          .normalize();
+        const dims = meta.dimensions ?? rack.userData?.cueRackDimensions ?? {};
+        const width = (dims.width ?? 4) * worldScaleFactor;
+        const height = (dims.height ?? 3) * worldScaleFactor;
+        const depth = (dims.depth ?? 0.2) * worldScaleFactor;
+        const distance = Math.max(
+          depth * 12,
+          width * 0.85,
+          BALL_R * worldScaleFactor * 22
+        );
+        const position = rackPos
+          .clone()
+          .add(forward.clone().multiplyScalar(distance))
+          .add(upVec.clone().multiplyScalar(height * 0.18));
+        const target = rackPos.clone().add(upVec.clone().multiplyScalar(height * 0.06));
+        const focusStore = ensureOrbitFocus();
+        state.active = true;
+        state.rackId = rackId;
+        state.prev = {
+          topView: topViewRef.current,
+          spherical: {
+            radius: sph.radius,
+            phi: sph.phi,
+            theta: sph.theta
+          },
+          blend: cameraBlendRef.current,
+          focus: {
+            target: focusStore.target.clone(),
+            ballId: focusStore.ballId
+          }
+        };
+        state.position.copy(position);
+        state.target.copy(target);
+        topViewRef.current = false;
+        applyCameraBlend(cameraBlendRef.current);
+        updateCamera();
+      };
+
+      const attemptCueGalleryPress = (ev) => {
+        if (cueGalleryStateRef.current.active) return false;
+        const currentHud = hudRef.current;
+        if (currentHud?.inHand || shooting) return false;
+        if (ev.touches?.length && ev.touches.length > 1) return false;
+        const racks = cueRackGroupsRef.current;
+        if (!Array.isArray(racks) || racks.length === 0) return false;
+        const rect = dom.getBoundingClientRect();
+        const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+        const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+        if (clientX == null || clientY == null) return false;
+        if (
+          clientX < rect.left ||
+          clientX > rect.right ||
+          clientY < rect.top ||
+          clientY > rect.bottom
+        ) {
+          return false;
+        }
+        const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+        pointer.set(nx, ny);
+        const currentCamera = activeRenderCameraRef.current ?? camera;
+        ray.setFromCamera(pointer, currentCamera);
+        const intersects = ray.intersectObjects(racks, true);
+        if (intersects.length === 0) return false;
+        let hit = intersects[0].object;
+        while (hit && !hit.userData?.isCueRack && !hit.userData?.cueRackId) {
+          hit = hit.parent;
+        }
+        const rackId = hit?.userData?.cueRackId ?? hit?.userData?.rackId;
+        if (!rackId) return false;
+        openCueGallery(rackId);
+        return true;
+      };
+
+      const attemptCueSelection = (ev) => {
+        const state = cueGalleryStateRef.current;
+        if (!state?.active) return false;
+        const rect = dom.getBoundingClientRect();
+        const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+        const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+        if (clientX == null || clientY == null) return true;
+        if (
+          clientX < rect.left ||
+          clientX > rect.right ||
+          clientY < rect.top ||
+          clientY > rect.bottom
+        ) {
+          return true;
+        }
+        const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+        pointer.set(nx, ny);
+        const currentCamera = activeRenderCameraRef.current ?? camera;
+        ray.setFromCamera(pointer, currentCamera);
+        const groups = cueOptionGroupsRef.current;
+        if (!Array.isArray(groups) || groups.length === 0) return true;
+        const intersects = ray.intersectObjects(groups, true);
+        if (intersects.length === 0) return true;
+        let hit = intersects[0].object;
+        while (hit && !hit.userData?.isCueOption) {
+          hit = hit.parent;
+        }
+        if (!hit?.userData?.isCueOption) return true;
+        const rackId = hit.userData?.cueRackId ?? hit.parent?.userData?.cueRackId;
+        if (rackId && rackId !== state.rackId) {
+          openCueGallery(rackId);
+          return true;
+        }
+        const cueIndex = hit.userData?.cueOptionIndex;
+        if (cueIndex == null) return true;
+        const paletteLength = CUE_RACK_PALETTE.length || 1;
+        const normalized =
+          ((cueIndex % paletteLength) + paletteLength) % paletteLength;
+        applySelectedCueStyle(normalized);
+        setCueStyleIndex(normalized);
+        closeCueGallery();
+        return true;
+      };
 
       spinRangeRef.current = {
         side: MAX_SPIN_SIDE,
@@ -10155,6 +10461,21 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
           chalkAssistTargetRef.current = false;
+          while (cueRackDisposers.length) {
+            const dispose = cueRackDisposers.pop();
+            try {
+              dispose?.();
+            } catch {}
+          }
+          cueRackGroupsRef.current = [];
+          cueOptionGroupsRef.current = [];
+          cueRackMetaRef.current = new Map();
+          cueMaterialsRef.current.shaft = null;
+          cueGalleryStateRef.current.active = false;
+          cueGalleryStateRef.current.rackId = null;
+          cueGalleryStateRef.current.prev = null;
+          cueGalleryStateRef.current.position?.set(0, 0, 0);
+          cueGalleryStateRef.current.target?.set(0, 0, 0);
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
