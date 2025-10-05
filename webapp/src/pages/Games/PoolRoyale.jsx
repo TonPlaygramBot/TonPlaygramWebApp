@@ -684,7 +684,7 @@ const ACTION_CAM = Object.freeze({
  * • Pas çdo raundi → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
-const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 15;
+const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -2363,7 +2363,7 @@ const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.16);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.3;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.26;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.22;
@@ -2382,7 +2382,7 @@ const CAMERA = {
   maxPhi: CAMERA_MAX_PHI
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 1.04; // keep standing orbit safely above cushion lip and align with pocket cam height
-const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.42; // keep cue view hovering level with the rail tops so it never dips below the frame
+const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // clamp cue view so the camera remains above the rail surface
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2397,7 +2397,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: CAMERA.minR, // start the intro framing closer to the table surface
+  radius: CAMERA.minR + BALL_R * 12, // pull the opening view further back while keeping the table centred
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
