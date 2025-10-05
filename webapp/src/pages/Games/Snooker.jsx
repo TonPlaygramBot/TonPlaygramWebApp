@@ -1717,6 +1717,7 @@ function createBroadcastCameras({
   const cameraCornerExtra = BALL_R * 6;
   const cameraSideBoost = BALL_R * 10;
   const cameraDepthBoost = BALL_R * 2;
+  const cameraWallSlide = BALL_R * 4;
   const baseCornerX =
     typeof arenaHalfWidth === 'number'
       ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
@@ -1725,7 +1726,8 @@ function createBroadcastCameras({
     typeof arenaHalfDepth === 'number'
       ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
       : fallbackCornerZ;
-  const cameraCornerXOffset = baseCornerX + cameraCornerExtra + cameraSideBoost;
+  const cameraCornerXOffset =
+    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide;
   const cameraCornerZOffset = baseCornerZ + cameraCornerExtra + cameraDepthBoost;
   const cameraScale = 1.2;
 
@@ -3870,10 +3872,14 @@ function Table3D(
     ];
   };
   const chalkBaseY = railsTopY + chalkHeight / 2;
-  const zOffset = Math.max(outerHalfH * 0.72, outerHalfH - BALL_R * 1.6, BALL_R * 2.1);
+  const chalkXOffset = outerHalfW + BALL_R * 2.4;
+  const chalkZOffset = -Math.max(
+    outerHalfH * 0.45,
+    BALL_R * 3.1
+  );
   const chalkMesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
-  chalkMesh.position.set(0, chalkBaseY, zOffset);
-  chalkMesh.rotation.y = Math.PI / 12;
+  chalkMesh.position.set(chalkXOffset, chalkBaseY, chalkZOffset);
+  chalkMesh.rotation.y = Math.PI / 9;
   chalkMesh.castShadow = true;
   chalkMesh.receiveShadow = true;
   chalkMesh.userData.isChalk = true;
@@ -5306,6 +5312,11 @@ function SnookerGame() {
             const minutes = Math.floor(timerValue / 60);
             const seconds = timerValue % 60;
             const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const highestBreakA =
+              frameStateCurrent.players?.A?.highestBreak ?? 0;
+            const highestBreakB =
+              frameStateCurrent.players?.B?.highestBreak ?? 0;
+            const currentBreak = frameStateCurrent.currentBreak ?? 0;
             ctx.fillStyle = '#050b18';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
@@ -5325,7 +5336,8 @@ function SnookerGame() {
               accent,
               tag,
               active,
-              badge
+              badge,
+              stats = []
             }) => {
               const scoreY = canvas.height * 0.3;
               ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
@@ -5339,7 +5351,7 @@ function SnookerGame() {
               ctx.fillText(String(score ?? 0), x, scoreY);
               ctx.shadowBlur = 0;
               const avatarY = canvas.height * 0.55;
-              const avatarRadius = 70;
+              const avatarRadius = 90;
               ctx.save();
               ctx.translate(x, avatarY);
               ctx.fillStyle = accent;
@@ -5361,9 +5373,28 @@ function SnookerGame() {
               ctx.fillText(name, x, avatarY + avatarRadius + 12);
               ctx.fillStyle = '#94a3b8';
               ctx.font = '500 32px "Segoe UI", "Helvetica Neue", sans-serif';
-              ctx.fillText(tag, x, avatarY + avatarRadius + 52);
+              const tagY = avatarY + avatarRadius + 52;
+              ctx.fillText(tag, x, tagY);
+              const statsStartY = tagY + 36;
+              stats.forEach(({ label, value }, index) => {
+                const lineY = statsStartY + index * 30;
+                ctx.fillStyle = '#7c8faa';
+                ctx.font = '500 28px "Segoe UI", "Helvetica Neue", sans-serif';
+                ctx.fillText(`${label}: ${value}`, x, lineY);
+              });
             };
             const activeTurn = hudState.turn === 0 ? 'A' : 'B';
+            const buildStats = (id, isActive) => {
+              const highestBreak =
+                id === 'A' ? highestBreakA : highestBreakB;
+              const status = isActive
+                ? `AT TABLE · BREAK ${Math.max(currentBreak, 0)}`
+                : 'WAITING TURN';
+              return [
+                { label: 'HIGHEST BREAK', value: highestBreak },
+                { label: 'STATUS', value: status }
+              ];
+            };
             drawCompetitor({
               x: canvas.width * 0.25,
               name: playerName,
@@ -5372,7 +5403,8 @@ function SnookerGame() {
               tag: 'PLAYER ONE',
               active: activeTurn === 'A',
               badge:
-                (playerName || 'P').trim().charAt(0).toUpperCase() || 'P'
+                (playerName || 'P').trim().charAt(0).toUpperCase() || 'P',
+              stats: buildStats('A', activeTurn === 'A')
             });
             drawCompetitor({
               x: canvas.width * 0.75,
@@ -5381,7 +5413,8 @@ function SnookerGame() {
               accent: '#f97316',
               tag: 'CHALLENGER',
               active: activeTurn === 'B',
-              badge: aiFlag || (aiName || 'A').charAt(0).toUpperCase()
+              badge: aiFlag || (aiName || 'A').charAt(0).toUpperCase(),
+              stats: buildStats('B', activeTurn === 'B')
             });
             const timerY = canvas.height * 0.18;
             const warn = timerValue <= 5 && timerValue > 0;
@@ -5829,15 +5862,31 @@ function SnookerGame() {
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(scaledFurniture);
-        tableSet.position.set(0, 0, 0);
+        const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
+        const chairDistance = chairVector.length();
+        if (chairDistance > 1e-6) {
+          const tablePull = Math.min(
+            chairDistance * 0.35,
+            toHospitalityUnits(0.12) * hospitalityUpscale
+          );
+          const pullScale = tablePull / chairDistance;
+          tableSet.position.set(
+            chairVector.x * pullScale,
+            0,
+            chairVector.y * pullScale
+          );
+        } else {
+          tableSet.position.set(0, 0, 0);
+        }
         group.add(tableSet);
 
         const chair = createChair();
         chair.scale.setScalar(scaledFurniture);
         chair.position.set(chairOffset[0], 0, chairOffset[1]);
-        const dx = tableSet.position.x - chair.position.x;
-        const dz = tableSet.position.z - chair.position.z;
-        chair.rotation.y = Math.atan2(dx, dz);
+        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
+        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
+        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
+        chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
         group.position.set(position[0], floorY, position[1]);
