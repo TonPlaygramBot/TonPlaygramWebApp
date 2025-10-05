@@ -165,9 +165,9 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.1;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.06;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
+const CHROME_CORNER_EXPANSION_SCALE = 1.18;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.12;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -638,11 +638,11 @@ const ACTION_CAM = Object.freeze({
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 10.5,
+  heightOffset: BALL_R * 9.2,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
-  followHeightOffset: BALL_R * 8.4,
+  followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
 });
 /**
@@ -2359,11 +2359,11 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.26;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.88;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.008;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.004;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2375,7 +2375,7 @@ const CAMERA = {
   maxPhi: CAMERA_MAX_PHI
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 1.04; // keep standing orbit safely above cushion lip and align with pocket cam height
-const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.18; // let cue view settle near the rail top without dipping below the cue stick
+const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.42; // keep cue view hovering level with the rail tops so it never dips below the frame
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -3635,7 +3635,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.03 * POCKET_VISUAL_EXPANSION; // trim short rail cushions so they stop before the chrome pocket arcs
+    POCKET_VIS_R * -0.02 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs cleanly
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -6217,24 +6217,21 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const limit = rig.slideLimit ?? CAMERA_LATERAL_CLAMP.short;
           const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
           const focusTarget =
-            focusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
-          const clampX = (value) =>
-            THREE.MathUtils.clamp(value, -limit, limit);
-          const scale = Math.max(worldScaleFactor ?? 1, 1e-6);
-          const nextX =
-            targetWorld && Number.isFinite(targetWorld.x)
-              ? clampX(targetWorld.x / scale)
-              : 0;
-          const applyFocus = (unit, target, t, lookAt) => {
+            focusWorld ??
+            targetWorld ??
+            rig.defaultFocusWorld ??
+            rig.defaultFocus ??
+            null;
+          const applyFocus = (unit, lookAt, t) => {
             if (!unit) return;
             if (unit.slider) {
+              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
               unit.slider.position.x = THREE.MathUtils.lerp(
                 unit.slider.position.x,
-                target,
-                t
+                0,
+                settle
               );
             }
             if (lookAt && unit.head) {
@@ -6251,10 +6248,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           ].filter(Boolean);
           const activeUnits = railDir >= 0 ? backUnits : frontUnits;
           const idleUnits = railDir >= 0 ? frontUnits : backUnits;
-          activeUnits.forEach((unit) => applyFocus(unit, nextX, lerpFactor, focusTarget));
+          activeUnits.forEach((unit) =>
+            applyFocus(unit, focusTarget, lerpFactor)
+          );
           const idleFocus = rig.defaultFocusWorld ?? focusTarget;
           idleUnits.forEach((unit) =>
-            applyFocus(unit, 0, Math.min(1, lerpFactor * 0.6), idleFocus)
+            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
           );
         };
 
@@ -6379,7 +6378,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 );
                 if (axis === 'short') {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const baseX = THREE.MathUtils.clamp(
+                  const cueOffsetX = THREE.MathUtils.clamp(
                     anchor.x + offsetSide.x * 0.6 + offsetBack.x * 0.25,
                     -lateralClamp,
                     lateralClamp
@@ -6389,7 +6388,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.5 : 0;
                   const desired = new THREE.Vector3(
-                    baseX,
+                    0,
                     heightBase + ACTION_CAM.heightOffset + heightLift,
                     railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
                   );
@@ -6401,8 +6400,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       0.35
                     );
                   }
+                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
+                  const focusShiftSign = signed(
+                    cueOffsetX,
+                    signed(anchor.x, 1)
+                  );
                   lookAnchor.x +=
-                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
                   lookAnchor.z +=
                     -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
@@ -6457,7 +6461,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 const lateral = perp.multiplyScalar(BALL_R * 6);
                 if (axis === 'short') {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const baseX = THREE.MathUtils.clamp(
+                  const cueOffsetX = THREE.MathUtils.clamp(
                     anchor.x - dir.x * BALL_R * 6 + lateral.x,
                     -lateralClamp,
                     lateralClamp
@@ -6467,7 +6471,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.2 : 0;
                   const desired = new THREE.Vector3(
-                    baseX,
+                    0,
                     heightBase + ACTION_CAM.followHeightOffset + heightLift,
                     railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
                   );
@@ -6479,8 +6483,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       0.35
                     );
                   }
+                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
+                  const focusShiftSign = signed(
+                    cueOffsetX,
+                    signed(anchor.x, 1)
+                  );
                   lookAnchor.x +=
-                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
                   lookAnchor.z +=
                     -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
