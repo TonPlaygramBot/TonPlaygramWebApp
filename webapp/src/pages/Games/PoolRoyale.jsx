@@ -4048,8 +4048,9 @@ function Table3D(
 
   const chalkGroup = new THREE.Group();
   const chalkMeshes = [];
-  const chalkSize = BALL_R * 1.92;
-  const chalkHeight = BALL_R * 1.35;
+  const chalkScale = 0.5;
+  const chalkSize = BALL_R * 1.92 * chalkScale;
+  const chalkHeight = BALL_R * 1.35 * chalkScale;
   const chalkGeometry = new THREE.BoxGeometry(chalkSize, chalkHeight, chalkSize);
   const createChalkMaterials = () => {
     const top = new THREE.MeshPhysicalMaterial({
@@ -4083,24 +4084,16 @@ function Table3D(
     ];
   };
   const chalkBaseY = railsTopY + chalkHeight / 2;
-  const xSpread = Math.max(outerHalfW * 0.45, outerHalfW - BALL_R * 2.4, BALL_R * 1.4);
-  const xPositions = [-xSpread, 0, xSpread];
   const zOffset = Math.max(outerHalfH * 0.72, outerHalfH - BALL_R * 1.6, BALL_R * 2.1);
-  const rows = [zOffset, -zOffset];
-  rows.forEach((z, rowIndex) => {
-    xPositions.forEach((x, columnIndex) => {
-      const chalkIndex = rowIndex * xPositions.length + columnIndex;
-      const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
-      mesh.position.set(x, chalkBaseY, z);
-      mesh.rotation.y = ((chalkIndex % 2 === 0 ? 1 : -1) * Math.PI) / 12;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData.isChalk = true;
-      mesh.userData.chalkIndex = chalkIndex;
-      chalkGroup.add(mesh);
-      chalkMeshes.push(mesh);
-    });
-  });
+  const chalkMesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
+  chalkMesh.position.set(0, chalkBaseY, zOffset);
+  chalkMesh.rotation.y = Math.PI / 12;
+  chalkMesh.castShadow = true;
+  chalkMesh.receiveShadow = true;
+  chalkMesh.userData.isChalk = true;
+  chalkMesh.userData.chalkIndex = 0;
+  chalkGroup.add(chalkMesh);
+  chalkMeshes.push(chalkMesh);
   table.add(chalkGroup);
   table.userData.chalks = chalkMeshes;
 
