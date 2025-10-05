@@ -2362,13 +2362,13 @@ const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.16);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.34;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.26;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.22;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.88;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.82;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.8;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.004;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
