@@ -530,9 +530,8 @@ const BALL_R = BALL_DIAMETER / 2;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_SIZE_REDUCTION = 0.9; // uniformly tighten pocket mouths while keeping their proportions
-const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_SIZE_REDUCTION;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIZE_REDUCTION;
+const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
@@ -2350,20 +2349,20 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.96; // drop the orbit closer to the rail height for a lower standing look
+const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0018;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.16);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.32;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.12;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.22;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.76;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.74;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.82;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.8;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.004;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
@@ -2375,7 +2374,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.9; // keep standing orbit safely above cushion lip while sitting noticeably lower
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 1.04; // keep standing orbit safely above cushion lip and align with pocket cam height
 const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.42; // keep cue view hovering level with the rail tops so it never dips below the frame
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
