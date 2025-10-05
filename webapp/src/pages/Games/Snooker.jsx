@@ -3952,38 +3952,27 @@ function Table3D(
   const chalkBaseY = railsTopY + chalkHeight / 2;
   const sideRailCenterX = PLAY_W / 2 + longRailW * 0.5;
   const endRailCenterZ = PLAY_H / 2 + endRailW * 0.5;
-  const segmentOffsetZ = PLAY_H / 4;
   const chalkDetectionSlack = TABLE.WALL * 0.12;
   const chalkSideReach = longRailW + frameWidthLong * 0.6 + chalkDetectionSlack;
   const chalkEndReach = endRailW + frameWidthEnd * 0.6 + chalkDetectionSlack;
   const chalkSlots = [
     {
       index: 0,
-      position: new THREE.Vector3(-sideRailCenterX, chalkBaseY, -segmentOffsetZ),
+      position: new THREE.Vector3(-sideRailCenterX, chalkBaseY, 0),
       rotationY: Math.PI / 2
     },
     {
       index: 1,
-      position: new THREE.Vector3(-sideRailCenterX, chalkBaseY, segmentOffsetZ),
-      rotationY: Math.PI / 2
+      position: new THREE.Vector3(sideRailCenterX, chalkBaseY, 0),
+      rotationY: -Math.PI / 2
     },
     {
       index: 2,
-      position: new THREE.Vector3(sideRailCenterX, chalkBaseY, -segmentOffsetZ),
-      rotationY: -Math.PI / 2
-    },
-    {
-      index: 3,
-      position: new THREE.Vector3(sideRailCenterX, chalkBaseY, segmentOffsetZ),
-      rotationY: -Math.PI / 2
-    },
-    {
-      index: 4,
       position: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ),
       rotationY: 0
     },
     {
-      index: 5,
+      index: 3,
       position: new THREE.Vector3(0, chalkBaseY, endRailCenterZ),
       rotationY: Math.PI
     }
@@ -3996,7 +3985,7 @@ function Table3D(
     mesh.receiveShadow = true;
     mesh.userData.isChalk = true;
     mesh.userData.chalkIndex = slot.index;
-    mesh.visible = false;
+    mesh.visible = true;
     chalkGroup.add(mesh);
     chalkMeshes.push(mesh);
   });
@@ -4476,6 +4465,47 @@ function SnookerGame() {
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
 
+  const highlightChalks = useCallback(
+    (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
+      const meshes = chalkMeshesRef.current;
+      if (!Array.isArray(meshes)) return;
+      meshes.forEach((mesh) => {
+        if (!mesh) return;
+        const chalkIndex = mesh.userData?.chalkIndex;
+        const materials = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        const isActive = chalkIndex === activeIndex;
+        const isSuggested = chalkIndex === suggestedIndex && !isActive;
+        materials.forEach((mat, matIndex) => {
+          if (!mat || !mat.color) return;
+          if (matIndex === 2) {
+            mat.color.setHex(isActive ? CHALK_ACTIVE_COLOR : CHALK_TOP_COLOR);
+          } else if (matIndex === 3) {
+            mat.color.setHex(CHALK_BOTTOM_COLOR);
+          } else {
+            mat.color.setHex(
+              isActive || isSuggested
+                ? CHALK_SIDE_ACTIVE_COLOR
+                : CHALK_SIDE_COLOR
+            );
+          }
+          if (mat.emissive) {
+            if (isActive) {
+              mat.emissive.setHex(CHALK_ACTIVE_EMISSIVE_COLOR);
+              mat.emissiveIntensity = 0.42;
+            } else {
+              mat.emissive.setHex(CHALK_EMISSIVE_COLOR);
+              mat.emissiveIntensity = isSuggested ? 0.28 : 0.18;
+            }
+          }
+          mat.needsUpdate = true;
+        });
+      });
+    },
+    []
+  );
+
   const updateChalkVisibility = useCallback(
     (index) => {
       const previous = visibleChalkIndexRef.current;
@@ -4485,7 +4515,7 @@ function SnookerGame() {
       if (Array.isArray(meshes)) {
         meshes.forEach((mesh) => {
           if (!mesh) return;
-          mesh.visible = index != null && mesh.userData?.chalkIndex === index;
+          mesh.visible = true;
         });
       }
       if (
@@ -4494,43 +4524,14 @@ function SnookerGame() {
       ) {
         setActiveChalkIndex(null);
       }
+      highlightChalks(activeChalkIndexRef.current, index);
     },
-    [setActiveChalkIndex]
+    [highlightChalks, setActiveChalkIndex]
   );
-
-  const highlightChalks = useCallback((activeIndex) => {
-    const meshes = chalkMeshesRef.current;
-    meshes.forEach((mesh, idx) => {
-      if (!mesh) return;
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material];
-      const isActive = idx === activeIndex;
-      materials.forEach((mat, matIndex) => {
-        if (!mat || !mat.color) return;
-        if (matIndex === 2) {
-          mat.color.setHex(isActive ? CHALK_ACTIVE_COLOR : CHALK_TOP_COLOR);
-        } else if (matIndex === 3) {
-          mat.color.setHex(CHALK_BOTTOM_COLOR);
-        } else {
-          mat.color.setHex(
-            isActive ? CHALK_SIDE_ACTIVE_COLOR : CHALK_SIDE_COLOR
-          );
-        }
-        if (mat.emissive) {
-          mat.emissive.setHex(
-            isActive ? CHALK_ACTIVE_EMISSIVE_COLOR : CHALK_EMISSIVE_COLOR
-          );
-          mat.emissiveIntensity = isActive ? 0.42 : 0.18;
-        }
-        mat.needsUpdate = true;
-      });
-    });
-  }, []);
 
   useEffect(() => {
     activeChalkIndexRef.current = activeChalkIndex;
-    highlightChalks(activeChalkIndex);
+    highlightChalks(activeChalkIndex, visibleChalkIndexRef.current);
     chalkAssistEnabledRef.current = activeChalkIndex !== null;
     if (activeChalkIndex === null) {
       chalkAssistTargetRef.current = false;
@@ -9057,16 +9058,16 @@ function SnookerGame() {
             if (bestSide) {
               switch (bestSide) {
                 case 'left':
-                  visibleChalkIndex = TMP_VEC3_BUTT.z >= 0 ? 1 : 0;
+                  visibleChalkIndex = 0;
                   break;
                 case 'right':
-                  visibleChalkIndex = TMP_VEC3_BUTT.z >= 0 ? 3 : 2;
+                  visibleChalkIndex = 1;
                   break;
                 case 'top':
-                  visibleChalkIndex = 4;
+                  visibleChalkIndex = 2;
                   break;
                 case 'bottom':
-                  visibleChalkIndex = 5;
+                  visibleChalkIndex = 3;
                   break;
                 default:
                   visibleChalkIndex = null;
