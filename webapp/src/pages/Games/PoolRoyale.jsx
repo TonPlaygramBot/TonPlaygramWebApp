@@ -165,9 +165,9 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.1;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.06;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.12;
+const CHROME_CORNER_EXPANSION_SCALE = 1.14;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.08;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -689,6 +689,7 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
+const SHORT_RAIL_STATIC_OFFSET = BALL_R * 6;
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
@@ -2359,11 +2360,11 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping be
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.4;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.26;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.88;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.008;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.82;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.8;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.004;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2375,7 +2376,7 @@ const CAMERA = {
   maxPhi: CAMERA_MAX_PHI
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 1.04; // keep standing orbit safely above cushion lip and align with pocket cam height
-const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.18; // let cue view settle near the rail top without dipping below the cue stick
+const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.34; // keep cue view from dipping beneath the rails
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2423,7 +2424,7 @@ const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
-  RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
+  RAIL_LIMIT_Y - POCKET_VIS_R * 0.3; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
@@ -3635,7 +3636,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.03 * POCKET_VISUAL_EXPANSION; // trim short rail cushions so they stop before the chrome pocket arcs
+    POCKET_VIS_R * 0.01 * POCKET_VISUAL_EXPANSION; // trim short rail cushions so they stop before the chrome pocket arcs
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3645,7 +3646,7 @@ function Table3D(
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
+    POCKET_VIS_R * 0.035 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -6379,8 +6380,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 );
                 if (axis === 'short') {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.short;
+                  const baseSign =
+                    Math.sign(activeShotView.shortRailLateralSign ?? 0) || 1;
+                  activeShotView.shortRailLateralSign = baseSign;
                   const baseX = THREE.MathUtils.clamp(
-                    anchor.x + offsetSide.x * 0.6 + offsetBack.x * 0.25,
+                    baseSign * SHORT_RAIL_STATIC_OFFSET,
                     -lateralClamp,
                     lateralClamp
                   );
@@ -6397,12 +6401,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   if (activeShotView.longShot) {
                     lookAnchor.x = THREE.MathUtils.lerp(
                       lookAnchor.x,
-                      0,
+                      baseX,
                       0.35
                     );
                   }
+                  lookAnchor.x = THREE.MathUtils.lerp(
+                    lookAnchor.x,
+                    baseX,
+                    activeShotView.longShot ? 0.75 : 0.82
+                  );
                   lookAnchor.x +=
-                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                    baseSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
                   lookAnchor.z +=
                     -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
@@ -6457,8 +6466,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 const lateral = perp.multiplyScalar(BALL_R * 6);
                 if (axis === 'short') {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.short;
+                  const baseSign =
+                    Math.sign(activeShotView.shortRailLateralSign ?? 0) || 1;
+                  activeShotView.shortRailLateralSign = baseSign;
                   const baseX = THREE.MathUtils.clamp(
-                    anchor.x - dir.x * BALL_R * 6 + lateral.x,
+                    baseSign * SHORT_RAIL_STATIC_OFFSET,
                     -lateralClamp,
                     lateralClamp
                   );
@@ -6475,12 +6487,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   if (activeShotView.longShot) {
                     lookAnchor.x = THREE.MathUtils.lerp(
                       lookAnchor.x,
-                      0,
+                      baseX,
                       0.35
                     );
                   }
+                  lookAnchor.x = THREE.MathUtils.lerp(
+                    lookAnchor.x,
+                    baseX,
+                    activeShotView.longShot ? 0.75 : 0.82
+                  );
                   lookAnchor.x +=
-                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                    baseSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
                   lookAnchor.z +=
                     -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
@@ -6983,6 +7000,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                     railNormal?.y ??
                     1
                 );
+          let shortRailLateralSign = 0;
+          if (axis === 'short') {
+            const cueX = cueBall.pos?.x ?? 0;
+            const targetX = targetBall?.pos?.x ?? cueX;
+            const combinedX = cueX + targetX;
+            let fallbackX = cueX;
+            if (!Number.isFinite(fallbackX) || Math.abs(fallbackX) < 1e-4) {
+              fallbackX = cueBall.launchDir?.x ?? 1;
+            }
+            shortRailLateralSign = signed(
+              combinedX,
+              fallbackX >= 0 ? 1 : -1
+            );
+          }
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -7012,6 +7043,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             cueLookAhead: longShot ? BALL_R * 9 : BALL_R * 6,
             axis,
             railDir: initialRailDir,
+            shortRailLateralSign,
             hasSwitchedRail: false,
             railNormal: railNormal ? railNormal.clone() : null,
             longShot,
