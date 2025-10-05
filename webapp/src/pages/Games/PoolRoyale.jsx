@@ -3742,7 +3742,7 @@ function Table3D(
     POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
-  const horizLen =
+  let horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
     LONG_CUSHION_TRIM;
@@ -3750,11 +3750,11 @@ function Table3D(
     PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
   const sideCushionOffset =
     POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
-  const trimmedVertSeg = Math.max(
+  let trimmedVertSeg = Math.max(
     vertSeg - SIDE_CUSHION_CORNER_TRIM,
     vertSeg * 0.6
   );
-  const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
+  let cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
   const chromePlateThickness = railH * 0.08;
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -3764,6 +3764,46 @@ function Table3D(
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
+
+  const halfHorizLen = horizLen / 2;
+  const horizontalOverlap = Math.max(0, halfHorizLen - chromePlateInnerLimitX);
+  if (horizontalOverlap > MICRO_EPS) {
+    horizLen = Math.max(MICRO_EPS, horizLen - horizontalOverlap * 2);
+  }
+
+  const clampVerticalCushionLength = () => {
+    let iterations = 0;
+    while (iterations < 5) {
+      const halfTrimmed = trimmedVertSeg / 2;
+      const bottomCenterZ =
+        -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
+      const topCenterZ =
+        halfH - sideCushionOffset - vertSeg / 2 - cornerShift;
+      const ends = [
+        bottomCenterZ - halfTrimmed,
+        bottomCenterZ + halfTrimmed,
+        topCenterZ - halfTrimmed,
+        topCenterZ + halfTrimmed
+      ];
+      const maxEndAbs = ends.reduce(
+        (max, value) => Math.max(max, Math.abs(value)),
+        0
+      );
+      const verticalOverlap = Math.max(
+        0,
+        maxEndAbs - chromePlateInnerLimitZ
+      );
+      if (verticalOverlap <= MICRO_EPS) break;
+      const shrink = verticalOverlap * 2;
+      const nextLen = Math.max(MICRO_EPS, trimmedVertSeg - shrink);
+      if (Math.abs(nextLen - trimmedVertSeg) <= MICRO_EPS) break;
+      trimmedVertSeg = nextLen;
+      cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
+      iterations += 1;
+    }
+  };
+
+  clampVerticalCushionLength();
   const chromeCornerMeetX = Math.max(0, horizLen / 2);
   const bottomVerticalCenterZ =
     -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
@@ -3935,7 +3975,14 @@ function Table3D(
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
     const union = polygonClipping.union(notchCircle, boxX, boxZ);
-    return adjustCornerNotchDepth(union, cz, sz);
+    const wedge = [[[
+      [cx, cz],
+      [cx + sx * cornerChamfer, cz],
+      [cx, cz - sz * cornerChamfer],
+      [cx, cz]
+    ]]];
+    const cleaned = polygonClipping.difference(union, wedge);
+    return adjustCornerNotchDepth(cleaned, cz, sz);
   };
 
   const sideNotchMP = (sx) => {
@@ -6200,6 +6247,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
       const hospitalitySizeMultiplier = 2.5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
+      const TABLE_HEIGHT_SCALE = 0.6;
+      const TABLE_PULL_FACTOR = 0.45;
+      const TABLE_PULL_MAX =
+        toHospitalityUnits(0.14) * hospitalityUpscale;
+      const CHAIR_SIDE_OFFSET_SCALE = 0.9;
+      const CHAIR_FORWARD_OFFSET_SCALE = 0.78;
+      const HOSPITALITY_CORNER_ALIGN = 0.78;
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -6365,12 +6419,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(scaledFurniture);
+        tableSet.scale.y *= TABLE_HEIGHT_SCALE;
         const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
         const chairDistance = chairVector.length();
         if (chairDistance > 1e-6) {
           const tablePull = Math.min(
-            chairDistance * 0.35,
-            toHospitalityUnits(0.12) * hospitalityUpscale
+            chairDistance * TABLE_PULL_FACTOR,
+            TABLE_PULL_MAX
           );
           const pullScale = tablePull / chairDistance;
           tableSet.position.set(
@@ -6392,7 +6447,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
-        group.position.set(position[0], floorY, position[1]);
+        const tableBaseRadiusWorld = 0.28 * scaledFurniture;
+        const carpetHalfWidth = carpetWidth / 2;
+        const carpetHalfDepth = carpetDepth / 2;
+        const xSign = Math.sign(position[0] || 0);
+        const zSign = Math.sign(position[1] || 0);
+        const targetX =
+          xSign !== 0
+            ? xSign *
+              (Math.max(carpetHalfWidth - tableBaseRadiusWorld, 0))
+            : position[0];
+        const targetZ =
+          zSign !== 0
+            ? zSign *
+              (Math.max(carpetHalfDepth - tableBaseRadiusWorld, 0))
+            : position[1];
+        group.position.set(
+          targetX - tableSet.position.x,
+          floorY,
+          targetZ - tableSet.position.z
+        );
         group.rotation.y = rotationY;
         ensureHospitalityVisibility(group);
         return group;
@@ -6400,17 +6474,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       const rawCornerInset =
         toHospitalityUnits(0.58) * hospitalityUpscale + wallThickness * 0.5;
-      const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
+      const cornerInsetX = Math.min(
+        rawCornerInset,
+        Math.abs(leftInterior) * HOSPITALITY_CORNER_ALIGN
+      );
       const cornerInsetFront = Math.min(
         rawCornerInset,
-        Math.abs(frontInterior) * 0.92
+        Math.abs(frontInterior) * HOSPITALITY_CORNER_ALIGN
       );
       const cornerInsetBack = Math.min(
         rawCornerInset,
-        Math.abs(backInterior) * 0.92
+        Math.abs(backInterior) * HOSPITALITY_CORNER_ALIGN
       );
-      const chairSideOffset = toHospitalityUnits(0.56) * hospitalityUpscale;
-      const chairForwardOffset = toHospitalityUnits(0.74) * hospitalityUpscale;
+      const chairSideOffset =
+        toHospitalityUnits(0.56) * hospitalityUpscale * CHAIR_SIDE_OFFSET_SCALE;
+      const chairForwardOffset =
+        toHospitalityUnits(0.74) * hospitalityUpscale *
+        CHAIR_FORWARD_OFFSET_SCALE;
 
       [
         {
