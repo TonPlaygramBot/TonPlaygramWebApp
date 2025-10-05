@@ -9358,10 +9358,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             if (bestSide) {
               switch (bestSide) {
                 case 'left':
-                  visibleChalkIndex = TMP_VEC3_BUTT.z <= 0 ? 0 : 1;
+                  visibleChalkIndex = TMP_VEC3_BUTT.z >= 0 ? 1 : 0;
                   break;
                 case 'right':
-                  visibleChalkIndex = TMP_VEC3_BUTT.z <= 0 ? 2 : 3;
+                  visibleChalkIndex = TMP_VEC3_BUTT.z >= 0 ? 3 : 2;
                   break;
                 case 'top':
                   visibleChalkIndex = 4;
