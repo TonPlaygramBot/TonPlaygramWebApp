@@ -1403,8 +1403,16 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
     id: 'emeraldClassic',
-    label: 'Rrobë Jeshile',
-    color: 0x19a34a
+    label: 'Green Cloth',
+    color: 0x19a34a,
+    detail: {
+      bumpMultiplier: 1.22,
+      roughness: 0.78,
+      sheenRoughness: 0.52,
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.32,
+      emissiveIntensity: 0.52
+    }
   }
 ]);
 
@@ -1939,10 +1947,10 @@ function createBroadcastCameras({
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerExtra = BALL_R * 6;
-  const cameraSideBoost = BALL_R * 10;
-  const cameraDepthBoost = BALL_R * 2;
-  const cameraWallSlide = BALL_R * 4;
+  const cameraCornerExtra = BALL_R * 7;
+  const cameraSideBoost = BALL_R * 16;
+  const cameraDepthBoost = BALL_R * 3;
+  const cameraWallSlide = BALL_R * 6;
   const baseCornerX =
     typeof arenaHalfWidth === 'number'
       ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
@@ -3492,10 +3500,66 @@ function Table3D(
     repeatRatio,
     nearRepeat: baseRepeat * 1.18,
     farRepeat: baseRepeat * 0.5,
-    bumpScale: clothMat.bumpScale
+    bumpScale: clothMat.bumpScale,
+    baseBumpScale: clothMat.bumpScale
   };
 
   const cushionMat = clothMat.clone();
+  const clothBaseSettings = {
+    roughness: clothMat.roughness,
+    sheen: clothMat.sheen,
+    sheenRoughness: clothMat.sheenRoughness,
+    clearcoat: clothMat.clearcoat,
+    clearcoatRoughness: clothMat.clearcoatRoughness,
+    emissiveIntensity: clothMat.emissiveIntensity,
+    bumpScale: clothMat.bumpScale
+  };
+  const clothMaterials = [clothMat, cushionMat];
+  const applyClothDetail = (detail) => {
+    const overrides = detail && typeof detail === 'object' ? detail : {};
+    const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
+      ? overrides.bumpMultiplier
+      : 1;
+    const baseBump = clothBaseSettings.bumpScale;
+    const targetBump = Number.isFinite(overrides.bumpScale)
+      ? overrides.bumpScale
+      : baseBump * (Number.isFinite(bumpMultiplier) ? bumpMultiplier : 1);
+    clothMaterials.forEach((mat) => {
+      if (!mat) return;
+      mat.roughness = Number.isFinite(overrides.roughness)
+        ? overrides.roughness
+        : clothBaseSettings.roughness;
+      mat.sheenRoughness = Number.isFinite(overrides.sheenRoughness)
+        ? overrides.sheenRoughness
+        : clothBaseSettings.sheenRoughness;
+      mat.clearcoat = Number.isFinite(overrides.clearcoat)
+        ? overrides.clearcoat
+        : clothBaseSettings.clearcoat;
+      mat.clearcoatRoughness = Number.isFinite(overrides.clearcoatRoughness)
+        ? overrides.clearcoatRoughness
+        : clothBaseSettings.clearcoatRoughness;
+      if (typeof mat.emissiveIntensity === 'number') {
+        mat.emissiveIntensity = Number.isFinite(overrides.emissiveIntensity)
+          ? overrides.emissiveIntensity
+          : clothBaseSettings.emissiveIntensity;
+      }
+      if (Number.isFinite(targetBump)) {
+        mat.bumpScale = targetBump;
+      } else {
+        mat.bumpScale = clothBaseSettings.bumpScale;
+      }
+      mat.needsUpdate = true;
+    });
+    const primary = clothMaterials[0];
+    if (primary?.userData) {
+      primary.userData.bumpScale = primary.bumpScale;
+      primary.userData.baseBumpScale = clothBaseSettings.bumpScale;
+      primary.userData.detailBumpMultiplier = Number.isFinite(bumpMultiplier)
+        ? bumpMultiplier
+        : 1;
+    }
+  };
+  applyClothDetail(resolvedFinish?.clothDetail);
   const finishInfo = {
     id: resolvedFinish?.id ?? DEFAULT_TABLE_FINISH_ID,
     palette,
@@ -3508,7 +3572,10 @@ function Table3D(
     },
     clothMat,
     cushionMat,
-    parts: finishParts
+    parts: finishParts,
+    clothDetail: resolvedFinish?.clothDetail ?? null,
+    clothBase: clothBaseSettings,
+    applyClothDetail
   };
 
   const clothExtendBase = Math.max(
@@ -4092,10 +4159,8 @@ function Table3D(
   };
   const chalkBaseY = railsTopY + chalkHeight / 2;
   const chalkXOffset = outerHalfW + BALL_R * 2.4;
-  const chalkZOffset = -Math.max(
-    outerHalfH * 0.45,
-    BALL_R * 3.1
-  );
+  const chalkRailReach = SIDE_RAIL_INNER_THICKNESS * 0.6 + BALL_R * 1.2;
+  const chalkZOffset = baulkLineZ - chalkRailReach;
   const chalkMesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
   chalkMesh.position.set(chalkXOffset, chalkBaseY, chalkZOffset);
   chalkMesh.rotation.y = Math.PI / 9;
@@ -4506,6 +4571,9 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.emissive.copy(emissiveColor);
     finishInfo.cushionMat.needsUpdate = true;
   }
+  if (typeof finishInfo.applyClothDetail === 'function') {
+    finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
+  }
 
   finishInfo.id = resolvedFinish.id;
   finishInfo.palette = resolvedFinish.colors;
@@ -4516,6 +4584,7 @@ function applyTableFinishToTable(table, finish) {
     trim: trimMat,
     accent: accentConfig
   };
+  finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
 }
 
 // --------------------------------------------------
@@ -4637,6 +4706,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const clothSelection = activeClothOption;
     return {
       ...baseFinish,
+      clothDetail:
+        clothSelection.detail ?? baseFinish?.clothDetail ?? null,
       colors: {
         ...baseFinish.colors,
         cloth: clothSelection.color
@@ -5529,6 +5600,55 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
         else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
+        const createAvatarStore = () => ({
+          image: null,
+          src: '',
+          ready: false,
+          failed: false,
+          loading: false
+        });
+        const playerAvatarStore = createAvatarStore();
+        const challengerAvatarStore = createAvatarStore();
+        const updateAvatarStore = (store, src) => {
+          const nextSrc = typeof src === 'string' ? src.trim() : '';
+          if (!nextSrc) {
+            store.image = null;
+            store.src = '';
+            store.ready = false;
+            store.failed = false;
+            store.loading = false;
+            return;
+          }
+          if (store.src === nextSrc) {
+            if (store.ready || store.loading || store.failed) {
+              return;
+            }
+          }
+          const image = new Image();
+          store.image = image;
+          store.src = nextSrc;
+          store.ready = false;
+          store.failed = false;
+          store.loading = true;
+          try {
+            image.crossOrigin = 'anonymous';
+          } catch {}
+          image.onload = () => {
+            if (store.image === image) {
+              store.ready = true;
+              store.failed = false;
+              store.loading = false;
+            }
+          };
+          image.onerror = () => {
+            if (store.image === image) {
+              store.ready = false;
+              store.failed = true;
+              store.loading = false;
+            }
+          };
+          image.src = nextSrc;
+        };
         return {
           texture,
           update(delta) {
@@ -5540,6 +5660,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const playerName =
               playerState.name || frameStateCurrent.players?.A?.name || 'Player';
             const aiName = frameStateCurrent.players?.B?.name || 'AI';
+            const playerAvatarSrc =
+              playerState.avatar || frameStateCurrent.players?.A?.avatar || '';
+            const challengerAvatarSrc =
+              frameStateCurrent.players?.B?.avatar || '';
             const timerValue = Math.max(
               0,
               Math.floor(timerValueRef.current ?? 0)
@@ -5572,8 +5696,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               tag,
               active,
               badge,
-              stats = []
+              stats = [],
+              avatarSrc,
+              avatarStore
             }) => {
+              if (avatarStore) {
+                updateAvatarStore(avatarStore, avatarSrc);
+              }
               const scoreY = canvas.height * 0.3;
               ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
               ctx.textAlign = 'center';
@@ -5595,11 +5724,33 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ctx.arc(0, 0, avatarRadius, 0, Math.PI * 2);
               ctx.fill();
               ctx.globalAlpha = 1;
-              ctx.fillStyle = '#0b1120';
-              ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(badge, 0, 0);
+              const ringThickness = Math.max(10, avatarRadius * 0.18);
+              const innerRadius = avatarRadius - ringThickness;
+              if (avatarStore?.ready && avatarStore.image) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(
+                  avatarStore.image,
+                  -innerRadius,
+                  -innerRadius,
+                  innerRadius * 2,
+                  innerRadius * 2
+                );
+                ctx.restore();
+              } else {
+                ctx.fillStyle = '#0b1120';
+                ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(badge, 0, 0);
+              }
+              ctx.lineWidth = Math.max(4, ringThickness * 0.6);
+              ctx.strokeStyle = 'rgba(15,23,42,0.55)';
+              ctx.beginPath();
+              ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+              ctx.stroke();
               ctx.restore();
               ctx.fillStyle = active ? '#f1f5f9' : '#cbd5f5';
               ctx.font = 'bold 56px "Segoe UI", "Helvetica Neue", sans-serif';
@@ -5639,7 +5790,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               active: activeTurn === 'A',
               badge:
                 (playerName || 'P').trim().charAt(0).toUpperCase() || 'P',
-              stats: buildStats('A', activeTurn === 'A')
+              stats: buildStats('A', activeTurn === 'A'),
+              avatarSrc: playerAvatarSrc,
+              avatarStore: playerAvatarStore
             });
             drawCompetitor({
               x: canvas.width * 0.75,
@@ -5649,7 +5802,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               tag: 'CHALLENGER',
               active: activeTurn === 'B',
               badge: aiFlag || (aiName || 'A').charAt(0).toUpperCase(),
-              stats: buildStats('B', activeTurn === 'B')
+              stats: buildStats('B', activeTurn === 'B'),
+              avatarSrc: challengerAvatarSrc,
+              avatarStore: challengerAvatarStore
             });
             const timerY = canvas.height * 0.18;
             const warn = timerValue <= 5 && timerValue > 0;
@@ -6131,7 +6286,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       };
 
       const rawCornerInset =
-        toHospitalityUnits(0.65) * hospitalityUpscale + wallThickness * 0.5;
+        toHospitalityUnits(0.58) * hospitalityUpscale + wallThickness * 0.5;
       const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
       const cornerInsetFront = Math.min(
         rawCornerInset,
@@ -6141,8 +6296,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         rawCornerInset,
         Math.abs(backInterior) * 0.92
       );
-      const chairSideOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
-      const chairForwardOffset = toHospitalityUnits(0.82) * hospitalityUpscale;
+      const chairSideOffset = toHospitalityUnits(0.56) * hospitalityUpscale;
+      const chairForwardOffset = toHospitalityUnits(0.74) * hospitalityUpscale;
 
       [
         {
