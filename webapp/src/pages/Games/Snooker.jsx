@@ -2285,6 +2285,8 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
+const TMP_VEC3_CHALK = new THREE.Vector3();
+const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -3955,31 +3957,67 @@ function Table3D(
   const chalkDetectionSlack = TABLE.WALL * 0.12;
   const chalkSideReach = longRailW + frameWidthLong * 0.6 + chalkDetectionSlack;
   const chalkEndReach = endRailW + frameWidthEnd * 0.6 + chalkDetectionSlack;
+  const chalkLongOffsetLimit = Math.max(0, PLAY_H / 2 - BALL_R * 3.5);
+  const chalkShortOffsetLimit = Math.max(0, PLAY_W / 2 - BALL_R * 3.5);
+  const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.22);
+  const chalkShortAxisOffset = Math.min(chalkShortOffsetLimit, PLAY_W * 0.22);
+  const chalkOverlapThreshold = BALL_R * 2.6;
+  const chalkNudgeDistance = Math.min(
+    BALL_R * 1.8,
+    Math.max(chalkLongAxisOffset, chalkShortAxisOffset) * 0.45
+  );
   const chalkSlots = [
     {
       index: 0,
-      position: new THREE.Vector3(-sideRailCenterX, chalkBaseY, 0),
+      basePosition: new THREE.Vector3(-sideRailCenterX, chalkBaseY, 0),
+      tangent: new THREE.Vector3(0, 0, 1),
+      defaultOffset: chalkLongAxisOffset,
+      offsetLimits: {
+        min: -chalkLongOffsetLimit,
+        max: chalkLongOffsetLimit
+      },
       rotationY: Math.PI / 2
     },
     {
       index: 1,
-      position: new THREE.Vector3(sideRailCenterX, chalkBaseY, 0),
+      basePosition: new THREE.Vector3(sideRailCenterX, chalkBaseY, 0),
+      tangent: new THREE.Vector3(0, 0, -1),
+      defaultOffset: chalkLongAxisOffset,
+      offsetLimits: {
+        min: -chalkLongOffsetLimit,
+        max: chalkLongOffsetLimit
+      },
       rotationY: -Math.PI / 2
     },
     {
       index: 2,
-      position: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ),
+      basePosition: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ),
+      tangent: new THREE.Vector3(-1, 0, 0),
+      defaultOffset: chalkShortAxisOffset,
+      offsetLimits: {
+        min: -chalkShortOffsetLimit,
+        max: chalkShortOffsetLimit
+      },
       rotationY: 0
     },
     {
       index: 3,
-      position: new THREE.Vector3(0, chalkBaseY, endRailCenterZ),
+      basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ),
+      tangent: new THREE.Vector3(1, 0, 0),
+      defaultOffset: chalkShortAxisOffset,
+      offsetLimits: {
+        min: -chalkShortOffsetLimit,
+        max: chalkShortOffsetLimit
+      },
       rotationY: Math.PI
     }
   ];
   chalkSlots.forEach((slot) => {
     const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
-    mesh.position.copy(slot.position);
+    const position = slot.basePosition
+      .clone()
+      .addScaledVector(slot.tangent, slot.defaultOffset);
+    mesh.position.copy(position);
     mesh.rotation.y = slot.rotationY;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -3988,6 +4026,8 @@ function Table3D(
     mesh.visible = true;
     chalkGroup.add(mesh);
     chalkMeshes.push(mesh);
+    slot.currentOffset = slot.defaultOffset;
+    slot.position = position.clone();
   });
   table.add(chalkGroup);
   table.userData.chalks = chalkMeshes;
@@ -3995,7 +4035,9 @@ function Table3D(
   table.userData.chalkMeta = {
     sideReach: chalkSideReach,
     endReach: chalkEndReach,
-    slack: chalkDetectionSlack
+    slack: chalkDetectionSlack,
+    overlapThreshold: chalkOverlapThreshold,
+    nudgeDistance: chalkNudgeDistance
   };
 
   const FACE_SHRINK_LONG = 0.955;
@@ -9073,6 +9115,55 @@ function SnookerGame() {
                   visibleChalkIndex = null;
               }
             }
+          }
+          const chalkSlotsData = table.userData?.chalkSlots;
+          const chalkMeshesData = table.userData?.chalks;
+          if (Array.isArray(chalkSlotsData) && Array.isArray(chalkMeshesData)) {
+            chalkSlotsData.forEach((slot, slotIndex) => {
+              const mesh = chalkMeshesData[slotIndex];
+              if (!mesh || !slot?.basePosition || !slot?.tangent) return;
+              const defaultOffset = slot.defaultOffset ?? 0;
+              const limits = slot.offsetLimits ?? null;
+              let targetOffset = defaultOffset;
+              if (
+                slotIndex === visibleChalkIndex &&
+                chalkMeta?.overlapThreshold > 0 &&
+                chalkMeta?.nudgeDistance > 0
+              ) {
+                TMP_VEC3_CHALK.copy(slot.basePosition).addScaledVector(
+                  slot.tangent,
+                  defaultOffset
+                );
+                TMP_VEC3_CHALK_DELTA.copy(TMP_VEC3_BUTT).sub(TMP_VEC3_CHALK);
+                const along = TMP_VEC3_CHALK_DELTA.dot(slot.tangent);
+                if (Math.abs(along) < chalkMeta.overlapThreshold) {
+                  const dir = along >= 0 ? -1 : 1;
+                  targetOffset += dir * chalkMeta.nudgeDistance;
+                }
+              }
+              if (limits) {
+                targetOffset = clamp(
+                  targetOffset,
+                  limits.min ?? targetOffset,
+                  limits.max ?? targetOffset
+                );
+              }
+              if (slot.currentOffset !== targetOffset) {
+                mesh.position
+                  .copy(slot.basePosition)
+                  .addScaledVector(slot.tangent, targetOffset);
+                if (slot.position) {
+                  slot.position
+                    .copy(slot.basePosition)
+                    .addScaledVector(slot.tangent, targetOffset);
+                }
+                slot.currentOffset = targetOffset;
+              } else if (slot.position) {
+                slot.position
+                  .copy(slot.basePosition)
+                  .addScaledVector(slot.tangent, targetOffset);
+              }
+            });
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
