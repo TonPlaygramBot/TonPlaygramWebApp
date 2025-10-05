@@ -21,6 +21,15 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
+import {
+  POOL_CUE_STYLES,
+  DEFAULT_POOL_CUE_STYLE_ID,
+  getCueStyleById
+} from '../../data/cueStyles.js';
+import {
+  createCueDisplayFrame,
+  getCueTipTexture
+} from '../../three/createCueDisplayFrame.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -4738,6 +4747,77 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const chalkAssistEnabledRef = useRef(false);
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
+  const cueGalleryControlsRef = useRef({
+    focus: () => false,
+    restore: () => {},
+    setSelection: () => {},
+    interactives: []
+  });
+  const cueGalleryStateRef = useRef({
+    open: false,
+    lastOrbit: null,
+    lastFocus: null,
+    side: 'right'
+  });
+  const cueGalleryOpenRef = useRef(false);
+  const [cueGalleryOpen, setCueGalleryOpen] = useState(false);
+  useEffect(() => {
+    cueGalleryOpenRef.current = cueGalleryOpen;
+    cueGalleryStateRef.current.open = cueGalleryOpen;
+  }, [cueGalleryOpen]);
+  const [activeCueStyleId, setActiveCueStyleId] = useState(
+    DEFAULT_POOL_CUE_STYLE_ID
+  );
+  const [pendingCueStyleId, setPendingCueStyleId] = useState(
+    DEFAULT_POOL_CUE_STYLE_ID
+  );
+  const activeCueStyleRef = useRef(activeCueStyleId);
+  useEffect(() => {
+    activeCueStyleRef.current = activeCueStyleId;
+  }, [activeCueStyleId]);
+  const pendingCueStyleRef = useRef(pendingCueStyleId);
+  useEffect(() => {
+    pendingCueStyleRef.current = pendingCueStyleId;
+  }, [pendingCueStyleId]);
+  const applyCueStyleRef = useRef(() => {});
+  const updateCueDisplaySelectionRef = useRef(() => {});
+  const worldScaleRef = useRef(1);
+  const cueAssetsRef = useRef({
+    shaftMaterial: null,
+    tipMaterial: null,
+    connectorMaterial: null,
+    tipCapMaterial: null,
+    accentMaterial: null
+  });
+  useEffect(() => {
+    updateCueDisplaySelectionRef.current?.(pendingCueStyleId);
+  }, [pendingCueStyleId]);
+  useEffect(() => {
+    applyCueStyleRef.current?.(activeCueStyleId);
+  }, [activeCueStyleId]);
+  const handleCueStyleSelect = useCallback((styleId) => {
+    if (!styleId) return;
+    setPendingCueStyleId(styleId);
+  }, []);
+  const handleCueGalleryClose = useCallback(
+    (restoreSelection = true) => {
+      cueGalleryControlsRef.current.restore?.();
+      if (restoreSelection) {
+        cueGalleryControlsRef.current.setSelection?.(activeCueStyleRef.current);
+        setPendingCueStyleId(activeCueStyleRef.current);
+      }
+      setCueGalleryOpen(false);
+    },
+    [setCueGalleryOpen]
+  );
+  const handleCueGalleryConfirm = useCallback(() => {
+    const nextId = pendingCueStyleRef.current;
+    setActiveCueStyleId(nextId);
+    handleCueGalleryClose(false);
+  }, [handleCueGalleryClose]);
+  const handleCueGalleryCancel = useCallback(() => {
+    handleCueGalleryClose(true);
+  }, [handleCueGalleryClose]);
 
   const highlightChalks = useCallback(
     (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
@@ -5012,9 +5092,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     applySliderLock();
   }, [applySliderLock, hud.turn, hud.over, shotActive]);
+  useEffect(() => {
+    const slider = sliderInstanceRef.current;
+    if (!slider) return;
+    if (cueGalleryOpen) slider.lock();
+    else applySliderLock();
+  }, [cueGalleryOpen, applySliderLock]);
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
+  const handleCueGalleryOpen = useCallback(() => {
+    if (cueGalleryOpenRef.current) return;
+    const controls = cueGalleryControlsRef.current;
+    const camera = cameraRef.current;
+    const side = camera?.position?.x >= 0 ? 'right' : 'left';
+    const success = controls.focus?.(side);
+    if (!success) return;
+    controls.setSelection?.(activeCueStyleRef.current);
+    setPendingCueStyleId(activeCueStyleRef.current);
+    setCueGalleryOpen(true);
+  }, []);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
@@ -5612,6 +5709,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let cue;
       let clothMat;
       let cushionMat;
+      const cueDisplayEntries = [];
+      const cueInteractiveMeshes = [];
+      const registerCueDisplay = (entry, side) => {
+        if (!entry) return;
+        const item = { ...entry, side };
+        cueDisplayEntries.push(item);
+        if (Array.isArray(entry.interactiveObjects)) {
+          cueInteractiveMeshes.push(...entry.interactiveObjects);
+        }
+        entry.group.userData.cueGallerySide = side;
+      };
+      const updateCueDisplaySelection = (styleId) => {
+        cueDisplayEntries.forEach((entry) => {
+          entry.setSelected?.(styleId);
+        });
+      };
+      updateCueDisplaySelectionRef.current = updateCueDisplaySelection;
+      const cueGalleryState = cueGalleryStateRef.current;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
       let shooting = false; // track when a shot is in progress
       const setShootingState = (value) => {
@@ -6117,6 +6232,43 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         signage.rotation.y = rotationY;
         world.add(signage);
       });
+
+      const cueLengthScale = 0.8;
+      const cueFrameLength =
+        1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER * cueLengthScale;
+      const cueFrameSpacing = Math.max(
+        BALL_R * 8,
+        Math.min(signageHeight * 0.65, roomDepth * 0.32)
+      );
+      const cueFrameXInset = wallThickness * 0.25;
+      const cueFrameY = signageY - signageHeight * 0.08;
+      const cueFrameCloth = ['#162035', '#283a5c'];
+      const cueStyles = POOL_CUE_STYLES;
+      [
+        { side: 'left', baseX: leftInterior, rotation: Math.PI / 2 },
+        { side: 'right', baseX: rightInterior, rotation: -Math.PI / 2 }
+      ].forEach(({ side, baseX, rotation }) => {
+        [-cueFrameSpacing, cueFrameSpacing].forEach((offsetZ) => {
+          const frame = createCueDisplayFrame({
+            styles: cueStyles,
+            cueLength: cueFrameLength,
+            clothColors: cueFrameCloth
+          });
+          if (!frame?.group) return;
+          frame.setSelected(activeCueStyleRef.current);
+          const xAdjust = side === 'right' ? -cueFrameXInset : cueFrameXInset;
+          frame.group.position.set(baseX + xAdjust, cueFrameY, offsetZ);
+          frame.group.rotation.y = rotation;
+          frame.group.traverse((child) => {
+            if (child.isMesh) child.castShadow = false;
+          });
+          world.add(frame.group);
+          registerCueDisplay(frame, side);
+        });
+      });
+      cueGalleryControlsRef.current.interactives = cueInteractiveMeshes;
+      cueGalleryControlsRef.current.setSelection = updateCueDisplaySelection;
+      updateCueDisplaySelection(activeCueStyleRef.current);
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
@@ -7349,6 +7501,71 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           };
           requestAnimationFrame(step);
         };
+        const focusCueGallery = (side = 'right') => {
+          const entries = cueDisplayEntries.filter((entry) => entry.side === side);
+          if (entries.length === 0) return false;
+          const worldScale = Math.max(worldScaleRef.current || 1, 1e-6);
+          const combined = new THREE.Box3();
+          entries.forEach((entry) => {
+            const bounds = entry.getBoundingBox?.();
+            if (bounds && !bounds.isEmpty()) combined.union(bounds);
+          });
+          if (combined.isEmpty()) return false;
+          const centerWorld = combined.getCenter(new THREE.Vector3());
+          const sizeWorld = combined.getSize(new THREE.Vector3());
+          const centerLocal = centerWorld.clone().divideScalar(worldScale);
+          const store = ensureOrbitFocus();
+          cueGalleryState.lastFocus = store.target.clone();
+          cueGalleryState.lastOrbit = {
+            radius: sph.radius,
+            phi: sph.phi,
+            theta: sph.theta
+          };
+          cueGalleryState.side = side;
+          store.ballId = null;
+          store.target.copy(centerLocal);
+          const horizontal = Math.max(sizeWorld.x, sizeWorld.z) / worldScale;
+          const vertical = sizeWorld.y / worldScale;
+          const radiusBase = Math.max(horizontal, vertical) * 0.75 + BALL_R * 12;
+          const desiredRadius = clampOrbitRadius(
+            Math.max(radiusBase, CAMERA.minR + 0.5)
+          );
+          const desiredPhi = clamp(
+            Math.PI / 3,
+            CAMERA.minPhi + 0.05,
+            CAMERA.maxPhi - 0.05
+          );
+          const desiredTheta = side === 'right' ? -Math.PI / 2 : Math.PI / 2;
+          animateCamera({
+            radius: desiredRadius,
+            phi: desiredPhi,
+            theta: desiredTheta,
+            duration: 600
+          });
+          return true;
+        };
+        const restoreCueGalleryCamera = () => {
+          const store = ensureOrbitFocus();
+          if (cueGalleryState.lastFocus) {
+            store.ballId = null;
+            store.target.copy(cueGalleryState.lastFocus);
+          } else {
+            setOrbitFocusToDefault();
+          }
+          if (cueGalleryState.lastOrbit) {
+            const { radius, phi, theta } = cueGalleryState.lastOrbit;
+            animateCamera({
+              radius: clampOrbitRadius(radius),
+              phi: clamp(phi, CAMERA.minPhi, CAMERA.maxPhi),
+              theta,
+              duration: 500
+            });
+          }
+          cueGalleryState.lastOrbit = null;
+          cueGalleryState.lastFocus = null;
+        };
+        cueGalleryControlsRef.current.focus = focusCueGallery;
+        cueGalleryControlsRef.current.restore = restoreCueGalleryCamera;
         const restoreOrbitCamera = (view, immediate = false) => {
           if (!view) return;
           const sph = sphRef.current;
@@ -7758,7 +7975,43 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const registerInteraction = () => {
           lastInteraction = performance.now();
         };
+        const attemptCueSelect = (ev) => {
+          if (!cueGalleryOpenRef.current) return false;
+          if (cueInteractiveMeshes.length === 0) return false;
+          if (ev.touches?.length && ev.touches.length > 1) return false;
+          const rect = dom.getBoundingClientRect();
+          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+          if (clientX == null || clientY == null) return false;
+          if (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          ) {
+            return false;
+          }
+          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+          pointer.set(nx, ny);
+          const currentCamera = activeRenderCameraRef.current ?? camera;
+          ray.setFromCamera(pointer, currentCamera);
+          const intersects = ray.intersectObjects(cueInteractiveMeshes, true);
+          if (intersects.length === 0) return false;
+          let hit = intersects[0].object;
+          let styleId = hit.userData?.cueStyleId;
+          while (!styleId && hit.parent) {
+            hit = hit.parent;
+            styleId = hit.userData?.cueStyleId;
+          }
+          if (!styleId) return false;
+          updateCueDisplaySelection(styleId);
+          cueGalleryControlsRef.current.setSelection?.(styleId);
+          setPendingCueStyleId(styleId);
+          return true;
+        };
         const attemptChalkPress = (ev) => {
+          if (cueGalleryOpenRef.current) return false;
           const meshes = chalkMeshesRef.current;
           if (!meshes || meshes.length === 0) return false;
           if (ev.touches?.length && ev.touches.length > 1) return false;
@@ -7791,6 +8044,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
         const down = (e) => {
           registerInteraction();
+          if (cueGalleryOpenRef.current) {
+            attemptCueSelect(e);
+            return;
+          }
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
@@ -7802,6 +8059,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
         };
         const move = (e) => {
+          if (cueGalleryOpenRef.current) return;
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -7993,6 +8251,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const tableScale = tableSizeRef.current?.scale ?? 1;
       worldScaleFactor = WORLD_SCALE * tableScale;
       world.scale.setScalar(worldScaleFactor);
+      worldScaleRef.current = worldScaleFactor;
       if (broadcastCamerasRef.current) {
         const rig = broadcastCamerasRef.current;
         const focusWorld = rig.defaultFocus
@@ -8143,7 +8402,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
-      const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
+      const cueLen =
+        1.5 * SCALE * CUE_LENGTH_MULTIPLIER * (cueLengthScale ?? 1);
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
@@ -8175,9 +8435,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         length: cueLen
       };
 
+      const initialCueStyle =
+        getCueStyleById(activeCueStyleRef.current, POOL_CUE_STYLES) ??
+        POOL_CUE_STYLES[0];
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xdeb887,
-        roughness: 0.6
+        color: initialCueStyle.woodColor,
+        roughness: 0.6,
+        metalness: 0.1,
+        clearcoat: 0.7,
+        clearcoatRoughness: 0.18
       });
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,
@@ -8217,34 +8483,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         tipGroup.add(frontShaft);
       }
 
-      // subtle leather-like texture for the tip
-      const tipCanvas = document.createElement('canvas');
-      tipCanvas.width = tipCanvas.height = 64;
-      const tipCtx = tipCanvas.getContext('2d');
-      tipCtx.fillStyle = '#1b3f75';
-      tipCtx.fillRect(0, 0, 64, 64);
-      tipCtx.strokeStyle = 'rgba(255,255,255,0.08)';
-      tipCtx.lineWidth = 2;
-      for (let i = 0; i < 64; i += 8) {
-        tipCtx.beginPath();
-        tipCtx.moveTo(i, 0);
-        tipCtx.lineTo(i, 64);
-        tipCtx.stroke();
-      }
-      tipCtx.globalAlpha = 0.2;
-      tipCtx.fillStyle = 'rgba(12, 24, 60, 0.65)';
-      for (let i = 0; i < 80; i++) {
-        const x = Math.random() * 64;
-        const y = Math.random() * 64;
-        const w = 6 + Math.random() * 10;
-        const h = 2 + Math.random() * 4;
-        tipCtx.beginPath();
-        tipCtx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
-        tipCtx.fill();
-      }
-      tipCtx.globalAlpha = 1;
-      const tipTex = new THREE.CanvasTexture(tipCanvas);
-
+      const tipMaterial = new THREE.MeshStandardMaterial({
+        color: initialCueStyle.tipColor ?? 0xffffff,
+        roughness: 0.8,
+        metalness: 0,
+        map: getCueTipTexture(initialCueStyle.tipTextureColor)
+      });
+      tipMaterial.needsUpdate = true;
       const connectorHeight = 0.015 * SCALE;
       const tipRadius = CUE_TIP_RADIUS;
       const tipLen = 0.015 * SCALE * 1.5;
@@ -8253,17 +8498,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         tipCylinderLen > 0
           ? new THREE.CapsuleGeometry(tipRadius, tipCylinderLen, 8, 16)
           : new THREE.SphereGeometry(tipRadius, 16, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0x1f3f73,
-          roughness: 1,
-          metalness: 0,
-          map: tipTex
-        })
+        tipMaterial
       );
       tip.rotation.x = -Math.PI / 2;
       tip.position.z = -(tipCylinderLen / 2 + tipRadius + connectorHeight);
       tipGroup.add(tip);
 
+      const connectorMaterial = new THREE.MeshPhysicalMaterial({
+        color: initialCueStyle.jointColor ?? 0xcd7f32,
+        metalness: 0.8,
+        roughness: 0.5
+      });
       const connector = new THREE.Mesh(
         new THREE.CylinderGeometry(
           tipRadius,
@@ -8271,11 +8516,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           connectorHeight,
           32
         ),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xcd7f32,
-          metalness: 0.8,
-          roughness: 0.5
-        })
+        connectorMaterial
       );
       connector.rotation.x = -Math.PI / 2;
       connector.position.z = -connectorHeight / 2;
@@ -8288,7 +8529,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       buttCap.position.z = cueLen / 2;
       cueBody.add(buttCap);
 
-      const stripeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const stripeMat = new THREE.MeshBasicMaterial({
+        color: initialCueStyle.accentColor ?? 0x000000
+      });
       for (let i = 0; i < 12; i++) {
         const stripe = new THREE.Mesh(
           new THREE.BoxGeometry(0.01 * SCALE, 0.001 * SCALE, 0.35 * SCALE),
@@ -8300,6 +8543,32 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         stripe.position.z = 0.55 * SCALE;
         stripe.rotation.z = angle;
         cueBody.add(stripe);
+      }
+
+      cueAssetsRef.current = {
+        shaftMaterial,
+        tipMaterial,
+        connectorMaterial,
+        tipCapMaterial: tipMaterial,
+        accentMaterial: stripeMat
+      };
+      const applyCueStyle = (styleId) => {
+        const style =
+          getCueStyleById(styleId, POOL_CUE_STYLES) ?? initialCueStyle;
+        const assets = cueAssetsRef.current;
+        if (!assets) return;
+        assets.shaftMaterial?.color?.set(style.woodColor);
+        if (assets.tipMaterial) {
+          assets.tipMaterial.color.set(style.tipColor ?? 0xffffff);
+          assets.tipMaterial.map = getCueTipTexture(style.tipTextureColor);
+          assets.tipMaterial.needsUpdate = true;
+        }
+        assets.connectorMaterial?.color?.set(style.jointColor ?? 0xcd7f32);
+        assets.accentMaterial?.color?.set(style.accentColor ?? 0x000000);
+      };
+      applyCueStyleRef.current = applyCueStyle;
+      if (initialCueStyle?.id) {
+        applyCueStyle(initialCueStyle.id);
       }
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
@@ -10120,6 +10389,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           window.removeEventListener('pointerup', endInHandDrag);
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
+          cueGalleryControlsRef.current = {
+            focus: () => false,
+            restore: () => {},
+            setSelection: () => {},
+            interactives: []
+          };
+          updateCueDisplaySelectionRef.current = () => {};
+          applyCueStyleRef.current = () => {};
+          worldScaleRef.current = 1;
+          cueGalleryState.lastOrbit = null;
+          cueGalleryState.lastFocus = null;
+          cueGalleryOpenRef.current = false;
+          cueGalleryStateRef.current.open = false;
           applyFinishRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
@@ -10555,15 +10837,88 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         </div>
       )}
       {/* Power Slider */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-end gap-3 pointer-events-none">
         <div
           ref={sliderRef}
+          className="pointer-events-auto"
           style={{
             transform: `scale(${UI_SCALE})`,
             transformOrigin: 'top right'
           }}
         />
+        <button
+          type="button"
+          onClick={handleCueGalleryOpen}
+          disabled={cueGalleryOpen}
+          className={`pointer-events-auto rounded-full px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+            cueGalleryOpen
+              ? 'border border-emerald-400/70 bg-emerald-500/20 text-emerald-200'
+              : 'border border-white/30 bg-black/70 text-white/80 hover:border-emerald-400 hover:text-white'
+          }`}
+        >
+          Cue
+        </button>
       </div>
+
+      {cueGalleryOpen && (
+        <div className="absolute inset-0 z-[75] flex flex-col items-center justify-end pb-24 pointer-events-none">
+          <div className="pointer-events-auto w-[88%] max-w-sm rounded-3xl border border-white/15 bg-black/85 p-6 text-white shadow-[0_18px_48px_rgba(0,0,0,0.65)] backdrop-blur">
+            <div className="mb-4 text-center">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-300">
+                Change Cue Stick
+              </h2>
+              <p className="mt-2 text-[11px] text-white/70">
+                Focused on the cue display. Tap a cue or select below, then confirm.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {POOL_CUE_STYLES.map((style) => {
+                const selected = pendingCueStyleId === style.id;
+                const woodHex = `#${style.woodColor.toString(16).padStart(6, '0')}`;
+                const accentHex = `#${(style.accentColor ?? 0x222222)
+                  .toString(16)
+                  .padStart(6, '0')}`;
+                return (
+                  <button
+                    key={style.id}
+                    type="button"
+                    onClick={() => handleCueStyleSelect(style.id)}
+                    className={`flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                      selected
+                        ? 'border-emerald-400 bg-emerald-400/15 text-white'
+                        : 'border-white/20 bg-white/5 text-white/75 hover:border-emerald-300 hover:text-white'
+                    }`}
+                  >
+                    <span
+                      className="h-8 w-2 rounded-full"
+                      style={{
+                        background: `linear-gradient(180deg, ${woodHex}, ${accentHex})`
+                      }}
+                    ></span>
+                    <span>{style.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-6 flex justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleCueGalleryCancel}
+                className="flex-1 rounded-full border border-white/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/70 transition hover:border-white/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCueGalleryConfirm}
+                className="flex-1 rounded-full border border-emerald-400/70 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-400/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Spin controller */}
       <div
