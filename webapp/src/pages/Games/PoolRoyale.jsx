@@ -173,6 +173,8 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.68; // trim the inner chrome wedge without pulling the entire plate back
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.94; // extend the notch deeper along the short rail to remove the triangular sliver
 
 function buildChromePlateGeometry({
   width,
@@ -3934,7 +3936,18 @@ function Table3D(
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    const union = polygonClipping.union(notchCircle, boxX, boxZ);
+    let union = polygonClipping.union(notchCircle, boxX, boxZ);
+    const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
+    const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
+      const fieldClip = [[[
+        [cx, cz],
+        [cx + sx * fieldClipWidth, cz],
+        [cx, cz + sz * fieldClipDepth],
+        [cx, cz]
+      ]]];
+      union = polygonClipping.union(union, fieldClip);
+    }
     return adjustCornerNotchDepth(union, cz, sz);
   };
 
