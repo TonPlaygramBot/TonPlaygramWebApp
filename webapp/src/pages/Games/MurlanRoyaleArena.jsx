@@ -188,7 +188,8 @@ export default function MurlanRoyaleArena({ search }) {
     const arena = new THREE.Group();
     scene.add(arena);
 
-    const boardSize = TABLE_RADIUS * 2 + 1.2;
+    const arenaScale = 1.3;
+    const boardSize = (TABLE_RADIUS * 2 + 1.2) * arenaScale;
     const camConfig = buildArenaCameraConfig(boardSize);
 
     const arenaHalfWidth = boardSize;
@@ -328,7 +329,8 @@ export default function MurlanRoyaleArena({ search }) {
         const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
         labelMaterials.push(labelMat);
         const label = new THREE.Mesh(labelGeo, labelMat);
-        label.position.set(0, 0.7, -0.9);
+        label.position.set(0, 0.75, 1.05);
+        label.rotation.y = Math.PI;
         chair.add(label);
 
         const hand = playerHands[i];
