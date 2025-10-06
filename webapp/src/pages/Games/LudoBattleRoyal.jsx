@@ -67,7 +67,7 @@ const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
 const BOARD_DISPLAY_SIZE = 3.4;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 const RING_STEPS = 52;
-const HOME_STEPS = 6;
+const HOME_STEPS = 4;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
 const PLAYER_START_INDEX = [0, 13, 26, 39];
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
@@ -108,38 +108,100 @@ function makeDice(matWhite, matPip) {
     matWhite
   );
   dice.add(box);
-  const pipR = 0.0055;
-  const pipGeom = new THREE.SphereGeometry(pipR, 18, 14);
-  const EPS = 0.003;
-  const pip = (x, y, z) => {
-    const m = new THREE.Mesh(pipGeom, matPip);
-    m.position.set(x, y, z);
-    dice.add(m);
-  };
-  const s = 0.024;
-  const d = 0.012;
 
-  pip(0, 0, s + EPS);
-  pip(-d, -s - EPS, -d);
-  pip(d, -s - EPS, d);
-  pip(s + EPS, d, 0);
-  pip(s + EPS, 0, 0);
-  pip(s + EPS, -d, 0);
-  pip(-s - EPS, d, 0);
-  pip(-s - EPS, -d, 0);
-  pip(-s - EPS, d, 0.0001);
-  pip(-s - EPS, -d, -0.0001);
-  pip(-d, s + EPS, -d);
-  pip(d, s + EPS, -d);
-  pip(0, s + EPS, 0);
-  pip(-d, s + EPS, d);
-  pip(d, s + EPS, d);
-  pip(-d, 0, -s - EPS);
-  pip(d, 0, -s - EPS);
-  pip(-d, -d, -s - EPS);
-  pip(d, -d, -s - EPS);
-  pip(-d, d, -s - EPS);
-  pip(d, d, -s - EPS);
+  const pipRadius = 0.0062;
+  const pipDepth = 0.0065;
+  const halfSize = 0.07 / 2;
+  const faceInset = 0.0045;
+  const faceOffset = halfSize - faceInset;
+  const pipSpread = 0.0165;
+
+  const faces = [
+    {
+      normal: new THREE.Vector3(0, 0, 1),
+      u: new THREE.Vector3(1, 0, 0),
+      v: new THREE.Vector3(0, 1, 0),
+      coords: [[0, 0]]
+    },
+    {
+      normal: new THREE.Vector3(0, 0, -1),
+      u: new THREE.Vector3(-1, 0, 0),
+      v: new THREE.Vector3(0, 1, 0),
+      coords: [
+        [-pipSpread, -pipSpread],
+        [pipSpread, -pipSpread],
+        [-pipSpread, 0],
+        [pipSpread, 0],
+        [-pipSpread, pipSpread],
+        [pipSpread, pipSpread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(1, 0, 0),
+      u: new THREE.Vector3(0, 0, -1),
+      v: new THREE.Vector3(0, 1, 0),
+      coords: [
+        [-pipSpread, pipSpread],
+        [0, 0],
+        [pipSpread, -pipSpread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(-1, 0, 0),
+      u: new THREE.Vector3(0, 0, 1),
+      v: new THREE.Vector3(0, 1, 0),
+      coords: [
+        [-pipSpread, pipSpread],
+        [-pipSpread, -pipSpread],
+        [pipSpread, pipSpread],
+        [pipSpread, -pipSpread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(0, 1, 0),
+      u: new THREE.Vector3(1, 0, 0),
+      v: new THREE.Vector3(0, 0, -1),
+      coords: [
+        [-pipSpread, pipSpread],
+        [-pipSpread, -pipSpread],
+        [0, 0],
+        [pipSpread, pipSpread],
+        [pipSpread, -pipSpread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(0, -1, 0),
+      u: new THREE.Vector3(1, 0, 0),
+      v: new THREE.Vector3(0, 0, 1),
+      coords: [
+        [-pipSpread, -pipSpread],
+        [pipSpread, pipSpread]
+      ]
+    }
+  ];
+
+  const baseSphere = new THREE.SphereGeometry(pipRadius, 24, 18);
+  const up = new THREE.Vector3(0, 0, 1);
+
+  faces.forEach(({ normal, u, v, coords }) => {
+    const n = normal.clone().normalize();
+    const planeConstant = -(faceOffset - pipDepth);
+    coords.forEach(([cx, cy]) => {
+      const pos = n
+        .clone()
+        .multiplyScalar(faceOffset)
+        .add(u.clone().multiplyScalar(cx))
+        .add(v.clone().multiplyScalar(cy));
+      const pipMaterial = matPip.clone();
+      pipMaterial.side = THREE.BackSide;
+      pipMaterial.clippingPlanes = [new THREE.Plane(n.clone(), planeConstant)];
+      const pip = new THREE.Mesh(baseSphere, pipMaterial);
+      pip.position.copy(pos.clone().addScaledVector(n, -pipDepth));
+      const quat = new THREE.Quaternion().setFromUnitVectors(up, n);
+      pip.quaternion.copy(quat);
+      dice.add(pip);
+    });
+  });
 
   dice.userData.setValue = (val) => {
     setDiceOrientation(dice, val);
@@ -208,6 +270,7 @@ function Ludo3D({ avatar, username }) {
   const rafRef = useRef(0);
   const zoomRef = useRef({});
   const diceRef = useRef(null);
+  const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
@@ -218,6 +281,20 @@ function Ludo3D({ avatar, username }) {
     dice: null,
     winner: null
   });
+
+  const updateTurnIndicator = (player) => {
+    const indicator = turnIndicatorRef.current;
+    if (!indicator) return;
+    const material = Array.isArray(indicator.material)
+      ? indicator.material[0]
+      : indicator.material;
+    if (!material) return;
+    const color = new THREE.Color(PLAYER_COLORS[player]);
+    material.color.set(color);
+    if (material.emissive) {
+      material.emissive.set(color.clone().multiplyScalar(0.3));
+    }
+  };
 
   useEffect(() => {
     const vol = getGameVolume();
@@ -259,6 +336,7 @@ function Ludo3D({ avatar, username }) {
       alpha: false,
       powerPreference: 'high-performance'
     });
+    renderer.localClippingEnabled = true;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -603,6 +681,8 @@ function Ludo3D({ avatar, username }) {
 
     const boardData = buildLudoBoard(boardGroup);
     diceRef.current = boardData.dice;
+    turnIndicatorRef.current = boardData.turnIndicator;
+    updateTurnIndicator(0);
 
     stateRef.current = {
       paths: boardData.paths,
@@ -610,6 +690,7 @@ function Ludo3D({ avatar, username }) {
       homeColumns: boardData.homeColumns,
       goalSlots: boardData.goalSlots,
       tokens: boardData.tokens,
+      turnIndicator: boardData.turnIndicator,
       progress: Array.from({ length: 4 }, () => Array(4).fill(-1)),
       turn: 0,
       winner: null,
@@ -694,6 +775,7 @@ function Ludo3D({ avatar, username }) {
     return () => {
       cancelAnimationFrame(rafRef.current);
       stateRef.current = null;
+      turnIndicatorRef.current = null;
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('mousedown', onDown);
       renderer.domElement.removeEventListener('mousemove', onMove);
@@ -784,6 +866,7 @@ function Ludo3D({ avatar, username }) {
       const nextTurn = extraTurn ? s.turn : (s.turn + 1) % 4;
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
+      updateTurnIndicator(nextTurn);
       return {
         ...s,
         turn: nextTurn,
@@ -985,7 +1068,11 @@ function buildLudoBoard(boardGroup) {
   const ringPath = buildRingFromGrid(cellToWorld);
 
   const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
-  const colorMats = PLAYER_COLORS.map(
+  const homeBaseMats = PLAYER_COLORS.map((color) => {
+    const darker = new THREE.Color(color).multiplyScalar(0.72);
+    return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
+  });
+  const pathMats = PLAYER_COLORS.map(
     (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
   const safeSet = new Set(['6,0', '0,8', '8,14', '14,6']);
@@ -1000,7 +1087,7 @@ function buildLudoBoard(boardGroup) {
       const inCenter = r >= 6 && r <= 8 && c >= 6 && c <= 8;
       const inCross = r >= 6 && r <= 8 || c >= 6 && c <= 8;
       if (homeIndex !== -1) {
-        const mesh = new THREE.Mesh(tileGeo, colorMats[homeIndex]);
+        const mesh = new THREE.Mesh(tileGeo, homeBaseMats[homeIndex]);
         mesh.position.copy(pos);
         scene.add(mesh);
         continue;
@@ -1012,7 +1099,7 @@ function buildLudoBoard(boardGroup) {
         continue;
       }
       if (columnIndex !== -1) {
-        const mesh = new THREE.Mesh(tileGeo, colorMats[columnIndex]);
+        const mesh = new THREE.Mesh(tileGeo, pathMats[columnIndex]);
         mesh.position.copy(pos);
         scene.add(mesh);
         const dist = pos.distanceTo(center);
@@ -1047,8 +1134,24 @@ function buildLudoBoard(boardGroup) {
     new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38 }),
     new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.95 })
   );
-  dice.position.set(half + 0.1, 0.07, half * 0.55);
+  dice.position.set(0, 0.082, 0);
   scene.add(dice);
+
+  const indicatorMat = new THREE.MeshStandardMaterial({
+    color: PLAYER_COLORS[0],
+    emissive: new THREE.Color(PLAYER_COLORS[0]).multiplyScalar(0.3),
+    emissiveIntensity: 0.9,
+    metalness: 0.45,
+    roughness: 0.35,
+    side: THREE.DoubleSide
+  });
+  const turnIndicator = new THREE.Mesh(
+    new THREE.RingGeometry(0.05, 0.075, 48),
+    indicatorMat
+  );
+  turnIndicator.rotation.x = -Math.PI / 2;
+  turnIndicator.position.set(0, 0.006, 0);
+  scene.add(turnIndicator);
 
   return {
     paths: ringPath,
@@ -1056,7 +1159,8 @@ function buildLudoBoard(boardGroup) {
     homeColumns: sortedColumns,
     goalSlots,
     tokens,
-    dice
+    dice,
+    turnIndicator
   };
 }
 
@@ -1069,10 +1173,10 @@ function getHomeIndex(r, c) {
 }
 
 function getHomeColumnIndex(r, c) {
-  if (c === 7 && r >= 1 && r <= 6) return 0;
-  if (r === 7 && c >= 8 && c <= 13) return 1;
-  if (c === 7 && r >= 8 && r <= 13) return 2;
-  if (r === 7 && c >= 1 && c <= 6) return 3;
+  if (c === 7 && r >= 3 && r <= 6) return 0;
+  if (r === 7 && c >= 8 && c <= 11) return 1;
+  if (c === 7 && r >= 8 && r <= 11) return 3;
+  if (r === 7 && c >= 3 && c <= 6) return 2;
   return -1;
 }
 
