@@ -1789,15 +1789,17 @@ export default function SnakeAndLadder() {
           burning={burning}
         />
       </div>
-      <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4">
+      <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4 pointer-events-none">
         {/* Bottom left controls */}
-        <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-        />
+        <div className="pointer-events-auto w-full">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+          />
+        </div>
         {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20">
+        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20 pointer-events-auto">
           {players
             .map((p, i) => ({ ...p, index: i }))
             .map((p) => (
@@ -1830,15 +1832,18 @@ export default function SnakeAndLadder() {
           <img src={b.photoUrl} className="w-5 h-5 rounded-full" />
         </div>
       ))}
-      <PlayerPopup
-        open={!!playerPopup}
-        player={playerPopup}
-        onClose={() => setPlayerPopup(null)}
-      />
-      <QuickMessagePopup
-        open={showChat}
-        onClose={() => setShowChat(false)}
-        onSend={(text) => {
+      <div className="pointer-events-auto">
+        <PlayerPopup
+          open={!!playerPopup}
+          player={playerPopup}
+          onClose={() => setPlayerPopup(null)}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
           const id = Date.now();
           setChatBubbles((b) => [...b, { id, text, photoUrl }]);
           if (!muted) {
@@ -1851,21 +1856,23 @@ export default function SnakeAndLadder() {
             3000,
           );
         }}
-      />
-      {(() => {
-        const myIdx = isMultiplayer
-          ? mpPlayers.findIndex((p) => p.id === getPlayerId())
-          : 0;
-        return (
-          <GiftPopup
-            open={showGift}
-            onClose={() => setShowGift(false)}
-            players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
-            senderIndex={myIdx}
-            onGiftSent={({ from, to, gift }) => {
-              const start = document.querySelector(`[data-player-index="${from}"]`);
-              const end = document.querySelector(`[data-player-index="${to}"]`);
-              if (start && end) {
+        />
+      </div>
+      <div className="pointer-events-auto">
+        {(() => {
+          const myIdx = isMultiplayer
+            ? mpPlayers.findIndex((p) => p.id === getPlayerId())
+            : 0;
+          return (
+            <GiftPopup
+              open={showGift}
+              onClose={() => setShowGift(false)}
+              players={players.map((p, i) => ({ ...p, index: i, name: getPlayerName(i) }))}
+              senderIndex={myIdx}
+              onGiftSent={({ from, to, gift }) => {
+                const start = document.querySelector(`[data-player-index="${from}"]`);
+                const end = document.querySelector(`[data-player-index="${to}"]`);
+                if (start && end) {
                 const s = start.getBoundingClientRect();
                 const e = end.getBoundingClientRect();
                 const cx = window.innerWidth / 2;
@@ -1951,10 +1958,11 @@ export default function SnakeAndLadder() {
                 );
                 animation.onfinish = () => icon.remove();
               }
-            }}
-          />
-        );
-      })()}
+              }}
+            />
+          );
+        })()}
+      </div>
       {waitingForPlayers && (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 text-white">
           <p className="text-lg mb-2">
@@ -1980,7 +1988,7 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {!isMultiplayer && (
-        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative">
+        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative pointer-events-auto">
           {showTrail && (
             <img
               src="/assets/icons/throwing_hand_down.webp"
@@ -2038,7 +2046,7 @@ export default function SnakeAndLadder() {
       )}
       {isMultiplayer && (
         <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
+          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer pointer-events-auto"
           style={{ transform: 'translateX(2rem)' }}
           onClick={() => diceRollerDivRef.current?.click()}
         >
@@ -2063,126 +2071,148 @@ export default function SnakeAndLadder() {
         </div>
       )}
       {!watchOnly && (
-      <InfoPopup
-        open={showQuitInfo}
-        onClose={() => setShowQuitInfo(false)}
-        title="Warning"
-        info="If you quit the game your funds will be lost and you will be placed last."
-        widthClass="w-80"
-      />
-      )}
-      {!watchOnly && (
-      <InfoPopup
-        open={showInfo}
-        onClose={() => setShowInfo(false)}
-        title="Snake & Ladder"
-        info="Roll two dice each turn. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
-      />
-      )}
-      {!watchOnly && (
-      <HintPopup
-        open={showExactHelp}
-        onClose={() => setShowExactHelp(false)}
-        message="You must roll the exact number to land on the pot."
-      />
-      )}
-      {!watchOnly && (
-      <InfoPopup
-        open={connectionLost}
-        onClose={() => setConnectionLost(false)}
-        title="Connection Lost"
-        info="Attempting to reconnect..."
-      />
-      )}
-      {!watchOnly && (
-      <InfoPopup
-        open={forfeitMsg}
-        onClose={() => setForfeitMsg(false)}
-        title="Disconnected"
-        info="You were disconnected too long and forfeited the match."
-      />
-      )}
-      {!watchOnly && (
-      <InfoPopup
-        open={!!disconnectMsg}
-        onClose={() => setDisconnectMsg(null)}
-        title="Player Update"
-        info={disconnectMsg}
-      />
-      )}
-      {!watchOnly && (
-      <InfoPopup
-        open={!!cheatMsg}
-        onClose={() => setCheatMsg(null)}
-        title="Warning"
-        info={cheatMsg}
-      />
-      )}
-      {!watchOnly && (
-      <InfoPopup
-        open={!!leftWinner}
-        onClose={() => setLeftWinner(null)}
-        title="Opponent Left"
-        info={
-          leftWinner && (
-            <span>
-              {leftWinner} left the game. You win {Math.round(pot * 2 * 0.91)}{' '}
-              <img
-                src={
-                  token === 'TON'
-                    ? '/assets/icons/TON.webp'
-                    : token === 'USDT'
-                    ? '/assets/icons/Usdt.webp'
-                    : '/assets/icons/ezgif-54c96d8a9b9236.webp'
-                }
-                alt={token}
-                className="inline w-4 h-4 align-middle"
-              />
-            </span>
-          )
-        }
-      >
-        <div className="flex justify-center mt-2">
-          <button
-            onClick={() => navigate('/games/snake/lobby')}
-            className="lobby-tile px-4 py-1"
-          >
-            Return to Lobby
-          </button>
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={showQuitInfo}
+            onClose={() => setShowQuitInfo(false)}
+            title="Warning"
+            info="If you quit the game your funds will be lost and you will be placed last."
+            widthClass="w-80"
+          />
         </div>
-      </InfoPopup>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={showInfo}
+            onClose={() => setShowInfo(false)}
+            title="Snake & Ladder"
+            info="Roll two dice each turn. Move forward by their sum. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
+          />
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <HintPopup
+            open={showExactHelp}
+            onClose={() => setShowExactHelp(false)}
+            message="You must roll the exact number to land on the pot."
+          />
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={connectionLost}
+            onClose={() => setConnectionLost(false)}
+            title="Connection Lost"
+            info="Attempting to reconnect..."
+          />
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={forfeitMsg}
+            onClose={() => setForfeitMsg(false)}
+            title="Disconnected"
+            info="You were disconnected too long and forfeited the match."
+          />
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={!!disconnectMsg}
+            onClose={() => setDisconnectMsg(null)}
+            title="Player Update"
+            info={disconnectMsg}
+          />
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={!!cheatMsg}
+            onClose={() => setCheatMsg(null)}
+            title="Warning"
+            info={cheatMsg}
+          />
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={!!leftWinner}
+            onClose={() => setLeftWinner(null)}
+            title="Opponent Left"
+            info={
+              leftWinner && (
+                <span>
+                  {leftWinner} left the game. You win {Math.round(pot * 2 * 0.91)}{' '}
+                  <img
+                    src={
+                      token === 'TON'
+                        ? '/assets/icons/TON.webp'
+                        : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
+                    }
+                    alt={token}
+                    className="inline w-4 h-4 align-middle"
+                  />
+                </span>
+              )
+            }
+          >
+            <div className="flex justify-center mt-2">
+              <button
+                onClick={() => navigate('/games/snake/lobby')}
+                className="lobby-tile px-4 py-1"
+              >
+                Return to Lobby
+              </button>
+            </div>
+          </InfoPopup>
+        </div>
       )}
       {watchOnly && (
-      <InfoPopup
-        open={showWatchWelcome}
-        onClose={() => setShowWatchWelcome(false)}
-        title="Watching Game"
-        info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
-      />
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={showWatchWelcome}
+            onClose={() => setShowWatchWelcome(false)}
+            title="Watching Game"
+            info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
+          />
+        </div>
       )}
-      <GameEndPopup
-        open={gameOver}
-        ranking={ranking}
-        onReturn={() => {
-          localStorage.removeItem(`snakeGameState_${ai}`);
-          navigate("/games/snake/lobby");
-        }}
-      />
-      {!watchOnly && (
-        <ConfirmPopup
-          open={showLobbyConfirm}
-          message="Your funds will be lost if you quit the game."
-          confirmLabel="Return to Lobby"
-          cancelLabel="Games"
-          onConfirm={() => {
+      <div className="pointer-events-auto">
+        <GameEndPopup
+          open={gameOver}
+          ranking={ranking}
+          onReturn={() => {
             localStorage.removeItem(`snakeGameState_${ai}`);
             navigate("/games/snake/lobby");
           }}
-          onCancel={() => {
-            localStorage.removeItem(`snakeGameState_${ai}`);
-            navigate("/games");
-          }}
         />
+      </div>
+      {!watchOnly && (
+        <div className="pointer-events-auto">
+          <ConfirmPopup
+            open={showLobbyConfirm}
+            message="Your funds will be lost if you quit the game."
+            confirmLabel="Return to Lobby"
+            cancelLabel="Games"
+            onConfirm={() => {
+              localStorage.removeItem(`snakeGameState_${ai}`);
+              navigate("/games/snake/lobby");
+            }}
+            onCancel={() => {
+              localStorage.removeItem(`snakeGameState_${ai}`);
+              navigate("/games");
+            }}
+          />
+        </div>
       )}
       </div>
     </div>
