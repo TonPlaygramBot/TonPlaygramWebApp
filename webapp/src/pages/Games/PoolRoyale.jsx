@@ -6097,15 +6097,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         assembly.add(tv);
         return assembly;
       };
-      const signageY = floorY + wallHeight * 0.58;
+      const signageGap = BALL_R * 3.2;
+      const tvGap = BALL_R * 3.2;
+      const tvAssemblyHalfHeight = tvHeight * 0.85;
+      const signageHalfHeight = signageHeight / 2;
+      const signageY = floorY + signageGap + signageHalfHeight;
+      const tvY = floorY + tvGap + tvAssemblyHalfHeight;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
       [
-        { position: [0, signageY, frontInterior], rotationY: 0, type: 'tv' },
-        { position: [0, signageY, backInterior], rotationY: Math.PI, type: 'tv' },
+        { position: [0, tvY, frontInterior], rotationY: 0, type: 'tv' },
+        { position: [0, tvY, backInterior], rotationY: Math.PI, type: 'tv' },
         {
           position: [leftInterior, signageY, 0],
           rotationY: Math.PI / 2,
@@ -6168,7 +6173,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackY = signageY;
+      const cueRackGap = BALL_R * 0.6;
+      const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
         { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
