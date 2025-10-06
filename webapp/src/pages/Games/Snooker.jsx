@@ -4422,7 +4422,6 @@ function SnookerGame() {
     }
     return 0;
   });
-  const [cueGalleryActive, setCueGalleryActive] = useState(false);
   const cueStyleIndexRef = useRef(cueStyleIndex);
   const cueRackGroupsRef = useRef([]);
   const cueOptionGroupsRef = useRef([]);
@@ -5472,77 +5471,67 @@ function SnookerGame() {
           }
         };
       };
-      const BASE_TV_CANVAS_WIDTH = 1024;
-      const BASE_TV_CANVAS_HEIGHT = 512;
-      const createAvatarStore = () => ({
-        image: null,
-        src: '',
-        ready: false,
-        failed: false,
-        loading: false
-      });
-      const updateAvatarStore = (store, src) => {
-        const nextSrc = typeof src === 'string' ? src.trim() : '';
-        if (!nextSrc) {
-          store.image = null;
-          store.src = '';
-          store.ready = false;
-          store.failed = false;
-          store.loading = false;
-          return;
-        }
-        if (store.src === nextSrc) {
-          if (store.ready || store.loading || store.failed) {
-            return;
-          }
-        }
-        const image = new Image();
-        store.image = image;
-        store.src = nextSrc;
-        store.ready = false;
-        store.failed = false;
-        store.loading = true;
-        try {
-          image.crossOrigin = 'anonymous';
-        } catch {}
-        image.onload = () => {
-          if (store.image === image) {
-            store.ready = true;
-            store.failed = false;
-            store.loading = false;
-          }
-        };
-        image.onerror = () => {
-          if (store.image === image) {
-            store.ready = false;
-            store.failed = true;
-            store.loading = false;
-          }
-        };
-        image.src = nextSrc;
-      };
-      const hashString = (value) => {
-        const str = value || '';
-        let hash = 0;
-        for (let i = 0; i < str.length; i += 1) {
-          hash = (hash * 31 + str.charCodeAt(i)) | 0;
-        }
-        return Math.abs(hash);
-      };
       const createMatchTvEntry = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 3840;
-        canvas.height = 2160;
+        canvas.width = 1024;
+        canvas.height = 512;
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 12;
+        texture.anisotropy = 8;
         if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
         else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
+        const createAvatarStore = () => ({
+          image: null,
+          src: '',
+          ready: false,
+          failed: false,
+          loading: false
+        });
         const playerAvatarStore = createAvatarStore();
         const challengerAvatarStore = createAvatarStore();
+        const updateAvatarStore = (store, src) => {
+          const nextSrc = typeof src === 'string' ? src.trim() : '';
+          if (!nextSrc) {
+            store.image = null;
+            store.src = '';
+            store.ready = false;
+            store.failed = false;
+            store.loading = false;
+            return;
+          }
+          if (store.src === nextSrc) {
+            if (store.ready || store.loading || store.failed) {
+              return;
+            }
+          }
+          const image = new Image();
+          store.image = image;
+          store.src = nextSrc;
+          store.ready = false;
+          store.failed = false;
+          store.loading = true;
+          try {
+            image.crossOrigin = 'anonymous';
+          } catch {}
+          image.onload = () => {
+            if (store.image === image) {
+              store.ready = true;
+              store.failed = false;
+              store.loading = false;
+            }
+          };
+          image.onerror = () => {
+            if (store.image === image) {
+              store.ready = false;
+              store.failed = true;
+              store.loading = false;
+            }
+          };
+          image.src = nextSrc;
+        };
         return {
           texture,
           update(delta) {
@@ -5570,26 +5559,18 @@ function SnookerGame() {
             const highestBreakB =
               frameStateCurrent.players?.B?.highestBreak ?? 0;
             const currentBreak = frameStateCurrent.currentBreak ?? 0;
-            const baseWidth = BASE_TV_CANVAS_WIDTH;
-            const baseHeight = BASE_TV_CANVAS_HEIGHT;
-            const scaleX = canvas.width / baseWidth;
-            const scaleY = canvas.height / baseHeight;
-            ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
-            ctx.clearRect(0, 0, baseWidth, baseHeight);
-            const width = baseWidth;
-            const height = baseHeight;
             ctx.fillStyle = '#050b18';
-            ctx.fillRect(0, 0, width, height);
-            const headerGrad = ctx.createLinearGradient(0, 0, width, 0);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
             headerGrad.addColorStop(0, '#0f172a');
             headerGrad.addColorStop(1, '#1e293b');
             ctx.fillStyle = headerGrad;
-            ctx.fillRect(0, 0, width, 120);
+            ctx.fillRect(0, 0, canvas.width, 120);
             ctx.fillStyle = '#f1f5f9';
             ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('Snooker Match of the Day', width / 2, 60);
+            ctx.fillText('Snooker Match of the Day', canvas.width / 2, 60);
             const drawCompetitor = ({
               x,
               name,
@@ -5605,7 +5586,7 @@ function SnookerGame() {
               if (avatarStore) {
                 updateAvatarStore(avatarStore, avatarSrc);
               }
-              const scoreY = height * 0.3;
+              const scoreY = canvas.height * 0.3;
               ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
@@ -5616,7 +5597,7 @@ function SnookerGame() {
               ctx.fillStyle = active ? '#f8fafc' : '#e2e8f0';
               ctx.fillText(String(score ?? 0), x, scoreY);
               ctx.shadowBlur = 0;
-              const avatarY = height * 0.55;
+              const avatarY = canvas.height * 0.55;
               const avatarRadius = 90;
               ctx.save();
               ctx.translate(x, avatarY);
@@ -5684,7 +5665,7 @@ function SnookerGame() {
               ];
             };
             drawCompetitor({
-              x: width * 0.25,
+              x: canvas.width * 0.25,
               name: playerName,
               score: hudState.A ?? 0,
               accent: '#0ea5e9',
@@ -5697,7 +5678,7 @@ function SnookerGame() {
               avatarStore: playerAvatarStore
             });
             drawCompetitor({
-              x: width * 0.75,
+              x: canvas.width * 0.75,
               name: aiName,
               score: hudState.B ?? 0,
               accent: '#f97316',
@@ -5708,7 +5689,7 @@ function SnookerGame() {
               avatarSrc: challengerAvatarSrc,
               avatarStore: challengerAvatarStore
             });
-            const timerY = height * 0.18;
+            const timerY = canvas.height * 0.18;
             const warn = timerValue <= 5 && timerValue > 0;
             const timerColor = warn
               ? pulse % 0.4 < 0.2
@@ -5717,183 +5698,12 @@ function SnookerGame() {
               : '#38bdf8';
             ctx.fillStyle = timerColor;
             ctx.font = 'bold 110px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText(timerText, width / 2, timerY);
+            ctx.fillText(timerText, canvas.width / 2, timerY);
             ctx.fillStyle = '#cbd5f5';
             ctx.font = '600 32px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText('SHOT CLOCK', width / 2, timerY + 70);
+            ctx.fillText('SHOT CLOCK', canvas.width / 2, timerY + 70);
             texture.needsUpdate = true;
           }
-        };
-      };
-      const createProfilePosterEntry = (resolveData) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 2160;
-        canvas.height = 3840;
-        const ctx = canvas.getContext('2d');
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 12;
-        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-        else texture.encoding = THREE.sRGBEncoding;
-        const avatarStore = createAvatarStore();
-        return {
-          texture,
-          update() {
-            if (!ctx) return;
-            const data = resolveData?.() ?? {};
-            const {
-              name = 'Player',
-              avatar = '',
-              accent = '#38bdf8',
-              stats = []
-            } = data;
-            updateAvatarStore(avatarStore, avatar);
-            const baseWidth = 1080;
-            const baseHeight = 1920;
-            const scaleX = canvas.width / baseWidth;
-            const scaleY = canvas.height / baseHeight;
-            ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
-            ctx.clearRect(0, 0, baseWidth, baseHeight);
-            const width = baseWidth;
-            const height = baseHeight;
-            const framePadding = 28;
-            const innerWidth = width - framePadding * 2;
-            const innerHeight = height - framePadding * 2;
-            const backgroundGrad = ctx.createLinearGradient(0, 0, 0, height);
-            backgroundGrad.addColorStop(0, '#0f172a');
-            backgroundGrad.addColorStop(1, '#1e293b');
-            ctx.fillStyle = '#d1d5db';
-            ctx.fillRect(0, 0, width, height);
-            ctx.fillStyle = backgroundGrad;
-            ctx.fillRect(framePadding, framePadding, innerWidth, innerHeight);
-            ctx.fillStyle = accent;
-            ctx.globalAlpha = 0.9;
-            ctx.fillRect(framePadding, framePadding, innerWidth, 20);
-            ctx.globalAlpha = 1;
-            const avatarRadius = 210;
-            const avatarY = framePadding + 260;
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(width / 2, avatarY, avatarRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#0b1120';
-            ctx.fill();
-            if (avatarStore.ready && avatarStore.image) {
-              ctx.save();
-              ctx.arc(width / 2, avatarY, avatarRadius - 8, 0, Math.PI * 2);
-              ctx.clip();
-              ctx.drawImage(
-                avatarStore.image,
-                width / 2 - (avatarRadius - 8),
-                avatarY - (avatarRadius - 8),
-                (avatarRadius - 8) * 2,
-                (avatarRadius - 8) * 2
-              );
-              ctx.restore();
-            } else {
-              ctx.fillStyle = '#1f2937';
-              ctx.fill();
-              ctx.fillStyle = '#e2e8f0';
-              ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText((name || 'P').charAt(0).toUpperCase(), width / 2, avatarY);
-            }
-            ctx.restore();
-            ctx.fillStyle = '#f8fafc';
-            ctx.font = 'bold 72px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText(name, width / 2, avatarY + avatarRadius + 32);
-            ctx.fillStyle = '#cbd5f5';
-            ctx.font = '500 36px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText('PLAYER PROFILE', width / 2, avatarY + avatarRadius + 92);
-            const statsStartY = avatarY + avatarRadius + 150;
-            ctx.textAlign = 'left';
-            stats
-              .filter((entry) => entry && entry.label)
-              .forEach(({ label, value }, index) => {
-                const lineY = statsStartY + index * 70;
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = '500 34px "Segoe UI", "Helvetica Neue", sans-serif';
-                ctx.fillText(String(label).toUpperCase(), framePadding + 48, lineY);
-                ctx.fillStyle = '#f8fafc';
-                ctx.font = 'bold 54px "Segoe UI", "Helvetica Neue", sans-serif';
-                ctx.fillText(
-                  String(value ?? '--'),
-                  framePadding + 48,
-                  lineY + 38
-                );
-              });
-            texture.needsUpdate = true;
-          }
-        };
-      };
-      const formatNumber = (value) => {
-        const number = Number(value);
-        if (!Number.isFinite(number)) return String(value ?? '--');
-        return number.toLocaleString('en-US');
-      };
-      const formatCurrency = (value) => {
-        const number = Number(value);
-        if (!Number.isFinite(number)) return '$0';
-        return `$${number.toLocaleString('en-US')}`;
-      };
-      const resolvePlayerPosterData = () => {
-        const playerState = playerInfoRef.current ?? {};
-        const frameStateCurrent = frameRef.current ?? {};
-        const name =
-          playerState.name || frameStateCurrent.players?.A?.name || 'Player';
-        const avatar =
-          playerState.avatar || frameStateCurrent.players?.A?.avatar || '';
-        const hash = hashString(name);
-        const gamesPlayed = 40 + (hash % 80);
-        const winBase = Math.max(0, Math.floor(gamesPlayed * 0.6));
-        const wins = Math.min(gamesPlayed, winBase + (hash % 7) - 3);
-        const losses = Math.max(0, gamesPlayed - wins);
-        const balanceSource =
-          playerState.balance ?? playerState.tpc ?? 3500 + (hash % 5000);
-        const highestBreak = frameStateCurrent.players?.A?.highestBreak ?? 0;
-        const currentBreak = frameStateCurrent.currentBreak ?? 0;
-        return {
-          name,
-          avatar,
-          accent: '#0ea5e9',
-          stats: [
-            { label: 'TPC BALANCE', value: formatCurrency(balanceSource) },
-            { label: 'GAMES PLAYED', value: formatNumber(gamesPlayed) },
-            { label: 'WINS', value: formatNumber(wins) },
-            { label: 'LOSSES', value: formatNumber(losses) },
-            { label: 'HIGHEST BREAK', value: formatNumber(highestBreak) },
-            { label: 'CURRENT BREAK', value: formatNumber(currentBreak) }
-          ]
-        };
-      };
-      const resolveAiPosterData = () => {
-        const frameStateCurrent = frameRef.current ?? {};
-        const aiPlayer = frameStateCurrent.players?.B ?? {};
-        const name = aiPlayer.name || 'AI';
-        const hash = hashString(name);
-        const gamesPlayed = 60 + (hash % 90);
-        const wins = Math.max(0, Math.floor(gamesPlayed * 0.55 + (hash % 5) - 2));
-        const losses = Math.max(0, gamesPlayed - wins);
-        const tpcBalance = 5000 + (hash % 8000);
-        const highestBreak = aiPlayer.highestBreak ?? 0;
-        return {
-          name,
-          avatar: aiPlayer.avatar || '',
-          accent: '#f97316',
-          stats: [
-            { label: 'TPC BALANCE', value: formatCurrency(tpcBalance) },
-            { label: 'GAMES PLAYED', value: formatNumber(gamesPlayed) },
-            { label: 'WINS', value: formatNumber(wins) },
-            { label: 'LOSSES', value: formatNumber(losses) },
-            { label: 'HIGHEST BREAK', value: formatNumber(highestBreak) },
-            {
-              label: 'RIVAL STATUS',
-              value: wins >= losses ? 'FAVOURED' : 'DANGEROUS'
-            }
-          ]
         };
       };
       const legHeight = LEG_ROOM_HEIGHT;
@@ -5902,7 +5712,7 @@ function SnookerGame() {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.3;
+      const wallHeight = legHeight + TABLE.THICK + 40;
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -5965,12 +5775,6 @@ function SnookerGame() {
 
       const billboardTexture = registerDynamicTexture(createTickerEntry());
       const matchTexture = registerDynamicTexture(createMatchTvEntry());
-      const playerPosterTexture = registerDynamicTexture(
-        createProfilePosterEntry(resolvePlayerPosterData)
-      );
-      const aiPosterTexture = registerDynamicTexture(
-        createProfilePosterEntry(resolveAiPosterData)
-      );
       const signageFrameMat = new THREE.MeshStandardMaterial({
         color: 0x1f2937,
         roughness: 0.5,
@@ -5985,7 +5789,7 @@ function SnookerGame() {
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvScale = 10 * 1.3;
+      const tvScale = 10;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
       const tvDepth = 0.42 * tvScale;
@@ -6043,49 +5847,6 @@ function SnookerGame() {
         const tv = createTv(matchTexture);
         assembly.add(tv);
         return assembly;
-      };
-      const posterFrameMat = new THREE.MeshPhysicalMaterial({
-        color: 0xd1d5db,
-        metalness: 0.85,
-        roughness: 0.28,
-        clearcoat: 0.6
-      });
-      const createPosterAssembly = (
-        texture,
-        accentColor,
-        posterWidth,
-        posterHeight
-      ) => {
-        const group = new THREE.Group();
-        const posterDepth = signageDepth * 0.35;
-        const panelMat = new THREE.MeshStandardMaterial({
-          map: texture,
-          metalness: 0.08,
-          roughness: 0.32,
-          toneMapped: false
-        });
-        const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(posterWidth, posterHeight, posterDepth),
-          posterFrameMat
-        );
-        frame.castShadow = false;
-        frame.receiveShadow = true;
-        group.add(frame);
-        const inset = new THREE.Mesh(
-          new THREE.PlaneGeometry(posterWidth * 0.9, posterHeight * 0.94),
-          panelMat
-        );
-        inset.position.z = posterDepth / 2 + 0.01;
-        group.add(inset);
-        if (accentColor) {
-          const accent = new THREE.Mesh(
-            new THREE.BoxGeometry(posterWidth * 0.92, 0.06, posterDepth * 0.6),
-            new THREE.MeshStandardMaterial({ color: accentColor, metalness: 0.2, roughness: 0.45 })
-          );
-          accent.position.set(0, posterHeight / 2 - 0.03, posterDepth / 4);
-          group.add(accent);
-        }
-        return group;
       };
       const signageY = floorY + wallHeight * 0.58;
       const wallInset = wallThickness / 2 + 0.2;
@@ -6158,38 +5919,7 @@ function SnookerGame() {
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackLift = cueRackDimensions.height * 0.22;
-      const cueRackY = signageY + cueRackLift;
-      const posterWidthWorld = tvWidth / 2;
-      const posterHeightWorld = cueRackDimensions.height;
-      const posterDepthWorld = signageDepth * 0.35;
-      const posterBaseY = floorY + posterHeightWorld / 2 + 0.12;
-      const playerPoster = createPosterAssembly(
-        playerPosterTexture,
-        '#0ea5e9',
-        posterWidthWorld,
-        posterHeightWorld
-      );
-      playerPoster.position.set(
-        leftInterior + posterDepthWorld / 2 + 0.14,
-        posterBaseY,
-        0
-      );
-      playerPoster.rotation.y = Math.PI / 2;
-      world.add(playerPoster);
-      const aiPoster = createPosterAssembly(
-        aiPosterTexture,
-        '#f97316',
-        posterWidthWorld,
-        posterHeightWorld
-      );
-      aiPoster.position.set(
-        rightInterior - posterDepthWorld / 2 - 0.14,
-        posterBaseY,
-        0
-      );
-      aiPoster.rotation.y = -Math.PI / 2;
-      world.add(aiPoster);
+      const cueRackY = signageY;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
         { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
@@ -6243,14 +5973,11 @@ function SnookerGame() {
       const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
       const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
       const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-      const tripodFrontPullback = 1.18;
-      const tripodRearPullback = 1.08;
-      const tripodSideSpread = 1.12;
       const tripodPositions = [
-        { x: tripodXOffset * tripodSideSpread, z: tripodZOffset * tripodFrontPullback },
-        { x: -tripodXOffset * tripodSideSpread, z: tripodZOffset * tripodFrontPullback },
-        { x: tripodXOffset * tripodSideSpread, z: -tripodZOffset * tripodRearPullback },
-        { x: -tripodXOffset * tripodSideSpread, z: -tripodZOffset * tripodRearPullback }
+        { x: tripodXOffset, z: tripodZOffset },
+        { x: -tripodXOffset, z: tripodZOffset },
+        { x: tripodXOffset, z: -tripodZOffset },
+        { x: -tripodXOffset, z: -tripodZOffset }
       ];
       tripodPositions.forEach(({ x, z }) => {
         const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
@@ -6495,7 +6222,8 @@ function SnookerGame() {
         chair.position.set(chairOffset[0], 0, chairOffset[1]);
         const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
         const baseAngle = Math.atan2(toCenter.x, toCenter.y);
-        chair.rotation.y = baseAngle;
+        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
+        chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
         group.position.set(position[0], floorY, position[1]);
@@ -6515,10 +6243,8 @@ function SnookerGame() {
         rawCornerInset,
         Math.abs(backInterior) * 0.92
       );
-      const chairSideOffset =
-        toHospitalityUnits(0.56) * hospitalityUpscale * 1.22;
-      const chairForwardOffset =
-        toHospitalityUnits(0.74) * hospitalityUpscale * 1.18;
+      const chairSideOffset = toHospitalityUnits(0.56) * hospitalityUpscale;
+      const chairForwardOffset = toHospitalityUnits(0.74) * hospitalityUpscale;
 
       [
         {
@@ -8447,7 +8173,6 @@ function SnookerGame() {
         state.right?.set(0, 0, 0);
         state.up?.set(0, 0, 0);
         state.prev = null;
-        setCueGalleryActive(false);
         if (prev) {
           topViewRef.current = prev.topView ?? false;
           const focusStore = ensureOrbitFocus();
@@ -8465,11 +8190,11 @@ function SnookerGame() {
         updateCamera();
       };
 
-        const openCueGallery = (rackId) => {
-          if (!rackId) return;
-          const meta = cueRackMetaRef.current.get(rackId);
-          if (!meta?.group) return;
-          const state = cueGalleryStateRef.current;
+      const openCueGallery = (rackId) => {
+        if (!rackId) return;
+        const meta = cueRackMetaRef.current.get(rackId);
+        if (!meta?.group) return;
+        const state = cueGalleryStateRef.current;
         const rack = meta.group;
         rack.updateMatrixWorld(true);
         const rackPos = new THREE.Vector3();
@@ -8519,11 +8244,10 @@ function SnookerGame() {
         };
         state.basePosition.copy(position);
         state.baseTarget.copy(target);
-          state.position.copy(position);
-          state.target.copy(target);
-          state.right.copy(rightVec);
-          state.up.copy(upVec);
-          setCueGalleryActive(true);
+        state.position.copy(position);
+        state.target.copy(target);
+        state.right.copy(rightVec);
+        state.up.copy(upVec);
         const lateralAllowance = Math.max(
           width * 0.4,
           BALL_R * worldScaleFactor * 3.5
@@ -8871,10 +8595,6 @@ function SnookerGame() {
         lastCameraTargetRef.current.copy(
           focusTarget.clone().multiplyScalar(worldScaleFactor)
         );
-      };
-      const alignCameraForAiShot = (cueBall, aimDir) => {
-        if (!cueBall || !aimDir) return;
-        alignStandingCameraToAim(cueBall, aimDir.clone().multiplyScalar(-1));
       };
 
       // Fire (slider e thërret në release)
@@ -9370,64 +9090,6 @@ function SnookerGame() {
             });
           }
         };
-        const createFallbackAiPlan = () => {
-          if (!cue?.active) return null;
-          const stateSnapshot = frameRef.current ?? frameState;
-          const legalTargetsRaw = Array.isArray(stateSnapshot?.ballOn)
-            ? stateSnapshot.ballOn
-            : [];
-          const legalTargets = new Set(
-            legalTargetsRaw
-              .map((entry) =>
-                typeof entry === 'string' ? entry.toUpperCase() : entry
-              )
-              .filter(Boolean)
-          );
-          const cuePos = cue.pos.clone();
-          let bestBall = null;
-          let bestDist = Infinity;
-          const considerBall = (ball) => {
-            if (!ball || !ball.active || ball === cue) return;
-            const colorId = toBallColorId(ball.id);
-            if (legalTargets.size > 0 && !legalTargets.has(colorId)) return;
-            const dist = cuePos.distanceTo(ball.pos);
-            if (dist < bestDist) {
-              bestDist = dist;
-              bestBall = ball;
-            }
-          };
-          balls.forEach(considerBall);
-          if (!bestBall) {
-            balls.forEach((ball) => {
-              if (!ball || !ball.active || ball === cue) return;
-              const dist = cuePos.distanceTo(ball.pos);
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestBall = ball;
-              }
-            });
-          }
-          if (!bestBall) return null;
-          const aimVec = bestBall.pos.clone().sub(cuePos);
-          const distance = aimVec.length();
-          if (distance < 1e-4) return null;
-          const aimDir = aimVec.clone().normalize();
-          const colorId = toBallColorId(bestBall.id);
-          const type =
-            legalTargets.size === 0 || legalTargets.has(colorId) ? 'pot' : 'safety';
-          return {
-            type,
-            aimDir,
-            power: computePowerFromDistance(distance * 1.2),
-            target: colorId,
-            targetBall: bestBall,
-            pocketId: type === 'pot' ? 'TM' : 'SAFETY',
-            difficulty: distance,
-            cueToTarget: distance,
-            targetToPocket: 0,
-            spin: { x: 0, y: -0.1 }
-          };
-        };
         const stopAiThinking = () => {
           if (aiThinkingHandle) {
             cancelAnimationFrame(aiThinkingHandle);
@@ -9458,7 +9120,7 @@ function SnookerGame() {
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
-              alignCameraForAiShot(cue, plan.aimDir);
+              alignStandingCameraToAim(cue, plan.aimDir);
             } else {
               aiPlanRef.current = null;
             }
@@ -9495,7 +9157,7 @@ function SnookerGame() {
         };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
-          return options.bestPot ?? options.bestSafety ?? createFallbackAiPlan();
+          return options.bestPot ?? options.bestSafety ?? null;
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -9511,7 +9173,7 @@ function SnookerGame() {
           setAiPlanning(null);
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
-          alignCameraForAiShot(cue, dir);
+          alignStandingCameraToAim(cue, dir);
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
           const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -9668,9 +9330,7 @@ function SnookerGame() {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
-        const playerAiming = currentHud?.turn === 0;
         if (
-          playerAiming &&
           allStopped(balls) &&
           !(currentHud?.inHand) &&
           cue?.active &&
@@ -10713,15 +10373,6 @@ function SnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {cueGalleryActive && (
-        <div
-          className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-emerald-400/50 bg-black/70 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-emerald-100 shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
-          role="status"
-        >
-          Scroll and click to change the cue
-        </div>
-      )}
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
