@@ -63,10 +63,10 @@ export function createCueRackDisplay({
   const disposables = [];
 
   const frameMat = new THREE.MeshPhysicalMaterial({
-    color: 0x6a4b2f,
-    roughness: 0.55,
-    metalness: 0.12,
-    clearcoat: 0.6
+    color: 0x7d5b3a,
+    roughness: 0.52,
+    metalness: 0.14,
+    clearcoat: 0.65
   });
   const frameGeom = new THREE.BoxGeometry(frameWidth, frameHeight, frameDepth);
   const frameMesh = new THREE.Mesh(frameGeom, frameMat);
@@ -81,14 +81,14 @@ export function createCueRackDisplay({
   clothCanvas.height = 1024;
   const ctx = clothCanvas.getContext('2d');
   if (ctx) {
-    ctx.fillStyle = '#15345f';
+    ctx.fillStyle = '#1c4a85';
     ctx.fillRect(0, 0, clothCanvas.width, clothCanvas.height);
 
     const grad = ctx.createLinearGradient(0, 0, clothCanvas.width, clothCanvas.height);
-    grad.addColorStop(0, '#1a467b');
-    grad.addColorStop(0.5, '#1f4f8a');
-    grad.addColorStop(1, '#133a66');
-    ctx.globalAlpha = 0.85;
+    grad.addColorStop(0, '#215b9d');
+    grad.addColorStop(0.5, '#2a66aa');
+    grad.addColorStop(1, '#194979');
+    ctx.globalAlpha = 0.78;
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, clothCanvas.width, clothCanvas.height);
     ctx.globalAlpha = 1;
@@ -109,12 +109,12 @@ export function createCueRackDisplay({
     }
     ctx.putImageData(imageData, 0, 0);
 
-    ctx.globalAlpha = 0.08;
+    ctx.globalAlpha = 0.06;
     ctx.fillStyle = '#ffffff';
     for (let y = 0; y < clothCanvas.height; y += 8) {
       ctx.fillRect(0, y, clothCanvas.width, 1);
     }
-    ctx.globalAlpha = 0.04;
+    ctx.globalAlpha = 0.03;
     for (let x = 0; x < clothCanvas.width; x += 8) {
       ctx.fillRect(x, 0, 1, clothCanvas.height);
     }
@@ -299,16 +299,18 @@ export function createCueRackDisplay({
 
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
-  const verticalPadding = clothHeight * 0.035;
-  const cueVerticalBoost = clothHeight * 0.18;
+  const verticalPadding = clothHeight * 0.03;
+  const cueVerticalBoost = clothHeight * 0.24;
 
   for (let i = 0; i < cueCount; i += 1) {
     const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
     const cue = makeCue(color, i);
     const halfHeight = cue.userData?.cueHalfHeight ?? clothHeight / 2;
     const maxLift = clothHeight / 2 - halfHeight;
-    const boostedLift = clothHeight / 2 - halfHeight - verticalPadding + cueVerticalBoost;
-    const cueLift = Math.min(maxLift, boostedLift);
+    const boostedLift =
+      clothHeight / 2 - halfHeight - verticalPadding + cueVerticalBoost;
+    const liftBase = Math.min(maxLift, boostedLift);
+    const cueLift = Math.min(maxLift, liftBase + clothHeight * 0.04);
     cue.position.set(startX + i * stepX, cueLift, cueDepth);
     group.add(cue);
   }
