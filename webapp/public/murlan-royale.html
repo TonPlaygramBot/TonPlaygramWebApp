@@ -59,15 +59,26 @@
         height: 100vh;
         display: grid;
         place-items: center;
-        perspective: 1100px;
+        background: #05070f;
+        overflow: hidden;
       }
       .stage::before {
         content: '';
         position: absolute;
         inset: 0;
-        background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp')
-          center/cover no-repeat;
+        background: none;
         z-index: 0;
+      }
+      .three-host {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+      }
+      .three-host canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
       }
 
       /* CENTER: community pile + pot */
@@ -123,6 +134,7 @@
         position: absolute;
         inset: 0;
         z-index: 2;
+        pointer-events: none;
       }
       .seat {
         position: absolute;
@@ -130,6 +142,7 @@
         place-items: center;
         gap: 6px;
         width: clamp(120px, 28vw, 200px);
+        pointer-events: auto;
       }
       .seat .turn-indicator {
         display: none;
@@ -157,6 +170,23 @@
         padding: 4px;
         background: var(--seat-bg-color);
         box-shadow: 4px 4px 0 #d4ccb3;
+      }
+      .seat-3d .seat-inner {
+        background: rgba(8, 12, 22, 0.78);
+        border-color: rgba(255, 255, 255, 0.14);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+        padding: 6px 8px;
+      }
+      .seat-3d .score-box {
+        top: -22px;
+        background: rgba(4, 6, 12, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+      }
+      .seat-3d .name {
+        background: rgba(0, 0, 0, 0.65);
+        color: #f7f9ff;
+        border-color: rgba(255, 255, 255, 0.22);
+        text-shadow: none;
       }
       .score-box {
         position: absolute;
@@ -226,6 +256,12 @@
         border: 4px solid rgba(255, 255, 255, 0.65);
         box-shadow: 0 8px 20px var(--shadow);
         overflow: hidden;
+      }
+      .seat-3d .avatar {
+        background:
+          radial-gradient(circle at 30% 30%, #fff4e0, #d9a969 55%, #8b4a1a 100%);
+        border: 2px solid rgba(255, 255, 255, 0.75);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
       }
       .play-btn {
         width: var(--avatar-size);
@@ -650,6 +686,7 @@
   </head>
   <body class="frame-style-1">
     <div class="stage">
+      <div id="threeHost" class="three-host"></div>
       <!-- Center play area -->
       <div class="center">
         <div class="pile-area">
@@ -712,6 +749,7 @@
       </div>
     </div>
 
+    <script type="module" src="/murlan-royale-3d.js"></script>
     <script src="/flag-emojis.js"></script>
     <script src="/falling-ball-api.js"></script>
     <script>
@@ -1026,6 +1064,9 @@
               finished: false
             }))
           ];
+          if (window.murlanArena) {
+            window.murlanArena.init(state.players.length);
+          }
         }
 
         async function deal() {
@@ -1078,62 +1119,103 @@
 
         function posSeats() {
           seatsEl.innerHTML = '';
-          const tableRect = el('.stage').getBoundingClientRect();
-          const padX = 24,
+          const arena3D = window.murlanArena;
+          const placements =
+            arena3D && state.players.length
+              ? arena3D.getSeatPlacements(state.players.length)
+              : null;
+          const use3D = placements && placements.length >= state.players.length;
+
+          let tableRect,
+            padX,
+            padY,
+            x0,
+            y0,
+            w,
+            h,
+            perim,
+            step,
+            s0;
+          const stageArea = el('.stage').getBoundingClientRect();
+          if (!use3D) {
+            tableRect = stageArea;
+            padX = 24;
             padY = 16;
-          const x0 = tableRect.left + padX,
+            x0 = tableRect.left + padX;
             y0 = tableRect.top + padY;
-          const w = tableRect.width - padX * 2,
+            w = tableRect.width - padX * 2;
             h = tableRect.height - padY * 2;
-          const perim = 2 * (w + h),
+            perim = 2 * (w + h);
             step = perim / state.players.length;
-          let s0 = w + h + w / 2; // bottom center for user (index 0)
+            s0 = w + h + w / 2;
+          }
 
           state.players.forEach((p, i) => {
-            const s = (s0 + i * step) % perim;
-            let x, y, side;
-            if (s < w) {
-              x = x0 + s;
-              y = y0;
-              side = 'top';
-            } else if (s < w + h) {
-              x = x0 + w;
-              y = y0 + (s - w);
-              side = 'right';
-            } else if (s < w + h + w) {
-              x = x0 + (w - (s - (w + h)));
-              y = y0 + h;
-              side = 'bottom';
-            } else {
-              x = x0;
-              y = y0 + (h - (s - (w + h + w)));
-              side = 'left';
-            }
-
+            let side = 'bottom';
+            let placement;
             const seat = document.createElement('div');
-            seat.className = 'seat ' + side;
             const indicator = document.createElement('div');
             indicator.className = 'turn-indicator';
             seat.appendChild(indicator);
-            const area = el('.stage').getBoundingClientRect();
-            if (side === 'bottom') {
-              seat.style.left = '50%';
-              seat.style.bottom = '8px';
-              seat.style.transform = 'translateX(-50%)';
+
+            if (use3D) {
+              placement = placements[i];
+              if (placement) side = placement.side || side;
+              seat.className = 'seat seat-3d ' + side;
+              if (placement) {
+                seat.style.left = placement.x + 'px';
+                seat.style.top = placement.y + 'px';
+              } else {
+                seat.style.left = '50%';
+                seat.style.top = '50%';
+              }
+              seat.style.transform = 'translate(-50%, -74%)';
               seat.style.width = 'auto';
-            } else if (side === 'top') {
-              seat.style.left = '50%';
-              seat.style.top = '8px';
-              seat.style.transform = 'translateX(-55%)';
-              seat.style.width = 'auto';
-            } else if (side === 'right') {
-              seat.style.left = x - area.left - 20 + 'px';
-              seat.style.top = y - area.top + 20 + 'px';
-              seat.style.transform = 'translate(-50%,-50%)';
+              seat.style.removeProperty('bottom');
             } else {
-              seat.style.left = x - area.left + 20 + 'px';
-              seat.style.top = y - area.top + 20 + 'px';
-              seat.style.transform = 'translate(-50%,-50%)';
+              const s = (s0 + i * step) % perim;
+              let x, y;
+              if (s < w) {
+                x = x0 + s;
+                y = y0;
+                side = 'top';
+              } else if (s < w + h) {
+                x = x0 + w;
+                y = y0 + (s - w);
+                side = 'right';
+              } else if (s < w + h + w) {
+                x = x0 + (w - (s - (w + h)));
+                y = y0 + h;
+                side = 'bottom';
+              } else {
+                x = x0;
+                y = y0 + (h - (s - (w + h + w)));
+                side = 'left';
+              }
+              seat.className = 'seat ' + side;
+              if (side === 'bottom') {
+                seat.style.left = '50%';
+                seat.style.bottom = '8px';
+                seat.style.transform = 'translateX(-50%)';
+                seat.style.width = 'auto';
+                seat.style.removeProperty('top');
+              } else if (side === 'top') {
+                seat.style.left = '50%';
+                seat.style.top = '8px';
+                seat.style.transform = 'translateX(-55%)';
+                seat.style.width = 'auto';
+                seat.style.removeProperty('bottom');
+              } else if (side === 'right') {
+                seat.style.left = x - stageArea.left - 20 + 'px';
+                seat.style.top = y - stageArea.top + 20 + 'px';
+                seat.style.transform = 'translate(-50%,-50%)';
+                seat.style.removeProperty('bottom');
+              } else {
+                seat.style.left = x - stageArea.left + 20 + 'px';
+                seat.style.top = y - stageArea.top + 20 + 'px';
+                seat.style.transform = 'translate(-50%,-50%)';
+                seat.style.removeProperty('bottom');
+              }
             }
 
             const seatInner = document.createElement('div');
@@ -1192,6 +1274,9 @@
                   }
                   sndChip.currentTime = 0;
                   sndChip.play();
+                  if (window.murlanArena) {
+                    window.murlanArena.syncState(state);
+                  }
                 });
                 if (state.arrangeMode) {
                   enableDrag(face, cards, p);
@@ -1433,6 +1518,9 @@
 
         function renderAll() {
           posSeats();
+          if (window.murlanArena) {
+            window.murlanArena.syncState(state);
+          }
           renderPile();
           if (potEl) potEl.textContent = '';
           updateTimerDisplay();
@@ -1442,6 +1530,14 @@
             highlightCombos();
           }
         }
+
+        window.addEventListener('resize', () => {
+          if (window.murlanArena) window.murlanArena.requestResize();
+          clearTimeout(window.__murlanSeatTimer);
+          window.__murlanSeatTimer = setTimeout(() => {
+            posSeats();
+          }, 80);
+        });
 
         function animateCardsFromAvatar(idx, cards) {
           return new Promise((resolve) => {
@@ -1653,6 +1749,9 @@
           seatsEl
             .querySelectorAll('.card.selected')
             .forEach((n) => n.classList.remove('selected'));
+          if (window.murlanArena) {
+            window.murlanArena.syncState(state);
+          }
         }
         function clearSuggestions() {
           seatsEl
