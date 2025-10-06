@@ -4763,8 +4763,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const cueGalleryStateRef = useRef({
     active: false,
     rackId: null,
+    basePosition: new THREE.Vector3(),
+    baseTarget: new THREE.Vector3(),
     position: new THREE.Vector3(),
     target: new THREE.Vector3(),
+    right: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+    maxLateral: 0,
+    lateralOffset: 0,
+    lateralFocusScale: 0.35,
     prev: null
   });
 
@@ -6899,14 +6906,42 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           };
           const galleryState = cueGalleryStateRef.current;
           if (galleryState?.active) {
-            const galleryTarget = galleryState.target?.clone() ?? new THREE.Vector3();
-            const galleryPosition = galleryState.position?.clone() ?? new THREE.Vector3();
-            camera.position.copy(galleryPosition);
-            camera.lookAt(galleryTarget);
+            const basePosition =
+              galleryState.basePosition ?? galleryState.position ?? null;
+            const baseTarget =
+              galleryState.baseTarget ?? galleryState.target ?? null;
+            const resolvedPosition = basePosition
+              ? basePosition.clone()
+              : new THREE.Vector3();
+            const resolvedTarget = baseTarget
+              ? baseTarget.clone()
+              : new THREE.Vector3();
+            const maxLateral = Math.max(galleryState.maxLateral ?? 0, 0);
+            if (maxLateral > 0) {
+              const clamped = THREE.MathUtils.clamp(
+                galleryState.lateralOffset ?? 0,
+                -maxLateral,
+                maxLateral
+              );
+              if (clamped !== galleryState.lateralOffset) {
+                galleryState.lateralOffset = clamped;
+              }
+              const right = galleryState.right;
+              if (right && right.lengthSq() > 1e-6 && Math.abs(clamped) > 1e-6) {
+                const offset = right.clone().multiplyScalar(clamped);
+                resolvedPosition.add(offset);
+                const focusScale = galleryState.lateralFocusScale ?? 0.35;
+                resolvedTarget.add(offset.clone().multiplyScalar(focusScale));
+              }
+            }
+            galleryState.position.copy(resolvedPosition);
+            galleryState.target.copy(resolvedTarget);
+            camera.position.copy(resolvedPosition);
+            camera.lookAt(resolvedTarget);
             renderCamera = camera;
-            lookTarget = galleryTarget;
-            broadcastArgs.focusWorld = galleryTarget.clone();
-            broadcastArgs.targetWorld = galleryTarget.clone();
+            lookTarget = resolvedTarget;
+            broadcastArgs.focusWorld = resolvedTarget.clone();
+            broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
           } else if (topViewRef.current) {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
@@ -7920,6 +7955,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
+        const galleryDrag = {
+          active: false,
+          startX: 0,
+          lastX: 0,
+          moved: false,
+          identifier: null
+        };
         let lastInteraction = performance.now();
         const registerInteraction = () => {
           lastInteraction = performance.now();
@@ -7957,8 +7999,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
         const down = (e) => {
           registerInteraction();
-          if (attemptCueSelection(e)) return;
-          if (cueGalleryStateRef.current.active) return;
+          const galleryState = cueGalleryStateRef.current;
+          if (galleryState?.active) {
+            const touch = e.changedTouches?.[0] ?? e.touches?.[0];
+            const clientX = e.clientX ?? touch?.clientX ?? galleryDrag.lastX;
+            galleryDrag.active = true;
+            galleryDrag.moved = false;
+            galleryDrag.startX = clientX ?? 0;
+            galleryDrag.lastX = galleryDrag.startX;
+            galleryDrag.identifier = touch?.identifier ?? null;
+            return;
+          }
           if (attemptCueGalleryPress(e)) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
@@ -7971,7 +8022,58 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
         };
         const move = (e) => {
-          if (cueGalleryStateRef.current.active) return;
+          const galleryState = cueGalleryStateRef.current;
+          if (galleryState?.active) {
+            if (!galleryDrag.active) return;
+            let pointerX = e.clientX;
+            const findTouch = (touchList) => {
+              if (!touchList) return undefined;
+              for (let i = 0; i < touchList.length; i += 1) {
+                const touch = touchList[i];
+                if (
+                  galleryDrag.identifier != null &&
+                  touch.identifier === galleryDrag.identifier
+                ) {
+                  return touch;
+                }
+              }
+              return touchList[0];
+            };
+            if (pointerX == null) {
+              const touch = findTouch(e.touches);
+              if (touch) pointerX = touch.clientX;
+            }
+            if (pointerX == null) {
+              const touch = findTouch(e.changedTouches);
+              if (touch) pointerX = touch.clientX;
+            }
+            if (pointerX == null) pointerX = galleryDrag.lastX;
+            const dx = (pointerX ?? galleryDrag.lastX) - galleryDrag.lastX;
+            galleryDrag.lastX = pointerX ?? galleryDrag.lastX;
+            if (
+              !galleryDrag.moved &&
+              Math.abs((pointerX ?? 0) - galleryDrag.startX) > 4
+            ) {
+              galleryDrag.moved = true;
+            }
+            const maxLateral = Math.max(galleryState.maxLateral ?? 0, 0);
+            if (maxLateral > 0 && dx !== 0) {
+              const rect = dom.getBoundingClientRect();
+              const scale =
+                rect.width > 0 ? maxLateral / rect.width : maxLateral / 240;
+              const nextOffset = THREE.MathUtils.clamp(
+                (galleryState.lateralOffset ?? 0) + dx * scale,
+                -maxLateral,
+                maxLateral
+              );
+              if (Math.abs(nextOffset - (galleryState.lateralOffset ?? 0)) > 1e-4) {
+                galleryState.lateralOffset = nextOffset;
+                updateCamera();
+              }
+            }
+            registerInteraction();
+            return;
+          }
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -8012,9 +8114,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
         const up = (e) => {
           registerInteraction();
-          if (cueGalleryStateRef.current.active) {
-            drag.on = false;
-            drag.moved = false;
+          const galleryState = cueGalleryStateRef.current;
+          if (galleryState?.active) {
+            const wasMoved = galleryDrag.moved;
+            galleryDrag.active = false;
+            galleryDrag.moved = false;
+            galleryDrag.identifier = null;
+            galleryDrag.startX = galleryDrag.lastX;
+            if (!wasMoved) {
+              attemptCueSelection(e);
+            }
             return;
           }
           const moved = drag.moved;
@@ -8491,6 +8600,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const prev = state.prev;
         state.active = false;
         state.rackId = null;
+        state.lateralOffset = 0;
+        state.maxLateral = 0;
+        state.basePosition?.set(0, 0, 0);
+        state.baseTarget?.set(0, 0, 0);
+        state.position?.set(0, 0, 0);
+        state.target?.set(0, 0, 0);
+        state.right?.set(0, 0, 0);
+        state.up?.set(0, 0, 0);
         state.prev = null;
         if (prev) {
           topViewRef.current = prev.topView ?? false;
@@ -8526,6 +8643,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const upVec = new THREE.Vector3(0, 1, 0)
           .applyQuaternion(rackQuat)
           .normalize();
+        const rightVec = new THREE.Vector3()
+          .crossVectors(upVec, forward)
+          .normalize();
         const dims = meta.dimensions ?? rack.userData?.cueRackDimensions ?? {};
         const width = (dims.width ?? 4) * worldScaleFactor;
         const height = (dims.height ?? 3) * worldScaleFactor;
@@ -8556,8 +8676,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ballId: focusStore.ballId
           }
         };
+        state.basePosition.copy(position);
+        state.baseTarget.copy(target);
         state.position.copy(position);
         state.target.copy(target);
+        state.right.copy(rightVec);
+        state.up.copy(upVec);
+        const lateralAllowance = Math.max(width * 0.18, BALL_R * worldScaleFactor * 2);
+        state.maxLateral = Number.isFinite(lateralAllowance) ? lateralAllowance : 0;
+        state.lateralOffset = 0;
+        state.lateralFocusScale = 0.35;
         topViewRef.current = false;
         applyCameraBlend(cameraBlendRef.current);
         updateCamera();
@@ -8571,8 +8699,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const racks = cueRackGroupsRef.current;
         if (!Array.isArray(racks) || racks.length === 0) return false;
         const rect = dom.getBoundingClientRect();
-        const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
-        const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+        const touch = ev.changedTouches?.[0] ?? ev.touches?.[0];
+        const clientX = ev.clientX ?? touch?.clientX;
+        const clientY = ev.clientY ?? touch?.clientY;
         if (clientX == null || clientY == null) return false;
         if (
           clientX < rect.left ||
@@ -8603,8 +8732,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const state = cueGalleryStateRef.current;
         if (!state?.active) return false;
         const rect = dom.getBoundingClientRect();
-        const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
-        const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+        const touch = ev.changedTouches?.[0] ?? ev.touches?.[0];
+        const clientX = ev.clientX ?? touch?.clientX;
+        const clientY = ev.clientY ?? touch?.clientY;
         if (clientX == null || clientY == null) return true;
         if (
           clientX < rect.left ||
