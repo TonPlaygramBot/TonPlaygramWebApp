@@ -1,13 +1,13 @@
-export const CUE_RACK_PALETTE = [
-  0xcaa472,
-  0xb17d56,
-  0x8d5a34,
-  0xd7b17e,
-  0x9b633b,
-  0xdeb887,
-  0x6e3b1f,
-  0xa47551
-];
+import {
+  WOOD_FINISH_PRESETS,
+  createWoodMaterial,
+  hslToHex,
+  clamp01
+} from './woodTextures.js';
+
+export const CUE_RACK_PALETTE = WOOD_FINISH_PRESETS.map((preset) =>
+  hslToHex(preset.hue, preset.saturation * 0.95, clamp01(preset.lightness - 0.06))
+);
 
 /**
  * Build a wall-mounted cue rack display consisting of a wooden frame,
@@ -66,11 +66,15 @@ export function createCueRackDisplay({
   const group = new THREE.Group();
   const disposables = [];
 
-  const frameMat = new THREE.MeshPhysicalMaterial({
-    color: 0x7d5b3a,
-    roughness: 0.52,
-    metalness: 0.14,
-    clearcoat: 0.65
+  const framePreset = WOOD_FINISH_PRESETS[2] || WOOD_FINISH_PRESETS[0];
+  const frameMat = createWoodMaterial({
+    hue: framePreset.hue,
+    saturation: framePreset.saturation * 1.05,
+    lightness: clamp01(framePreset.lightness - 0.05),
+    contrast: framePreset.contrast,
+    repeat: 1.6,
+    roughness: 0.36,
+    envMapIntensity: 0.82
   });
   const frameGeom = new THREE.BoxGeometry(frameWidth, frameHeight, frameDepth);
   const frameMesh = new THREE.Mesh(frameGeom, frameMat);
@@ -184,19 +188,24 @@ export function createCueRackDisplay({
   const connectorLength = 0.015 * unit * 1.5;
   const cueEndCapRadius = buttRadius * 1.1;
 
-  const makeCue = (color, index) => {
+  const makeCue = (index) => {
     const cueGroup = new THREE.Group();
-    const woodMat = new THREE.MeshPhysicalMaterial({
-      color,
-      roughness: 0.25,
-      metalness: 0.1,
-      clearcoat: 1,
-      clearcoatRoughness: 0.12
+    const preset = WOOD_FINISH_PRESETS[index % WOOD_FINISH_PRESETS.length];
+    const cueColor = CUE_RACK_PALETTE[index % CUE_RACK_PALETTE.length];
+    const woodMat = createWoodMaterial({
+      hue: preset.hue,
+      saturation: preset.saturation * 1.02,
+      lightness: clamp01(preset.lightness - 0.06),
+      contrast: preset.contrast,
+      repeat: 3.4,
+      anisotropy: 12,
+      roughness: 0.28,
+      envMapIntensity: 0.78
     });
     woodMat.userData = woodMat.userData || {};
     woodMat.userData.isCueWood = true;
     woodMat.userData.cueOptionIndex = index;
-    woodMat.userData.cueOptionColor = color;
+    woodMat.userData.cueOptionColor = cueColor;
     disposables.push(woodMat);
 
     const shaftLength = cueLength * 0.74;
@@ -265,7 +274,7 @@ export function createCueRackDisplay({
     cueGroup.userData = cueGroup.userData || {};
     cueGroup.userData.isCueOption = true;
     cueGroup.userData.cueOptionIndex = index;
-    cueGroup.userData.cueOptionColor = color;
+    cueGroup.userData.cueOptionColor = cueColor;
 
     const bounds = new THREE.Box3().setFromObject(cueGroup);
     const center = new THREE.Vector3();
@@ -288,7 +297,7 @@ export function createCueRackDisplay({
     pickMesh.userData = pickMesh.userData || {};
     pickMesh.userData.isCueOption = true;
     pickMesh.userData.cueOptionIndex = index;
-    pickMesh.userData.cueOptionColor = color;
+    pickMesh.userData.cueOptionColor = cueColor;
     pickMesh.visible = true;
     cueGroup.add(pickMesh);
     disposables.push(pickGeom);
@@ -298,7 +307,7 @@ export function createCueRackDisplay({
       child.userData = child.userData || {};
       child.userData.isCueOption = true;
       child.userData.cueOptionIndex = index;
-      child.userData.cueOptionColor = color;
+      child.userData.cueOptionColor = cueColor;
     });
 
     cueGroup.castShadow = true;
@@ -311,8 +320,7 @@ export function createCueRackDisplay({
   const cueTop = clothHeight / 2 - cueTopMargin;
 
   for (let i = 0; i < cueCount; i += 1) {
-    const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
-    const cue = makeCue(color, i);
+    const cue = makeCue(i);
     cue.position.set(startX + i * stepX, cueTop, cueDepth);
     group.add(cue);
   }
