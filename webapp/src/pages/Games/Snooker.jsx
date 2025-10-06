@@ -8216,14 +8216,16 @@ function SnookerGame() {
         const depth = (dims.depth ?? 0.2) * worldScaleFactor;
         const distance = Math.max(
           depth * 12,
-          width * 0.85,
-          BALL_R * worldScaleFactor * 22
+          width * 0.95,
+          BALL_R * worldScaleFactor * 24
         );
         const position = rackPos
           .clone()
           .add(forward.clone().multiplyScalar(distance))
-          .add(upVec.clone().multiplyScalar(height * 0.18));
-        const target = rackPos.clone().add(upVec.clone().multiplyScalar(height * 0.06));
+          .add(upVec.clone().multiplyScalar(height * 0.24));
+        const target = rackPos.clone().add(
+          upVec.clone().multiplyScalar(height * 0.12)
+        );
         const focusStore = ensureOrbitFocus();
         state.active = true;
         state.rackId = rackId;
@@ -8246,10 +8248,13 @@ function SnookerGame() {
         state.target.copy(target);
         state.right.copy(rightVec);
         state.up.copy(upVec);
-        const lateralAllowance = Math.max(width * 0.18, BALL_R * worldScaleFactor * 2);
+        const lateralAllowance = Math.max(
+          width * 0.4,
+          BALL_R * worldScaleFactor * 3.5
+        );
         state.maxLateral = Number.isFinite(lateralAllowance) ? lateralAllowance : 0;
         state.lateralOffset = 0;
-        state.lateralFocusScale = 0.35;
+        state.lateralFocusScale = 0.5;
         topViewRef.current = false;
         applyCameraBlend(cameraBlendRef.current);
         updateCamera();
