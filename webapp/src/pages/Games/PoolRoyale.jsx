@@ -441,6 +441,15 @@ const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const CUE_WOOD_WORLD_UNIT = (() => {
+  const cueLength = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
+  const repeats = SHARED_WOOD_REPEAT.y;
+  return repeats > 1e-6 ? cueLength / repeats : 0;
+})();
+const TABLE_WOOD_TEXTURE_SCALE =
+  CUE_WOOD_WORLD_UNIT > 1e-6
+    ? WOOD_REPEAT_UNIT / CUE_WOOD_WORLD_UNIT
+    : 1; // Match the cue butt grain density on table rails and skirts
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -697,7 +706,6 @@ const UI_SCALE = SIZE_REDUCTION;
 
 const BASE_WOOD_COLOR = '#8b5e3c';
 const WOOD_REPEAT_UNIT = TABLE.THICK * 0.92;
-const TABLE_WOOD_TEXTURE_SCALE = 0.1; // Enlarge the wood grain on the table rails and skirts
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
