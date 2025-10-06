@@ -5,6 +5,7 @@ import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../utils/arenaDecor.js';
+import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../utils/arenaCameraConfig.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -16,22 +17,18 @@ const WALL_PROXIMITY_FACTOR = 0.5;
 const WALL_HEIGHT_MULTIPLIER = 2;
 const CHAIR_SCALE = 4;
 const CHAIR_CLEARANCE = 0.52;
-const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
-const CAMERA_MIN_RADIUS_FACTOR = 0.95;
-const CAMERA_MAX_RADIUS_FACTOR = 2.4;
-const CAMERA_PHI_MIN = 0.92;
-const CAMERA_PHI_MAX = 1.22;
-const CAMERA_INITIAL_PHI_LERP = 0.35;
-const CAMERA_VERTICAL_SENSITIVITY = 0.003;
-const CAMERA_LEAN_STRENGTH = 0.0065;
-const CAMERA_CONFIG = {
-  fov: 52,
-  near: 0.1,
-  far: 5000
-};
 
 const SNAKE_BOARD_TILES = 10;
 const SNAKE_BOARD_SIZE = 3.4;
+
+const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
+const CAMERA_PHI_MIN = ARENA_CAMERA_DEFAULTS.phiMin;
+const CAMERA_PHI_MAX = ARENA_CAMERA_DEFAULTS.phiMax;
+const CAMERA_INITIAL_PHI_LERP = ARENA_CAMERA_DEFAULTS.initialPhiLerp;
+const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
+const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
+const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
+const CAMERA_CONFIG = buildArenaCameraConfig(SNAKE_BOARD_SIZE);
 const TILE_GAP = 0.015;
 const TILE_SIZE = SNAKE_BOARD_SIZE / SNAKE_BOARD_TILES;
 const BOARD_BASE_EXTRA = 0.28;
@@ -448,8 +445,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     CAMERA_CONFIG.near,
     CAMERA_CONFIG.far
   );
-  const minR = SNAKE_BOARD_SIZE * CAMERA_MIN_RADIUS_FACTOR;
-  const maxR = SNAKE_BOARD_SIZE * CAMERA_MAX_RADIUS_FACTOR;
+  const minR = CAMERA_CONFIG.minRadius;
+  const maxR = CAMERA_CONFIG.maxRadius;
   const initialRadius = Math.max(
     SNAKE_BOARD_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
     minR + 0.6
@@ -504,7 +501,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   };
   const onWheel = (e) => {
     const r = sph.radius || initialRadius;
-    sph.radius = clamp(r + e.deltaY * 0.2, minR, maxR);
+    sph.radius = clamp(r + e.deltaY * CAMERA_WHEEL_FACTOR, minR, maxR);
     fit();
   };
   dom.addEventListener('mousedown', onDown);

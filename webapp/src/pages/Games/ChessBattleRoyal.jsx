@@ -13,6 +13,7 @@ import {
 } from '../../utils/telegram.js';
 import { bombSound } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
+import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -60,12 +61,11 @@ const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
-const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
-const CAMERA_MIN_RADIUS_FACTOR = 0.95;
-const CAMERA_MAX_RADIUS_FACTOR = 2.4;
-const CAMERA_INITIAL_PHI_LERP = 0.35;
-const CAMERA_VERTICAL_SENSITIVITY = 0.003;
-const CAMERA_LEAN_STRENGTH = 0.0065;
+const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
+const CAMERA_INITIAL_PHI_LERP = ARENA_CAMERA_DEFAULTS.initialPhiLerp;
+const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
+const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
+const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -82,14 +82,15 @@ const CHESS_ARENA = Object.freeze({
   depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
 });
 
+const CAM_RANGE = buildArenaCameraConfig(BOARD_DISPLAY_SIZE);
 const CAM = {
-  fov: 52,
-  near: 0.1,
-  far: 5000,
-  minR: BOARD_DISPLAY_SIZE * CAMERA_MIN_RADIUS_FACTOR,
-  maxR: BOARD_DISPLAY_SIZE * CAMERA_MAX_RADIUS_FACTOR,
-  phiMin: 0.92,
-  phiMax: 1.22
+  fov: CAM_RANGE.fov,
+  near: CAM_RANGE.near,
+  far: CAM_RANGE.far,
+  minR: CAM_RANGE.minRadius,
+  maxR: CAM_RANGE.maxRadius,
+  phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
+  phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
 
 // =============== Materials & simple builders ===============
@@ -1203,7 +1204,7 @@ function Chess3D({ avatar, username }) {
     };
     const onWheel = (e) => {
       const r = sph.radius || 88;
-      sph.radius = clamp(r + e.deltaY * 0.2, CAM.minR, CAM.maxR);
+      sph.radius = clamp(r + e.deltaY * CAMERA_WHEEL_FACTOR, CAM.minR, CAM.maxR);
       fit();
     };
     renderer.domElement.addEventListener('mousedown', onDown);
