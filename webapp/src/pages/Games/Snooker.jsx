@@ -708,7 +708,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5);
-const TABLE_WOOD_TEXTURE_SCALE = 0.1; // Enlarge the wood grain on the table rails and skirts
+const TABLE_WOOD_TEXTURE_SCALE = 1; // Match the cue butt wood grain scale on the table rails and skirts
 
 const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 
