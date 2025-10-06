@@ -118,10 +118,15 @@ export function createWoodMaterial({
   roughnessMap: providedRoughnessMap = null
 } = {}) {
   const ownsMap = !providedMap;
-  const map = providedMap ?? makeNaturalWoodTexture(1024, 1024, hue, saturation, lightness, contrast);
+  const map =
+    providedMap ?? makeNaturalWoodTexture(1024, 1024, hue, saturation, lightness, contrast);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.anisotropy = anisotropy;
   map.repeat.set(repeat, repeat);
+  map.userData = {
+    ...(map.userData || {}),
+    baseRepeat: { x: repeat, y: repeat }
+  };
   map.needsUpdate = true;
   const ownsRoughness = !providedRoughnessMap;
   const roughnessMap =
@@ -129,6 +134,10 @@ export function createWoodMaterial({
   roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
   roughnessMap.anisotropy = Math.min(anisotropy, 8);
   roughnessMap.repeat.set(repeat, repeat);
+  roughnessMap.userData = {
+    ...(roughnessMap.userData || {}),
+    baseRepeat: { x: repeat, y: repeat }
+  };
   roughnessMap.needsUpdate = true;
   const material = new THREE.MeshPhysicalMaterial({
     color: hslToColor(hue, saturation, lightness),
@@ -189,6 +198,9 @@ export function buildWoodFinishMap({ defaultClothColor, makeColorPalette }) {
       cloned.wrapT = texture.wrapT;
       cloned.anisotropy = texture.anisotropy;
       cloned.repeat.copy(texture.repeat);
+      cloned.center.copy(texture.center ?? new THREE.Vector2(0, 0));
+      cloned.rotation = texture.rotation ?? 0;
+      cloned.userData = { ...(texture.userData || {}) };
       cloned.needsUpdate = true;
       return cloned;
     };
@@ -248,6 +260,40 @@ export function buildWoodFinishMap({ defaultClothColor, makeColorPalette }) {
     };
   });
   return entries;
+}
+
+export function orientWoodTexture(
+  material,
+  {
+    repeatScaleAlong = 2.4,
+    repeatScaleAcross = 0.6,
+    rotation = Math.PI / 2,
+    minAnisotropy = 24
+  } = {}
+) {
+  if (!material) return;
+
+  const applyToTexture = (texture) => {
+    if (!texture) return;
+    const baseRepeat = texture.userData?.baseRepeat;
+    const baseX = baseRepeat?.x ?? texture.repeat.x ?? 1;
+    const baseY = baseRepeat?.y ?? texture.repeat.y ?? 1;
+    const nextX = baseX * repeatScaleAlong;
+    const nextY = baseY * repeatScaleAcross;
+    texture.repeat.set(nextX, nextY);
+    if (texture.center) {
+      texture.center.set(0.5, 0.5);
+    }
+    texture.rotation = rotation;
+    if (typeof minAnisotropy === 'number' && Number.isFinite(minAnisotropy)) {
+      const current = texture.anisotropy ?? 1;
+      texture.anisotropy = Math.max(current, minAnisotropy);
+    }
+    texture.needsUpdate = true;
+  };
+
+  applyToTexture(material.map);
+  applyToTexture(material.roughnessMap);
 }
 
 export { clamp01 };

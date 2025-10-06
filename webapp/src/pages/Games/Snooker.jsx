@@ -26,7 +26,8 @@ import {
 } from '../../utils/createCueRackDisplay.js';
 import {
   buildWoodFinishMap,
-  WOOD_FINISH_PRESETS
+  WOOD_FINISH_PRESETS,
+  orientWoodTexture
 } from '../../utils/woodTextures.js';
 
 function signedRingArea(ring) {
@@ -2812,6 +2813,19 @@ function Table3D(
     accentConfig.material.needsUpdate = true;
   }
 
+  orientWoodTexture(frameMat, {
+    repeatScaleAlong: 1.6,
+    repeatScaleAcross: 0.55,
+    rotation: Math.PI / 2,
+    minAnisotropy: 20
+  });
+  orientWoodTexture(railMat, {
+    repeatScaleAlong: 2.6,
+    repeatScaleAcross: 0.45,
+    rotation: Math.PI / 2,
+    minAnisotropy: 28
+  });
+
   const finishParts = {
     frameMeshes: [],
     legMeshes: [],
@@ -3159,8 +3173,7 @@ function Table3D(
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
-  const chromePlateY =
-    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const chromePlateY = railsTopY + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
@@ -3980,6 +3993,19 @@ function applyTableFinishToTable(table, finish) {
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
+
+  orientWoodTexture(frameMat, {
+    repeatScaleAlong: 1.6,
+    repeatScaleAcross: 0.55,
+    rotation: Math.PI / 2,
+    minAnisotropy: 20
+  });
+  orientWoodTexture(railMat, {
+    repeatScaleAlong: 2.6,
+    repeatScaleAcross: 0.45,
+    rotation: Math.PI / 2,
+    minAnisotropy: 28
+  });
 
   const disposed = new Set();
   const swapMaterial = (mesh, material) => {
