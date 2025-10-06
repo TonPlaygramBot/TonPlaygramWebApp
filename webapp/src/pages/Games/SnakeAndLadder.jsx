@@ -1769,60 +1769,61 @@ export default function SnakeAndLadder() {
     .forEach((p, i) => {
       rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
     });
-
-
   return (
-    <div className="p-4 pb-32 space-y-4 text-text flex flex-col justify-end items-center relative w-full flex-grow">
-      {/* Bottom left controls */}
-      <BottomLeftIcons
-        onInfo={() => setShowInfo(true)}
-        onChat={() => setShowChat(true)}
-        onGift={() => setShowGift(true)}
-      />
-      {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20">
-        {players
-          .map((p, i) => ({ ...p, index: i }))
-          .map((p) => (
-            <AvatarTimer
-              key={`player-${p.index}`}
-              index={p.index}
-              photoUrl={p.photoUrl}
-              active={p.index === currentTurn}
-              rank={rankMap[p.index]}
-              name={getPlayerName(p.index)}
-              isTurn={p.index === currentTurn}
-              timerPct={
-                p.index === currentTurn
-                  ? timeLeft / TURN_TIME
-                  : 1
-              }
-              color={p.color}
-              onClick={() => {
-                const myIdx = isMultiplayer
-                  ? mpPlayers.findIndex(pl => pl.id === getPlayerId())
-                  : 0;
-                if (p.index !== myIdx) setPlayerPopup(p);
-              }}
-            />
-          ))}
+    <div className="relative w-screen h-dvh overflow-hidden bg-[#05070f] text-text select-none">
+      <div className="absolute inset-0">
+        <SnakeBoard3D
+          players={players}
+          highlight={highlight}
+          trail={trail}
+          pot={pot}
+          snakes={snakes}
+          ladders={ladders}
+          snakeOffsets={snakeOffsets}
+          ladderOffsets={ladderOffsets}
+          offsetPopup={offsetPopup}
+          celebrate={celebrate}
+          tokenType={tokenType}
+          rollingIndex={rollingIndex}
+          currentTurn={currentTurn}
+          burning={burning}
+        />
       </div>
-      <SnakeBoard3D
-        players={players}
-        highlight={highlight}
-        trail={trail}
-        pot={pot}
-        snakes={snakes}
-        ladders={ladders}
-        snakeOffsets={snakeOffsets}
-        ladderOffsets={ladderOffsets}
-        offsetPopup={offsetPopup}
-        celebrate={celebrate}
-        tokenType={tokenType}
-        rollingIndex={rollingIndex}
-        currentTurn={currentTurn}
-        burning={burning}
-      />
+      <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4">
+        {/* Bottom left controls */}
+        <BottomLeftIcons
+          onInfo={() => setShowInfo(true)}
+          onChat={() => setShowChat(true)}
+          onGift={() => setShowGift(true)}
+        />
+        {/* Player photos stacked vertically */}
+        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20">
+          {players
+            .map((p, i) => ({ ...p, index: i }))
+            .map((p) => (
+              <AvatarTimer
+                key={`player-${p.index}`}
+                index={p.index}
+                photoUrl={p.photoUrl}
+                active={p.index === currentTurn}
+                rank={rankMap[p.index]}
+                name={getPlayerName(p.index)}
+                isTurn={p.index === currentTurn}
+                timerPct={
+                  p.index === currentTurn
+                    ? timeLeft / TURN_TIME
+                    : 1
+                }
+                color={p.color}
+                onClick={() => {
+                  const myIdx = isMultiplayer
+                    ? mpPlayers.findIndex(pl => pl.id === getPlayerId())
+                    : 0;
+                  if (p.index !== myIdx) setPlayerPopup(p);
+                }}
+              />
+            ))}
+        </div>
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
           <span>{b.text}</span>
@@ -2168,21 +2169,22 @@ export default function SnakeAndLadder() {
         }}
       />
       {!watchOnly && (
-      <ConfirmPopup
-        open={showLobbyConfirm}
-        message="Your funds will be lost if you quit the game."
-        confirmLabel="Return to Lobby"
-        cancelLabel="Games"
-        onConfirm={() => {
-          localStorage.removeItem(`snakeGameState_${ai}`);
-          navigate("/games/snake/lobby");
-        }}
-        onCancel={() => {
-          localStorage.removeItem(`snakeGameState_${ai}`);
-          navigate("/games");
-        }}
-      />
+        <ConfirmPopup
+          open={showLobbyConfirm}
+          message="Your funds will be lost if you quit the game."
+          confirmLabel="Return to Lobby"
+          cancelLabel="Games"
+          onConfirm={() => {
+            localStorage.removeItem(`snakeGameState_${ai}`);
+            navigate("/games/snake/lobby");
+          }}
+          onCancel={() => {
+            localStorage.removeItem(`snakeGameState_${ai}`);
+            navigate("/games");
+          }}
+        />
       )}
+      </div>
     </div>
   );
 }
