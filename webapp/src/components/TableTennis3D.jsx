@@ -82,72 +82,97 @@ export default function TableTennis3D({ player, ai }){
     const camRig = { dist: 6.8, height: 2.4, yaw: 0, pitch: 0.28 };
     const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
 
-    // ---------- Table dimensions (expanded 30% length, 20% width, 20% height) ----------
-    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.82 * 1.2, NET_H: 0.1525 };
+    // ---------- Table dimensions (official footprint, slightly taller surface) ----------
+    const T = { L: 2.74, W: 1.525, H: 0.84, topT: 0.03, NET_H: 0.1525 };
 
     // Use a 1:1 scale since size already matches the field
     const S = 1;
     const tableG = new THREE.Group();
     tableG.scale.set(S, S, S);
-    tableG.position.z = 0.1; // align with Air Hockey field offset
     scene.add(tableG);
 
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.6 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.45, metalness: 0.6 });
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
     // Table top
-    const table = new THREE.Mesh(
-      new THREE.BoxGeometry(T.W, 0.04, T.L),
-      new THREE.MeshStandardMaterial({ color: 0x0057b8, roughness: 0.92 })
-    );
-    table.position.set(0, T.H, 0);
-    table.castShadow = true;
-    tableG.add(table);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(T.W, T.topT, T.L), tableMat);
+    top.position.set(0, T.H - T.topT / 2, 0);
+    top.castShadow = true;
+    tableG.add(top);
+
+    // Table border apron
+    const apronDepth = 0.025;
+    const apronGeo = new THREE.BoxGeometry(T.W + 0.04, apronDepth, 0.02);
+    const apronMat = new THREE.MeshStandardMaterial({ color: 0x10204d, roughness: 0.8 });
+    const apronFront = new THREE.Mesh(apronGeo, apronMat);
+    apronFront.position.set(0, T.H - T.topT - apronDepth / 2, T.L / 2 + 0.01);
+    const apronBack = apronFront.clone(); apronBack.position.z = -T.L / 2 - 0.01;
+    tableG.add(apronFront, apronBack);
+
+    const sideApronGeo = new THREE.BoxGeometry(0.02, apronDepth, T.L + 0.04);
+    const apronLeft = new THREE.Mesh(sideApronGeo, apronMat);
+    apronLeft.position.set(-T.W / 2 - 0.01, T.H - T.topT - apronDepth / 2, 0);
+    const apronRight = apronLeft.clone(); apronRight.position.x = T.W / 2 + 0.01;
+    tableG.add(apronLeft, apronRight);
 
     // White lines
-    const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
-    const mkLine = (w,h,d,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), lineMat); m.position.set(x,y,z); tableG.add(m); };
-    const lt=0.01; // line thickness meters
-    // Sidelines
-    mkLine(lt, 0.045, T.L, -T.W/2+lt/2, T.H+0.022, 0);
-    mkLine(lt, 0.045, T.L,  T.W/2-lt/2, T.H+0.022, 0);
-    // End lines
-    mkLine(T.W, 0.045, lt, 0, T.H+0.022,  T.L/2-lt/2);
-    mkLine(T.W, 0.045, lt, 0, T.H+0.022, -T.L/2+lt/2);
-    // Center line (for doubles look)
-    mkLine(lt, 0.045, T.L, 0, T.H+0.022, 0);
+    const borderT = 0.018;
+    const lineH = 0.0025;
+    const lineY = T.H + lineH / 2;
+    const mkLine = (w, h, d, x, y, z) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), whiteMat);
+      mesh.position.set(x, y, z);
+      tableG.add(mesh);
+    };
+    mkLine(borderT, lineH, T.L, -T.W / 2 + borderT / 2, lineY, 0);
+    mkLine(borderT, lineH, T.L, T.W / 2 - borderT / 2, lineY, 0);
+    mkLine(T.W, lineH, borderT, 0, lineY, T.L / 2 - borderT / 2);
+    mkLine(T.W, lineH, borderT, 0, lineY, -T.L / 2 + borderT / 2);
+    mkLine(borderT, lineH, T.L - borderT * 2, 0, lineY, 0);
 
     // Net & posts
     const netGroup = new THREE.Group();
     tableG.add(netGroup);
-    const hexTex = makeHexTexture(1024, 256, 10);
-    const netMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: hexTex, transparent: true, roughness: 0.6 });
-    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(T.W, T.NET_H), netMat);
+    const netAlpha = makeHexNetAlpha(512, 256, 9);
+    const netWeave = makeWeaveTex(256, 256);
+    const netMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      alphaMap: netAlpha,
+      map: netWeave,
+      roughness: 0.9,
+      side: THREE.DoubleSide,
+    });
+    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(T.W + 0.1, T.NET_H), netMat);
     netPlane.position.set(0, T.H + T.NET_H / 2, 0);
     netGroup.add(netPlane);
-    const tape = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.02, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-    tape.position.set(0, T.H + T.NET_H + 0.01, 0);
-    netGroup.add(tape);
-    const netCol = new THREE.Mesh(
-      new THREE.BoxGeometry(T.W, T.NET_H, 0.01),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.02 })
-    );
-    netCol.position.set(0, T.H + T.NET_H / 2, 0);
-    netGroup.add(netCol);
-    const postGeo = new THREE.CylinderGeometry(0.015,0.015, T.NET_H+0.1, 18);
-    const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); postL.castShadow = true; tableG.add(postL);
-    const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
 
-    // Legs
-    const legExtra = 0.1; // extend legs slightly below floor
-    const legH = T.H - 0.02 + legExtra;
-    const legGeo = new THREE.CylinderGeometry(0.04, 0.04, legH, 12);
-    const legMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
-    const legOffsetX = T.W/2 - 0.15;
-    const legOffsetZ = T.L/2 - 0.3;
-    [[-legOffsetX,-legOffsetZ],[legOffsetX,-legOffsetZ],[-legOffsetX,legOffsetZ],[legOffsetX,legOffsetZ]].forEach(([x,z])=>{
-      const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(x, (T.H - 0.02) - legH/2, z);
-      leg.castShadow = true;
-      tableG.add(leg);
-    });
+    const bandT = 0.014;
+    const bandTop = new THREE.Mesh(new THREE.BoxGeometry(T.W + 0.1, bandT, 0.004), whiteMat);
+    bandTop.position.set(0, T.H + T.NET_H - bandT / 2, 0);
+    const bandBottom = bandTop.clone();
+    bandBottom.position.set(0, T.H + bandT / 2, 0);
+    netGroup.add(bandTop, bandBottom);
+
+    const postR = 0.012;
+    const postH = T.NET_H + 0.08;
+    const postGeo = new THREE.CylinderGeometry(postR, postR, postH, 28);
+    const postRight = new THREE.Mesh(postGeo, steelMat);
+    postRight.position.set(T.W / 2 + postR * 0.6, T.H + postH / 2, 0);
+    const postLeft = postRight.clone();
+    postLeft.position.x = -T.W / 2 - postR * 0.6;
+    tableG.add(postRight, postLeft);
+
+    const clampGeo = new THREE.BoxGeometry(0.06, 0.025, 0.05);
+    const clampRight = new THREE.Mesh(clampGeo, steelMat);
+    clampRight.position.set(T.W / 2 + 0.03, T.H + 0.03, 0);
+    const clampLeft = clampRight.clone();
+    clampLeft.position.x = -T.W / 2 - 0.03;
+    tableG.add(clampRight, clampLeft);
+
+    addTableLegs(tableG, T, steelMat, wheelMat);
 
     // floor
     const carpetCanvas = document.createElement('canvas');
@@ -188,8 +213,8 @@ export default function TableTennis3D({ player, ai }){
     scene.add(logo);
 
     // ---------- Rackets (paddles) ----------
-    const PADDLE_SCALE = 2;
-    const BALL_R = 0.024 * PADDLE_SCALE;
+    const PADDLE_SCALE = 1.1;
+    const BALL_R = 0.02;
     function makePaddle(color){
       const g = new THREE.Group();
       const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085*PADDLE_SCALE,0.085*PADDLE_SCALE,0.014*PADDLE_SCALE, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
@@ -206,17 +231,17 @@ export default function TableTennis3D({ player, ai }){
 
     // ---------- Ball ----------
     const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(BALL_R, 24, 20),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })
+      new THREE.SphereGeometry(BALL_R, 42, 32),
+      new THREE.MeshStandardMaterial({ color: 0xfff1cc, roughness: 0.6 })
     );
     ball.castShadow = true;
     tableG.add(ball);
     const ballShadow = new THREE.Mesh(
-      new THREE.CircleGeometry(BALL_R * 1.5, 16),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 })
+      new THREE.CircleGeometry(BALL_R * 1.6, 24),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 })
     );
     ballShadow.rotation.x = -Math.PI / 2;
-    ballShadow.position.y = T.H + 0.01;
+    ballShadow.position.y = T.H + 0.005;
     tableG.add(ballShadow);
 
     // ---------- Physics State ----------
@@ -409,7 +434,7 @@ export default function TableTennis3D({ player, ai }){
         Sx.v.addScaledVector(magnus, dt);
         Sx.v.multiplyScalar(Math.pow(Sx.air, dt*60));
         ball.position.addScaledVector(Sx.v, dt);
-        ballShadow.position.set(ball.position.x, T.H + 0.01, ball.position.z);
+        ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
         const sh = THREE.MathUtils.clamp(1 - (ball.position.y - T.H), 0.3, 1);
         ballShadow.scale.set(sh, sh, 1);
 
@@ -465,37 +490,96 @@ export default function TableTennis3D({ player, ai }){
   );
 }
 
-function makeHexTexture(w = 1024, h = 256, r = 10) {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const x = c.getContext('2d');
-  x.fillStyle = 'rgba(255,255,255,0)';
-  x.fillRect(0, 0, w, h);
-  x.strokeStyle = 'rgba(255,255,255,0.88)';
-  x.lineWidth = 1.4;
-  const dx = r * Math.sqrt(3);
-  const dy = r * 1.5;
-  function hex(cx, cy) {
-    x.beginPath();
+function addTableLegs(tableG, T, steelMat, wheelMat) {
+  const tubeR = 0.02;
+  const legH = T.H - T.topT + 0.04;
+  const offsetZ = T.L * 0.36;
+  const offsetX = T.W * 0.42;
+
+  const makeFrame = (zSign) => {
+    const g = new THREE.Group();
+    const uprightGeo = new THREE.CylinderGeometry(tubeR, tubeR, legH, 26);
+    const upLeft = new THREE.Mesh(uprightGeo, steelMat);
+    const upRight = new THREE.Mesh(uprightGeo, steelMat);
+    const cross = new THREE.Mesh(new THREE.CylinderGeometry(tubeR, tubeR, offsetX * 2, 26), steelMat);
+    upLeft.position.set(-offsetX, legH / 2, zSign * offsetZ);
+    upRight.position.set(offsetX, legH / 2, zSign * offsetZ);
+    cross.rotation.z = Math.PI / 2;
+    cross.position.set(0, 0.12, zSign * offsetZ);
+    g.add(upLeft, upRight, cross);
+
+    const wheelGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.02, 24);
+    const wheelLeft = new THREE.Mesh(wheelGeo, wheelMat);
+    const wheelRight = new THREE.Mesh(wheelGeo, wheelMat);
+    wheelLeft.rotation.x = Math.PI / 2;
+    wheelRight.rotation.x = Math.PI / 2;
+    wheelLeft.position.set(-offsetX, 0.01, zSign * offsetZ);
+    wheelRight.position.set(offsetX, 0.01, zSign * offsetZ);
+    g.add(wheelLeft, wheelRight);
+    return g;
+  };
+
+  tableG.add(makeFrame(-1), makeFrame(1));
+}
+
+function makeHexNetAlpha(w, h, hexR) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#ffffff';
+  const dx = hexR * 1.732;
+  const dy = hexR * 1.5;
+
+  const drawHex = (cx, cy, r) => {
+    ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const a = (Math.PI / 3) * i;
       const px = cx + r * Math.cos(a);
       const py = cy + r * Math.sin(a);
-      if (i === 0) x.moveTo(px, py);
-      else x.lineTo(px, py);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     }
-    x.closePath();
-    x.stroke();
-  }
+    ctx.closePath();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
   for (let y = 0; y < h + dy; y += dy) {
-    for (let x0 = 0; x0 < w + dx; x0 += dx) {
-      hex(x0 + (Math.floor(y / dy) % 2 ? dx / 2 : 0), y);
+    for (let x = 0; x < w + dx; x += dx) {
+      const offset = Math.floor(y / dy) % 2 ? dx / 2 : 0;
+      drawHex(x + offset, y, hexR);
     }
   }
-  const tex = new THREE.CanvasTexture(c);
+
+  const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 1);
+  tex.repeat.set(6, 2);
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function makeWeaveTex(w, h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f7f7f7';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  for (let y = 0; y < h; y += 2) ctx.fillRect(0, y, w, 1);
+  for (let x = 0; x < w; x += 2) ctx.fillRect(x, 0, 1, h);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 8);
+  tex.anisotropy = 8;
   return tex;
 }
 
