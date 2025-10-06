@@ -724,38 +724,38 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xc0c9d5,
-    metalness: 0.92,
-    roughness: 0.28,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.18
+    color: 0xd4dceb,
+    metalness: 0.98,
+    roughness: 0.16,
+    clearcoat: 0.65,
+    clearcoatRoughness: 0.08
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.35,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.2
+    metalness: 0.94,
+    roughness: 0.22,
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.12
   },
   {
     id: 'matteBlack',
     label: 'Matte Black',
     color: 0x1a1a1a,
-    metalness: 0.64,
-    roughness: 0.58,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.4
+    metalness: 0.72,
+    roughness: 0.42,
+    clearcoat: 0.24,
+    clearcoatRoughness: 0.28
   },
   {
     id: 'brown',
     label: 'Brown',
     color: 0x6b4128,
-    metalness: 0.76,
-    roughness: 0.44,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.28
+    metalness: 0.82,
+    roughness: 0.36,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.2
   }
 ]);
 
@@ -2931,7 +2931,8 @@ function Table3D(
       rail: railMat,
       leg: legMat,
       trim: trimMat,
-      accent: accentConfig
+      accent: accentConfig,
+      woodMap: rawMaterials.woodMap ?? null
     },
     clothMat,
     cushionMat,
@@ -3484,11 +3485,19 @@ function Table3D(
     railsOuter.holes.push(hole);
   });
 
+  const railBevelSize = Math.min(railH * 0.32, TABLE.THICK * 0.42);
+  const railBevelThickness = Math.min(railH * 0.6, railBevelSize * 0.9);
   const railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
     depth: railH,
-    bevelEnabled: false,
-    curveSegments: 96
+    bevelEnabled: true,
+    bevelSegments: 5,
+    bevelSize: railBevelSize,
+    bevelThickness: railBevelThickness,
+    bevelOffset: 0,
+    curveSegments: 128,
+    steps: 1
   });
+  railsGeom.computeVertexNormals();
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
@@ -4036,7 +4045,8 @@ function applyTableFinishToTable(table, finish) {
     rail: railMat,
     leg: legMat,
     trim: trimMat,
-    accent: accentConfig
+    accent: accentConfig,
+    woodMap: rawMaterials.woodMap ?? null
   };
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
 }
@@ -4109,7 +4119,8 @@ function SnookerGame() {
   const cueRackGroupsRef = useRef([]);
   const cueOptionGroupsRef = useRef([]);
   const cueRackMetaRef = useRef(new Map());
-  const cueMaterialsRef = useRef({ shaft: null });
+  const cueMaterialsRef = useRef({ shaft: null, segments: [] });
+  const tableGroupRef = useRef(null);
   const cueGalleryStateRef = useRef({
     active: false,
     rackId: null,
@@ -4134,6 +4145,71 @@ function SnookerGame() {
     const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
     return CUE_RACK_PALETTE[normalized];
   }, []);
+
+  const cloneCueWoodMaterial = useCallback((sourceMaterial) => {
+    if (sourceMaterial && typeof sourceMaterial.clone === 'function') {
+      const material = sourceMaterial.clone();
+      if (sourceMaterial.map) {
+        material.map = sourceMaterial.map.clone();
+        material.map.wrapS = THREE.RepeatWrapping;
+        material.map.wrapT = THREE.RepeatWrapping;
+        material.map.anisotropy = sourceMaterial.map.anisotropy;
+        material.map.repeat.copy(sourceMaterial.map.repeat);
+        material.map.repeat.y *= 3.2;
+        material.map.repeat.x *= 0.6;
+        material.map.needsUpdate = true;
+      }
+      if (sourceMaterial.roughnessMap) {
+        material.roughnessMap = sourceMaterial.roughnessMap.clone();
+        material.roughnessMap.wrapS = THREE.RepeatWrapping;
+        material.roughnessMap.wrapT = THREE.RepeatWrapping;
+        material.roughnessMap.anisotropy = sourceMaterial.roughnessMap.anisotropy;
+        material.roughnessMap.repeat.copy(sourceMaterial.roughnessMap.repeat);
+        material.roughnessMap.repeat.y *= 3.2;
+        material.roughnessMap.repeat.x *= 0.6;
+        material.roughnessMap.needsUpdate = true;
+      }
+      material.metalness = Math.min(sourceMaterial.metalness ?? 0.18, 0.24);
+      material.roughness = Math.min(Math.max(sourceMaterial.roughness ?? 0.36, 0.26), 0.52);
+      material.clearcoat = Math.max(sourceMaterial.clearcoat ?? 0.12, 0.24);
+      material.clearcoatRoughness = Math.min(
+        sourceMaterial.clearcoatRoughness ?? 0.3,
+        0.32
+      );
+      material.userData = { ...(material.userData || {}), isCueWood: true };
+      return material;
+    }
+    const fallback = new THREE.MeshPhysicalMaterial({
+      color: 0xdeb887,
+      roughness: 0.5,
+      metalness: 0.12,
+      clearcoat: 0.2,
+      clearcoatRoughness: 0.3
+    });
+    fallback.userData = { ...(fallback.userData || {}), isCueWood: true };
+    return fallback;
+  }, []);
+
+  const applyCueWoodMaterialFromTable = useCallback(() => {
+    const tableGroup = tableGroupRef.current;
+    if (!tableGroup) return;
+    const finishInfo = tableGroup.userData?.finish;
+    const legMaterial = finishInfo?.materials?.leg;
+    const segments = cueMaterialsRef.current?.segments ?? [];
+    if (!Array.isArray(segments) || segments.length === 0) return;
+    const material = cloneCueWoodMaterial(legMaterial);
+    const selectedIndex = cueStyleIndexRef.current ?? 0;
+    const cueColor = getCueColorFromIndex(selectedIndex);
+    if (typeof cueColor === 'number') {
+      material.color.setHex(cueColor);
+    }
+    cueMaterialsRef.current.shaft = material;
+    segments.forEach((mesh) => {
+      if (!mesh?.isMesh) return;
+      mesh.material = material;
+      mesh.material.needsUpdate = true;
+    });
+  }, [cloneCueWoodMaterial, getCueColorFromIndex]);
 
   const updateCueRackHighlights = useCallback(() => {
     const selectedIndex = cueStyleIndexRef.current ?? 0;
@@ -5158,7 +5234,7 @@ function SnookerGame() {
       const createMatchTvEntry = () => {
         const baseWidth = 1024;
         const baseHeight = 512;
-        const resolutionScale = 1.3;
+        const resolutionScale = 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(baseWidth * resolutionScale);
         canvas.height = Math.round(baseHeight * resolutionScale);
@@ -5166,7 +5242,7 @@ function SnookerGame() {
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = 4;
         if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
         else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
@@ -7536,6 +7612,7 @@ function SnookerGame() {
         clothMat: tableCloth,
         cushionMat: tableCushion
       } = Table3D(world, finishForScene);
+      tableGroupRef.current = table;
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -7546,6 +7623,7 @@ function SnookerGame() {
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
+          applyCueWoodMaterialFromTable();
         }
       };
       if (table?.userData) {
@@ -7714,11 +7792,17 @@ function SnookerGame() {
         length: cueLen
       };
 
-      const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xdeb887,
-        roughness: 0.6
-      });
-      cueMaterialsRef.current.shaft = shaftMaterial;
+      const cueWoodSegments = [];
+      const initialCueMaterial = cloneCueWoodMaterial(
+        table?.userData?.finish?.materials?.leg
+      );
+      const initialCueColor = getCueColorFromIndex(
+        cueStyleIndexRef.current ?? cueStyleIndex
+      );
+      if (typeof initialCueColor === 'number') {
+        initialCueMaterial.color.setHex(initialCueColor);
+      }
+      cueMaterialsRef.current.shaft = initialCueMaterial;
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,
         cueLen * 0.1,
@@ -7735,11 +7819,12 @@ function SnookerGame() {
 
       const rearShaft = new THREE.Mesh(
         new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearLength, 32),
-        shaftMaterial
+        initialCueMaterial
       );
       rearShaft.rotation.x = -Math.PI / 2;
       rearShaft.position.z = frontLength / 2;
       cueBody.add(rearShaft);
+      cueWoodSegments.push(rearShaft);
 
       // group for tip & front shaft so the whole thin end moves for spin
       const tipGroup = new THREE.Group();
@@ -7750,12 +7835,16 @@ function SnookerGame() {
       if (frontLength > 1e-4) {
         const frontShaft = new THREE.Mesh(
           new THREE.CylinderGeometry(tipShaftRadius, joinRadius, frontLength, 32),
-          shaftMaterial
+          initialCueMaterial
         );
         frontShaft.rotation.x = -Math.PI / 2;
         frontShaft.position.z = frontLength / 2;
         tipGroup.add(frontShaft);
+        cueWoodSegments.push(frontShaft);
       }
+
+      cueMaterialsRef.current.segments = cueWoodSegments;
+      applyCueWoodMaterialFromTable();
 
       // subtle leather-like texture for the tip
       const tipCanvas = document.createElement('canvas');
@@ -9872,11 +9961,13 @@ function SnookerGame() {
           cueOptionGroupsRef.current = [];
           cueRackMetaRef.current = new Map();
           cueMaterialsRef.current.shaft = null;
+          cueMaterialsRef.current.segments = [];
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
+          tableGroupRef.current = null;
           if (loadTimer) {
             clearTimeout(loadTimer);
           }

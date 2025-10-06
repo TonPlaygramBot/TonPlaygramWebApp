@@ -113,14 +113,23 @@ export function createWoodMaterial({
   sheen = 0.12,
   sheenRoughness = 0.5,
   envMapIntensity = 0.85,
-  reflectivity = 0.42
+  reflectivity = 0.42,
+  map: providedMap = null,
+  roughnessMap: providedRoughnessMap = null
 } = {}) {
-  const map = makeNaturalWoodTexture(1024, 1024, hue, saturation, lightness, contrast);
+  const ownsMap = !providedMap;
+  const map = providedMap ?? makeNaturalWoodTexture(1024, 1024, hue, saturation, lightness, contrast);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.anisotropy = anisotropy;
   map.repeat.set(repeat, repeat);
-  const roughnessMap = makeRoughnessMap(512, 512, 0.18, 0.28);
+  map.needsUpdate = true;
+  const ownsRoughness = !providedRoughnessMap;
+  const roughnessMap =
+    providedRoughnessMap ?? makeRoughnessMap(512, 512, 0.18, 0.28);
+  roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
   roughnessMap.anisotropy = Math.min(anisotropy, 8);
   roughnessMap.repeat.set(repeat, repeat);
+  roughnessMap.needsUpdate = true;
   const material = new THREE.MeshPhysicalMaterial({
     color: hslToColor(hue, saturation, lightness),
     map,
@@ -135,8 +144,17 @@ export function createWoodMaterial({
     envMapIntensity
   });
   material.addEventListener('dispose', () => {
-    map.dispose();
-    roughnessMap.dispose();
+    if (!ownsMap && map?.userData?.preserveOnDispose) return;
+    if (map && (ownsMap || !map.userData?.preserveOnDispose)) {
+      map.dispose();
+    }
+    if (!ownsRoughness && roughnessMap?.userData?.preserveOnDispose) return;
+    if (
+      roughnessMap &&
+      (ownsRoughness || !roughnessMap.userData?.preserveOnDispose)
+    ) {
+      roughnessMap.dispose();
+    }
   });
   return material;
 }
@@ -157,6 +175,23 @@ export function buildWoodFinishMap({ defaultClothColor, makeColorPalette }) {
     const legSat = clamp01(saturation * 0.95);
     const trimSat = clamp01(saturation * 0.9);
 
+    const baseMap = makeNaturalWoodTexture(1024, 1024, hue, saturation, lightness, contrast);
+    const baseRoughness = makeRoughnessMap(512, 512, 0.18, 0.28);
+    baseMap.userData = { ...(baseMap.userData || {}), preserveOnDispose: false };
+    baseRoughness.userData = {
+      ...(baseRoughness.userData || {}),
+      preserveOnDispose: false
+    };
+    const cloneTexture = (texture) => {
+      if (!texture) return null;
+      const cloned = texture.clone();
+      cloned.wrapS = texture.wrapS;
+      cloned.wrapT = texture.wrapT;
+      cloned.anisotropy = texture.anisotropy;
+      cloned.repeat.copy(texture.repeat);
+      cloned.needsUpdate = true;
+      return cloned;
+    };
     entries[id] = {
       id,
       label,
@@ -166,13 +201,26 @@ export function buildWoodFinishMap({ defaultClothColor, makeColorPalette }) {
         base: hslToHex(hue, legSat, legLight)
       }),
       createMaterials: () => {
+        const leg = createWoodMaterial({
+          hue,
+          saturation: legSat,
+          lightness: legLight,
+          contrast,
+          repeat: 1.1,
+          roughness: 0.38,
+          envMapIntensity: 0.84,
+          map: baseMap,
+          roughnessMap: baseRoughness
+        });
         const frame = createWoodMaterial({
           hue,
           saturation: frameSat,
           lightness: frameLight,
           contrast,
           repeat: 1.2,
-          envMapIntensity: 0.88
+          envMapIntensity: 0.88,
+          map: cloneTexture(baseMap),
+          roughnessMap: cloneTexture(baseRoughness)
         });
         const rail = createWoodMaterial({
           hue,
@@ -181,27 +229,21 @@ export function buildWoodFinishMap({ defaultClothColor, makeColorPalette }) {
           contrast,
           repeat: 1.6,
           roughness: 0.34,
-          envMapIntensity: 0.92
+          envMapIntensity: 0.92,
+          map: cloneTexture(baseMap),
+          roughnessMap: cloneTexture(baseRoughness)
         });
-        const leg = createWoodMaterial({
-          hue,
-          saturation: legSat,
-          lightness: legLight,
-          contrast,
-          repeat: 1.1,
-          roughness: 0.38,
-          envMapIntensity: 0.84
+        const trim = new THREE.MeshPhysicalMaterial({
+          color: hslToColor(hue, trimSat, trimLight),
+          metalness: 0.92,
+          roughness: 0.18,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.12,
+          reflectivity: 0.62,
+          envMapIntensity: 1.15
         });
-        const trim = createWoodMaterial({
-          hue,
-          saturation: trimSat,
-          lightness: trimLight,
-          contrast,
-          repeat: 1.8,
-          roughness: 0.3,
-          envMapIntensity: 0.96
-        });
-        return { frame, rail, leg, trim, accent: null };
+        trim.userData = { ...(trim.userData || {}), isChromeTrim: true };
+        return { frame, rail, leg, trim, accent: null, woodMap: baseMap };
       }
     };
   });
