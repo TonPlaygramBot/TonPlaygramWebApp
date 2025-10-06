@@ -697,6 +697,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 const BASE_WOOD_COLOR = '#8b5e3c';
 const WOOD_REPEAT_UNIT = TABLE.THICK * 0.92;
+const TABLE_WOOD_TEXTURE_SCALE = 0.1; // Enlarge the wood grain on the table rails and skirts
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -3464,7 +3465,7 @@ function Table3D(
   const woodRailRepeat = new THREE.Vector2(
     Math.max(1, ((outerHalfW * 2 + outerHalfH * 2) / Math.max(1e-6, WOOD_REPEAT_UNIT))),
     Math.max(1, railH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  );
+  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -4271,7 +4272,7 @@ function Table3D(
   const woodFrameRepeat = new THREE.Vector2(
     Math.max(1, legCircumference / Math.max(1e-6, WOOD_REPEAT_UNIT)),
     Math.max(1, legH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  );
+  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);
