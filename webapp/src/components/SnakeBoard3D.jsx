@@ -34,6 +34,7 @@ const SNAKE_BOARD_TILES = 10;
 const SNAKE_BOARD_SIZE = 3.4;
 const TILE_GAP = 0.015;
 const TILE_SIZE = SNAKE_BOARD_SIZE / SNAKE_BOARD_TILES;
+const TILE_HEIGHT = 0.08;
 const BOARD_BASE_EXTRA = 0.28;
 const BOARD_BASE_HEIGHT = 0.22;
 
@@ -436,7 +437,12 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   boardGroup.position.y = tableSurfaceY + 0.01;
   arena.add(boardGroup);
 
-  const boardLookTarget = new THREE.Vector3(0, boardGroup.position.y + 0.45, 0);
+  const boardSurfaceOffset = BOARD_BASE_HEIGHT - 0.02 + TILE_HEIGHT;
+  const boardLookTarget = new THREE.Vector3(
+    0,
+    boardGroup.position.y + boardSurfaceOffset,
+    0
+  );
   spotTarget.position.copy(boardLookTarget);
   spot.target.updateMatrixWorld();
   studioCamA.lookAt(boardLookTarget);
@@ -461,8 +467,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   );
 
   const fit = () => {
-    const w = host.clientWidth || window.innerWidth;
-    const h = host.clientHeight || window.innerHeight;
+    const w = host.clientWidth;
+    const h = host.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -553,15 +559,14 @@ function buildSnakeBoard(boardGroup, disposeHandlers = []) {
 
   const tileMeshes = new Map();
   const indexToPosition = new Map();
-  const tileHeight = 0.08;
   const tileGeo = new THREE.BoxGeometry(
     TILE_SIZE - TILE_GAP,
-    tileHeight,
+    TILE_HEIGHT,
     TILE_SIZE - TILE_GAP
   );
 
   const labelGroup = new THREE.Group();
-  labelGroup.position.y = tileGroup.position.y + tileHeight + 0.001;
+  labelGroup.position.y = tileGroup.position.y + TILE_HEIGHT + 0.001;
   boardRoot.add(labelGroup);
 
   const half = (SNAKE_BOARD_TILES * TILE_SIZE) / 2;
@@ -599,14 +604,14 @@ function buildSnakeBoard(boardGroup, disposeHandlers = []) {
       const mat = (r + c) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
       const tile = new THREE.Mesh(tileGeo, mat);
       const pos = serpentineIndexToXZ(idx);
-      tile.position.set(pos.x, tileGroup.position.y + tileHeight / 2, pos.z);
+      tile.position.set(pos.x, tileGroup.position.y + TILE_HEIGHT / 2, pos.z);
       tile.userData.index = idx;
       tile.userData.baseColor = tile.material.color.clone();
       tile.material.emissive = new THREE.Color(0x000000);
       tile.material.emissiveIntensity = 1.0;
       tileGroup.add(tile);
       tileMeshes.set(idx, tile);
-      indexToPosition.set(idx, pos.clone().setY(tile.position.y + tileHeight / 2));
+      indexToPosition.set(idx, pos.clone().setY(tile.position.y + TILE_HEIGHT / 2));
 
       const label = createTileLabel(idx);
       label.position.set(pos.x, labelGroup.position.y, pos.z);
@@ -615,15 +620,15 @@ function buildSnakeBoard(boardGroup, disposeHandlers = []) {
   }
 
   const laddersGroup = new THREE.Group();
-  laddersGroup.position.y = tileGroup.position.y + tileHeight / 2;
+  laddersGroup.position.y = tileGroup.position.y + TILE_HEIGHT / 2;
   boardRoot.add(laddersGroup);
 
   const snakesGroup = new THREE.Group();
-  snakesGroup.position.y = tileGroup.position.y + tileHeight / 2;
+  snakesGroup.position.y = tileGroup.position.y + TILE_HEIGHT / 2;
   boardRoot.add(snakesGroup);
 
   const tokensGroup = new THREE.Group();
-  tokensGroup.position.y = tileGroup.position.y + tileHeight;
+  tokensGroup.position.y = tileGroup.position.y + TILE_HEIGHT;
   boardRoot.add(tokensGroup);
 
   const potGroup = new THREE.Group();
@@ -640,7 +645,11 @@ function buildSnakeBoard(boardGroup, disposeHandlers = []) {
   coin.rotation.x = Math.PI / 2;
   potGroup.add(coin);
   const potPos = serpentineIndexToXZ(SNAKE_BOARD_TILES * SNAKE_BOARD_TILES);
-  potGroup.position.set(potPos.x, tileGroup.position.y + tileHeight + TILE_SIZE * 0.1, potPos.z);
+  potGroup.position.set(
+    potPos.x,
+    tileGroup.position.y + TILE_HEIGHT + TILE_SIZE * 0.1,
+    potPos.z
+  );
   boardRoot.add(potGroup);
 
   disposeHandlers.push(() => {
