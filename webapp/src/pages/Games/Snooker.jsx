@@ -364,111 +364,9 @@ function buildChromePlateGeometry({
   return geo;
 }
 function addPocketCuts(parent, clothPlane) {
-  const cuts = [];
-  const sideDepth =
-    POCKET_VIS_R * 1.12 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-  const sideHalfWidth =
-    POCKET_VIS_R * 0.9 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-  const halfW = PLAY_W / 2;
-  const halfH = PLAY_H / 2;
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0x060606,
-    roughness: 0.78,
-    metalness: 0.12,
-    emissive: new THREE.Color(0x090909),
-    emissiveIntensity: 0.35,
-    side: THREE.DoubleSide
-  });
-  mat.polygonOffset = true;
-  mat.polygonOffsetFactor = -1;
-  mat.polygonOffsetUnits = -6;
-  mat.depthWrite = false;
-  mat.depthTest = true;
-  const cornerShape = (() => {
-    const innerR =
-      POCKET_VIS_R * 0.98 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-    const outerR = innerR + sideDepth;
-    const arcInset = Math.PI * 0.04;
-    const startAngle = arcInset;
-    const endAngle = Math.PI / 2 - arcInset;
-    const innerStart = new THREE.Vector2(
-      innerR * Math.cos(startAngle),
-      innerR * Math.sin(startAngle)
-    );
-    const outerEnd = new THREE.Vector2(
-      outerR * Math.cos(endAngle),
-      outerR * Math.sin(endAngle)
-    );
-    const s = new THREE.Shape();
-    s.moveTo(innerStart.x, innerStart.y);
-    s.absarc(0, 0, innerR, startAngle, endAngle, false);
-    s.lineTo(outerEnd.x, outerEnd.y);
-    s.absarc(0, 0, outerR, endAngle, startAngle, true);
-    s.lineTo(innerStart.x, innerStart.y);
-    s.closePath();
-    return s;
-  })();
-  const sideShape = (() => {
-    const lipInset =
-      POCKET_VIS_R * 0.32 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-    const throatHalfWidth =
-      POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-    const s = new THREE.Shape();
-    s.moveTo(-sideHalfWidth, 0);
-    s.lineTo(sideHalfWidth, 0);
-    s.quadraticCurveTo(
-      sideHalfWidth + lipInset,
-      sideDepth * 0.35,
-      throatHalfWidth,
-      sideDepth * 0.92
-    );
-    s.quadraticCurveTo(0, sideDepth * 1.1, -throatHalfWidth, sideDepth * 0.92);
-    s.quadraticCurveTo(
-      -sideHalfWidth - lipInset,
-      sideDepth * 0.35,
-      -sideHalfWidth,
-      0
-    );
-    s.closePath();
-    return s;
-  })();
-  const cornerGeo = new THREE.ShapeGeometry(cornerShape);
-  const sideGeo = new THREE.ShapeGeometry(sideShape);
-  pocketCenters().forEach((p) => {
-    const isCorner =
-      Math.abs(Math.abs(p.x) - PLAY_W / 2) < 1e-3 &&
-      Math.abs(Math.abs(p.y) - PLAY_H / 2) < 1e-3;
-    const geom = isCorner ? cornerGeo.clone() : sideGeo.clone();
-    const mesh = new THREE.Mesh(geom, mat.clone());
-    mesh.rotation.x = Math.PI / 2;
-    mesh.position.set(p.x, clothPlane + POCKET_RIM_LIFT, p.y);
-    mesh.renderOrder = 6;
-    if (isCorner) {
-      const sx = Math.sign(p.x) || 1;
-      const sy = Math.sign(p.y) || 1;
-      const outward = new THREE.Vector2(sx, sy).normalize();
-      const radialOffset =
-        POCKET_VIS_R * 0.58 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-      const railInset = ORIGINAL_RAIL_WIDTH * 0.35;
-      // mirror the profile so local axes always point toward the playing surface
-      mesh.scale.set(-sx, -sy, 1);
-      mesh.position.set(
-        sx * (halfW + railInset) + outward.x * radialOffset,
-        clothPlane + POCKET_RIM_LIFT,
-        sy * (halfH + railInset) + outward.y * radialOffset
-      );
-    } else {
-      const sy = Math.sign(p.y) || 1;
-      mesh.scale.z = sy >= 0 ? -1 : 1;
-      mesh.position.z +=
-        sy * POCKET_VIS_R * 0.12 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION;
-    }
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    parent.add(mesh);
-    cuts.push(mesh);
-  });
-  return cuts;
+  // Pocket cut overlay meshes have been intentionally disabled for Snooker.
+  // Gameplay geometry that defines the pocket cuts remains unchanged.
+  return [];
 }
 
 /**
@@ -605,7 +503,6 @@ const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the clot
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const POCKET_RIM_LIFT = CLOTH_THICKNESS * 0.08; // keep pocket cut overlays hovering just above the chrome trim
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
