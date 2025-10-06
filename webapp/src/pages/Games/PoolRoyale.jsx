@@ -697,7 +697,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 const BASE_WOOD_COLOR = '#8b5e3c';
 const WOOD_REPEAT_UNIT = TABLE.THICK * 0.92;
-const TABLE_WOOD_TEXTURE_SCALE = 0.1; // Enlarge the wood grain on the table rails and skirts
+const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -3462,10 +3462,19 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
-  const woodRailRepeat = new THREE.Vector2(
-    Math.max(1, ((outerHalfW * 2 + outerHalfH * 2) / Math.max(1e-6, WOOD_REPEAT_UNIT))),
+  const woodRailRepeatBase = new THREE.Vector2(
+    Math.max(
+      1,
+      (outerHalfW * 2 + outerHalfH * 2) / Math.max(1e-6, WOOD_REPEAT_UNIT)
+    ),
     Math.max(1, railH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
+  );
+  // Rescale so the visible grain matches the cue butt texture density.
+  const woodRailScale =
+    CUE_WOOD_REPEAT.y / Math.max(woodRailRepeatBase.y, 1e-6);
+  const woodRailRepeat = woodRailRepeatBase.multiplyScalar(woodRailScale);
+  woodRailRepeat.y = CUE_WOOD_REPEAT.y;
+  woodRailRepeat.x = Math.max(CUE_WOOD_REPEAT.x, woodRailRepeat.x);
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -4269,10 +4278,16 @@ function Table3D(
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   const legCircumference = 2 * Math.PI * legR;
-  const woodFrameRepeat = new THREE.Vector2(
+  const woodFrameRepeatBase = new THREE.Vector2(
     Math.max(1, legCircumference / Math.max(1e-6, WOOD_REPEAT_UNIT)),
     Math.max(1, legH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
+  );
+  // Rescale so the visible grain matches the cue butt texture density.
+  const woodFrameScale =
+    CUE_WOOD_REPEAT.y / Math.max(woodFrameRepeatBase.y, 1e-6);
+  const woodFrameRepeat = woodFrameRepeatBase.multiplyScalar(woodFrameScale);
+  woodFrameRepeat.y = CUE_WOOD_REPEAT.y;
+  woodFrameRepeat.x = Math.max(CUE_WOOD_REPEAT.x, woodFrameRepeat.x);
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);
