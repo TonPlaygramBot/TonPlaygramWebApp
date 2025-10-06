@@ -6,7 +6,6 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import polygonClipping from 'polygon-clipping';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
@@ -940,8 +939,6 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 
 const DEFAULT_TABLE_FINISH_ID = 'oak';
 
-const WOOD_RAIL_REPEAT = Object.freeze({ x: 1.4, y: 1 });
-
 const TABLE_FINISHES = Object.freeze(
   WOOD_FINISH_PRESETS.reduce((acc, preset) => {
     const frameSat = preset.sat;
@@ -966,7 +963,7 @@ const TABLE_FINISHES = Object.freeze(
           sat: frameSat,
           light: frameLight,
           contrast: preset.contrast,
-          repeat: WOOD_RAIL_REPEAT,
+          repeat: { x: 1.3, y: 0.9 },
           roughnessBase: 0.18,
           roughnessVariance: 0.22,
           roughness: 0.32,
@@ -982,7 +979,7 @@ const TABLE_FINISHES = Object.freeze(
           sat: railSat,
           light: railLight,
           contrast: preset.contrast * 1.1,
-          repeat: WOOD_RAIL_REPEAT,
+          repeat: { x: 1.8, y: 1.1 },
           roughnessBase: 0.2,
           roughnessVariance: 0.24,
           roughness: 0.28,
@@ -998,7 +995,7 @@ const TABLE_FINISHES = Object.freeze(
           sat: legSat,
           light: legLight,
           contrast: preset.contrast * 1.18,
-          repeat: WOOD_RAIL_REPEAT,
+          repeat: { x: 1.4, y: 1 },
           roughnessBase: 0.22,
           roughnessVariance: 0.28,
           roughness: 0.34,
@@ -1038,72 +1035,38 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd8e2f1,
-    metalness: 1,
-    roughness: 0.045,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.05,
-    envMapIntensity: 1.65
-  },
-  {
-    id: 'chromeUltra',
-    label: 'Chrome Ultra',
-    color: 0xe4ebf7,
-    metalness: 1,
-    roughness: 0.03,
-    clearcoat: 0.94,
-    clearcoatRoughness: 0.04,
-    envMapIntensity: 1.75
-  },
-  {
-    id: 'chromeIce',
-    label: 'Ice Chrome',
-    color: 0xd0ecff,
+    color: 0xc0c9d5,
     metalness: 0.98,
-    roughness: 0.05,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.05,
-    envMapIntensity: 1.7
-  },
-  {
-    id: 'chromeGraphite',
-    label: 'Graphite Chrome',
-    color: 0xb7c0cf,
-    metalness: 0.97,
-    roughness: 0.07,
-    clearcoat: 0.85,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 1.6
+    roughness: 0.12,
+    clearcoat: 0.68,
+    clearcoatRoughness: 0.08
   },
   {
     id: 'gold',
     label: 'Gold',
-    color: 0xffd166,
-    metalness: 0.98,
-    roughness: 0.12,
-    clearcoat: 0.72,
-    clearcoatRoughness: 0.08,
-    envMapIntensity: 1.55
+    color: 0xd4af37,
+    metalness: 0.96,
+    roughness: 0.18,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.12
   },
   {
     id: 'matteBlack',
     label: 'Matte Black',
     color: 0x1a1a1a,
-    metalness: 0.86,
-    roughness: 0.34,
+    metalness: 0.84,
+    roughness: 0.36,
     clearcoat: 0.32,
-    clearcoatRoughness: 0.18,
-    envMapIntensity: 1.2
+    clearcoatRoughness: 0.18
   },
   {
     id: 'brown',
     label: 'Brown',
     color: 0x6b4128,
-    metalness: 0.9,
-    roughness: 0.26,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.25
+    metalness: 0.88,
+    roughness: 0.28,
+    clearcoat: 0.48,
+    clearcoatRoughness: 0.16
   }
 ]);
 
@@ -3118,71 +3081,6 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
-function createOuterRailShellGeometry({
-  shape,
-  depth,
-  bevelSize,
-  curveSegments,
-  halfW,
-  halfH,
-  railSpan
-}) {
-  if (!shape || bevelSize <= 0) return null;
-  const outerShape = shape.clone();
-  outerShape.holes = [];
-  const extruded = new THREE.ExtrudeGeometry(outerShape, {
-    depth,
-    bevelEnabled: true,
-    bevelSegments: 4,
-    bevelSize,
-    bevelThickness: bevelSize,
-    curveSegments,
-    steps: 1
-  });
-  const nonIndexed = extruded.toNonIndexed();
-  const position = nonIndexed.getAttribute('position');
-  const uvAttr = nonIndexed.getAttribute('uv');
-  if (!position) return null;
-  const radialThreshold = Math.max(bevelSize * 0.45, railSpan * 0.22);
-  const vertices = [];
-  const uvs = [];
-  const triCount = Math.floor(position.count / 3);
-  for (let tri = 0; tri < triCount; tri += 1) {
-    const i0 = tri * 3;
-    const i1 = i0 + 1;
-    const i2 = i0 + 2;
-    const ax = position.getX(i0);
-    const ay = position.getY(i0);
-    const az = position.getZ(i0);
-    const bx = position.getX(i1);
-    const by = position.getY(i1);
-    const bz = position.getZ(i1);
-    const cx = position.getX(i2);
-    const cy = position.getY(i2);
-    const cz = position.getZ(i2);
-    const centroidX = (ax + bx + cx) / 3;
-    const centroidY = (ay + by + cy) / 3;
-    const dx = Math.max(0, Math.abs(centroidX) - halfW);
-    const dz = Math.max(0, Math.abs(centroidY) - halfH);
-    const distanceFromInner = Math.hypot(dx, dz);
-    if (distanceFromInner < radialThreshold) continue;
-    vertices.push(ax, ay, az, bx, by, bz, cx, cy, cz);
-    if (uvAttr) {
-      uvs.push(uvAttr.getX(i0), uvAttr.getY(i0));
-      uvs.push(uvAttr.getX(i1), uvAttr.getY(i1));
-      uvs.push(uvAttr.getX(i2), uvAttr.getY(i2));
-    }
-  }
-  if (!vertices.length) return null;
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  if (uvs.length) {
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  }
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]
@@ -3897,25 +3795,11 @@ function Table3D(
     railsOuter.holes.push(hole);
   });
 
-  let railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
+  const railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
     depth: railH,
     bevelEnabled: false,
     curveSegments: 96
   });
-  const outerShellSpan = Math.min(longRailW + frameWidthLong, endRailW + frameWidthEnd);
-  const outerShell = createOuterRailShellGeometry({
-    shape: railsOuter,
-    depth: railH,
-    bevelSize: outerShellSpan * RAIL_OUTER_EDGE_RADIUS_RATIO,
-    curveSegments: 96,
-    halfW,
-    halfH,
-    railSpan: outerShellSpan
-  });
-  if (outerShell) {
-    railsGeom = BufferGeometryUtils.mergeGeometries([railsGeom, outerShell], false);
-    railsGeom.computeVertexNormals();
-  }
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
@@ -4758,14 +4642,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             clearcoatRoughness: chromeSelection.clearcoatRoughness
           });
         }
-        const trimEnv = chromeSelection.envMapIntensity ?? materials.trim.envMapIntensity ?? 1.4;
         materials.trim.color.set(chromeSelection.color);
         materials.trim.metalness = chromeSelection.metalness;
         materials.trim.roughness = chromeSelection.roughness;
         materials.trim.clearcoat = chromeSelection.clearcoat;
         materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
-        materials.trim.envMapIntensity = trimEnv;
-        materials.trim.needsUpdate = true;
         if (materials.accent?.material) {
           materials.accent = {
             ...materials.accent,
@@ -10773,7 +10654,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                         type="button"
                         onClick={() => setTableFinishId(option.id)}
                         aria-pressed={active}
-                        className={`flex-1 min-w-[8.25rem] rounded-full px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'
@@ -10798,7 +10679,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                         type="button"
                         onClick={() => setChromeColorId(option.id)}
                         aria-pressed={active}
-                        className={`flex-1 min-w-[7.25rem] rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                             : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
@@ -10806,7 +10687,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       >
                         <span className="flex items-center justify-center gap-2">
                           <span
-                            className="h-3 w-3 rounded-full border border-white/40"
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
                             style={{ backgroundColor: toHexColor(option.color) }}
                             aria-hidden="true"
                           />
@@ -10830,7 +10711,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                         type="button"
                         onClick={() => setClothColorId(option.id)}
                         aria-pressed={active}
-                        className={`flex-1 min-w-[7.25rem] rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                             : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
@@ -10838,7 +10719,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       >
                         <span className="flex items-center justify-center gap-2">
                           <span
-                            className="h-3 w-3 rounded-full border border-white/40"
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
                             style={{ backgroundColor: toHexColor(option.color) }}
                             aria-hidden="true"
                           />
