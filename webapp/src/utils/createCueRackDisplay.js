@@ -299,8 +299,9 @@ export function createCueRackDisplay({
 
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
-  const verticalPadding = clothHeight * 0.03;
-  const cueVerticalBoost = clothHeight * 0.24;
+  // Lift the decorative cues so their butts rest against the cloth seam without moving the frame.
+  const verticalPadding = clothHeight * 0.015;
+  const cueVerticalBoost = clothHeight * 0.31;
 
   for (let i = 0; i < cueCount; i += 1) {
     const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
@@ -310,7 +311,7 @@ export function createCueRackDisplay({
     const boostedLift =
       clothHeight / 2 - halfHeight - verticalPadding + cueVerticalBoost;
     const liftBase = Math.min(maxLift, boostedLift);
-    const cueLift = Math.min(maxLift, liftBase + clothHeight * 0.04);
+    const cueLift = Math.min(maxLift, liftBase + clothHeight * 0.11);
     cue.position.set(startX + i * stepX, cueLift, cueDepth);
     group.add(cue);
   }
