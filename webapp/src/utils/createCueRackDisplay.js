@@ -57,7 +57,11 @@ export function createCueRackDisplay({
   const clothInset = 0.006 * unit;
   const clothDepth = frameDepth / 2 + clothInset;
   const cueDepth = frameDepth / 2 + 0.0045 * unit;
-  const cueRailWidth = clothWidth * 0.8;
+  const cueSideMargin = 0.2 * unit;
+  const cueRailWidth = Math.max(
+    clothWidth - cueSideMargin * 2,
+    clothWidth * 0.5
+  );
 
   const group = new THREE.Group();
   const disposables = [];
@@ -266,10 +270,13 @@ export function createCueRackDisplay({
     const bounds = new THREE.Box3().setFromObject(cueGroup);
     const center = new THREE.Vector3();
     bounds.getCenter(center);
-    cueGroup.position.sub(center);
+    const maxY = bounds.max.y;
+    cueGroup.position.x -= center.x;
+    cueGroup.position.y -= maxY;
+    cueGroup.position.z -= center.z;
     const cueHeight = bounds.max.y - bounds.min.y;
-    const halfHeight = cueHeight / 2;
-    cueGroup.userData.cueHalfHeight = halfHeight;
+    cueGroup.userData.cueHalfHeight = cueHeight / 2;
+    cueGroup.userData.cueHeight = cueHeight;
 
     const pickGeom = new THREE.BoxGeometry(
       Math.max(buttRadius * 3.2, tipRadius * 6),
@@ -277,6 +284,7 @@ export function createCueRackDisplay({
       Math.max(tipRadius * 12, buttRadius * 2)
     );
     const pickMesh = new THREE.Mesh(pickGeom, mCuePick);
+    pickMesh.position.y = -cueHeight / 2;
     pickMesh.userData = pickMesh.userData || {};
     pickMesh.userData.isCueOption = true;
     pickMesh.userData.cueOptionIndex = index;
@@ -299,19 +307,13 @@ export function createCueRackDisplay({
 
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
-  const verticalPadding = clothHeight * 0.03;
-  const cueVerticalBoost = clothHeight * 0.24;
+  const cueTopMargin = clothHeight * 0.05;
+  const cueTop = clothHeight / 2 - cueTopMargin;
 
   for (let i = 0; i < cueCount; i += 1) {
     const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
     const cue = makeCue(color, i);
-    const halfHeight = cue.userData?.cueHalfHeight ?? clothHeight / 2;
-    const maxLift = clothHeight / 2 - halfHeight;
-    const boostedLift =
-      clothHeight / 2 - halfHeight - verticalPadding + cueVerticalBoost;
-    const liftBase = Math.min(maxLift, boostedLift);
-    const cueLift = Math.min(maxLift, liftBase + clothHeight * 0.04);
-    cue.position.set(startX + i * stepX, cueLift, cueDepth);
+    cue.position.set(startX + i * stepX, cueTop, cueDepth);
     group.add(cue);
   }
 
