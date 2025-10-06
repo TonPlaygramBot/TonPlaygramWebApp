@@ -9,6 +9,7 @@ import {
 } from '../../utils/telegram.js';
 import { bombSound } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
+import { ARENA_COLORS, createCarpetTextures } from '../../components/arenaMaterials.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -532,7 +533,6 @@ function Chess3D({ avatar, username }) {
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1020);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
     key.position.set(1.8, 2.6, 1.6);
     scene.add(key);
@@ -546,6 +546,13 @@ function Chess3D({ avatar, username }) {
     const arena = new THREE.Group();
     scene.add(arena);
 
+    const ambient = new THREE.HemisphereLight(
+      ARENA_COLORS.hemisphereSky,
+      ARENA_COLORS.hemisphereGround,
+      ARENA_COLORS.hemisphereIntensity
+    );
+    arena.add(ambient);
+
     const arenaHalfWidth = CHESS_ARENA.width / 2;
     const arenaHalfDepth = CHESS_ARENA.depth / 2;
     const wallInset = 0.5;
@@ -557,7 +564,7 @@ function Chess3D({ avatar, username }) {
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
       new THREE.MeshStandardMaterial({
-        color: 0x0f1222,
+        color: ARENA_COLORS.floor,
         roughness: 0.95,
         metalness: 0.05
       })
@@ -565,13 +572,26 @@ function Chess3D({ avatar, username }) {
     floor.rotation.x = -Math.PI / 2;
     arena.add(floor);
 
+    const carpetTextures = createCarpetTextures();
+    const carpetMat = new THREE.MeshStandardMaterial({
+      color: ARENA_COLORS.carpet,
+      roughness: 0.92,
+      metalness: 0.04
+    });
+    if (carpetTextures.map) {
+      carpetMat.map = carpetTextures.map;
+      carpetMat.map.repeat.set(1, 1);
+      carpetMat.map.needsUpdate = true;
+    }
+    if (carpetTextures.bump) {
+      carpetMat.bumpMap = carpetTextures.bump;
+      carpetMat.bumpMap.repeat.set(1, 1);
+      carpetMat.bumpScale = 0.24;
+      carpetMat.bumpMap.needsUpdate = true;
+    }
     const carpet = new THREE.Mesh(
       new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
-      new THREE.MeshStandardMaterial({
-        color: 0x9c0b18,
-        roughness: 0.8,
-        metalness: 0.05
-      })
+      carpetMat
     );
     carpet.rotation.x = -Math.PI / 2;
     carpet.position.y = 0.002;
@@ -580,9 +600,9 @@ function Chess3D({ avatar, username }) {
     const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
     const wallT = 0.1;
     const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x273360,
-      roughness: 0.65,
-      metalness: 0.08,
+      color: ARENA_COLORS.wall,
+      roughness: ARENA_COLORS.wallRoughness,
+      metalness: ARENA_COLORS.wallMetalness,
       side: THREE.DoubleSide
     });
     const backWall = new THREE.Mesh(
@@ -613,7 +633,7 @@ function Chess3D({ avatar, username }) {
     const ceilTrim = new THREE.Mesh(
       new THREE.BoxGeometry(halfRoomX * 2, 0.02, halfRoomZ * 2),
       new THREE.MeshStandardMaterial({
-        color: 0x1a233f,
+        color: ARENA_COLORS.trim,
         roughness: 0.9,
         metalness: 0.02,
         side: THREE.DoubleSide
@@ -623,8 +643,8 @@ function Chess3D({ avatar, username }) {
     arena.add(ceilTrim);
 
     const ledMat = new THREE.MeshStandardMaterial({
-      color: 0x00f7ff,
-      emissive: 0x0099aa,
+      color: ARENA_COLORS.led,
+      emissive: ARENA_COLORS.ledEmissive,
       emissiveIntensity: 0.4,
       roughness: 0.6,
       metalness: 0.2,
@@ -817,6 +837,14 @@ function Chess3D({ avatar, username }) {
     );
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
+
+    const spotlight = new THREE.SpotLight(0xffffff, 0.65, 30, Math.PI / 4, 0.45, 1.2);
+    spotlight.position.set(0, boardLookTarget.y + 6, 0);
+    const spotTarget = new THREE.Object3D();
+    spotTarget.position.copy(boardLookTarget);
+    arena.add(spotlight);
+    arena.add(spotTarget);
+    spotlight.target = spotTarget;
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
