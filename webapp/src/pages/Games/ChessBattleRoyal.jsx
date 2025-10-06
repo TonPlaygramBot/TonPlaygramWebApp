@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
+import {
+  createArenaCarpetMaterial,
+  createArenaWallMaterial
+} from '../../utils/arenaDecor.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
@@ -532,7 +536,8 @@ function Chess3D({ avatar, username }) {
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1020);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95));
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
+    scene.add(hemi);
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
     key.position.set(1.8, 2.6, 1.6);
     scene.add(key);
@@ -542,6 +547,12 @@ function Chess3D({ avatar, username }) {
     const rim = new THREE.PointLight(0xff7373, 0.4, 12, 2.0);
     rim.position.set(0, 2.1, 0);
     scene.add(rim);
+    const spot = new THREE.SpotLight(0xffffff, 1.05, 0, Math.PI / 4, 0.35, 1.1);
+    spot.position.set(0, 4.2, 4.6);
+    scene.add(spot);
+    const spotTarget = new THREE.Object3D();
+    scene.add(spotTarget);
+    spot.target = spotTarget;
 
     const arena = new THREE.Group();
     scene.add(arena);
@@ -565,13 +576,10 @@ function Chess3D({ avatar, username }) {
     floor.rotation.x = -Math.PI / 2;
     arena.add(floor);
 
+    const carpetMat = createArenaCarpetMaterial();
     const carpet = new THREE.Mesh(
       new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
-      new THREE.MeshStandardMaterial({
-        color: 0x9c0b18,
-        roughness: 0.8,
-        metalness: 0.05
-      })
+      carpetMat
     );
     carpet.rotation.x = -Math.PI / 2;
     carpet.position.y = 0.002;
@@ -579,12 +587,7 @@ function Chess3D({ avatar, username }) {
 
     const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
     const wallT = 0.1;
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x273360,
-      roughness: 0.65,
-      metalness: 0.08,
-      side: THREE.DoubleSide
-    });
+    const wallMat = createArenaWallMaterial();
     const backWall = new THREE.Mesh(
       new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
       wallMat
@@ -815,6 +818,8 @@ function Chess3D({ avatar, username }) {
       boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
       0
     );
+    spotTarget.position.copy(boardLookTarget);
+    spot.target.updateMatrixWorld();
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
