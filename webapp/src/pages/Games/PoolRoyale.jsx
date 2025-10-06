@@ -697,7 +697,7 @@ const UI_SCALE = SIZE_REDUCTION;
 
 const BASE_WOOD_COLOR = '#8b5e3c';
 const WOOD_REPEAT_UNIT = TABLE.THICK * 0.92;
-const TABLE_WOOD_TEXTURE_SCALE = 0.1; // Enlarge the wood grain on the table rails and skirts
+const TABLE_WOOD_TEXTURE_SCALE = 1; // Match the cue butt wood grain scale on table rails and skirts
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -940,7 +940,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 
-const SHARED_WOOD_REPEAT = Object.freeze({ x: 1, y: 5.5 });
+const SHARED_WOOD_REPEAT = Object.freeze({ x: 0.5, y: 2.75 }); // Double the cue butt grain while preserving its proportions
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   roughnessBase: 0.16,
   roughnessVariance: 0.22,
@@ -3463,9 +3463,9 @@ function Table3D(
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   const woodRailRepeat = new THREE.Vector2(
-    Math.max(1, ((outerHalfW * 2 + outerHalfH * 2) / Math.max(1e-6, WOOD_REPEAT_UNIT))),
-    Math.max(1, railH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
+    SHARED_WOOD_REPEAT.x,
+    SHARED_WOOD_REPEAT.y
+  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE); // match cue butt texture scale across rails
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -4270,9 +4270,9 @@ function Table3D(
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   const legCircumference = 2 * Math.PI * legR;
   const woodFrameRepeat = new THREE.Vector2(
-    Math.max(1, legCircumference / Math.max(1e-6, WOOD_REPEAT_UNIT)),
-    Math.max(1, legH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
+    SHARED_WOOD_REPEAT.x,
+    SHARED_WOOD_REPEAT.y
+  ).multiplyScalar(TABLE_WOOD_TEXTURE_SCALE); // keep skirts/aprons aligned with cue butt grain
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);

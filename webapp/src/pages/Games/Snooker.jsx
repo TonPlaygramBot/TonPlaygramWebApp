@@ -707,8 +707,8 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   ...BASE_BALL_COLORS
 });
 
-const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5);
-const TABLE_WOOD_TEXTURE_SCALE = 0.1; // Enlarge the wood grain on the table rails and skirts
+const CUE_WOOD_REPEAT = new THREE.Vector2(0.5, 2.75); // Double the cue butt grain while keeping the same aspect ratio
+const TABLE_WOOD_TEXTURE_SCALE = 1; // Match the cue butt wood grain scale on table rails and skirts
 
 const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 
@@ -3519,7 +3519,7 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
-  const woodRailRepeat = CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
+  const woodRailRepeat = CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE); // match cue butt texture scale
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -4327,7 +4327,7 @@ function Table3D(
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const woodFrameRepeat = CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
+  const woodFrameRepeat = CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE); // align skirts with cue butt grain
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);
