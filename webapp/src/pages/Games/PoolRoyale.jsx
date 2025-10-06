@@ -25,6 +25,15 @@ import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
 } from '../../utils/createCueRackDisplay.js';
+import {
+  WOOD_FINISH_PRESETS,
+  applyWoodTextures,
+  createWoodMaterial,
+  disposeMaterialWithWood,
+  hslToHexNumber,
+  shiftLightness,
+  shiftSaturation
+} from '../../utils/woodMaterials.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -927,337 +936,97 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   ...BASE_BALL_COLORS
 });
 
-const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 
-const TABLE_FINISHES = Object.freeze({
-  classicWood: {
-    id: 'classicWood',
-    label: 'Classic Wood',
-    colors: makeColorPalette({
-      cloth: 0x2b7e4f,
-      rail: 0x5e3d24,
-      base: 0x5e3d24
-    }),
-    createMaterials: () => {
-      const frameColor = new THREE.Color('#5e3d24');
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: frameColor,
-        metalness: 0.18,
-        roughness: 0.32,
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.18,
-        sheen: 0.12,
-        sheenRoughness: 0.52,
-        reflectivity: 0.42,
-        envMapIntensity: 0.7
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0, 0.02, 0.08),
-        metalness: 0.2,
-        roughness: 0.34,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.22,
-        sheen: 0.14,
-        sheenRoughness: 0.5,
-        reflectivity: 0.45,
-        envMapIntensity: 0.74
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xcda87b,
-        metalness: 0.65,
-        roughness: 0.38,
-        clearcoat: 0.42,
-        clearcoatRoughness: 0.28,
-        envMapIntensity: 0.9
-      });
-      return {
-        frame,
-        rail,
-        leg: frame,
-        trim,
-        accent: null
-      };
-    }
-  },
-  goldenMaple: {
-    id: 'goldenMaple',
-    label: 'Golden Maple',
-    colors: makeColorPalette({
-      cloth: 0x2b7e4f,
-      rail: 0xc98738,
-      base: 0xc27a2f
-    }),
-    createMaterials: () => {
-      const frameColor = new THREE.Color('#c98738');
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: frameColor,
-        metalness: 0.16,
-        roughness: 0.28,
-        clearcoat: 0.36,
-        clearcoatRoughness: 0.16,
-        sheen: 0.14,
-        sheenRoughness: 0.48,
-        reflectivity: 0.46,
-        envMapIntensity: 0.82
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.01, 0.06, 0.12),
-        metalness: 0.2,
-        roughness: 0.3,
-        clearcoat: 0.38,
-        clearcoatRoughness: 0.18,
-        sheen: 0.16,
-        sheenRoughness: 0.46,
-        reflectivity: 0.52,
-        envMapIntensity: 0.88
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xe8c387,
-        metalness: 0.68,
-        roughness: 0.34,
-        clearcoat: 0.44,
-        clearcoatRoughness: 0.24,
-        envMapIntensity: 1
-      });
-      return {
-        frame,
-        rail,
-        leg: frame,
-        trim,
-        accent: null
-      };
-    }
-  },
-  nordicBirch: {
-    id: 'nordicBirch',
-    label: 'Nordic Birch',
-    colors: makeColorPalette({
-      cloth: 0x2b7e4f,
-      rail: 0xd8b47c,
-      base: 0xd2a86a
-    }),
-    createMaterials: () => {
-      const frameColor = new THREE.Color('#d8b47c');
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: frameColor,
-        metalness: 0.12,
-        roughness: 0.26,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.14,
-        sheen: 0.18,
-        sheenRoughness: 0.44,
-        reflectivity: 0.48,
-        envMapIntensity: 0.9
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.02, 0.04, 0.1),
-        metalness: 0.16,
-        roughness: 0.28,
-        clearcoat: 0.42,
-        clearcoatRoughness: 0.18,
-        sheen: 0.2,
-        sheenRoughness: 0.4,
-        reflectivity: 0.5,
-        envMapIntensity: 0.95
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xf4e0b8,
-        metalness: 0.6,
-        roughness: 0.32,
-        clearcoat: 0.46,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 1.05
-      });
-      return {
-        frame,
-        rail,
-        leg: frame,
-        trim,
-        accent: null
-      };
-    }
-  },
-  matteGraphite: {
-    id: 'matteGraphite',
-    label: 'Matte Graphite',
-    colors: makeColorPalette({
-      cloth: 0x2b7e4f,
-      rail: 0x2f2f2f,
-      base: 0x2b2b2b
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x2b2b2b,
-        metalness: 0.22,
-        roughness: 0.6,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.46,
-        sheen: 0.05,
-        sheenRoughness: 0.72
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x303030,
-        metalness: 0.28,
-        roughness: 0.54,
-        clearcoat: 0.12,
-        clearcoatRoughness: 0.4,
-        sheen: 0.04,
-        sheenRoughness: 0.64
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x232323,
-        metalness: 0.26,
-        roughness: 0.58,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.44
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0x2a2f34,
-        metalness: 0.82,
-        roughness: 0.34,
-        clearcoat: 0.24,
-        clearcoatRoughness: 0.32,
-        envMapIntensity: 1.1
-      });
-      return {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: null
-      };
-    }
-  },
-  matteGraphiteNeon: {
-    id: 'matteGraphiteNeon',
-    label: 'Matte Graphite Neon',
-    colors: makeColorPalette({
-      cloth: 0x2b7e4f,
-      rail: 0x2f2f2f,
-      base: 0x2b2b2b
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x2b2b2b,
-        metalness: 0.22,
-        roughness: 0.6,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.46,
-        sheen: 0.05,
-        sheenRoughness: 0.72
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x303030,
-        metalness: 0.28,
-        roughness: 0.54,
-        clearcoat: 0.12,
-        clearcoatRoughness: 0.4,
-        sheen: 0.04,
-        sheenRoughness: 0.64
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x232323,
-        metalness: 0.26,
-        roughness: 0.58,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.44
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0x11161c,
-        metalness: 0.78,
-        roughness: 0.32,
-        clearcoat: 0.22,
-        clearcoatRoughness: 0.34,
-        envMapIntensity: 1.1
-      });
-      const neon = new THREE.Color('#00c8ff');
-      const accentMaterial = new THREE.MeshStandardMaterial({
-        color: neon,
-        emissive: neon.clone().multiplyScalar(0.55),
-        emissiveIntensity: 1.4,
-        metalness: 0.32,
-        roughness: 0.34
-      });
-      return {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: {
-          material: accentMaterial,
-          thickness: 0.055,
-          height: 0.028,
-          inset: 0.045,
-          verticalOffset: 0.82
-        }
-      };
-    }
-  },
-  twoToneHybrid: {
-    id: 'twoToneHybrid',
-    label: 'Two-Tone Hybrid',
-    colors: makeColorPalette({
-      cloth: 0x2b7e4f,
-      rail: 0x151a1f,
-      base: 0x1c2026
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x1c2026,
-        metalness: 0.58,
-        roughness: 0.38,
-        clearcoat: 0.26,
-        clearcoatRoughness: 0.32,
-        sheen: 0.08,
-        sheenRoughness: 0.52
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x13171d,
-        metalness: 0.72,
-        roughness: 0.32,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.28,
-        sheen: 0.06,
-        sheenRoughness: 0.46
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x302218,
-        metalness: 0.22,
-        roughness: 0.52,
-        clearcoat: 0.18,
-        clearcoatRoughness: 0.42
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xc9a65c,
-        metalness: 0.86,
-        roughness: 0.26,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.24,
-        envMapIntensity: 1.18
-      });
-      const accentMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffd369,
-        emissive: new THREE.Color(0xffd369).multiplyScalar(0.22),
-        emissiveIntensity: 0.9,
-        metalness: 0.48,
-        roughness: 0.38
-      });
-      return {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: {
-          material: accentMaterial,
-          thickness: 0.05,
-          height: 0.024,
-          inset: 0.06,
-          verticalOffset: 0.74
-        }
-      };
-    }
-  }
-});
+const DEFAULT_TABLE_FINISH_ID = 'oak';
+
+const TABLE_FINISHES = Object.freeze(
+  WOOD_FINISH_PRESETS.reduce((acc, preset) => {
+    const frameSat = preset.sat;
+    const frameLight = preset.light;
+    const railSat = shiftSaturation(preset.sat, 0.05);
+    const railLight = shiftLightness(preset.light, -0.08);
+    const legSat = shiftSaturation(preset.sat, -0.04);
+    const legLight = shiftLightness(preset.light, -0.12);
+    const baseColor = hslToHexNumber(preset.hue, frameSat, frameLight);
+    const railColor = hslToHexNumber(preset.hue, railSat, railLight);
+    const finish = {
+      id: preset.id,
+      label: preset.label,
+      colors: makeColorPalette({
+        cloth: 0x2b7e4f,
+        rail: railColor,
+        base: baseColor
+      }),
+      createMaterials: () => {
+        const frame = createWoodMaterial({
+          hue: preset.hue,
+          sat: frameSat,
+          light: frameLight,
+          contrast: preset.contrast,
+          repeat: { x: 1.3, y: 0.9 },
+          roughnessBase: 0.18,
+          roughnessVariance: 0.22,
+          roughness: 0.32,
+          metalness: 0.2,
+          clearcoat: 0.46,
+          clearcoatRoughness: 0.18,
+          sheen: 0.18,
+          sheenRoughness: 0.5,
+          envMapIntensity: 1.2
+        });
+        const rail = createWoodMaterial({
+          hue: preset.hue,
+          sat: railSat,
+          light: railLight,
+          contrast: preset.contrast * 1.1,
+          repeat: { x: 1.8, y: 1.1 },
+          roughnessBase: 0.2,
+          roughnessVariance: 0.24,
+          roughness: 0.28,
+          metalness: 0.18,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.18,
+          sheen: 0.22,
+          sheenRoughness: 0.46,
+          envMapIntensity: 1.25
+        });
+        const leg = createWoodMaterial({
+          hue: preset.hue,
+          sat: legSat,
+          light: legLight,
+          contrast: preset.contrast * 1.18,
+          repeat: { x: 1.4, y: 1 },
+          roughnessBase: 0.22,
+          roughnessVariance: 0.28,
+          roughness: 0.34,
+          metalness: 0.18,
+          clearcoat: 0.42,
+          clearcoatRoughness: 0.2,
+          sheen: 0.16,
+          sheenRoughness: 0.52,
+          envMapIntensity: 1.15
+        });
+        const trim = new THREE.MeshPhysicalMaterial({
+          color: 0xf2f6fb,
+          metalness: 0.95,
+          roughness: 0.12,
+          clearcoat: 0.62,
+          clearcoatRoughness: 0.1,
+          envMapIntensity: 1.38
+        });
+        return {
+          frame,
+          rail,
+          leg,
+          trim,
+          accent: null
+        };
+      }
+    };
+    acc[preset.id] = Object.freeze(finish);
+    return acc;
+  }, {})
+);
 
 const TABLE_FINISH_OPTIONS = Object.freeze(Object.values(TABLE_FINISHES));
 
@@ -1267,37 +1036,37 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.92,
-    roughness: 0.28,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.18
+    metalness: 0.98,
+    roughness: 0.12,
+    clearcoat: 0.68,
+    clearcoatRoughness: 0.08
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.35,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.2
+    metalness: 0.96,
+    roughness: 0.18,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.12
   },
   {
     id: 'matteBlack',
     label: 'Matte Black',
     color: 0x1a1a1a,
-    metalness: 0.64,
-    roughness: 0.58,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.4
+    metalness: 0.84,
+    roughness: 0.36,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.18
   },
   {
     id: 'brown',
     label: 'Brown',
     color: 0x6b4128,
-    metalness: 0.76,
-    roughness: 0.44,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.28
+    metalness: 0.88,
+    roughness: 0.28,
+    clearcoat: 0.48,
+    clearcoatRoughness: 0.16
   }
 ]);
 
@@ -4515,14 +4284,15 @@ function applyTableFinishToTable(table, finish) {
   }
 
   const disposed = new Set();
+  const disposeMaterial = (material) => {
+    if (!material || disposed.has(material)) return;
+    disposeMaterialWithWood(material);
+    disposed.add(material);
+  };
   const swapMaterial = (mesh, material) => {
     if (!mesh || !material) return;
     if (mesh.material !== material) {
-      const current = mesh.material;
-      if (current?.dispose && !disposed.has(current)) {
-        current.dispose();
-        disposed.add(current);
-      }
+      disposeMaterial(mesh.material);
       mesh.material = material;
     }
   };
@@ -4540,11 +4310,7 @@ function applyTableFinishToTable(table, finish) {
     if (accentMesh.geometry) {
       accentMesh.geometry.dispose();
     }
-    const accentMaterial = accentMesh.material;
-    if (accentMaterial?.dispose && !disposed.has(accentMaterial)) {
-      accentMaterial.dispose();
-      disposed.add(accentMaterial);
-    }
+    disposeMaterial(accentMesh.material);
     finishInfo.parts.accentMesh = null;
   }
   if (accentConfig && accentParent && dimensions) {
@@ -4659,7 +4425,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const cueRackGroupsRef = useRef([]);
   const cueOptionGroupsRef = useRef([]);
   const cueRackMetaRef = useRef(new Map());
-  const cueMaterialsRef = useRef({ shaft: null });
+  const cueMaterialsRef = useRef({ shaft: null, styleIndex: null });
   const cueGalleryStateRef = useRef({
     active: false,
     rackId: null,
@@ -4714,11 +4480,37 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
   const applySelectedCueStyle = useCallback(
     (index) => {
-      const color = getCueColorFromIndex(index);
-      cueStyleIndexRef.current = index;
-      const shaftMaterial = cueMaterialsRef.current?.shaft;
-      if (shaftMaterial && typeof color === 'number') {
-        shaftMaterial.color.setHex(color);
+      const paletteLength = CUE_RACK_PALETTE.length || WOOD_FINISH_PRESETS.length || 1;
+      const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
+      const preset = WOOD_FINISH_PRESETS[normalized % WOOD_FINISH_PRESETS.length];
+      const color = getCueColorFromIndex(normalized);
+      cueStyleIndexRef.current = normalized;
+      const materials = cueMaterialsRef.current ?? {};
+      const shaftMaterial = materials.shaft;
+      if (shaftMaterial && preset) {
+        if (materials.styleIndex !== normalized) {
+          applyWoodTextures(shaftMaterial, {
+            hue: preset.hue,
+            sat: preset.sat,
+            light: preset.light,
+            contrast: preset.contrast,
+            repeat: { x: 1, y: 5.5 },
+            roughnessBase: 0.16,
+            roughnessVariance: 0.22
+          });
+          shaftMaterial.roughness = 0.38;
+          shaftMaterial.metalness = 0.16;
+          shaftMaterial.clearcoat = 0.5;
+          shaftMaterial.clearcoatRoughness = 0.16;
+          shaftMaterial.sheen = 0.22;
+          shaftMaterial.sheenRoughness = 0.5;
+          shaftMaterial.envMapIntensity = 1.1;
+          materials.styleIndex = normalized;
+        }
+        shaftMaterial.userData = shaftMaterial.userData || {};
+        shaftMaterial.userData.isCueWood = true;
+        shaftMaterial.userData.cueOptionIndex = normalized;
+        shaftMaterial.userData.cueOptionColor = color;
         shaftMaterial.needsUpdate = true;
       }
       updateCueRackHighlights();
@@ -8379,11 +8171,35 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         length: cueLen
       };
 
-      const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xdeb887,
-        roughness: 0.6
+      const paletteLength = CUE_RACK_PALETTE.length || WOOD_FINISH_PRESETS.length || 1;
+      const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
+      const initialIndex =
+        ((initialIndexRaw % paletteLength) + paletteLength) % paletteLength;
+      const initialPreset =
+        WOOD_FINISH_PRESETS[initialIndex % WOOD_FINISH_PRESETS.length] ??
+        WOOD_FINISH_PRESETS[0];
+      const shaftMaterial = createWoodMaterial({
+        hue: initialPreset.hue,
+        sat: initialPreset.sat,
+        light: initialPreset.light,
+        contrast: initialPreset.contrast,
+        repeat: { x: 1, y: 5.5 },
+        roughnessBase: 0.16,
+        roughnessVariance: 0.22,
+        roughness: 0.38,
+        metalness: 0.16,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.16,
+        sheen: 0.22,
+        sheenRoughness: 0.5,
+        envMapIntensity: 1.1
       });
+      shaftMaterial.userData = shaftMaterial.userData || {};
+      shaftMaterial.userData.isCueWood = true;
+      shaftMaterial.userData.cueOptionIndex = initialIndex;
+      shaftMaterial.userData.cueOptionColor = getCueColorFromIndex(initialIndex);
       cueMaterialsRef.current.shaft = shaftMaterial;
+      cueMaterialsRef.current.styleIndex = initialIndex;
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,
         cueLen * 0.1,
@@ -10542,7 +10358,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cueRackGroupsRef.current = [];
           cueOptionGroupsRef.current = [];
           cueRackMetaRef.current = new Map();
+          if (cueMaterialsRef.current?.shaft) {
+            disposeMaterialWithWood(cueMaterialsRef.current.shaft);
+          }
           cueMaterialsRef.current.shaft = null;
+          cueMaterialsRef.current.styleIndex = null;
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
