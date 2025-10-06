@@ -361,7 +361,7 @@ function buildChromePlateGeometry({
     }
   }
 
-  const geo = new THREE.ExtrudeGeometry(shapesToExtrude, {
+  let geo = new THREE.ExtrudeGeometry(shapesToExtrude, {
     depth: thickness,
     bevelEnabled: true,
     bevelSegments: 3,
@@ -369,6 +369,7 @@ function buildChromePlateGeometry({
     bevelThickness,
     curveSegments: 64
   });
+  geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
   return geo;
@@ -695,6 +696,9 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
+
+const BASE_WOOD_COLOR = '#8b5e3c';
+const WOOD_REPEAT_UNIT = TABLE.THICK * 0.92;
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -1425,6 +1429,98 @@ const createWoodTexture = (() => {
     return cache;
   };
 })();
+
+function cloneWoodTexture(texture, repeat) {
+  if (!texture) return null;
+  const cloned = texture.clone();
+  if (repeat) {
+    cloned.repeat.copy(repeat);
+  }
+  cloned.needsUpdate = true;
+  return cloned;
+}
+
+function applyWoodTextureToMaterial(material, repeat) {
+  if (!material) return;
+  const wood = createWoodTexture();
+  if (!wood.map) return;
+  const repeatVec = repeat ? repeat.clone() : new THREE.Vector2(1, 1);
+  material.map = cloneWoodTexture(wood.map, repeatVec);
+  if (wood.roughness) {
+    material.roughnessMap = cloneWoodTexture(wood.roughness, repeatVec);
+  }
+  material.needsUpdate = true;
+  material.userData = {
+    ...(material.userData || {}),
+    woodRepeat: repeatVec.clone()
+  };
+}
+
+function enhanceChromeMaterial(material) {
+  if (!material) return;
+  const ensure = (key, value, transform) => {
+    if (typeof material[key] === 'number') {
+      material[key] = transform(material[key], value);
+    } else {
+      material[key] = value;
+    }
+  };
+  ensure('metalness', 0.88, (current, target) => Math.max(current, target));
+  ensure('roughness', 0.18, (current, target) => Math.min(current, target));
+  ensure('clearcoat', 0.5, (current, target) => Math.max(current, target));
+  ensure('clearcoatRoughness', 0.12, (current, target) => Math.min(current, target));
+  ensure('envMapIntensity', 1.45, (current, target) => Math.max(current, target));
+  if ('reflectivity' in material) {
+    material.reflectivity = Math.max(0.7, material.reflectivity ?? 0.7);
+  }
+  if ('specularIntensity' in material) {
+    material.specularIntensity = Math.max(1.05, material.specularIntensity ?? 1.05);
+  }
+  material.needsUpdate = true;
+}
+
+function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25) {
+  if (!geometry || typeof depth !== 'number' || depth <= 0) return geometry;
+  const target = geometry.toNonIndexed ? geometry.toNonIndexed() : geometry;
+  const position = target.attributes.position;
+  const normal = target.attributes.normal;
+  if (!position || !normal) return target;
+  const depthSafe = depth <= 0 ? 1 : depth;
+  const radius = Math.max(0, depthSafe * radiusRatio);
+  const pos = new THREE.Vector3();
+  const norm = new THREE.Vector3();
+  const planarNormal = new THREE.Vector2();
+  const planarPos = new THREE.Vector2();
+  for (let i = 0; i < position.count; i++) {
+    pos.set(position.getX(i), position.getY(i), position.getZ(i));
+    norm.set(normal.getX(i), normal.getY(i), normal.getZ(i));
+    if (!Number.isFinite(pos.z)) continue;
+    planarNormal.set(norm.x, norm.y);
+    if (planarNormal.lengthSq() < 1e-5) continue;
+    planarPos.set(pos.x, pos.y);
+    const dot = planarNormal.dot(planarPos);
+    if (dot <= 0) continue;
+    const heightT = THREE.MathUtils.clamp(pos.z / depthSafe, 0, 1);
+    if (heightT <= 0) continue;
+    const eased = Math.sin((heightT * Math.PI) / 2);
+    const inset = radius * eased * eased;
+    pos.x -= planarNormal.x * inset;
+    pos.y -= planarNormal.y * inset;
+    position.setXYZ(i, pos.x, pos.y, pos.z);
+    const blend = eased * 0.85;
+    const blended = new THREE.Vector3(
+      THREE.MathUtils.lerp(norm.x, 0, blend),
+      THREE.MathUtils.lerp(norm.y, 0, blend),
+      THREE.MathUtils.lerp(norm.z, 1, blend)
+    );
+    blended.normalize();
+    normal.setXYZ(i, blended.x, blended.y, blended.z);
+  }
+  position.needsUpdate = true;
+  normal.needsUpdate = true;
+  target.computeVertexNormals();
+  return target;
+}
 
 const createCarpetTextures = (() => {
   let cache = null;
@@ -3124,6 +3220,7 @@ function Table3D(
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
+  enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
@@ -3135,7 +3232,8 @@ function Table3D(
     trimMeshes: [],
     accentParent: null,
     accentMesh: null,
-    dimensions: null
+    dimensions: null,
+    woodRepeats: { frame: null, rail: null }
   };
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
@@ -3394,6 +3492,12 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
+  const woodRailRepeat = new THREE.Vector2(
+    Math.max(1, ((outerHalfW * 2 + outerHalfH * 2) / Math.max(1e-6, WOOD_REPEAT_UNIT))),
+    Math.max(1, railH / Math.max(1e-6, WOOD_REPEAT_UNIT))
+  );
+  applyWoodTextureToMaterial(railMat, woodRailRepeat);
+  finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.036; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
@@ -3795,11 +3899,12 @@ function Table3D(
     railsOuter.holes.push(hole);
   });
 
-  const railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
+  let railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
     depth: railH,
     bevelEnabled: false,
     curveSegments: 96
   });
+  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO);
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
@@ -4193,6 +4298,20 @@ function Table3D(
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
+  const legCircumference = 2 * Math.PI * legR;
+  const woodFrameRepeat = new THREE.Vector2(
+    Math.max(1, legCircumference / Math.max(1e-6, WOOD_REPEAT_UNIT)),
+    Math.max(1, legH / Math.max(1e-6, WOOD_REPEAT_UNIT))
+  );
+  applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
+  if (legMat !== frameMat) {
+    applyWoodTextureToMaterial(legMat, woodFrameRepeat);
+  }
+  finishParts.woodRepeats.frame = woodFrameRepeat.clone();
+  if (finishParts.woodRepeats.rail) {
+    finishParts.woodRepeats.rail.copy(woodFrameRepeat);
+    applyWoodTextureToMaterial(railMat, finishParts.woodRepeats.rail);
+  }
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(lx, legY, lz);
@@ -4279,6 +4398,7 @@ function applyTableFinishToTable(table, finish) {
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
+  enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
@@ -4301,6 +4421,17 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
+
+  const woodRepeats = finishInfo.parts.woodRepeats;
+  if (woodRepeats?.rail) {
+    applyWoodTextureToMaterial(railMat, woodRepeats.rail);
+  }
+  if (woodRepeats?.frame) {
+    applyWoodTextureToMaterial(frameMat, woodRepeats.frame);
+    if (legMat !== frameMat) {
+      applyWoodTextureToMaterial(legMat, woodRepeats.frame);
+    }
+  }
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
