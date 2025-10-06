@@ -691,54 +691,6 @@ const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
-const POOL_VARIANT_IDS = new Set(['uk', 'american', '9ball']);
-const CUE_DISPLAY_VERTICAL_BOOST = 0.22;
-
-function isPoolVariantId(id) {
-  return id ? POOL_VARIANT_IDS.has(id) : false;
-}
-
-function determinePoolBallGroup(variant, pattern, number, color) {
-  const variantId = variant?.id;
-  if (!variantId) return null;
-  switch (variantId) {
-    case 'american':
-      if (number === 8) return 'black';
-      return pattern === 'stripe' ? 'stripe' : 'solid';
-    case 'uk':
-      if (color === UK_POOL_BLACK) return 'black';
-      if (color === UK_POOL_YELLOW) return 'yellow';
-      if (color === UK_POOL_RED) return 'red';
-      return null;
-    case '9ball':
-      if (number === 9) return 'black';
-      return 'object';
-    default:
-      return null;
-  }
-}
-
-function getOppositePoolGroup(variantId, group) {
-  if (variantId === 'american') {
-    if (group === 'solid') return 'stripe';
-    if (group === 'stripe') return 'solid';
-  } else if (variantId === 'uk') {
-    if (group === 'red') return 'yellow';
-    if (group === 'yellow') return 'red';
-  }
-  return null;
-}
-
-function createInitialPoolState(variant) {
-  const variantId = variant?.id ?? null;
-  return {
-    variantId,
-    assignments: { 0: null, 1: null },
-    openTable: variantId === 'american' || variantId === 'uk',
-    lastShooter: null,
-    lastShotFoul: false
-  };
-}
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
   uk: {
     id: 'uk',
@@ -3203,7 +3155,6 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y, options = {}) {
   const pattern = options.pattern || 'solid';
   const number = options.number ?? null;
-  const group = options.group ?? null;
   const material = getBilliardBallMaterial({
     color,
     pattern,
@@ -3247,7 +3198,6 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
-    if (group) node.userData.ballGroup = group;
   });
   parent.add(mesh);
   return {
@@ -3261,10 +3211,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     impacted: false,
     launchDir: null,
     pendingSpin: new THREE.Vector2(),
-    active: true,
-    number: Number.isFinite(number) ? number : null,
-    pattern,
-    group
+    active: true
   };
 }
 
@@ -4649,10 +4596,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
-  const poolStateRef = useRef(createInitialPoolState(activeVariant));
-  useEffect(() => {
-    poolStateRef.current = createInitialPoolState(activeVariant);
-  }, [activeVariant]);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerTableFinish');
@@ -4985,7 +4928,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
-  const lastShooterRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const loadingClearedRef = useRef(false);
@@ -6216,7 +6158,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackY = signageY + wallHeight * CUE_DISPLAY_VERTICAL_BOOST;
+      const cueRackY = signageY;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
         { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
@@ -6233,46 +6175,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (typeof entry.dispose === 'function') {
           cueRackDisposers.push(entry.dispose);
         }
-        const rackForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(
-          new THREE.Vector3(0, 1, 0),
-          placement.rotationY
-        );
-        const rackHeight = entry.dimensions?.height ?? BALL_R * 12;
-        const rackLightHeight = cueRackY + rackHeight * 0.65;
-        const keyLight = new THREE.SpotLight(
-          0xfff8e1,
-          1.8,
-          Math.max(6, roomDepth * 0.2),
-          Math.PI / 7,
-          0.48,
-          2.2
-        );
-        keyLight.position
-          .set(placement.x, rackLightHeight, placement.z)
-          .add(rackForward.clone().multiplyScalar(1.35));
-        keyLight.target.position.set(
-          placement.x,
-          cueRackY + rackHeight * 0.5,
-          placement.z
-        );
-        keyLight.castShadow = false;
-        keyLight.decay = 2.4;
-        const fillLight = new THREE.PointLight(
-          0xfff2c0,
-          0.45,
-          Math.max(4, roomDepth * 0.18),
-          2.4
-        );
-        fillLight.position.set(placement.x, rackLightHeight * 0.96, placement.z);
-        fillLight.castShadow = false;
-        const lightGroup = new THREE.Group();
-        lightGroup.add(keyLight);
-        lightGroup.add(keyLight.target);
-        lightGroup.add(fillLight);
-        world.add(lightGroup);
-        cueRackDisposers.push(() => {
-          world.remove(lightGroup);
-        });
       });
       updateCueRackHighlights();
 
@@ -6376,7 +6278,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
       const hospitalityCarpetPull =
         toHospitalityUnits(0.18) * hospitalityUpscale; // shift hospitality props off the wall and onto the nearby carpet border
-      const HOSPITALITY_SEAT_SPREAD = 1.18;
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -6546,11 +6447,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           scaledFurniture * hospitalityTableHeightScale,
           scaledFurniture
         );
-        const spreadOffset = new THREE.Vector2(
-          chairOffset[0] * HOSPITALITY_SEAT_SPREAD,
-          chairOffset[1] * HOSPITALITY_SEAT_SPREAD
-        );
-        const chairVector = spreadOffset.clone();
+        const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
         const chairDistance = chairVector.length();
         if (chairDistance > 1e-6) {
           const maxPull = Math.max(chairDistance - hospitalityChairGap, 0);
@@ -6571,9 +6468,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const chair = createChair();
         chair.scale.setScalar(scaledFurniture);
-        chair.position.set(spreadOffset.x, 0, spreadOffset.y);
-        const toCenter = spreadOffset.clone().multiplyScalar(-1);
-        chair.rotation.y = Math.atan2(toCenter.x, toCenter.y);
+        chair.position.set(chairOffset[0], 0, chairOffset[1]);
+        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
+        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
+        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
+        chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
         const adjustForCarpet = (value) => {
@@ -7911,109 +7810,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const dom = renderer.domElement;
         dom.style.touchAction = 'none';
         const balls = [];
-        const variantConfig = activeVariantRef.current;
-        const ensurePoolStateVariant = () => {
-          if (!isPoolVariantId(variantConfig?.id)) return;
-          const current = poolStateRef.current;
-          if (!current || current.variantId !== variantConfig.id) {
-            poolStateRef.current = createInitialPoolState(variantConfig);
-          }
-        };
-        ensurePoolStateVariant();
-
-        const updatePoolStateAfterShot = ({
-          shooterIndex,
-          foul,
-          cueBallPotted,
-          pottedBalls
-        }) => {
-          if (!isPoolVariantId(variantConfig?.id)) return;
-          ensurePoolStateVariant();
-          const poolState = poolStateRef.current;
-          if (!poolState) return;
-          poolState.lastShooter = shooterIndex;
-          poolState.lastShotFoul = Boolean(foul || cueBallPotted);
-          if (variantConfig.id === '9ball') {
-            return;
-          }
-          const assignments = poolState.assignments || { 0: null, 1: null };
-          poolState.assignments = assignments;
-          const openTable = poolState.openTable ?? true;
-          const opponentIndex = shooterIndex === 0 ? 1 : 0;
-          const groupsPotted = [];
-          if (Array.isArray(pottedBalls) && pottedBalls.length > 0) {
-            pottedBalls.forEach((entry) => {
-              const targetBall =
-                balls.find((ball) => ball.id === entry.id) ||
-                (ballsRef.current || []).find((ball) => ball.id === entry.id);
-              const group = targetBall?.group;
-              if (group && group !== 'cue') {
-                groupsPotted.push(group);
-              }
-            });
-          }
-          if (openTable && !poolState.lastShotFoul) {
-            const claimed = groupsPotted.find((group) => group && group !== 'black');
-            if (claimed) {
-              assignments[shooterIndex] = claimed;
-              assignments[opponentIndex] = getOppositePoolGroup(
-                variantConfig.id,
-                claimed
-              );
-              poolState.openTable = false;
-            }
-          }
-          if (!poolState.openTable && !assignments[shooterIndex] && !poolState.lastShotFoul) {
-            const claimed = groupsPotted.find((group) => group && group !== 'black');
-            if (claimed) {
-              assignments[shooterIndex] = claimed;
-              if (!assignments[opponentIndex]) {
-                assignments[opponentIndex] = getOppositePoolGroup(
-                  variantConfig.id,
-                  claimed
-                );
-              }
-            }
-          }
-        };
-
-        const createPoolTargetFilter = (shooterIndex, activeBallsList, cueBall) => {
-          if (!isPoolVariantId(variantConfig?.id)) {
-            return (ball) => ball !== cueBall;
-          }
-          ensurePoolStateVariant();
-          const poolState = poolStateRef.current;
-          if (!poolState) {
-            return (ball) => ball !== cueBall;
-          }
-          if (variantConfig.id === '9ball') {
-            const ordered = activeBallsList
-              .filter((ball) => ball !== cueBall && Number.isFinite(ball.number))
-              .sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity));
-            const targetId = ordered.length > 0 ? ordered[0].id : null;
-            return (ball) => ball !== cueBall && (targetId ? ball.id === targetId : true);
-          }
-          const assignments = poolState.assignments || { 0: null, 1: null };
-          const targetGroup = assignments[shooterIndex] || null;
-          const openTable = poolState.openTable ?? true;
-          const hasGroupRemaining = (group) =>
-            activeBallsList.some(
-              (ball) => ball !== cueBall && ball.group === group && ball.group !== 'black'
-            );
-          const shouldTargetBlack =
-            !openTable && targetGroup && !hasGroupRemaining(targetGroup);
-          return (ball) => {
-            if (ball === cueBall) return false;
-            const group = ball.group;
-            if (group === 'black') {
-              return shouldTargetBlack;
-            }
-            if (openTable || !targetGroup) {
-              return group && group !== 'black';
-            }
-            return group === targetGroup;
-          };
-        };
         let project;
         const clampSpinToLimits = () => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
@@ -8403,6 +8199,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
+      const variantConfig = activeVariantRef.current;
       const add = (id, color, x, z, extra = {}) => {
         const b = Guret(table, id, color, x, z, extra);
         balls.push(b);
@@ -8434,17 +8231,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         rackStartZ
       );
       for (let rid = 0; rid < rackColors.length; rid++) {
-        const pos =
-          rackPositions[rid] ||
-          rackPositions[rackPositions.length - 1] || {
-            x: 0,
-            z: rackStartZ + rid * BALL_R * 1.9
-          };
+        const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
+          x: 0,
+          z: rackStartZ + rid * BALL_R * 1.9
+        };
         const color = getPoolBallColor(variantConfig, rid);
         const number = getPoolBallNumber(variantConfig, rid);
         const pattern = getPoolBallPattern(variantConfig, rid);
-        const group = determinePoolBallGroup(variantConfig, pattern, number, color);
-        add(`red_${rid}`, color, pos.x, pos.z, { number, pattern, group });
+        add(`red_${rid}`, color, pos.x, pos.z, { number, pattern });
       }
 
       // colours
@@ -9137,24 +8931,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         );
       };
 
-      const orientCameraOppositeShot = (dir) => {
-        if (!dir) return;
-        const sph = sphRef.current;
-        if (!sph) return;
-        const normalized = dir.clone();
-        if (normalized.lengthSq() < 1e-6) return;
-        normalized.normalize();
-        sph.theta = Math.atan2(normalized.x, normalized.y);
-        syncBlendToSpherical();
-        updateCamera();
-      };
-
-      const prepareAiCameraForShot = (cueBall, aimDir) => {
-        if (!cueBall || !aimDir) return;
-        alignStandingCameraToAim(cueBall, aimDir);
-        orientCameraOppositeShot(aimDir);
-      };
-
       // Fire (slider e thërret në release)
       const fire = () => {
         const currentHud = hudRef.current;
@@ -9165,7 +8941,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           currentHud?.over
         )
           return;
-        lastShooterRef.current = currentHud?.turn ?? 0;
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(1);
         updateCamera();
@@ -9451,7 +9226,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
           if (!plan || plan.type !== 'pot') return fallback;
-          if (isPoolVariantId(variantConfig?.id)) return fallback;
           const colorId = plan.target;
           if (!colorId) return fallback;
           try {
@@ -9501,22 +9275,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const evaluateShotOptions = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
-          const shooterIndex = hudRef.current?.turn ?? 0;
-          const isPoolVariant = isPoolVariantId(variantConfig?.id);
-          let legalTargets = null;
-          if (!isPoolVariant) {
-            const legalTargetsRaw = Array.isArray(state?.ballOn)
-              ? state.ballOn
-              : ['RED'];
-            legalTargets = new Set(
-              legalTargetsRaw
-                .map((entry) =>
-                  typeof entry === 'string' ? entry.toUpperCase() : entry
-                )
-                .filter(Boolean)
-            );
-            if (legalTargets.size === 0) legalTargets.add('RED');
-          }
+          const legalTargetsRaw = Array.isArray(state?.ballOn)
+            ? state.ballOn
+            : ['RED'];
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) =>
+                typeof entry === 'string' ? entry.toUpperCase() : entry
+              )
+              .filter(Boolean)
+          );
+          if (legalTargets.size === 0) legalTargets.add('RED');
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
           const clearance = BALL_R * 1.85;
@@ -9542,23 +9311,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const potShots = [];
           const safetyShots = [];
           let fallbackPlan = null;
-          const targetFilter = isPoolVariant
-            ? createPoolTargetFilter(shooterIndex, activeBalls, cue)
-            : (ball) => {
-                if (!ball || ball === cue) return false;
-                const colorId = toBallColorId(ball.id);
-                return legalTargets?.has(colorId ?? '') ?? false;
-              };
-          let candidateBalls = activeBalls.filter(
-            (ball) => ball !== cue && targetFilter(ball)
-          );
-          if (candidateBalls.length === 0) {
-            candidateBalls = activeBalls.filter((ball) => ball !== cue);
-          }
-          candidateBalls.forEach((targetBall) => {
+          activeBalls.forEach((targetBall) => {
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
-            if (!isPoolVariant && (!colorId || !legalTargets?.has(colorId))) return;
+            if (!colorId || !legalTargets.has(colorId)) return;
             const ignore = new Set([cue.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
@@ -9751,7 +9507,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           setAiPlanning(null);
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
-          prepareAiCameraForShot(cue, dir);
+          alignStandingCameraToAim(cue, dir);
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
           const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -9778,8 +9534,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         });
         const currentState = frameRef.current ?? frameState;
         const nextState = rules.applyShot(currentState, shotEvents);
-        const foulCommitted = Boolean(nextState.foul);
-        if (foulCommitted) {
+        if (nextState.foul) {
           const foulPoints = nextState.foul.points ?? 4;
           const foulVol = clamp(foulPoints / 7, 0, 1);
           playShock(Math.max(0.4, foulVol));
@@ -9800,12 +9555,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         setFrameState(nextState);
         const cueBallPotted =
           potted.some((entry) => entry.color === 'CUE') || !cue.active;
-        updatePoolStateAfterShot({
-          shooterIndex: lastShooterRef.current ?? 0,
-          foul: foulCommitted,
-          cueBallPotted,
-          pottedBalls: Array.isArray(potted) ? potted.slice() : []
-        });
         const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
         colourNames.forEach((name) => {
           const simBall = colors[name];
@@ -9919,8 +9668,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           allStopped(balls) &&
           !(currentHud?.inHand) &&
           cue?.active &&
-          !(currentHud?.over) &&
-          (currentHud?.turn ?? 0) === 0
+          !(currentHud?.over)
         ) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
@@ -10965,10 +10713,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      <div className="pointer-events-none absolute top-[3.5%] left-1/2 z-[60] -translate-x-1/2 rounded-full bg-black/70 px-4 py-1 text-[11px] uppercase tracking-[0.38em] text-white/80 backdrop-blur-sm">
-        Scroll and click to change the cue
-      </div>
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button

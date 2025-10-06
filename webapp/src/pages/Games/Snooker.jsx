@@ -679,7 +679,6 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
-const CUE_DISPLAY_VERTICAL_BOOST = 0.22;
 
 // Updated colors for dark cloth and standard balls
 const BASE_BALL_COLORS = Object.freeze({
@@ -4690,7 +4689,6 @@ function SnookerGame() {
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
-  const lastShooterRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const loadingClearedRef = useRef(false);
@@ -5921,7 +5919,7 @@ function SnookerGame() {
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackY = signageY + wallHeight * CUE_DISPLAY_VERTICAL_BOOST;
+      const cueRackY = signageY;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
         { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
@@ -5938,46 +5936,6 @@ function SnookerGame() {
         if (typeof entry.dispose === 'function') {
           cueRackDisposers.push(entry.dispose);
         }
-        const rackForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(
-          new THREE.Vector3(0, 1, 0),
-          placement.rotationY
-        );
-        const rackHeight = entry.dimensions?.height ?? BALL_R * 12;
-        const rackLightHeight = cueRackY + rackHeight * 0.65;
-        const keyLight = new THREE.SpotLight(
-          0xfff8e1,
-          1.8,
-          Math.max(6, roomDepth * 0.2),
-          Math.PI / 7,
-          0.48,
-          2.2
-        );
-        keyLight.position
-          .set(placement.x, rackLightHeight, placement.z)
-          .add(rackForward.clone().multiplyScalar(1.35));
-        keyLight.target.position.set(
-          placement.x,
-          cueRackY + rackHeight * 0.5,
-          placement.z
-        );
-        keyLight.castShadow = false;
-        keyLight.decay = 2.4;
-        const fillLight = new THREE.PointLight(
-          0xfff2c0,
-          0.45,
-          Math.max(4, roomDepth * 0.18),
-          2.4
-        );
-        fillLight.position.set(placement.x, rackLightHeight * 0.96, placement.z);
-        fillLight.castShadow = false;
-        const lightGroup = new THREE.Group();
-        lightGroup.add(keyLight);
-        lightGroup.add(keyLight.target);
-        lightGroup.add(fillLight);
-        world.add(lightGroup);
-        cueRackDisposers.push(() => {
-          world.remove(lightGroup);
-        });
       });
       updateCueRackHighlights();
 
@@ -6076,7 +6034,6 @@ function SnookerGame() {
       const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
       const hospitalitySizeMultiplier = 2.5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
-      const HOSPITALITY_SEAT_SPREAD = 1.18;
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -6242,11 +6199,7 @@ function SnookerGame() {
 
         const tableSet = createTableSet();
         tableSet.scale.setScalar(scaledFurniture);
-        const spreadOffset = new THREE.Vector2(
-          chairOffset[0] * HOSPITALITY_SEAT_SPREAD,
-          chairOffset[1] * HOSPITALITY_SEAT_SPREAD
-        );
-        const chairVector = spreadOffset.clone();
+        const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
         const chairDistance = chairVector.length();
         if (chairDistance > 1e-6) {
           const tablePull = Math.min(
@@ -6266,9 +6219,11 @@ function SnookerGame() {
 
         const chair = createChair();
         chair.scale.setScalar(scaledFurniture);
-        chair.position.set(spreadOffset.x, 0, spreadOffset.y);
-        const toCenter = spreadOffset.clone().multiplyScalar(-1);
-        chair.rotation.y = Math.atan2(toCenter.x, toCenter.y);
+        chair.position.set(chairOffset[0], 0, chairOffset[1]);
+        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
+        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
+        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
+        chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
         group.position.set(position[0], floorY, position[1]);
@@ -8642,24 +8597,6 @@ function SnookerGame() {
         );
       };
 
-      const orientCameraOppositeShot = (dir) => {
-        if (!dir) return;
-        const sph = sphRef.current;
-        if (!sph) return;
-        const normalized = dir.clone();
-        if (normalized.lengthSq() < 1e-6) return;
-        normalized.normalize();
-        sph.theta = Math.atan2(normalized.x, normalized.y);
-        syncBlendToSpherical();
-        updateCamera();
-      };
-
-      const prepareAiCameraForShot = (cueBall, aimDir) => {
-        if (!cueBall || !aimDir) return;
-        alignStandingCameraToAim(cueBall, aimDir);
-        orientCameraOppositeShot(aimDir);
-      };
-
       // Fire (slider e thërret në release)
       const fire = () => {
         const currentHud = hudRef.current;
@@ -8670,10 +8607,7 @@ function SnookerGame() {
           currentHud?.over
         )
           return;
-        lastShooterRef.current = currentHud?.turn ?? 0;
-        if ((currentHud?.turn ?? 0) === 0) {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(1);
         updateCamera();
         setShootingState(true);
@@ -9239,7 +9173,7 @@ function SnookerGame() {
           setAiPlanning(null);
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
-          prepareAiCameraForShot(cue, dir);
+          alignStandingCameraToAim(cue, dir);
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
           const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -9400,8 +9334,7 @@ function SnookerGame() {
           allStopped(balls) &&
           !(currentHud?.inHand) &&
           cue?.active &&
-          !(currentHud?.over) &&
-          (currentHud?.turn ?? 0) === 0
+          !(currentHud?.over)
         ) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
@@ -10440,10 +10373,6 @@ function SnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      <div className="pointer-events-none absolute top-[3.5%] left-1/2 z-[60] -translate-x-1/2 rounded-full bg-black/70 px-4 py-1 text-[11px] uppercase tracking-[0.38em] text-white/80 backdrop-blur-sm">
-        Scroll and click to change the cue
-      </div>
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
