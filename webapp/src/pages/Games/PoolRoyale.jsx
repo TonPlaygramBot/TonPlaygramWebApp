@@ -1852,7 +1852,7 @@ function createBroadcastCameras({
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerExtra = BALL_R * 7;
+  const cameraCornerExtra = BALL_R * 9;
   const cameraSideBoost = BALL_R * 16;
   const cameraDepthBoost = BALL_R * 3;
   const cameraWallSlide = BALL_R * 6;
@@ -1864,9 +1864,11 @@ function createBroadcastCameras({
     typeof arenaHalfDepth === 'number'
       ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
       : fallbackCornerZ;
+  const cameraTvClearance = BALL_R * 8;
   const cameraCornerXOffset =
-    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide;
-  const cameraCornerZOffset = baseCornerZ + cameraCornerExtra + cameraDepthBoost;
+    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide + cameraTvClearance;
+  const cameraCornerZOffset =
+    baseCornerZ + cameraCornerExtra + cameraDepthBoost + cameraTvClearance;
   const cameraScale = 1.2;
 
   const createUnit = (xSign, zSign) => {
@@ -4672,6 +4674,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     lateralFocusScale: 0.35,
     prev: null
   });
+  const [cueGalleryActive, setCueGalleryActive] = useState(false);
 
   const getCueColorFromIndex = useCallback((index) => {
     if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
@@ -5711,9 +5714,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
       };
       const createMatchTvEntry = () => {
+        const baseWidth = 1024;
+        const baseHeight = 512;
+        const resolutionScale = 1.3;
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
+        canvas.width = Math.round(baseWidth * resolutionScale);
+        canvas.height = Math.round(baseHeight * resolutionScale);
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -5775,6 +5781,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           texture,
           update(delta) {
             if (!ctx) return;
+            const width = baseWidth;
+            const height = baseHeight;
+            ctx.setTransform(resolutionScale, 0, 0, resolutionScale, 0, 0);
+            ctx.clearRect(0, 0, width, height);
             pulse += delta;
             const hudState = hudRef.current ?? {};
             const playerState = playerInfoRef.current ?? {};
@@ -5799,17 +5809,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               frameStateCurrent.players?.B?.highestBreak ?? 0;
             const currentBreak = frameStateCurrent.currentBreak ?? 0;
             ctx.fillStyle = '#050b18';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            ctx.fillRect(0, 0, width, height);
+            const headerGrad = ctx.createLinearGradient(0, 0, width, 0);
             headerGrad.addColorStop(0, '#0f172a');
             headerGrad.addColorStop(1, '#1e293b');
             ctx.fillStyle = headerGrad;
-            ctx.fillRect(0, 0, canvas.width, 120);
+            ctx.fillRect(0, 0, width, 120);
             ctx.fillStyle = '#f1f5f9';
             ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('Pool Royale Match of the Day', canvas.width / 2, 60);
+            ctx.fillText('Pool Royale Match of the Day', width / 2, 60);
             const drawCompetitor = ({
               x,
               name,
@@ -5825,7 +5835,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               if (avatarStore) {
                 updateAvatarStore(avatarStore, avatarSrc);
               }
-              const scoreY = canvas.height * 0.3;
+              const scoreY = height * 0.3;
               ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
@@ -5836,7 +5846,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ctx.fillStyle = active ? '#f8fafc' : '#e2e8f0';
               ctx.fillText(String(score ?? 0), x, scoreY);
               ctx.shadowBlur = 0;
-              const avatarY = canvas.height * 0.55;
+              const avatarY = height * 0.55;
               const avatarRadius = 90;
               ctx.save();
               ctx.translate(x, avatarY);
@@ -5904,7 +5914,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ];
             };
             drawCompetitor({
-              x: canvas.width * 0.25,
+              x: width * 0.25,
               name: playerName,
               score: hudState.A ?? 0,
               accent: '#0ea5e9',
@@ -5917,7 +5927,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               avatarStore: playerAvatarStore
             });
             drawCompetitor({
-              x: canvas.width * 0.75,
+              x: width * 0.75,
               name: aiName,
               score: hudState.B ?? 0,
               accent: '#f97316',
@@ -5928,7 +5938,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               avatarSrc: challengerAvatarSrc,
               avatarStore: challengerAvatarStore
             });
-            const timerY = canvas.height * 0.18;
+            const timerY = height * 0.18;
             const warn = timerValue <= 5 && timerValue > 0;
             const timerColor = warn
               ? pulse % 0.4 < 0.2
@@ -5937,10 +5947,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               : '#38bdf8';
             ctx.fillStyle = timerColor;
             ctx.font = 'bold 110px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText(timerText, canvas.width / 2, timerY);
+            ctx.fillText(timerText, width / 2, timerY);
             ctx.fillStyle = '#cbd5f5';
             ctx.font = '600 32px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText('SHOT CLOCK', canvas.width / 2, timerY + 70);
+            ctx.fillText('SHOT CLOCK', width / 2, timerY + 70);
             texture.needsUpdate = true;
           }
         };
@@ -5951,7 +5961,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = legHeight + TABLE.THICK + 40;
+      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.3;
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -6028,7 +6038,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvScale = 10;
+      const tvScale = 10 * 1.3;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
       const tvDepth = 0.42 * tvScale;
@@ -8497,6 +8507,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (!state?.active) return;
         const prev = state.prev;
         state.active = false;
+        setCueGalleryActive(false);
         state.rackId = null;
         state.lateralOffset = 0;
         state.maxLateral = 0;
@@ -8592,6 +8603,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         topViewRef.current = false;
         applyCameraBlend(cameraBlendRef.current);
         updateCamera();
+        setCueGalleryActive(true);
       };
 
       const attemptCueGalleryPress = (ev) => {
@@ -9500,13 +9512,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         aiShoot.current = () => {
           const currentHud = hudRef.current;
           if (currentHud?.over || currentHud?.inHand || shooting) return;
-          const plan = aiPlanRef.current ?? computeAiShot();
-          if (!plan) return;
+          let plan = aiPlanRef.current ?? computeAiShot();
+          if (!plan) {
+            const cuePos = cue?.pos ? cue.pos.clone() : null;
+            if (!cuePos) return;
+            const fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
+            if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
+            fallbackDir.normalize();
+            plan = {
+              type: 'safety',
+              aimDir: fallbackDir,
+              power: computePowerFromDistance(BALL_R * 18),
+              target: 'fallback',
+              spin: { x: 0, y: 0 }
+            };
+          }
           clearEarlyAiShot();
           stopAiThinking();
           setAiPlanning(null);
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
+          topViewRef.current = false;
           alignStandingCameraToAim(cue, dir);
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
@@ -9666,6 +9692,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const currentHud = hudRef.current;
         if (
           allStopped(balls) &&
+          currentHud?.turn === 0 &&
           !(currentHud?.inHand) &&
           cue?.active &&
           !(currentHud?.over)
@@ -10713,6 +10740,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {cueGalleryActive && (
+        <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
+          Scroll and click to change the cue
+        </div>
+      )}
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button

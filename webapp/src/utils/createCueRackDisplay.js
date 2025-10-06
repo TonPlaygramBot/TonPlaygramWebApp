@@ -300,12 +300,15 @@ export function createCueRackDisplay({
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
   const verticalPadding = clothHeight * 0.035;
+  const cueVerticalBoost = clothHeight * 0.18;
 
   for (let i = 0; i < cueCount; i += 1) {
     const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
     const cue = makeCue(color, i);
     const halfHeight = cue.userData?.cueHalfHeight ?? clothHeight / 2;
-    const cueLift = clothHeight / 2 - halfHeight - verticalPadding;
+    const maxLift = clothHeight / 2 - halfHeight;
+    const boostedLift = clothHeight / 2 - halfHeight - verticalPadding + cueVerticalBoost;
+    const cueLift = Math.min(maxLift, boostedLift);
     cue.position.set(startX + i * stepX, cueLift, cueDepth);
     group.add(cue);
   }
