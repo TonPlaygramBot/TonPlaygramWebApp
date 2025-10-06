@@ -120,6 +120,92 @@ export const hslToHexNumber = (h, s, l) => {
   return color.getHex();
 };
 
+const makeCacheKey = ({
+  hue,
+  sat,
+  light,
+  contrast,
+  textureSize,
+  roughnessSize,
+  roughnessBase,
+  roughnessVariance,
+  sharedKey
+}) =>
+  [
+    sharedKey,
+    hue,
+    sat,
+    light,
+    contrast,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance
+  ]
+    .map((value) =>
+      typeof value === 'number' ? Number.parseFloat(value).toFixed(6) : String(value ?? '')
+    )
+    .join('|');
+
+const WOOD_TEXTURE_BASE_CACHE = new Map();
+
+const ensureSharedWoodTextures = ({
+  hue,
+  sat,
+  light,
+  contrast,
+  textureSize,
+  roughnessSize,
+  roughnessBase,
+  roughnessVariance,
+  sharedKey
+}) => {
+  const cacheKey = makeCacheKey({
+    hue,
+    sat,
+    light,
+    contrast,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance,
+    sharedKey
+  });
+  let entry = WOOD_TEXTURE_BASE_CACHE.get(cacheKey);
+  if (!entry) {
+    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const roughnessMap = makeRoughnessMap(
+      roughnessSize,
+      roughnessSize,
+      roughnessBase,
+      roughnessVariance
+    );
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+    map.center.set(0.5, 0.5);
+    roughnessMap.center.set(0.5, 0.5);
+    map.needsUpdate = true;
+    roughnessMap.needsUpdate = true;
+    entry = { map, roughnessMap };
+    WOOD_TEXTURE_BASE_CACHE.set(cacheKey, entry);
+  }
+  return entry;
+};
+
+const cloneWoodTexture = (texture, repeat, rotation) => {
+  if (!texture) return null;
+  const clone = texture.clone();
+  if (repeat) {
+    clone.repeat.set(repeat.x ?? 1, repeat.y ?? 1);
+  }
+  clone.center.set(0.5, 0.5);
+  if (typeof rotation === 'number' && rotation !== 0) {
+    clone.rotation = rotation;
+  }
+  clone.needsUpdate = true;
+  return clone;
+};
+
 export const applyWoodTextures = (
   material,
   {
@@ -132,31 +218,48 @@ export const applyWoodTextures = (
     textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
     roughnessBase = 0.18,
-    roughnessVariance = 0.25
+    roughnessVariance = 0.25,
+    sharedKey = null
   } = {}
 ) => {
   if (!material) return null;
   disposeWoodTextures(material);
-  const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
-  const roughnessMap = makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-  const repeatX = repeat?.x ?? 1;
-  const repeatY = repeat?.y ?? 1;
-  map.repeat.set(repeatX, repeatY);
-  roughnessMap.repeat.set(repeatX, repeatY);
-  map.center.set(0.5, 0.5);
-  roughnessMap.center.set(0.5, 0.5);
-  if (rotation) {
-    map.rotation = rotation;
-    roughnessMap.rotation = rotation;
+  const baseTextures = sharedKey
+    ? ensureSharedWoodTextures({
+        hue,
+        sat,
+        light,
+        contrast,
+        textureSize,
+        roughnessSize,
+        roughnessBase,
+        roughnessVariance,
+        sharedKey
+      })
+    : {
+        map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
+        roughnessMap: makeRoughnessMap(
+          roughnessSize,
+          roughnessSize,
+          roughnessBase,
+          roughnessVariance
+        )
+      };
+  const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
+  const map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
+  const roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
+  if (map) {
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  }
+  if (roughnessMap) {
+    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
   }
   material.map = map;
   material.roughnessMap = roughnessMap;
   material.color.setHex(0xffffff);
   material.needsUpdate = true;
-  material.map.needsUpdate = true;
-  material.roughnessMap.needsUpdate = true;
+  if (material.map) material.map.needsUpdate = true;
+  if (material.roughnessMap) material.roughnessMap.needsUpdate = true;
   material.userData = material.userData || {};
   material.userData.__woodTextures = { map, roughnessMap };
   return { map, roughnessMap };
@@ -173,6 +276,7 @@ export const createWoodMaterial = ({
   roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
   roughnessBase = 0.18,
   roughnessVariance = 0.25,
+  sharedKey = null,
   ...materialProps
 } = {}) => {
   const material = new THREE.MeshPhysicalMaterial({
@@ -189,7 +293,8 @@ export const createWoodMaterial = ({
     textureSize,
     roughnessSize,
     roughnessBase,
-    roughnessVariance
+    roughnessVariance,
+    sharedKey
   });
   return material;
 };
