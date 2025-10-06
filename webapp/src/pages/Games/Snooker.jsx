@@ -708,22 +708,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5);
-
-const computeCueRearSectionLength = () => {
-  const scale = BALL_R / 0.0525;
-  const cueLen = 1.5 * scale * CUE_LENGTH_MULTIPLIER;
-  const frontLength = THREE.MathUtils.clamp(
-    cueLen * CUE_FRONT_SECTION_RATIO,
-    cueLen * 0.1,
-    cueLen * 0.5
-  );
-  return Math.max(cueLen - frontLength, 1e-4);
-};
-
-// Reuse the cue butt's grain density as the world-space unit size for every wooden surface
-const CUE_REAR_SECTION_LENGTH = computeCueRearSectionLength();
-const WOOD_GRAIN_WORLD_UNIT = CUE_REAR_SECTION_LENGTH / CUE_WOOD_REPEAT.y;
-const WOOD_WORLD_UV_SCALE = WOOD_GRAIN_WORLD_UNIT > 1e-6 ? 1 / WOOD_GRAIN_WORLD_UNIT : 1;
+const TABLE_WOOD_TEXTURE_SCALE = 1; // Match the cue butt wood grain scale on the table rails and skirts
 
 const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 
@@ -1501,20 +1486,6 @@ function applyWoodTextureToMaterial(material, repeat) {
     woodRepeat: repeatVec.clone()
   };
   applyCueWoodGloss(material);
-}
-
-function scaleGeometryUV(geometry, scale) {
-  if (!geometry?.attributes?.uv) return;
-  const uvAttr = geometry.attributes.uv;
-  const scaleX = scale instanceof THREE.Vector2 ? scale.x : scale;
-  const scaleY = scale instanceof THREE.Vector2 ? scale.y : scale;
-  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) return;
-  for (let i = 0; i < uvAttr.count; i++) {
-    const u = uvAttr.getX(i) * scaleX;
-    const v = uvAttr.getY(i) * scaleY;
-    uvAttr.setXY(i, u, v);
-  }
-  uvAttr.needsUpdate = true;
 }
 
 function enhanceChromeMaterial(material) {
@@ -3548,7 +3519,7 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
-  const woodRailRepeat = new THREE.Vector2(1, 1);
+  const woodRailRepeat = CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -3963,7 +3934,6 @@ function Table3D(
     curveSegments: 96
   });
   railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO);
-  scaleGeometryUV(railsGeom, WOOD_WORLD_UV_SCALE);
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
@@ -4332,7 +4302,6 @@ function Table3D(
     depth: skirtH,
     bevelEnabled: false
   });
-  scaleGeometryUV(skirtGeo, WOOD_WORLD_UV_SCALE);
   const skirt = new THREE.Mesh(skirtGeo, frameMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
@@ -4348,7 +4317,6 @@ function Table3D(
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  scaleGeometryUV(legGeo, WOOD_WORLD_UV_SCALE);
   const legInset = baseRailWidth * 2.2;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
@@ -4359,7 +4327,7 @@ function Table3D(
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const woodFrameRepeat = new THREE.Vector2(1, 1);
+  const woodFrameRepeat = CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE);
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);
