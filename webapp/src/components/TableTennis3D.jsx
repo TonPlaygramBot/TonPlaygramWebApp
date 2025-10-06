@@ -86,17 +86,17 @@ export default function TableTennis3D({ player, ai }){
     const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
     scene.add(camera);
     const camRig = {
-      dist: 4.35,
-      minDist: 3.95,
-      height: 1.82,
-      minHeight: 1.55,
-      pitch: 0.28,
-      forwardBias: 0.12,
+      dist: 3.78,
+      minDist: 3.45,
+      height: 2.08,
+      minHeight: 1.78,
+      pitch: 0.34,
+      forwardBias: 0.08,
       yawBase: 0,
       yawRange: 0.38,
       curYaw: 0,
-      curDist: 4.35,
-      curHeight: 1.82,
+      curDist: 3.78,
+      curHeight: 2.08,
     };
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
@@ -364,6 +364,21 @@ export default function TableTennis3D({ player, ai }){
       zFar: 0.06,
     };
 
+    // Expanded touch surface so the finger can sit behind the paddle while
+    // still steering it comfortably. The pointer area is roughly 2× the
+    // paddle footprint, shifted toward the player, and we keep the actual
+    // paddle a little ahead of the touch point so the finger does not cover it.
+    const TOUCH_SURFACE_MULT = 2;
+    const TOUCH_DEPTH_MULT = 2.1;
+    const TOUCH_BACK_SHIFT = 0.26;
+    const TOUCH_FORWARD_OFFSET = 0.18;
+    const pointerXMin = -bounds.x * TOUCH_SURFACE_MULT;
+    const pointerXMax = bounds.x * TOUCH_SURFACE_MULT;
+    const pointerZSpan = (bounds.zNear - bounds.zFar) * TOUCH_DEPTH_MULT;
+    const pointerZCenter = (bounds.zNear + bounds.zFar) / 2 + TOUCH_BACK_SHIFT;
+    const pointerZMin = pointerZCenter - pointerZSpan / 2;
+    const pointerZMax = pointerZCenter + pointerZSpan / 2;
+
     const screenToXZ = (cx, cy) => { const r=renderer.domElement.getBoundingClientRect(); ndc.x=((cx-r.left)/r.width)*2-1; ndc.y=-(((cy-r.top)/r.height)*2-1); ray.setFromCamera(ndc, camera); ray.ray.intersectPlane(plane, hit); return new THREE.Vector2(hit.x/S, hit.z/S); };
 
     let dragging=false;
@@ -372,8 +387,13 @@ export default function TableTennis3D({ player, ai }){
     const onUp = ()=>{ dragging=false; };
 
     function movePlayerTo(x,z){
-      player.position.x = THREE.MathUtils.clamp(x, -bounds.x, bounds.x);
-      player.position.z = THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear);
+      const clampedX = THREE.MathUtils.clamp(x, pointerXMin, pointerXMax);
+      const clampedZ = THREE.MathUtils.clamp(z, pointerZMin, pointerZMax);
+      const normX = (clampedX - pointerXMin) / (pointerXMax - pointerXMin);
+      const normZ = (clampedZ - pointerZMin) / (pointerZMax - pointerZMin);
+      player.position.x = THREE.MathUtils.lerp(-bounds.x, bounds.x, normX);
+      const desiredZ = THREE.MathUtils.lerp(bounds.zFar, bounds.zNear, normZ) - TOUCH_FORWARD_OFFSET;
+      player.position.z = THREE.MathUtils.clamp(desiredZ, bounds.zFar, bounds.zNear);
     }
 
     renderer.domElement.addEventListener('touchstart', onDown, { passive:false });
