@@ -1852,10 +1852,10 @@ function createBroadcastCameras({
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerExtra = BALL_R * 9;
-  const cameraSideBoost = BALL_R * 18;
-  const cameraDepthBoost = BALL_R * 4.5;
-  const cameraWallSlide = BALL_R * 7;
+  const cameraCornerExtra = BALL_R * 7;
+  const cameraSideBoost = BALL_R * 16;
+  const cameraDepthBoost = BALL_R * 3;
+  const cameraWallSlide = BALL_R * 6;
   const baseCornerX =
     typeof arenaHalfWidth === 'number'
       ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
@@ -4672,7 +4672,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     lateralFocusScale: 0.35,
     prev: null
   });
-  const [cueGalleryHintVisible, setCueGalleryHintVisible] = useState(false);
 
   const getCueColorFromIndex = useCallback((index) => {
     if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
@@ -5120,9 +5119,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     if (current) {
       try {
         current.stop();
-      } catch (err) {
-        /* ignore */
-      }
+      } catch {}
       activeCrowdSoundRef.current = null;
     }
   }, []);
@@ -5378,9 +5375,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       document.removeEventListener('visibilitychange', handleVis);
       try {
         wakeLock?.release();
-      } catch (err) {
-        /* ignore */
-      }
+      } catch {}
     };
   }, []);
   const aiFlag = useMemo(
@@ -5717,8 +5712,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       };
       const createMatchTvEntry = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 1344;
-        canvas.height = 672;
+        canvas.width = 1024;
+        canvas.height = 512;
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -5759,9 +5754,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           store.loading = true;
           try {
             image.crossOrigin = 'anonymous';
-          } catch (err) {
-            /* ignore */
-          }
+          } catch {}
           image.onload = () => {
             if (store.image === image) {
               store.ready = true;
@@ -5958,7 +5951,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.3;
+      const wallHeight = legHeight + TABLE.THICK + 40;
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -6035,7 +6028,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvScale = 13;
+      const tvScale = 10;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
       const tvDepth = 0.42 * tvScale;
@@ -8502,7 +8495,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const closeCueGallery = () => {
         const state = cueGalleryStateRef.current;
         if (!state?.active) return;
-        setCueGalleryHintVisible(false);
         const prev = state.prev;
         state.active = false;
         state.rackId = null;
@@ -8536,7 +8528,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (!rackId) return;
         const meta = cueRackMetaRef.current.get(rackId);
         if (!meta?.group) return;
-        setCueGalleryHintVisible(true);
         const state = cueGalleryStateRef.current;
         const rack = meta.group;
         rack.updateMatrixWorld(true);
@@ -8841,9 +8832,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
-          } catch (err) {
-            /* ignore */
-          }
+          } catch {}
         }
         e.preventDefault?.();
       };
@@ -8872,9 +8861,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (e.pointerId != null && dom.releasePointerCapture) {
           try {
             dom.releasePointerCapture(e.pointerId);
-          } catch (err) {
-            /* ignore */
-          }
+          } catch {}
         }
         inHandDrag.active = false;
         const pos = inHandDrag.lastPos;
@@ -8954,11 +8941,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           currentHud?.over
         )
           return;
-        const isAiTurn = currentHud?.turn === 1;
-        if (isAiTurn) {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-          applyCameraBlend(1);
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
+        applyCameraBlend(1);
         updateCamera();
         setShootingState(true);
           activeShotView = null;
@@ -9505,39 +9489,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             suggestionAimKeyRef.current = null;
           }
         };
-        const buildDesperationPlan = () => {
-          if (!cue?.active) return null;
-          const cuePos = cue.pos.clone();
-          let bestPlan = null;
-          balls.forEach((ball) => {
-            if (!ball?.active || ball === cue) return;
-            const delta = ball.pos.clone().sub(cuePos);
-            const distSq = delta.lengthSq();
-            if (distSq < 1e-6) return;
-            const dist = Math.sqrt(distSq);
-            const aimDir = delta.divideScalar(dist);
-            const plan = {
-              type: 'safety',
-              aimDir,
-              power: computePowerFromDistance(dist * 1.1),
-              target: toBallColorId(ball.id),
-              targetBall: ball,
-              pocketId: 'SAFETY',
-              difficulty: dist,
-              cueToTarget: dist,
-              targetToPocket: dist,
-              spin: { x: 0, y: -0.1 }
-            };
-            if (!bestPlan || dist < (bestPlan.cueToTarget ?? Infinity)) {
-              bestPlan = plan;
-            }
-          });
-          return bestPlan;
-        };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
-          const desperationPlan = buildDesperationPlan();
-          return options.bestPot ?? options.bestSafety ?? desperationPlan;
+          return options.bestPot ?? options.bestSafety ?? null;
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -9710,9 +9664,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
-        const precisionArea = chalkAreaRef.current;
         if (
-          currentHud?.turn === 0 &&
           allStopped(balls) &&
           !(currentHud?.inHand) &&
           cue?.active &&
@@ -9734,6 +9686,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
           shouldSlowAim = hasTarget;
+          const precisionArea = chalkAreaRef.current;
           if (precisionArea) {
             precisionArea.visible = hasTarget;
             if (hasTarget) {
@@ -9935,9 +9888,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
-          if (precisionArea) {
-            precisionArea.visible = false;
-          }
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -10526,9 +10476,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           tipGroupRef.current = null;
           try {
             host.removeChild(renderer.domElement);
-          } catch (err) {
-            /* ignore */
-          }
+          } catch {}
           dom.removeEventListener('mousedown', down);
           dom.removeEventListener('mousemove', move);
           window.removeEventListener('mouseup', up);
@@ -10550,9 +10498,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const dispose = cueRackDisposers.pop();
             try {
               dispose?.();
-            } catch (err) {
-              /* ignore */
-            }
+            } catch {}
           }
           cueRackGroupsRef.current = [];
           cueOptionGroupsRef.current = [];
@@ -10563,7 +10509,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
-          setCueGalleryHintVisible(false);
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
@@ -10687,9 +10632,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (activePointer !== null) {
         try {
           box.releasePointerCapture(activePointer);
-        } catch (err) {
-          /* ignore */
-        }
+        } catch {}
         activePointer = null;
       }
     };
@@ -10770,12 +10713,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {cueGalleryHintVisible && (
-        <div className="pointer-events-none absolute top-6 left-1/2 z-40 -translate-x-1/2 bg-black/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.4em] text-white/80">
-          Scroll and click to change the cue
-        </div>
-      )}
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
