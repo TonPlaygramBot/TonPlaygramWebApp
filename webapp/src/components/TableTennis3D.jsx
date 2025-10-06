@@ -80,8 +80,11 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Camera ----------
     const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
     scene.add(camera);
-    const camRig = { dist: 6.8, height: 2.4, yaw: 0, pitch: 0.28 };
-    const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
+    const camRig = { dist: 5.4, height: 2.05, yaw: 0, pitch: 0.32, forwardBias: 0.18 };
+    const applyCam = () => {
+      camera.aspect = host.clientWidth / host.clientHeight;
+      camera.updateProjectionMatrix();
+    };
 
     // ---------- Table dimensions (official footprint, slightly taller surface) ----------
     const T = { L: 2.74, W: 1.525, H: 0.84, topT: 0.03, NET_H: 0.1525 };
@@ -146,18 +149,19 @@ export default function TableTennis3D({ player, ai }){
       roughness: 0.9,
       side: THREE.DoubleSide,
     });
-    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(T.W + 0.1, T.NET_H), netMat);
+    const postR = 0.012;
+    const netWidth = T.W + postR * 1.2;
+    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(netWidth, T.NET_H), netMat);
     netPlane.position.set(0, T.H + T.NET_H / 2, 0);
     netGroup.add(netPlane);
 
     const bandT = 0.014;
-    const bandTop = new THREE.Mesh(new THREE.BoxGeometry(T.W + 0.1, bandT, 0.004), whiteMat);
+    const bandTop = new THREE.Mesh(new THREE.BoxGeometry(netWidth, bandT, 0.004), whiteMat);
     bandTop.position.set(0, T.H + T.NET_H - bandT / 2, 0);
     const bandBottom = bandTop.clone();
     bandBottom.position.set(0, T.H + bandT / 2, 0);
     netGroup.add(bandTop, bandBottom);
 
-    const postR = 0.012;
     const postH = T.NET_H + 0.08;
     const postGeo = new THREE.CylinderGeometry(postR, postR, postH, 28);
     const postRight = new THREE.Mesh(postGeo, steelMat);
@@ -287,7 +291,10 @@ export default function TableTennis3D({ player, ai }){
     const onMove = (e)=>{ if(!dragging) return; const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); movePlayerTo(p.x,p.y); };
     const onUp = ()=>{ dragging=false; };
 
-    function movePlayerTo(x,z){ player.position.x = THREE.MathUtils.clamp(x, -bounds.x, bounds.x); player.position.z = THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear); }
+    function movePlayerTo(x,z){
+      player.position.x = THREE.MathUtils.clamp(x, -bounds.x, bounds.x);
+      player.position.z = THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear);
+    }
 
     renderer.domElement.addEventListener('touchstart', onDown, { passive:true });
     renderer.domElement.addEventListener('touchmove',  onMove,  { passive:true });
@@ -297,13 +304,40 @@ export default function TableTennis3D({ player, ai }){
     window.addEventListener('mouseup', onUp);
 
     const camPos = new THREE.Vector3();
-    function updateCamera(){
-      const target = new THREE.Vector3(0, (T.H - 0.1) * S, 0);
+    const camFollow = new THREE.Vector3(player.position.x, 0, player.position.z);
+    const followTarget = new THREE.Vector3();
+    const lookTarget = new THREE.Vector3();
+    const backVec = new THREE.Vector3();
+    function updateCamera(immediate = false, lockCenter = false){
+      if (lockCenter){
+        followTarget.set(0, 0, 0);
+      } else {
+        followTarget.set(
+          THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x),
+          0,
+          THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear)
+        );
+      }
+
+      if (immediate){
+        camFollow.copy(followTarget);
+      } else {
+        camFollow.lerp(followTarget, 0.18);
+      }
+
+      lookTarget.set(
+        camFollow.x * S,
+        (T.H - 0.05) * S,
+        (camFollow.z - camRig.forwardBias) * S
+      );
+
       const yaw = camRig.yaw;
-      const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
-      camPos.copy(target).add(back); camPos.y = camRig.height + (camRig.pitch * 6);
+      backVec.set(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
+      camPos.copy(lookTarget).add(backVec);
+      camPos.y = camRig.height + (camRig.pitch * 5.2);
+
       camera.position.copy(camPos);
-      camera.lookAt(0, (T.H - 0.1) * S, 0);
+      camera.lookAt(lookTarget);
     }
 
     // ensure table fits view similar to Air Hockey
@@ -315,8 +349,9 @@ export default function TableTennis3D({ player, ai }){
     ];
     const toNDC = v => v.clone().project(camera);
     const ensureFit = () => {
+      const savedFollow = camFollow.clone();
       for (let i = 0; i < 20; i++) {
-        updateCamera();
+        updateCamera(true, true);
         const over = corners.some(c => {
           const p = toNDC(c);
           return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
@@ -325,7 +360,10 @@ export default function TableTennis3D({ player, ai }){
         camRig.dist += 0.2;
         camRig.height += 0.07;
       }
-      updateCamera();
+      camRig.dist = Math.max(4.6, camRig.dist - 0.7);
+      camRig.height = Math.max(1.7, camRig.height - 0.25);
+      camFollow.copy(savedFollow);
+      updateCamera(true);
     };
 
     // ---------- AI ----------
@@ -498,7 +536,10 @@ export default function TableTennis3D({ player, ai }){
 
 function addTableLegs(tableG, T, steelMat, wheelMat) {
   const tubeR = 0.02;
-  const legH = T.H - T.topT + 0.04;
+  const wheelRadius = 0.035;
+  const wheelThickness = 0.02;
+  const legClearance = 0.004;
+  const legH = T.H - T.topT - legClearance - wheelRadius;
   const offsetZ = T.L * 0.36;
   const offsetX = T.W * 0.42;
 
@@ -508,19 +549,19 @@ function addTableLegs(tableG, T, steelMat, wheelMat) {
     const upLeft = new THREE.Mesh(uprightGeo, steelMat);
     const upRight = new THREE.Mesh(uprightGeo, steelMat);
     const cross = new THREE.Mesh(new THREE.CylinderGeometry(tubeR, tubeR, offsetX * 2, 26), steelMat);
-    upLeft.position.set(-offsetX, legH / 2, zSign * offsetZ);
-    upRight.position.set(offsetX, legH / 2, zSign * offsetZ);
+    upLeft.position.set(-offsetX, wheelRadius + legH / 2, zSign * offsetZ);
+    upRight.position.set(offsetX, wheelRadius + legH / 2, zSign * offsetZ);
     cross.rotation.z = Math.PI / 2;
-    cross.position.set(0, 0.12, zSign * offsetZ);
+    cross.position.set(0, wheelRadius + 0.11, zSign * offsetZ);
     g.add(upLeft, upRight, cross);
 
-    const wheelGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.02, 24);
+    const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelThickness, 24);
     const wheelLeft = new THREE.Mesh(wheelGeo, wheelMat);
     const wheelRight = new THREE.Mesh(wheelGeo, wheelMat);
     wheelLeft.rotation.x = Math.PI / 2;
     wheelRight.rotation.x = Math.PI / 2;
-    wheelLeft.position.set(-offsetX, 0.01, zSign * offsetZ);
-    wheelRight.position.set(offsetX, 0.01, zSign * offsetZ);
+    wheelLeft.position.set(-offsetX, wheelRadius, zSign * offsetZ);
+    wheelRight.position.set(offsetX, wheelRadius, zSign * offsetZ);
     g.add(wheelLeft, wheelRight);
     return g;
   };
