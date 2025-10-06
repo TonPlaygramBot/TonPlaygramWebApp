@@ -56,7 +56,7 @@ export function createCueRackDisplay({
   const clothHeight = 2.78 * unit;
   const clothInset = 0.006 * unit;
   const clothDepth = frameDepth / 2 + clothInset;
-  const cueDepth = clothDepth + 0.009 * unit;
+  const cueDepth = frameDepth / 2 + 0.0045 * unit;
   const cueRailWidth = clothWidth * 0.8;
 
   const group = new THREE.Group();
@@ -229,7 +229,7 @@ export function createCueRackDisplay({
 
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
-  const cueLift = clothHeight * 0.14;
+  const cueLift = clothHeight * 0.22;
 
   for (let i = 0; i < cueCount; i += 1) {
     const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
