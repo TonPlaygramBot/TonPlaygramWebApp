@@ -93,8 +93,7 @@ export default function Layout({ children }) {
   const showFooter = !location.pathname.startsWith('/games/');
   const showHeader =
     !location.pathname.startsWith('/games/') ||
-    isLobby ||
-    location.pathname.startsWith('/games/snake');
+    isLobby;
 
   useEffect(() => {
     if (location.pathname === '/mining') {

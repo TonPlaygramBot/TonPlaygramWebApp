@@ -45,6 +45,34 @@ const TOKEN_HEIGHT = TILE_SIZE * 0.32;
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
+function createTileLabel(number) {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  const text = String(number);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${size * 0.55}px 'Inter', 'Segoe UI', sans-serif`;
+  ctx.lineWidth = size * 0.08;
+  ctx.strokeStyle = 'rgba(15,23,42,0.85)';
+  ctx.strokeText(text, size / 2, size / 2);
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText(text, size / 2, size / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  const scale = TILE_SIZE * 0.45;
+  sprite.scale.set(scale, scale, 1);
+  sprite.userData = { texture };
+  return sprite;
+}
+
 function makeRailTexture() {
   const c = document.createElement('canvas');
   c.width = 128;
@@ -498,7 +526,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   return { arena, boardGroup, boardLookTarget, fit };
 }
 
-function buildSnakeBoard(boardGroup) {
+function buildSnakeBoard(boardGroup, disposeHandlers = []) {
   const boardRoot = new THREE.Group();
   boardGroup.add(boardRoot);
 
@@ -529,6 +557,10 @@ function buildSnakeBoard(boardGroup) {
     tileHeight,
     TILE_SIZE - TILE_GAP
   );
+
+  const labelGroup = new THREE.Group();
+  labelGroup.position.y = tileGroup.position.y + tileHeight + 0.001;
+  boardRoot.add(labelGroup);
 
   const half = (SNAKE_BOARD_TILES * TILE_SIZE) / 2;
 
@@ -573,6 +605,10 @@ function buildSnakeBoard(boardGroup) {
       tileGroup.add(tile);
       tileMeshes.set(idx, tile);
       indexToPosition.set(idx, pos.clone().setY(tile.position.y + tileHeight / 2));
+
+      const label = createTileLabel(idx);
+      label.position.set(pos.x, labelGroup.position.y, pos.z);
+      labelGroup.add(label);
     }
   }
 
@@ -605,6 +641,13 @@ function buildSnakeBoard(boardGroup) {
   potGroup.position.set(potPos.x, tileGroup.position.y + tileHeight + TILE_SIZE * 0.1, potPos.z);
   boardRoot.add(potGroup);
 
+  disposeHandlers.push(() => {
+    labelGroup.children.forEach((sprite) => {
+      if (sprite.material?.map) sprite.material.map.dispose();
+      sprite.material?.dispose?.();
+    });
+  });
+
   return {
     root: boardRoot,
     tileMeshes,
@@ -613,7 +656,8 @@ function buildSnakeBoard(boardGroup) {
     snakesGroup,
     tokensGroup,
     serpentineIndexToXZ,
-    potGroup
+    potGroup,
+    labelGroup
   };
 }
 
@@ -964,7 +1008,7 @@ export default function SnakeBoard3D({
     handlers.length = 0;
 
     const arena = buildArena(scene, renderer, mount, cameraRef, handlers);
-    const board = buildSnakeBoard(arena.boardGroup);
+    const board = buildSnakeBoard(arena.boardGroup, handlers);
     boardRef.current = { ...board, boardLookTarget: arena.boardLookTarget };
 
     railTextureRef.current = makeRailTexture();
@@ -1053,7 +1097,7 @@ export default function SnakeBoard3D({
   }, []);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" data-snake-board-root>
       <div ref={mountRef} className="w-full h-full" />
       {celebrate && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-6xl animate-pulse">

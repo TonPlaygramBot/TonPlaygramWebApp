@@ -236,7 +236,7 @@ export default function SnakeAndLadder() {
   const [snakeOffsets, setSnakeOffsets] = useState({});
   const [ladderOffsets, setLadderOffsets] = useState({});
   const [offsetPopup, setOffsetPopup] = useState(null); // { cell, type, amount }
-  const [rollResult, setRollResult] = useState(null);
+  const [, setRollResult] = useState(null);
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
   const [rewardDice, setRewardDice] = useState(0);
@@ -246,7 +246,7 @@ export default function SnakeAndLadder() {
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
   const [playerColors, setPlayerColors] = useState([]);
-  const [rollColor, setRollColor] = useState('#fff');
+  const [, setRollColor] = useState('#fff');
   const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
   const [ranking, setRanking] = useState([]);
   const [turnOrder, setTurnOrder] = useState([]);
@@ -285,14 +285,6 @@ export default function SnakeAndLadder() {
   // Duration for each leg of the dice travel animation (ms)
   // Slightly slower so the movement matches the NFT gift animation
   const DICE_ANIM_DURATION = 1800;
-  // Dice landing spot (matches roll result text position)
-  const RESULT_BOTTOM = 13 * 16; // tailwind bottom-52 -> 13rem
-  // Slightly offset the dice roll landing spot so it sits a bit right and higher
-  // Shift the dice landing spot a bit further right so the
-  // dice doesn't overlap the roll result number
-  const RESULT_OFFSET_X = 36; // shift landing spot slightly further right
-  const RESULT_OFFSET_Y = -64; // raise landing spot to match higher result text
-
   useEffect(() => {
     prepareDiceAnimation(0);
   }, []);
@@ -392,10 +384,15 @@ export default function SnakeAndLadder() {
   };
 
   const getDiceCenter = () => {
-    // Landing spot aligns with roll result text
-    const cx = window.innerWidth / 2 + RESULT_OFFSET_X;
-    const cy = window.innerHeight - RESULT_BOTTOM + RESULT_OFFSET_Y;
-    return { cx, cy };
+    const boardEl = document.querySelector('[data-snake-board-root]');
+    if (boardEl) {
+      const rect = boardEl.getBoundingClientRect();
+      return {
+        cx: rect.left + rect.width / 2,
+        cy: rect.top + rect.height / 2,
+      };
+    }
+    return { cx: window.innerWidth / 2, cy: window.innerHeight / 2 };
   };
 
   const prepareDiceAnimation = (startIdx) => {
@@ -1974,18 +1971,6 @@ export default function SnakeAndLadder() {
           </ul>
         </div>
       )}
-      {rollResult !== null && (
-        <div className="fixed bottom-52 inset-x-0 flex justify-center z-30 pointer-events-none">
-          <div
-            className="text-7xl roll-result"
-            // Move the number slightly higher so it's clearer on small screens
-            // and still shifted right so it doesn't overlap the dice image
-            style={{ color: rollColor, transform: 'translate(1rem, -6rem)' }}
-          >
-            {rollResult}
-          </div>
-        </div>
-      )}
       {rewardDice > 0 && (
         <div className="fixed bottom-40 inset-x-0 flex justify-center z-30 pointer-events-none reward-dice-container">
           {Array.from({ length: rewardDice }).map((_, i) => (
@@ -2047,21 +2032,6 @@ export default function SnakeAndLadder() {
             showButton={false}
             muted={muted}
           />
-          </div>
-        </div>
-      )}
-      {currentTurn === 0 && !aiRollingIndex && !playerAutoRolling && (
-        <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer"
-          style={{ transform: 'translateX(2rem)' }}
-          onClick={() => diceRollerDivRef.current?.click()}
-        >
-          <div className="text-5xl">🫵</div>
-          <div
-            className="turn-message text-2xl mt-1"
-            style={{ color: players[currentTurn]?.color }}
-          >
-            Your turn
           </div>
         </div>
       )}
