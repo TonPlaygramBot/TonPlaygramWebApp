@@ -192,7 +192,7 @@ export default function MurlanRoyaleArena({ search }) {
     const boardSize = (TABLE_RADIUS * 2 + 1.2) * arenaScale;
     const camConfig = buildArenaCameraConfig(boardSize);
 
-    const arenaHalfWidth = boardSize;
+    const arenaHalfWidth = boardSize * 1.3;
     const arenaHalfDepth = boardSize * 1.05;
     const wallInset = 0.5;
     const wallProximity = 0.5;
