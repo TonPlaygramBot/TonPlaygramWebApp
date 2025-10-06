@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { createArenaCarpetMaterial, createArenaWallMaterial } from "../utils/arenaDecor.js";
 
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
@@ -85,8 +86,8 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Table dimensions (official footprint, slightly taller surface) ----------
     const T = { L: 2.74, W: 1.525, H: 0.84, topT: 0.03, NET_H: 0.1525 };
 
-    // Use a 1:1 scale since size already matches the field
-    const S = 1;
+    // Enlarge the entire playfield (table, paddles, ball) for a more dramatic presentation
+    const S = 3;
     const tableG = new THREE.Group();
     tableG.scale.set(S, S, S);
     scene.add(tableG);
@@ -174,43 +175,48 @@ export default function TableTennis3D({ player, ai }){
 
     addTableLegs(tableG, T, steelMat, wheelMat);
 
-    // floor
-    const carpetCanvas = document.createElement('canvas');
-    carpetCanvas.width = carpetCanvas.height = 256;
-    const ctx = carpetCanvas.getContext('2d');
-    ctx.fillStyle = '#8b0000';
-    ctx.fillRect(0,0,256,256);
-    for(let i=0;i<5000;i++){
-      const x = Math.random()*256;
-      const y = Math.random()*256;
-      const shade = 110 + Math.random()*40;
-      ctx.fillStyle = `rgb(${shade},0,0)`;
-      ctx.fillRect(x,y,1,1);
-    }
-    const carpetTex = new THREE.CanvasTexture(carpetCanvas);
-    carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping;
-    carpetTex.repeat.set(8,8);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 }));
-    floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true; scene.add(floor);
-    // walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4b2e2e, roughness: 0.9 });
-    const wallGeo = new THREE.PlaneGeometry(20, 5);
-    const wallBack = new THREE.Mesh(wallGeo, wallMat); wallBack.position.set(0, 2.5, -10); scene.add(wallBack);
-    const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
-    const wallLeft = new THREE.Mesh(wallGeo, wallMat); wallLeft.rotation.y = Math.PI/2; wallLeft.position.set(-10, 2.5, 0); scene.add(wallLeft);
-    const wallRight = new THREE.Mesh(wallGeo, wallMat); wallRight.rotation.y = -Math.PI/2; wallRight.position.set(10, 2.5, 0); scene.add(wallRight);
-    // wall logo
-    const logoTex = new THREE.TextureLoader().load('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
-    logoTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
-    const logoW = 4 * 1.2;
-    const logoH = 1.5 * 1.2;
-    const logoShadow = new THREE.Mesh(new THREE.PlaneGeometry(logoW * 1.05, logoH * 1.05), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.4 }));
-    logoShadow.position.set(0, 3, -9.995);
-    scene.add(logoShadow);
-    const logo = new THREE.Mesh(new THREE.PlaneGeometry(logoW, logoH), logoMat);
-    logo.position.set(0, 3, -9.99);
-    scene.add(logo);
+    // arena floor & carpet (match Chess Battle Royal aesthetics)
+    const floorSize = 30;
+    const carpetSize = 24;
+    const baseFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(floorSize, floorSize),
+      new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 })
+    );
+    baseFloor.rotation.x = -Math.PI / 2;
+    baseFloor.position.y = 0;
+    baseFloor.receiveShadow = true;
+    scene.add(baseFloor);
+
+    const carpetMat = createArenaCarpetMaterial();
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(carpetSize, carpetSize), carpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = 0.01;
+    carpet.receiveShadow = true;
+    scene.add(carpet);
+
+    // walls (reuse Chess Battle Royal material)
+    const wallMat = createArenaWallMaterial();
+    const wallHeight = 6;
+    const wallThickness = 0.2;
+    const wallOffset = floorSize / 2;
+    const wallGeoH = new THREE.BoxGeometry(floorSize, wallHeight, wallThickness);
+    const wallGeoV = new THREE.BoxGeometry(wallThickness, wallHeight, floorSize);
+
+    const wallBack = new THREE.Mesh(wallGeoH, wallMat);
+    wallBack.position.set(0, wallHeight / 2, -wallOffset);
+    scene.add(wallBack);
+
+    const wallFront = new THREE.Mesh(wallGeoH, wallMat);
+    wallFront.position.set(0, wallHeight / 2, wallOffset);
+    scene.add(wallFront);
+
+    const wallLeft = new THREE.Mesh(wallGeoV, wallMat);
+    wallLeft.position.set(-wallOffset, wallHeight / 2, 0);
+    scene.add(wallLeft);
+
+    const wallRight = new THREE.Mesh(wallGeoV, wallMat);
+    wallRight.position.set(wallOffset, wallHeight / 2, 0);
+    scene.add(wallRight);
 
     // ---------- Rackets (paddles) ----------
     const PADDLE_SCALE = 1.1;
@@ -292,20 +298,20 @@ export default function TableTennis3D({ player, ai }){
 
     const camPos = new THREE.Vector3();
     function updateCamera(){
-      const target = new THREE.Vector3(0, T.H - 0.1, 0);
+      const target = new THREE.Vector3(0, (T.H - 0.1) * S, 0);
       const yaw = camRig.yaw;
       const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
       camPos.copy(target).add(back); camPos.y = camRig.height + (camRig.pitch * 6);
       camera.position.copy(camPos);
-      camera.lookAt(0, T.H - 0.1, 0);
+      camera.lookAt(0, (T.H - 0.1) * S, 0);
     }
 
     // ensure table fits view similar to Air Hockey
     const corners = [
-      new THREE.Vector3(-T.W/2, T.H, -T.L/2),
-      new THREE.Vector3(T.W/2, T.H, -T.L/2),
-      new THREE.Vector3(-T.W/2, T.H, T.L/2),
-      new THREE.Vector3(T.W/2, T.H, T.L/2)
+      new THREE.Vector3(-T.W/2 * S, T.H * S, -T.L/2 * S),
+      new THREE.Vector3(T.W/2 * S, T.H * S, -T.L/2 * S),
+      new THREE.Vector3(-T.W/2 * S, T.H * S, T.L/2 * S),
+      new THREE.Vector3(T.W/2 * S, T.H * S, T.L/2 * S)
     ];
     const toNDC = v => v.clone().project(camera);
     const ensureFit = () => {
