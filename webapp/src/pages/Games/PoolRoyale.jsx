@@ -6038,10 +6038,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvScale = 10 * 1.3;
+      const tvSizeReduction = 0.7;
+      const tvScale = 10 * 1.3 * tvSizeReduction;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
       const tvDepth = 0.42 * tvScale;
+      const tvMountHeight = tvHeight * 0.32;
+      const tvMountOffset = tvHeight * 0.42;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -6067,10 +6070,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         screen.position.z = tvDepth / 2 + 0.02;
         group.add(screen);
         const mount = new THREE.Mesh(
-          new THREE.BoxGeometry(tvWidth * 0.18, tvHeight * 0.6, tvDepth * 0.3),
+          new THREE.BoxGeometry(tvWidth * 0.18, tvMountHeight, tvDepth * 0.3),
           tvBezelMat
         );
-        mount.position.set(0, -tvHeight * 0.55, -tvDepth * 0.35);
+        mount.position.set(0, -tvMountOffset, -tvDepth * 0.35);
         group.add(mount);
         return group;
       };
@@ -6098,11 +6101,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return assembly;
       };
       const signageGap = BALL_R * 3.2;
-      const tvGap = BALL_R * 3.2;
-      const tvAssemblyHalfHeight = tvHeight * 0.85;
+      const tvAssemblyHalfHeight = Math.max(
+        tvHeight / 2,
+        tvMountOffset + tvMountHeight / 2
+      );
       const signageHalfHeight = signageHeight / 2;
       const signageY = floorY + signageGap + signageHalfHeight;
-      const tvY = floorY + tvGap + tvAssemblyHalfHeight;
+      const signageBottomY = signageY - signageHalfHeight;
+      const tvY = signageBottomY + tvAssemblyHalfHeight;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
@@ -6173,7 +6179,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackGap = BALL_R * 0.6;
+      const cueRackGap = signageGap;
       const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
