@@ -682,7 +682,6 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 const BASE_WOOD_COLOR = '#8b5e3c';
-const WOOD_REPEAT_UNIT = TABLE.THICK * 0.92;
 
 // Updated colors for dark cloth and standard balls
 const BASE_BALL_COLORS = Object.freeze({
@@ -707,6 +706,8 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   markings,
   ...BASE_BALL_COLORS
 });
+
+const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5);
 
 const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 
@@ -1444,8 +1445,28 @@ function cloneWoodTexture(texture, repeat) {
   if (repeat) {
     cloned.repeat.copy(repeat);
   }
+  cloned.center.set(0.5, 0.5);
   cloned.needsUpdate = true;
   return cloned;
+}
+
+function applyCueWoodGloss(material) {
+  if (!material) return;
+  const ensure = (key, value) => {
+    if (typeof material[key] === 'number') {
+      material[key] = value;
+    } else {
+      material[key] = value;
+    }
+  };
+  ensure('metalness', 0.16);
+  ensure('roughness', 0.38);
+  ensure('clearcoat', 0.5);
+  ensure('clearcoatRoughness', 0.16);
+  ensure('sheen', 0.22);
+  ensure('sheenRoughness', 0.5);
+  ensure('envMapIntensity', 1.1);
+  material.needsUpdate = true;
 }
 
 function applyWoodTextureToMaterial(material, repeat) {
@@ -1457,11 +1478,13 @@ function applyWoodTextureToMaterial(material, repeat) {
   if (wood.roughness) {
     material.roughnessMap = cloneWoodTexture(wood.roughness, repeatVec);
   }
+  material.color.setHex(0xffffff);
   material.needsUpdate = true;
   material.userData = {
     ...(material.userData || {}),
     woodRepeat: repeatVec.clone()
   };
+  applyCueWoodGloss(material);
 }
 
 function enhanceChromeMaterial(material) {
@@ -3495,10 +3518,7 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
-  const woodRailRepeat = new THREE.Vector2(
-    Math.max(1, ((outerHalfW * 2 + outerHalfH * 2) / Math.max(1e-6, WOOD_REPEAT_UNIT))),
-    Math.max(1, railH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  );
+  const woodRailRepeat = CUE_WOOD_REPEAT.clone();
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -4306,11 +4326,7 @@ function Table3D(
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const legCircumference = 2 * Math.PI * legR;
-  const woodFrameRepeat = new THREE.Vector2(
-    Math.max(1, legCircumference / Math.max(1e-6, WOOD_REPEAT_UNIT)),
-    Math.max(1, legH / Math.max(1e-6, WOOD_REPEAT_UNIT))
-  );
+  const woodFrameRepeat = CUE_WOOD_REPEAT.clone();
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);
@@ -8164,10 +8180,8 @@ function SnookerGame() {
         length: cueLen
       };
 
-      const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xdeb887,
-        roughness: 0.6
-      });
+      const shaftMaterial = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
+      applyWoodTextureToMaterial(shaftMaterial, CUE_WOOD_REPEAT);
       cueMaterialsRef.current.shaft = shaftMaterial;
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,

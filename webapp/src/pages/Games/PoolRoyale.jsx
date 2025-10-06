@@ -30,9 +30,7 @@ import {
   applyWoodTextures,
   createWoodMaterial,
   disposeMaterialWithWood,
-  hslToHexNumber,
-  shiftLightness,
-  shiftSaturation
+  hslToHexNumber
 } from '../../utils/woodMaterials.js';
 
 function signedRingArea(ring) {
@@ -941,75 +939,46 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 
+const SHARED_WOOD_REPEAT = Object.freeze({ x: 1, y: 5.5 });
+const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
+  roughnessBase: 0.16,
+  roughnessVariance: 0.22,
+  roughness: 0.38,
+  metalness: 0.16,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.16,
+  sheen: 0.22,
+  sheenRoughness: 0.5,
+  envMapIntensity: 1.1
+});
+
 const DEFAULT_TABLE_FINISH_ID = 'oak';
 
 const TABLE_FINISHES = Object.freeze(
   WOOD_FINISH_PRESETS.reduce((acc, preset) => {
-    const frameSat = preset.sat;
-    const frameLight = preset.light;
-    const railSat = shiftSaturation(preset.sat, 0.05);
-    const railLight = shiftLightness(preset.light, -0.08);
-    const legSat = shiftSaturation(preset.sat, -0.04);
-    const legLight = shiftLightness(preset.light, -0.12);
-    const baseColor = hslToHexNumber(preset.hue, frameSat, frameLight);
-    const railColor = hslToHexNumber(preset.hue, railSat, railLight);
+    const baseColor = hslToHexNumber(preset.hue, preset.sat, preset.light);
+    const sharedKey = `pool-wood-${preset.id}`;
     const finish = {
       id: preset.id,
       label: preset.label,
       colors: makeColorPalette({
         cloth: 0x2b7e4f,
-        rail: railColor,
+        rail: baseColor,
         base: baseColor
       }),
       createMaterials: () => {
-        const frame = createWoodMaterial({
+        const sharedOptions = {
           hue: preset.hue,
-          sat: frameSat,
-          light: frameLight,
+          sat: preset.sat,
+          light: preset.light,
           contrast: preset.contrast,
-          repeat: { x: 1.3, y: 0.9 },
-          roughnessBase: 0.18,
-          roughnessVariance: 0.22,
-          roughness: 0.32,
-          metalness: 0.2,
-          clearcoat: 0.46,
-          clearcoatRoughness: 0.18,
-          sheen: 0.18,
-          sheenRoughness: 0.5,
-          envMapIntensity: 1.2
-        });
-        const rail = createWoodMaterial({
-          hue: preset.hue,
-          sat: railSat,
-          light: railLight,
-          contrast: preset.contrast * 1.1,
-          repeat: { x: 1.8, y: 1.1 },
-          roughnessBase: 0.2,
-          roughnessVariance: 0.24,
-          roughness: 0.28,
-          metalness: 0.18,
-          clearcoat: 0.5,
-          clearcoatRoughness: 0.18,
-          sheen: 0.22,
-          sheenRoughness: 0.46,
-          envMapIntensity: 1.25
-        });
-        const leg = createWoodMaterial({
-          hue: preset.hue,
-          sat: legSat,
-          light: legLight,
-          contrast: preset.contrast * 1.18,
-          repeat: { x: 1.4, y: 1 },
-          roughnessBase: 0.22,
-          roughnessVariance: 0.28,
-          roughness: 0.34,
-          metalness: 0.18,
-          clearcoat: 0.42,
-          clearcoatRoughness: 0.2,
-          sheen: 0.16,
-          sheenRoughness: 0.52,
-          envMapIntensity: 1.15
-        });
+          repeat: SHARED_WOOD_REPEAT,
+          sharedKey,
+          ...SHARED_WOOD_SURFACE_PROPS
+        };
+        const frame = createWoodMaterial(sharedOptions);
+        const rail = createWoodMaterial(sharedOptions);
+        const leg = createWoodMaterial(sharedOptions);
         const trim = new THREE.MeshPhysicalMaterial({
           color: 0xf2f6fb,
           metalness: 0.95,
@@ -4625,17 +4594,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             sat: preset.sat,
             light: preset.light,
             contrast: preset.contrast,
-            repeat: { x: 1, y: 5.5 },
-            roughnessBase: 0.16,
-            roughnessVariance: 0.22
+            repeat: SHARED_WOOD_REPEAT,
+            roughnessBase: SHARED_WOOD_SURFACE_PROPS.roughnessBase,
+            roughnessVariance: SHARED_WOOD_SURFACE_PROPS.roughnessVariance,
+            sharedKey: `pool-wood-${preset.id}`
           });
-          shaftMaterial.roughness = 0.38;
-          shaftMaterial.metalness = 0.16;
-          shaftMaterial.clearcoat = 0.5;
-          shaftMaterial.clearcoatRoughness = 0.16;
-          shaftMaterial.sheen = 0.22;
-          shaftMaterial.sheenRoughness = 0.5;
-          shaftMaterial.envMapIntensity = 1.1;
+          shaftMaterial.roughness = SHARED_WOOD_SURFACE_PROPS.roughness;
+          shaftMaterial.metalness = SHARED_WOOD_SURFACE_PROPS.metalness;
+          shaftMaterial.clearcoat = SHARED_WOOD_SURFACE_PROPS.clearcoat;
+          shaftMaterial.clearcoatRoughness =
+            SHARED_WOOD_SURFACE_PROPS.clearcoatRoughness;
+          shaftMaterial.sheen = SHARED_WOOD_SURFACE_PROPS.sheen;
+          shaftMaterial.sheenRoughness = SHARED_WOOD_SURFACE_PROPS.sheenRoughness;
+          shaftMaterial.envMapIntensity = SHARED_WOOD_SURFACE_PROPS.envMapIntensity;
           materials.styleIndex = normalized;
         }
         shaftMaterial.userData = shaftMaterial.userData || {};
@@ -8309,21 +8280,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const initialPreset =
         WOOD_FINISH_PRESETS[initialIndex % WOOD_FINISH_PRESETS.length] ??
         WOOD_FINISH_PRESETS[0];
+      const sharedCueKey = `pool-wood-${initialPreset.id}`;
       const shaftMaterial = createWoodMaterial({
         hue: initialPreset.hue,
         sat: initialPreset.sat,
         light: initialPreset.light,
         contrast: initialPreset.contrast,
-        repeat: { x: 1, y: 5.5 },
-        roughnessBase: 0.16,
-        roughnessVariance: 0.22,
-        roughness: 0.38,
-        metalness: 0.16,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.16,
-        sheen: 0.22,
-        sheenRoughness: 0.5,
-        envMapIntensity: 1.1
+        repeat: SHARED_WOOD_REPEAT,
+        sharedKey: sharedCueKey,
+        ...SHARED_WOOD_SURFACE_PROPS
       });
       shaftMaterial.userData = shaftMaterial.userData || {};
       shaftMaterial.userData.isCueWood = true;
