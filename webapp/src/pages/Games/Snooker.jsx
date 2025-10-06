@@ -1629,10 +1629,10 @@ function createBroadcastCameras({
     shortRailZ + BALL_R * 10,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerExtra = BALL_R * 7;
-  const cameraSideBoost = BALL_R * 16;
-  const cameraDepthBoost = BALL_R * 3;
-  const cameraWallSlide = BALL_R * 6;
+  const cameraCornerExtra = BALL_R * 9;
+  const cameraSideBoost = BALL_R * 18;
+  const cameraDepthBoost = BALL_R * 4.5;
+  const cameraWallSlide = BALL_R * 7;
   const baseCornerX =
     typeof arenaHalfWidth === 'number'
       ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
@@ -4441,6 +4441,7 @@ function SnookerGame() {
     lateralFocusScale: 0.35,
     prev: null
   });
+  const [cueGalleryHintVisible, setCueGalleryHintVisible] = useState(false);
 
   const getCueColorFromIndex = useCallback((index) => {
     if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
@@ -4880,7 +4881,9 @@ function SnookerGame() {
     if (current) {
       try {
         current.stop();
-      } catch {}
+      } catch (err) {
+        /* ignore */
+      }
       activeCrowdSoundRef.current = null;
     }
   }, []);
@@ -5136,7 +5139,9 @@ function SnookerGame() {
       document.removeEventListener('visibilitychange', handleVis);
       try {
         wakeLock?.release();
-      } catch {}
+      } catch (err) {
+        /* ignore */
+      }
     };
   }, []);
   const aiFlag = useMemo(
@@ -5473,8 +5478,8 @@ function SnookerGame() {
       };
       const createMatchTvEntry = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
+        canvas.width = 1344;
+        canvas.height = 672;
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -5515,7 +5520,9 @@ function SnookerGame() {
           store.loading = true;
           try {
             image.crossOrigin = 'anonymous';
-          } catch {}
+          } catch (err) {
+            /* ignore */
+          }
           image.onload = () => {
             if (store.image === image) {
               store.ready = true;
@@ -5712,7 +5719,7 @@ function SnookerGame() {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = legHeight + TABLE.THICK + 40;
+      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.3;
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -5789,7 +5796,7 @@ function SnookerGame() {
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvScale = 10;
+      const tvScale = 13;
       const tvWidth = 9 * tvScale;
       const tvHeight = 5.4 * tvScale;
       const tvDepth = 0.42 * tvScale;
@@ -8161,6 +8168,7 @@ function SnookerGame() {
       const closeCueGallery = () => {
         const state = cueGalleryStateRef.current;
         if (!state?.active) return;
+        setCueGalleryHintVisible(false);
         const prev = state.prev;
         state.active = false;
         state.rackId = null;
@@ -8194,6 +8202,7 @@ function SnookerGame() {
         if (!rackId) return;
         const meta = cueRackMetaRef.current.get(rackId);
         if (!meta?.group) return;
+        setCueGalleryHintVisible(true);
         const state = cueGalleryStateRef.current;
         const rack = meta.group;
         rack.updateMatrixWorld(true);
@@ -8498,7 +8507,9 @@ function SnookerGame() {
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
-          } catch {}
+          } catch (err) {
+            /* ignore */
+          }
         }
         e.preventDefault?.();
       };
@@ -8527,7 +8538,9 @@ function SnookerGame() {
         if (e.pointerId != null && dom.releasePointerCapture) {
           try {
             dom.releasePointerCapture(e.pointerId);
-          } catch {}
+          } catch (err) {
+            /* ignore */
+          }
         }
         inHandDrag.active = false;
         const pos = inHandDrag.lastPos;
@@ -8607,8 +8620,11 @@ function SnookerGame() {
           currentHud?.over
         )
           return;
-        alignStandingCameraToAim(cue, aimDirRef.current);
-        applyCameraBlend(1);
+        const isAiTurn = currentHud?.turn === 1;
+        if (isAiTurn) {
+          alignStandingCameraToAim(cue, aimDirRef.current);
+          applyCameraBlend(1);
+        }
         updateCamera();
         setShootingState(true);
           activeShotView = null;
@@ -9155,9 +9171,39 @@ function SnookerGame() {
             suggestionAimKeyRef.current = null;
           }
         };
+        const buildDesperationPlan = () => {
+          if (!cue?.active) return null;
+          const cuePos = cue.pos.clone();
+          let bestPlan = null;
+          balls.forEach((ball) => {
+            if (!ball?.active || ball === cue) return;
+            const delta = ball.pos.clone().sub(cuePos);
+            const distSq = delta.lengthSq();
+            if (distSq < 1e-6) return;
+            const dist = Math.sqrt(distSq);
+            const aimDir = delta.divideScalar(dist);
+            const plan = {
+              type: 'safety',
+              aimDir,
+              power: computePowerFromDistance(dist * 1.1),
+              target: toBallColorId(ball.id),
+              targetBall: ball,
+              pocketId: 'SAFETY',
+              difficulty: dist,
+              cueToTarget: dist,
+              targetToPocket: dist,
+              spin: { x: 0, y: -0.1 }
+            };
+            if (!bestPlan || dist < (bestPlan.cueToTarget ?? Infinity)) {
+              bestPlan = plan;
+            }
+          });
+          return bestPlan;
+        };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
-          return options.bestPot ?? options.bestSafety ?? null;
+          const desperationPlan = buildDesperationPlan();
+          return options.bestPot ?? options.bestSafety ?? desperationPlan;
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -9330,7 +9376,9 @@ function SnookerGame() {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
+        const precisionArea = chalkAreaRef.current;
         if (
+          currentHud?.turn === 0 &&
           allStopped(balls) &&
           !(currentHud?.inHand) &&
           cue?.active &&
@@ -9352,7 +9400,6 @@ function SnookerGame() {
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
           shouldSlowAim = hasTarget;
-          const precisionArea = chalkAreaRef.current;
           if (precisionArea) {
             precisionArea.visible = hasTarget;
             if (hasTarget) {
@@ -9383,12 +9430,12 @@ function SnookerGame() {
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
-          aim.material.color.set(
-            aimingWrong
-              ? 0xff3333
-              : targetBall && !railNormal
-                ? 0xffff00
-                : 0xffffff
+            aim.material.color.set(
+              aimingWrong
+                ? 0xff3333
+                : targetBall && !railNormal
+                  ? 0xffff00
+                  : 0xffffff
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
@@ -9554,13 +9601,14 @@ function SnookerGame() {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          if (precisionArea) {
+            precisionArea.visible = false;
+          }
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           if (!cueAnimating) cueStick.visible = false;
           updateChalkVisibility(null);
-        }
-
         if (!shouldSlowAim) {
           const precisionArea = chalkAreaRef.current;
           if (precisionArea) precisionArea.visible = false;
@@ -10136,7 +10184,9 @@ function SnookerGame() {
           tipGroupRef.current = null;
           try {
             host.removeChild(renderer.domElement);
-          } catch {}
+          } catch (err) {
+            /* ignore */
+          }
           dom.removeEventListener('mousedown', down);
           dom.removeEventListener('mousemove', move);
           window.removeEventListener('mouseup', up);
@@ -10158,7 +10208,9 @@ function SnookerGame() {
             const dispose = cueRackDisposers.pop();
             try {
               dispose?.();
-            } catch {}
+            } catch (err) {
+              /* ignore */
+            }
           }
           cueRackGroupsRef.current = [];
           cueOptionGroupsRef.current = [];
@@ -10169,6 +10221,7 @@ function SnookerGame() {
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
+          setCueGalleryHintVisible(false);
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
@@ -10292,7 +10345,9 @@ function SnookerGame() {
       if (activePointer !== null) {
         try {
           box.releasePointerCapture(activePointer);
-        } catch {}
+        } catch (err) {
+          /* ignore */
+        }
         activePointer = null;
       }
     };
@@ -10373,6 +10428,12 @@ function SnookerGame() {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {cueGalleryHintVisible && (
+        <div className="pointer-events-none absolute top-6 left-1/2 z-40 -translate-x-1/2 bg-black/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.4em] text-white/80">
+          Scroll and click to change the cue
+        </div>
+      )}
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
