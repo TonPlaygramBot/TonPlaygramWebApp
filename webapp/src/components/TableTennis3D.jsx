@@ -1,725 +1,501 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
-const SNOOKER_TABLE_LENGTH = 3.569; // meters (12 ft table)
-const SNOOKER_TABLE_WIDTH = 1.778;
-const BASE_PING_PONG_LENGTH = 2.74;
-const BASE_PING_PONG_WIDTH = 1.525;
-const BASE_PING_PONG_HEIGHT = 0.76;
-const BASE_TOP_THICKNESS = 0.03;
-const BASE_BALL_RADIUS = 0.02;
+/**
+ * TABLE TENNIS 3D — Mobile Portrait (1:1)
+ * --------------------------------------
+ * • Full-screen on phones (100dvh). Portrait-only experience; no overflow.
+ * • 3D table (official size ratio), white lines, center net with posts.
+ * • Controls: drag with one finger to move the racket; ball follows real-ish ping-pong physics.
+ * • Camera: fixed angle that keeps the entire table centered on screen.
+ * • AI opponent on the far side with adjustable difficulty and reaction delay.
+ * • Scoring: to 11, win by 2; service swaps every 2 points, auto-serve & rally logic.
+ */
 
-// Uniform scale that preserves the original paddle/ball proportions while
-// matching the snooker table footprint.
-const LENGTH_SCALE = SNOOKER_TABLE_LENGTH / BASE_PING_PONG_LENGTH;
-const WIDTH_SCALE = SNOOKER_TABLE_WIDTH / BASE_PING_PONG_WIDTH;
-const UNIFORM_SCALE = (LENGTH_SCALE + WIDTH_SCALE) / 2;
+export default function TableTennis3D({ player, ai }){
+  const hostRef = useRef(null);
+  const raf = useRef(0);
 
-const TABLE_DIMENSIONS = {
-  length: SNOOKER_TABLE_LENGTH,
-  width: SNOOKER_TABLE_WIDTH,
-  height: BASE_PING_PONG_HEIGHT * UNIFORM_SCALE,
-  topThickness: BASE_TOP_THICKNESS * UNIFORM_SCALE,
-  ballRadius: BASE_BALL_RADIUS * UNIFORM_SCALE,
-  netHeight: 0.1525 * UNIFORM_SCALE,
-};
+  const [ui, setUi] = useState({
+    pScore: 0,
+    oScore: 0,
+    serving: 'P', // P or O
+    msg: 'Drag to move',
+    gameOver: false,
+  });
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+  useEffect(()=>{
+    const host = hostRef.current; if (!host) return;
 
-export default function TableTennis3D({ player, ai }) {
-  const mountRef = useRef(null);
-  const [scores, setScores] = useState({ player: 0, ai: 0 });
-  const [message, setMessage] = useState("Tap and drag to play");
+    // Prevent overscroll on mobile
+    const prevOver = document.documentElement.style.overscrollBehavior;
+    document.documentElement.style.overscrollBehavior = 'none';
 
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return undefined;
+    // ---------- Renderer ----------
+    const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+    // Disable real-time shadow mapping to avoid dark artifacts on the
+    // arena walls and table surface. Shadow maps from the multiple
+    // spotlights were causing the entire scene to appear black in some
+    // devices/browsers. We render a fake ball shadow manually so real
+    // shadows are unnecessary here.
+    renderer.shadowMap.enabled = false;
+    // ensure canvas CSS size matches the host container
+    const setSize = () => renderer.setSize(host.clientWidth, host.clientHeight);
+    setSize(); host.appendChild(renderer.domElement);
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: "high-performance",
-    });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setPixelRatio(Math.min(3, window.devicePixelRatio || 1));
+    // ---------- Scene & Lights ----------
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e14);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x1b2233, 0.95));
+    // Directional key light. Shadow casting is disabled because shadow
+    // maps are turned off above; keeping it false prevents accidental
+    // blackening of surfaces.
+    const sun = new THREE.DirectionalLight(0xffffff, 0.95);
+    sun.position.set(-16, 28, 18);
+    sun.castShadow = false;
+    scene.add(sun);
+    const rim = new THREE.DirectionalLight(0x99ccff, 0.35); rim.position.set(20, 14, -12); scene.add(rim);
 
-    const resizeRenderer = () => {
-      const { clientWidth, clientHeight } = mount;
-      renderer.setSize(clientWidth, clientHeight, false);
-    };
-    resizeRenderer();
-    mount.appendChild(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050b18);
-
-    const camera = new THREE.PerspectiveCamera(
-      55,
-      mount.clientWidth / mount.clientHeight,
-      0.05,
-      200
-    );
-    const standingOffset = new THREE.Vector3(5.4, 2.9, 6.6);
-    const standingLookTarget = new THREE.Vector3(0, TABLE_DIMENSIONS.height + 0.2, 0);
-    camera.position.copy(standingOffset);
-    camera.lookAt(standingLookTarget);
-
-    const hemi = new THREE.HemisphereLight(0xf5f5ff, 0x0a0f20, 1.05);
-    scene.add(hemi);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
-    keyLight.position.set(-6, 8, 6);
-    scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x8fb7ff, 0.4);
-    rimLight.position.set(5, 4, -4);
-    scene.add(rimLight);
-
-    const overheadPositions = [
-      [-2.5, 6.6, -3.2],
-      [2.5, 6.6, -3.2],
-      [-2.5, 6.6, 3.2],
-      [2.5, 6.6, 3.2],
+    // arena spotlights
+    const spotPositions = [
+      [-8, 6, -8],
+      [8, 6, -8],
+      [-8, 6, 8],
+      [8, 6, 8]
     ];
-    overheadPositions.forEach(([x, y, z]) => {
-      const spot = new THREE.SpotLight(0xffffff, 0.55, 20, Math.PI / 5, 0.35);
-      spot.position.set(x, y, z);
-      spot.target.position.set(0, TABLE_DIMENSIONS.height, 0);
-      scene.add(spot);
-      scene.add(spot.target);
+    spotPositions.forEach(p => {
+      const s = new THREE.SpotLight(0xffffff, 0.7);
+      s.position.set(p[0], p[1], p[2]);
+      s.angle = Math.PI / 5;
+      s.penumbra = 0.3;
+      // Spotlights are purely cosmetic; disable shadow casting to keep
+      // the table and walls lit evenly.
+      s.castShadow = false;
+      s.target.position.set(0, 1, 0);
+      scene.add(s);
+      scene.add(s.target);
     });
 
-    const arena = new THREE.Group();
-    scene.add(arena);
+    // ---------- Camera ----------
+    const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
+    scene.add(camera);
+    const camRig = { dist: 6.8, height: 2.4, yaw: 0, pitch: 0.28 };
+    const applyCam = () => { camera.aspect = host.clientWidth/host.clientHeight; camera.updateProjectionMatrix(); };
 
-    const disposeArenaAssets = buildArena(arena, renderer);
+    // ---------- Table dimensions (expanded 30% length, 20% width, 20% height) ----------
+    const T = { L: 5.76 * 1.3, W: 2.2 * 1.2, H: 0.82 * 1.2, NET_H: 0.1525 };
 
-    const { playerPaddle, aiPaddle, ball, disposeTableAssets } = buildTable(scene);
+    // Use a 1:1 scale since size already matches the field
+    const S = 1;
+    const tableG = new THREE.Group();
+    tableG.scale.set(S, S, S);
+    tableG.position.z = 0.1; // align with Air Hockey field offset
+    scene.add(tableG);
 
-    const paddleY = TABLE_DIMENSIONS.height + TABLE_DIMENSIONS.topThickness + 0.02 * UNIFORM_SCALE;
-    playerPaddle.position.set(0, paddleY, TABLE_DIMENSIONS.width * 0.33);
-    aiPaddle.position.set(0, paddleY, -TABLE_DIMENSIONS.width * 0.33);
+    // Table top
+    const table = new THREE.Mesh(
+      new THREE.BoxGeometry(T.W, 0.04, T.L),
+      new THREE.MeshStandardMaterial({ color: 0x0057b8, roughness: 0.92 })
+    );
+    table.position.set(0, T.H, 0);
+    table.castShadow = true;
+    tableG.add(table);
 
-    const raycaster = new THREE.Raycaster();
-    const ndc = new THREE.Vector2();
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -paddleY);
-    let ctrlMode = "none";
-    const targetPos = playerPaddle.position.clone();
-    const prevPos = playerPaddle.position.clone();
-    const playerVelocity = new THREE.Vector3();
+    // White lines
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+    const mkLine = (w,h,d,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), lineMat); m.position.set(x,y,z); tableG.add(m); };
+    const lt=0.01; // line thickness meters
+    // Sidelines
+    mkLine(lt, 0.045, T.L, -T.W/2+lt/2, T.H+0.022, 0);
+    mkLine(lt, 0.045, T.L,  T.W/2-lt/2, T.H+0.022, 0);
+    // End lines
+    mkLine(T.W, 0.045, lt, 0, T.H+0.022,  T.L/2-lt/2);
+    mkLine(T.W, 0.045, lt, 0, T.H+0.022, -T.L/2+lt/2);
+    // Center line (for doubles look)
+    mkLine(lt, 0.045, T.L, 0, T.H+0.022, 0);
 
-    const ballState = {
-      served: false,
-      serveDir: 1,
-    };
+    // Net & posts
+    const netGroup = new THREE.Group();
+    tableG.add(netGroup);
+    const hexTex = makeHexTexture(1024, 256, 10);
+    const netMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: hexTex, transparent: true, roughness: 0.6 });
+    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(T.W, T.NET_H), netMat);
+    netPlane.position.set(0, T.H + T.NET_H / 2, 0);
+    netGroup.add(netPlane);
+    const tape = new THREE.Mesh(new THREE.BoxGeometry(T.W, 0.02, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    tape.position.set(0, T.H + T.NET_H + 0.01, 0);
+    netGroup.add(tape);
+    const netCol = new THREE.Mesh(
+      new THREE.BoxGeometry(T.W, T.NET_H, 0.01),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.02 })
+    );
+    netCol.position.set(0, T.H + T.NET_H / 2, 0);
+    netGroup.add(netCol);
+    const postGeo = new THREE.CylinderGeometry(0.015,0.015, T.NET_H+0.1, 18);
+    const postL = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color:0xdddddd })); postL.position.set(-T.W/2-0.02, T.H + (T.NET_H/2), 0); postL.castShadow = true; tableG.add(postL);
+    const postR = postL.clone(); postR.position.x = T.W/2+0.02; tableG.add(postR);
 
-    const clock = new THREE.Clock();
-    let disposed = false;
-
-    const resizeObserver = new ResizeObserver(() => {
-      resizeRenderer();
-      camera.aspect = mount.clientWidth / mount.clientHeight;
-      camera.updateProjectionMatrix();
+    // Legs
+    const legExtra = 0.1; // extend legs slightly below floor
+    const legH = T.H - 0.02 + legExtra;
+    const legGeo = new THREE.CylinderGeometry(0.04, 0.04, legH, 12);
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+    const legOffsetX = T.W/2 - 0.15;
+    const legOffsetZ = T.L/2 - 0.3;
+    [[-legOffsetX,-legOffsetZ],[legOffsetX,-legOffsetZ],[-legOffsetX,legOffsetZ],[legOffsetX,legOffsetZ]].forEach(([x,z])=>{
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(x, (T.H - 0.02) - legH/2, z);
+      leg.castShadow = true;
+      tableG.add(leg);
     });
-    resizeObserver.observe(mount);
 
-    const worldFromEvent = (event) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      ndc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(ndc, camera);
-      const out = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, out);
-      return out;
+    // floor
+    const carpetCanvas = document.createElement('canvas');
+    carpetCanvas.width = carpetCanvas.height = 256;
+    const ctx = carpetCanvas.getContext('2d');
+    ctx.fillStyle = '#8b0000';
+    ctx.fillRect(0,0,256,256);
+    for(let i=0;i<5000;i++){
+      const x = Math.random()*256;
+      const y = Math.random()*256;
+      const shade = 110 + Math.random()*40;
+      ctx.fillStyle = `rgb(${shade},0,0)`;
+      ctx.fillRect(x,y,1,1);
+    }
+    const carpetTex = new THREE.CanvasTexture(carpetCanvas);
+    carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping;
+    carpetTex.repeat.set(8,8);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 }));
+    floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true; scene.add(floor);
+    // walls
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4b2e2e, roughness: 0.9 });
+    const wallGeo = new THREE.PlaneGeometry(20, 5);
+    const wallBack = new THREE.Mesh(wallGeo, wallMat); wallBack.position.set(0, 2.5, -10); scene.add(wallBack);
+    const wallFront = new THREE.Mesh(wallGeo, wallMat); wallFront.rotation.y = Math.PI; wallFront.position.set(0, 2.5, 10); scene.add(wallFront);
+    const wallLeft = new THREE.Mesh(wallGeo, wallMat); wallLeft.rotation.y = Math.PI/2; wallLeft.position.set(-10, 2.5, 0); scene.add(wallLeft);
+    const wallRight = new THREE.Mesh(wallGeo, wallMat); wallRight.rotation.y = -Math.PI/2; wallRight.position.set(10, 2.5, 0); scene.add(wallRight);
+    // wall logo
+    const logoTex = new THREE.TextureLoader().load('/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+    logoTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
+    const logoW = 4 * 1.2;
+    const logoH = 1.5 * 1.2;
+    const logoShadow = new THREE.Mesh(new THREE.PlaneGeometry(logoW * 1.05, logoH * 1.05), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.4 }));
+    logoShadow.position.set(0, 3, -9.995);
+    scene.add(logoShadow);
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(logoW, logoH), logoMat);
+    logo.position.set(0, 3, -9.99);
+    scene.add(logo);
+
+    // ---------- Rackets (paddles) ----------
+    const PADDLE_SCALE = 2;
+    const BALL_R = 0.024 * PADDLE_SCALE;
+    function makePaddle(color){
+      const g = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085*PADDLE_SCALE,0.085*PADDLE_SCALE,0.014*PADDLE_SCALE, 28), new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.6 }));
+      head.rotation.x = Math.PI/2; head.position.y = T.H + 0.07 * PADDLE_SCALE; head.castShadow = true; g.add(head);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.025*PADDLE_SCALE,0.10*PADDLE_SCALE,0.025*PADDLE_SCALE), new THREE.MeshStandardMaterial({ color:0x8b5a2b, roughness:0.8 }));
+      handle.position.set(0, T.H + 0.045 * PADDLE_SCALE, 0.07 * PADDLE_SCALE); handle.castShadow = true; g.add(handle);
+      return g;
+    }
+
+    const player = makePaddle(0xff4d6d); tableG.add(player);
+    const opp    = makePaddle(0x49dcb1); tableG.add(opp);
+    player.position.z =  T.L/2 - 0.325; player.position.x = 0;
+    opp.position.z    = -T.L/2 + 0.325; opp.position.x    = 0;
+
+    // ---------- Ball ----------
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(BALL_R, 24, 20),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })
+    );
+    ball.castShadow = true;
+    tableG.add(ball);
+    const ballShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(BALL_R * 1.5, 16),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 })
+    );
+    ballShadow.rotation.x = -Math.PI / 2;
+    ballShadow.position.y = T.H + 0.01;
+    tableG.add(ballShadow);
+
+    // ---------- Physics State ----------
+      const Srv = { side: ui.serving }; // P or O (mutable copy)
+      const Sx = {
+      v: new THREE.Vector3(0,0,0),
+      w: new THREE.Vector3(0,0,0), // spin (rad/s) — very simplified Magnus
+      gravity: new THREE.Vector3(0,-9.81,0),
+      air: 0.995,
+      magnus: 0.15,
+      tableRest: 0.9,
+      paddleRest: 1.1,
+      netRest: 0.3,
+      state: 'serve', // serve | rally | dead
+      lastTouch: null, // 'P' or 'O'
     };
 
-    const onPointerDown = (event) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const lowerHalf = event.clientY - rect.top > rect.height * 0.35;
-      if (lowerHalf) {
-        ctrlMode = "paddle";
-        const world = worldFromEvent(event);
-        clampTarget(world);
-        targetPos.copy(world);
-        serveIfNeeded();
-      } else {
-        ctrlMode = "none";
+    function resetServe(){
+      Sx.v.set(0,0,0); Sx.w.set(0,0,0); Sx.state='serve'; Sx.lastTouch=null;
+      const side = Srv.side;
+        if (side==='P'){
+          ball.position.set(player.position.x, T.H + 0.12, T.L/2 - 0.416);
+        } else {
+          ball.position.set(opp.position.x, T.H + 0.12, -T.L/2 + 0.416);
+        }
+    }
+
+    // ---------- Input: Drag to move (player) ----------
+    const ndc = new THREE.Vector2(); const ray = new THREE.Raycaster();
+    const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0); const hit = new THREE.Vector3();
+    const bounds = { x: T.W/2 - 0.16, zNear:  T.L/2 - 0.24, zFar: 0.16 };
+
+    const screenToXZ = (cx, cy) => { const r=renderer.domElement.getBoundingClientRect(); ndc.x=((cx-r.left)/r.width)*2-1; ndc.y=-(((cy-r.top)/r.height)*2-1); ray.setFromCamera(ndc, camera); ray.ray.intersectPlane(plane, hit); return new THREE.Vector2(hit.x/S, hit.z/S); };
+
+    let dragging=false;
+    const onDown = (e)=>{ const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); dragging = (p.y > 0); if (dragging) movePlayerTo(p.x,p.y); };
+    const onMove = (e)=>{ if(!dragging) return; const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); movePlayerTo(p.x,p.y); };
+    const onUp = ()=>{ dragging=false; };
+
+    function movePlayerTo(x,z){ player.position.x = THREE.MathUtils.clamp(x, -bounds.x, bounds.x); player.position.z = THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear); }
+
+    renderer.domElement.addEventListener('touchstart', onDown, { passive:true });
+    renderer.domElement.addEventListener('touchmove',  onMove,  { passive:true });
+    renderer.domElement.addEventListener('touchend',   onUp,    { passive:true });
+    renderer.domElement.addEventListener('mousedown',  onDown);
+    renderer.domElement.addEventListener('mousemove',  onMove);
+    window.addEventListener('mouseup', onUp);
+
+    const camPos = new THREE.Vector3();
+    function updateCamera(){
+      const target = new THREE.Vector3(0, T.H - 0.1, 0);
+      const yaw = camRig.yaw;
+      const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(camRig.dist);
+      camPos.copy(target).add(back); camPos.y = camRig.height + (camRig.pitch * 6);
+      camera.position.copy(camPos);
+      camera.lookAt(0, T.H - 0.1, 0);
+    }
+
+    // ensure table fits view similar to Air Hockey
+    const corners = [
+      new THREE.Vector3(-T.W/2, T.H, -T.L/2),
+      new THREE.Vector3(T.W/2, T.H, -T.L/2),
+      new THREE.Vector3(-T.W/2, T.H, T.L/2),
+      new THREE.Vector3(T.W/2, T.H, T.L/2)
+    ];
+    const toNDC = v => v.clone().project(camera);
+    const ensureFit = () => {
+      for (let i = 0; i < 20; i++) {
+        updateCamera();
+        const over = corners.some(c => {
+          const p = toNDC(c);
+          return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
+        });
+        if (!over) break;
+        camRig.dist += 0.2;
+        camRig.height += 0.07;
       }
+      updateCamera();
     };
 
-    const onPointerMove = (event) => {
-      if (ctrlMode !== "paddle") return;
-      const world = worldFromEvent(event);
-      clampTarget(world);
-      targetPos.copy(world);
-    };
+    // ---------- AI ----------
+    const AI = { speed: 3.5, react: 0.05, targetX: 0, timer:0 };
 
-    const onPointerUp = () => {
-      ctrlMode = "none";
-    };
-
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-
-    const clampTarget = (vector) => {
-      const marginX = 0.1 * UNIFORM_SCALE;
-      const marginZ = 0.12 * UNIFORM_SCALE;
-      vector.x = clamp(vector.x, -TABLE_DIMENSIONS.length / 2 + marginX, TABLE_DIMENSIONS.length / 2 - marginX);
-      vector.y = paddleY;
-      vector.z = clamp(vector.z, marginZ, TABLE_DIMENSIONS.width / 2 - marginZ);
-    };
-
-    const enemyTarget = new THREE.Vector3();
-    const aiVelocity = new THREE.Vector3();
-    const prevAiPos = aiPaddle.position.clone();
-
-    const resetBall = (direction) => {
-      ball.position.set(0, TABLE_DIMENSIONS.height + 0.18 * UNIFORM_SCALE, direction > 0 ? TABLE_DIMENSIONS.width * 0.18 : -TABLE_DIMENSIONS.width * 0.18);
-      ball.userData.vel = new THREE.Vector3(0, 0, direction > 0 ? -1.2 : 1.2).multiplyScalar(UNIFORM_SCALE);
-      if (!ballState.served) {
-        ball.userData.vel.set(0, 0, 0);
+    function stepAI(dt){
+      AI.timer -= dt; if (AI.timer <= 0){
+        AI.timer = AI.react;
+        if (Sx.v.z < 0){
+          const tHit = ((-T.L/2 + 0.325) - ball.position.z/S) / Sx.v.z;
+          AI.targetX = THREE.MathUtils.clamp(ball.position.x/S + Sx.v.x * tHit, -T.W/2+0.1, T.W/2-0.1);
+        } else {
+          AI.targetX = 0;
+        }
       }
-    };
+      const dx = AI.targetX - opp.position.x; opp.position.x += THREE.MathUtils.clamp(dx, -AI.speed*dt, AI.speed*dt);
+      opp.position.z = -T.L/2 + 0.325;
+    }
 
-    const handlePoint = (side) => {
-      if (disposed) return;
-      setScores((prev) => {
-        const next = { ...prev };
-        next[side] += 1;
-        return next;
+    // ---------- Collisions ----------
+    function bounceTable(prev){
+      if (prev.y > T.H && ball.position.y <= T.H){
+        const x=ball.position.x/S, z=ball.position.z/S;
+        if (Math.abs(x) <= T.W/2 && Math.abs(z) <= T.L/2){
+          Sx.v.y = -Sx.v.y * Sx.tableRest;
+          Sx.v.x *= 0.99; Sx.v.z *= 0.99; Sx.w.multiplyScalar(0.98);
+          ball.position.y = T.H;
+        }
+      }
+    }
+
+    function hitPaddle(paddle, who){
+      // approximate as circle vs cylinder head
+      const head = paddle.children[0];
+      const R = 0.085 * PADDLE_SCALE; const B = BALL_R; // ball radius
+      const dx = (ball.position.x - head.position.x) - paddle.position.x;
+      const dz = (ball.position.z - head.position.z) - paddle.position.z;
+      const dy = (ball.position.y - head.position.y);
+      const dist2 = dx*dx + dy*dy + dz*dz;
+      const minR = (R + B*S)**2; // scaled ball
+      if (dist2 < minR){
+        // reflect velocity away from paddle center + add some of paddle motion as spin/impulse
+        const n = new THREE.Vector3(dx, dy, dz).normalize();
+        const vN = Sx.v.dot(n);
+        Sx.v.addScaledVector(n, (-1.8*vN + 3.2)); // strong push outward
+        // add directional aim depending on where we contact
+        Sx.v.x += n.x * 1.2; Sx.v.z += n.z * 1.6 * (who==='P' ? -1 : 1);
+        // add spin from side swipe (use recent paddle delta if dragging)
+        Sx.w.x += (Math.random()-0.5)*2; Sx.w.z += (Math.random()-0.5)*2; Sx.w.y += (who==='P'? -3: 3);
+        Sx.state = 'rally'; Sx.lastTouch = who;
+      }
+    }
+
+    function hitNet(){
+      // net as a thin box at z=0 spanning table width
+      const halfW=T.W/2, halfT=0.005*S + BALL_R; // thickness scaled
+      if (Math.abs(ball.position.z) < halfT && Math.abs(ball.position.x/S) < halfW && ball.position.y < (T.H + T.NET_H)){
+        Sx.v.z *= -Sx.netRest; Sx.v.x *= 0.92; Sx.v.y *= 0.7;
+      }
+    }
+
+    // ---------- Scoring & Rules ----------
+    function pointTo(winner){
+      if (winner==='P') setUi(s=>({ ...s, pScore: s.pScore+1 })); else setUi(s=>({ ...s, oScore: s.oScore+1 }));
+      // swap serve every 2 points until deuce
+      setUi(s=>{
+        const total = s.pScore + s.oScore + 1; // +1 since we just added
+        const deuce = s.pScore>=10 && s.oScore>=10;
+        const shouldSwap = deuce ? true : (total%2===0);
+        const nextServing = shouldSwap ? (s.serving==='P'?'O':'P') : s.serving;
+        const gameOver = (s.pScore>=11 || s.oScore>=11) && Math.abs(s.pScore - s.oScore) >= 2;
+        return { ...s, serving: nextServing, gameOver, msg: gameOver? 'Game Over — Tap Reset' : `Serve: ${nextServing==='P'?'You':'AI'}` };
       });
-      ballState.served = false;
-      ballState.serveDir = side === "player" ? -1 : 1;
-      setMessage(side === "player" ? "You scored! Tap to serve." : "AI scored. Tap to return serve.");
-    };
+      Srv.side = (Srv.side==='P')?'O':'P';
+      resetServe();
+    }
 
-    const paddleHit = (paddle, paddleVel, boost) => {
-      const center = paddle.position;
-      const offset = new THREE.Vector3().subVectors(ball.position, center);
-      const effectiveRadius = 0.1 * UNIFORM_SCALE;
-      const distance = offset.length();
-      if (distance < effectiveRadius + TABLE_DIMENSIONS.ballRadius) {
-        offset.normalize();
-        const velocity = ball.userData.vel || new THREE.Vector3();
-        const vn = offset.clone().multiplyScalar(velocity.dot(offset));
-        const vt = velocity.clone().sub(vn);
-        velocity.copy(vt.add(offset.clone().multiplyScalar(-vn.length())));
-        velocity.addScaledVector(paddleVel, 0.25 * boost);
-        velocity.y = Math.max(velocity.y, 1.2 * boost);
-        if (center.z > 0) {
-          velocity.z = -Math.abs(velocity.z);
-        }
-        ball.position.copy(center).add(offset.multiplyScalar(effectiveRadius + TABLE_DIMENSIONS.ballRadius + 0.002 * UNIFORM_SCALE));
-        ball.userData.vel = velocity;
-      }
-    };
-
-    const stepBall = (dt) => {
-      if (!ballState.served) {
-        return;
-      }
-      const velocity = ball.userData.vel || new THREE.Vector3();
-      velocity.y += -9.81 * dt;
-
-      ball.position.addScaledVector(velocity, dt);
-
-      const yTop = TABLE_DIMENSIONS.height + TABLE_DIMENSIONS.topThickness + TABLE_DIMENSIONS.ballRadius;
-      if (ball.position.y < yTop && velocity.y < 0) {
-        ball.position.y = yTop;
-        velocity.y *= -0.78;
-        velocity.x *= 0.985;
-        velocity.z *= 0.985;
-      }
-
-      const xBound = TABLE_DIMENSIONS.length / 2 - 0.035 * UNIFORM_SCALE;
-      const zBound = TABLE_DIMENSIONS.width / 2 - 0.035 * UNIFORM_SCALE;
-      if (Math.abs(ball.position.x) > xBound) {
-        ball.position.x = clamp(ball.position.x, -xBound, xBound);
-        velocity.x *= -0.78;
-      }
-      if (Math.abs(ball.position.z) > zBound) {
-        ball.position.z = clamp(ball.position.z, -zBound, zBound);
-        velocity.z *= -0.78;
-      }
-
-      const netHalfThickness = 0.004 * UNIFORM_SCALE;
-      if (Math.abs(ball.position.x) < netHalfThickness && ball.position.y <= TABLE_DIMENSIONS.height + TABLE_DIMENSIONS.netHeight && Math.abs(ball.position.z) <= TABLE_DIMENSIONS.width / 2) {
-        velocity.x = -velocity.x * 0.7;
-        ball.position.x = velocity.x > 0 ? netHalfThickness : -netHalfThickness;
-      }
-
-      paddleHit(playerPaddle, playerVelocity, 1.15);
-      paddleHit(aiPaddle, aiVelocity, 0.95);
-
-      if (ball.position.y < -0.25) {
-        const playerSide = ball.position.z < 0;
-        handlePoint(playerSide ? "player" : "ai");
-        resetBall(ballState.serveDir);
-      }
-
-      ball.userData.vel = velocity;
-    };
-
-    const serveIfNeeded = () => {
-      if (!ballState.served) {
-        ballState.served = true;
-        resetBall(ballState.serveDir);
-        if (!disposed) {
-          setMessage("");
+    function checkFaults(){
+      // Simple rule set:
+      // • On serve: ball must bounce once on server side then cross net then bounce on receiver side; otherwise point to receiver.
+      // • During rally: if ball hits table outside bounds or fails to cross net → point to other side.
+      const x=ball.position.x/S, z=ball.position.z/S, y=ball.position.y;
+      if (y < T.H - 0.02){
+        // went below table top level: treat as table contact previously; if now out-of-bounds, score to opponent
+        if (Math.abs(x) > T.W/2 + 0.02 || Math.abs(z) > T.L/2 + 0.02){
+          const winner = (Sx.lastTouch==='P') ? 'O' : 'P';
+          pointTo(winner);
         }
       }
-    };
-
-    resetBall(ballState.serveDir);
-
-    const animationLoop = () => {
-      const dt = Math.min(0.033, clock.getDelta());
-
-      prevPos.copy(playerPaddle.position);
-      playerPaddle.position.lerp(targetPos, 0.22);
-      playerVelocity.copy(playerPaddle.position).sub(prevPos).multiplyScalar(1 / Math.max(dt, 1e-5));
-
-      const followX = clamp(
-        ball.position.x,
-        -TABLE_DIMENSIONS.length / 2 + 0.12 * UNIFORM_SCALE,
-        TABLE_DIMENSIONS.length / 2 - 0.12 * UNIFORM_SCALE
-      );
-      const baseZ = -TABLE_DIMENSIONS.width * 0.33;
-      enemyTarget.set(followX, paddleY, baseZ + clamp((ball.position.z + TABLE_DIMENSIONS.width * 0.33) * 0.45, -0.18, 0.18));
-      prevAiPos.copy(aiPaddle.position);
-      aiPaddle.position.lerp(enemyTarget, 0.055);
-      aiVelocity.copy(aiPaddle.position).sub(prevAiPos).multiplyScalar(1 / Math.max(dt, 1e-5));
-
-      stepBall(dt);
-
-      renderer.render(scene, camera);
-    };
-
-    renderer.setAnimationLoop(animationLoop);
-
-    const cleanup = () => {
-      disposed = true;
-      renderer.setAnimationLoop(null);
-      resizeObserver.disconnect();
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      if (renderer.domElement.parentElement === mount) {
-        mount.removeChild(renderer.domElement);
+      // net double-hit catch (if stuck around net below tape)
+      if (Math.abs(z) < 0.02 && y < T.H + 0.02){
+        const winner = (Sx.lastTouch==='P') ? 'O' : 'P';
+        pointTo(winner);
       }
-      renderer.dispose();
-      scene.traverse((obj) => {
-        if (obj.isMesh) {
-          obj.geometry?.dispose?.();
-          const mat = obj.material;
-          if (Array.isArray(mat)) {
-            mat.forEach((m) => m?.dispose?.());
+    }
+
+    // ---------- Loop ----------
+    const clock = new THREE.Clock(); let dt=0;
+    function step(){
+      dt = Math.min(0.033, clock.getDelta());
+
+      // Camera follow
+      updateCamera();
+
+      // AI
+      stepAI(dt);
+
+      if (!ui.gameOver){
+        const prev = ball.position.clone();
+        const magnus = new THREE.Vector3().crossVectors(Sx.v, Sx.w).multiplyScalar(Sx.magnus);
+        Sx.v.addScaledVector(Sx.gravity, dt);
+        Sx.v.addScaledVector(magnus, dt);
+        Sx.v.multiplyScalar(Math.pow(Sx.air, dt*60));
+        ball.position.addScaledVector(Sx.v, dt);
+        ballShadow.position.set(ball.position.x, T.H + 0.01, ball.position.z);
+        const sh = THREE.MathUtils.clamp(1 - (ball.position.y - T.H), 0.3, 1);
+        ballShadow.scale.set(sh, sh, 1);
+
+        bounceTable(prev);
+        hitNet();
+        hitPaddle(player, 'P');
+        hitPaddle(opp, 'O');
+        checkFaults();
+
+        if (Sx.state==='serve'){
+          if (Srv.side==='P'){
+            Sx.v.y = 1.8; Sx.v.z = -0.5; Sx.state='rally';
           } else {
-            mat?.dispose?.();
+            Sx.v.set((Math.random()-0.5)*0.8, 1.8, 1.1); Sx.state='rally';
           }
         }
-        if (obj.isLight && obj.shadow?.map) {
-          obj.shadow.map.dispose();
-        }
-      });
-      disposeTableAssets();
-      disposeArenaAssets();
-    };
+      }
 
-    return cleanup;
-  }, []);
+      renderer.render(scene, camera);
+      raf.current = requestAnimationFrame(step);
+    }
+
+    ensureFit();
+    resetServe();
+    step();
+
+    // ---------- Resize ----------
+    const onResize = ()=>{ setSize(); applyCam(); ensureFit(); };
+    window.addEventListener('resize', onResize);
+
+    return ()=>{
+      cancelAnimationFrame(raf.current);
+      window.removeEventListener('resize', onResize);
+      document.documentElement.style.overscrollBehavior = prevOver;
+      try{ host.removeChild(renderer.domElement); }catch{}
+      renderer.dispose();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.serving, ui.gameOver]);
+
+  const resetAll = ()=> window.location.reload();
 
   return (
-    <div ref={mountRef} style={{ position: "fixed", inset: 0, background: "#050b18", touchAction: "none" }}>
-      <div
-        style={{
-          position: "absolute",
-          top: "env(safe-area-inset-top, 16px)",
-          left: 0,
-          right: 0,
-          display: "flex",
-          justifyContent: "center",
-          gap: "24px",
-          fontFamily: "'Inter', sans-serif",
-          color: "#e5ecff",
-          textShadow: "0 2px 6px rgba(0,0,0,0.55)",
-          pointerEvents: "none",
-        }}
-      >
-        <ScoreColumn label={player?.name ?? "You"} score={scores.player} align="flex-end" />
-        <div style={{ fontSize: "0.8rem", alignSelf: "center", opacity: 0.7 }}>{message}</div>
-        <ScoreColumn label={ai?.name ?? "AI"} score={scores.ai} align="flex-start" />
+    <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
+      {/* HUD */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 rounded px-2 py-1 whitespace-nowrap">
+        {(player?.name || 'You')} {ui.pScore} : {ui.oScore} {(ai?.name || 'AI')} • Serve: {ui.serving==='P'?(player?.name || 'You'):(ai?.name || 'AI')} — {ui.msg}
+      </div>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
+        <button onClick={resetAll} className="text-white text-[11px] bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
       </div>
     </div>
   );
 }
 
-function ScoreColumn({ label, score, align }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: align }}>
-      <span style={{ fontSize: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</span>
-      <span style={{ fontSize: "1.75rem", fontWeight: 600 }}>{score}</span>
-    </div>
-  );
-}
-
-function buildArena(group, renderer) {
-  const stageMat = new THREE.MeshStandardMaterial({ color: 0x0f1c34, roughness: 0.9 });
-  const stage = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 14), stageMat);
-  stage.position.set(0, -0.25, 0);
-  group.add(stage);
-
-  const carpetCanvas = document.createElement("canvas");
-  carpetCanvas.width = carpetCanvas.height = 256;
-  const carpetCtx = carpetCanvas.getContext("2d");
-  carpetCtx.fillStyle = "#14264c";
-  carpetCtx.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 4000; i += 1) {
-    carpetCtx.fillStyle = `rgba(${80 + Math.random() * 40}, ${110 + Math.random() * 40}, 180, ${0.2 + Math.random() * 0.4})`;
-    carpetCtx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
+function makeHexTexture(w = 1024, h = 256, r = 10) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(255,255,255,0)';
+  x.fillRect(0, 0, w, h);
+  x.strokeStyle = 'rgba(255,255,255,0.88)';
+  x.lineWidth = 1.4;
+  const dx = r * Math.sqrt(3);
+  const dy = r * 1.5;
+  function hex(cx, cy) {
+    x.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      const px = cx + r * Math.cos(a);
+      const py = cy + r * Math.sin(a);
+      if (i === 0) x.moveTo(px, py);
+      else x.lineTo(px, py);
+    }
+    x.closePath();
+    x.stroke();
   }
-  const carpetTex = new THREE.CanvasTexture(carpetCanvas);
-  carpetTex.wrapS = carpetTex.wrapT = THREE.RepeatWrapping;
-  carpetTex.repeat.set(6, 8);
-
-  const carpet = new THREE.Mesh(
-    new THREE.PlaneGeometry(8.4, 13.2),
-    new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.95 })
-  );
-  carpet.rotation.x = -Math.PI / 2;
-  carpet.position.y = 0.001;
-  group.add(carpet);
-
-  const railMat = new THREE.MeshStandardMaterial({ color: 0x101521, roughness: 0.75, metalness: 0.3 });
-  const railPositions = [
-    [0, 0.45, -6.6, 8.2, 0.9, 0.15],
-    [0, 0.45, 6.6, 8.2, 0.9, 0.15],
-    [-4.1, 0.45, 0, 0.15, 0.9, 12.8],
-    [4.1, 0.45, 0, 0.15, 0.9, 12.8],
-  ];
-  railPositions.forEach(([x, y, z, w, h, d]) => {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), railMat);
-    rail.position.set(x, y, z);
-    group.add(rail);
-  });
-
-  const stepMat = new THREE.MeshStandardMaterial({ color: 0x151b2a, roughness: 0.85 });
-  for (let i = 0; i < 3; i += 1) {
-    const depth = 14 + i * 1.2;
-    const width = 9 + i * 1.2;
-    const step = new THREE.Mesh(new THREE.BoxGeometry(width, 0.18, depth), stepMat);
-    step.position.set(0, -0.34 - i * 0.18, 0);
-    group.add(step);
-  }
-
-  const seatMat = new THREE.MeshStandardMaterial({ color: 0x192134, roughness: 0.6 });
-  for (let row = 0; row < 4; row += 1) {
-    for (let col = -6; col <= 6; col += 2) {
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.45), seatMat);
-      seat.position.set(col * 0.55, -0.05 + row * 0.45, -5.5 + row * 1.6);
-      group.add(seat);
-      const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.5, 0.08), seatMat);
-      seatBack.position.set(col * 0.55, 0.2 + row * 0.45, -5.7 + row * 1.6);
-      group.add(seatBack);
+  for (let y = 0; y < h + dy; y += dy) {
+    for (let x0 = 0; x0 < w + dx; x0 += dx) {
+      hex(x0 + (Math.floor(y / dy) % 2 ? dx / 2 : 0), y);
     }
   }
-
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x0c1324, roughness: 0.9 });
-  const wallGeo = new THREE.PlaneGeometry(18, 6);
-  const backWall = new THREE.Mesh(wallGeo, wallMat);
-  backWall.position.set(0, 2.8, -8.5);
-  group.add(backWall);
-  const frontWall = new THREE.Mesh(wallGeo, wallMat);
-  frontWall.rotation.y = Math.PI;
-  frontWall.position.set(0, 2.8, 8.5);
-  group.add(frontWall);
-  const leftWall = new THREE.Mesh(wallGeo, wallMat);
-  leftWall.rotation.y = Math.PI / 2;
-  leftWall.position.set(-9, 2.8, 0);
-  group.add(leftWall);
-  const rightWall = new THREE.Mesh(wallGeo, wallMat);
-  rightWall.rotation.y = -Math.PI / 2;
-  rightWall.position.set(9, 2.8, 0);
-  group.add(rightWall);
-
-  const panelMat = new THREE.MeshStandardMaterial({ color: 0x1a2c4c, roughness: 0.65 });
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.4, 0.1), panelMat);
-  panel.position.set(0, 3.5, -8.4);
-  group.add(panel);
-
-  const logoCanvas = document.createElement("canvas");
-  logoCanvas.width = 512;
-  logoCanvas.height = 160;
-  const logoCtx = logoCanvas.getContext("2d");
-  logoCtx.fillStyle = "rgba(0,0,0,0)";
-  logoCtx.fillRect(0, 0, 512, 160);
-  logoCtx.fillStyle = "#1b84ff";
-  logoCtx.font = "bold 72px 'Arial'";
-  logoCtx.textAlign = "center";
-  logoCtx.fillText("TONPLAY", 256, 110);
-  const logoTex = new THREE.CanvasTexture(logoCanvas);
-  logoTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-
-  const logo = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.5, 1.7),
-    new THREE.MeshBasicMaterial({ map: logoTex, transparent: true })
-  );
-  logo.position.set(0, 3.4, -8.39);
-  group.add(logo);
-
-  const lightStripMat = new THREE.MeshStandardMaterial({ color: 0x23385e, emissive: 0x11203c, emissiveIntensity: 1.4, roughness: 0.3 });
-  const strip = new THREE.Mesh(new THREE.BoxGeometry(7, 0.12, 0.2), lightStripMat);
-  strip.position.set(0, 5.8, 0);
-  group.add(strip);
-
-  return () => {
-    carpetTex.dispose();
-    logoTex.dispose();
-  };
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1, 1);
+  return tex;
 }
 
-function buildTable(scene) {
-  const blueMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.6 });
-  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
-  const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.45, metalness: 0.6 });
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-  const woodMat = new THREE.MeshStandardMaterial({ color: 0x8b5e3b, roughness: 0.85 });
-  const redRubber = new THREE.MeshStandardMaterial({ color: 0xb00020, roughness: 0.55 });
-  const blackRubber = new THREE.MeshStandardMaterial({ color: 0x0e0e0e, roughness: 0.55 });
-  const ballMat = new THREE.MeshStandardMaterial({ color: 0xfff1cc, roughness: 0.6 });
-
-  const tableGroup = new THREE.Group();
-  scene.add(tableGroup);
-
-  const top = new THREE.Mesh(
-    new THREE.BoxGeometry(TABLE_DIMENSIONS.length, TABLE_DIMENSIONS.topThickness, TABLE_DIMENSIONS.width),
-    blueMat
-  );
-  top.position.set(0, TABLE_DIMENSIONS.height + TABLE_DIMENSIONS.topThickness / 2, 0);
-  tableGroup.add(top);
-
-  const borderThickness = 0.02 * UNIFORM_SCALE;
-  const lineHeight = 0.002 * UNIFORM_SCALE;
-  const yLine = top.position.y + TABLE_DIMENSIONS.topThickness / 2 + lineHeight / 2;
-
-  const bLong = new THREE.Mesh(
-    new THREE.BoxGeometry(TABLE_DIMENSIONS.length, lineHeight, borderThickness),
-    whiteMat
-  );
-  const bLong2 = bLong.clone();
-  bLong.position.set(0, yLine, TABLE_DIMENSIONS.width / 2 - borderThickness / 2);
-  bLong2.position.set(0, yLine, -TABLE_DIMENSIONS.width / 2 + borderThickness / 2);
-
-  const bShort = new THREE.Mesh(
-    new THREE.BoxGeometry(borderThickness, lineHeight, TABLE_DIMENSIONS.width),
-    whiteMat
-  );
-  const bShort2 = bShort.clone();
-  bShort.position.set(TABLE_DIMENSIONS.length / 2 - borderThickness / 2, yLine, 0);
-  bShort2.position.set(-TABLE_DIMENSIONS.length / 2 + borderThickness / 2, yLine, 0);
-
-  const center = new THREE.Mesh(
-    new THREE.BoxGeometry(TABLE_DIMENSIONS.length - 2 * borderThickness, lineHeight * 1.1, 0.003 * UNIFORM_SCALE),
-    whiteMat
-  );
-  center.position.set(0, yLine, 0);
-
-  tableGroup.add(bLong, bLong2, bShort, bShort2, center);
-
-  const netAlpha = makeHexNetAlpha(512, 256, 9);
-  const netWeave = makeWeaveTex(256, 256);
-  const netMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    transparent: true,
-    alphaMap: netAlpha,
-    map: netWeave,
-    roughness: 0.92,
-    side: THREE.DoubleSide,
-  });
-  const netWidth = TABLE_DIMENSIONS.width + 0.1 * UNIFORM_SCALE;
-  const net = new THREE.Mesh(new THREE.PlaneGeometry(netWidth, TABLE_DIMENSIONS.netHeight), netMat);
-  net.position.set(0, TABLE_DIMENSIONS.height + TABLE_DIMENSIONS.netHeight / 2, 0);
-  net.rotateY(Math.PI / 2);
-  tableGroup.add(net);
-
-  const bandThickness = 0.014 * UNIFORM_SCALE;
-  const bandTop = new THREE.Mesh(new THREE.BoxGeometry(netWidth, bandThickness, 0.002 * UNIFORM_SCALE), whiteMat);
-  const bandBottom = bandTop.clone();
-  bandTop.position.set(0, TABLE_DIMENSIONS.height + TABLE_DIMENSIONS.netHeight - bandThickness / 2, 0);
-  bandBottom.position.set(0, TABLE_DIMENSIONS.height + bandThickness / 2, 0);
-  bandTop.rotateY(Math.PI / 2);
-  bandBottom.rotateY(Math.PI / 2);
-  tableGroup.add(bandTop, bandBottom);
-
-  const postRadius = 0.012 * UNIFORM_SCALE;
-  const postHeight = TABLE_DIMENSIONS.netHeight + 0.08 * UNIFORM_SCALE;
-  const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 28);
-  const postNear = new THREE.Mesh(postGeo, steelMat);
-  const postFar = postNear.clone();
-  postNear.position.set(0, TABLE_DIMENSIONS.height + postHeight / 2, TABLE_DIMENSIONS.width / 2 + postRadius * 0.6);
-  postFar.position.set(0, TABLE_DIMENSIONS.height + postHeight / 2, -TABLE_DIMENSIONS.width / 2 - postRadius * 0.6);
-  tableGroup.add(postNear, postFar);
-
-  const clamp = new THREE.Mesh(new THREE.BoxGeometry(0.05 * UNIFORM_SCALE, 0.025 * UNIFORM_SCALE, 0.06 * UNIFORM_SCALE), steelMat);
-  const clamp2 = clamp.clone();
-  clamp.position.set(0, TABLE_DIMENSIONS.height + 0.03 * UNIFORM_SCALE, TABLE_DIMENSIONS.width / 2 + 0.03 * UNIFORM_SCALE);
-  clamp2.position.set(0, TABLE_DIMENSIONS.height + 0.03 * UNIFORM_SCALE, -TABLE_DIMENSIONS.width / 2 - 0.03 * UNIFORM_SCALE);
-  tableGroup.add(clamp, clamp2);
-
-  addTableLegs(tableGroup, steelMat, wheelMat);
-
-  const makePaddle = (redUp = true) => {
-    const group = new THREE.Group();
-    const blade = makeBladeGeometry(0.148 * UNIFORM_SCALE, 0.158 * UNIFORM_SCALE, 0.013 * UNIFORM_SCALE, 0.065 * UNIFORM_SCALE, 72);
-    const front = new THREE.Mesh(blade, redUp ? redRubber : blackRubber);
-    const back = new THREE.Mesh(blade, redUp ? blackRubber : redRubber);
-    front.position.y = 0.0065 * UNIFORM_SCALE;
-    back.position.y = -0.0065 * UNIFORM_SCALE;
-    group.add(front, back);
-
-    const neckCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, -0.004 * UNIFORM_SCALE, 0.055 * UNIFORM_SCALE),
-      new THREE.Vector3(0, -0.02 * UNIFORM_SCALE, 0.09 * UNIFORM_SCALE),
-      new THREE.Vector3(0, -0.04 * UNIFORM_SCALE, 0.12 * UNIFORM_SCALE),
-    ]);
-    const neck = new THREE.Mesh(new THREE.TubeGeometry(neckCurve, 26, 0.012 * UNIFORM_SCALE, 18, false), woodMat);
-    group.add(neck);
-
-    const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.018 * UNIFORM_SCALE, 0.022 * UNIFORM_SCALE, 0.06 * UNIFORM_SCALE, 28), woodMat);
-    const seg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * UNIFORM_SCALE, 0.018 * UNIFORM_SCALE, 0.05 * UNIFORM_SCALE, 28), woodMat);
-    seg1.position.set(0, -0.07 * UNIFORM_SCALE, 0.14 * UNIFORM_SCALE);
-    seg2.position.set(0, -0.115 * UNIFORM_SCALE, 0.14 * UNIFORM_SCALE);
-    group.add(seg1, seg2);
-    return group;
-  };
-
-  const playerPaddle = makePaddle(true);
-  const aiPaddle = makePaddle(false);
-  scene.add(playerPaddle, aiPaddle);
-
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(TABLE_DIMENSIONS.ballRadius, 42, 32), ballMat);
-  scene.add(ball);
-
-  const disposeTableAssets = () => {
-    netAlpha?.dispose?.();
-    netWeave?.dispose?.();
-  };
-
-  return { tableGroup, playerPaddle, aiPaddle, ball, disposeTableAssets };
-}
-
-function addTableLegs(tableGroup, steelMat, wheelMat) {
-  const legHeight = TABLE_DIMENSIONS.height - 0.02 * UNIFORM_SCALE;
-  const spanX = TABLE_DIMENSIONS.length * 0.38;
-  const spanZ = TABLE_DIMENSIONS.width * 0.42;
-  const tubeRadius = 0.02 * UNIFORM_SCALE;
-  const wheelRadius = 0.035 * UNIFORM_SCALE;
-
-  const createULeg = (xSign) => {
-    const group = new THREE.Group();
-    const upright1 = new THREE.Mesh(new THREE.CylinderGeometry(tubeRadius, tubeRadius, legHeight, 26), steelMat);
-    const upright2 = upright1.clone();
-    const cross = new THREE.Mesh(new THREE.CylinderGeometry(tubeRadius, tubeRadius, spanZ * 2, 26), steelMat);
-    upright1.position.set(xSign * spanX, legHeight / 2, spanZ);
-    upright2.position.set(xSign * spanX, legHeight / 2, -spanZ);
-    cross.rotation.x = Math.PI / 2;
-    cross.position.set(xSign * spanX, 0.12 * UNIFORM_SCALE, 0);
-    group.add(upright1, upright2, cross);
-
-    const wheelGeom = new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.02 * UNIFORM_SCALE, 24);
-    const wheel1 = new THREE.Mesh(wheelGeom, wheelMat);
-    const wheel2 = new THREE.Mesh(wheelGeom, wheelMat);
-    wheel1.rotation.z = Math.PI / 2;
-    wheel2.rotation.z = Math.PI / 2;
-    wheel1.position.set(xSign * spanX, 0.01 * UNIFORM_SCALE, spanZ);
-    wheel2.position.set(xSign * spanX, 0.01 * UNIFORM_SCALE, -spanZ);
-    group.add(wheel1, wheel2);
-    return group;
-  };
-
-  tableGroup.add(createULeg(-1), createULeg(1));
-}
-
-function makeBladeGeometry(width, height, thickness, radius, segments) {
-  const shape = new THREE.Shape();
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-  shape.moveTo(-halfWidth + radius, -halfHeight);
-  shape.lineTo(halfWidth - radius, -halfHeight);
-  shape.quadraticCurveTo(halfWidth, -halfHeight, halfWidth, -halfHeight + radius);
-  shape.lineTo(halfWidth, halfHeight - radius);
-  shape.quadraticCurveTo(halfWidth, halfHeight, halfWidth - radius, halfHeight);
-  shape.lineTo(-halfWidth + radius, halfHeight);
-  shape.quadraticCurveTo(-halfWidth, halfHeight, -halfWidth, halfHeight - radius);
-  shape.lineTo(-halfWidth, -halfHeight + radius);
-  shape.quadraticCurveTo(-halfWidth, -halfHeight, -halfWidth + radius, -halfHeight);
-
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: thickness,
-    bevelEnabled: false,
-    curveSegments: segments,
-  });
-  geometry.rotateX(-Math.PI / 2);
-  geometry.translate(0, 0, -thickness / 2);
-  return geometry;
-}
-
-function makeHexNetAlpha(width, height, hexRadius) {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#ffffff";
-  const dx = hexRadius * 1.732;
-  const dy = hexRadius * 1.5;
-  for (let y = 0; y < height + dy; y += dy) {
-    for (let x = 0; x < width + dx; x += dx) {
-      const ox = Math.floor(y / dy) % 2 ? dx / 2 : 0;
-      drawHex(x + ox, y, hexRadius);
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(6, 2);
-  texture.anisotropy = 8;
-  return texture;
-
-  function drawHex(cx, cy, r) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i += 1) {
-      const angle = (Math.PI / 3) * i;
-      const px = cx + r * Math.cos(angle);
-      const py = cy + r * Math.sin(angle);
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.lineWidth = 2.0;
-    ctx.stroke();
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-  }
-}
-
-function makeWeaveTex(width, height) {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#f7f7f7";
-  ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = "rgba(0, 0, 0, 0.06)";
-  for (let y = 0; y < height; y += 2) ctx.fillRect(0, y, width, 1);
-  for (let x = 0; x < width; x += 2) ctx.fillRect(x, 0, 1, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 8);
-  texture.anisotropy = 8;
-  return texture;
-}
