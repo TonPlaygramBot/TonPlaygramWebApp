@@ -4632,6 +4632,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     [clothColorId]
   );
   const [configOpen, setConfigOpen] = useState(false);
+  const [cueGalleryActive, setCueGalleryActive] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
   const chalkMeshesRef = useRef([]);
@@ -5711,17 +5712,25 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
       };
       const createMatchTvEntry = () => {
+        const baseWidth = 1024;
+        const baseHeight = 512;
+        const resolutionBoost = 4;
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
+        canvas.width = baseWidth * resolutionBoost;
+        canvas.height = baseHeight * resolutionBoost;
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = 16;
         if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
         else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
+        const scaleX = canvas.width / baseWidth;
+        const scaleY = canvas.height / baseHeight;
+        const scale = Math.min(scaleX, scaleY);
+        const scaled = (value = 0) => value * scale;
+        const fontPx = (value) => `${Math.round(value * scale)}px`;
         const createAvatarStore = () => ({
           image: null,
           src: '',
@@ -5797,24 +5806,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               frameStateCurrent.players?.A?.highestBreak ?? 0;
             const highestBreakB =
               frameStateCurrent.players?.B?.highestBreak ?? 0;
-            const currentBreak = frameStateCurrent.currentBreak ?? 0;
-            ctx.fillStyle = '#050b18';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-            headerGrad.addColorStop(0, '#0f172a');
-            headerGrad.addColorStop(1, '#1e293b');
-            ctx.fillStyle = headerGrad;
-            ctx.fillRect(0, 0, canvas.width, 120);
-            ctx.fillStyle = '#f1f5f9';
-            ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Pool Royale Match of the Day', canvas.width / 2, 60);
-            const drawCompetitor = ({
-              x,
-              name,
-              score,
-              accent,
+          const currentBreak = frameStateCurrent.currentBreak ?? 0;
+          ctx.fillStyle = '#050b18';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+          headerGrad.addColorStop(0, '#0f172a');
+          headerGrad.addColorStop(1, '#1e293b');
+          ctx.fillStyle = headerGrad;
+          ctx.fillRect(0, 0, canvas.width, scaled(120));
+          ctx.fillStyle = '#f1f5f9';
+          ctx.font = `bold ${fontPx(60)} "Segoe UI", "Helvetica Neue", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Pool Royale Match of the Day', canvas.width / 2, scaled(60));
+          const drawCompetitor = ({
+            x,
+            name,
+            score,
+            accent,
               tag,
               active,
               badge,
@@ -5825,33 +5834,33 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               if (avatarStore) {
                 updateAvatarStore(avatarStore, avatarSrc);
               }
-              const scoreY = canvas.height * 0.3;
-              ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.shadowColor = active
-                ? 'rgba(56,189,248,0.45)'
-                : 'transparent';
-              ctx.shadowBlur = active ? 24 : 0;
-              ctx.fillStyle = active ? '#f8fafc' : '#e2e8f0';
-              ctx.fillText(String(score ?? 0), x, scoreY);
-              ctx.shadowBlur = 0;
-              const avatarY = canvas.height * 0.55;
-              const avatarRadius = 90;
+            const scoreY = canvas.height * 0.3;
+            ctx.font = `bold ${fontPx(120)} "Segoe UI", "Helvetica Neue", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = active
+              ? 'rgba(56,189,248,0.45)'
+              : 'transparent';
+            ctx.shadowBlur = active ? scaled(24) : 0;
+            ctx.fillStyle = active ? '#f8fafc' : '#e2e8f0';
+            ctx.fillText(String(score ?? 0), x, scoreY);
+            ctx.shadowBlur = 0;
+            const avatarY = canvas.height * 0.55;
+            const avatarRadius = scaled(90);
+            ctx.save();
+            ctx.translate(x, avatarY);
+            ctx.fillStyle = accent;
+            ctx.globalAlpha = active ? 1 : 0.9;
+            ctx.beginPath();
+            ctx.arc(0, 0, avatarRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            const ringThickness = Math.max(scaled(10), avatarRadius * 0.18);
+            const innerRadius = avatarRadius - ringThickness;
+            if (avatarStore?.ready && avatarStore.image) {
               ctx.save();
-              ctx.translate(x, avatarY);
-              ctx.fillStyle = accent;
-              ctx.globalAlpha = active ? 1 : 0.9;
               ctx.beginPath();
-              ctx.arc(0, 0, avatarRadius, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.globalAlpha = 1;
-              const ringThickness = Math.max(10, avatarRadius * 0.18);
-              const innerRadius = avatarRadius - ringThickness;
-              if (avatarStore?.ready && avatarStore.image) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+              ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
                 ctx.clip();
                 ctx.drawImage(
                   avatarStore.image,
@@ -5860,37 +5869,37 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   innerRadius * 2,
                   innerRadius * 2
                 );
-                ctx.restore();
-              } else {
-                ctx.fillStyle = '#0b1120';
-                ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(badge, 0, 0);
-              }
-              ctx.lineWidth = Math.max(4, ringThickness * 0.6);
-              ctx.strokeStyle = 'rgba(15,23,42,0.55)';
-              ctx.beginPath();
-              ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
-              ctx.stroke();
               ctx.restore();
-              ctx.fillStyle = active ? '#f1f5f9' : '#cbd5f5';
-              ctx.font = 'bold 56px "Segoe UI", "Helvetica Neue", sans-serif';
+            } else {
+              ctx.fillStyle = '#0b1120';
+              ctx.font = `bold ${fontPx(52)} "Segoe UI", "Helvetica Neue", sans-serif`;
               ctx.textAlign = 'center';
-              ctx.textBaseline = 'top';
-              ctx.fillText(name, x, avatarY + avatarRadius + 12);
-              ctx.fillStyle = '#94a3b8';
-              ctx.font = '500 32px "Segoe UI", "Helvetica Neue", sans-serif';
-              const tagY = avatarY + avatarRadius + 52;
-              ctx.fillText(tag, x, tagY);
-              const statsStartY = tagY + 36;
-              stats.forEach(({ label, value }, index) => {
-                const lineY = statsStartY + index * 30;
-                ctx.fillStyle = '#7c8faa';
-                ctx.font = '500 28px "Segoe UI", "Helvetica Neue", sans-serif';
-                ctx.fillText(`${label}: ${value}`, x, lineY);
-              });
-            };
+              ctx.textBaseline = 'middle';
+              ctx.fillText(badge, 0, 0);
+            }
+            ctx.lineWidth = Math.max(scaled(4), ringThickness * 0.6);
+            ctx.strokeStyle = 'rgba(15,23,42,0.55)';
+            ctx.beginPath();
+            ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+            ctx.fillStyle = active ? '#f1f5f9' : '#cbd5f5';
+            ctx.font = `bold ${fontPx(56)} "Segoe UI", "Helvetica Neue", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(name, x, avatarY + avatarRadius + scaled(12));
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = `500 ${fontPx(32)} "Segoe UI", "Helvetica Neue", sans-serif`;
+            const tagY = avatarY + avatarRadius + scaled(52);
+            ctx.fillText(tag, x, tagY);
+            const statsStartY = tagY + scaled(36);
+            stats.forEach(({ label, value }, index) => {
+              const lineY = statsStartY + index * scaled(30);
+              ctx.fillStyle = '#7c8faa';
+              ctx.font = `500 ${fontPx(28)} "Segoe UI", "Helvetica Neue", sans-serif`;
+              ctx.fillText(`${label}: ${value}`, x, lineY);
+            });
+          };
             const activeTurn = hudState.turn === 0 ? 'A' : 'B';
             const buildStats = (id, isActive) => {
               const highestBreak =
@@ -5951,7 +5960,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = legHeight + TABLE.THICK + 40;
+      const baseWallHeight = legHeight + TABLE.THICK + 40;
+      const wallHeight = baseWallHeight * 1.3;
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -6014,6 +6024,257 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       const billboardTexture = registerDynamicTexture(createTickerEntry());
       const matchTexture = registerDynamicTexture(createMatchTvEntry());
+      const createPlayerPosterEntry = (slot = 'A') => {
+        const baseWidth = 1024;
+        const baseHeight = 2048;
+        const resolutionBoost = 4;
+        const canvas = document.createElement('canvas');
+        canvas.width = baseWidth * resolutionBoost;
+        canvas.height = baseHeight * resolutionBoost;
+        const ctx = canvas.getContext('2d');
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = 16;
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
+        const scaleX = canvas.width / baseWidth;
+        const scaleY = canvas.height / baseHeight;
+        const scale = Math.min(scaleX, scaleY);
+        const scaled = (value = 0) => value * scale;
+        const fontPx = (value) => `${Math.round(value * scale)}px`;
+        const nf = new Intl.NumberFormat('en-US');
+        const createAvatarStore = () => ({
+          image: null,
+          src: '',
+          ready: false,
+          failed: false,
+          loading: false
+        });
+        const avatarStore = createAvatarStore();
+        const updateAvatarStore = (store, src) => {
+          const nextSrc = typeof src === 'string' ? src.trim() : '';
+          if (!nextSrc) {
+            store.image = null;
+            store.src = '';
+            store.ready = false;
+            store.failed = false;
+            store.loading = false;
+            return;
+          }
+          if (store.src === nextSrc) {
+            if (store.ready || store.loading || store.failed) {
+              return;
+            }
+          }
+          const image = new Image();
+          store.image = image;
+          store.src = nextSrc;
+          store.ready = false;
+          store.failed = false;
+          store.loading = true;
+          try {
+            image.crossOrigin = 'anonymous';
+          } catch {}
+          image.onload = () => {
+            if (store.image === image) {
+              store.ready = true;
+              store.failed = false;
+              store.loading = false;
+            }
+          };
+          image.onerror = () => {
+            if (store.image === image) {
+              store.ready = false;
+              store.failed = true;
+              store.loading = false;
+            }
+          };
+          image.src = nextSrc;
+        };
+        const parseNumber = (value, fallback) => {
+          const num = Number(value);
+          return Number.isFinite(num) ? num : fallback;
+        };
+        return {
+          texture,
+          update() {
+            if (!ctx) return;
+            const hudState = hudRef.current ?? {};
+            const playerState = playerInfoRef.current ?? {};
+            const frameStateCurrent = frameRef.current ?? {};
+            const entry =
+              slot === 'A'
+                ? frameStateCurrent.players?.A ?? {}
+                : frameStateCurrent.players?.B ?? {};
+            const defaults =
+              slot === 'A'
+                ? { balance: 9500, games: 58, wins: 34, losses: 24 }
+                : { balance: 17420, games: 70, wins: 46, losses: 24 };
+            const balanceValue = parseNumber(
+              slot === 'A'
+                ? playerState.balance ?? playerState.tpcBalance ?? entry.balance
+                : entry.balance,
+              defaults.balance
+            );
+            const wins = parseNumber(
+              entry.wins ?? entry.won ?? entry.win,
+              defaults.wins
+            );
+            const losses = parseNumber(
+              entry.losses ?? entry.lost ?? entry.loss,
+              defaults.losses
+            );
+            const games = Math.max(
+              parseNumber(entry.gamesPlayed ?? entry.games ?? entry.matches, 0),
+              wins + losses,
+              defaults.games
+            );
+            const record = `${wins}-${losses}`;
+            const profileName =
+              slot === 'A'
+                ? playerState.name || entry.name || 'Player'
+                : entry.name || 'AI Rival';
+            const avatarSrc =
+              slot === 'A'
+                ? playerState.avatar || entry.avatar || ''
+                : entry.avatar || '';
+            updateAvatarStore(avatarStore, avatarSrc);
+            const accent = slot === 'A' ? '#38bdf8' : '#f97316';
+            const panelPadding = scaled(64);
+            const innerWidth = canvas.width - panelPadding * 2;
+            const innerHeight = canvas.height - panelPadding * 2;
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148,163,184,0.45)';
+            ctx.lineWidth = scaled(18);
+            ctx.strokeRect(
+              panelPadding,
+              panelPadding,
+              innerWidth,
+              innerHeight
+            );
+            const gradient = ctx.createLinearGradient(
+              panelPadding,
+              panelPadding,
+              panelPadding,
+              panelPadding + innerHeight
+            );
+            gradient.addColorStop(0, 'rgba(15,23,42,0.95)');
+            gradient.addColorStop(1, 'rgba(2,6,23,0.95)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(panelPadding, panelPadding, innerWidth, innerHeight);
+            ctx.restore();
+            const headerY = panelPadding + scaled(80);
+            ctx.fillStyle = 'rgba(226,232,240,0.7)';
+            ctx.font = `600 ${fontPx(44)} "Segoe UI", "Helvetica Neue", sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            const headerText =
+              slot === 'A' ? 'PLAYER SPOTLIGHT' : 'AI COMPETITOR';
+            ctx.fillText(headerText, panelPadding + scaled(32), headerY);
+            const avatarRadius = scaled(220);
+            const avatarCenterX = canvas.width / 2;
+            const avatarCenterY = headerY + scaled(180) + avatarRadius;
+            ctx.save();
+            ctx.translate(avatarCenterX, avatarCenterY);
+            const haloRadius = avatarRadius + scaled(36);
+            const haloGrad = ctx.createRadialGradient(
+              0,
+              0,
+              avatarRadius * 0.4,
+              0,
+              0,
+              haloRadius
+            );
+            haloGrad.addColorStop(0, `${accent}22`);
+            haloGrad.addColorStop(1, `${accent}03`);
+            ctx.fillStyle = haloGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, haloRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, avatarRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#0b1120';
+            ctx.fill();
+            if (avatarStore.ready && avatarStore.image) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(0, 0, avatarRadius - scaled(12), 0, Math.PI * 2);
+              ctx.clip();
+              ctx.drawImage(
+                avatarStore.image,
+                -(avatarRadius - scaled(12)),
+                -(avatarRadius - scaled(12)),
+                (avatarRadius - scaled(12)) * 2,
+                (avatarRadius - scaled(12)) * 2
+              );
+              ctx.restore();
+            } else {
+              ctx.fillStyle = '#1e293b';
+              ctx.font = `bold ${fontPx(96)} "Segoe UI", "Helvetica Neue", sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              const initials = profileName
+                .split(' ')
+                .map((part) => part.charAt(0))
+                .join('')
+                .slice(0, 2)
+                .toUpperCase();
+              ctx.fillText(initials || (slot === 'A' ? 'P' : 'AI'), 0, 0);
+            }
+            ctx.lineWidth = scaled(14);
+            ctx.strokeStyle = `${accent}55`;
+            ctx.beginPath();
+            ctx.arc(0, 0, avatarRadius - scaled(6), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+            const nameY = avatarCenterY + avatarRadius + scaled(70);
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = `bold ${fontPx(88)} "Segoe UI", "Helvetica Neue", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(profileName.toUpperCase(), avatarCenterX, nameY);
+            const statusY = nameY + scaled(96);
+            ctx.fillStyle = 'rgba(148,163,184,0.85)';
+            ctx.font = `600 ${fontPx(40)} "Segoe UI", "Helvetica Neue", sans-serif`;
+            const statusText =
+              slot === 'A'
+                ? hudState.turn === 0
+                  ? 'BREAK READY · OWN THE TABLE'
+                  : 'WAITING FOR TURN'
+                : 'TACTICAL AI THREAT';
+            ctx.fillText(statusText, avatarCenterX, statusY);
+            const statsStartY = statusY + scaled(120);
+            const statsX = panelPadding + scaled(80);
+            const statLines = [
+              { label: 'TPC Balance', value: `TPC ${nf.format(balanceValue)}` },
+              { label: 'Games Played', value: nf.format(games) },
+              { label: 'Wins', value: nf.format(wins) },
+              { label: 'Losses', value: nf.format(losses) },
+              { label: 'Record', value: record }
+            ];
+            const lineHeight = scaled(160);
+            statLines.forEach(({ label, value }, index) => {
+              const lineY = statsStartY + index * lineHeight;
+              ctx.fillStyle = 'rgba(148,163,184,0.75)';
+              ctx.font = `600 ${fontPx(42)} "Segoe UI", "Helvetica Neue", sans-serif`;
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'top';
+              ctx.fillText(label.toUpperCase(), statsX, lineY);
+              ctx.fillStyle = '#f8fafc';
+              ctx.font = `bold ${fontPx(78)} "Segoe UI", "Helvetica Neue", sans-serif`;
+              ctx.fillText(value, statsX, lineY + scaled(60));
+            });
+            texture.needsUpdate = true;
+          }
+        };
+      };
+      const playerPosterTextures = {
+        A: registerDynamicTexture(createPlayerPosterEntry('A')),
+        B: registerDynamicTexture(createPlayerPosterEntry('B'))
+      };
       const signageFrameMat = new THREE.MeshStandardMaterial({
         color: 0x1f2937,
         roughness: 0.5,
@@ -6029,13 +6290,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
       const tvScale = 10;
-      const tvWidth = 9 * tvScale;
-      const tvHeight = 5.4 * tvScale;
-      const tvDepth = 0.42 * tvScale;
+      const tvSizeBoost = 1.3;
+      const tvWidth = 9 * tvScale * tvSizeBoost;
+      const tvHeight = 5.4 * tvScale * tvSizeBoost;
+      const tvDepth = 0.42 * tvScale * tvSizeBoost;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
           material.map = texture;
+          if (typeof texture.anisotropy === 'number') {
+            texture.anisotropy = Math.max(texture.anisotropy, 16);
+          }
         } else {
           material.color = new THREE.Color(0x0f172a);
         }
@@ -6087,6 +6352,48 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         assembly.add(tv);
         return assembly;
       };
+      const posterFrameMat = new THREE.MeshStandardMaterial({
+        color: 0xdde4f0,
+        roughness: 0.25,
+        metalness: 0.85
+      });
+      const posterBackingMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        roughness: 0.6,
+        metalness: 0.1
+      });
+      const createPlayerPosterAssembly = (texture, width, height) => {
+        const depth = Math.max(width, height) * 0.015;
+        const group = new THREE.Group();
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(width * 1.06, height * 1.06, depth),
+          posterFrameMat
+        );
+        frame.castShadow = false;
+        frame.receiveShadow = true;
+        group.add(frame);
+        const backing = new THREE.Mesh(
+          new THREE.BoxGeometry(width * 1.02, height * 1.02, depth * 0.5),
+          posterBackingMat
+        );
+        backing.position.z = -depth * 0.25;
+        group.add(backing);
+        const panel = new THREE.Mesh(
+          new THREE.PlaneGeometry(width, height),
+          makeScreenMaterial(texture)
+        );
+        panel.position.z = depth / 2 + 0.01;
+        group.add(panel);
+        group.traverse((child) => {
+          if (!child) return;
+          child.frustumCulled = false;
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+          }
+        });
+        return group;
+      };
       const signageY = floorY + wallHeight * 0.58;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
@@ -6113,6 +6420,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         signage.rotation.y = rotationY;
         world.add(signage);
       });
+      const posterGap = 0.08;
+      const posterY = floorY + posterGap + posterHeight / 2;
+      const leftPoster = createPlayerPosterAssembly(
+        playerPosterTextures.A,
+        posterWidth,
+        posterHeight
+      );
+      leftPoster.position.set(leftInterior - posterDepthOffset, posterY, 0);
+      leftPoster.rotation.y = Math.PI / 2;
+      world.add(leftPoster);
+      const rightPoster = createPlayerPosterAssembly(
+        playerPosterTextures.B,
+        posterWidth,
+        posterHeight
+      );
+      rightPoster.position.set(rightInterior + posterDepthOffset, posterY, 0);
+      rightPoster.rotation.y = -Math.PI / 2;
+      world.add(rightPoster);
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -6150,6 +6475,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       const baseRackEntry = createRackEntry();
       const cueRackDimensions = baseRackEntry.dimensions;
+      const posterHeight = cueRackDimensions.height;
+      const posterWidth = tvWidth * 0.5;
+      const posterDepthOffset = 0.04;
       const cueRackHalfWidth = cueRackDimensions.width / 2;
       const availableHalfDepth =
         roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
@@ -6201,14 +6529,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const tripodTilt = THREE.MathUtils.degToRad(-12);
       const tripodProximityPull = BALL_R * 2.5;
       const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
+      const tripodArenaClearance = BALL_R * 8;
       const tripodDesiredZ =
         Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
-        tripodExtra;
+        tripodExtra +
+        tripodArenaClearance;
       const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
       const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
       const tripodSideTuck = BALL_R * 1.5;
       const tripodDesiredX =
-        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
+        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck +
+        tripodArenaClearance * 0.6;
       const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
       const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
       const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
@@ -6453,7 +6784,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const maxPull = Math.max(chairDistance - hospitalityChairGap, 0);
           const tablePull = Math.min(
             maxPull,
-            toHospitalityUnits(0.2) * hospitalityUpscale
+            toHospitalityUnits(0.15) * hospitalityUpscale
           );
           const pullScale = tablePull / chairDistance;
           tableSet.position.set(
@@ -6469,10 +6800,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const chair = createChair();
         chair.scale.setScalar(scaledFurniture);
         chair.position.set(chairOffset[0], 0, chairOffset[1]);
-        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
-        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
-        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
-        chair.rotation.y = baseAngle + diagonalBias;
+        const chairLocal = new THREE.Vector3(
+          chairOffset[0],
+          0,
+          chairOffset[1]
+        );
+        const rotatedLocal = chairLocal.clone();
+        rotatedLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
+        const worldChair = new THREE.Vector2(
+          rotatedLocal.x + position[0],
+          rotatedLocal.z + position[1]
+        );
+        const toArena = new THREE.Vector2(-worldChair.x, -worldChair.y);
+        if (toArena.lengthSq() > 1e-6) {
+          const worldTheta = Math.atan2(toArena.x, toArena.y);
+          chair.rotation.y = worldTheta - rotationY;
+        } else {
+          chair.rotation.y = -rotationY;
+        }
         group.add(chair);
 
         const adjustForCarpet = (value) => {
@@ -6501,8 +6846,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         rawCornerInset,
         Math.abs(backInterior) * 0.92
       );
-      const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
-      const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
+      const chairDistanceMultiplier = 1.12;
+      const chairSideOffset =
+        toHospitalityUnits(0.44) * hospitalityUpscale * chairDistanceMultiplier;
+      const chairForwardOffset =
+        toHospitalityUnits(0.62) * hospitalityUpscale * chairDistanceMultiplier;
 
       [
         {
@@ -8495,6 +8843,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const closeCueGallery = () => {
         const state = cueGalleryStateRef.current;
         if (!state?.active) return;
+        setCueGalleryActive(false);
         const prev = state.prev;
         state.active = false;
         state.rackId = null;
@@ -8592,6 +8941,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         topViewRef.current = false;
         applyCameraBlend(cameraBlendRef.current);
         updateCamera();
+        setCueGalleryActive(true);
       };
 
       const attemptCueGalleryPress = (ev) => {
@@ -8929,6 +9279,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         lastCameraTargetRef.current.copy(
           focusTarget.clone().multiplyScalar(worldScaleFactor)
         );
+        if (hudRef.current?.turn === 1) {
+          applyCameraBlend(1);
+        }
       };
 
       // Fire (slider e thërret në release)
@@ -9395,8 +9748,35 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           });
           potShots.sort((a, b) => a.difficulty - b.difficulty);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
-          if (!potShots.length && !safetyShots.length && fallbackPlan) {
-            safetyShots.push(fallbackPlan);
+          if (!potShots.length && !safetyShots.length) {
+            if (fallbackPlan) {
+              safetyShots.push(fallbackPlan);
+            } else {
+              const desperateTarget = activeBalls.find(
+                (ball) => ball.active && ball !== cue
+              );
+              if (desperateTarget) {
+                const desperateDir = desperateTarget.pos
+                  .clone()
+                  .sub(cuePos);
+                const desperateDist = desperateDir.length();
+                if (desperateDist > 1e-6) {
+                  desperateDir.normalize();
+                  safetyShots.push({
+                    type: 'safety',
+                    aimDir: desperateDir,
+                    power: computePowerFromDistance(desperateDist * 0.75),
+                    target: toBallColorId(desperateTarget.id) ?? 'RED',
+                    targetBall: desperateTarget,
+                    pocketId: 'CLEAR',
+                    difficulty: desperateDist + 1000,
+                    cueToTarget: desperateDist,
+                    targetToPocket: 0,
+                    spin: { x: 0, y: -0.05 }
+                  });
+                }
+              }
+            }
           }
           return {
             bestPot: potShots[0] ?? null,
@@ -9664,12 +10044,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
-        if (
+        const precisionArea = chalkAreaRef.current;
+        const isAiTurn = currentHud?.turn === 1;
+        const canShowAim =
+          !isAiTurn &&
           allStopped(balls) &&
           !(currentHud?.inHand) &&
           cue?.active &&
-          !(currentHud?.over)
-        ) {
+          !(currentHud?.over);
+        if (canShowAim) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -9686,7 +10069,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
           shouldSlowAim = hasTarget;
-          const precisionArea = chalkAreaRef.current;
           if (precisionArea) {
             precisionArea.visible = hasTarget;
             if (hasTarget) {
@@ -9888,6 +10270,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          if (precisionArea) precisionArea.visible = false;
+          shouldSlowAim = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -10713,6 +11097,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+      {cueGalleryActive && (
+        <div className="pointer-events-none absolute left-0 right-0 top-0 z-[65] flex justify-center pt-4">
+          <div className="rounded-full border border-emerald-400/40 bg-black/80 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200 shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+            Scroll and click to change the cue
+          </div>
+        </div>
+      )}
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
