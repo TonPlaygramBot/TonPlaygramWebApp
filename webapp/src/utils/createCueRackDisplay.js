@@ -81,15 +81,50 @@ export function createCueRackDisplay({
   clothCanvas.height = 1024;
   const ctx = clothCanvas.getContext('2d');
   if (ctx) {
+    ctx.fillStyle = '#15345f';
+    ctx.fillRect(0, 0, clothCanvas.width, clothCanvas.height);
+
     const grad = ctx.createLinearGradient(0, 0, clothCanvas.width, clothCanvas.height);
-    grad.addColorStop(0, '#4a0f19');
-    grad.addColorStop(1, '#821c2a');
+    grad.addColorStop(0, '#1a467b');
+    grad.addColorStop(0.5, '#1f4f8a');
+    grad.addColorStop(1, '#133a66');
+    ctx.globalAlpha = 0.85;
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, clothCanvas.width, clothCanvas.height);
+    ctx.globalAlpha = 1;
+
+    const imageData = ctx.getImageData(0, 0, clothCanvas.width, clothCanvas.height);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const grain = (Math.random() - 0.5) * 12;
+      data[i] = Math.max(0, Math.min(255, data[i] + grain));
+      data[i + 1] = Math.max(
+        0,
+        Math.min(255, data[i + 1] + grain * 0.7)
+      );
+      data[i + 2] = Math.max(
+        0,
+        Math.min(255, data[i + 2] + grain * 0.35)
+      );
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#ffffff';
+    for (let y = 0; y < clothCanvas.height; y += 8) {
+      ctx.fillRect(0, y, clothCanvas.width, 1);
+    }
+    ctx.globalAlpha = 0.04;
+    for (let x = 0; x < clothCanvas.width; x += 8) {
+      ctx.fillRect(x, 0, 1, clothCanvas.height);
+    }
+    ctx.globalAlpha = 1;
   }
   const clothTexture = new THREE.CanvasTexture(clothCanvas);
   clothTexture.colorSpace = THREE.SRGBColorSpace;
-  clothTexture.anisotropy = 4;
+  clothTexture.wrapS = THREE.RepeatWrapping;
+  clothTexture.wrapT = THREE.RepeatWrapping;
+  clothTexture.anisotropy = 8;
   const clothMat = new THREE.MeshPhysicalMaterial({
     map: clothTexture,
     roughness: 0.75,
@@ -126,11 +161,17 @@ export function createCueRackDisplay({
     clearcoat: 0.8
   });
   const mEngrave = new THREE.MeshStandardMaterial({
-    color: 0x222222,
-    roughness: 0.5,
-    metalness: 0.4
+    color: 0x1b1b1b,
+    roughness: 0.35,
+    metalness: 0.55
   });
-  disposables.push(mWhite, mLeatherBlue, mBlack, mBronze, mEngrave);
+  const mCuePick = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false
+  });
+  disposables.push(mWhite, mLeatherBlue, mBlack, mBronze, mEngrave, mCuePick);
 
   const buttRadius = 0.025 * SCALE;
   const shaftRadius = buttRadius * 0.86;
@@ -197,8 +238,11 @@ export function createCueRackDisplay({
     butt.position.z = -(shaftLength + buttLength / 2);
     cueGroup.add(butt);
 
+    const localRadius = THREE.MathUtils.lerp(shaftRadius, buttRadius, 0.5);
+    const ringRadius = Math.max(localRadius * 0.99, tipRadius * 1.4);
+    const ringThickness = Math.max(shaftRadius * 0.08, 0.001 * unit);
     const engrave = new THREE.Mesh(
-      new THREE.TorusKnotGeometry(buttRadius * 0.7, 0.0025 * unit, 64, 8, 2 + index, 3),
+      new THREE.TorusGeometry(ringRadius, ringThickness, 48, 96),
       mEngrave
     );
     engrave.rotation.x = Math.PI / 2;
@@ -223,17 +267,45 @@ export function createCueRackDisplay({
     const center = new THREE.Vector3();
     bounds.getCenter(center);
     cueGroup.position.sub(center);
+    const cueHeight = bounds.max.y - bounds.min.y;
+    const halfHeight = cueHeight / 2;
+    cueGroup.userData.cueHalfHeight = halfHeight;
+
+    const pickGeom = new THREE.BoxGeometry(
+      Math.max(buttRadius * 3.2, tipRadius * 6),
+      cueHeight * 1.06,
+      Math.max(tipRadius * 12, buttRadius * 2)
+    );
+    const pickMesh = new THREE.Mesh(pickGeom, mCuePick);
+    pickMesh.userData = pickMesh.userData || {};
+    pickMesh.userData.isCueOption = true;
+    pickMesh.userData.cueOptionIndex = index;
+    pickMesh.userData.cueOptionColor = color;
+    pickMesh.visible = true;
+    cueGroup.add(pickMesh);
+    disposables.push(pickGeom);
+
+    cueGroup.traverse((child) => {
+      if (!child) return;
+      child.userData = child.userData || {};
+      child.userData.isCueOption = true;
+      child.userData.cueOptionIndex = index;
+      child.userData.cueOptionColor = color;
+    });
+
     cueGroup.castShadow = true;
     return cueGroup;
   };
 
   const startX = -cueRailWidth / 2;
   const stepX = cueCount > 1 ? cueRailWidth / (cueCount - 1) : 0;
-  const cueLift = clothHeight * 0.22;
+  const verticalPadding = clothHeight * 0.035;
 
   for (let i = 0; i < cueCount; i += 1) {
     const color = CUE_RACK_PALETTE[i % CUE_RACK_PALETTE.length];
     const cue = makeCue(color, i);
+    const halfHeight = cue.userData?.cueHalfHeight ?? clothHeight / 2;
+    const cueLift = clothHeight / 2 - halfHeight - verticalPadding;
     cue.position.set(startX + i * stepX, cueLift, cueDepth);
     group.add(cue);
   }
