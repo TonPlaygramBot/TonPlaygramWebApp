@@ -710,7 +710,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5);
-const TABLE_WOOD_TEXTURE_SCALE = 0.32; // enlarge grain scale on rails and skirts to match the legs
+const TABLE_WOOD_TEXTURE_SCALE = 0.12; // enlarge grain scale on rails and skirts to match the legs
 const WOOD_PRESETS_BY_ID = Object.freeze(
   WOOD_FINISH_PRESETS.reduce((acc, preset) => {
     acc[preset.id] = preset;
@@ -5665,7 +5665,7 @@ function SnookerGame() {
             ctx.fillStyle = headerGrad;
             ctx.fillRect(0, 0, width, 120);
             ctx.fillStyle = '#f1f5f9';
-            ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.font = 'bold 42px "Segoe UI", "Helvetica Neue", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('Snooker Match of the Day', width / 2, 60);

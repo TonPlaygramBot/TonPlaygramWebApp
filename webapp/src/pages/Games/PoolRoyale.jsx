@@ -696,7 +696,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.32, 1.76); // enlarge grain scale for rails, skirts, and legs
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.12, 0.66); // coarser grain so rails, skirts, and legs read at table scale
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -5607,7 +5607,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ctx.fillStyle = headerGrad;
             ctx.fillRect(0, 0, width, 120);
             ctx.fillStyle = '#f1f5f9';
-            ctx.font = 'bold 60px "Segoe UI", "Helvetica Neue", sans-serif';
+            ctx.font = 'bold 42px "Segoe UI", "Helvetica Neue", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('Pool Royale Match of the Day', width / 2, 60);
