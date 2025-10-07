@@ -217,6 +217,8 @@ const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
+const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(48);
+const CAMERA_TRANSITION_DURATION = 520;
 
 const GAME_CONFIG = { ...BASE_CONFIG, enableFiveCard: true };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -255,6 +257,13 @@ export default function MurlanRoyaleArena({ search }) {
     scene: null,
     camera: null,
     controls: null,
+    cameraTarget: null,
+    cameraSpherical: null,
+    cameraRadius: null,
+    cameraPhi: null,
+    cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
+    cameraAnimationId: null,
+    cameraChangeHandler: null,
     arena: null,
     cardGeometry: null,
     cardMap: new Map(),
@@ -273,6 +282,8 @@ export default function MurlanRoyaleArena({ search }) {
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
   });
+  const soundsRef = useRef({ card: null, turn: null });
+  const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -288,6 +299,75 @@ export default function MurlanRoyaleArena({ search }) {
       three.cardMap.set(card.id, { mesh });
     });
   }, []);
+
+  const moveCameraToTheta = useCallback((theta, immediate = false) => {
+    const three = threeStateRef.current;
+    const { camera, controls, cameraTarget } = three;
+    const spherical = three.cameraSpherical;
+    if (!camera || !controls || !cameraTarget || !spherical) return;
+
+    const swing = three.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
+    const baseRadius = three.cameraRadius ?? spherical.radius;
+    const basePhi = three.cameraPhi ?? spherical.phi;
+
+    const applyTheta = (value) => {
+      spherical.theta = value;
+      spherical.radius = baseRadius;
+      spherical.phi = basePhi;
+      updateCameraFromSpherical(camera, spherical, cameraTarget);
+      controls.target.copy(cameraTarget);
+      controls.minAzimuthAngle = value - swing;
+      controls.maxAzimuthAngle = value + swing;
+      controls.update();
+    };
+
+    if (three.cameraAnimationId) {
+      cancelAnimationFrame(three.cameraAnimationId);
+      three.cameraAnimationId = null;
+    }
+
+    const startTheta = spherical.theta;
+    const delta = shortestAngleDifference(startTheta, theta);
+    const finalTheta = startTheta + delta;
+
+    if (immediate || Math.abs(delta) < 1e-4) {
+      applyTheta(normalizeAngle(finalTheta));
+      return;
+    }
+
+    const start = performance.now();
+
+    const step = (time) => {
+      const progress = Math.min(1, (time - start) / CAMERA_TRANSITION_DURATION);
+      const eased = easeOutCubic(progress);
+      const value = normalizeAngle(startTheta + delta * eased);
+      applyTheta(value);
+      if (progress < 1) {
+        three.cameraAnimationId = requestAnimationFrame(step);
+      } else {
+        three.cameraAnimationId = null;
+      }
+    };
+
+    three.cameraAnimationId = requestAnimationFrame(step);
+  }, []);
+
+  const focusCameraOnActivePlayer = useCallback(
+    (state, immediate = false) => {
+      if (!state) return;
+      const three = threeStateRef.current;
+      const seatConfigs = three.seatConfigs;
+      if (!seatConfigs?.length) return;
+      const activeIdx = state.activePlayer;
+      if (typeof activeIdx !== 'number') return;
+      const seat = seatConfigs[activeIdx];
+      if (!seat) return;
+      const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
+      const desiredTheta = Math.PI / 2 - seatAngle;
+      moveCameraToTheta(desiredTheta, immediate);
+    },
+    [moveCameraToTheta]
+  );
 
   const applyStateToScene = useCallback((state, selection, immediate = false) => {
     const three = threeStateRef.current;
@@ -347,6 +427,14 @@ export default function MurlanRoyaleArena({ search }) {
     const tableCount = state.tableCards.length;
     const tableSpacing = tableCount > 1 ? Math.min(CARD_W * 1.45, (CARD_W * 5.6) / (tableCount - 1)) : CARD_W;
     const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
+    const humanIndex = state.players.findIndex((player) => player.isHuman);
+    const humanSeat = humanIndex >= 0 ? seatConfigs[humanIndex] : null;
+    const tableLookBase = humanSeat
+      ? tableAnchor
+          .clone()
+          .add(humanSeat.forward.clone().multiplyScalar(1.15 * MODEL_SCALE))
+          .setY(tableAnchor.y + 0.32 * MODEL_SCALE)
+      : tableAnchor.clone().setY(tableAnchor.y + 0.32 * MODEL_SCALE);
     state.tableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -357,12 +445,12 @@ export default function MurlanRoyaleArena({ search }) {
       target.x += tableStartX + idx * tableSpacing;
       target.y += 0.06 * MODEL_SCALE + idx * 0.014;
       target.z += (idx - (tableCount - 1) / 2) * 0.06;
-      const lookTarget = tableAnchor.clone().setY(target.y + 0.26 * MODEL_SCALE);
+      const lookTarget = tableLookBase.clone();
       setMeshPosition(
         mesh,
         target,
         lookTarget,
-        { face: 'front', flat: true },
+        { face: 'front' },
         immediate,
         three.animations
       );
@@ -508,8 +596,9 @@ export default function MurlanRoyaleArena({ search }) {
     setUiState(computeUiState(gameState));
     if (threeReady) {
       applyStateToScene(gameState, selectedRef.current);
+      focusCameraOnActivePlayer(gameState);
     }
-  }, [gameState, threeReady, applyStateToScene]);
+  }, [gameState, threeReady, applyStateToScene, focusCameraOnActivePlayer]);
 
   useEffect(() => {
     selectedRef.current = selectedIds;
@@ -517,6 +606,63 @@ export default function MurlanRoyaleArena({ search }) {
       applyStateToScene(gameStateRef.current, selectedIds);
     }
   }, [selectedIds, threeReady, applyStateToScene]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
+    const card = new Audio('/assets/sounds/flipcard-91468.mp3');
+    const turn = new Audio('/assets/sounds/wooden-door-knock-102902.mp3');
+    card.preload = 'auto';
+    turn.preload = 'auto';
+    card.volume = 0.55;
+    turn.volume = 0.55;
+    soundsRef.current = { card, turn };
+    return () => {
+      [card, turn].forEach((audio) => {
+        if (!audio) return;
+        audio.pause();
+        audio.src = '';
+      });
+      soundsRef.current = { card: null, turn: null };
+    };
+  }, []);
+
+  useEffect(() => {
+    const prev = audioStateRef.current;
+    const tableIds = gameState.tableCards.map((card) => card.id);
+    const hasNewTableCards =
+      prev.initialized &&
+      (tableIds.length > prev.tableIds.length ||
+        tableIds.some((id, index) => id !== prev.tableIds[index]));
+    if (hasNewTableCards && tableIds.length) {
+      const cardSound = soundsRef.current.card;
+      if (cardSound) {
+        try {
+          cardSound.currentTime = 0;
+          void cardSound.play();
+        } catch (error) {
+          // ignore playback errors (autoplay restrictions)
+        }
+      }
+    }
+    const activeChanged = prev.initialized && prev.activePlayer !== gameState.activePlayer;
+    if (activeChanged && gameState.status === 'PLAYING') {
+      const turnSound = soundsRef.current.turn;
+      if (turnSound) {
+        try {
+          turnSound.currentTime = 0;
+          void turnSound.play();
+        } catch (error) {
+          // ignore playback errors
+        }
+      }
+    }
+    audioStateRef.current = {
+      tableIds,
+      activePlayer: gameState.activePlayer,
+      status: gameState.status,
+      initialized: true
+    };
+  }, [gameState]);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -872,16 +1018,35 @@ export default function MurlanRoyaleArena({ search }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.copy(target);
-    const azimuthSwing = THREE.MathUtils.degToRad(26);
-    controls.minPolarAngle = Math.max(ARENA_CAMERA_DEFAULTS.phiMin, spherical.phi - THREE.MathUtils.degToRad(8));
-    controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(9));
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    const azimuthSwing = threeStateRef.current.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
+    controls.minPolarAngle = spherical.phi;
+    controls.maxPolarAngle = spherical.phi;
     controls.minAzimuthAngle = spherical.theta - azimuthSwing;
     controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
-    controls.minDistance = Math.max(minOrbitRadius * 0.8, spherical.radius * 0.7);
-    controls.maxDistance = Math.min(maxOrbitRadius * 1.1, spherical.radius * 1.45);
-    controls.enablePan = false;
-    controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-    controls.rotateSpeed = 0.5;
+    controls.minDistance = spherical.radius;
+    controls.maxDistance = spherical.radius;
+    controls.rotateSpeed = 0.45;
+
+    const storedSpherical = spherical.clone();
+    storedSpherical.theta = normalizeAngle(storedSpherical.theta);
+    threeStateRef.current.cameraTarget = target.clone();
+    threeStateRef.current.cameraSpherical = storedSpherical;
+    threeStateRef.current.cameraRadius = storedSpherical.radius;
+    threeStateRef.current.cameraPhi = storedSpherical.phi;
+    threeStateRef.current.cameraAzimuthSwing = azimuthSwing;
+
+    const handleControlChange = () => {
+      const store = threeStateRef.current;
+      if (!store.cameraTarget || !store.cameraSpherical) return;
+      const offset = camera.position.clone().sub(store.cameraTarget);
+      const current = new THREE.Spherical().setFromVector3(offset);
+      store.cameraSpherical.theta = normalizeAngle(current.theta);
+    };
+    controls.addEventListener('change', handleControlChange);
+    threeStateRef.current.cameraChangeHandler = handleControlChange;
+    threeStateRef.current.cameraAnimationId = null;
 
     const resize = () => {
       const { clientWidth, clientHeight } = mount;
@@ -933,6 +1098,7 @@ export default function MurlanRoyaleArena({ search }) {
 
     ensureCardMeshes(gameStateRef.current);
     applyStateToScene(gameStateRef.current, selectedRef.current, true);
+    focusCameraOnActivePlayer(gameStateRef.current, true);
     setThreeReady(true);
 
     const dom = renderer.domElement;
@@ -953,6 +1119,13 @@ export default function MurlanRoyaleArena({ search }) {
     dom.addEventListener('pointerdown', handlePointerDown);
 
     return () => {
+      const store = threeStateRef.current;
+      if (store.cameraAnimationId) {
+        cancelAnimationFrame(store.cameraAnimationId);
+      }
+      if (store.cameraChangeHandler) {
+        controls.removeEventListener('change', store.cameraChangeHandler);
+      }
       cancelAnimationFrame(frameId);
       observer.disconnect();
       controls.dispose();
@@ -964,7 +1137,7 @@ export default function MurlanRoyaleArena({ search }) {
       torsoGeo.dispose();
       headGeo.dispose();
       collarGeo.dispose();
-      threeStateRef.current.cardMap.forEach(({ mesh }) => {
+      store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
         const { frontMaterial, backMaterial, hiddenMaterial } = mesh.userData ?? {};
@@ -978,7 +1151,6 @@ export default function MurlanRoyaleArena({ search }) {
         });
         arena.remove(mesh);
       });
-      const store = threeStateRef.current;
       store.faceTextureCache.forEach((tex) => tex.dispose());
       store.labelTextures.forEach((tex) => tex.dispose());
       store.labelMaterials.forEach((mat) => mat.dispose());
@@ -1010,6 +1182,13 @@ export default function MurlanRoyaleArena({ search }) {
         scene: null,
         camera: null,
         controls: null,
+        cameraTarget: null,
+        cameraSpherical: null,
+        cameraRadius: null,
+        cameraPhi: null,
+        cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
+        cameraAnimationId: null,
+        cameraChangeHandler: null,
         arena: null,
         cardGeometry: null,
         cardMap: new Map(),
@@ -1030,7 +1209,7 @@ export default function MurlanRoyaleArena({ search }) {
       };
       setThreeReady(false);
     };
-  }, [applyStateToScene, ensureCardMeshes, players, toggleSelection]);
+  }, [applyStateToScene, ensureCardMeshes, focusCameraOnActivePlayer, players, toggleSelection]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -1634,6 +1813,21 @@ function updateCardFace(mesh, mode) {
 
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
+}
+
+function normalizeAngle(angle) {
+  const twoPi = Math.PI * 2;
+  let value = angle % twoPi;
+  if (value > Math.PI) {
+    value -= twoPi;
+  } else if (value <= -Math.PI) {
+    value += twoPi;
+  }
+  return value;
+}
+
+function shortestAngleDifference(from, to) {
+  return normalizeAngle(to - from);
 }
 
 function updateCameraFromSpherical(camera, spherical, target) {
