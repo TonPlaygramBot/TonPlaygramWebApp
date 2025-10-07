@@ -3575,19 +3575,19 @@ function Table3D(
   );
 
   const POCKET_GAP =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
+    POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION; // give the cushions a little more breathing room so they stop shy of the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.09 * POCKET_VISUAL_EXPANSION; // pull short rail cushions farther back so the green bumpers stop short of the pocket mouths while keeping the rounded rail cut alignment
+    POCKET_VIS_R * -0.03 * POCKET_VISUAL_EXPANSION; // ease back the short-rail cushions so they no longer intrude on the pocket mouths
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
+    POCKET_VIS_R * 0.35 * POCKET_VISUAL_EXPANSION; // tighten the long cushions slightly so their ends stay clear of the pockets
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
+    POCKET_VIS_R * 0.01 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy without pressing into the chrome arches
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
+    POCKET_VIS_R * 0.15 * POCKET_VISUAL_EXPANSION; // create a touch more clearance around the side pockets
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
+    POCKET_VIS_R * 0.15 * POCKET_VISUAL_EXPANSION; // maintain alignment while nudging the cushions away from the pocket openings
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
+    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // trim back the vertical cushions so their tips sit just before the pocket edge
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3629,15 +3629,18 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
+  const CHROME_CORNER_EDGE_PULL = TABLE.THICK * 0.04; // shrink the chrome plates ever so slightly so they don't crowd the cushions
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
-      chromeCornerPlateTrim
+      chromeCornerPlateTrim -
+      CHROME_CORNER_EDGE_PULL
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
-      chromeCornerPlateTrim
+      chromeCornerPlateTrim -
+      CHROME_CORNER_EDGE_PULL
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
