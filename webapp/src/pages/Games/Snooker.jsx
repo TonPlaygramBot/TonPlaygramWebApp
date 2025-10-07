@@ -399,11 +399,10 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_SCALE = 1.3;
-const TABLE_HEIGHT_SCALE = 0.93; // match Pool Royale vertical profile
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
-  THICK: 1.8 * TABLE_HEIGHT_SCALE,
+  THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
@@ -9587,14 +9586,6 @@ function SnookerGame() {
             }
             updateAiPlanningState(plan, options, remaining / 1000);
             scheduleEarlyAiShot(plan);
-            if (
-              hudRef.current?.turn === 1 &&
-              !shooting &&
-              (timerValueRef.current ?? 0) <= 1
-            ) {
-              aiShoot.current?.();
-              return;
-            }
             if (remaining > 0) {
               aiThinkingHandle = requestAnimationFrame(think);
             } else {
@@ -9813,17 +9804,13 @@ function SnookerGame() {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
-        const isPlayerTurn = currentHud?.turn === 0;
-        const isAiTurn = currentHud?.turn === 1;
-        const aiPlan = aiPlanRef.current;
-        const canAim =
+        if (
           allStopped(balls) &&
+          currentHud?.turn === 0 &&
           !(currentHud?.inHand) &&
           cue?.active &&
-          !(currentHud?.over);
-        const allowPlayerAim = canAim && isPlayerTurn;
-        const allowAiCue = canAim && isAiTurn && !!aiPlan?.aimDir;
-        if (allowPlayerAim || allowAiCue) {
+          !(currentHud?.over)
+        ) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -9835,63 +9822,56 @@ function SnookerGame() {
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
-          if (allowPlayerAim) {
-            aimGeom.setFromPoints([start, end]);
-            aim.visible = true;
-            const slowAssistEnabled = chalkAssistEnabledRef.current;
-            const hasTarget = slowAssistEnabled && (targetBall || railNormal);
-            shouldSlowAim = hasTarget;
-            const precisionArea = chalkAreaRef.current;
-            if (precisionArea) {
-              precisionArea.visible = hasTarget;
-              if (hasTarget) {
-                precisionArea.position.set(
-                  end.x,
-                  tableSurfaceY + 0.005,
-                  end.z
-                );
-                precisionArea.material.color.setHex(
-                  targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
-                );
-                precisionArea.material.needsUpdate = true;
-              }
+          aimGeom.setFromPoints([start, end]);
+          aim.visible = true;
+          const slowAssistEnabled = chalkAssistEnabledRef.current;
+          const hasTarget = slowAssistEnabled && (targetBall || railNormal);
+          shouldSlowAim = hasTarget;
+          const precisionArea = chalkAreaRef.current;
+          if (precisionArea) {
+            precisionArea.visible = hasTarget;
+            if (hasTarget) {
+              precisionArea.position.set(
+                end.x,
+                tableSurfaceY + 0.005,
+                end.z
+              );
+              precisionArea.material.color.setHex(
+                targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
+              );
+              precisionArea.material.needsUpdate = true;
             }
-            const targetBallColor = targetBall
-              ? toBallColorId(targetBall.id)
-              : null;
-            const legalTargetsRaw =
-              frameRef.current?.ballOn ?? frameState.ballOn ?? [];
-            const legalTargets = Array.isArray(legalTargetsRaw)
-              ? legalTargetsRaw
-                  .map((entry) =>
-                    typeof entry === 'string' ? entry.toUpperCase() : entry
-                  )
-                  .filter(Boolean)
-              : [];
-            const aimingWrong =
-              targetBall &&
-              !railNormal &&
-              targetBallColor &&
-              legalTargets.length > 0 &&
-              !legalTargets.includes(targetBallColor);
-            aim.material.color.set(
-              aimingWrong
-                ? 0xff3333
-                : targetBall && !railNormal
-                  ? 0xffff00
-                  : 0xffffff
-            );
-            const perp = new THREE.Vector3(-dir.z, 0, dir.x);
-            if (perp.lengthSq() > 1e-8) perp.normalize();
-            tickGeom.setFromPoints([
-              end.clone().add(perp.clone().multiplyScalar(1.4)),
-              end.clone().add(perp.clone().multiplyScalar(-1.4))
-            ]);
-            tick.visible = true;
-          } else {
-            aim.visible = false;
-            tick.visible = false;
           }
+          const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
+          const legalTargetsRaw =
+            frameRef.current?.ballOn ?? frameState.ballOn ?? [];
+          const legalTargets = Array.isArray(legalTargetsRaw)
+            ? legalTargetsRaw
+                .map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+                .filter(Boolean)
+            : [];
+          const aimingWrong =
+            targetBall &&
+            !railNormal &&
+            targetBallColor &&
+            legalTargets.length > 0 &&
+            !legalTargets.includes(targetBallColor);
+          aim.material.color.set(
+            aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffff00
+                : 0xffffff
+          );
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
+          tickGeom.setFromPoints([
+            end.clone().add(perp.clone().multiplyScalar(1.4)),
+            end.clone().add(perp.clone().multiplyScalar(-1.4))
+          ]);
+          tick.visible = true;
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -9919,8 +9899,6 @@ function SnookerGame() {
               vert = Math.min(maxContactOffset * 0.25, CUE_TIP_RADIUS * 0.35);
             }
           }
-          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
-          if (perp.lengthSq() > 1e-8) perp.normalize();
           const spinWorld = new THREE.Vector3(
             perp.x * side,
             vert,
@@ -9944,99 +9922,97 @@ function SnookerGame() {
             cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
           );
           let visibleChalkIndex = null;
-          if (allowPlayerAim) {
-            const chalkMeta = table.userData?.chalkMeta;
-            if (chalkMeta) {
-              const slack = chalkMeta.slack ?? 0;
-              const leftDistance = Math.abs(TMP_VEC3_BUTT.x + PLAY_W / 2);
-              const rightDistance = Math.abs(TMP_VEC3_BUTT.x - PLAY_W / 2);
-              const topDistance = Math.abs(TMP_VEC3_BUTT.z + PLAY_H / 2);
-              const bottomDistance = Math.abs(TMP_VEC3_BUTT.z - PLAY_H / 2);
-              let bestSide = null;
-              let bestValue = Infinity;
-              const considerSide = (side, value, limit) => {
-                if (value > limit + slack) return;
-                if (value < bestValue) {
-                  bestValue = value;
-                  bestSide = side;
-                }
-              };
-              considerSide('left', leftDistance, chalkMeta.sideReach);
-              considerSide('right', rightDistance, chalkMeta.sideReach);
-              considerSide('top', topDistance, chalkMeta.endReach);
-              considerSide('bottom', bottomDistance, chalkMeta.endReach);
-              if (bestSide) {
-                switch (bestSide) {
-                  case 'left':
-                    visibleChalkIndex = 0;
-                    break;
-                  case 'right':
-                    visibleChalkIndex = 1;
-                    break;
-                  case 'top':
-                    visibleChalkIndex = 2;
-                    break;
-                  case 'bottom':
-                    visibleChalkIndex = 3;
-                    break;
-                  default:
-                    visibleChalkIndex = null;
-                }
+          const chalkMeta = table.userData?.chalkMeta;
+          if (chalkMeta) {
+            const slack = chalkMeta.slack ?? 0;
+            const leftDistance = Math.abs(TMP_VEC3_BUTT.x + PLAY_W / 2);
+            const rightDistance = Math.abs(TMP_VEC3_BUTT.x - PLAY_W / 2);
+            const topDistance = Math.abs(TMP_VEC3_BUTT.z + PLAY_H / 2);
+            const bottomDistance = Math.abs(TMP_VEC3_BUTT.z - PLAY_H / 2);
+            let bestSide = null;
+            let bestValue = Infinity;
+            const considerSide = (side, value, limit) => {
+              if (value > limit + slack) return;
+              if (value < bestValue) {
+                bestValue = value;
+                bestSide = side;
+              }
+            };
+            considerSide('left', leftDistance, chalkMeta.sideReach);
+            considerSide('right', rightDistance, chalkMeta.sideReach);
+            considerSide('top', topDistance, chalkMeta.endReach);
+            considerSide('bottom', bottomDistance, chalkMeta.endReach);
+            if (bestSide) {
+              switch (bestSide) {
+                case 'left':
+                  visibleChalkIndex = 0;
+                  break;
+                case 'right':
+                  visibleChalkIndex = 1;
+                  break;
+                case 'top':
+                  visibleChalkIndex = 2;
+                  break;
+                case 'bottom':
+                  visibleChalkIndex = 3;
+                  break;
+                default:
+                  visibleChalkIndex = null;
               }
             }
-            const chalkSlotsData = table.userData?.chalkSlots;
-            const chalkMeshesData = table.userData?.chalks;
-            if (Array.isArray(chalkSlotsData) && Array.isArray(chalkMeshesData)) {
-              chalkSlotsData.forEach((slot, slotIndex) => {
-                const mesh = chalkMeshesData[slotIndex];
-                if (!mesh || !slot?.basePosition || !slot?.tangent) return;
-                const defaultOffset = slot.defaultOffset ?? 0;
-                const limits = slot.offsetLimits ?? null;
-                let targetOffset = defaultOffset;
-                if (
-                  slotIndex === visibleChalkIndex &&
-                  chalkMeta?.overlapThreshold > 0 &&
-                  chalkMeta?.nudgeDistance > 0
-                ) {
-                  TMP_VEC3_CHALK.copy(slot.basePosition).addScaledVector(
-                    slot.tangent,
-                    defaultOffset
-                  );
-                  TMP_VEC3_CHALK_DELTA.copy(TMP_VEC3_BUTT).sub(TMP_VEC3_CHALK);
-                  const along = TMP_VEC3_CHALK_DELTA.dot(slot.tangent);
-                  if (Math.abs(along) < chalkMeta.overlapThreshold) {
-                    const dir = along >= 0 ? -1 : 1;
-                    targetOffset += dir * chalkMeta.nudgeDistance;
-                  }
+          }
+          const chalkSlotsData = table.userData?.chalkSlots;
+          const chalkMeshesData = table.userData?.chalks;
+          if (Array.isArray(chalkSlotsData) && Array.isArray(chalkMeshesData)) {
+            chalkSlotsData.forEach((slot, slotIndex) => {
+              const mesh = chalkMeshesData[slotIndex];
+              if (!mesh || !slot?.basePosition || !slot?.tangent) return;
+              const defaultOffset = slot.defaultOffset ?? 0;
+              const limits = slot.offsetLimits ?? null;
+              let targetOffset = defaultOffset;
+              if (
+                slotIndex === visibleChalkIndex &&
+                chalkMeta?.overlapThreshold > 0 &&
+                chalkMeta?.nudgeDistance > 0
+              ) {
+                TMP_VEC3_CHALK.copy(slot.basePosition).addScaledVector(
+                  slot.tangent,
+                  defaultOffset
+                );
+                TMP_VEC3_CHALK_DELTA.copy(TMP_VEC3_BUTT).sub(TMP_VEC3_CHALK);
+                const along = TMP_VEC3_CHALK_DELTA.dot(slot.tangent);
+                if (Math.abs(along) < chalkMeta.overlapThreshold) {
+                  const dir = along >= 0 ? -1 : 1;
+                  targetOffset += dir * chalkMeta.nudgeDistance;
                 }
-                if (limits) {
-                  targetOffset = clamp(
-                    targetOffset,
-                    limits.min ?? targetOffset,
-                    limits.max ?? targetOffset
-                  );
-                }
-                if (slot.currentOffset !== targetOffset) {
-                  mesh.position
-                    .copy(slot.basePosition)
-                    .addScaledVector(slot.tangent, targetOffset);
-                  if (slot.position) {
-                    slot.position
-                      .copy(slot.basePosition)
-                      .addScaledVector(slot.tangent, targetOffset);
-                  }
-                  slot.currentOffset = targetOffset;
-                } else if (slot.position) {
+              }
+              if (limits) {
+                targetOffset = clamp(
+                  targetOffset,
+                  limits.min ?? targetOffset,
+                  limits.max ?? targetOffset
+                );
+              }
+              if (slot.currentOffset !== targetOffset) {
+                mesh.position
+                  .copy(slot.basePosition)
+                  .addScaledVector(slot.tangent, targetOffset);
+                if (slot.position) {
                   slot.position
                     .copy(slot.basePosition)
                     .addScaledVector(slot.tangent, targetOffset);
                 }
-              });
-            }
+                slot.currentOffset = targetOffset;
+              } else if (slot.position) {
+                slot.position
+                  .copy(slot.basePosition)
+                  .addScaledVector(slot.tangent, targetOffset);
+              }
+            });
           }
-          updateChalkVisibility(allowPlayerAim ? visibleChalkIndex : null);
+          updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          if (allowPlayerAim && afterDir) {
+          if (afterDir) {
             const tEnd = new THREE.Vector3(
               end.x + afterDir.x * 30,
               BALL_R,
