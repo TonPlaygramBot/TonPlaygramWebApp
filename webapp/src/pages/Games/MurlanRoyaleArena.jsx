@@ -292,7 +292,7 @@ export default function MurlanRoyaleArena({ search }) {
 
     const chairMat = new THREE.MeshPhysicalMaterial({ color: 0x8b0000, roughness: 0.35, metalness: 0.5, clearcoat: 1 });
     const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const chairRadius = 4.8 * MODEL_SCALE;
+    const chairRadius = 5.25 * MODEL_SCALE;
 
     const cardGeo = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
     const labelGeo = new THREE.PlaneGeometry(1.6 * MODEL_SCALE, 0.8 * MODEL_SCALE);
@@ -356,7 +356,10 @@ export default function MurlanRoyaleArena({ search }) {
         const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
         labelMaterials.push(labelMat);
         const label = new THREE.Mesh(labelGeo, labelMat);
-        label.position.set(0, 0.75 * MODEL_SCALE, 1.05 * MODEL_SCALE);
+        const isHuman = player.isHuman;
+        const labelHeight = isHuman ? 0.68 * MODEL_SCALE : 0.75 * MODEL_SCALE;
+        const labelForward = isHuman ? 0.92 * MODEL_SCALE : 1.05 * MODEL_SCALE;
+        label.position.set(0, labelHeight, labelForward);
         label.rotation.y = Math.PI;
         chair.add(label);
 
@@ -412,12 +415,13 @@ export default function MurlanRoyaleArena({ search }) {
     const safeHorizontalReach = Math.max(2.5 * MODEL_SCALE, maxHorizontalReach);
     const maxOrbitRadius = Math.max(3.5 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
     const minOrbitRadius = Math.max(2.5 * MODEL_SCALE, maxOrbitRadius * 0.7);
-    const cameraBackOffset = 1.0;
-    const cameraHeightOffset = 1.9;
+    const cameraBackOffset = 1.15;
+    const cameraForwardOffset = 0.45;
+    const cameraHeightOffset = 1.7;
     const initialCameraPosition = new THREE.Vector3(
-      Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset),
+      Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
       TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset)
+      Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
     );
     const targetHeightOffset = 0.2 * MODEL_SCALE;
     const target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
