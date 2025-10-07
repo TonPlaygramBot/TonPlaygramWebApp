@@ -257,6 +257,11 @@ export default function TableTennis3D({ player, ai }){
     const BASE_HEAD_CENTER_Y = 0.38700000643730165;
     const BASE_HEAD_CENTER_Z = 0.02005380392074585;
 
+    const lerpAngle = (a, b, t) => {
+      const delta = THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) - Math.PI;
+      return a + delta * t;
+    };
+
     function buildCurvedPaddle(frontHex, backHex, woodMat){
       const bladeShape = new THREE.Shape();
       const bladeR = 0.45;
@@ -380,7 +385,7 @@ export default function TableTennis3D({ player, ai }){
       visualWrapper.rotation.y = orientation === 1 ? Math.PI : 0;
       g.add(visualWrapper);
 
-      g.userData = { headRadius };
+      g.userData = { headRadius, visualWrapper, baseYaw: visualWrapper.rotation.y };
       return g;
     }
 
@@ -871,6 +876,32 @@ export default function TableTennis3D({ player, ai }){
         oppVel.copy(opp.position).sub(oppPrev).multiplyScalar(invDt);
         playerPrev.copy(player.position);
         oppPrev.copy(opp.position);
+
+        const adjustPlayerPaddle = () => {
+          const { visualWrapper, baseYaw } = player.userData || {};
+          if (!visualWrapper) return;
+
+          const dx = ball.position.x - player.position.x;
+          const dz = ball.position.z - player.position.z;
+          const cos = Math.cos(baseYaw);
+          const sin = Math.sin(baseYaw);
+          const localX = cos * dx - sin * dz;
+          const localZ = sin * dx + cos * dz;
+          const ahead = localZ > 0.01;
+
+          const localVelX = cos * playerVel.x - sin * playerVel.z;
+          const backhandAim = ahead ? Math.max(0, localX) : 0;
+          const swingBackhand = Math.max(0, -localVelX);
+          const swingForehand = Math.max(0, localVelX);
+
+          const offsetLeft = THREE.MathUtils.clamp(backhandAim * 0.7 + swingBackhand * 0.18, 0, 0.92);
+          const offsetRight = Math.min(swingForehand * 0.12, 0.35);
+          const targetYaw = THREE.MathUtils.clamp(baseYaw + offsetLeft - offsetRight, baseYaw - 0.5, baseYaw + 0.95);
+
+          visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, 0.22);
+        };
+
+        adjustPlayerPaddle();
 
         if (Sx.state !== 'dead'){
           if (Sx.state === 'serve'){
