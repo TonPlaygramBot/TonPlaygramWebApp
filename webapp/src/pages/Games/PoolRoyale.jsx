@@ -1057,32 +1057,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   { id: 'freshGreen', label: 'Fresh Green', color: 0x379a5f },
   { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
-    id: 'meadowVelvet',
-    label: 'Meadow Velvet',
-    color: 0x4fc670,
-    detail: {
-      bumpMultiplier: 1.34,
-      roughness: 0.76,
-      sheenRoughness: 0.5,
-      clearcoat: 0.06,
-      clearcoatRoughness: 0.28,
-      emissiveIntensity: 0.56
-    }
-  },
-  {
-    id: 'sageWeave',
-    label: 'Sage Weave',
-    color: 0x3fae5e,
-    detail: {
-      bumpMultiplier: 1.28,
-      roughness: 0.82,
-      sheenRoughness: 0.55,
-      clearcoat: 0.04,
-      clearcoatRoughness: 0.34,
-      emissiveIntensity: 0.5
-    }
-  },
-  {
     id: 'emeraldClassic',
     label: 'Green Cloth',
     color: 0x19a34a,
@@ -3386,11 +3360,6 @@ function Table3D(
       mat.roughness = Number.isFinite(overrides.roughness)
         ? overrides.roughness
         : clothBaseSettings.roughness;
-      if (Number.isFinite(overrides.sheen)) {
-        mat.sheen = overrides.sheen;
-      } else if (Number.isFinite(clothBaseSettings.sheen)) {
-        mat.sheen = clothBaseSettings.sheen;
-      }
       mat.sheenRoughness = Number.isFinite(overrides.sheenRoughness)
         ? overrides.sheenRoughness
         : clothBaseSettings.sheenRoughness;
@@ -5048,7 +5017,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const sliderInstanceRef = useRef(null);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
-  const aiAutoShotPrimedRef = useRef(false);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
@@ -5062,26 +5030,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       clearEarlyAiShot();
     }
   }, [hud.turn, clearEarlyAiShot]);
-
-  useEffect(() => {
-    if (hud.turn !== 1 || hud.over) {
-      aiAutoShotPrimedRef.current = false;
-      return;
-    }
-    if (timer > 2) {
-      aiAutoShotPrimedRef.current = false;
-      return;
-    }
-    if (
-      timer > 0 &&
-      !shootingRef.current &&
-      !hud.inHand &&
-      !aiAutoShotPrimedRef.current
-    ) {
-      aiAutoShotPrimedRef.current = true;
-      aiShoot.current();
-    }
-  }, [timer, hud.turn, hud.over, hud.inHand]);
   const applySliderLock = useCallback(() => {
     const slider = sliderInstanceRef.current;
     if (!slider) return;
@@ -9804,123 +9752,86 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
-        const aiPlan = aiPlanRef.current;
-        const isPlayerTurn =
-          currentHud?.turn === 0 && !(currentHud?.inHand);
-        const aiPreviewActive =
-          currentHud?.turn === 1 &&
-          !(currentHud?.inHand) &&
-          !!(aiPlan?.aimDir);
         if (
           allStopped(balls) &&
+          currentHud?.turn === 0 &&
+          !(currentHud?.inHand) &&
           cue?.active &&
-          !(currentHud?.over) &&
-          (isPlayerTurn || aiPreviewActive)
+          !(currentHud?.over)
         ) {
-          const aimSource = isPlayerTurn ? aimDir : aiPlan?.aimDir;
-          const aimVector = aimSource ? aimSource.clone() : null;
-          if (!aimVector || aimVector.lengthSq() < 1e-6) {
-            aim.visible = false;
-            tick.visible = false;
-            target.visible = false;
-            if (tipGroupRef.current) {
-              tipGroupRef.current.position.set(0, 0, -cueLen / 2);
-            }
-            if (!cueAnimating) cueStick.visible = false;
-            updateChalkVisibility(null);
-          } else {
-            aimVector.normalize();
-            const { impact, afterDir, targetBall, railNormal } = calcTarget(
-              cue,
-              aimVector,
-              balls
-            );
-            const start = new THREE.Vector3(
-              cue.pos.x,
-              BALL_CENTER_Y,
-              cue.pos.y
-            );
-            let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-            const dir = new THREE.Vector3(aimVector.x, 0, aimVector.y).normalize();
-            if (start.distanceTo(end) < 1e-4) {
-              end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
-            }
-            const perp = new THREE.Vector3(-dir.z, 0, dir.x);
-            if (perp.lengthSq() > 1e-8) perp.normalize();
-            if (isPlayerTurn) {
-              aimGeom.setFromPoints([start, end]);
-              aim.visible = true;
-              const slowAssistEnabled = chalkAssistEnabledRef.current;
-              const hasTarget = slowAssistEnabled && (targetBall || railNormal);
-              shouldSlowAim = hasTarget;
-              const precisionArea = chalkAreaRef.current;
-              if (precisionArea) {
-                precisionArea.visible = hasTarget;
-                if (hasTarget) {
-                  precisionArea.position.set(
-                    end.x,
-                    tableSurfaceY + 0.005,
-                    end.z
-                  );
-                  precisionArea.material.color.setHex(
-                    targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
-                  );
-                  precisionArea.material.needsUpdate = true;
-                }
-              }
-              const targetBallColor = targetBall
-                ? toBallColorId(targetBall.id)
-                : null;
-              const legalTargetsRaw =
-                frameRef.current?.ballOn ?? frameState.ballOn ?? [];
-              const legalTargets = Array.isArray(legalTargetsRaw)
-                ? legalTargetsRaw
-                    .map((entry) =>
-                      typeof entry === 'string' ? entry.toUpperCase() : entry
-                    )
-                    .filter(Boolean)
-                : [];
-              const aimingWrong =
-                targetBall &&
-                !railNormal &&
-                targetBallColor &&
-                legalTargets.length > 0 &&
-                !legalTargets.includes(targetBallColor);
-              aim.material.color.set(
-                aimingWrong
-                  ? 0xff3333
-                  : targetBall && !railNormal
-                    ? 0xffff00
-                    : 0xffffff
+          const { impact, afterDir, targetBall, railNormal } = calcTarget(
+            cue,
+            aimDir,
+            balls
+          );
+          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          if (start.distanceTo(end) < 1e-4) {
+            end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
+          }
+          aimGeom.setFromPoints([start, end]);
+          aim.visible = true;
+          const slowAssistEnabled = chalkAssistEnabledRef.current;
+          const hasTarget = slowAssistEnabled && (targetBall || railNormal);
+          shouldSlowAim = hasTarget;
+          const precisionArea = chalkAreaRef.current;
+          if (precisionArea) {
+            precisionArea.visible = hasTarget;
+            if (hasTarget) {
+              precisionArea.position.set(
+                end.x,
+                tableSurfaceY + 0.005,
+                end.z
               );
-              tickGeom.setFromPoints([
-                end.clone().add(perp.clone().multiplyScalar(1.4)),
-                end.clone().add(perp.clone().multiplyScalar(-1.4))
-              ]);
-              tick.visible = true;
-            } else {
-              aim.visible = false;
-              tick.visible = false;
-              target.visible = false;
+              precisionArea.material.color.setHex(
+                targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
+              );
+              precisionArea.material.needsUpdate = true;
             }
-            const previewPower = isPlayerTurn
-              ? powerRef.current
-              : aiPlan?.power ?? powerRef.current ?? 0;
-            const desiredPull = previewPower * BALL_R * 10 * 0.65 * 1.2;
-            const backInfo = calcTarget(
-              cue,
-              aimVector.clone().multiplyScalar(-1),
-              balls
-            );
-            const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-            const pull = Math.min(desiredPull, maxPull);
-            const offsetSide = ranges.offsetSide ?? 0;
-            const offsetVertical = ranges.offsetVertical ?? 0;
-            const spinForCue = isPlayerTurn
-              ? appliedSpin
-              : new THREE.Vector2(aiPlan?.spin?.x ?? 0, aiPlan?.spin?.y ?? 0);
-            let side = spinForCue.x * offsetSide;
-            let vert = -spinForCue.y * offsetVertical;
+          }
+          const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
+          const legalTargetsRaw =
+            frameRef.current?.ballOn ?? frameState.ballOn ?? [];
+          const legalTargets = Array.isArray(legalTargetsRaw)
+            ? legalTargetsRaw
+                .map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+                .filter(Boolean)
+            : [];
+          const aimingWrong =
+            targetBall &&
+            !railNormal &&
+            targetBallColor &&
+            legalTargets.length > 0 &&
+            !legalTargets.includes(targetBallColor);
+          aim.material.color.set(
+            aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffff00
+                : 0xffffff
+          );
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
+          tickGeom.setFromPoints([
+            end.clone().add(perp.clone().multiplyScalar(1.4)),
+            end.clone().add(perp.clone().multiplyScalar(-1.4))
+          ]);
+          tick.visible = true;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
+          const backInfo = calcTarget(
+            cue,
+            aimDir.clone().multiplyScalar(-1),
+            balls
+          );
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const pull = Math.min(desiredPull, maxPull);
+          const offsetSide = ranges.offsetSide ?? 0;
+          const offsetVertical = ranges.offsetVertical ?? 0;
+          let side = appliedSpin.x * offsetSide;
+          let vert = -appliedSpin.y * offsetVertical;
           const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
           if (maxContactOffset > 1e-6) {
             const combined = Math.hypot(side, vert);
@@ -9930,7 +9841,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               vert *= scale;
             }
             if (
-              isPlayerTurn &&
               spinLegalityRef.current?.blocked &&
               Math.hypot(side, vert) < 1e-6
             ) {
@@ -9947,7 +9857,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = Math.abs(spinForCue.y || 0);
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -10048,20 +9958,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
             });
           }
-            updateChalkVisibility(visibleChalkIndex);
-            cueStick.visible = true;
-            if (isPlayerTurn && afterDir) {
-              const tEnd = new THREE.Vector3(
-                end.x + afterDir.x * 30,
-                BALL_R,
-                end.z + afterDir.y * 30
-              );
-              targetGeom.setFromPoints([end, tEnd]);
-              target.visible = true;
-              target.computeLineDistances();
-            } else {
-              target.visible = false;
-            }
+          updateChalkVisibility(visibleChalkIndex);
+          cueStick.visible = true;
+          if (afterDir) {
+            const tEnd = new THREE.Vector3(
+              end.x + afterDir.x * 30,
+              BALL_R,
+              end.z + afterDir.y * 30
+            );
+            targetGeom.setFromPoints([end, tEnd]);
+            target.visible = true;
+            target.computeLineDistances();
+          } else {
+            target.visible = false;
           }
         } else {
           aimFocusRef.current = null;
