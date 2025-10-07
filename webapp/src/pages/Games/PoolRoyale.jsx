@@ -695,7 +695,6 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
 
-const BASE_WOOD_COLOR = '#8b5e3c';
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 
 const DEFAULT_POOL_VARIANT = 'american';
@@ -951,6 +950,13 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   sheenRoughness: 0.5,
   envMapIntensity: 1.1
 });
+const WOOD_PRESETS_BY_ID = Object.freeze(
+  WOOD_FINISH_PRESETS.reduce((acc, preset) => {
+    acc[preset.id] = preset;
+    return acc;
+  }, {})
+);
+const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
 const DEFAULT_TABLE_FINISH_ID = 'oak';
 
@@ -1292,137 +1298,79 @@ const createClothTextures = (() => {
   };
 })();
 
-const createWoodTexture = (() => {
-  let cache = null;
-  const clamp255 = (value) => Math.max(0, Math.min(255, value));
-  return () => {
-    if (cache) return cache;
-    if (typeof document === 'undefined') {
-      cache = { map: null, roughness: null };
-      return cache;
-    }
-
-    const SIZE = 1024;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      cache = { map: null, roughness: null };
-      return cache;
-    }
-
-    const baseColor = new THREE.Color(BASE_WOOD_COLOR);
-    const baseHSL = { h: 0, s: 0, l: 0 };
-    baseColor.getHSL(baseHSL);
-    const tempColor = new THREE.Color();
-    for (let x = 0; x < SIZE; x += 1) {
-      const t = x / SIZE;
-      const wave1 = Math.sin(t * Math.PI * 6);
-      const wave2 = Math.sin((t + 0.2) * Math.PI * 18);
-      const hue = THREE.MathUtils.euclideanModulo(
-        baseHSL.h + wave1 * 0.014 + wave2 * 0.006,
-        1
-      );
-      const sat = THREE.MathUtils.clamp(
-        baseHSL.s + wave1 * 0.08 + wave2 * 0.03,
-        0.12,
-        0.75
-      );
-      const light = THREE.MathUtils.clamp(
-        baseHSL.l + wave1 * 0.12 + wave2 * 0.05,
-        0.26,
-        0.72
-      );
-      tempColor.setHSL(hue, sat, light);
-      ctx.fillStyle = `#${tempColor.getHexString()}`;
-      ctx.fillRect(x, 0, 1, SIZE);
-    }
-
-    const imageData = ctx.getImageData(0, 0, SIZE, SIZE);
-    const { data } = imageData;
-    for (let y = 0; y < SIZE; y += 1) {
-      for (let x = 0; x < SIZE; x += 1) {
-        const idx = (y * SIZE + x) * 4;
-        const seed = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-        const noise = (seed - Math.floor(seed) - 0.5) * 10;
-        data[idx] = clamp255(data[idx] + noise);
-        data[idx + 1] = clamp255(data[idx + 1] + noise * 0.55);
-        data[idx + 2] = clamp255(data[idx + 2] + noise * 0.3);
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-
-    const roughCanvas = document.createElement('canvas');
-    roughCanvas.width = roughCanvas.height = SIZE;
-    const roughCtx = roughCanvas.getContext('2d');
-    if (!roughCtx) {
-      cache = { map: null, roughness: null };
-      return cache;
-    }
-    const roughImage = roughCtx.createImageData(SIZE, SIZE);
-    const roughData = roughImage.data;
-    for (let y = 0; y < SIZE; y += 1) {
-      for (let x = 0; x < SIZE; x += 1) {
-        const idx = (y * SIZE + x) * 4;
-        const seed = Math.sin((x + 11.2) * 10.123 + y * 53.321) * 19341.17;
-        const n = (seed - Math.floor(seed) - 0.5) * 28;
-        const stripe = Math.sin((x / SIZE) * Math.PI * 4) * 16;
-        const value = clamp255(178 + n + stripe);
-        roughData[idx] = value;
-        roughData[idx + 1] = value;
-        roughData[idx + 2] = value;
-        roughData[idx + 3] = 255;
-      }
-    }
-    roughCtx.putImageData(roughImage, 0, 0);
-
-    const map = new THREE.CanvasTexture(canvas);
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.anisotropy = 8;
-    map.needsUpdate = true;
-    if ('colorSpace' in map) {
-      map.colorSpace = THREE.SRGBColorSpace;
-    } else {
-      map.encoding = THREE.sRGBEncoding;
-    }
-
-    const roughness = new THREE.CanvasTexture(roughCanvas);
-    roughness.wrapS = roughness.wrapT = THREE.RepeatWrapping;
-    roughness.anisotropy = 4;
-    roughness.needsUpdate = true;
-    if ('colorSpace' in roughness) {
-      roughness.colorSpace = THREE.LinearSRGBColorSpace;
-    }
-
-    cache = { map, roughness };
-    return cache;
-  };
-})();
-
-function cloneWoodTexture(texture, repeat) {
-  if (!texture) return null;
-  const cloned = texture.clone();
-  if (repeat) {
-    cloned.repeat.copy(repeat);
+function resolveRepeatVector(repeat, material) {
+  if (repeat?.isVector2) {
+    return repeat.clone();
   }
-  cloned.needsUpdate = true;
-  return cloned;
+  if (repeat && Number.isFinite(repeat.x) && Number.isFinite(repeat.y)) {
+    return new THREE.Vector2(repeat.x, repeat.y);
+  }
+  const stored = material?.userData?.woodRepeat;
+  if (stored?.isVector2) {
+    return stored.clone();
+  }
+  if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) {
+    return new THREE.Vector2(stored.x, stored.y);
+  }
+  return new THREE.Vector2(1, 1);
+}
+
+function ensureMaterialWoodOptions(material, repeatVec) {
+  if (!material) return null;
+  const existing = material.userData?.__woodOptions;
+  if (existing) {
+    return existing;
+  }
+  const preset = WOOD_PRESETS_BY_ID[DEFAULT_WOOD_PRESET_ID];
+  if (!preset) {
+    return null;
+  }
+  applyWoodTextures(material, {
+    hue: preset.hue,
+    sat: preset.sat,
+    light: preset.light,
+    contrast: preset.contrast,
+    repeat: { x: repeatVec.x, y: repeatVec.y },
+    sharedKey: `pool-wood-${preset.id}`,
+    ...SHARED_WOOD_SURFACE_PROPS
+  });
+  return material.userData?.__woodOptions || null;
 }
 
 function applyWoodTextureToMaterial(material, repeat) {
   if (!material) return;
-  const wood = createWoodTexture();
-  if (!wood.map) return;
-  const repeatVec = repeat ? repeat.clone() : new THREE.Vector2(1, 1);
-  material.map = cloneWoodTexture(wood.map, repeatVec);
-  if (wood.roughness) {
-    material.roughnessMap = cloneWoodTexture(wood.roughness, repeatVec);
+  const repeatVec = resolveRepeatVector(repeat, material);
+  const hadOptions = Boolean(material.userData?.__woodOptions);
+  const options = ensureMaterialWoodOptions(material, repeatVec);
+  if (options) {
+    const repeatChanged =
+      Math.abs((options.repeat?.x ?? 1) - repeatVec.x) > 1e-6 ||
+      Math.abs((options.repeat?.y ?? 1) - repeatVec.y) > 1e-6;
+    if (hadOptions && repeatChanged) {
+      applyWoodTextures(material, {
+        ...options,
+        repeat: { x: repeatVec.x, y: repeatVec.y }
+      });
+    }
+  } else {
+    if (material.map) {
+      material.map = material.map.clone();
+      material.map.repeat.copy(repeatVec);
+      material.map.needsUpdate = true;
+    }
+    if (material.roughnessMap) {
+      material.roughnessMap = material.roughnessMap.clone();
+      material.roughnessMap.repeat.copy(repeatVec);
+      material.roughnessMap.needsUpdate = true;
+    }
+    material.needsUpdate = true;
   }
-  material.needsUpdate = true;
-  material.userData = {
-    ...(material.userData || {}),
-    woodRepeat: repeatVec.clone()
-  };
+  material.userData = material.userData || {};
+  if (material.userData.woodRepeat?.isVector2) {
+    material.userData.woodRepeat.copy(repeatVec);
+  } else {
+    material.userData.woodRepeat = repeatVec.clone();
+  }
 }
 
 function enhanceChromeMaterial(material) {

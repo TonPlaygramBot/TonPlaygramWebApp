@@ -262,6 +262,20 @@ export const applyWoodTextures = (
   if (material.roughnessMap) material.roughnessMap.needsUpdate = true;
   material.userData = material.userData || {};
   material.userData.__woodTextures = { map, roughnessMap };
+  material.userData.__woodOptions = {
+    hue,
+    sat,
+    light,
+    contrast,
+    repeat: { x: repeatVec.x, y: repeatVec.y },
+    rotation,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance,
+    sharedKey
+  };
+  material.userData.woodRepeat = new THREE.Vector2(repeatVec.x, repeatVec.y);
   return { map, roughnessMap };
 };
 
