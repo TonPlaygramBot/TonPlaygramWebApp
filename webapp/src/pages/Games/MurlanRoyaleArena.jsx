@@ -379,8 +379,8 @@ export default function MurlanRoyaleArena({ search }) {
     const safeHorizontalReach = Math.max(2.5, maxHorizontalReach);
     const maxOrbitRadius = Math.max(3.5, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
     const minOrbitRadius = Math.max(2.5, maxOrbitRadius * 0.75);
-    const cameraBackOffset = 1.4;
-    const cameraHeightOffset = 1.65;
+    const cameraBackOffset = 1.9;
+    const cameraHeightOffset = 1.75;
     const initialCameraPosition = new THREE.Vector3(
       Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset),
       TABLE_HEIGHT + cameraHeightOffset,
@@ -389,7 +389,7 @@ export default function MurlanRoyaleArena({ search }) {
     const target = new THREE.Vector3(0, TABLE_HEIGHT + 0.2, 0);
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    spherical.radius = THREE.MathUtils.clamp(spherical.radius * 1.05, minOrbitRadius + 0.05, maxOrbitRadius);
+    spherical.radius = THREE.MathUtils.clamp(spherical.radius * 1.18, minOrbitRadius + 0.05, maxOrbitRadius);
     spherical.phi = THREE.MathUtils.clamp(
       spherical.phi,
       ARENA_CAMERA_DEFAULTS.phiMin,
@@ -405,8 +405,8 @@ export default function MurlanRoyaleArena({ search }) {
     controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(8));
     controls.minAzimuthAngle = spherical.theta - azimuthSwing;
     controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
-    controls.minDistance = Math.max(minOrbitRadius, spherical.radius * 0.9);
-    controls.maxDistance = Math.min(maxOrbitRadius, spherical.radius * 1.1);
+    controls.minDistance = Math.max(minOrbitRadius * 0.95, spherical.radius * 0.85);
+    controls.maxDistance = Math.min(maxOrbitRadius, spherical.radius * 1.25);
     controls.enablePan = false;
     controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
     controls.rotateSpeed = 0.5;
