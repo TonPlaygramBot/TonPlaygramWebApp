@@ -182,7 +182,7 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.025; // trim chrome along the short rails so no sliver creeps into the pockets and keep the chrome narrower on the short sides
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.035; // expand the short-rail chrome slightly so the plates meet the side rails without intruding into the pockets
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -3577,7 +3577,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.05 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs cleanly
+    POCKET_VIS_R * -0.055 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs and align with the rounded rail cut
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
