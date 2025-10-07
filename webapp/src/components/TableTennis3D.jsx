@@ -116,7 +116,17 @@ export default function TableTennis3D({ player, ai }){
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
     const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.45, metalness: 0.6 });
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-    const paddleWoodMat = new THREE.MeshStandardMaterial({ color: 0x9c6b3f, roughness: 0.55, metalness: 0.1 });
+    const paddleWoodTex = makePaddleWoodTexture();
+    paddleWoodTex.anisotropy = 8;
+    paddleWoodTex.colorSpace = THREE.SRGBColorSpace;
+    const paddleWoodMat = new THREE.MeshPhysicalMaterial({
+      map: paddleWoodTex,
+      color: 0xffffff,
+      roughness: 0.65,
+      metalness: 0.05,
+      clearcoat: 0.06,
+      clearcoatRoughness: 0.5,
+    });
 
     // Table top
     const top = new THREE.Mesh(new THREE.BoxGeometry(T.W, T.topT, T.L), tableMat);
@@ -243,53 +253,132 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Rackets (paddles) ----------
     const PADDLE_SCALE = 1.18;
     const BALL_R = 0.02;
+    const BASE_HEAD_RADIUS = 0.4049601584672928;
+    const BASE_HEAD_CENTER_Y = 0.38700000643730165;
+    const BASE_HEAD_CENTER_Z = 0.02005380392074585;
+
+    function buildCurvedPaddle(frontHex, backHex, woodMat){
+      const bladeShape = new THREE.Shape();
+      const bladeR = 0.45;
+      const cutAngle = Math.PI / 7;
+      const startAngle = -Math.PI / 2 + cutAngle;
+      const endAngle = Math.PI + Math.PI / 2 - cutAngle;
+      bladeShape.absarc(0, 0, bladeR, startAngle, endAngle, false);
+
+      const HANDLE_DEPTH = 0.12;
+      const BLADE_DEPTH_EACH = HANDLE_DEPTH * 0.5;
+      const midY = 0.49;
+
+      const frontMat = new THREE.MeshStandardMaterial({ color: frontHex, roughness: 0.4, metalness: 0.05 });
+      const backMat = new THREE.MeshStandardMaterial({ color: backHex, roughness: 0.4, metalness: 0.05 });
+
+      const frontGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: BLADE_DEPTH_EACH, bevelEnabled: false, curveSegments: 64 });
+      frontGeo.rotateX(Math.PI / 2);
+      frontGeo.translate(0, midY - BLADE_DEPTH_EACH, 0);
+      const frontBlade = new THREE.Mesh(frontGeo, frontMat);
+
+      const backGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: BLADE_DEPTH_EACH, bevelEnabled: false, curveSegments: 64 });
+      backGeo.rotateX(Math.PI / 2);
+      backGeo.translate(0, midY, 0);
+      const backBlade = new THREE.Mesh(backGeo, backMat);
+
+      const stemW = 0.14;
+      const stemH = 0.45;
+      const triOut = 0.14;
+      const forkDepth = 0.09;
+
+      const s = new THREE.Shape();
+      s.moveTo(-(stemW / 2 + triOut), 0);
+      s.quadraticCurveTo(0, 0.05, stemW / 2 + triOut, 0);
+      s.bezierCurveTo(
+        stemW / 2 + triOut * 0.8,
+        -forkDepth * 0.25,
+        stemW / 2 + triOut * 0.5,
+        -forkDepth * 0.6,
+        stemW / 2,
+        -forkDepth
+      );
+      s.lineTo(stemW * 0.6, -stemH * 0.8);
+      s.lineTo(-stemW * 0.6, -stemH * 0.8);
+      s.lineTo(-stemW / 2, -forkDepth);
+      s.bezierCurveTo(
+        -(stemW / 2 + triOut * 0.5),
+        -forkDepth * 0.6,
+        -(stemW / 2 + triOut * 0.8),
+        -forkDepth * 0.25,
+        -(stemW / 2 + triOut),
+        0
+      );
+      s.closePath();
+
+      const handleGeo = new THREE.ExtrudeGeometry(s, {
+        depth: HANDLE_DEPTH,
+        bevelEnabled: true,
+        bevelSize: 0.008,
+        bevelThickness: 0.008,
+        curveSegments: 64,
+        steps: 1,
+      });
+      handleGeo.rotateX(Math.PI / 2);
+      const handle = new THREE.Mesh(handleGeo, woodMat);
+
+      const thetaA = startAngle;
+      const thetaB = endAngle;
+      const ax = bladeR * Math.cos(thetaA);
+      const az = bladeR * Math.sin(thetaA);
+      const bx = bladeR * Math.cos(thetaB);
+      const bz = bladeR * Math.sin(thetaB);
+      const mx = (ax + bx) * 0.5;
+      const mz = (az + bz) * 0.5;
+      const vx = bx - ax;
+      const vz = bz - az;
+      const alpha = Math.atan2(vz, vx);
+      let nx = mx;
+      let nz = mz;
+      const nlen = Math.hypot(nx, nz) || 1;
+      nx /= nlen;
+      nz /= nlen;
+
+      handle.position.set(mx + nx * 0.001, midY, mz + nz * 0.001);
+      handle.rotation.y = alpha;
+      handle.scale.z = -1;
+
+      const group = new THREE.Group();
+      group.add(frontBlade);
+      group.add(backBlade);
+      group.add(handle);
+      group.scale.setScalar(0.9);
+      return group;
+    }
+
     function makePaddle(color, orientation = 1){
       const g = new THREE.Group();
       const headRadius = 0.092 * PADDLE_SCALE;
-      const headThickness = 0.016 * PADDLE_SCALE;
+      const headYOffset = T.H + 0.072 * PADDLE_SCALE;
 
-      const woodCore = new THREE.Mesh(
-        new THREE.CylinderGeometry(headRadius, headRadius, headThickness * 0.75, 48),
-        paddleWoodMat
-      );
-      woodCore.rotation.x = Math.PI/2;
-      woodCore.position.y = T.H + 0.072 * PADDLE_SCALE;
-      woodCore.castShadow = true;
-      g.add(woodCore);
+      const headAnchor = new THREE.Object3D();
+      headAnchor.position.set(0, headYOffset, 0);
+      headAnchor.visible = false;
+      g.add(headAnchor);
 
-      const rubber = new THREE.Mesh(
-        new THREE.CylinderGeometry(headRadius * 0.97, headRadius * 0.97, headThickness * 0.55, 48),
-        new THREE.MeshStandardMaterial({ color, metalness:0.05, roughness:0.48 })
-      );
-      rubber.rotation.x = Math.PI/2;
-      rubber.position.set(0, woodCore.position.y, orientation * headThickness * 0.25);
-      rubber.castShadow = true;
-      g.add(rubber);
+      const frontColor = new THREE.Color(color);
+      const backColor = frontColor.clone();
+      backColor.offsetHSL(-0.05, -0.18, -0.18);
 
-      const rim = new THREE.Mesh(
-        new THREE.TorusGeometry(headRadius * 0.97, headThickness * 0.12, 22, 52),
-        paddleWoodMat
+      const visualWrapper = new THREE.Group();
+      const fancyPaddle = buildCurvedPaddle(frontColor.getHex(), backColor.getHex(), paddleWoodMat);
+      const uniformScale = headRadius / BASE_HEAD_RADIUS;
+      fancyPaddle.scale.setScalar(uniformScale);
+      fancyPaddle.position.set(
+        0,
+        headYOffset - BASE_HEAD_CENTER_Y * uniformScale,
+        -BASE_HEAD_CENTER_Z * uniformScale
       );
-      rim.rotation.x = Math.PI/2;
-      rim.position.copy(woodCore.position);
-      g.add(rim);
+      fancyPaddle.children.forEach(child => { child.castShadow = true; });
 
-      const throat = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05 * PADDLE_SCALE, 0.028 * PADDLE_SCALE, 0.12 * PADDLE_SCALE),
-        paddleWoodMat
-      );
-      throat.position.set(0, T.H + 0.056 * PADDLE_SCALE, orientation * (headRadius - 0.035 * PADDLE_SCALE));
-      throat.castShadow = true;
-      g.add(throat);
-
-      const handle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.02 * PADDLE_SCALE, 0.023 * PADDLE_SCALE, 0.16 * PADDLE_SCALE, 24),
-        paddleWoodMat
-      );
-      handle.rotation.x = Math.PI/2;
-      handle.position.set(0, T.H + 0.02 * PADDLE_SCALE, orientation * (headRadius + 0.08 * PADDLE_SCALE));
-      handle.castShadow = true;
-      g.add(handle);
+      visualWrapper.add(fancyPaddle);
+      visualWrapper.rotation.y = orientation === 1 ? Math.PI : 0;
+      g.add(visualWrapper);
 
       g.userData = { headRadius };
       return g;
@@ -845,6 +934,8 @@ export default function TableTennis3D({ player, ai }){
       timers.forEach(clearTimeout);
       document.documentElement.style.overscrollBehavior = prevOver;
       try{ host.removeChild(renderer.domElement); }catch{}
+      paddleWoodTex.dispose();
+      paddleWoodMat.dispose();
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -898,6 +989,45 @@ function addTableLegs(tableG, T, steelMat, wheelMat) {
   };
 
   tableG.add(makeFrame(-1), makeFrame(1));
+}
+
+function makePaddleWoodTexture(w = 1024, h = 2048) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, '#f4e9c8');
+  gradient.addColorStop(1, '#e8d3a1');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = '#c9ad7a';
+  for (let i = 0; i < 64; i++) {
+    const y = (i + 2) * (h / 80);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 2) {
+      const yy = y + Math.sin(x * 0.012 + i * 0.55) * 8;
+      if (x === 0) ctx.moveTo(x, yy);
+      else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = '#bfa371';
+  for (let x = 0; x < w; x += 6) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+  return new THREE.CanvasTexture(canvas);
 }
 
 function makeHexNetAlpha(w, h, hexR) {
