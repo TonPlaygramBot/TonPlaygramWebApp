@@ -189,8 +189,8 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.68; // trim the inner chrome wedge without pulling the entire plate back
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.94; // extend the notch deeper along the short rail to remove the triangular sliver
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 
 function buildChromePlateGeometry({
   width,
