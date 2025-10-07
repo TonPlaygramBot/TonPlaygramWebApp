@@ -7,9 +7,11 @@ import {
 } from '../../utils/arenaDecor.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 
+const MODEL_SCALE = 0.75;
+
 const ARENA_COLOR = 0x0c1020;
-const TABLE_RADIUS = 3.4;
-const TABLE_HEIGHT = 1.15;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.15 * MODEL_SCALE;
 const CHAIR_COUNT = 6;
 const DEAL_PER_PLAYER = 13;
 
@@ -18,9 +20,9 @@ const FLAG_EMOJIS = ['🇦🇱', '🇺🇸', '🇫🇷', '🇬🇧', '🇮🇹',
 const SUITS = ['♠', '♥', '♦', '♣'];
 const SUIT_COLORS = { '♠': '#111111', '♣': '#111111', '♥': '#cc2233', '♦': '#cc2233', '🃏': '#111111' };
 
-const CARD_W = 0.4;
-const CARD_H = 0.56;
-const CARD_D = 0.02;
+const CARD_W = 0.4 * MODEL_SCALE;
+const CARD_H = 0.56 * MODEL_SCALE;
+const CARD_D = 0.02 * MODEL_SCALE;
 
 function makeDeck() {
   const deck = [];
@@ -189,7 +191,7 @@ export default function MurlanRoyaleArena({ search }) {
     scene.add(arena);
 
     const arenaScale = 1.3;
-    const boardSize = (TABLE_RADIUS * 2 + 1.2) * arenaScale;
+    const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
     const camConfig = buildArenaCameraConfig(boardSize);
 
     const ARENA_SIDEWAYS_EXPANSION = 1.3;
@@ -257,37 +259,43 @@ export default function MurlanRoyaleArena({ search }) {
     arena.add(stripBack, stripFront, stripLeft, stripRight);
 
     const baseMat = new THREE.MeshPhysicalMaterial({ color: 0x141414, metalness: 0.85, roughness: 0.2, clearcoat: 0.9 });
-    const tableBase = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.25, 64), baseMat);
-    tableBase.position.y = TABLE_HEIGHT - 0.2;
+    const tableBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.8 * MODEL_SCALE, 3.8 * MODEL_SCALE, 0.25 * MODEL_SCALE, 64),
+      baseMat
+    );
+    tableBase.position.y = TABLE_HEIGHT - 0.2 * MODEL_SCALE;
     arena.add(tableBase);
 
     const frameMat = new THREE.MeshPhysicalMaterial({ color: 0x3a1e0f, roughness: 0.35, metalness: 0.45 });
-    const frame = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.15, 32, 64), frameMat);
+    const frame = new THREE.Mesh(new THREE.TorusGeometry(TABLE_RADIUS, 0.15 * MODEL_SCALE, 32, 64), frameMat);
     frame.rotation.x = Math.PI / 2;
-    frame.position.y = TABLE_HEIGHT - 0.1;
+    frame.position.y = TABLE_HEIGHT - 0.1 * MODEL_SCALE;
     arena.add(frame);
 
     const velvetTex = makeVelvetTexture(1024, 1024, '#7a001a', '#520014');
     velvetTex.colorSpace = THREE.SRGBColorSpace;
     velvetTex.anisotropy = 8;
     const velvetMat = new THREE.MeshStandardMaterial({ map: velvetTex, roughness: 0.7, metalness: 0.15 });
-    const surface = new THREE.Mesh(new THREE.CylinderGeometry(3.25, 3.25, 0.05, 64), velvetMat);
+    const surface = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.25 * MODEL_SCALE, 3.25 * MODEL_SCALE, 0.05 * MODEL_SCALE, 64),
+      velvetMat
+    );
     surface.position.y = TABLE_HEIGHT;
     arena.add(surface);
 
     const baseColumn = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.6, 0.8, 1.2, 32),
+      new THREE.CylinderGeometry(0.6 * MODEL_SCALE, 0.8 * MODEL_SCALE, 1.2 * MODEL_SCALE, 32),
       new THREE.MeshStandardMaterial({ color: 0x111111 })
     );
-    baseColumn.position.y = TABLE_HEIGHT - 0.8;
+    baseColumn.position.y = TABLE_HEIGHT - 0.8 * MODEL_SCALE;
     arena.add(baseColumn);
 
     const chairMat = new THREE.MeshPhysicalMaterial({ color: 0x8b0000, roughness: 0.35, metalness: 0.5, clearcoat: 1 });
     const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const chairRadius = 4.8;
+    const chairRadius = 4.8 * MODEL_SCALE;
 
     const cardGeo = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
-    const labelGeo = new THREE.PlaneGeometry(1.6, 0.8);
+    const labelGeo = new THREE.PlaneGeometry(1.6 * MODEL_SCALE, 0.8 * MODEL_SCALE);
     const cardMeshes = [];
     const cardMaterials = [];
     const labelTextures = [];
@@ -310,22 +318,34 @@ export default function MurlanRoyaleArena({ search }) {
     for (let i = 0; i < CHAIR_COUNT; i++) {
       const player = players[i] ?? null;
       const chair = new THREE.Group();
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.18, 1.3), chairMat);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.8, 0.2), chairMat);
-      back.position.set(0, 0.5, -0.55);
-      const armLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.9), chairMat);
-      armLeft.position.set(-0.7, 0.2, -0.1);
+      const seat = new THREE.Mesh(
+        new THREE.BoxGeometry(1.3 * MODEL_SCALE, 0.18 * MODEL_SCALE, 1.3 * MODEL_SCALE),
+        chairMat
+      );
+      const back = new THREE.Mesh(
+        new THREE.BoxGeometry(1.3 * MODEL_SCALE, 0.8 * MODEL_SCALE, 0.2 * MODEL_SCALE),
+        chairMat
+      );
+      back.position.set(0, 0.5 * MODEL_SCALE, -0.55 * MODEL_SCALE);
+      const armLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1 * MODEL_SCALE, 0.4 * MODEL_SCALE, 0.9 * MODEL_SCALE),
+        chairMat
+      );
+      armLeft.position.set(-0.7 * MODEL_SCALE, 0.2 * MODEL_SCALE, -0.1 * MODEL_SCALE);
       const armRight = armLeft.clone();
-      armRight.position.x = 0.7;
-      const legBase = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.6, 16), legMat);
-      legBase.position.y = -0.45;
+      armRight.position.x = 0.7 * MODEL_SCALE;
+      const legBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2 * MODEL_SCALE, 0.25 * MODEL_SCALE, 0.6 * MODEL_SCALE, 16),
+        legMat
+      );
+      legBase.position.y = -0.45 * MODEL_SCALE;
       chair.add(seat, back, armLeft, armRight, legBase);
 
       const angle = (i / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
       const x = Math.cos(angle) * chairRadius;
       const z = Math.sin(angle) * chairRadius;
-      chair.position.set(x, TABLE_HEIGHT - 0.15, z);
-      chair.lookAt(new THREE.Vector3(0, TABLE_HEIGHT - 0.15, 0));
+      chair.position.set(x, TABLE_HEIGHT - 0.15 * MODEL_SCALE, z);
+      chair.lookAt(new THREE.Vector3(0, TABLE_HEIGHT - 0.15 * MODEL_SCALE, 0));
       arena.add(chair);
       if (player) {
         const labelTex = makeLabelTexture(player.name, player.avatar);
@@ -336,12 +356,12 @@ export default function MurlanRoyaleArena({ search }) {
         const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
         labelMaterials.push(labelMat);
         const label = new THREE.Mesh(labelGeo, labelMat);
-        label.position.set(0, 0.75, 1.05);
+        label.position.set(0, 0.75 * MODEL_SCALE, 1.05 * MODEL_SCALE);
         label.rotation.y = Math.PI;
         chair.add(label);
 
         const hand = playerHands[i];
-        const spread = hand.length ? Math.min(hand.length * 0.18, 2.2) : 0;
+        const spread = hand.length ? Math.min(hand.length * (0.18 * MODEL_SCALE), 2.2 * MODEL_SCALE) : 0;
         hand.forEach((card, idx) => {
           const tex = makeCardFace(card.r, card.s);
           const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55, metalness: 0.1 });
@@ -366,20 +386,20 @@ export default function MurlanRoyaleArena({ search }) {
           const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
           const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
           const spreadOffset = offset * (spread / Math.max(hand.length, 1));
-          const radius = 3.25;
+          const radius = 3.25 * MODEL_SCALE;
           const target = forward
             .clone()
             .multiplyScalar(radius)
             .addScaledVector(right, spreadOffset);
           target.y = cardBaseHeight;
-          const seatFocus = forward.clone().multiplyScalar(chairRadius - 0.6);
+          const seatFocus = forward.clone().multiplyScalar(chairRadius - 0.6 * MODEL_SCALE);
           seatFocus.y = cardBaseHeight;
           animateCard(mesh, target, cardBaseHeight, idx * 0.08 + i * 0.2, seatFocus);
         });
       }
     }
 
-    spotTarget.position.set(0, TABLE_HEIGHT + 0.2, 0);
+    spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
     spot.target.updateMatrixWorld();
 
     const camera = new THREE.PerspectiveCamera(
@@ -389,24 +409,26 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.far
     );
     const maxHorizontalReach = Math.min(halfRoomX, halfRoomZ) - wallInset * 0.6;
-    const safeHorizontalReach = Math.max(2.5, maxHorizontalReach);
-    const maxOrbitRadius = Math.max(3.5, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
-    const minOrbitRadius = Math.max(2.5, maxOrbitRadius * 0.75);
-    const cameraBackOffset = 2.6;
+    const safeHorizontalReach = Math.max(2.5 * MODEL_SCALE, maxHorizontalReach);
+    const maxOrbitRadius = Math.max(3.5 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
+    const minOrbitRadius = Math.max(2.5 * MODEL_SCALE, maxOrbitRadius * 0.7);
+    const cameraBackOffset = 1.0;
     const cameraHeightOffset = 1.9;
     const initialCameraPosition = new THREE.Vector3(
       Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset),
       TABLE_HEIGHT + cameraHeightOffset,
       Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset)
     );
-    const target = new THREE.Vector3(0, TABLE_HEIGHT + 0.2, 0);
+    const targetHeightOffset = 0.2 * MODEL_SCALE;
+    const target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    spherical.radius = THREE.MathUtils.clamp(
-      spherical.radius * 1.35,
-      minOrbitRadius + 0.05,
-      maxOrbitRadius * 1.1
+    const desiredRadius = THREE.MathUtils.clamp(
+      spherical.radius * 1.05,
+      minOrbitRadius + 0.05 * MODEL_SCALE,
+      maxOrbitRadius * 1.02
     );
+    spherical.radius = desiredRadius;
     spherical.phi = THREE.MathUtils.clamp(
       spherical.phi,
       ARENA_CAMERA_DEFAULTS.phiMin,
@@ -422,8 +444,8 @@ export default function MurlanRoyaleArena({ search }) {
     controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(8));
     controls.minAzimuthAngle = spherical.theta - azimuthSwing;
     controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
-    controls.minDistance = Math.max(minOrbitRadius * 0.9, spherical.radius * 0.75);
-    controls.maxDistance = Math.min(maxOrbitRadius * 1.1, spherical.radius * 1.6);
+    controls.minDistance = Math.max(minOrbitRadius * 0.85, spherical.radius * 0.8);
+    controls.maxDistance = Math.min(maxOrbitRadius * 1.05, spherical.radius * 1.35);
     controls.enablePan = false;
     controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
     controls.rotateSpeed = 0.5;
@@ -494,7 +516,7 @@ function animateCard(card, target, height, delay, lookTarget) {
     const t = Math.min(1, elapsed / duration);
     const eased = 1 - Math.pow(1 - t, 3);
     card.position.lerpVectors(start, target, eased);
-    card.position.y = height + Math.sin(Math.PI * eased) * 0.35;
+    card.position.y = height + Math.sin(Math.PI * eased) * (0.35 * MODEL_SCALE);
     if (lookTarget) {
       card.up.set(0, 1, 0);
       card.lookAt(lookTarget);
