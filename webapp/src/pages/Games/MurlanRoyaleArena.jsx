@@ -222,7 +222,7 @@ const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
 
-const GAME_CONFIG = { ...BASE_CONFIG, enableFiveCard: true };
+const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
 
 export default function MurlanRoyaleArena({ search }) {
@@ -832,6 +832,7 @@ export default function MurlanRoyaleArena({ search }) {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(ARENA_COLOR);
 
+    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
     const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
     key.position.set(1.8, 2.8, 1.8);
@@ -841,7 +842,7 @@ export default function MurlanRoyaleArena({ search }) {
     rim.position.set(0, 2.2, 0);
     const spot = new THREE.SpotLight(0xffffff, 1.05, 0, Math.PI / 4, 0.35, 1.1);
     spot.position.set(0, 4.5, 4.8);
-    scene.add(hemi, key, fill, rim, spot);
+    scene.add(ambient, hemi, key, fill, rim, spot);
 
     const spotTarget = new THREE.Object3D();
     scene.add(spotTarget);
@@ -1056,8 +1057,8 @@ export default function MurlanRoyaleArena({ search }) {
       accentMaterial: outfitAccentMat,
       headMaterial: headMat
     };
-    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH;
-    const stoolScale = 1.5;
+    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+    const stoolScale = 1.5 * 1.3;
     const seatWidth = 0.9 * MODEL_SCALE * stoolScale;
     const seatDepth = 0.95 * MODEL_SCALE * stoolScale;
     const seatThickness = 0.09 * MODEL_SCALE * stoolScale;
@@ -1237,6 +1238,7 @@ export default function MurlanRoyaleArena({ search }) {
     controls.target.copy(target);
     controls.enablePan = false;
     controls.enableZoom = false;
+    controls.enableRotate = false;
     controls.minPolarAngle = storedSpherical.phi;
     controls.maxPolarAngle = storedSpherical.phi;
     controls.minAzimuthAngle = homeTheta - headLimit;
