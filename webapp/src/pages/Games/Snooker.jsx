@@ -9232,7 +9232,13 @@ function SnookerGame() {
         };
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
-          if (!plan || plan.type !== 'pot') return fallback;
+          if (!plan || plan.type !== 'pot') {
+            if (plan) {
+              plan.positioningScore = 0;
+              plan.positioningTarget = null;
+            }
+            return fallback;
+          }
           const colorId = plan.target;
           if (!colorId) return fallback;
           try {
@@ -9273,14 +9279,25 @@ function SnookerGame() {
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
             const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
             const spinY = THREE.MathUtils.clamp(-forward * 0.35, -0.6, 0.6);
+            const nextSeparation = nextBall.pos.distanceTo(plan.targetBall.pos);
+            const alignmentScore = Math.max(0, forward) * 120;
+            const coverageScore = Math.max(0, 1 - Math.abs(lateral)) * 60;
+            const distancePenalty = Math.min(nextSeparation * 0.18, 90);
+            plan.positioningScore = Math.max(0, alignmentScore + coverageScore - distancePenalty);
+            plan.positioningTarget = nextBall.id;
             return { x: spinX, y: spinY };
           } catch (err) {
             console.warn('spin prediction failed', err);
+            if (plan) {
+              plan.positioningScore = 0;
+              plan.positioningTarget = null;
+            }
             return fallback;
           }
         };
         const evaluateShotOptions = () => {
-          if (!cue?.active) return { bestPot: null, bestSafety: null };
+          if (!cue?.active)
+            return { bestPot: null, bestSafety: null, bestEscape: null, snookered: false };
           const state = frameRef.current ?? frameState;
           const legalTargetsRaw = Array.isArray(state?.ballOn)
             ? state.ballOn
@@ -9299,6 +9316,12 @@ function SnookerGame() {
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
+          const cushionSpecs = [
+            { axis: 'x', value: -RAIL_LIMIT_X, id: 'LX' },
+            { axis: 'x', value: RAIL_LIMIT_X, id: 'RX' },
+            { axis: 'y', value: -RAIL_LIMIT_Y, id: 'TY' },
+            { axis: 'y', value: RAIL_LIMIT_Y, id: 'BY' }
+          ];
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -9317,13 +9340,98 @@ function SnookerGame() {
           };
           const potShots = [];
           const safetyShots = [];
+          const escapeShots = [];
+          let snookered = true;
           let fallbackPlan = null;
+          const tryAddHideSafety = (basePlan, targetBall) => {
+            const blockers = activeBalls.filter(
+              (ball) =>
+                ball !== cue &&
+                ball !== targetBall &&
+                ball.active &&
+                ball.pos.distanceToSquared(targetBall.pos) <= Math.pow(PLAY_W, 2)
+            );
+            blockers.forEach((blocker) => {
+              const blockerOffset = blocker.pos.clone().sub(targetBall.pos);
+              const blockerDist = blockerOffset.length();
+              if (blockerDist < BALL_R * 3 || blockerDist > BALL_R * 14) return;
+              const hideDir = blockerOffset.clone().normalize();
+              const hidePoint = blocker.pos.clone().add(hideDir.clone().multiplyScalar(BALL_R * 1.6));
+              const ignoreAfter = new Set([targetBall.id, blocker.id]);
+              if (!isPathClear(targetBall.pos, hidePoint, ignoreAfter)) return;
+              const spinLat = THREE.MathUtils.clamp(-hideDir.y * 0.55, -0.65, 0.65);
+              const spinLng = THREE.MathUtils.clamp(-hideDir.x * 0.55, -0.65, 0.65);
+              const plan = {
+                ...basePlan,
+                difficulty: basePlan.difficulty * 0.85 + blockerDist * 0.3,
+                hideBehind: blocker.id,
+                pocketId: `SAFETY-${blocker.id}`,
+                spin: {
+                  x: THREE.MathUtils.clamp(basePlan.spin?.x ?? 0 + spinLat, -0.7, 0.7),
+                  y: THREE.MathUtils.clamp(basePlan.spin?.y ?? 0 - 0.35, -0.75, 0.75)
+                }
+              };
+              safetyShots.push(plan);
+            });
+          };
+          const addCushionEscape = (targetBall, colorId) => {
+            cushionSpecs.forEach((cushion) => {
+              const mirror = targetBall.pos.clone();
+              if (cushion.axis === 'x') {
+                mirror.x = cushion.value * 2 - mirror.x;
+              } else {
+                mirror.y = cushion.value * 2 - mirror.y;
+              }
+              const dir = mirror.clone().sub(cuePos);
+              const lenSq = dir.lengthSq();
+              if (lenSq < 1e-6) return;
+              const len = Math.sqrt(lenSq);
+              const norm = dir.clone().divideScalar(len);
+              const denom = cushion.axis === 'x' ? norm.x : norm.y;
+              if (Math.abs(denom) < 1e-5) return;
+              const t =
+                cushion.axis === 'x'
+                  ? (cushion.value - cuePos.x) / dir.x
+                  : (cushion.value - cuePos.y) / dir.y;
+              if (!Number.isFinite(t) || t <= 0 || t >= 1) return;
+              const impact = cuePos.clone().add(dir.clone().multiplyScalar(t));
+              if (
+                (cushion.axis === 'x' && Math.abs(impact.y) > RAIL_LIMIT_Y + BALL_R * 0.5) ||
+                (cushion.axis === 'y' && Math.abs(impact.x) > RAIL_LIMIT_X + BALL_R * 0.5)
+              ) {
+                return;
+              }
+              const ignoreImpact = new Set([cue.id, targetBall.id]);
+              if (!isPathClear(cuePos, impact, ignoreImpact)) return;
+              if (!isPathClear(impact, targetBall.pos, ignoreImpact)) return;
+              const travelA = cuePos.distanceTo(impact);
+              const travelB = impact.distanceTo(targetBall.pos);
+              const total = travelA + travelB;
+              const aimDir = impact.clone().sub(cuePos).normalize();
+              escapeShots.push({
+                type: 'escape',
+                aimDir,
+                power: computePowerFromDistance(total * 1.1),
+                target: colorId,
+                targetBall,
+                pocketId: `ESCAPE-${cushion.id}`,
+                difficulty: total * 1.5 + 320,
+                cueToTarget: travelA,
+                targetToPocket: travelB,
+                spin: { x: 0, y: -0.05 },
+                cushion: cushion.id,
+                impactPoint: impact.clone()
+              });
+            });
+          };
           activeBalls.forEach((targetBall) => {
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
             if (!colorId || !legalTargets.has(colorId)) return;
             const ignore = new Set([cue.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
+            if (directClear) snookered = false;
+            else addCushionEscape(targetBall, colorId);
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
@@ -9362,6 +9470,9 @@ function SnookerGame() {
                 targetToPocket: toPocketLen
               };
               plan.spin = computePlanSpin(plan, state);
+              if (Number.isFinite(plan.positioningScore)) {
+                plan.difficulty -= plan.positioningScore;
+              }
               potShots.push(plan);
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
@@ -9399,21 +9510,26 @@ function SnookerGame() {
               spin: { x: 0, y: -0.2 }
             };
             safetyShots.push(safetyPlan);
+            tryAddHideSafety(safetyPlan, targetBall);
           });
           potShots.sort((a, b) => a.difficulty - b.difficulty);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
+          escapeShots.sort((a, b) => a.difficulty - b.difficulty);
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
           return {
             bestPot: potShots[0] ?? null,
-            bestSafety: safetyShots[0] ?? null
+            bestSafety: safetyShots[0] ?? null,
+            bestEscape: escapeShots[0] ?? null,
+            snookered
           };
         };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
           const potSummary = summarizePlan(options?.bestPot ?? null);
           const safetySummary = summarizePlan(options?.bestSafety ?? null);
+          const escapeSummary = summarizePlan(options?.bestEscape ?? null);
           const rounded = Math.ceil(Math.max(countdownSeconds, 0));
           const key = summary?.key ?? 'none';
           const last = aiTelemetryRef.current;
@@ -9427,7 +9543,9 @@ function SnookerGame() {
               countdown: countdownSeconds,
               selected: summary,
               bestPot: potSummary,
-              bestSafety: safetySummary
+              bestSafety: safetySummary,
+              bestEscape: escapeSummary,
+              snookered: options?.snookered ?? false
             });
           }
         };
@@ -9457,7 +9575,8 @@ function SnookerGame() {
             const elapsed = now - started;
             const remaining = Math.max(0, 15000 - elapsed);
             const options = evaluateShotOptions();
-            const plan = options.bestPot ?? options.bestSafety ?? null;
+            const plan =
+              options.bestPot ?? options.bestSafety ?? options.bestEscape ?? null;
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -9477,7 +9596,7 @@ function SnookerGame() {
         };
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
-          const plan = options.bestPot ?? null;
+          const plan = options.bestPot ?? options.bestEscape ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
@@ -9498,7 +9617,7 @@ function SnookerGame() {
         };
         const computeAiShot = () => {
           const options = evaluateShotOptions();
-          return options.bestPot ?? options.bestSafety ?? null;
+          return options.bestPot ?? options.bestSafety ?? options.bestEscape ?? null;
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
