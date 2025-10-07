@@ -1192,10 +1192,7 @@ export default function MurlanRoyaleArena({ search }) {
         .addScaledVector(humanSeatConfig.forward, -retreatOffset)
         .addScaledVector(humanSeatConfig.right, lateralOffset);
       initialCameraPosition.y = stoolHeight + elevation;
-
-      target = humanSeatConfig.focus.clone();
-      target.y += 0.12 * MODEL_SCALE;
-      target.add(humanSeatConfig.right.clone().multiplyScalar(-0.16 * MODEL_SCALE));
+      target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
     } else {
       const humanSeatAngle = Math.PI / 2;
       const cameraBackOffset = isPortrait ? 1.65 : 1.05;
