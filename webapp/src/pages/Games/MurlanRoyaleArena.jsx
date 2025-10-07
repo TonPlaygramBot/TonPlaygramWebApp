@@ -476,6 +476,8 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seatConfigs?.length) return;
       const activeIdx = state.activePlayer;
       if (typeof activeIdx !== 'number') return;
+      const activePlayer = state.players?.[activeIdx];
+      if (!activePlayer?.isHuman) return;
       const seat = seatConfigs[activeIdx];
       if (!seat) return;
       const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
@@ -491,7 +493,14 @@ export default function MurlanRoyaleArena({ search }) {
 
     const selectionSet = new Set(selection);
     const handsVisible = new Set();
-    const tableSet = new Set(state.tableCards.map((card) => card.id));
+    const stackEntries = state.tableStack?.length
+      ? state.tableStack
+      : state.tableCards.length
+        ? [{ cards: state.tableCards, partial: true }]
+        : [];
+    const stackCards = stackEntries.flatMap((entry) => entry.cards ?? []);
+    const tableSet = new Set(stackCards.map((card) => card.id));
+    state.tableCards.forEach((card) => tableSet.add(card.id));
     const discardSet = new Set(state.discardPile.map((card) => card.id));
 
     const seatConfigs = three.seatConfigs;
@@ -540,9 +549,6 @@ export default function MurlanRoyaleArena({ search }) {
     });
 
     const tableAnchor = three.tableAnchor.clone();
-    const tableCount = state.tableCards.length;
-    const tableSpacing = tableCount > 1 ? Math.min(CARD_W * 1.45, (CARD_W * 5.6) / (tableCount - 1)) : CARD_W;
-    const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
     const humanIndex = state.players.findIndex((player) => player.isHuman);
     const humanSeat = humanIndex >= 0 ? seatConfigs[humanIndex] : null;
     const tableLookBase = humanSeat
@@ -551,48 +557,39 @@ export default function MurlanRoyaleArena({ search }) {
           .add(humanSeat.forward.clone().multiplyScalar(1.15 * MODEL_SCALE))
           .setY(tableAnchor.y + 0.32 * MODEL_SCALE)
       : tableAnchor.clone().setY(tableAnchor.y + 0.32 * MODEL_SCALE);
-    state.tableCards.forEach((card, idx) => {
-      const entry = cardMap.get(card.id);
-      if (!entry) return;
-      const mesh = entry.mesh;
-      mesh.visible = true;
-      updateCardFace(mesh, 'front');
-      const target = tableAnchor.clone();
-      target.x += tableStartX + idx * tableSpacing;
-      target.y += 0.06 * MODEL_SCALE + idx * 0.014;
-      target.z += (idx - (tableCount - 1) / 2) * 0.06;
-      const lookTarget = tableLookBase.clone();
-      setMeshPosition(
-        mesh,
-        target,
-        lookTarget,
-        { face: 'front' },
-        immediate,
-        three.animations
-      );
-    });
-
-    const discardBase = three.discardAnchor.clone();
-    state.discardPile.forEach((card, idx) => {
-      const entry = cardMap.get(card.id);
-      if (!entry) return;
-      const mesh = entry.mesh;
-      mesh.visible = true;
-      updateCardFace(mesh, 'front');
-      const row = Math.floor(idx / 12);
-      const col = idx % 12;
-      const target = discardBase.clone();
-      target.x += (col - 5.5) * CARD_W * 0.4;
-      target.z += row * CARD_W * 0.32;
-      target.y -= row * 0.05;
-      setMeshPosition(
-        mesh,
-        target,
-        target.clone().setY(target.y + 0.1),
-        { face: 'front', flat: true },
-        immediate,
-        three.animations
-      );
+    stackEntries.forEach((stackEntry, stackIdx) => {
+      const cards = stackEntry.cards ?? [];
+      if (!cards.length) return;
+      const partial = stackEntry.partial !== false;
+      const tableSpacing =
+        cards.length > 1 ? Math.min(CARD_W * 1.45, (CARD_W * 5.6) / (cards.length - 1)) : CARD_W;
+      const tableStartX = cards.length > 1 ? -((cards.length - 1) * tableSpacing) / 2 : 0;
+      const stackLift = stackIdx * 0.018 * MODEL_SCALE;
+      cards.forEach((card, idx) => {
+        const entry = cardMap.get(card.id);
+        if (!entry) return;
+        const mesh = entry.mesh;
+        mesh.visible = true;
+        updateCardFace(mesh, 'front');
+        const target = tableAnchor.clone();
+        target.x += tableStartX + idx * tableSpacing;
+        const verticalBase = partial ? 0.06 * MODEL_SCALE : 0.012 * MODEL_SCALE;
+        target.y += stackLift + verticalBase + (partial ? idx * 0.014 : 0);
+        const depthSpread = partial ? 0.06 : 0.025;
+        target.z += (idx - (cards.length - 1) / 2) * depthSpread;
+        const lookTarget = tableLookBase.clone();
+        if (!partial) {
+          lookTarget.copy(target).setY(target.y + 0.02);
+        }
+        setMeshPosition(
+          mesh,
+          target,
+          lookTarget,
+          { face: 'front', flat: !partial },
+          immediate,
+          three.animations
+        );
+      });
     });
 
     three.cardMap.forEach(({ mesh }, id) => {
@@ -1056,8 +1053,8 @@ export default function MurlanRoyaleArena({ search }) {
       accentMaterial: outfitAccentMat,
       headMaterial: headMat
     };
-    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH;
-    const stoolScale = 1.5;
+    const baseChairRadius = 5.1 * MODEL_SCALE * ARENA_GROWTH;
+    const stoolScale = 2.25;
     const seatWidth = 0.9 * MODEL_SCALE * stoolScale;
     const seatDepth = 0.95 * MODEL_SCALE * stoolScale;
     const seatThickness = 0.09 * MODEL_SCALE * stoolScale;
@@ -1072,6 +1069,17 @@ export default function MurlanRoyaleArena({ search }) {
     const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
 
     const seatConfigs = [];
+
+    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
+    const opponentSeatIndex = humanSeatIndex >= 0 ? (humanSeatIndex + 2) % CHAIR_COUNT : null;
+    const opponentForward =
+      opponentSeatIndex != null
+        ? new THREE.Vector3(
+            Math.cos((opponentSeatIndex / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2),
+            0,
+            Math.sin((opponentSeatIndex / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2)
+          )
+        : null;
 
     for (let i = 0; i < CHAIR_COUNT; i++) {
       const player = players[i] ?? null;
@@ -1113,30 +1121,47 @@ export default function MurlanRoyaleArena({ search }) {
       chair.add(occupant);
 
       const angle = (i / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
-      const x = Math.cos(angle) * chairRadius;
-      const z = Math.sin(angle) * chairRadius;
+      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+      const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+      const isHumanSeat = Boolean(player?.isHuman);
+      const seatOffset =
+        humanSeatIndex >= 0 ? (i - humanSeatIndex + CHAIR_COUNT) % CHAIR_COUNT : null;
+      const isSideSeat = seatOffset === 1 || seatOffset === CHAIR_COUNT - 1;
+      const isOppositeSeat = seatOffset === 2;
+      let seatRadius = baseChairRadius;
+      if (isHumanSeat) {
+        seatRadius -= 0.4 * MODEL_SCALE;
+      } else if (isOppositeSeat) {
+        seatRadius -= 0.25 * MODEL_SCALE;
+      } else if (isSideSeat) {
+        seatRadius -= 0.45 * MODEL_SCALE;
+      }
+      const seatPosition = forward.clone().multiplyScalar(seatRadius);
+      if (isSideSeat && opponentForward) {
+        seatPosition.addScaledVector(opponentForward, 0.3 * MODEL_SCALE);
+      }
+      const x = seatPosition.x;
+      const z = seatPosition.z;
       const chairBaseHeight = TABLE_HEIGHT - seatThickness * 0.85;
       chair.position.set(x, chairBaseHeight, z);
       chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
       arena.add(chair);
 
-      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-      const isHumanSeat = Boolean(player?.isHuman);
       const focus = forward
         .clone()
-        .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
+        .multiplyScalar(seatRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
       focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
-      const stoolPosition = forward.clone().multiplyScalar(chairRadius);
+      const stoolPosition = seatPosition.clone();
       stoolPosition.y = chairBaseHeight + seatThickness / 2;
       const stoolHeight = chairBaseHeight + seatThickness;
       seatConfigs.push({
         forward,
         right,
         focus,
-        radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
-        spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
-        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
+        radius: (isHumanSeat ? 2.7 : 3.25) * MODEL_SCALE,
+        spacing: (isHumanSeat ? 0.13 : 0.17) * MODEL_SCALE,
+        maxSpread: (isHumanSeat ? 2.15 : 2.35) * MODEL_SCALE,
+        seatRadius,
         stoolPosition,
         stoolHeight
       });
@@ -1158,7 +1183,6 @@ export default function MurlanRoyaleArena({ search }) {
       }
     }
 
-    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
     const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
     threeStateRef.current.appearance = { ...currentAppearance };
@@ -1178,11 +1202,12 @@ export default function MurlanRoyaleArena({ search }) {
     let initialCameraPosition;
     if (humanSeatConfig) {
       const humanSeatAngle = Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x);
+      const seatRadius = humanSeatConfig.seatRadius ?? baseChairRadius;
       const stoolAnchor = humanSeatConfig.stoolPosition?.clone() ??
         new THREE.Vector3(
-          Math.cos(humanSeatAngle) * chairRadius,
+          Math.cos(humanSeatAngle) * seatRadius,
           TABLE_HEIGHT,
-          Math.sin(humanSeatAngle) * chairRadius
+          Math.sin(humanSeatAngle) * seatRadius
         );
       const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
       const lateralOffset = isPortrait ? 0.55 : 0.42;
@@ -1199,9 +1224,9 @@ export default function MurlanRoyaleArena({ search }) {
       const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
       const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
       initialCameraPosition = new THREE.Vector3(
-        Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
+        Math.cos(humanSeatAngle) * (baseChairRadius + cameraBackOffset - cameraForwardOffset),
         TABLE_HEIGHT + cameraHeightOffset,
-        Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
+        Math.sin(humanSeatAngle) * (baseChairRadius + cameraBackOffset - cameraForwardOffset)
       );
     }
     const initialOffset = initialCameraPosition.clone().sub(target);
@@ -1472,7 +1497,7 @@ export default function MurlanRoyaleArena({ search }) {
         if (!current || current.isHuman) return prev;
         return runAiTurn(prev);
       });
-    }, 750);
+    }, 1300);
     return () => clearTimeout(timer);
   }, [gameState, threeReady]);
 
@@ -1670,6 +1695,10 @@ function buildPlayState(state, cards, combo) {
   const discardPile = state.tableCards.length
     ? [...state.discardPile, ...state.tableCards]
     : [...state.discardPile];
+  const previousStack = state.tableStack ?? [];
+  const tableStack = previousStack.map((entry) => ({ ...entry, partial: false }));
+  const stackId = `stack-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+  tableStack.push({ id: stackId, cards: [...cards], partial: true });
 
   const aliveCount = players.filter((p) => !p.finished).length;
   const lastWinner = state.activePlayer;
@@ -1698,6 +1727,7 @@ function buildPlayState(state, cards, combo) {
     tableCombo,
     tableCards,
     discardPile,
+    tableStack,
     lastWinner,
     passesInRow: 0,
     firstMove: false,
@@ -1713,12 +1743,14 @@ function buildPassState(state) {
   let tableCombo = state.tableCombo;
   let tableCards = state.tableCards;
   let discardPile = state.discardPile;
+  let tableStack = state.tableStack ?? [];
   let activePlayer = getNextAlive(players, state.activePlayer);
 
   if (tableCombo && passesInRow >= aliveCount - 1) {
     discardPile = tableCards.length ? [...discardPile, ...tableCards] : discardPile;
     tableCombo = null;
     tableCards = [];
+    tableStack = tableStack.map((entry) => ({ ...entry, partial: false }));
     passesInRow = 0;
     const winner = state.lastWinner ?? state.activePlayer;
     activePlayer = players[winner]?.finished ? getNextAlive(players, winner) : winner;
@@ -1730,7 +1762,8 @@ function buildPassState(state) {
     passesInRow,
     tableCombo,
     tableCards,
-    discardPile
+    discardPile,
+    tableStack
   };
 }
 
@@ -1757,6 +1790,7 @@ function initializeGame(playersInfo) {
     activePlayer: active,
     tableCombo: null,
     tableCards: [],
+    tableStack: [],
     discardPile: [],
     passesInRow: 0,
     lastWinner: active,
