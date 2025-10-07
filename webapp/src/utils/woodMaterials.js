@@ -7,69 +7,181 @@ const normalizeHue = (h) => {
   return hue;
 };
 
-const hslString = (h, s, l) => {
-  const sat = clamp01(s);
-  const light = clamp01(l);
-  return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
+const fract = (value) => value - Math.floor(value);
+
+const stringToSeed = (value) => {
+  if (value === null || value === undefined) return 0;
+  const str = String(value);
+  let hash = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = Math.imul(hash ^ str.charCodeAt(i), 3432918353);
+    hash = (hash << 13) | (hash >>> 19);
+  }
+  hash = Math.imul(hash ^ (hash >>> 16), 2246822507);
+  hash = Math.imul(hash ^ (hash >>> 13), 3266489909);
+  hash ^= hash >>> 16;
+  return hash >>> 0;
 };
 
-const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
+const createSeededRandom = (seedValue) => {
+  if (seedValue === null || seedValue === undefined) {
+    return { next: () => Math.random() };
+  }
+  let state = stringToSeed(seedValue) || 1;
+  const next = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return { next };
+};
+
+const hslToRgb = (h, s, l) => {
+  const hue = normalizeHue(h) / 360;
+  const sat = clamp01(s);
+  const light = clamp01(l);
+  if (sat === 0) {
+    const gray = Math.round(light * 255);
+    return { r: gray, g: gray, b: gray };
+  }
+  const hue2rgb = (p, q, t) => {
+    let temp = t;
+    if (temp < 0) temp += 1;
+    if (temp > 1) temp -= 1;
+    if (temp < 1 / 6) return p + (q - p) * 6 * temp;
+    if (temp < 1 / 2) return q;
+    if (temp < 2 / 3) return p + (q - p) * (2 / 3 - temp) * 6;
+    return p;
+  };
+  const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat;
+  const p = 2 * light - q;
+  const r = hue2rgb(p, q, hue + 1 / 3);
+  const g = hue2rgb(p, q, hue);
+  const b = hue2rgb(p, q, hue - 1 / 3);
+  return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+};
+
+const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast, seedKey = null) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = hslString(hue, sat, light);
+  ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
 
-  for (let i = 0; i < 3000; i += 1) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    const grainLen = 50 + Math.random() * 200;
-    const curve = Math.sin(y / 40 + Math.random() * 2) * 10;
-    ctx.strokeStyle = hslString(hue, sat * 0.6, light - Math.random() * contrast);
-    ctx.lineWidth = 0.8 + Math.random() * 1.2;
-    ctx.globalAlpha = 0.25 + Math.random() * 0.3;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + curve, y + grainLen / 2, x, y + grainLen);
-    ctx.stroke();
+  const rng = createSeededRandom(seedKey);
+  const baseSeed = stringToSeed(`${seedKey ?? 'wood'}:${width}x${height}`);
+  const bandFreq = 2.6 + rng.next() * 2.2;
+  const rippleFreq = 6 + rng.next() * 4;
+  const rippleStrength = 0.08 + rng.next() * 0.08;
+  const bandJitter = new Float32Array(height);
+  const bandShift = new Float32Array(height);
+  for (let y = 0; y < height; y += 1) {
+    bandJitter[y] = 0.6 + rng.next() * 0.7;
+    bandShift[y] = rng.next() * Math.PI * 2;
   }
 
-  for (let i = 0; i < 40; i += 1) {
-    const kx = Math.random() * width;
-    const ky = Math.random() * height;
-    const r = 8 + Math.random() * 15;
-    const grad = ctx.createRadialGradient(kx, ky, 0, kx, ky, r);
-    grad.addColorStop(0, hslString(hue, sat * 0.9, light - 0.3));
-    grad.addColorStop(1, hslString(hue, sat * 0.4, light));
-    ctx.fillStyle = grad;
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.arc(kx, ky, r, 0, Math.PI * 2);
-    ctx.fill();
+  const ringNoise = (x, y, scale = 1) => {
+    const nx = x / width;
+    const ny = y / height;
+    const n = Math.sin((nx * 157.1 + ny * 311.7) * scale + baseSeed * 0.0002);
+    return fract(Math.sin(n * 43758.5453 + baseSeed * 0.13));
+  };
+
+  const variationField = new Float32Array(width * height);
+  const imageData = ctx.createImageData(width, height);
+  const data = imageData.data;
+  for (let y = 0; y < height; y += 1) {
+    const ny = y / height;
+    const jitter = bandJitter[y];
+    const shift = bandShift[y];
+    for (let x = 0; x < width; x += 1) {
+      const nx = x / width;
+      const idx = (y * width + x) * 4;
+      const primaryWave = Math.sin((nx * bandFreq + shift) * Math.PI * 2);
+      const secondaryWave = Math.sin((nx * rippleFreq + ny * 2 + shift * 0.5) * Math.PI * 2);
+      const streakNoise = ringNoise(x * 0.75, y * 0.45, 2.4) * 2 - 1;
+      const fiberNoise = ringNoise(x * 1.9 + baseSeed * 0.01, y * 0.5 + baseSeed * 0.02, 3.8) * 2 - 1;
+      const band = primaryWave * 0.65 + secondaryWave * rippleStrength * jitter;
+      const variation = band * 0.6 + streakNoise * 0.18 + fiberNoise * 0.12;
+      variationField[y * width + x] = variation;
+      const localContrast = contrast * (0.55 + jitter * 0.2);
+      const localHue = hue + variation * 4;
+      const localSat = sat * (0.92 + variation * 0.08);
+      const localLight = light + variation * localContrast * 0.42;
+      const { r, g, b } = hslToRgb(localHue, localSat, clamp01(localLight));
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = 255;
+    }
   }
-  ctx.globalAlpha = 1;
+  ctx.putImageData(imageData, 0, 0);
+
+  const highlightHeight = Math.max(2, Math.floor(height * 0.06));
+  const highlightGradient = ctx.createLinearGradient(0, 0, 0, highlightHeight);
+  highlightGradient.addColorStop(0, 'rgba(255,255,255,0.16)');
+  highlightGradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = highlightGradient;
+  ctx.fillRect(0, 0, width, highlightHeight);
+  ctx.save();
+  ctx.scale(1, -1);
+  ctx.translate(0, -height);
+  ctx.fillRect(0, 0, width, highlightHeight);
+  ctx.restore();
+
+  const knotCount = Math.max(4, Math.floor((width * height) / 45000));
+  for (let i = 0; i < knotCount; i += 1) {
+    const kx = rng.next() * width;
+    const ky = rng.next() * height;
+    const rx = (width * 0.03 + rng.next() * width * 0.04) * (rng.next() > 0.5 ? 1 : 0.6);
+    const ry = height * 0.045 + rng.next() * height * 0.035;
+    const knot = ctx.createRadialGradient(kx, ky, 0, kx, ky, Math.max(rx, ry));
+    knot.addColorStop(0, `rgba(0,0,0,${0.22 + rng.next() * 0.18})`);
+    knot.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = knot;
+    ctx.beginPath();
+    ctx.ellipse(kx, ky, rx, ry, (rng.next() - 0.5) * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 16;
-  return texture;
+  return { texture, variationField };
 };
 
-const makeRoughnessMap = (width, height, base, variance) => {
+const makeRoughnessMap = (
+  width,
+  height,
+  base,
+  variance,
+  seedKey = null,
+  variationField = null
+) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
+  const rng = createSeededRandom(`${seedKey ?? 'rough'}:roughness`);
   const imageData = ctx.createImageData(width, height);
   const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const value = base + (Math.random() - 0.5) * variance;
-    const g = Math.max(0, Math.min(255, Math.floor(value * 255)));
-    data[i] = g;
-    data[i + 1] = g;
-    data[i + 2] = g;
-    data[i + 3] = 255;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = (y * width + x) * 4;
+      const grainVariation = variationField ? variationField[y * width + x] ?? 0 : 0;
+      const noise = rng.next() * 2 - 1;
+      const value = clamp01(base + grainVariation * variance * 0.45 + noise * variance * 0.35);
+      const g = Math.round(value * 255);
+      data[idx] = g;
+      data[idx + 1] = g;
+      data[idx + 2] = g;
+      data[idx + 3] = 255;
+    }
   }
   ctx.putImageData(imageData, 0, 0);
   return new THREE.CanvasTexture(canvas);
@@ -173,12 +285,23 @@ const ensureSharedWoodTextures = ({
   });
   let entry = WOOD_TEXTURE_BASE_CACHE.get(cacheKey);
   if (!entry) {
-    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const seedKey = `${sharedKey ?? 'wood'}:${hue}:${sat}:${light}:${contrast}`;
+    const { texture: map, variationField } = makeNaturalWoodTexture(
+      textureSize,
+      textureSize,
+      hue,
+      sat,
+      light,
+      contrast,
+      seedKey
+    );
     const roughnessMap = makeRoughnessMap(
       roughnessSize,
       roughnessSize,
       roughnessBase,
-      roughnessVariance
+      roughnessVariance,
+      seedKey,
+      variationField
     );
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
     roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
@@ -236,15 +359,29 @@ export const applyWoodTextures = (
         roughnessVariance,
         sharedKey
       })
-    : {
-        map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
-        roughnessMap: makeRoughnessMap(
+    : (() => {
+        const seedKey = sharedKey
+          ? `${sharedKey ?? 'wood'}:${hue}:${sat}:${light}:${contrast}:local`
+          : null;
+        const { texture: map, variationField } = makeNaturalWoodTexture(
+          textureSize,
+          textureSize,
+          hue,
+          sat,
+          light,
+          contrast,
+          seedKey
+        );
+        const roughnessMap = makeRoughnessMap(
           roughnessSize,
           roughnessSize,
           roughnessBase,
-          roughnessVariance
-        )
-      };
+          roughnessVariance,
+          seedKey,
+          variationField
+        );
+        return { map, roughnessMap };
+      })();
   const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
   const map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
   const roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
