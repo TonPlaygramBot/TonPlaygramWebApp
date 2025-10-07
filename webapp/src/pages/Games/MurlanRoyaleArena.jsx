@@ -217,7 +217,8 @@ const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
-const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(48);
+const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
+const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_TRANSITION_DURATION = 520;
 
 const GAME_CONFIG = { ...BASE_CONFIG, enableFiveCard: true };
@@ -262,6 +263,8 @@ export default function MurlanRoyaleArena({ search }) {
     cameraRadius: null,
     cameraPhi: null,
     cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
+    cameraHomeTheta: null,
+    cameraHeadLimit: CAMERA_HEAD_LIMIT,
     cameraAnimationId: null,
     cameraChangeHandler: null,
     arena: null,
@@ -276,6 +279,7 @@ export default function MurlanRoyaleArena({ search }) {
     raycaster: new THREE.Raycaster(),
     tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
     discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE),
+    scoreboard: null,
     tableParts: null,
     chairMaterials: null,
     outfitParts: null,
@@ -300,24 +304,125 @@ export default function MurlanRoyaleArena({ search }) {
     });
   }, []);
 
+  const updateScoreboardDisplay = useCallback((entries = []) => {
+    const store = threeStateRef.current;
+    const scoreboard = store.scoreboard;
+    if (!scoreboard?.context || !scoreboard.texture || !scoreboard.mesh || !scoreboard.canvas) return;
+    const { canvas, context, texture, mesh } = scoreboard;
+    const { width, height } = canvas;
+
+    context.clearRect(0, 0, width, height);
+
+    if (!entries?.length) {
+      mesh.visible = false;
+      texture.needsUpdate = true;
+      return;
+    }
+
+    mesh.visible = true;
+    context.save();
+    const padding = 36;
+    const innerWidth = width - padding * 2;
+    context.fillStyle = 'rgba(8, 12, 24, 0.82)';
+    context.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    context.lineWidth = 12;
+    roundRect(context, padding, padding, innerWidth, height - padding * 2, 48);
+    context.fill();
+    context.stroke();
+    context.clip();
+
+    context.textAlign = 'left';
+    context.textBaseline = 'alphabetic';
+    context.fillStyle = 'rgba(226, 232, 240, 0.82)';
+    context.font = '700 64px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+    context.fillText('Rezultati', padding + 24, 120);
+    context.font = '500 28px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+    context.fillStyle = 'rgba(148, 163, 184, 0.8)';
+    context.fillText('Kartat e mbetura', padding + 24, 160);
+
+    const rowHeight = 76;
+    const rowGap = 12;
+    const rowWidth = innerWidth - 48;
+    const rowX = padding + 24;
+    const maxRows = Math.min(entries.length, 4);
+
+    for (let i = 0; i < maxRows; i += 1) {
+      const entry = entries[i];
+      const rowY = 168 + i * (rowHeight + rowGap);
+      const isActive = Boolean(entry?.isActive);
+      const finished = Boolean(entry?.finished);
+      const displayName = typeof entry?.name === 'string' ? entry.name : 'Lojtar';
+      const trimmedName = displayName.trim();
+      const fallbackInitial = trimmedName ? trimmedName.charAt(0).toUpperCase() : '🂠';
+      const avatar = entry?.avatar && !entry.avatar.startsWith('http') ? entry.avatar : fallbackInitial;
+
+      context.fillStyle = isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+      roundRect(context, rowX, rowY, rowWidth, rowHeight, 28);
+      context.fill();
+      context.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      context.lineWidth = 4;
+      roundRect(context, rowX, rowY, rowWidth, rowHeight, 28);
+      context.stroke();
+
+      context.textBaseline = 'middle';
+      context.textAlign = 'left';
+      context.font = '700 60px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+      context.fillStyle = '#f8fafc';
+      context.fillText(avatar, rowX + 36, rowY + rowHeight / 2);
+
+      context.save();
+      context.beginPath();
+      context.rect(rowX + 110, rowY + 18, rowWidth - 220, rowHeight - 36);
+      context.clip();
+      context.font = '600 40px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+      context.fillStyle = '#e2e8f0';
+      context.fillText(displayName, rowX + 110, rowY + rowHeight / 2);
+      context.restore();
+
+      context.textAlign = 'right';
+      context.font = '700 42px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+      context.fillStyle = finished ? '#4ade80' : '#f1f5f9';
+      const scoreLabel = finished ? '🏁' : String(entry?.cardsLeft ?? 0);
+      context.fillText(scoreLabel, rowX + rowWidth - 32, rowY + rowHeight / 2);
+    }
+
+    context.restore();
+    texture.needsUpdate = true;
+  }, []);
+
   const moveCameraToTheta = useCallback((theta, immediate = false) => {
     const three = threeStateRef.current;
     const { camera, controls, cameraTarget } = three;
     const spherical = three.cameraSpherical;
     if (!camera || !controls || !cameraTarget || !spherical) return;
 
-    const swing = three.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
     const baseRadius = three.cameraRadius ?? spherical.radius;
     const basePhi = three.cameraPhi ?? spherical.phi;
+    const homeTheta = three.cameraHomeTheta ?? spherical.theta;
+    const headLimit = three.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
+    const minBound = homeTheta - headLimit;
+    const maxBound = homeTheta + headLimit;
+
+    const clampToHeadLimit = (rawTheta) => {
+      const normalized = normalizeAngle(rawTheta);
+      const offset = shortestAngleDifference(homeTheta, normalized);
+      const clampedOffset = THREE.MathUtils.clamp(offset, -headLimit, headLimit);
+      return normalizeAngle(homeTheta + clampedOffset);
+    };
 
     const applyTheta = (value) => {
-      spherical.theta = value;
+      const constrained = clampToHeadLimit(value);
+      spherical.theta = constrained;
       spherical.radius = baseRadius;
       spherical.phi = basePhi;
       updateCameraFromSpherical(camera, spherical, cameraTarget);
       controls.target.copy(cameraTarget);
-      controls.minAzimuthAngle = value - swing;
-      controls.maxAzimuthAngle = value + swing;
+      controls.minPolarAngle = basePhi;
+      controls.maxPolarAngle = basePhi;
+      controls.minAzimuthAngle = minBound;
+      controls.maxAzimuthAngle = maxBound;
+      controls.minDistance = baseRadius;
+      controls.maxDistance = baseRadius;
       controls.update();
     };
 
@@ -327,11 +432,12 @@ export default function MurlanRoyaleArena({ search }) {
     }
 
     const startTheta = spherical.theta;
-    const delta = shortestAngleDifference(startTheta, theta);
+    const targetTheta = clampToHeadLimit(theta);
+    const delta = shortestAngleDifference(startTheta, targetTheta);
     const finalTheta = startTheta + delta;
 
     if (immediate || Math.abs(delta) < 1e-4) {
-      applyTheta(normalizeAngle(finalTheta));
+      applyTheta(finalTheta);
       return;
     }
 
@@ -340,7 +446,7 @@ export default function MurlanRoyaleArena({ search }) {
     const step = (time) => {
       const progress = Math.min(1, (time - start) / CAMERA_TRANSITION_DURATION);
       const eased = easeOutCubic(progress);
-      const value = normalizeAngle(startTheta + delta * eased);
+      const value = startTheta + delta * eased;
       applyTheta(value);
       if (progress < 1) {
         three.cameraAnimationId = requestAnimationFrame(step);
@@ -683,6 +789,11 @@ export default function MurlanRoyaleArena({ search }) {
     updateSceneAppearance(appearanceRef.current, { refreshCards: true });
   }, [threeReady, updateSceneAppearance]);
 
+  useEffect(() => {
+    if (!threeReady) return;
+    updateScoreboardDisplay(uiState.scoreboard);
+  }, [threeReady, uiState.scoreboard, updateScoreboardDisplay]);
+
   const toggleSelection = useCallback((cardId) => {
     setSelectedIds((prev) => {
       if (!humanTurnRef.current) return prev;
@@ -800,6 +911,42 @@ export default function MurlanRoyaleArena({ search }) {
     const stripRight = stripLeft.clone();
     stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
     arena.add(stripBack, stripFront, stripLeft, stripRight);
+
+    const scoreboardCanvas = document.createElement('canvas');
+    scoreboardCanvas.width = 1024;
+    scoreboardCanvas.height = 512;
+    const scoreboardContext = scoreboardCanvas.getContext('2d');
+    if (scoreboardContext) {
+      const scoreboardTexture = new THREE.CanvasTexture(scoreboardCanvas);
+      scoreboardTexture.colorSpace = THREE.SRGBColorSpace;
+      scoreboardTexture.anisotropy = 8;
+      const scoreboardMaterial = new THREE.MeshBasicMaterial({
+        map: scoreboardTexture,
+        transparent: true,
+        toneMapped: false,
+        depthWrite: false
+      });
+      const scoreboardWidth = Math.min(halfRoomX * 0.72, 4.4 * MODEL_SCALE);
+      const scoreboardHeight = scoreboardWidth * 0.42;
+      const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
+      const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
+      scoreboardMesh.position.set(0, wallHeight * 0.6, wallT / 2 + 0.02);
+      scoreboardMesh.renderOrder = 2;
+      scoreboardMesh.visible = false;
+      frontWall.add(scoreboardMesh);
+      threeStateRef.current.scoreboard = {
+        canvas: scoreboardCanvas,
+        context: scoreboardContext,
+        texture: scoreboardTexture,
+        material: scoreboardMaterial,
+        geometry: scoreboardGeometry,
+        mesh: scoreboardMesh
+      };
+    } else {
+      threeStateRef.current.scoreboard = null;
+    }
+
+    updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
     const baseMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(tableTheme.baseColor),
@@ -973,6 +1120,9 @@ export default function MurlanRoyaleArena({ search }) {
       }
     }
 
+    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
+    const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
+
     threeStateRef.current.appearance = { ...currentAppearance };
 
     spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
@@ -985,7 +1135,9 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.near,
       camConfig.far
     );
-    const humanSeatAngle = Math.PI / 2;
+    const humanSeatAngle = humanSeatConfig
+      ? Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x)
+      : Math.PI / 2;
     const cameraBackOffset = isPortrait ? 1.65 : 1.05;
     const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
     const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
@@ -996,6 +1148,10 @@ export default function MurlanRoyaleArena({ search }) {
     );
     const targetHeightOffset = 0.08 * MODEL_SCALE;
     const target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
+    if (humanSeatConfig) {
+      target.add(humanSeatConfig.forward.clone().multiplyScalar(0.35 * MODEL_SCALE));
+      target.add(humanSeatConfig.right.clone().multiplyScalar(-0.12 * MODEL_SCALE));
+    }
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
     const maxHorizontalReach = Math.min(halfRoomX, halfRoomZ) - wallInset * 0.6;
@@ -1015,27 +1171,31 @@ export default function MurlanRoyaleArena({ search }) {
     );
     updateCameraFromSpherical(camera, spherical, target);
 
+    const storedSpherical = spherical.clone();
+    storedSpherical.theta = normalizeAngle(storedSpherical.theta);
+    const homeTheta = storedSpherical.theta;
+    const headLimit = threeStateRef.current.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.copy(target);
     controls.enablePan = false;
     controls.enableZoom = false;
-    const azimuthSwing = threeStateRef.current.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
-    controls.minPolarAngle = spherical.phi;
-    controls.maxPolarAngle = spherical.phi;
-    controls.minAzimuthAngle = spherical.theta - azimuthSwing;
-    controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
-    controls.minDistance = spherical.radius;
-    controls.maxDistance = spherical.radius;
-    controls.rotateSpeed = 0.45;
+    controls.minPolarAngle = storedSpherical.phi;
+    controls.maxPolarAngle = storedSpherical.phi;
+    controls.minAzimuthAngle = homeTheta - headLimit;
+    controls.maxAzimuthAngle = homeTheta + headLimit;
+    controls.minDistance = storedSpherical.radius;
+    controls.maxDistance = storedSpherical.radius;
+    controls.rotateSpeed = 0.38;
 
-    const storedSpherical = spherical.clone();
-    storedSpherical.theta = normalizeAngle(storedSpherical.theta);
     threeStateRef.current.cameraTarget = target.clone();
     threeStateRef.current.cameraSpherical = storedSpherical;
     threeStateRef.current.cameraRadius = storedSpherical.radius;
     threeStateRef.current.cameraPhi = storedSpherical.phi;
-    threeStateRef.current.cameraAzimuthSwing = azimuthSwing;
+    threeStateRef.current.cameraAzimuthSwing = CAMERA_AZIMUTH_SWING;
+    threeStateRef.current.cameraHomeTheta = homeTheta;
+    threeStateRef.current.cameraHeadLimit = headLimit;
 
     const handleControlChange = () => {
       const store = threeStateRef.current;
@@ -1154,6 +1314,16 @@ export default function MurlanRoyaleArena({ search }) {
       store.faceTextureCache.forEach((tex) => tex.dispose());
       store.labelTextures.forEach((tex) => tex.dispose());
       store.labelMaterials.forEach((mat) => mat.dispose());
+      if (store.scoreboard) {
+        const { mesh, geometry, material, texture } = store.scoreboard;
+        if (mesh?.parent) {
+          mesh.parent.remove(mesh);
+        }
+        geometry?.dispose?.();
+        material?.dispose?.();
+        texture?.dispose?.();
+        store.scoreboard = null;
+      }
       if (store.tableParts) {
         store.tableParts.velvetTexture?.dispose?.();
         [
@@ -1187,6 +1357,8 @@ export default function MurlanRoyaleArena({ search }) {
         cameraRadius: null,
         cameraPhi: null,
         cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
+        cameraHomeTheta: null,
+        cameraHeadLimit: CAMERA_HEAD_LIMIT,
         cameraAnimationId: null,
         cameraChangeHandler: null,
         arena: null,
@@ -1201,6 +1373,7 @@ export default function MurlanRoyaleArena({ search }) {
         raycaster: new THREE.Raycaster(),
         tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
         discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE),
+        scoreboard: null,
         tableParts: null,
         chairMaterials: null,
         outfitParts: null,
@@ -1209,7 +1382,7 @@ export default function MurlanRoyaleArena({ search }) {
       };
       setThreeReady(false);
     };
-  }, [applyStateToScene, ensureCardMeshes, focusCameraOnActivePlayer, players, toggleSelection]);
+  }, [applyStateToScene, ensureCardMeshes, focusCameraOnActivePlayer, players, toggleSelection, updateScoreboardDisplay]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -1282,41 +1455,19 @@ export default function MurlanRoyaleArena({ search }) {
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
-        <div className="pointer-events-none relative flex items-start justify-start p-4">
+        <div className="pointer-events-none relative flex items-start justify-end p-4">
           {uiState.scoreboard?.length ? (
-            <div className="pointer-events-auto pr-16">
-              <div className="w-[min(16rem,calc(100vw-6rem))] rounded-3xl bg-black/65 p-3 text-xs text-gray-100 shadow-xl backdrop-blur-md">
-                <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Rezultati</p>
-                <div className="mt-2 space-y-1.5">
-                  {uiState.scoreboard.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-1.5 ${
-                        entry.isActive ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-200'
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        {entry.avatar?.startsWith('http') ? (
-                          <span className="relative block h-6 w-6 overflow-hidden rounded-full bg-white/10">
-                            <img
-                              src={entry.avatar}
-                              alt={`${entry.name} avatar`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          </span>
-                        ) : (
-                          <span className="text-base leading-none">{entry.avatar || '🂠'}</span>
-                        )}
-                        <span className="truncate text-xs font-semibold text-gray-100">{entry.name}</span>
-                      </div>
-                      <span className={`text-xs font-bold ${entry.finished ? 'text-emerald-300' : 'text-gray-300'}`}>
-                        {entry.finished ? '🏁' : entry.cardsLeft}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="sr-only" aria-live="polite">
+              <p>Rezultati aktual:</p>
+              <ul>
+                {uiState.scoreboard.map((entry) => (
+                  <li key={entry.id}>
+                    {entry.name}
+                    {entry.isActive ? ' (radha)' : ''}
+                    {entry.finished ? ' - e përfundoi lojën' : ` - ${entry.cardsLeft} letra`}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
           <button
