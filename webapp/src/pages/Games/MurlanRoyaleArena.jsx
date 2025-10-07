@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
@@ -6,155 +12,200 @@ import {
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import {
+  ComboType,
+  DEFAULT_CONFIG as BASE_CONFIG,
+  aiChooseAction,
+  canBeat,
+  detectCombo,
+  sortHand
+} from '../../../../lib/murlan.js';
 
 const MODEL_SCALE = 0.75;
+const ARENA_GROWTH = 1.5; // 50% larger arena footprint
 
 const ARENA_COLOR = 0x0c1020;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.15 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_COUNT = 6;
-const DEAL_PER_PLAYER = 13;
 
 const FLAG_EMOJIS = ['🇦🇱', '🇺🇸', '🇫🇷', '🇬🇧', '🇮🇹', '🇩🇪', '🇯🇵', '🇨🇦'];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
-const SUIT_COLORS = { '♠': '#111111', '♣': '#111111', '♥': '#cc2233', '♦': '#cc2233', '🃏': '#111111' };
+const SUIT_COLORS = {
+  '♠': '#111111',
+  '♣': '#111111',
+  '♥': '#cc2233',
+  '♦': '#cc2233',
+  '🃏': '#111111'
+};
 
-const CARD_W = 0.4 * MODEL_SCALE;
-const CARD_H = 0.56 * MODEL_SCALE;
-const CARD_D = 0.02 * MODEL_SCALE;
+const CARD_SCALE = 0.8; // 20% smaller
+const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
+const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
+const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 
-function makeDeck() {
-  const deck = [];
-  for (const suit of SUITS) {
-    for (const rank of [3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A', 2]) {
-      deck.push({ r: rank, s: suit });
-    }
-  }
-  deck.push({ r: 'BJ', s: '🃏' });
-  deck.push({ r: 'RJ', s: '🃏' });
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
-}
-
-function rankValue(rank) {
-  if (rank === 'RJ') return 17;
-  if (rank === 'BJ') return 16;
-  if (rank === 2) return 15;
-  if (rank === 'A') return 14;
-  if (rank === 'K') return 13;
-  if (rank === 'Q') return 12;
-  if (rank === 'J') return 11;
-  return rank;
-}
-
-function makeCardFace(rank, suit, w = 512, h = 720) {
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const g = canvas.getContext('2d');
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, w, h);
-  g.strokeStyle = '#e5e7eb';
-  g.lineWidth = 8;
-  roundRect(g, 6, 6, w - 12, h - 12, 32);
-  g.stroke();
-  const color = SUIT_COLORS[suit] || '#111111';
-  g.fillStyle = color;
-  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  const label = rank === 'BJ' ? 'JB' : rank === 'RJ' ? 'JR' : String(rank);
-  g.fillText(label, 36, 112);
-  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  g.fillText(suit, 36, 188);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + width, y, x + width, y + height, r);
-  ctx.arcTo(x + width, y + height, x, y + height, r);
-  ctx.arcTo(x, y + height, x, y, r);
-  ctx.arcTo(x, y, x + width, y, r);
-  ctx.closePath();
-}
-
-function makeLabelTexture(name, avatar) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const g = canvas.getContext('2d');
-  g.fillStyle = 'rgba(12, 16, 32, 0.92)';
-  g.fillRect(0, 0, canvas.width, canvas.height);
-  g.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  g.lineWidth = 12;
-  roundRect(g, 16, 16, canvas.width - 32, canvas.height - 32, 42);
-  g.stroke();
-  g.fillStyle = '#ffffff';
-  g.font = 'bold 140px "Inter", system-ui, sans-serif';
-  const display = avatar && avatar.startsWith('http') ? '' : avatar || '🂠';
-  g.fillText(display, 48, 172);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  if (avatar && avatar.startsWith('http')) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      g.save();
-      g.beginPath();
-      g.arc(128, 128, 96, 0, Math.PI * 2);
-      g.closePath();
-      g.clip();
-      g.drawImage(img, 32, 32, 192, 192);
-      g.restore();
-      texture.needsUpdate = true;
-    };
-    img.src = avatar;
-  }
-  g.font = 'bold 96px "Inter", system-ui, sans-serif';
-  g.fillText(name, 220, 172);
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function buildPlayers(search) {
-  const params = new URLSearchParams(search);
-  const username = params.get('username') || 'You';
-  const avatar = params.get('avatar') || '';
-  const seedFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-  const players = [
-    { name: username, avatar, isHuman: true },
-    seedFlags[0] ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] } : { name: 'Aria', avatar: '🦊' },
-    seedFlags[1] ? { name: flagName(seedFlags[1]), avatar: seedFlags[1] } : { name: 'Milo', avatar: '🐻' },
-    seedFlags[2] ? { name: flagName(seedFlags[2]), avatar: seedFlags[2] } : { name: 'Sora', avatar: '🐱' }
-  ];
-  return players;
-}
-
-function flagName(flag) {
-  if (!flag) return 'Player';
-  const base = 0x1f1e6;
-  const codePoints = [...flag].map((c) => c.codePointAt(0) - base + 65);
-  try {
-    const region = String.fromCharCode(...codePoints);
-    const names = new Intl.DisplayNames(['en'], { type: 'region' });
-    return names.of(region) || `Player ${flag}`;
-  } catch (err) {
-    return `Player ${flag}`;
-  }
-}
+const GAME_CONFIG = { ...BASE_CONFIG, enableFiveCard: true };
+const START_CARD = { rank: '3', suit: '♠' };
 
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
+
+  const [gameState, setGameState] = useState(() => initializeGame(players));
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [uiState, setUiState] = useState(() => computeUiState(gameState));
+  const [actionError, setActionError] = useState('');
+  const [threeReady, setThreeReady] = useState(false);
+
+  const gameStateRef = useRef(gameState);
+  const selectedRef = useRef(selectedIds);
+  const humanTurnRef = useRef(false);
+
+  const threeStateRef = useRef({
+    renderer: null,
+    scene: null,
+    camera: null,
+    controls: null,
+    arena: null,
+    cardGeometry: null,
+    cardMap: new Map(),
+    faceTextureCache: new Map(),
+    labelTextures: [],
+    labelMaterials: [],
+    seatConfigs: [],
+    selectionTargets: [],
+    raycaster: new THREE.Raycaster(),
+    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H / 2, 0),
+    discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
+  });
+
+  const ensureCardMeshes = useCallback((state) => {
+    const three = threeStateRef.current;
+    if (!three.arena || !three.cardGeometry) return;
+    state.allCards.forEach((card) => {
+      if (three.cardMap.has(card.id)) return;
+      const mesh = createCardMesh(card, three.cardGeometry, three.faceTextureCache);
+      mesh.visible = false;
+      mesh.position.set(0, -10, 0);
+      three.arena.add(mesh);
+      three.cardMap.set(card.id, { mesh });
+    });
+  }, []);
+
+  const applyStateToScene = useCallback((state, selection, immediate = false) => {
+    const three = threeStateRef.current;
+    if (!three.scene) return;
+
+    const selectionSet = new Set(selection);
+    const handsVisible = new Set();
+    const tableSet = new Set(state.tableCards.map((card) => card.id));
+    const discardSet = new Set(state.discardPile.map((card) => card.id));
+
+    const seatConfigs = three.seatConfigs;
+    const cardMap = three.cardMap;
+
+    const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
+    humanTurnRef.current = humanTurn;
+
+    const humanMeshes = [];
+
+    state.players.forEach((player, idx) => {
+      const seat = seatConfigs[idx];
+      if (!seat) return;
+      const cards = player.hand;
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2;
+      const forward = seat.forward;
+      const right = seat.right;
+      const radius = seat.radius;
+      const focus = seat.focus;
+      const spacing = seat.spacing;
+      const maxSpread = seat.maxSpread;
+      const spread = cards.length > 1 ? Math.min((cards.length - 1) * spacing, maxSpread) : 0;
+      cards.forEach((card, cardIdx) => {
+        const entry = cardMap.get(card.id);
+        if (!entry) return;
+        const mesh = entry.mesh;
+        mesh.visible = true;
+        handsVisible.add(card.id);
+        const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
+        const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
+        const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
+        target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
+        if (player.isHuman && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
+        setMeshPosition(mesh, target, focus, player.isHuman, immediate);
+        mesh.userData.cardId = card.id;
+        if (player.isHuman) humanMeshes.push(mesh);
+      });
+    });
+
+    const tableAnchor = three.tableAnchor.clone();
+    state.tableCards.forEach((card, idx) => {
+      const entry = cardMap.get(card.id);
+      if (!entry) return;
+      const mesh = entry.mesh;
+      mesh.visible = true;
+      const offset = state.tableCards.length > 1 ? idx - (state.tableCards.length - 1) / 2 : 0;
+      const target = tableAnchor.clone();
+      target.x += offset * (CARD_W * 1.1);
+      target.y += idx * 0.012;
+      target.z += offset * 0.08;
+      setMeshPosition(mesh, target, tableAnchor.clone().setY(target.y + 0.15), true, true);
+    });
+
+    const discardBase = three.discardAnchor.clone();
+    state.discardPile.forEach((card, idx) => {
+      const entry = cardMap.get(card.id);
+      if (!entry) return;
+      const mesh = entry.mesh;
+      mesh.visible = true;
+      const row = Math.floor(idx / 12);
+      const col = idx % 12;
+      const target = discardBase.clone();
+      target.x += (col - 5.5) * CARD_W * 0.4;
+      target.z += row * CARD_W * 0.32;
+      target.y -= row * 0.05;
+      setMeshPosition(mesh, target, target.clone().setY(target.y + 0.1), false, true);
+    });
+
+    three.cardMap.forEach(({ mesh }, id) => {
+      if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
+      mesh.visible = false;
+    });
+
+    three.selectionTargets = humanTurn ? humanMeshes : [];
+    if (three.renderer?.domElement) {
+      three.renderer.domElement.style.cursor = humanTurn ? 'pointer' : 'default';
+    }
+  }, []);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+    setUiState(computeUiState(gameState));
+    if (threeReady) {
+      applyStateToScene(gameState, selectedRef.current);
+    }
+  }, [gameState, threeReady, applyStateToScene]);
+
+  useEffect(() => {
+    selectedRef.current = selectedIds;
+    if (threeReady) {
+      applyStateToScene(gameStateRef.current, selectedIds);
+    }
+  }, [selectedIds, threeReady, applyStateToScene]);
+
+  const toggleSelection = useCallback((cardId) => {
+    setSelectedIds((prev) => {
+      if (!humanTurnRef.current) return prev;
+      const human = gameStateRef.current.players.find((p) => p.isHuman);
+      if (!human || !human.hand.some((card) => card.id === cardId)) return prev;
+      if (prev.includes(cardId)) {
+        return prev.filter((id) => id !== cardId);
+      }
+      return [...prev, cardId];
+    });
+  }, []);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -174,13 +225,13 @@ export default function MurlanRoyaleArena({ search }) {
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(1.8, 2.6, 1.6);
+    key.position.set(1.8, 2.8, 1.8);
     const fill = new THREE.DirectionalLight(0xffffff, 0.55);
-    fill.position.set(-1.4, 2.2, -2.0);
-    const rim = new THREE.PointLight(0xff7373, 0.4, 12, 2.0);
-    rim.position.set(0, 2.1, 0);
+    fill.position.set(-1.6, 2.2, -2.2);
+    const rim = new THREE.PointLight(0xff7373, 0.42, 14, 2.0);
+    rim.position.set(0, 2.2, 0);
     const spot = new THREE.SpotLight(0xffffff, 1.05, 0, Math.PI / 4, 0.35, 1.1);
-    spot.position.set(0, 4.2, 4.6);
+    spot.position.set(0, 4.5, 4.8);
     scene.add(hemi, key, fill, rim, spot);
 
     const spotTarget = new THREE.Object3D();
@@ -190,16 +241,15 @@ export default function MurlanRoyaleArena({ search }) {
     const arena = new THREE.Group();
     scene.add(arena);
 
-    const arenaScale = 1.3;
+    const arenaScale = 1.3 * ARENA_GROWTH;
     const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
     const camConfig = buildArenaCameraConfig(boardSize);
 
-    const ARENA_SIDEWAYS_EXPANSION = 1.3;
-    const arenaHalfWidth = boardSize * 1.3 * ARENA_SIDEWAYS_EXPANSION;
-    const arenaHalfDepth = boardSize * 1.05;
+    const arenaHalfWidth = boardSize * 1.35;
+    const arenaHalfDepth = boardSize * 1.2;
     const wallInset = 0.5;
     const wallProximity = 0.5;
-    const wallHeight = 3 * 2;
+    const wallHeight = 6.0;
 
     const halfRoomX = (arenaHalfWidth - wallInset) * wallProximity;
     const halfRoomZ = (arenaHalfDepth - wallInset) * wallProximity;
@@ -243,7 +293,7 @@ export default function MurlanRoyaleArena({ search }) {
     const ledMat = new THREE.MeshStandardMaterial({
       color: 0x00f7ff,
       emissive: 0x0099aa,
-      emissiveIntensity: 0.4,
+      emissiveIntensity: 0.45,
       roughness: 0.6,
       metalness: 0.2,
       side: THREE.DoubleSide
@@ -292,7 +342,7 @@ export default function MurlanRoyaleArena({ search }) {
 
     const chairMat = new THREE.MeshPhysicalMaterial({ color: 0x8b0000, roughness: 0.35, metalness: 0.5, clearcoat: 1 });
     const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const chairRadius = 5.25 * MODEL_SCALE;
+    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH;
     const seatWidth = 0.9 * MODEL_SCALE;
     const seatDepth = 0.95 * MODEL_SCALE;
     const seatThickness = 0.09 * MODEL_SCALE;
@@ -303,26 +353,10 @@ export default function MurlanRoyaleArena({ search }) {
     const armDepth = seatDepth * 0.75;
     const baseColumnHeight = 0.5 * MODEL_SCALE;
 
-    const cardGeo = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
-    const labelGeo = new THREE.PlaneGeometry(1.6 * MODEL_SCALE, 0.8 * MODEL_SCALE);
-    const cardMeshes = [];
-    const cardMaterials = [];
-    const labelTextures = [];
-    const labelMaterials = [];
+    const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
+    const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
 
-    const deck = makeDeck();
-    const playerHands = players.map(() => []);
-    for (let i = 0; i < DEAL_PER_PLAYER; i++) {
-      players.forEach((_, idx) => {
-        if (deck.length) {
-          playerHands[idx].push(deck.pop());
-        }
-      });
-    }
-    playerHands.forEach((hand) => hand.sort((a, b) => rankValue(a.r) - rankValue(b.r)));
-
-    const humanSeatIndex = 0;
-    const humanSeatAngle = (humanSeatIndex / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
+    const seatConfigs = [];
 
     for (let i = 0; i < CHAIR_COUNT; i++) {
       const player = players[i] ?? null;
@@ -330,10 +364,7 @@ export default function MurlanRoyaleArena({ search }) {
       const seat = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, seatThickness, seatDepth), chairMat);
       const back = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, backHeight, backThickness), chairMat);
       back.position.set(0, seatThickness / 2 + backHeight / 2, -seatDepth / 2 + backThickness / 2);
-      const armLeft = new THREE.Mesh(
-        new THREE.BoxGeometry(armThickness, armHeight, armDepth),
-        chairMat
-      );
+      const armLeft = new THREE.Mesh(new THREE.BoxGeometry(armThickness, armHeight, armDepth), chairMat);
       const armOffsetX = seatWidth / 2 + armThickness / 2;
       const armOffsetY = seatThickness / 2 + armHeight / 2;
       const armOffsetZ = -seatDepth * 0.05;
@@ -354,59 +385,34 @@ export default function MurlanRoyaleArena({ search }) {
       chair.position.set(x, chairBaseHeight, z);
       chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
       arena.add(chair);
+
+      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+      const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+      const focus = forward.clone().multiplyScalar(chairRadius - 0.6 * MODEL_SCALE);
+      focus.y = TABLE_HEIGHT + CARD_H / 2;
+      seatConfigs.push({
+        forward,
+        right,
+        focus,
+        radius: 3.45 * MODEL_SCALE,
+        spacing: 0.18 * MODEL_SCALE,
+        maxSpread: 2.5 * MODEL_SCALE
+      });
+
       if (player) {
         const labelTex = makeLabelTexture(player.name, player.avatar);
         labelTex.wrapS = THREE.RepeatWrapping;
         labelTex.repeat.x = -1;
         labelTex.offset.x = 1;
-        labelTextures.push(labelTex);
         const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
-        labelMaterials.push(labelMat);
         const label = new THREE.Mesh(labelGeo, labelMat);
-        const isHuman = player.isHuman;
-        const baseLabelHeight = 0.6 * MODEL_SCALE;
-        const labelHeight = isHuman ? baseLabelHeight : baseLabelHeight + 0.08 * MODEL_SCALE;
-        const labelForward = isHuman ? 0.82 * MODEL_SCALE : 0.95 * MODEL_SCALE;
-        label.position.set(0, labelHeight, labelForward);
+        const baseLabelHeight = 0.62 * MODEL_SCALE;
+        const labelForward = player.isHuman ? 0.88 * MODEL_SCALE : 0.98 * MODEL_SCALE;
+        label.position.set(0, baseLabelHeight, labelForward);
         label.rotation.y = Math.PI;
         chair.add(label);
-
-        const hand = playerHands[i];
-        const spread = hand.length ? Math.min(hand.length * (0.18 * MODEL_SCALE), 2.2 * MODEL_SCALE) : 0;
-        hand.forEach((card, idx) => {
-          const tex = makeCardFace(card.r, card.s);
-          const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55, metalness: 0.1 });
-          const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.08 });
-          const backMat = new THREE.MeshStandardMaterial({ color: 0x111a2a, roughness: 0.6, metalness: 0.15 });
-          const materials = [
-            edgeMat,
-            edgeMat.clone(),
-            edgeMat.clone(),
-            edgeMat.clone(),
-            frontMat,
-            backMat
-          ];
-          cardMaterials.push(...materials);
-          const mesh = new THREE.Mesh(cardGeo, materials);
-          const cardBaseHeight = TABLE_HEIGHT + CARD_H / 2;
-          mesh.position.set(0, cardBaseHeight, 0);
-          arena.add(mesh);
-          cardMeshes.push({ mesh, texture: tex });
-
-          const offset = idx - (hand.length - 1) / 2;
-          const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-          const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-          const spreadOffset = offset * (spread / Math.max(hand.length, 1));
-          const radius = 3.25 * MODEL_SCALE;
-          const target = forward
-            .clone()
-            .multiplyScalar(radius)
-            .addScaledVector(right, spreadOffset);
-          target.y = cardBaseHeight;
-          const seatFocus = forward.clone().multiplyScalar(chairRadius - 0.6 * MODEL_SCALE);
-          seatFocus.y = cardBaseHeight;
-          animateCard(mesh, target, cardBaseHeight, idx * 0.08 + i * 0.2, seatFocus);
-        });
+        threeStateRef.current.labelTextures.push(labelTex);
+        threeStateRef.current.labelMaterials.push(labelMat);
       }
     }
 
@@ -419,22 +425,23 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.near,
       camConfig.far
     );
-    const maxHorizontalReach = Math.min(halfRoomX, halfRoomZ) - wallInset * 0.6;
-    const safeHorizontalReach = Math.max(2.5 * MODEL_SCALE, maxHorizontalReach);
-    const maxOrbitRadius = Math.max(3.5 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
-    const minOrbitRadius = Math.max(2.5 * MODEL_SCALE, maxOrbitRadius * 0.7);
-    const cameraBackOffset = 1.2;
+    const humanSeatAngle = Math.PI / 2;
+    const cameraBackOffset = 1.05;
     const cameraForwardOffset = 0.35;
-    const cameraHeightOffset = 1.4;
+    const cameraHeightOffset = 1.12;
     const initialCameraPosition = new THREE.Vector3(
       Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
       TABLE_HEIGHT + cameraHeightOffset,
       Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
     );
-    const targetHeightOffset = 0.12 * MODEL_SCALE;
+    const targetHeightOffset = 0.08 * MODEL_SCALE;
     const target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
+    const maxHorizontalReach = Math.min(halfRoomX, halfRoomZ) - wallInset * 0.6;
+    const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, maxHorizontalReach);
+    const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
+    const minOrbitRadius = Math.max(2.6 * MODEL_SCALE, maxOrbitRadius * 0.7);
     const desiredRadius = THREE.MathUtils.clamp(
       spherical.radius * 1.18,
       minOrbitRadius + 0.05 * MODEL_SCALE,
@@ -451,9 +458,9 @@ export default function MurlanRoyaleArena({ search }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.copy(target);
-    const azimuthSwing = THREE.MathUtils.degToRad(22);
+    const azimuthSwing = THREE.MathUtils.degToRad(26);
     controls.minPolarAngle = Math.max(ARENA_CAMERA_DEFAULTS.phiMin, spherical.phi - THREE.MathUtils.degToRad(8));
-    controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(8));
+    controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(9));
     controls.minAzimuthAngle = spherical.theta - azimuthSwing;
     controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
     controls.minDistance = Math.max(minOrbitRadius * 0.8, spherical.radius * 0.7);
@@ -462,12 +469,12 @@ export default function MurlanRoyaleArena({ search }) {
     controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
     controls.rotateSpeed = 0.5;
 
-    function resize() {
+    const resize = () => {
       const { clientWidth, clientHeight } = mount;
       renderer.setSize(clientWidth, clientHeight, false);
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
-    }
+    };
 
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
@@ -481,25 +488,544 @@ export default function MurlanRoyaleArena({ search }) {
 
     let frameId = requestAnimationFrame(animate);
 
+    threeStateRef.current.renderer = renderer;
+    threeStateRef.current.scene = scene;
+    threeStateRef.current.camera = camera;
+    threeStateRef.current.controls = controls;
+    threeStateRef.current.arena = arena;
+    threeStateRef.current.cardGeometry = cardGeometry;
+    threeStateRef.current.seatConfigs = seatConfigs;
+
+    ensureCardMeshes(gameStateRef.current);
+    applyStateToScene(gameStateRef.current, selectedRef.current, true);
+    setThreeReady(true);
+
+    const dom = renderer.domElement;
+    const handlePointerDown = (event) => {
+      if (!humanTurnRef.current) return;
+      const rect = dom.getBoundingClientRect();
+      const pointer = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      threeStateRef.current.raycaster.setFromCamera(pointer, camera);
+      const intersects = threeStateRef.current.raycaster.intersectObjects(threeStateRef.current.selectionTargets, false);
+      if (!intersects.length) return;
+      const picked = intersects[0].object;
+      const cardId = picked.userData.cardId || picked.parent?.userData.cardId;
+      if (cardId) toggleSelection(cardId);
+    };
+    dom.addEventListener('pointerdown', handlePointerDown);
+
     return () => {
       cancelAnimationFrame(frameId);
       observer.disconnect();
       controls.dispose();
-      mount.removeChild(renderer.domElement);
+      dom.removeEventListener('pointerdown', handlePointerDown);
+      mount.removeChild(dom);
       renderer.dispose();
-      cardGeo.dispose();
+      cardGeometry.dispose();
       labelGeo.dispose();
-      cardMeshes.forEach(({ mesh, texture }) => {
+      threeStateRef.current.cardMap.forEach(({ mesh }) => {
+        mesh.material.forEach((mat) => mat.dispose());
         arena.remove(mesh);
-        texture.dispose();
       });
-      cardMaterials.forEach((mat) => mat.dispose());
-      labelTextures.forEach((tex) => tex.dispose());
-      labelMaterials.forEach((mat) => mat.dispose());
+      threeStateRef.current.faceTextureCache.forEach((tex) => tex.dispose());
+      threeStateRef.current.labelTextures.forEach((tex) => tex.dispose());
+      threeStateRef.current.labelMaterials.forEach((mat) => mat.dispose());
+      threeStateRef.current = {
+        renderer: null,
+        scene: null,
+        camera: null,
+        controls: null,
+        arena: null,
+        cardGeometry: null,
+        cardMap: new Map(),
+        faceTextureCache: new Map(),
+        labelTextures: [],
+        labelMaterials: [],
+        seatConfigs: [],
+        selectionTargets: [],
+        raycaster: new THREE.Raycaster(),
+        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H / 2, 0),
+        discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
+      };
+      setThreeReady(false);
     };
-  }, [players]);
+  }, [applyStateToScene, ensureCardMeshes, players, toggleSelection]);
 
-  return <div ref={mountRef} className="absolute inset-0" />;
+  useEffect(() => {
+    if (!threeReady) return;
+    const state = gameState;
+    if (state.status !== 'PLAYING') return;
+    const active = state.players[state.activePlayer];
+    if (!active || active.isHuman) return;
+    const timer = setTimeout(() => {
+      setGameState((prev) => {
+        if (prev.status !== 'PLAYING') return prev;
+        const current = prev.players[prev.activePlayer];
+        if (!current || current.isHuman) return prev;
+        return runAiTurn(prev);
+      });
+    }, 750);
+    return () => clearTimeout(timer);
+  }, [gameState, threeReady]);
+
+  const handlePlay = useCallback(() => {
+    const state = gameStateRef.current;
+    if (state.status !== 'PLAYING') return;
+    const active = state.players[state.activePlayer];
+    if (!active || !active.isHuman) return;
+    const selectedCards = extractSelectedCards(active.hand, selectedRef.current);
+    if (!selectedCards.length) {
+      setActionError('Zgjidh të paktën një letër.');
+      return;
+    }
+    const combo = detectCombo(selectedCards, GAME_CONFIG);
+    if (!combo) {
+      setActionError('Kombinimi nuk është i vlefshëm.');
+      return;
+    }
+    const includesStart = selectedCards.some(
+      (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
+    );
+    if (state.firstMove && !includesStart) {
+      setActionError('Lëvizja e parë duhet të përfshijë 3♠.');
+      return;
+    }
+    if (!canBeat(combo, state.tableCombo, GAME_CONFIG)) {
+      setActionError('Ky kombin nuk e mund atë në tavolinë.');
+      return;
+    }
+    setActionError('');
+    setSelectedIds([]);
+    setGameState(buildPlayState(state, selectedCards, combo));
+  }, []);
+
+  const handlePass = useCallback(() => {
+    const state = gameStateRef.current;
+    if (state.status !== 'PLAYING') return;
+    const active = state.players[state.activePlayer];
+    if (!active || !active.isHuman) return;
+    if (!state.tableCombo) {
+      setActionError('Nuk mund të pasosh pa një kombin në tavolinë.');
+      return;
+    }
+    setActionError('');
+    setSelectedIds([]);
+    setGameState(buildPassState(state));
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setSelectedIds([]);
+    setActionError('');
+  }, []);
+
+  return (
+    <div className="absolute inset-0">
+      <div ref={mountRef} className="absolute inset-0" />
+      <div className="absolute inset-0 pointer-events-none flex flex-col justify-between">
+        <div className="px-4 pt-4 pointer-events-none">
+          <div className="mx-auto max-w-2xl rounded-2xl bg-black/60 p-4 text-sm text-gray-100 backdrop-blur-sm shadow-lg pointer-events-auto">
+            <div className="flex flex-wrap gap-3 justify-between">
+              {uiState.scoreboard.map((entry) => (
+                <div
+                  key={entry.id}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2 transition ${
+                    entry.isActive ? 'bg-white/20 ring-1 ring-white/40' : 'bg-white/10'
+                  } ${entry.finished ? 'opacity-70' : ''}`}
+                >
+                  <span className="text-lg">
+                    {entry.avatar ? entry.avatar : '🂠'}
+                  </span>
+                  <div className="leading-tight">
+                    <div className="font-semibold text-white text-xs sm:text-sm">
+                      {entry.name}
+                    </div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-300">
+                      {entry.finished ? 'Doli' : `${entry.cardsLeft} letra`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="px-4 pb-6 pointer-events-none">
+          <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
+            <p className="text-sm text-gray-100">{uiState.message}</p>
+            {uiState.tableSummary && (
+              <p className="mt-2 text-xs text-gray-300">{uiState.tableSummary}</p>
+            )}
+            {actionError && <p className="mt-2 text-xs text-red-400">{actionError}</p>}
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={handlePass}
+                className="rounded-lg border border-white/25 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent"
+                disabled={!uiState.humanTurn || !gameState.tableCombo}
+              >
+                Paso
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="rounded-lg border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent"
+                disabled={!selectedIds.length}
+              >
+                Hiq zgjedhjet
+              </button>
+              <button
+                type="button"
+                onClick={handlePlay}
+                className="rounded-lg bg-gradient-to-r from-[#ff0050] to-[#f97316] px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!uiState.humanTurn || !selectedIds.length}
+              >
+                Luaj
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function runAiTurn(state) {
+  const active = state.players[state.activePlayer];
+  if (!active || active.isHuman) return state;
+  const action = aiChooseAction(active.hand, state.tableCombo, GAME_CONFIG);
+  if (action.type === 'PLAY' && action.cards?.length) {
+    const combo = detectCombo(action.cards, GAME_CONFIG);
+    if (combo) {
+      const includesStart = action.cards.some(
+        (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
+      );
+      if (!state.firstMove || includesStart) {
+        return buildPlayState(state, action.cards, combo);
+      }
+    }
+  }
+  if (!state.tableCombo && active.hand.length) {
+    const card = active.hand[0];
+    const combo = detectCombo([card], GAME_CONFIG);
+    if (combo) return buildPlayState(state, [card], combo);
+  }
+  return buildPassState(state);
+}
+
+function buildPlayState(state, cards, combo) {
+  const players = state.players.map((player, idx) => {
+    if (idx !== state.activePlayer) return { ...player, hand: [...player.hand] };
+    const remaining = player.hand.filter((card) => !cards.includes(card));
+    return { ...player, hand: remaining, finished: remaining.length === 0 };
+  });
+
+  const discardPile = state.tableCards.length
+    ? [...state.discardPile, ...state.tableCards]
+    : [...state.discardPile];
+
+  const aliveCount = players.filter((p) => !p.finished).length;
+  const lastWinner = state.activePlayer;
+  let tableCombo = combo.type === ComboType.BOMB_4K ? null : combo;
+  let tableCards = [...cards];
+  let nextActive = getNextAlive(players, state.activePlayer);
+
+  if (combo.type === ComboType.BOMB_4K) {
+    tableCombo = null;
+    tableCards = [...cards];
+    nextActive = players[state.activePlayer].finished
+      ? getNextAlive(players, state.activePlayer)
+      : lastWinner;
+  }
+
+  let status = state.status;
+  if (aliveCount <= 1) {
+    status = 'ENDED';
+    nextActive = state.activePlayer;
+    tableCombo = null;
+  }
+
+  return {
+    ...state,
+    players,
+    tableCombo,
+    tableCards,
+    discardPile,
+    lastWinner,
+    passesInRow: 0,
+    firstMove: false,
+    activePlayer: nextActive,
+    status
+  };
+}
+
+function buildPassState(state) {
+  const players = state.players;
+  const aliveCount = players.filter((p) => !p.finished).length;
+  let passesInRow = state.passesInRow + 1;
+  let tableCombo = state.tableCombo;
+  let tableCards = state.tableCards;
+  let discardPile = state.discardPile;
+  let activePlayer = getNextAlive(players, state.activePlayer);
+
+  if (tableCombo && passesInRow >= aliveCount - 1) {
+    discardPile = tableCards.length ? [...discardPile, ...tableCards] : discardPile;
+    tableCombo = null;
+    tableCards = [];
+    passesInRow = 0;
+    const winner = state.lastWinner ?? state.activePlayer;
+    activePlayer = players[winner]?.finished ? getNextAlive(players, winner) : winner;
+  }
+
+  return {
+    ...state,
+    activePlayer,
+    passesInRow,
+    tableCombo,
+    tableCards,
+    discardPile
+  };
+}
+
+function extractSelectedCards(hand, selectedIds) {
+  const idSet = new Set(selectedIds);
+  return hand.filter((card) => idSet.has(card.id));
+}
+
+function initializeGame(playersInfo) {
+  const deck = createDeck();
+  shuffleInPlace(deck);
+  const hands = dealHands(deck, playersInfo.length);
+  const playerStates = playersInfo.map((info, idx) => ({
+    ...info,
+    hand: sortHand(hands[idx], GAME_CONFIG),
+    finished: false
+  }));
+  const startIdx = playerStates.findIndex((player) =>
+    player.hand.some((card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit)
+  );
+  const active = startIdx === -1 ? 0 : startIdx;
+  return {
+    players: playerStates,
+    activePlayer: active,
+    tableCombo: null,
+    tableCards: [],
+    discardPile: [],
+    passesInRow: 0,
+    lastWinner: active,
+    firstMove: true,
+    status: 'PLAYING',
+    allCards: deck
+  };
+}
+
+function createDeck() {
+  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+  const deck = [];
+  let id = 0;
+  for (const suit of SUITS) {
+    for (const rank of ranks) {
+      deck.push({ id: `c-${id++}`, rank, suit });
+    }
+  }
+  deck.push({ id: `c-${id++}`, rank: 'JR', suit: '🃏' });
+  deck.push({ id: `c-${id++}`, rank: 'JB', suit: '🃏' });
+  return deck;
+}
+
+function shuffleInPlace(deck) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+}
+
+function dealHands(deck, playerCount) {
+  const hands = Array.from({ length: playerCount }, () => []);
+  let idx = 0;
+  deck.forEach((card) => {
+    hands[idx].push(card);
+    idx = (idx + 1) % playerCount;
+  });
+  return hands;
+}
+
+function getNextAlive(players, index) {
+  if (!players.length) return 0;
+  let next = (index + 1) % players.length;
+  let safety = 0;
+  while (players[next]?.finished) {
+    next = (next + 1) % players.length;
+    safety += 1;
+    if (safety > players.length) return index;
+  }
+  return next;
+}
+
+function computeUiState(state) {
+  const scoreboard = state.players.map((player, idx) => ({
+    id: idx,
+    name: player.name,
+    avatar: player.avatar,
+    cardsLeft: player.hand.length,
+    finished: player.finished,
+    isActive: idx === state.activePlayer,
+    isHuman: !!player.isHuman
+  }));
+  let message = '';
+  let tableSummary = '';
+  let humanTurn = false;
+
+  if (state.status === 'ENDED') {
+    const winners = scoreboard.filter((entry) => entry.finished).map((entry) => entry.name);
+    message = winners.length === 1 ? `${winners[0]} doli fitues!` : `Fitues: ${winners.join(', ')}`;
+  } else {
+    const active = state.players[state.activePlayer];
+    if (active) {
+      humanTurn = !!active.isHuman;
+      if (humanTurn) {
+        message = state.firstMove
+          ? 'Zgjidh kartat (përfshi 3♠) dhe shtyp "Luaj".'
+          : state.tableCombo
+            ? 'Gjej një kombin që e mund tavolinën ose shtyp "Paso".'
+            : 'Zgjidh kartat dhe shtyp "Luaj" për të nisur hedhjen.';
+      } else {
+        message = `Duke pritur ${active.name}...`;
+      }
+    }
+  }
+
+  if (state.tableCards.length) {
+    const description = describeCombo(state.tableCombo, state.tableCards);
+    if (description) {
+      const owner = state.lastWinner != null ? state.players[state.lastWinner]?.name : null;
+      tableSummary = owner ? `${owner} hodhi ${description}` : description;
+    }
+  }
+
+  return { scoreboard, message, tableSummary, humanTurn, status: state.status };
+}
+
+function describeCombo(combo, cards) {
+  if (!cards?.length) return '';
+  if (!combo) {
+    return cards.map((card) => cardLabel(card)).join(' ');
+  }
+  switch (combo.type) {
+    case ComboType.SINGLE:
+      return `një ${cardLabel(cards[0])}`;
+    case ComboType.PAIR:
+      return `çift ${combo.keyRank}`;
+    case ComboType.TRIPS:
+      return `treshe ${combo.keyRank}`;
+    case ComboType.BOMB_4K:
+      return `bombë ${combo.keyRank}`;
+    case ComboType.STRAIGHT:
+      return `shteg ${cardLabel(cards[0])} - ${cardLabel(cards[cards.length - 1])}`;
+    case ComboType.FLUSH:
+      return `flush me ${cards.length} letra`;
+    case ComboType.FULL_HOUSE:
+      return 'full house';
+    case ComboType.STRAIGHT_FLUSH:
+      return 'straight flush';
+    default:
+      return cards.map((card) => cardLabel(card)).join(' ');
+  }
+}
+
+function cardLabel(card) {
+  if (!card) return '';
+  if (card.rank === 'JR') return 'Joker i kuq';
+  if (card.rank === 'JB') return 'Joker i zi';
+  return `${card.rank}${card.suit}`;
+}
+
+function buildPlayers(search) {
+  const params = new URLSearchParams(search);
+  const username = params.get('username') || 'Ti';
+  const avatar = params.get('avatar') || '';
+  const seedFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
+  return [
+    { name: username, avatar, isHuman: true },
+    seedFlags[0] ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] } : { name: 'Aria', avatar: '🦊' },
+    seedFlags[1] ? { name: flagName(seedFlags[1]), avatar: seedFlags[1] } : { name: 'Milo', avatar: '🐻' },
+    seedFlags[2] ? { name: flagName(seedFlags[2]), avatar: seedFlags[2] } : { name: 'Sora', avatar: '🐱' }
+  ];
+}
+
+function flagName(flag) {
+  if (!flag) return 'Player';
+  const base = 0x1f1e6;
+  const codePoints = [...flag].map((c) => c.codePointAt(0) - base + 65);
+  try {
+    const region = String.fromCharCode(...codePoints);
+    const names = new Intl.DisplayNames(['en'], { type: 'region' });
+    return names.of(region) || `Player ${flag}`;
+  } catch (error) {
+    return `Player ${flag}`;
+  }
+}
+
+function makeLabelTexture(name, avatar) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const g = canvas.getContext('2d');
+  g.fillStyle = 'rgba(12, 16, 32, 0.92)';
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  g.lineWidth = 12;
+  roundRect(g, 16, 16, canvas.width - 32, canvas.height - 32, 42);
+  g.stroke();
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 140px "Inter", system-ui, sans-serif';
+  const display = avatar && avatar.startsWith('http') ? '' : avatar || '🂠';
+  g.fillText(display, 48, 172);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  if (avatar && avatar.startsWith('http')) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      g.save();
+      g.beginPath();
+      g.arc(128, 128, 96, 0, Math.PI * 2);
+      g.closePath();
+      g.clip();
+      g.drawImage(img, 32, 32, 192, 192);
+      g.restore();
+      texture.needsUpdate = true;
+    };
+    img.src = avatar;
+  }
+  g.font = 'bold 96px "Inter", system-ui, sans-serif';
+  g.fillText(name, 220, 172);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function setMeshPosition(mesh, target, lookTarget, isHuman, immediate) {
+  if (!mesh) return;
+  mesh.position.copy(target);
+  mesh.up.set(0, 1, 0);
+  mesh.lookAt(lookTarget);
+  mesh.rotation.z = 0;
+  if (!isHuman) {
+    mesh.rotateY(Math.PI);
+  }
 }
 
 function updateCameraFromSpherical(camera, spherical, target) {
@@ -508,46 +1034,43 @@ function updateCameraFromSpherical(camera, spherical, target) {
   camera.lookAt(target);
 }
 
-function animateCard(card, target, height, delay, lookTarget) {
-  const start = card.position.clone();
-  const duration = 900;
-  const startTime = performance.now() + delay * 1000;
-
-  if (lookTarget) {
-    card.up.set(0, 1, 0);
-    card.lookAt(lookTarget);
-    card.rotation.z = 0;
+function createCardMesh(card, geometry, cache) {
+  const faceKey = `${card.rank}-${card.suit}`;
+  let faceTexture = cache.get(faceKey);
+  if (!faceTexture) {
+    faceTexture = makeCardFace(card.rank, card.suit);
+    cache.set(faceKey, faceTexture);
   }
+  const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55, metalness: 0.1 });
+  const frontMat = new THREE.MeshStandardMaterial({ map: faceTexture, roughness: 0.35, metalness: 0.08 });
+  const backMat = new THREE.MeshStandardMaterial({ color: 0x111a2a, roughness: 0.6, metalness: 0.15 });
+  const mesh = new THREE.Mesh(geometry, [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone(), frontMat, backMat]);
+  mesh.userData.cardId = card.id;
+  return mesh;
+}
 
-  function step() {
-    const elapsed = performance.now() - startTime;
-    if (elapsed < 0) {
-      requestAnimationFrame(step);
-      return;
-    }
-    const t = Math.min(1, elapsed / duration);
-    const eased = 1 - Math.pow(1 - t, 3);
-    card.position.lerpVectors(start, target, eased);
-    card.position.y = height + Math.sin(Math.PI * eased) * (0.35 * MODEL_SCALE);
-    if (lookTarget) {
-      card.up.set(0, 1, 0);
-      card.lookAt(lookTarget);
-      card.rotation.z = 0;
-    }
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      card.position.copy(target);
-      card.position.y = height;
-      if (lookTarget) {
-        card.up.set(0, 1, 0);
-        card.lookAt(lookTarget);
-        card.rotation.z = 0;
-      }
-    }
-  }
-
-  requestAnimationFrame(step);
+function makeCardFace(rank, suit, w = 512, h = 720) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#e5e7eb';
+  g.lineWidth = 8;
+  roundRect(g, 6, 6, w - 12, h - 12, 32);
+  g.stroke();
+  const color = SUIT_COLORS[suit] || '#111111';
+  g.fillStyle = color;
+  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
+  g.fillText(label, 36, 112);
+  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(suit, 36, 188);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }
 
 function makeVelvetTexture(w, h, c1, c2) {
