@@ -3683,7 +3683,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3694,6 +3694,8 @@ function Table3D(
     POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
+  const WOOD_CORNER_NOTCH_SCALE = 0.993; // pull the wood pocket cuts a touch tighter so they align with the chrome trim
+  const WOOD_SIDE_POCKET_RADIUS_SCALE = 0.992; // shrink the side pocket cutouts slightly to match the chrome plates
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3884,7 +3886,7 @@ function Table3D(
   };
   const ringArea = (ring) => signedRingArea(ring);
 
-  const cornerNotchMP = (sx, sz) => {
+  const cornerNotchMP = (sx, sz, scale = CHROME_CORNER_NOTCH_EXPANSION_SCALE) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
     const notchCircle = circlePoly(
@@ -3928,10 +3930,10 @@ function Table3D(
     }
     const union = polygonClipping.union(...unionParts);
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
-    if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
+    if (scale === 1) {
       return adjusted;
     }
-    return scaleMultiPolygon(adjusted, CHROME_CORNER_NOTCH_EXPANSION_SCALE);
+    return scaleMultiPolygon(adjusted, scale);
   };
 
   const sideNotchMP = (sx) => {
@@ -4037,15 +4039,23 @@ function Table3D(
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, sidePocketRadius)
+    ...circlePoly(
+      -(innerHalfW - sideInset),
+      0,
+      sidePocketRadius * WOOD_SIDE_POCKET_RADIUS_SCALE
+    ),
+    ...circlePoly(
+      innerHalfW - sideInset,
+      0,
+      sidePocketRadius * WOOD_SIDE_POCKET_RADIUS_SCALE
+    )
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...cornerNotchMP(1, 1),
-    ...cornerNotchMP(-1, 1),
-    ...cornerNotchMP(-1, -1),
-    ...cornerNotchMP(1, -1)
+    ...cornerNotchMP(1, 1, WOOD_CORNER_NOTCH_SCALE),
+    ...cornerNotchMP(-1, 1, WOOD_CORNER_NOTCH_SCALE),
+    ...cornerNotchMP(-1, -1, WOOD_CORNER_NOTCH_SCALE),
+    ...cornerNotchMP(1, -1, WOOD_CORNER_NOTCH_SCALE)
   );
 
   const railsOuter = new THREE.Shape();
