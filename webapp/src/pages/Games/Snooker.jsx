@@ -653,6 +653,7 @@ const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const CUE_BUTT_RADIUS = (BALL_R / 0.0525) * 0.025;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip footprint
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
@@ -3425,7 +3426,7 @@ function Table3D(
     side: THREE.DoubleSide
   });
   const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
-  const lineThickness = Math.max(BALL_R * 0.08, 0.1);
+  const lineThickness = Math.max(CUE_BUTT_RADIUS * 2, 0.1);
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
@@ -3434,7 +3435,7 @@ function Table3D(
   markingsGroup.add(baulkLine);
 
   const dRadius = D_RADIUS;
-  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
+  const dThickness = lineThickness;
   const dGeom = new THREE.RingGeometry(
     Math.max(0.001, dRadius - dThickness),
     dRadius,
@@ -3448,7 +3449,7 @@ function Table3D(
   dArc.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(dArc);
 
-  const spotRadius = BALL_R * 0.26;
+  const spotRadius = CUE_BUTT_RADIUS;
   const spotMeshes = [];
   const addSpot = (x, z) => {
     const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
