@@ -181,8 +181,6 @@ const CHROME_CORNER_EXPANSION_SCALE = 1.02;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -3885,19 +3883,7 @@ function Table3D(
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
     const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
-    const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
-    const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
     const unionParts = [notchCircle, boxX, boxZ];
-    if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
-      unionParts.push([
-        [
-          [cx, cz],
-          [cx + sx * fieldClipWidth, cz],
-          [cx, cz + sz * fieldClipDepth],
-          [cx, cz]
-        ]
-      ]);
-    }
     if (wedgeDepth > MICRO_EPS) {
       unionParts.push([
         [
