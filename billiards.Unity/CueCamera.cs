@@ -54,6 +54,22 @@ public class CueCamera : MonoBehaviour
     private float preShotViewBlend;
     private float targetViewYaw;
     private Vector3 targetViewFocus;
+    [Header("Occlusion settings")]
+    // Layers that should be considered when preventing the camera from getting
+    // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
+    // layers so it works out of the box.
+    public LayerMask occluderLayers = ~0;
+    // Radius used when checking for obstacles between the focus point and the
+    // desired camera position. Keeps a small buffer so the camera doesn't clip
+    // into geometry.
+    public float collisionRadius = 0.08f;
+    // Extra distance from an obstacle surface to place the camera when a hit is
+    // detected.
+    public float collisionBuffer = 0.05f;
+    // Minimum height the camera should maintain above the table focus even when
+    // pushed forward by a wall. Prevents sudden drops that could look jarring.
+    public float minimumHeightAboveFocus = 0.05f;
+
     private Camera cachedCamera;
 
     /// <summary>
@@ -221,8 +237,31 @@ public class CueCamera : MonoBehaviour
     {
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
-        transform.position = focusPosition - forward * distance + Vector3.up * height;
-        transform.LookAt(focusPosition + forward * 5f);
+        Vector3 desiredPosition = focusPosition - forward * distance + Vector3.up * height;
+        Vector3 lookTarget = focusPosition + forward * 5f;
+
+        // Prevent the camera from getting stuck behind walls or decorations by
+        // nudging it toward the table if something blocks the line of sight.
+        Vector3 focusOrigin = focusPosition + Vector3.up * minimumHeightAboveFocus;
+        Vector3 toCamera = desiredPosition - focusOrigin;
+        float maxDistance = toCamera.magnitude;
+
+        if (maxDistance > 0.001f)
+        {
+            Vector3 dir = toCamera / maxDistance;
+            RaycastHit hit;
+            // SphereCast gives us a bit of padding so the camera doesn't sit
+            // directly inside the collider and jitter.
+            if (Physics.SphereCast(focusOrigin, collisionRadius, dir, out hit, maxDistance, occluderLayers, QueryTriggerInteraction.Ignore))
+            {
+                Vector3 adjustedPosition = hit.point - dir * collisionBuffer;
+                adjustedPosition.y = Mathf.Max(adjustedPosition.y, focusPosition.y + minimumHeightAboveFocus);
+                desiredPosition = adjustedPosition;
+            }
+        }
+
+        transform.position = desiredPosition;
+        transform.LookAt(lookTarget);
     }
 
     private void EndShot()
