@@ -79,7 +79,7 @@ export default function MurlanRoyaleArena({ search }) {
     selectionTargets: [],
     animations: [],
     raycaster: new THREE.Raycaster(),
-    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H / 2, 0),
+    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
     discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
   });
 
@@ -117,7 +117,7 @@ export default function MurlanRoyaleArena({ search }) {
       const seat = seatConfigs[idx];
       if (!seat) return;
       const cards = player.hand;
-      const baseHeight = TABLE_HEIGHT + CARD_H / 2;
+      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + (player.isHuman ? 0.06 * MODEL_SCALE : 0);
       const forward = seat.forward;
       const right = seat.right;
       const radius = seat.radius;
@@ -130,6 +130,7 @@ export default function MurlanRoyaleArena({ search }) {
         if (!entry) return;
         const mesh = entry.mesh;
         mesh.visible = true;
+        updateCardFace(mesh, player.isHuman ? 'front' : 'back');
         handsVisible.add(card.id);
         const offset = cards.length > 1 ? cardIdx - (cards.length - 1) / 2 : 0;
         const lateral = cards.length > 1 ? (offset * spread) / (cards.length - 1 || 1) : 0;
@@ -148,12 +149,14 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
+      updateCardFace(mesh, 'front');
       const offset = state.tableCards.length > 1 ? idx - (state.tableCards.length - 1) / 2 : 0;
       const target = tableAnchor.clone();
       target.x += offset * (CARD_W * 1.1);
-      target.y += idx * 0.012;
+      target.y += 0.06 * MODEL_SCALE + idx * 0.014;
       target.z += offset * 0.08;
-      setMeshPosition(mesh, target, tableAnchor.clone().setY(target.y + 0.15), true, immediate, three.animations);
+      const lookTarget = tableAnchor.clone().setY(target.y + 0.26 * MODEL_SCALE);
+      setMeshPosition(mesh, target, lookTarget, true, immediate, three.animations);
     });
 
     const discardBase = three.discardAnchor.clone();
@@ -162,6 +165,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
+      updateCardFace(mesh, 'front');
       const row = Math.floor(idx / 12);
       const col = idx % 12;
       const target = discardBase.clone();
@@ -394,15 +398,18 @@ export default function MurlanRoyaleArena({ search }) {
 
       const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
       const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-      const focus = forward.clone().multiplyScalar(chairRadius - 0.6 * MODEL_SCALE);
-      focus.y = TABLE_HEIGHT + CARD_H / 2;
+      const isHumanSeat = Boolean(player?.isHuman);
+      const focus = forward
+        .clone()
+        .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
+      focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
       seatConfigs.push({
         forward,
         right,
         focus,
-        radius: 3.45 * MODEL_SCALE,
-        spacing: 0.18 * MODEL_SCALE,
-        maxSpread: 2.5 * MODEL_SCALE
+        radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
+        spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
+        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE
       });
 
       if (player) {
@@ -425,6 +432,7 @@ export default function MurlanRoyaleArena({ search }) {
     spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
     spot.target.updateMatrixWorld();
 
+    const isPortrait = mount.clientHeight > mount.clientWidth;
     const camera = new THREE.PerspectiveCamera(
       camConfig.fov,
       mount.clientWidth / mount.clientHeight,
@@ -432,9 +440,9 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.far
     );
     const humanSeatAngle = Math.PI / 2;
-    const cameraBackOffset = 1.05;
-    const cameraForwardOffset = 0.35;
-    const cameraHeightOffset = 1.12;
+    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
     const initialCameraPosition = new THREE.Vector3(
       Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
       TABLE_HEIGHT + cameraHeightOffset,
@@ -554,7 +562,17 @@ export default function MurlanRoyaleArena({ search }) {
       cardGeometry.dispose();
       labelGeo.dispose();
       threeStateRef.current.cardMap.forEach(({ mesh }) => {
-        mesh.material.forEach((mat) => mat.dispose());
+        const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const mats = new Set(list.filter(Boolean));
+        const { frontMaterial, backMaterial, hiddenMaterial } = mesh.userData ?? {};
+        [frontMaterial, backMaterial, hiddenMaterial].forEach((mat) => {
+          if (mat) mats.add(mat);
+        });
+        mats.forEach((mat) => {
+          if (typeof mat.dispose === 'function') {
+            mat.dispose();
+          }
+        });
         arena.remove(mesh);
       });
       threeStateRef.current.faceTextureCache.forEach((tex) => tex.dispose());
@@ -575,7 +593,7 @@ export default function MurlanRoyaleArena({ search }) {
         selectionTargets: [],
         animations: [],
         raycaster: new THREE.Raycaster(),
-        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H / 2, 0),
+        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
         discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
       };
       setThreeReady(false);
@@ -1068,6 +1086,23 @@ function orientMesh(mesh, lookTarget, isHuman) {
   }
 }
 
+function updateCardFace(mesh, mode) {
+  if (!mesh?.material) return;
+  const { frontMaterial, backMaterial, hiddenMaterial, cardFace } = mesh.userData ?? {};
+  if (!frontMaterial || !backMaterial) return;
+  if (mode === cardFace) return;
+  if (mode === 'back') {
+    const mat = hiddenMaterial ?? backMaterial;
+    mesh.material[4] = mat;
+    mesh.material[5] = mat;
+    mesh.userData.cardFace = 'back';
+    return;
+  }
+  mesh.material[4] = frontMaterial;
+  mesh.material[5] = backMaterial;
+  mesh.userData.cardFace = 'front';
+}
+
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -1088,8 +1123,13 @@ function createCardMesh(card, geometry, cache) {
   const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55, metalness: 0.1 });
   const frontMat = new THREE.MeshStandardMaterial({ map: faceTexture, roughness: 0.35, metalness: 0.08 });
   const backMat = new THREE.MeshStandardMaterial({ color: 0x111a2a, roughness: 0.6, metalness: 0.15 });
+  const hiddenMat = new THREE.MeshStandardMaterial({ color: 0x0b1428, roughness: 0.7, metalness: 0.12 });
   const mesh = new THREE.Mesh(geometry, [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone(), frontMat, backMat]);
   mesh.userData.cardId = card.id;
+  mesh.userData.frontMaterial = frontMat;
+  mesh.userData.backMaterial = backMat;
+  mesh.userData.hiddenMaterial = hiddenMat;
+  mesh.userData.cardFace = 'front';
   return mesh;
 }
 
