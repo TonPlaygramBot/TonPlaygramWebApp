@@ -22,12 +22,12 @@ import {
 } from '../../../../lib/murlan.js';
 
 const MODEL_SCALE = 0.75;
-const ARENA_GROWTH = 1.5; // 50% larger arena footprint
+const ARENA_GROWTH = 1.3; // 30% larger arena footprint
 
 const ARENA_COLOR = 0x0c1020;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const CHAIR_COUNT = 6;
+const CHAIR_COUNT = 4;
 
 const FLAG_EMOJIS = ['🇦🇱', '🇺🇸', '🇫🇷', '🇬🇧', '🇮🇹', '🇩🇪', '🇯🇵', '🇨🇦'];
 
@@ -330,7 +330,14 @@ export default function MurlanRoyaleArena({ search }) {
         const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
         target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
         if (player.isHuman && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        setMeshPosition(mesh, target, focus, player.isHuman, immediate, three.animations);
+        setMeshPosition(
+          mesh,
+          target,
+          focus,
+          { face: player.isHuman ? 'front' : 'back' },
+          immediate,
+          three.animations
+        );
         mesh.userData.cardId = card.id;
         if (player.isHuman) humanMeshes.push(mesh);
       });
@@ -351,7 +358,14 @@ export default function MurlanRoyaleArena({ search }) {
       target.y += 0.06 * MODEL_SCALE + idx * 0.014;
       target.z += (idx - (tableCount - 1) / 2) * 0.06;
       const lookTarget = tableAnchor.clone().setY(target.y + 0.26 * MODEL_SCALE);
-      setMeshPosition(mesh, target, lookTarget, true, immediate, three.animations);
+      setMeshPosition(
+        mesh,
+        target,
+        lookTarget,
+        { face: 'front', flat: true },
+        immediate,
+        three.animations
+      );
     });
 
     const discardBase = three.discardAnchor.clone();
@@ -367,7 +381,14 @@ export default function MurlanRoyaleArena({ search }) {
       target.x += (col - 5.5) * CARD_W * 0.4;
       target.z += row * CARD_W * 0.32;
       target.y -= row * 0.05;
-      setMeshPosition(mesh, target, target.clone().setY(target.y + 0.1), false, immediate, three.animations);
+      setMeshPosition(
+        mesh,
+        target,
+        target.clone().setY(target.y + 0.1),
+        { face: 'front', flat: true },
+        immediate,
+        three.animations
+      );
     });
 
     three.cardMap.forEach(({ mesh }, id) => {
@@ -882,10 +903,10 @@ export default function MurlanRoyaleArena({ search }) {
         const progress = Math.min(1, (time - anim.start) / anim.duration);
         const eased = easeOutCubic(progress);
         anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
-        orientMesh(anim.mesh, anim.lookTarget, anim.isHuman);
+        orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
         if (progress >= 1) {
           anim.mesh.position.copy(anim.to);
-          orientMesh(anim.mesh, anim.lookTarget, anim.isHuman);
+          orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
           anim.mesh.userData.animation = null;
           return false;
         }
@@ -1082,10 +1103,10 @@ export default function MurlanRoyaleArena({ search }) {
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
-        <div className="flex items-start justify-between gap-4 p-4">
-          <div className="pointer-events-auto">
-            {uiState.scoreboard?.length ? (
-              <div className="min-w-[11rem] rounded-3xl bg-black/65 p-3 text-xs text-gray-100 shadow-xl backdrop-blur-md">
+        <div className="pointer-events-none relative flex items-start justify-start p-4">
+          {uiState.scoreboard?.length ? (
+            <div className="pointer-events-auto pr-16">
+              <div className="w-[min(16rem,calc(100vw-6rem))] rounded-3xl bg-black/65 p-3 text-xs text-gray-100 shadow-xl backdrop-blur-md">
                 <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Rezultati</p>
                 <div className="mt-2 space-y-1.5">
                   {uiState.scoreboard.map((entry) => (
@@ -1095,9 +1116,20 @@ export default function MurlanRoyaleArena({ search }) {
                         entry.isActive ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-200'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-base leading-none">{entry.avatar || '🂠'}</span>
-                        <span className="text-xs font-semibold text-gray-100">{entry.name}</span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        {entry.avatar?.startsWith('http') ? (
+                          <span className="relative block h-6 w-6 overflow-hidden rounded-full bg-white/10">
+                            <img
+                              src={entry.avatar}
+                              alt={`${entry.name} avatar`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </span>
+                        ) : (
+                          <span className="text-base leading-none">{entry.avatar || '🂠'}</span>
+                        )}
+                        <span className="truncate text-xs font-semibold text-gray-100">{entry.name}</span>
                       </div>
                       <span className={`text-xs font-bold ${entry.finished ? 'text-emerald-300' : 'text-gray-300'}`}>
                         {entry.finished ? '🏁' : entry.cardsLeft}
@@ -1106,61 +1138,59 @@ export default function MurlanRoyaleArena({ search }) {
                   ))}
                 </div>
               </div>
-            ) : null}
-          </div>
-          <div className="pointer-events-auto flex flex-col items-end gap-2">
-            <button
-              type="button"
-              aria-label="Hap personalizimin"
-              onClick={() => setShowCustomizer((prev) => !prev)}
-              className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur-md transition hover:bg-black/60"
-            >
-              ⚙️
-            </button>
-            {showCustomizer && (
-              <div className="w-[min(18rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-black/80 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-100">Personalizo arenën</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomizer(false)}
-                    className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
-                    aria-label="Mbyll personalizimin"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <p className="mt-1 text-[0.65rem] text-gray-400">
-                  Zgjidh kombinimet e preferuara të rrobave, tavolinës dhe letrave për përvojën tënde.
-                </p>
-                {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                  <div key={key} className="mt-4 space-y-2">
-                    <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-gray-300">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const selected = appearance[key] === idx;
-                        return (
-                          <button
-                            type="button"
-                            key={option.id}
-                            onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
-                            className={`flex flex-col items-center rounded-2xl border p-2 transition ${
-                              selected
-                                ? 'border-emerald-400/80 bg-emerald-400/10'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            }`}
-                          >
-                            {renderPreview(key, option)}
-                            <p className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            aria-label="Hap personalizimin"
+            onClick={() => setShowCustomizer((prev) => !prev)}
+            className="pointer-events-auto absolute right-4 top-4 rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur-md transition hover:bg-black/60"
+          >
+            ⚙️
+          </button>
+          {showCustomizer && (
+            <div className="pointer-events-auto absolute right-4 top-16 z-20 w-[min(18rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-black/80 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-100">Personalizo arenën</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomizer(false)}
+                  className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                  aria-label="Mbyll personalizimin"
+                >
+                  ✕
+                </button>
               </div>
-            )}
-          </div>
+              <p className="mt-1 text-[0.65rem] text-gray-400">
+                Zgjidh kombinimet e preferuara të rrobave, tavolinës dhe letrave për përvojën tënde.
+              </p>
+              {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                <div key={key} className="mt-4 space-y-2">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-gray-300">{label}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {options.map((option, idx) => {
+                      const selected = appearance[key] === idx;
+                      return (
+                        <button
+                          type="button"
+                          key={option.id}
+                          onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                          className={`flex flex-col items-center rounded-2xl border p-2 transition ${
+                            selected
+                              ? 'border-emerald-400/80 bg-emerald-400/10'
+                              : 'border-white/10 bg-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          {renderPreview(key, option)}
+                          <p className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-auto px-4 pb-6 pointer-events-none">
           <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
@@ -1528,9 +1558,13 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function setMeshPosition(mesh, target, lookTarget, isHuman, immediate, animations) {
+function setMeshPosition(mesh, target, lookTarget, orientation, immediate, animations) {
   if (!mesh) return;
   const orientTarget = lookTarget.clone();
+  const orientOptions =
+    typeof orientation === 'object' && orientation !== null
+      ? orientation
+      : { face: orientation ? 'front' : 'back', flat: false };
   const stopExisting = () => {
     if (mesh.userData?.animation) {
       mesh.userData.animation.cancelled = true;
@@ -1541,7 +1575,7 @@ function setMeshPosition(mesh, target, lookTarget, isHuman, immediate, animation
   if (immediate || !animations) {
     stopExisting();
     mesh.position.copy(target);
-    orientMesh(mesh, orientTarget, isHuman);
+    orientMesh(mesh, orientTarget, orientOptions);
     return;
   }
 
@@ -1549,7 +1583,7 @@ function setMeshPosition(mesh, target, lookTarget, isHuman, immediate, animation
   if (current.distanceToSquared(target) < 1e-6) {
     stopExisting();
     mesh.position.copy(target);
-    orientMesh(mesh, orientTarget, isHuman);
+    orientMesh(mesh, orientTarget, orientOptions);
     return;
   }
 
@@ -1559,7 +1593,7 @@ function setMeshPosition(mesh, target, lookTarget, isHuman, immediate, animation
     from: current,
     to: target.clone(),
     lookTarget: orientTarget,
-    isHuman,
+    orientation: orientOptions,
     start: performance.now(),
     duration: CARD_ANIMATION_DURATION,
     cancelled: false
@@ -1568,11 +1602,15 @@ function setMeshPosition(mesh, target, lookTarget, isHuman, immediate, animation
   animations.push(animation);
 }
 
-function orientMesh(mesh, lookTarget, isHuman) {
+function orientMesh(mesh, lookTarget, options = {}) {
+  const { face = 'front', flat = false } = options;
   mesh.up.set(0, 1, 0);
   mesh.lookAt(lookTarget);
   mesh.rotation.z = 0;
-  if (!isHuman) {
+  if (flat) {
+    mesh.rotateX(-Math.PI / 2);
+  }
+  if (face === 'back') {
     mesh.rotateY(Math.PI);
   }
 }
