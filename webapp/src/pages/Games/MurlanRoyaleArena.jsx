@@ -1100,13 +1100,18 @@ export default function MurlanRoyaleArena({ search }) {
         .clone()
         .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
       focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
+      const stoolPosition = forward.clone().multiplyScalar(chairRadius);
+      stoolPosition.y = chairBaseHeight + seatThickness / 2;
+      const stoolHeight = chairBaseHeight + seatThickness;
       seatConfigs.push({
         forward,
         right,
         focus,
         radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
         spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
-        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE
+        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
+        stoolPosition,
+        stoolHeight
       });
 
       if (player) {
@@ -1141,22 +1146,39 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.near,
       camConfig.far
     );
-    const humanSeatAngle = humanSeatConfig
-      ? Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x)
-      : Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
-    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
-    const initialCameraPosition = new THREE.Vector3(
-      Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
-      TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
-    );
     const targetHeightOffset = 0.08 * MODEL_SCALE;
-    const target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
+    let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
+    let initialCameraPosition;
     if (humanSeatConfig) {
-      target.add(humanSeatConfig.forward.clone().multiplyScalar(0.35 * MODEL_SCALE));
-      target.add(humanSeatConfig.right.clone().multiplyScalar(-0.12 * MODEL_SCALE));
+      const humanSeatAngle = Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x);
+      const stoolAnchor = humanSeatConfig.stoolPosition?.clone() ??
+        new THREE.Vector3(
+          Math.cos(humanSeatAngle) * chairRadius,
+          TABLE_HEIGHT,
+          Math.sin(humanSeatAngle) * chairRadius
+        );
+      const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
+      const lateralOffset = isPortrait ? 0.55 : 0.42;
+      const retreatOffset = isPortrait ? 1.85 : 1.35;
+      const elevation = isPortrait ? 1.95 : 1.58;
+      initialCameraPosition = stoolAnchor
+        .addScaledVector(humanSeatConfig.forward, -retreatOffset)
+        .addScaledVector(humanSeatConfig.right, lateralOffset);
+      initialCameraPosition.y = stoolHeight + elevation;
+
+      target = humanSeatConfig.focus.clone();
+      target.y += 0.12 * MODEL_SCALE;
+      target.add(humanSeatConfig.right.clone().multiplyScalar(-0.16 * MODEL_SCALE));
+    } else {
+      const humanSeatAngle = Math.PI / 2;
+      const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+      const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+      const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+      initialCameraPosition = new THREE.Vector3(
+        Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
+        TABLE_HEIGHT + cameraHeightOffset,
+        Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
+      );
     }
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
