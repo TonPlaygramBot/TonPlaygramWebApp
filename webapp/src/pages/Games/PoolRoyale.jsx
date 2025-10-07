@@ -3229,6 +3229,18 @@ function Table3D(
   table.userData = table.userData || {};
   table.userData.cushions = [];
 
+  const finishParts = {
+    frameMeshes: [],
+    legMeshes: [],
+    railMeshes: [],
+    trimMeshes: [],
+    accentParent: null,
+    accentMesh: null,
+    dimensions: null,
+    woodSurfaces: { frame: null, rail: null },
+    woodTextureId: null
+  };
+
   const halfW = PLAY_W / 2;
   const halfH = PLAY_H / 2;
   const baulkLineZ = -PLAY_H / 2 + BAULK_FROM_BAULK;
@@ -3276,18 +3288,6 @@ function Table3D(
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
-
-  const finishParts = {
-    frameMeshes: [],
-    legMeshes: [],
-    railMeshes: [],
-    trimMeshes: [],
-    accentParent: null,
-    accentMesh: null,
-    dimensions: null,
-    woodSurfaces: { frame: null, rail: null },
-    woodTextureId: null
-  };
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothPrimary = new THREE.Color(palette.cloth);
@@ -10899,7 +10899,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Wood Grain
                 </h3>
-                <div className="mt-2 grid gap-2">
+                <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1">
                   {WOOD_GRAIN_OPTIONS.map((option) => {
                     const active = option.id === woodTextureId;
                     return (

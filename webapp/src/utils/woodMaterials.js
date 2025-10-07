@@ -220,6 +220,90 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       rotation: Math.PI / 2,
       textureSize: 2048
     }
+  }),
+  Object.freeze({
+    id: 'heritagePlanks',
+    label: 'Heritage Planks',
+    rail: {
+      repeat: { x: 0.09, y: 0.5 },
+      rotation: Math.PI / 28,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.18, y: 0.34 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'atelierChevron',
+    label: 'Atelier Chevron',
+    rail: {
+      repeat: { x: 0.16, y: 0.62 },
+      rotation: Math.PI / 9,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.28, y: 0.46 },
+      rotation: -Math.PI / 8,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'cathedralSweep',
+    label: 'Cathedral Sweep',
+    rail: {
+      repeat: { x: 0.07, y: 0.48 },
+      rotation: -Math.PI / 20,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.22, y: 0.36 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'estateBands',
+    label: 'Estate Bands',
+    rail: {
+      repeat: { x: 0.12, y: 0.68 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.32, y: 0.4 },
+      rotation: 0,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'studioVeins',
+    label: 'Studio Veins',
+    rail: {
+      repeat: { x: 0.1, y: 0.56 },
+      rotation: Math.PI / 14,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.24, y: 0.38 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'grandArc',
+    label: 'Grand Arc',
+    rail: {
+      repeat: { x: 0.06, y: 0.6 },
+      rotation: -Math.PI / 12,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.2, y: 0.44 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
   })
 ]);
 
