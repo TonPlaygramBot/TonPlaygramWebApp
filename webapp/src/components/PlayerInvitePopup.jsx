@@ -194,6 +194,11 @@ export default function PlayerInvitePopup({
                   alt: 'Fruit Slice Royale',
                 },
                 {
+                  id: 'bowlingroyal',
+                  src: '/assets/icons/bowling-royal.svg',
+                  alt: 'Bowling Royal',
+                },
+                {
                   id: 'bubblepoproyale',
                   src: '/assets/icons/Bubble Pop Royale .png',
                   alt: 'Bubble Pop Royale',

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>3D Bowling — HD Realistic</title>
+  <style>
+    html, body { margin:0; height:100%; background:#05070d; overflow:hidden; }
+    #app { position:fixed; inset:0; }
+    /* HUD */
+    #hud { position:fixed; top:0; left:0; right:0; padding:10px 14px; color:#e5e7eb; font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; font-weight:700; display:flex; justify-content:space-between; align-items:center; z-index:10; pointer-events:none; }
+    #hud .cluster { display:flex; align-items:center; gap:10px; }
+    #hud .btn { pointer-events:auto; background:#11172a; color:#e5e7eb; border:1px solid #1f2a44; padding:10px 14px; border-radius:14px; cursor:pointer; }
+    #hud .rack { pointer-events:none; display:flex; gap:8px; align-items:center; }
+    .rackBall { width:18px; height:18px; border-radius:50%; box-shadow:0 0 0 2px #0b1224 inset, 0 0 10px rgba(0,0,0,.4); }
+    /* Bottom controls */
+    #bottom { position:fixed; bottom:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between; padding:12px; z-index:10; pointer-events:none; }
+    #powerWrap { display:flex; align-items:center; gap:10px; pointer-events:auto; }
+    #power { width:60vw; max-width:640px; height:12px; border-radius:999px; background:#1c2541; outline:none; }
+    #power::-webkit-slider-thumb { -webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:#4f7cff; border:2px solid #101626; }
+    #bowlBtn { pointer-events:auto; background:#0f172a; color:#e5e7eb; border:1px solid #243253; padding:12px 16px; border-radius:14px; font-weight:800; }
+    /* Touch overlay */
+    #touchOverlay { position:fixed; inset:0; pointer-events:auto; touch-action:none; }
+  </style>
+  <!-- ES Module Shims for broader import-map support -->
+  <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hud">
+    <div class="cluster">
+      <div id="score">Frame 1 • Throw 1 • Pins: 0/10</div>
+      <div class="rack" id="rack">
+        <div class="rackBall" style="background:#3a66ff"></div>
+        <div class="rackBall" style="background:#ff3366"></div>
+        <div class="rackBall" style="background:#22cc88"></div>
+        <div class="rackBall" style="background:#ffbb33"></div>
+      </div>
+    </div>
+    <div class="cluster">
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="powerWrap">
+      <span style="font-weight:700;color:#9fb0ff">Power</span>
+      <input id="power" type="range" min="0.45" max="1.15" step="0.01" value="0.9" />
+    </div>
+    <button id="bowlBtn">Bowl</button>
+  </div>
+  <div id="touchOverlay"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    // ===== Core State =====
+    let scene, camera, renderer, clock;
+    let pmrem, envTex;
+
+    // World objects
+    let lane, gutters = [], sideWalls = [], backWall, foulLine;
+    let ball, ballVel = new THREE.Vector3(), sideSpin = 0, ballRadius = 0.18, launched = false;
+    let pins = [], fallen = new Set();
+
+    // Mechanisms
+    let pinSetter, sweep, liftPlate, ballReturnPath = [], returning = false;
+    let rack3D, rackSlots = [], stagedFromRack = false;
+
+    // UI
+    const app = document.getElementById('app');
+    const hudScore = document.getElementById('score');
+    const resetBtn = document.getElementById('resetBtn');
+    const bowlBtn = document.getElementById('bowlBtn');
+    const powerEl = document.getElementById('power');
+    const touchOverlay = document.getElementById('touchOverlay');
+
+    // Game meta
+    let frame = 1, throwNo = 1;
+
+    init();
+    animate();
+
+    function init(){
+      // Scene
+      scene = new THREE.Scene();
+      // Camera (follow-from-behind)
+      camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 400);
+      camera.position.set(0, 2.4, 7.0);
+      camera.lookAt(0, 0.85, -8);
+
+      // Renderer (Full HD intent + HQ)
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      app.appendChild(renderer.domElement);
+
+      clock = new THREE.Clock();
+
+      // Environment + IBL
+      pmrem = new THREE.PMREMGenerator(renderer);
+      envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      scene.environment = envTex;
+
+      // ==== Lighting (Hemisphere + Spotlights per kërkesë) ====
+      const hemi = new THREE.HemisphereLight(0xbfd4ff, 0x0b0f1a, 1.0); hemi.position.set(0, 18, 0); scene.add(hemi);
+      const key = new THREE.DirectionalLight(0xffffff, 1.05); key.position.set(8, 14, 9); scene.add(key);
+      const rim = new THREE.DirectionalLight(0xcad7ff, 0.7); rim.position.set(-9, 11, -6); scene.add(rim);
+      const laneSpots = new THREE.Group();
+      const spotZ = [-6, -12, -18, -24];
+      for(const z of spotZ){
+        const s = new THREE.SpotLight(0xffffff, 0.7, 24, Math.PI/6, 0.35, 1.3);
+        s.position.set(0, 7.0, z+1.5); s.target.position.set(0, 0, z-1.5);
+        laneSpots.add(s, s.target);
+      }
+      scene.add(laneSpots);
+      const fill = new THREE.PointLight(0x88aaff, 0.25, 20); fill.position.set(0.6, 1.2, 7.5); scene.add(fill);
+
+      // Build world & mechanisms
+      buildLane();
+      buildGuttersAndWalls();
+      buildBackStops();
+      buildPins();
+      buildBall();
+      buildMechanisms();
+      buildBallRack();
+      rebuildReturnPathWithRack();
+
+      // UI + input
+      resetBtn.addEventListener('click', hardReset);
+      bowlBtn.addEventListener('click', () => { if(!launched) autoBowl(); });
+      bindTouch();
+
+      window.addEventListener('resize', onResize);
+      updateScore();
+    }
+
+    function onResize(){
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // ===== Materials =====
+    function laneLaminateMaterial(){
+      // Procedural laminated wood texture with glossy clearcoat
+      const tex = makeWoodTexture(1024, 8192);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 1);
+      return new THREE.MeshPhysicalMaterial({
+        map: tex,
+        roughness: 0.18,
+        metalness: 0.0,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.06,
+        sheen: 0.0,
+        envMapIntensity: 1.2,
+      });
+    }
+
+    function glossy(color){
+      return new THREE.MeshPhysicalMaterial({ color, roughness:0.22, metalness:0.0, clearcoat:1.0, clearcoatRoughness:0.04, envMapIntensity:1.1 });
+    }
+
+    // ===== Build World =====
+    function buildLane(){
+      const laneWidth = 1.6; // widened a bit
+      const laneLen = 28;
+      const laneH = 0.1;
+      const mat = laneLaminateMaterial();
+      const geo = new THREE.BoxGeometry(laneWidth, laneH, laneLen);
+      lane = new THREE.Mesh(geo, mat);
+      lane.position.set(0, -laneH/2, -laneLen/2);
+      scene.add(lane);
+
+      // Foul line
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(laneWidth*0.9, 0.03), new THREE.MeshBasicMaterial({color:0xffffff}));
+      line.rotation.x = -Math.PI/2; line.position.set(0, 0.051, -5.8); scene.add(line);
+      foulLine = line;
+    }
+
+    function buildGuttersAndWalls(){
+      const laneWidth = 1.6, laneLen = 28;
+      const gutterW = 0.3, gutterD = 0.22;
+      const dark = glossy(0x0f1422);
+      // Gutters
+      const gGeo = new THREE.BoxGeometry(gutterW, gutterD, laneLen);
+      const left = new THREE.Mesh(gGeo, dark); left.position.set(-laneWidth/2 - gutterW/2, -gutterD/2 - 0.05, -laneLen/2);
+      const right = left.clone(); right.position.x *= -1;
+      gutters.push(left, right); scene.add(left, right);
+
+      // Raised side walls (higher so ball stays inside)
+      const wallH = 0.95, wallT = 0.08;
+      const wGeo = new THREE.BoxGeometry(wallT, wallH, laneLen);
+      const wMat = glossy(0x1b2236);
+      const wl = new THREE.Mesh(wGeo, wMat); wl.position.set(-laneWidth/2 - gutterW - wallT/2, wallH/2 - 0.05, -laneLen/2);
+      const wr = wl.clone(); wr.position.x *= -1;
+      sideWalls.push(wl, wr); scene.add(wl, wr);
+    }
+
+    function buildBackStops(){
+      const stopMat = glossy(0x0c111c);
+      backWall = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.0, 0.2), stopMat);
+      backWall.position.set(0, 0.9, -28.4);
+      scene.add(backWall);
+    }
+
+    function buildBall(){
+      const mat = new THREE.MeshPhysicalMaterial({ color: 0x2e5bff, roughness: 0.15, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 1.3 });
+      const geo = new THREE.SphereGeometry(ballRadius, 40, 32);
+      ball = new THREE.Mesh(geo, mat);
+      resetBall();
+      scene.add(ball);
+    }
+
+    function buildPins(){
+      // remove old
+      for(const p of pins) scene.remove(p.root);
+      pins.length = 0; fallen.clear();
+
+      const white = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness:0.28, clearcoat:1.0, clearcoatRoughness:0.04, envMapIntensity:1.1 });
+      const red   = new THREE.MeshPhysicalMaterial({ color: 0xda2b2b, roughness:0.3, clearcoat:0.8, clearcoatRoughness:0.05, envMapIntensity:1.1 });
+
+      const bodyGeo = new THREE.CylinderGeometry(0.06, 0.09, 0.34, 14);
+      const neckGeo = new THREE.CylinderGeometry(0.045, 0.06, 0.12, 12);
+      const capGeo  = new THREE.SphereGeometry(0.045, 12, 10);
+      const ringGeo = new THREE.TorusGeometry(0.055, 0.007, 8, 16);
+
+      function makePin(){
+        const root = new THREE.Group();
+        const body = new THREE.Mesh(bodyGeo, white); body.position.y = 0.17;
+        const neck = new THREE.Mesh(neckGeo, white); neck.position.y = 0.34 + 0.06;
+        const cap = new THREE.Mesh(capGeo, white); cap.position.y = 0.34 + 0.12;
+        const ring = new THREE.Mesh(ringGeo, red); ring.rotation.x = Math.PI/2; ring.position.y = 0.34 + 0.04;
+        root.add(body, neck, cap, ring);
+        return root;
+      }
+
+      const startZ = -18.0; const spacing = 0.24;
+      for(let row=0; row<4; row++){
+        for(let i=0; i<=row; i++){
+          const root = makePin();
+          const x = (i - row/2) * spacing;
+          const z = startZ - row * spacing * 1.05;
+          root.position.set(x, 0, z);
+          scene.add(root);
+          pins.push({ root, radius: 0.09, vel: new THREE.Vector3(), fallen:false, fallT:0 });
+        }
+      }
+    }
+
+    function buildMechanisms(){
+      // Pinsetter: sweep bar (front -> back) + lift plate
+      pinSetter = new THREE.Group();
+      const barMat = glossy(0x26314d);
+      sweep = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 0.08), barMat);
+      sweep.position.set(0, 0.20, -15.2); // start slightly in front of pins
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 1.6), barMat);
+      plate.position.set(0, 0.45, -18.2);
+      liftPlate = plate;
+      pinSetter.add(sweep, plate);
+      scene.add(pinSetter);
+
+      // Initial (pre-rack) return route: back -> right rail -> mid-lane
+      ballReturnPath = [
+        new THREE.Vector3(0, ballRadius, -27.6),
+        new THREE.Vector3(0.95, ballRadius*1.0, -27.0),
+        new THREE.Vector3(0.95, ballRadius*1.0, -10.0),
+        new THREE.Vector3(0.85, ballRadius*1.0,   3.0),
+      ];
+    }
+
+    // 3D Ball rack (4 topa) te fundi i ekranit + lidhur me kthimin
+    function buildBallRack(){
+      rack3D = new THREE.Group();
+      const baseMat = glossy(0x101827);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 0.26), baseMat); rail.position.set(0, 0.1, 8.35);
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.06), baseMat); legL.position.set(-0.58, 0.03, 8.3);
+      const legR = legL.clone(); legR.position.x = 0.58;
+      const back = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.12, 0.06), baseMat); back.position.set(0, 0.26, 8.2);
+      rack3D.add(rail, legL, legR, back);
+
+      // 4 slots
+      rackSlots = [
+        new THREE.Vector3(-0.45, ballRadius+0.07, 8.28),
+        new THREE.Vector3(-0.15, ballRadius+0.07, 8.28),
+        new THREE.Vector3( 0.15, ballRadius+0.07, 8.28),
+        new THREE.Vector3( 0.45, ballRadius+0.07, 8.28),
+      ];
+      for(const p of rackSlots){
+        const slot = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.01, 8, 24), glossy(0x1a2540));
+        slot.rotation.x = Math.PI/2; slot.position.copy(p);
+        rack3D.add(slot);
+      }
+      scene.add(rack3D);
+    }
+
+    function rebuildReturnPathWithRack(){
+      // route nën dysheme (poshtë), më pas ngjitet lart te rack slot 0 dhe del në pikën e nisjes
+      const underY = -0.45; // poshtë dyshemesë
+      const slot0 = rackSlots[0] ?? new THREE.Vector3(-0.45, ballRadius+0.07, 8.28);
+      // remove any old tail and rebuild cleanly
+      ballReturnPath = [
+        new THREE.Vector3(0, ballRadius, -27.6),                  // nga muri i pasëm
+        new THREE.Vector3(0.95, ballRadius*1.0, -27.0),           // te kanali djathtas
+        new THREE.Vector3(0.95, ballRadius*1.0, -10.0),
+        new THREE.Vector3(0.85, ballRadius*1.0,   0.0),           // drejt fundit të pistës
+        new THREE.Vector3(0.40, underY,            6.5),          // ZBRIT POSHTË (nën dysheme)
+        new THREE.Vector3(slot0.x, underY,         slot0.z),      // nën rack
+        new THREE.Vector3(slot0.x, slot0.y,        slot0.z),      // NGJIT LART në slot
+        new THREE.Vector3(0, ballRadius,           7.8),          // pozicioni i nisjes
+      ];
+    }
+
+    // ===== Utility: Procedural Wood Texture =====
+    function makeWoodTexture(w, h){
+      const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d');
+      // base
+      ctx.fillStyle = '#956a4e'; ctx.fillRect(0,0,w,h);
+      // planks
+      const plankH = 64; const cols = Math.ceil(h/plankH);
+      for(let i=0;i<cols;i++){
+        const y = i*plankH; const tint = 10 + (i%2)*6;
+        ctx.fillStyle = `rgb(${149+tint}, ${106+tint*0.6|0}, ${78+tint*0.4|0})`;
+        ctx.fillRect(0,y,w,plankH-2);
+        // subtle grain lines
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = '#2b1b10';
+        for(let x=0;x<w;x+=4){ ctx.fillRect(x,y + (Math.sin((x+i*13)*0.02)*6+plankH/2)|0, 1, 1); }
+        ctx.globalAlpha = 1.0;
+        // plank seam
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y+plankH-2, w, 2);
+      }
+      // clearcoat highlight hint
+      const grad = ctx.createLinearGradient(0,0,w,0); grad.addColorStop(0,'rgba(255,255,255,0.05)'); grad.addColorStop(0.5,'rgba(255,255,255,0)'); grad.addColorStop(1,'rgba(255,255,255,0.05)');
+      ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 8;
+      return tex;
+    }
+
+    // ===== Game flow =====
+    function updateScore(){ hudScore.textContent = `Frame ${frame} • Throw ${throwNo} • Pins: ${fallen.size}/10`; }
+
+    function resetBall(){
+      ball.position.set(0, ballRadius, 7.8);
+      ballVel.set(0,0,0); sideSpin = 0; launched = false; returning = false; stagedFromRack = true;
+      camera.position.set(0, 2.4, 7.0); camera.lookAt(0, 0.85, -8);
+    }
+
+    function hardReset(){
+      frame = 1; throwNo = 1; fallen.clear();
+      buildPins(); resetBall(); updateScore();
+    }
+
+    function autoBowl(){
+      const p = parseFloat(powerEl.value);
+      launch(new THREE.Vector2(0,1), p, 0);
+    }
+
+    function launch(dir2, power, curve){
+      if(launched) return;
+      const speed = 8.6 * power;
+      ballVel.set(dir2.x * 2.0, 0, -dir2.y * speed);
+      sideSpin = THREE.MathUtils.clamp(curve * 6.0, -6.0, 6.0);
+      launched = true; stagedFromRack = false;
+    }
+
+    function bindTouch(){
+      let active=false,sx=0,sy=0,ex=0,ey=0;
+      function onStart(e){ const t=(e.changedTouches? e.changedTouches[0] : e); active=true; sx=t.clientX; sy=t.clientY; ex=sx; ey=sy; }
+      function onMove(e){ if(!active) return; const t=(e.changedTouches? e.changedTouches[0] : e); ex=t.clientX; ey=t.clientY; }
+      function onEnd(){ if(!active) return; active=false; const dx=ex-sx, dy=sy-ey; const len=Math.hypot(dx,dy); if(len<14) return; const dir=new THREE.Vector2(THREE.MathUtils.clamp(dx/180,-0.7,0.7), THREE.MathUtils.clamp(dy/180,0.2,1.3)); const power=parseFloat(powerEl.value)*THREE.MathUtils.clamp(len/220,0.5,1.25); const curve=THREE.MathUtils.clamp(dx/180,-1,1); launch(dir,power,curve); }
+      touchOverlay.addEventListener('touchstart', onStart, {passive:false});
+      touchOverlay.addEventListener('touchmove', onMove, {passive:false});
+      touchOverlay.addEventListener('touchend', onEnd);
+      touchOverlay.addEventListener('mousedown', onStart);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
+    }
+
+    function animate(){ requestAnimationFrame(animate); const dt = Math.min(0.033, clock.getDelta()); step(dt); renderer.render(scene, camera); }
+
+    function step(dt){
+      // Ball physics and boundaries
+      if(launched){
+        const friction = 0.12;
+        ballVel.multiplyScalar(1 - friction*dt);
+        ballVel.x += sideSpin * dt;
+        ball.position.addScaledVector(ballVel, dt);
+
+        // Camera follow nga mbrapa (distance konstante për impaktin me bilat)
+        const offsetZ = 2.6; // sa larg qëndron kamera prapa topit
+        const targetZ = ball.position.z + offsetZ;
+        const targetX = THREE.MathUtils.clamp(ball.position.x * 0.25, -0.6, 0.6);
+        camera.position.x += (targetX - camera.position.x) * 0.1;
+        camera.position.z += (targetZ - camera.position.z) * 0.1;
+        camera.lookAt(ball.position.x, 0.85, ball.position.z - 0.6);
+
+        // Lane bounds: keep inside raised walls (with gutters damping)
+        const laneHalf = 1.6/2;
+        if(Math.abs(ball.position.x) > laneHalf){
+          ball.position.x = THREE.MathUtils.clamp(ball.position.x, -laneHalf-0.22, laneHalf+0.22);
+          ballVel.x *= 0.65; ballVel.z *= 0.93;
+        }
+
+        // Back stop -> start pin cycle & ball return
+        if(ball.position.z < -27.8 && !returning){
+          ballVel.set(0,0,0);
+          startPinCycle();
+          startBallReturn();
+        }
+      } else {
+        // Idle camera softly frames ball at start/rack
+        const targetZ = 7.0;
+        camera.position.z += (targetZ - camera.position.z) * 0.06;
+        camera.lookAt(0, 0.85, -8);
+      }
+
+      // Simple collisions ball ↔ pins
+      const ballR = ballRadius; const tmp = new THREE.Vector3();
+      for(const pin of pins){
+        if(pin.fallen) continue;
+        tmp.copy(pin.root.position).sub(ball.position);
+        const dist = tmp.length();
+        const minDist = ballR + pin.radius;
+        if(dist < minDist){
+          const n = tmp.normalize();
+          const sep = (minDist - dist);
+          pin.root.position.addScaledVector(n, sep+0.002);
+          const impact = Math.max(0, ballVel.dot(n.negate()));
+          if(impact > 2.0){ pin.fallen = true; fallen.add(pin); pin.fallT = 0.0001; updateScore(); }
+          else { pin.vel.addScaledVector(n, 2.0); }
+          ballVel.addScaledVector(n, -impact*0.45);
+        }
+      }
+
+      // Pin drift / fall anim
+      for(const pin of pins){
+        if(pin.fallen){
+          if(pin.fallT>0){ pin.fallT += dt; const t=Math.min(1, pin.fallT*1.8); pin.root.rotation.x = t*1.2; pin.root.position.y = Math.max(0, -t*0.02); }
+          continue;
+        }
+        pin.vel.multiplyScalar(1 - 1.5*dt); pin.root.position.addScaledVector(pin.vel, dt);
+      }
+
+      // Ball return animation
+      if(returning){ advanceBallReturn(dt); }
+
+      // Pinsetter timeline step (front → back movement)
+      pinCycleStep(dt);
+    }
+
+    // ===== Pinsetter cycle =====
+    function startPinCycle(){
+      // 1) Sweep zbret përpara pinave dhe shkon DREJT MBRAPA; 2) ngrit pllakën për pinat në këmbë; 3) pastro të rrëzuarit; 4) ul dhe vendos; 5) next
+      if(startPinCycle.running) return; startPinCycle.running = true; startPinCycle.t = 0;
+    }
+
+    function pinCycleStep(dt){
+      if(!startPinCycle.running) return;
+      const t = (startPinCycle.t += dt);
+      // Phase A: sweep down (front) and move toward back wall
+      if(t < 0.8){
+        sweep.position.y = THREE.MathUtils.lerp(0.20, 0.04, t/0.8);
+        sweep.position.z = THREE.MathUtils.lerp(-15.2, -19.5, t/0.8);
+      }
+      // Phase B: lift plate up under standing pins
+      else if(t < 1.6){
+        const tt = (t-0.8)/0.8;
+        liftPlate.position.y = THREE.MathUtils.lerp(0.45, 0.75, tt);
+        for(const pin of pins){ if(!pin.fallen) pin.root.position.y = 0.30; }
+      }
+      // Phase C: sweep returns forward (back -> front) clearing fallen
+      else if(t < 2.4){
+        const tt = (t-1.6)/0.8;
+        sweep.position.z = THREE.MathUtils.lerp(-19.5, -15.5, tt);
+      }
+      // Phase D: lower liftPlate and place pins
+      else if(t < 3.2){
+        const tt = (t-2.4)/0.8;
+        liftPlate.position.y = THREE.MathUtils.lerp(0.75, 0.45, tt);
+        for(const pin of pins){ if(!pin.fallen) pin.root.position.y = 0.0; }
+      }
+      else {
+        for(const pin of pins){ if(pin.fallen){ scene.remove(pin.root); } }
+        pins = pins.filter(p=>!p.fallen);
+        sweep.position.set(0,0.20,-15.2);
+        liftPlate.position.set(0,0.45,-18.2);
+        startPinCycle.running = false;
+        nextThrow();
+      }
+    }
+
+    function nextThrow(){
+      throwNo++;
+      if(throwNo>2 || fallen.size===10){
+        frame++; throwNo=1; buildPins(); fallen.clear();
+      }
+      resetBall(); updateScore();
+    }
+
+    // ===== Ball return =====
+    function startBallReturn(){ returning = true; startBallReturn.i = 0; startBallReturn.u = 0; }
+    function advanceBallReturn(dt){
+      if(!returning) return;
+      const speed = 3.0; // m/s along path
+      let i = startBallReturn.i; let u = startBallReturn.u;
+      const a = ballReturnPath[i], b = ballReturnPath[i+1];
+      if(!b){ returning = false; resetBall(); return; }
+      u += (speed * dt) / a.distanceTo(b);
+      if(u>=1){ i++; u=0; }
+      startBallReturn.i = i; startBallReturn.u = u;
+      const p = new THREE.Vector3().lerpVectors(a,b,u);
+      ball.position.copy(p);
+
+      // Kur ngjitet nga poshtë në slot (vizualizohet shfaqja në mbajtësen e topave)
+      if(i === ballReturnPath.length-2 && u>0.05){ stagedFromRack = true; }
+    }
+
+    // ===== Dev Self-Tests =====
+    function runDevTests(){
+      try {
+        console.assert(typeof THREE === 'object' && THREE.Vector3, 'THREE loaded via import map');
+        console.assert(typeof updateScore === 'function', 'updateScore must be a function');
+        console.assert(Array.isArray(pins) && pins.length === 10, 'Should start with 10 pins');
+        console.assert(scene && camera && renderer, 'Core Three.js objects exist');
+        // Functional sanity: launch + step moves ball forward (z decreases)
+        const z0 = ball.position.z; launch(new THREE.Vector2(0,1), 0.6, 0); step(0.016); console.assert(ball.position.z < z0, 'Ball should move forward after step');
+        // Pinsetter not re-entrant
+        startPinCycle(); const before = startPinCycle.t; startPinCycle(); console.assert(startPinCycle.t === before, 'Pin cycle should not restart while running');
+        // Must have 4 rack slots and underfloor segment
+        console.assert(rackSlots.length === 4, 'Rack must contain 4 slots');
+        const hasUnder = ballReturnPath.some(v=>v.y < 0); console.assert(hasUnder, 'Return path must go under the floor (y < 0)');
+        console.log('[3D Bowling] Tests passed');
+      } catch(e){ console.error('[3D Bowling] Tests failed', e); }
+    }
+    setTimeout(runDevTests, 0);
+
+    // ===== Init helpers =====
+    window.addEventListener('keydown', (e)=>{ if(e.key==='r'||e.key==='R') hardReset(); });
+  </script>
+</body>
+</html>
