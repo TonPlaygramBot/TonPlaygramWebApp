@@ -3759,7 +3759,7 @@ function Table3D(
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.05
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
