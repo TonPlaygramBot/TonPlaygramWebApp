@@ -696,6 +696,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.32, 1.76); // enlarge grain scale for rails, skirts, and legs
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -938,7 +939,10 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 
-const SHARED_WOOD_REPEAT = Object.freeze({ x: 1, y: 5.5 });
+const SHARED_WOOD_REPEAT = Object.freeze({
+  x: TABLE_WOOD_REPEAT.x,
+  y: TABLE_WOOD_REPEAT.y
+});
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   roughnessBase: 0.16,
   roughnessVariance: 0.22,
@@ -1007,7 +1011,10 @@ const TABLE_FINISHES = Object.freeze(
   }, {})
 );
 
-const TABLE_FINISH_OPTIONS = Object.freeze(Object.values(TABLE_FINISHES));
+const TABLE_FINISH_ORDER = ['birch', 'maple', 'oak', 'walnut', 'smokedOak', 'ebony'];
+const TABLE_FINISH_OPTIONS = Object.freeze(
+  TABLE_FINISH_ORDER.map((id) => TABLE_FINISHES[id]).filter(Boolean)
+);
 
 const DEFAULT_CHROME_COLOR_ID = 'chrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
@@ -1031,27 +1038,17 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'matteBlack',
-    label: 'Matte Black',
+    label: 'Black Chrome',
     color: 0x1a1a1a,
     metalness: 0.84,
     roughness: 0.36,
     clearcoat: 0.32,
     clearcoatRoughness: 0.18
-  },
-  {
-    id: 'brown',
-    label: 'Brown',
-    color: 0x6b4128,
-    metalness: 0.88,
-    roughness: 0.28,
-    clearcoat: 0.48,
-    clearcoatRoughness: 0.16
   }
 ]);
 
-const DEFAULT_CLOTH_COLOR_ID = 'proDark';
+const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'proDark', label: 'Tournament Dark', color: 0x2b7e4f },
   { id: 'freshGreen', label: 'Fresh Green', color: 0x379a5f },
   { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
@@ -3411,7 +3408,7 @@ function Table3D(
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
-  const woodRailRepeat = CUE_WOOD_REPEAT.clone();
+  const woodRailRepeat = TABLE_WOOD_REPEAT.clone();
   applyWoodTextureToMaterial(railMat, woodRailRepeat);
   finishParts.woodRepeats.rail = woodRailRepeat.clone();
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -3832,7 +3829,6 @@ function Table3D(
   table.add(railsGroup);
 
   const chalkGroup = new THREE.Group();
-  const chalkMeshes = [];
   const chalkScale = 0.5;
   const chalkSize = BALL_R * 1.92 * chalkScale;
   const chalkHeight = BALL_R * 1.35 * chalkScale;
@@ -3873,91 +3869,46 @@ function Table3D(
   const endRailCenterZ = PLAY_H / 2 + endRailW * 0.5;
   const chalkSideRailOffset = Math.min(longRailW * 0.18, Math.max(0, longRailW * 0.45 - chalkSize * 0.5));
   const chalkEndRailOffset = Math.min(endRailW * 0.18, Math.max(0, endRailW * 0.45 - chalkSize * 0.5));
-  const chalkDetectionSlack = TABLE.WALL * 0.12;
-  const chalkSideReach = longRailW + frameWidthLong * 0.6 + chalkDetectionSlack;
-  const chalkEndReach = endRailW + frameWidthEnd * 0.6 + chalkDetectionSlack;
   const chalkLongOffsetLimit = Math.max(0, PLAY_H / 2 - BALL_R * 3.5);
   const chalkShortOffsetLimit = Math.max(0, PLAY_W / 2 - BALL_R * 3.5);
   const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.22);
   const chalkShortAxisOffset = Math.min(chalkShortOffsetLimit, PLAY_W * 0.22);
-  const chalkOverlapThreshold = BALL_R * 2.6;
-  const chalkNudgeDistance = Math.min(
-    BALL_R * 1.8,
-    Math.max(chalkLongAxisOffset, chalkShortAxisOffset) * 0.45
-  );
   const chalkSlots = [
     {
-      index: 0,
-      basePosition: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0),
-      tangent: new THREE.Vector3(0, 0, 1),
-      defaultOffset: chalkLongAxisOffset,
-      offsetLimits: {
-        min: -chalkLongOffsetLimit,
-        max: chalkLongOffsetLimit
-      },
+      position: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0).add(
+        new THREE.Vector3(0, 0, 1).multiplyScalar(chalkLongAxisOffset)
+      ),
       rotationY: Math.PI / 2
     },
     {
-      index: 1,
-      basePosition: new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0),
-      tangent: new THREE.Vector3(0, 0, -1),
-      defaultOffset: chalkLongAxisOffset,
-      offsetLimits: {
-        min: -chalkLongOffsetLimit,
-        max: chalkLongOffsetLimit
-      },
+      position: new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0).add(
+        new THREE.Vector3(0, 0, -1).multiplyScalar(chalkLongAxisOffset)
+      ),
       rotationY: -Math.PI / 2
     },
     {
-      index: 2,
-      basePosition: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset),
-      tangent: new THREE.Vector3(-1, 0, 0),
-      defaultOffset: chalkShortAxisOffset,
-      offsetLimits: {
-        min: -chalkShortOffsetLimit,
-        max: chalkShortOffsetLimit
-      },
+      position: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset).add(
+        new THREE.Vector3(-1, 0, 0).multiplyScalar(chalkShortAxisOffset)
+      ),
       rotationY: 0
     },
     {
-      index: 3,
-      basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset),
-      tangent: new THREE.Vector3(1, 0, 0),
-      defaultOffset: chalkShortAxisOffset,
-      offsetLimits: {
-        min: -chalkShortOffsetLimit,
-        max: chalkShortOffsetLimit
-      },
+      position: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset).add(
+        new THREE.Vector3(1, 0, 0).multiplyScalar(chalkShortAxisOffset)
+      ),
       rotationY: Math.PI
     }
   ];
-  chalkSlots.forEach((slot) => {
+  chalkSlots.forEach(({ position, rotationY }) => {
     const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
-    const position = slot.basePosition
-      .clone()
-      .addScaledVector(slot.tangent, slot.defaultOffset);
     mesh.position.copy(position);
-    mesh.rotation.y = slot.rotationY;
+    mesh.rotation.y = rotationY;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData.isChalk = true;
-    mesh.userData.chalkIndex = slot.index;
     mesh.visible = true;
     chalkGroup.add(mesh);
-    chalkMeshes.push(mesh);
-    slot.currentOffset = slot.defaultOffset;
-    slot.position = position.clone();
   });
   table.add(chalkGroup);
-  table.userData.chalks = chalkMeshes;
-  table.userData.chalkSlots = chalkSlots;
-  table.userData.chalkMeta = {
-    sideReach: chalkSideReach,
-    endReach: chalkEndReach,
-    slack: chalkDetectionSlack,
-    overlapThreshold: chalkOverlapThreshold,
-    nudgeDistance: chalkNudgeDistance
-  };
 
   const FACE_SHRINK_LONG = 0.955;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
@@ -4217,7 +4168,7 @@ function Table3D(
   const legCircumference = 2 * Math.PI * legR;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
-  const woodFrameRepeat = CUE_WOOD_REPEAT.clone();
+  const woodFrameRepeat = TABLE_WOOD_REPEAT.clone();
   applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, woodFrameRepeat);
@@ -4652,8 +4603,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
   }, [activeChalkIndex, highlightChalks]);
 
-  const toggleChalkAssist = useCallback((index) => {
-    setActiveChalkIndex((prev) => (prev === index ? null : index));
+  const toggleChalkAssist = useCallback(() => {
+    setActiveChalkIndex(null);
   }, []);
   const tableSizeRef = useRef(activeTableSize);
   useEffect(() => {
@@ -5556,7 +5507,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const createMatchTvEntry = () => {
         const baseWidth = 1024;
         const baseHeight = 512;
-        const resolutionScale = 1.3;
+        const resolutionScale = 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(baseWidth * resolutionScale);
         canvas.height = Math.round(baseHeight * resolutionScale);
