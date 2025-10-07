@@ -40,11 +40,12 @@ const SUIT_COLORS = {
   '🃏': '#111111'
 };
 
-const CARD_SCALE = 0.8; // 20% smaller
+const CARD_SCALE = 0.95; // slightly larger cards for better readability
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
+const CARD_ANIMATION_DURATION = 420;
 
 const GAME_CONFIG = { ...BASE_CONFIG, enableFiveCard: true };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -76,6 +77,7 @@ export default function MurlanRoyaleArena({ search }) {
     labelMaterials: [],
     seatConfigs: [],
     selectionTargets: [],
+    animations: [],
     raycaster: new THREE.Raycaster(),
     tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H / 2, 0),
     discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
@@ -134,7 +136,7 @@ export default function MurlanRoyaleArena({ search }) {
         const target = forward.clone().multiplyScalar(radius).addScaledVector(right, lateral);
         target.y = baseHeight + (player.isHuman ? 0 : 0.02 * Math.abs(offset));
         if (player.isHuman && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        setMeshPosition(mesh, target, focus, player.isHuman, immediate);
+        setMeshPosition(mesh, target, focus, player.isHuman, immediate, three.animations);
         mesh.userData.cardId = card.id;
         if (player.isHuman) humanMeshes.push(mesh);
       });
@@ -151,7 +153,7 @@ export default function MurlanRoyaleArena({ search }) {
       target.x += offset * (CARD_W * 1.1);
       target.y += idx * 0.012;
       target.z += offset * 0.08;
-      setMeshPosition(mesh, target, tableAnchor.clone().setY(target.y + 0.15), true, true);
+      setMeshPosition(mesh, target, tableAnchor.clone().setY(target.y + 0.15), true, immediate, three.animations);
     });
 
     const discardBase = three.discardAnchor.clone();
@@ -166,12 +168,16 @@ export default function MurlanRoyaleArena({ search }) {
       target.x += (col - 5.5) * CARD_W * 0.4;
       target.z += row * CARD_W * 0.32;
       target.y -= row * 0.05;
-      setMeshPosition(mesh, target, target.clone().setY(target.y + 0.1), false, true);
+      setMeshPosition(mesh, target, target.clone().setY(target.y + 0.1), false, immediate, three.animations);
     });
 
     three.cardMap.forEach(({ mesh }, id) => {
       if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
       mesh.visible = false;
+      if (mesh.userData?.animation) {
+        mesh.userData.animation.cancelled = true;
+        mesh.userData.animation = null;
+      }
     });
 
     three.selectionTargets = humanTurn ? humanMeshes : [];
@@ -480,7 +486,28 @@ export default function MurlanRoyaleArena({ search }) {
     observer.observe(mount);
     resize();
 
-    const animate = () => {
+    const stepAnimations = (time) => {
+      const store = threeStateRef.current;
+      const list = store.animations;
+      if (!list?.length) return;
+      store.animations = list.filter((anim) => {
+        if (anim.cancelled) return false;
+        const progress = Math.min(1, (time - anim.start) / anim.duration);
+        const eased = easeOutCubic(progress);
+        anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
+        orientMesh(anim.mesh, anim.lookTarget, anim.isHuman);
+        if (progress >= 1) {
+          anim.mesh.position.copy(anim.to);
+          orientMesh(anim.mesh, anim.lookTarget, anim.isHuman);
+          anim.mesh.userData.animation = null;
+          return false;
+        }
+        return true;
+      });
+    };
+
+    const animate = (time) => {
+      stepAnimations(time);
       controls.update();
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
@@ -546,6 +573,7 @@ export default function MurlanRoyaleArena({ search }) {
         labelMaterials: [],
         seatConfigs: [],
         selectionTargets: [],
+        animations: [],
         raycaster: new THREE.Raycaster(),
         tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H / 2, 0),
         discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
@@ -624,33 +652,7 @@ export default function MurlanRoyaleArena({ search }) {
   return (
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute inset-0 pointer-events-none flex flex-col justify-between">
-        <div className="px-4 pt-4 pointer-events-none">
-          <div className="mx-auto max-w-2xl rounded-2xl bg-black/60 p-4 text-sm text-gray-100 backdrop-blur-sm shadow-lg pointer-events-auto">
-            <div className="flex flex-wrap gap-3 justify-between">
-              {uiState.scoreboard.map((entry) => (
-                <div
-                  key={entry.id}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 transition ${
-                    entry.isActive ? 'bg-white/20 ring-1 ring-white/40' : 'bg-white/10'
-                  } ${entry.finished ? 'opacity-70' : ''}`}
-                >
-                  <span className="text-lg">
-                    {entry.avatar ? entry.avatar : '🂠'}
-                  </span>
-                  <div className="leading-tight">
-                    <div className="font-semibold text-white text-xs sm:text-sm">
-                      {entry.name}
-                    </div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-300">
-                      {entry.finished ? 'Doli' : `${entry.cardsLeft} letra`}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="absolute inset-0 pointer-events-none flex flex-col justify-end">
         <div className="px-4 pb-6 pointer-events-none">
           <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
             <p className="text-sm text-gray-100">{uiState.message}</p>
@@ -1017,15 +1019,57 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function setMeshPosition(mesh, target, lookTarget, isHuman, immediate) {
+function setMeshPosition(mesh, target, lookTarget, isHuman, immediate, animations) {
   if (!mesh) return;
-  mesh.position.copy(target);
+  const orientTarget = lookTarget.clone();
+  const stopExisting = () => {
+    if (mesh.userData?.animation) {
+      mesh.userData.animation.cancelled = true;
+      mesh.userData.animation = null;
+    }
+  };
+
+  if (immediate || !animations) {
+    stopExisting();
+    mesh.position.copy(target);
+    orientMesh(mesh, orientTarget, isHuman);
+    return;
+  }
+
+  const current = mesh.position.clone();
+  if (current.distanceToSquared(target) < 1e-6) {
+    stopExisting();
+    mesh.position.copy(target);
+    orientMesh(mesh, orientTarget, isHuman);
+    return;
+  }
+
+  stopExisting();
+  const animation = {
+    mesh,
+    from: current,
+    to: target.clone(),
+    lookTarget: orientTarget,
+    isHuman,
+    start: performance.now(),
+    duration: CARD_ANIMATION_DURATION,
+    cancelled: false
+  };
+  mesh.userData.animation = animation;
+  animations.push(animation);
+}
+
+function orientMesh(mesh, lookTarget, isHuman) {
   mesh.up.set(0, 1, 0);
   mesh.lookAt(lookTarget);
   mesh.rotation.z = 0;
   if (!isHuman) {
     mesh.rotateY(Math.PI);
   }
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
 }
 
 function updateCameraFromSpherical(camera, spherical, target) {
