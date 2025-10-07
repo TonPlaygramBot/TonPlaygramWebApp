@@ -192,7 +192,8 @@ export default function MurlanRoyaleArena({ search }) {
     const boardSize = (TABLE_RADIUS * 2 + 1.2) * arenaScale;
     const camConfig = buildArenaCameraConfig(boardSize);
 
-    const arenaHalfWidth = boardSize * 1.3;
+    const ARENA_SIDEWAYS_EXPANSION = 1.3;
+    const arenaHalfWidth = boardSize * 1.3 * ARENA_SIDEWAYS_EXPANSION;
     const arenaHalfDepth = boardSize * 1.05;
     const wallInset = 0.5;
     const wallProximity = 0.5;
@@ -368,9 +369,16 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.near,
       camConfig.far
     );
-    const initialRadius = Math.max(boardSize * ARENA_CAMERA_DEFAULTS.initialRadiusFactor, camConfig.minRadius + 0.6);
+    const maxHorizontalReach = Math.min(halfRoomX, halfRoomZ) - wallInset * 0.6;
+    const safeHorizontalReach = Math.max(2.5, maxHorizontalReach);
+    const maxOrbitRadius = Math.max(3.5, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
+    const minOrbitRadius = Math.max(2.5, maxOrbitRadius * 0.75);
     const spherical = new THREE.Spherical(
-      initialRadius,
+      THREE.MathUtils.clamp(
+        maxOrbitRadius - (maxOrbitRadius - minOrbitRadius) * 0.35,
+        minOrbitRadius + 0.05,
+        maxOrbitRadius - 0.05
+      ),
       THREE.MathUtils.lerp(ARENA_CAMERA_DEFAULTS.phiMin, ARENA_CAMERA_DEFAULTS.phiMax, ARENA_CAMERA_DEFAULTS.initialPhiLerp),
       Math.PI * 0.25
     );
@@ -382,8 +390,8 @@ export default function MurlanRoyaleArena({ search }) {
     controls.target.copy(target);
     controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.minDistance = camConfig.minRadius;
-    controls.maxDistance = camConfig.maxRadius;
+    controls.minDistance = minOrbitRadius;
+    controls.maxDistance = maxOrbitRadius;
     controls.enablePan = false;
     controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
     controls.rotateSpeed = 0.5;
