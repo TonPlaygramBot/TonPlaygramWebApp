@@ -183,6 +183,7 @@ const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.025; // trim chrome along the short rails so no sliver creeps into the pockets and keep the chrome narrower on the short sides
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -3791,7 +3792,11 @@ function Table3D(
       ]]];
       union = polygonClipping.union(union, fieldClip);
     }
-    return adjustCornerNotchDepth(union, cz, sz);
+    const adjusted = adjustCornerNotchDepth(union, cz, sz);
+    if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
+      return adjusted;
+    }
+    return scaleMultiPolygon(adjusted, CHROME_CORNER_NOTCH_EXPANSION_SCALE);
   };
 
   const sideNotchMP = (sx) => {
