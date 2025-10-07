@@ -304,6 +304,9 @@ export default function MurlanRoyaleArena({ search }) {
     }
     playerHands.forEach((hand) => hand.sort((a, b) => rankValue(a.r) - rankValue(b.r)));
 
+    const humanSeatIndex = 0;
+    const humanSeatAngle = (humanSeatIndex / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
+
     for (let i = 0; i < CHAIR_COUNT; i++) {
       const player = players[i] ?? null;
       const chair = new THREE.Group();
@@ -326,6 +329,9 @@ export default function MurlanRoyaleArena({ search }) {
       arena.add(chair);
       if (player) {
         const labelTex = makeLabelTexture(player.name, player.avatar);
+        labelTex.wrapS = THREE.RepeatWrapping;
+        labelTex.repeat.x = -1;
+        labelTex.offset.x = 1;
         labelTextures.push(labelTex);
         const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
         labelMaterials.push(labelMat);
@@ -373,25 +379,34 @@ export default function MurlanRoyaleArena({ search }) {
     const safeHorizontalReach = Math.max(2.5, maxHorizontalReach);
     const maxOrbitRadius = Math.max(3.5, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
     const minOrbitRadius = Math.max(2.5, maxOrbitRadius * 0.75);
-    const spherical = new THREE.Spherical(
-      THREE.MathUtils.clamp(
-        maxOrbitRadius - (maxOrbitRadius - minOrbitRadius) * 0.35,
-        minOrbitRadius + 0.05,
-        maxOrbitRadius - 0.05
-      ),
-      THREE.MathUtils.lerp(ARENA_CAMERA_DEFAULTS.phiMin, ARENA_CAMERA_DEFAULTS.phiMax, ARENA_CAMERA_DEFAULTS.initialPhiLerp),
-      Math.PI * 0.25
+    const cameraBackOffset = 1.4;
+    const cameraHeightOffset = 1.65;
+    const initialCameraPosition = new THREE.Vector3(
+      Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset),
+      TABLE_HEIGHT + cameraHeightOffset,
+      Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset)
     );
     const target = new THREE.Vector3(0, TABLE_HEIGHT + 0.2, 0);
+    const initialOffset = initialCameraPosition.clone().sub(target);
+    const spherical = new THREE.Spherical().setFromVector3(initialOffset);
+    spherical.radius = THREE.MathUtils.clamp(spherical.radius * 1.05, minOrbitRadius + 0.05, maxOrbitRadius);
+    spherical.phi = THREE.MathUtils.clamp(
+      spherical.phi,
+      ARENA_CAMERA_DEFAULTS.phiMin,
+      ARENA_CAMERA_DEFAULTS.phiMax
+    );
     updateCameraFromSpherical(camera, spherical, target);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.copy(target);
-    controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.minDistance = minOrbitRadius;
-    controls.maxDistance = maxOrbitRadius;
+    const azimuthSwing = THREE.MathUtils.degToRad(22);
+    controls.minPolarAngle = Math.max(ARENA_CAMERA_DEFAULTS.phiMin, spherical.phi - THREE.MathUtils.degToRad(8));
+    controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(8));
+    controls.minAzimuthAngle = spherical.theta - azimuthSwing;
+    controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
+    controls.minDistance = Math.max(minOrbitRadius, spherical.radius * 0.9);
+    controls.maxDistance = Math.min(maxOrbitRadius, spherical.radius * 1.1);
     controls.enablePan = false;
     controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
     controls.rotateSpeed = 0.5;
