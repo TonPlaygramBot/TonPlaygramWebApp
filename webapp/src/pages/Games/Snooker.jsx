@@ -175,6 +175,8 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
+const CHROME_CORNER_DIMENSION_SCALE = 0.985;
+const CHROME_SIDE_DIMENSION_SCALE = 0.985;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
 const CHROME_CORNER_EXPANSION_SCALE = 1.02;
@@ -3733,15 +3735,23 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const chromePlateWidth = Math.max(
+  const baseChromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
-  const chromePlateHeight = Math.max(
+  const chromePlateWidth = Math.max(
+    MICRO_EPS,
+    baseChromePlateWidth * CHROME_CORNER_DIMENSION_SCALE
+  );
+  const baseChromePlateHeight = Math.max(
     MICRO_EPS,
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
+  );
+  const chromePlateHeight = Math.max(
+    MICRO_EPS,
+    baseChromePlateHeight * CHROME_CORNER_DIMENSION_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -3757,9 +3767,13 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
-  const sideChromePlateWidth = Math.max(
+  const baseSideChromePlateWidth = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
+  );
+  const sideChromePlateWidth = Math.max(
+    MICRO_EPS,
+    baseSideChromePlateWidth * CHROME_SIDE_DIMENSION_SCALE
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -3769,9 +3783,13 @@ function Table3D(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
-  const sideChromePlateHeight = Math.min(
+  const baseSideChromePlateHeight = Math.min(
     chromePlateHeight * 0.94,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
+  );
+  const sideChromePlateHeight = Math.max(
+    MICRO_EPS,
+    baseSideChromePlateHeight * CHROME_SIDE_DIMENSION_SCALE
   );
   const sideChromePlateRadius = Math.min(
     chromePlateRadius * 0.3,
