@@ -40,6 +40,177 @@ const SUIT_COLORS = {
   '🃏': '#111111'
 };
 
+const OUTFIT_THEMES = [
+  { id: 'midnight', label: 'Blu Mbretëror', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
+  { id: 'ember', label: 'E Kuqe Neon', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
+  { id: 'glacier', label: 'Akull', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
+  { id: 'forest', label: 'Pyje', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
+  { id: 'royal', label: 'Vjollcë', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
+  { id: 'onyx', label: 'Oniks', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
+];
+
+const TABLE_THEMES = [
+  {
+    id: 'crimson',
+    label: 'E Kuqe Mbretërore',
+    baseColor: '#141414',
+    frameColor: '#5c2613',
+    columnColor: '#0b0d10',
+    feltTop: '#960019',
+    feltBottom: '#4a0012'
+  },
+  {
+    id: 'emerald',
+    label: 'Smerald',
+    baseColor: '#101714',
+    frameColor: '#1f3d29',
+    columnColor: '#0a0f0c',
+    feltTop: '#0f6a2f',
+    feltBottom: '#054d24'
+  },
+  {
+    id: 'arctic',
+    label: 'Arktik',
+    baseColor: '#0f172a',
+    frameColor: '#1e293b',
+    columnColor: '#0a1020',
+    feltTop: '#2563eb',
+    feltBottom: '#1d4ed8'
+  },
+  {
+    id: 'sunset',
+    label: 'Perëndim',
+    baseColor: '#231312',
+    frameColor: '#7c2d12',
+    columnColor: '#140707',
+    feltTop: '#ea580c',
+    feltBottom: '#c2410c'
+  },
+  {
+    id: 'violet',
+    label: 'Vjollcë',
+    baseColor: '#1f1130',
+    frameColor: '#4c1d95',
+    columnColor: '#130622',
+    feltTop: '#7c3aed',
+    feltBottom: '#5b21b6'
+  },
+  {
+    id: 'desert',
+    label: 'Shkretëtirë',
+    baseColor: '#1c1a12',
+    frameColor: '#8b5a2b',
+    columnColor: '#0f0d06',
+    feltTop: '#b7791f',
+    feltBottom: '#92571a'
+  }
+];
+
+const STOOL_THEMES = [
+  { id: 'ruby', label: 'Rubi', seatColor: '#8b0000', legColor: '#1f1f1f' },
+  { id: 'slate', label: 'Guri', seatColor: '#374151', legColor: '#0f172a' },
+  { id: 'teal', label: 'Bruz', seatColor: '#0f766e', legColor: '#082f2a' },
+  { id: 'amber', label: 'Qelibari', seatColor: '#b45309', legColor: '#2f2410' },
+  { id: 'violet', label: 'Vjollcë', seatColor: '#7c3aed', legColor: '#2b1059' },
+  { id: 'frost', label: 'Akull', seatColor: '#1f2937', legColor: '#0f172a' }
+];
+
+const CARD_THEMES = [
+  {
+    id: 'aurora',
+    label: 'Aurora',
+    frontBackground: '#ffffff',
+    frontBorder: '#e2e8f0',
+    edgeColor: '#f0f2f5',
+    backColor: '#0f172a',
+    backGradient: ['#1f2937', '#0b1220'],
+    backAccent: 'rgba(148, 163, 184, 0.35)',
+    hiddenColor: '#0b1020'
+  },
+  {
+    id: 'solstice',
+    label: 'Solstic',
+    frontBackground: '#fffaf0',
+    frontBorder: '#facc15',
+    edgeColor: '#fef3c7',
+    backColor: '#78350f',
+    backGradient: ['#b45309', '#7c2d12'],
+    backAccent: 'rgba(255, 221, 148, 0.4)',
+    hiddenColor: '#3d1a05'
+  },
+  {
+    id: 'nebula',
+    label: 'Nebulë',
+    frontBackground: '#f8fafc',
+    frontBorder: '#a855f7',
+    edgeColor: '#e9d5ff',
+    backColor: '#312e81',
+    backGradient: ['#5b21b6', '#312e81'],
+    backAccent: 'rgba(196, 181, 253, 0.4)',
+    hiddenColor: '#1e1b4b'
+  },
+  {
+    id: 'jade',
+    label: 'Xhade',
+    frontBackground: '#f0fdf4',
+    frontBorder: '#22c55e',
+    edgeColor: '#dcfce7',
+    backColor: '#064e3b',
+    backGradient: ['#047857', '#064e3b'],
+    backAccent: 'rgba(74, 222, 128, 0.45)',
+    hiddenColor: '#022c22'
+  },
+  {
+    id: 'ember',
+    label: 'Gaca',
+    frontBackground: '#fff7ed',
+    frontBorder: '#f97316',
+    edgeColor: '#fed7aa',
+    backColor: '#7c2d12',
+    backGradient: ['#ea580c', '#7c2d12'],
+    backAccent: 'rgba(251, 146, 60, 0.45)',
+    hiddenColor: '#3b1306'
+  },
+  {
+    id: 'onyx',
+    label: 'Oniks',
+    frontBackground: '#f4f4f5',
+    frontBorder: '#9ca3af',
+    edgeColor: '#e4e4e7',
+    backColor: '#1f2937',
+    backGradient: ['#111827', '#1f2937'],
+    backAccent: 'rgba(148, 163, 184, 0.5)',
+    hiddenColor: '#0b0f17'
+  }
+];
+
+const DEFAULT_APPEARANCE = { outfit: 0, table: 0, cards: 0, stools: 0 };
+const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
+const CUSTOMIZATION_SECTIONS = [
+  { key: 'outfit', label: 'Rroba', options: OUTFIT_THEMES },
+  { key: 'table', label: 'Tavolinë', options: TABLE_THEMES },
+  { key: 'cards', label: 'Letrat', options: CARD_THEMES },
+  { key: 'stools', label: 'Stola', options: STOOL_THEMES }
+];
+
+function normalizeAppearance(value = {}) {
+  const normalized = { ...DEFAULT_APPEARANCE };
+  const entries = [
+    ['outfit', OUTFIT_THEMES.length],
+    ['table', TABLE_THEMES.length],
+    ['cards', CARD_THEMES.length],
+    ['stools', STOOL_THEMES.length]
+  ];
+  entries.forEach(([key, max]) => {
+    const raw = Number(value?.[key]);
+    if (Number.isFinite(raw)) {
+      const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
+      normalized[key] = clamped;
+    }
+  });
+  return normalized;
+}
+
 const CARD_SCALE = 0.95; // slightly larger cards for better readability
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
@@ -53,6 +224,21 @@ const START_CARD = { rank: '3', suit: '♠' };
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
+
+  const [appearance, setAppearance] = useState(() => {
+    if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
+    try {
+      const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
+      if (!stored) return { ...DEFAULT_APPEARANCE };
+      const parsed = JSON.parse(stored);
+      return normalizeAppearance(parsed);
+    } catch (error) {
+      console.warn('Failed to load appearance', error);
+      return { ...DEFAULT_APPEARANCE };
+    }
+  });
+  const appearanceRef = useRef(appearance);
+  const [showCustomizer, setShowCustomizer] = useState(false);
 
   const [gameState, setGameState] = useState(() => initializeGame(players));
   const [selectedIds, setSelectedIds] = useState([]);
@@ -80,15 +266,22 @@ export default function MurlanRoyaleArena({ search }) {
     animations: [],
     raycaster: new THREE.Raycaster(),
     tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
-    discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
+    discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE),
+    tableParts: null,
+    chairMaterials: null,
+    outfitParts: null,
+    cardThemeId: '',
+    appearance: { ...DEFAULT_APPEARANCE }
   });
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
     if (!three.arena || !three.cardGeometry) return;
+    const theme = CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0];
+    three.cardThemeId = theme.id;
     state.allCards.forEach((card) => {
       if (three.cardMap.has(card.id)) return;
-      const mesh = createCardMesh(card, three.cardGeometry, three.faceTextureCache);
+      const mesh = createCardMesh(card, three.cardGeometry, three.faceTextureCache, theme);
       mesh.visible = false;
       mesh.position.set(0, -10, 0);
       three.arena.add(mesh);
@@ -144,17 +337,19 @@ export default function MurlanRoyaleArena({ search }) {
     });
 
     const tableAnchor = three.tableAnchor.clone();
+    const tableCount = state.tableCards.length;
+    const tableSpacing = tableCount > 1 ? Math.min(CARD_W * 1.45, (CARD_W * 5.6) / (tableCount - 1)) : CARD_W;
+    const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
     state.tableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
       mesh.visible = true;
       updateCardFace(mesh, 'front');
-      const offset = state.tableCards.length > 1 ? idx - (state.tableCards.length - 1) / 2 : 0;
       const target = tableAnchor.clone();
-      target.x += offset * (CARD_W * 1.1);
+      target.x += tableStartX + idx * tableSpacing;
       target.y += 0.06 * MODEL_SCALE + idx * 0.014;
-      target.z += offset * 0.08;
+      target.z += (idx - (tableCount - 1) / 2) * 0.06;
       const lookTarget = tableAnchor.clone().setY(target.y + 0.26 * MODEL_SCALE);
       setMeshPosition(mesh, target, lookTarget, true, immediate, three.animations);
     });
@@ -190,6 +385,103 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, []);
 
+  const updateSceneAppearance = useCallback(
+    (nextAppearance, { refreshCards = false } = {}) => {
+      if (!threeReady) return;
+      const three = threeStateRef.current;
+      if (!three.scene) return;
+      const safe = normalizeAppearance(nextAppearance);
+      const tableTheme = TABLE_THEMES[safe.table] ?? TABLE_THEMES[0];
+      const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
+      const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
+      const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
+
+      applyTableThemeMaterials(three, tableTheme);
+      applyChairThemeMaterials(three, stoolTheme);
+      applyOutfitThemeMaterials(three, outfitTheme);
+
+      const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
+      applyCardThemeMaterials(three, cardTheme, shouldRefreshCards);
+
+      three.appearance = { ...safe };
+
+      ensureCardMeshes(gameStateRef.current);
+      applyStateToScene(gameStateRef.current, selectedRef.current, true);
+    },
+    [applyStateToScene, ensureCardMeshes, threeReady]
+  );
+
+  const renderPreview = useCallback((type, option) => {
+    switch (type) {
+      case 'table':
+        return (
+          <div className="relative h-12 w-full overflow-hidden rounded-xl border border-white/10">
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `radial-gradient(circle at 25% 25%, ${option.feltTop}, ${option.feltBottom})`
+              }}
+            />
+            <div
+              className="absolute inset-1 rounded-lg"
+              style={{
+                boxShadow: `0 0 0 999px ${option.baseColor} inset`,
+                border: `3px solid ${option.frameColor}`
+              }}
+            />
+            <div
+              className="absolute bottom-1 right-2 h-2 w-10 rounded-full opacity-80"
+              style={{ background: option.columnColor }}
+            />
+          </div>
+        );
+      case 'cards':
+        return (
+          <div className="flex items-center justify-center gap-2">
+            <div
+              className="h-12 w-8 rounded-md border"
+              style={{
+                background: option.frontBackground,
+                borderColor: option.frontBorder || '#e5e7eb'
+              }}
+            />
+            <div
+              className="h-12 w-8 rounded-md border border-white/10"
+              style={{
+                backgroundImage: `linear-gradient(135deg, ${
+                  option.backGradient?.[0] ?? option.backColor
+                }, ${option.backGradient?.[1] ?? option.backColor})`,
+                boxShadow: `0 0 0 2px ${option.backAccent || 'rgba(255,255,255,0.25)'} inset`
+              }}
+            />
+          </div>
+        );
+      case 'stools':
+        return (
+          <div className="relative flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-950/50">
+            <div className="h-6 w-12 rounded-md" style={{ background: option.seatColor }} />
+            <div className="absolute bottom-1 h-2 w-14 rounded-full opacity-80" style={{ background: option.legColor }} />
+          </div>
+        );
+      case 'outfit':
+      default:
+        return (
+          <div className="relative flex h-12 w-full items-center justify-center">
+            <div className="relative h-12 w-12 rounded-full" style={{ background: option.baseColor }}>
+              <div
+                className="absolute inset-1 rounded-full border-2"
+                style={{ borderColor: option.accentColor }}
+              />
+              <div
+                className="absolute left-1/2 top-1/2 h-4 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{ background: option.accentColor }}
+              />
+            </div>
+          </div>
+        );
+    }
+  }, []);
+
   useEffect(() => {
     gameStateRef.current = gameState;
     setUiState(computeUiState(gameState));
@@ -204,6 +496,25 @@ export default function MurlanRoyaleArena({ search }) {
       applyStateToScene(gameStateRef.current, selectedIds);
     }
   }, [selectedIds, threeReady, applyStateToScene]);
+
+  useEffect(() => {
+    appearanceRef.current = appearance;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+      } catch (error) {
+        console.warn('Failed to persist appearance', error);
+      }
+    }
+    const previous = threeStateRef.current.appearance;
+    const cardChanged = previous?.cards !== appearance.cards;
+    updateSceneAppearance(appearance, { refreshCards: cardChanged });
+  }, [appearance, updateSceneAppearance]);
+
+  useEffect(() => {
+    if (!threeReady) return;
+    updateSceneAppearance(appearanceRef.current, { refreshCards: true });
+  }, [threeReady, updateSceneAppearance]);
 
   const toggleSelection = useCallback((cardId) => {
     setSelectedIds((prev) => {
@@ -250,6 +561,11 @@ export default function MurlanRoyaleArena({ search }) {
 
     const arena = new THREE.Group();
     scene.add(arena);
+
+    const currentAppearance = normalizeAppearance(appearanceRef.current);
+    const tableTheme = TABLE_THEMES[currentAppearance.table] ?? TABLE_THEMES[0];
+    const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+    const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
 
     const arenaScale = 1.3 * ARENA_GROWTH;
     const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
@@ -318,7 +634,12 @@ export default function MurlanRoyaleArena({ search }) {
     stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
     arena.add(stripBack, stripFront, stripLeft, stripRight);
 
-    const baseMat = new THREE.MeshPhysicalMaterial({ color: 0x141414, metalness: 0.85, roughness: 0.2, clearcoat: 0.9 });
+    const baseMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(tableTheme.baseColor),
+      metalness: 0.85,
+      roughness: 0.2,
+      clearcoat: 0.9
+    });
     const tableBase = new THREE.Mesh(
       new THREE.CylinderGeometry(3.8 * MODEL_SCALE, 3.8 * MODEL_SCALE, 0.25 * MODEL_SCALE, 64),
       baseMat
@@ -326,13 +647,17 @@ export default function MurlanRoyaleArena({ search }) {
     tableBase.position.y = TABLE_HEIGHT - 0.2 * MODEL_SCALE;
     arena.add(tableBase);
 
-    const frameMat = new THREE.MeshPhysicalMaterial({ color: 0x3a1e0f, roughness: 0.35, metalness: 0.45 });
+    const frameMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(tableTheme.frameColor),
+      roughness: 0.35,
+      metalness: 0.45
+    });
     const frame = new THREE.Mesh(new THREE.TorusGeometry(TABLE_RADIUS, 0.15 * MODEL_SCALE, 32, 64), frameMat);
     frame.rotation.x = Math.PI / 2;
     frame.position.y = TABLE_HEIGHT - 0.1 * MODEL_SCALE;
     arena.add(frame);
 
-    const velvetTex = makeVelvetTexture(1024, 1024, '#7a001a', '#520014');
+    const velvetTex = makeVelvetTexture(1024, 1024, tableTheme.feltTop, tableTheme.feltBottom);
     velvetTex.colorSpace = THREE.SRGBColorSpace;
     velvetTex.anisotropy = 8;
     const velvetMat = new THREE.MeshStandardMaterial({ map: velvetTex, roughness: 0.7, metalness: 0.15 });
@@ -345,13 +670,51 @@ export default function MurlanRoyaleArena({ search }) {
 
     const baseColumn = new THREE.Mesh(
       new THREE.CylinderGeometry(0.6 * MODEL_SCALE, 0.8 * MODEL_SCALE, 1.2 * MODEL_SCALE, 32),
-      new THREE.MeshStandardMaterial({ color: 0x111111 })
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(tableTheme.columnColor || '#111111') })
     );
     baseColumn.position.y = TABLE_HEIGHT - 0.8 * MODEL_SCALE;
     arena.add(baseColumn);
 
-    const chairMat = new THREE.MeshPhysicalMaterial({ color: 0x8b0000, roughness: 0.35, metalness: 0.5, clearcoat: 1 });
-    const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    threeStateRef.current.tableParts = {
+      baseMat,
+      frameMat,
+      surfaceMat: velvetMat,
+      velvetTexture: velvetTex,
+      columnMat: baseColumn.material
+    };
+
+    const chairMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(stoolTheme.seatColor),
+      roughness: 0.35,
+      metalness: 0.5,
+      clearcoat: 1
+    });
+    const legMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(stoolTheme.legColor) });
+
+    threeStateRef.current.chairMaterials = { seat: chairMat, leg: legMat };
+
+    const outfitBodyMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(outfitTheme.baseColor),
+      roughness: 0.55,
+      metalness: 0.35,
+      emissive: new THREE.Color(outfitTheme.glow || '#000000'),
+      emissiveIntensity: 0.25
+    });
+    const outfitAccentMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(outfitTheme.accentColor),
+      roughness: 0.4,
+      metalness: 0.55
+    });
+    const headMat = new THREE.MeshStandardMaterial({ color: '#f9e0d0', roughness: 0.75, metalness: 0.1 });
+    const torsoGeo = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
+    const headGeo = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
+    const collarGeo = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
+
+    threeStateRef.current.outfitParts = {
+      bodyMaterial: outfitBodyMat,
+      accentMaterial: outfitAccentMat,
+      headMaterial: headMat
+    };
     const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH;
     const seatWidth = 0.9 * MODEL_SCALE;
     const seatDepth = 0.95 * MODEL_SCALE;
@@ -387,6 +750,20 @@ export default function MurlanRoyaleArena({ search }) {
       );
       legBase.position.y = -seatThickness / 2 - baseColumnHeight / 2;
       chair.add(seat, back, armLeft, armRight, legBase);
+
+      const occupant = new THREE.Group();
+      occupant.position.z = -seatDepth * 0.12;
+      const torso = new THREE.Mesh(torsoGeo, outfitBodyMat);
+      torso.position.y = seatThickness / 2 + 0.38 * MODEL_SCALE;
+      occupant.add(torso);
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
+      occupant.add(head);
+      const collar = new THREE.Mesh(collarGeo, outfitAccentMat);
+      collar.rotation.x = Math.PI / 2;
+      collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
+      occupant.add(collar);
+      chair.add(occupant);
 
       const angle = (i / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
       const x = Math.cos(angle) * chairRadius;
@@ -428,6 +805,8 @@ export default function MurlanRoyaleArena({ search }) {
         threeStateRef.current.labelMaterials.push(labelMat);
       }
     }
+
+    threeStateRef.current.appearance = { ...currentAppearance };
 
     spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
     spot.target.updateMatrixWorld();
@@ -561,6 +940,9 @@ export default function MurlanRoyaleArena({ search }) {
       renderer.dispose();
       cardGeometry.dispose();
       labelGeo.dispose();
+      torsoGeo.dispose();
+      headGeo.dispose();
+      collarGeo.dispose();
       threeStateRef.current.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
@@ -575,9 +957,33 @@ export default function MurlanRoyaleArena({ search }) {
         });
         arena.remove(mesh);
       });
-      threeStateRef.current.faceTextureCache.forEach((tex) => tex.dispose());
-      threeStateRef.current.labelTextures.forEach((tex) => tex.dispose());
-      threeStateRef.current.labelMaterials.forEach((mat) => mat.dispose());
+      const store = threeStateRef.current;
+      store.faceTextureCache.forEach((tex) => tex.dispose());
+      store.labelTextures.forEach((tex) => tex.dispose());
+      store.labelMaterials.forEach((mat) => mat.dispose());
+      if (store.tableParts) {
+        store.tableParts.velvetTexture?.dispose?.();
+        [
+          store.tableParts.baseMat,
+          store.tableParts.frameMat,
+          store.tableParts.surfaceMat,
+          store.tableParts.columnMat
+        ].forEach((mat) => {
+          if (mat && typeof mat.dispose === 'function') mat.dispose();
+        });
+      }
+      if (store.chairMaterials) {
+        [store.chairMaterials.seat, store.chairMaterials.leg].forEach((mat) => {
+          if (mat && typeof mat.dispose === 'function') mat.dispose();
+        });
+      }
+      if (store.outfitParts) {
+        [store.outfitParts.bodyMaterial, store.outfitParts.accentMaterial, store.outfitParts.headMaterial].forEach(
+          (mat) => {
+            if (mat && typeof mat.dispose === 'function') mat.dispose();
+          }
+        );
+      }
       threeStateRef.current = {
         renderer: null,
         scene: null,
@@ -594,7 +1000,12 @@ export default function MurlanRoyaleArena({ search }) {
         animations: [],
         raycaster: new THREE.Raycaster(),
         tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
-        discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE)
+        discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE),
+        tableParts: null,
+        chairMaterials: null,
+        outfitParts: null,
+        cardThemeId: '',
+        appearance: { ...DEFAULT_APPEARANCE }
       };
       setThreeReady(false);
     };
@@ -670,8 +1081,88 @@ export default function MurlanRoyaleArena({ search }) {
   return (
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute inset-0 pointer-events-none flex flex-col justify-end">
-        <div className="px-4 pb-6 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
+        <div className="flex items-start justify-between gap-4 p-4">
+          <div className="pointer-events-auto">
+            {uiState.scoreboard?.length ? (
+              <div className="min-w-[11rem] rounded-3xl bg-black/65 p-3 text-xs text-gray-100 shadow-xl backdrop-blur-md">
+                <p className="text-[0.65rem] uppercase tracking-wide text-gray-400">Rezultati</p>
+                <div className="mt-2 space-y-1.5">
+                  {uiState.scoreboard.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-1.5 ${
+                        entry.isActive ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base leading-none">{entry.avatar || '🂠'}</span>
+                        <span className="text-xs font-semibold text-gray-100">{entry.name}</span>
+                      </div>
+                      <span className={`text-xs font-bold ${entry.finished ? 'text-emerald-300' : 'text-gray-300'}`}>
+                        {entry.finished ? '🏁' : entry.cardsLeft}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="pointer-events-auto flex flex-col items-end gap-2">
+            <button
+              type="button"
+              aria-label="Hap personalizimin"
+              onClick={() => setShowCustomizer((prev) => !prev)}
+              className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur-md transition hover:bg-black/60"
+            >
+              ⚙️
+            </button>
+            {showCustomizer && (
+              <div className="w-[min(18rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-black/80 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-100">Personalizo arenën</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomizer(false)}
+                    className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                    aria-label="Mbyll personalizimin"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="mt-1 text-[0.65rem] text-gray-400">
+                  Zgjidh kombinimet e preferuara të rrobave, tavolinës dhe letrave për përvojën tënde.
+                </p>
+                {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                  <div key={key} className="mt-4 space-y-2">
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-gray-300">{label}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {options.map((option, idx) => {
+                        const selected = appearance[key] === idx;
+                        return (
+                          <button
+                            type="button"
+                            key={option.id}
+                            onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                            className={`flex flex-col items-center rounded-2xl border p-2 transition ${
+                              selected
+                                ? 'border-emerald-400/80 bg-emerald-400/10'
+                                : 'border-white/10 bg-white/5 hover:border-white/20'
+                            }`}
+                          >
+                            {renderPreview(key, option)}
+                            <p className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-auto px-4 pb-6 pointer-events-none">
           <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
             <p className="text-sm text-gray-100">{uiState.message}</p>
             {uiState.tableSummary && (
@@ -1113,48 +1604,127 @@ function updateCameraFromSpherical(camera, spherical, target) {
   camera.lookAt(target);
 }
 
-function createCardMesh(card, geometry, cache) {
-  const faceKey = `${card.rank}-${card.suit}`;
+function createCardMesh(card, geometry, cache, theme) {
+  const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
   let faceTexture = cache.get(faceKey);
   if (!faceTexture) {
-    faceTexture = makeCardFace(card.rank, card.suit);
+    faceTexture = makeCardFace(card.rank, card.suit, theme);
     cache.set(faceKey, faceTexture);
   }
-  const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55, metalness: 0.1 });
-  const frontMat = new THREE.MeshStandardMaterial({ map: faceTexture, roughness: 0.35, metalness: 0.08 });
-  const backMat = new THREE.MeshStandardMaterial({ color: 0x111a2a, roughness: 0.6, metalness: 0.15 });
-  const hiddenMat = new THREE.MeshStandardMaterial({ color: 0x0b1428, roughness: 0.7, metalness: 0.12 });
-  const mesh = new THREE.Mesh(geometry, [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone(), frontMat, backMat]);
+  const edgeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.edgeColor), roughness: 0.55, metalness: 0.1 });
+  const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
+  const frontMat = new THREE.MeshStandardMaterial({
+    map: faceTexture,
+    roughness: 0.35,
+    metalness: 0.08,
+    color: new THREE.Color('#ffffff')
+  });
+  const backTexture = makeCardBackTexture(theme);
+  const backMat = new THREE.MeshStandardMaterial({
+    map: backTexture,
+    color: new THREE.Color(theme.backColor),
+    roughness: 0.6,
+    metalness: 0.15
+  });
+  const hiddenMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme.hiddenColor || theme.backColor),
+    roughness: 0.7,
+    metalness: 0.12
+  });
+  const mesh = new THREE.Mesh(geometry, [...edgeMats, frontMat, backMat]);
   mesh.userData.cardId = card.id;
+  mesh.userData.card = card;
   mesh.userData.frontMaterial = frontMat;
   mesh.userData.backMaterial = backMat;
   mesh.userData.hiddenMaterial = hiddenMat;
+  mesh.userData.edgeMaterials = edgeMats;
+  mesh.userData.backTexture = backTexture;
   mesh.userData.cardFace = 'front';
   return mesh;
 }
 
-function makeCardFace(rank, suit, w = 512, h = 720) {
+function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const g = canvas.getContext('2d');
-  g.fillStyle = '#ffffff';
+  g.fillStyle = theme.frontBackground || '#ffffff';
   g.fillRect(0, 0, w, h);
-  g.strokeStyle = '#e5e7eb';
+  g.strokeStyle = theme.frontBorder || '#e5e7eb';
   g.lineWidth = 8;
   roundRect(g, 6, 6, w - 12, h - 12, 32);
   g.stroke();
   const color = SUIT_COLORS[suit] || '#111111';
   g.fillStyle = color;
-  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
-  g.fillText(label, 36, 112);
+  const padding = 36;
+  const topRankY = 96;
+  const topSuitY = topRankY + 76;
+  const bottomSuitY = h - 92;
+  const bottomRankY = bottomSuitY - 76;
+  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.textAlign = 'left';
+  g.fillText(label, padding, topRankY);
   g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  g.fillText(suit, 36, 188);
+  g.fillText(suit, padding, topSuitY);
+  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(label, padding, bottomRankY);
+  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(suit, padding, bottomSuitY);
+  g.textAlign = 'right';
+  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(label, w - padding, topRankY);
+  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(suit, w - padding, topSuitY);
+  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(label, w - padding, bottomRankY);
+  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.fillText(suit, w - padding, bottomSuitY);
+
+  if (theme.centerAccent) {
+    g.fillStyle = theme.centerAccent;
+    g.beginPath();
+    g.ellipse(w / 2, h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.fillStyle = color;
+  g.font = 'bold 160px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.textAlign = 'center';
+  g.fillText(suit, w / 2, h / 2 + 56);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   return tex;
+}
+
+function makeCardBackTexture(theme, w = 512, h = 720) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const [c1, c2] = theme.backGradient || [theme.backColor, theme.backColor];
+  const gradient = ctx.createLinearGradient(0, 0, w, h);
+  gradient.addColorStop(0, c1);
+  gradient.addColorStop(1, c2);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = theme.backBorder || 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 14;
+  roundRect(ctx, 18, 18, w - 36, h - 36, 48);
+  ctx.stroke();
+  if (theme.backAccent) {
+    ctx.strokeStyle = theme.backAccent;
+    ctx.lineWidth = 8;
+    for (let i = 0; i < 6; i += 1) {
+      const inset = 36 + i * 18;
+      roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, 42);
+      ctx.stroke();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
 }
 
 function makeVelvetTexture(w, h, c1, c2) {
@@ -1174,4 +1744,79 @@ function makeVelvetTexture(w, h, c1, c2) {
     ctx.fillRect(px, py, 1, 1);
   }
   return new THREE.CanvasTexture(canvas);
+}
+
+function applyTableThemeMaterials(three, theme) {
+  const parts = three?.tableParts;
+  if (!parts) return;
+  if (parts.baseMat?.color) parts.baseMat.color.set(theme.baseColor);
+  if (parts.frameMat?.color) parts.frameMat.color.set(theme.frameColor);
+  if (parts.columnMat?.color) parts.columnMat.color.set(theme.columnColor || '#111111');
+  if (parts.surfaceMat) {
+    parts.velvetTexture?.dispose?.();
+    const tex = makeVelvetTexture(1024, 1024, theme.feltTop, theme.feltBottom);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    parts.surfaceMat.map = tex;
+    parts.surfaceMat.needsUpdate = true;
+    parts.velvetTexture = tex;
+  }
+}
+
+function applyChairThemeMaterials(three, theme) {
+  const mats = three?.chairMaterials;
+  if (!mats) return;
+  if (mats.seat?.color) mats.seat.color.set(theme.seatColor);
+  if (mats.leg?.color) mats.leg.color.set(theme.legColor);
+}
+
+function applyOutfitThemeMaterials(three, theme) {
+  const parts = three?.outfitParts;
+  if (!parts) return;
+  if (parts.bodyMaterial?.color) parts.bodyMaterial.color.set(theme.baseColor);
+  if (parts.bodyMaterial?.emissive) parts.bodyMaterial.emissive.set(theme.glow || '#000000');
+  if (parts.accentMaterial?.color) parts.accentMaterial.color.set(theme.accentColor);
+}
+
+function applyCardThemeMaterials(three, theme, force = false) {
+  if (!three?.cardMap) return;
+  if (!force && three.cardThemeId === theme.id) return;
+  const frontTextures = new Set();
+  const backTextures = new Set();
+  three.cardMap.forEach(({ mesh }) => {
+    const { frontMaterial, backTexture } = mesh.userData ?? {};
+    if (frontMaterial?.map) frontTextures.add(frontMaterial.map);
+    if (backTexture) backTextures.add(backTexture);
+  });
+  frontTextures.forEach((tex) => tex?.dispose?.());
+  backTextures.forEach((tex) => tex?.dispose?.());
+  three.faceTextureCache.forEach((tex) => tex.dispose());
+  three.faceTextureCache.clear();
+  three.cardMap.forEach(({ mesh }) => {
+    const { frontMaterial, backMaterial, hiddenMaterial, edgeMaterials, card } = mesh.userData ?? {};
+    if (!frontMaterial || !backMaterial || !edgeMaterials || !card) return;
+    const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
+    let faceTexture = three.faceTextureCache.get(faceKey);
+    if (!faceTexture) {
+      faceTexture = makeCardFace(card.rank, card.suit, theme);
+      three.faceTextureCache.set(faceKey, faceTexture);
+    }
+    frontMaterial.map = faceTexture;
+    frontMaterial.color?.set?.('#ffffff');
+    frontMaterial.needsUpdate = true;
+    const backTexture = makeCardBackTexture(theme);
+    mesh.userData.backTexture = backTexture;
+    backMaterial.map = backTexture;
+    backMaterial.color?.set?.(theme.backColor);
+    backMaterial.needsUpdate = true;
+    if (hiddenMaterial?.color) {
+      hiddenMaterial.color.set(theme.hiddenColor || theme.backColor);
+      hiddenMaterial.needsUpdate = true;
+    }
+    edgeMaterials.forEach((mat) => {
+      mat.color?.set?.(theme.edgeColor);
+      mat.needsUpdate = true;
+    });
+  });
+  three.cardThemeId = theme.id;
 }
