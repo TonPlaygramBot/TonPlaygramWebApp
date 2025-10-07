@@ -88,15 +88,15 @@ export default function TableTennis3D({ player, ai }){
     const camRig = {
       dist: 3.46,
       minDist: 3.18,
-      height: 1.9,
-      minHeight: 1.68,
+      height: 2.04,
+      minHeight: 1.82,
       pitch: 0.34,
       forwardBias: 0.06,
       yawBase: 0,
       yawRange: 0.38,
       curYaw: 0,
       curDist: 3.46,
-      curHeight: 1.9,
+      curHeight: 2.04,
     };
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
@@ -470,12 +470,12 @@ export default function TableTennis3D({ player, ai }){
     };
 
     // Touch surface remains slightly larger than the paddle so it feels forgiving,
-    // but we center it beneath the racket and keep only a tiny forward offset so
-    // the finger lines up with the paddle instead of sitting far behind it.
+    // but we nudge it closer toward the net and give the mapping a stronger forward
+    // offset so a comfortable higher touch still lines up with the paddle head.
     const TOUCH_SURFACE_MULT = 1.8;
     const TOUCH_DEPTH_MULT = 1.6;
-    const TOUCH_BACK_SHIFT = 0.02;
-    const TOUCH_FORWARD_OFFSET = 0.02;
+    const TOUCH_BACK_SHIFT = -0.08;
+    const TOUCH_FORWARD_OFFSET = 0.05;
     const pointerXMin = -bounds.x * TOUCH_SURFACE_MULT;
     const pointerXMax = bounds.x * TOUCH_SURFACE_MULT;
     const pointerZSpan = (bounds.zNear - bounds.zFar) * TOUCH_DEPTH_MULT;
