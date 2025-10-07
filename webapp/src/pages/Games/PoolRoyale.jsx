@@ -3757,16 +3757,7 @@ function Table3D(
   );
 
   const railsOuter = new THREE.Shape();
-  railsOuter.moveTo(-outerHalfW + outerCornerRadius, -outerHalfH);
-  railsOuter.lineTo(outerHalfW - outerCornerRadius, -outerHalfH);
-  railsOuter.absarc(
-    outerHalfW - outerCornerRadius,
-    -outerHalfH + outerCornerRadius,
-    outerCornerRadius,
-    -Math.PI / 2,
-    0,
-    false
-  );
+  railsOuter.moveTo(outerHalfW, -outerHalfH + outerCornerRadius);
   railsOuter.lineTo(outerHalfW, outerHalfH - outerCornerRadius);
   railsOuter.absarc(
     outerHalfW - outerCornerRadius,
@@ -3792,6 +3783,15 @@ function Table3D(
     outerCornerRadius,
     Math.PI,
     1.5 * Math.PI,
+    false
+  );
+  railsOuter.lineTo(outerHalfW - outerCornerRadius, -outerHalfH);
+  railsOuter.absarc(
+    outerHalfW - outerCornerRadius,
+    -outerHalfH + outerCornerRadius,
+    outerCornerRadius,
+    -Math.PI / 2,
+    0,
     false
   );
 
@@ -4051,16 +4051,7 @@ function Table3D(
     outerCornerRadius + baseOverhang * 0.4,
     Math.min(outW, outZ)
   );
-  skirtShape.moveTo(-outW + skirtOuterRadius, -outZ);
-  skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
-  skirtShape.absarc(
-    outW - skirtOuterRadius,
-    -outZ + skirtOuterRadius,
-    skirtOuterRadius,
-    -Math.PI / 2,
-    0,
-    false
-  );
+  skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
   skirtShape.lineTo(outW, outZ - skirtOuterRadius);
   skirtShape.absarc(
     outW - skirtOuterRadius,
@@ -4088,19 +4079,19 @@ function Table3D(
     1.5 * Math.PI,
     false
   );
+  skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
+  skirtShape.absarc(
+    outW - skirtOuterRadius,
+    -outZ + skirtOuterRadius,
+    skirtOuterRadius,
+    -Math.PI / 2,
+    0,
+    false
+  );
   const inner = new THREE.Path();
   const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
   if (skirtInnerRadius > 1e-4) {
-    inner.moveTo(-frameOuterX + skirtInnerRadius, -frameOuterZ);
-    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
-    inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
-      -Math.PI / 2,
-      0,
-      false
-    );
+    inner.moveTo(frameOuterX, -frameOuterZ + skirtInnerRadius);
     inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
     inner.absarc(
       frameOuterX - skirtInnerRadius,
@@ -4128,12 +4119,21 @@ function Table3D(
       1.5 * Math.PI,
       false
     );
+    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
+    inner.absarc(
+      frameOuterX - skirtInnerRadius,
+      -frameOuterZ + skirtInnerRadius,
+      skirtInnerRadius,
+      -Math.PI / 2,
+      0,
+      false
+    );
   } else {
-    inner.moveTo(-frameOuterX, -frameOuterZ);
-    inner.lineTo(frameOuterX, -frameOuterZ);
+    inner.moveTo(frameOuterX, -frameOuterZ);
     inner.lineTo(frameOuterX, frameOuterZ);
     inner.lineTo(-frameOuterX, frameOuterZ);
     inner.lineTo(-frameOuterX, -frameOuterZ);
+    inner.lineTo(frameOuterX, -frameOuterZ);
   }
   skirtShape.holes.push(inner);
   const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
