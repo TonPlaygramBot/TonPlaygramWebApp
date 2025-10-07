@@ -108,6 +108,130 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
   Object.freeze({ id: 'ebony', label: 'Ebony', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
 ]);
 
+export const WOOD_GRAIN_OPTIONS = Object.freeze([
+  Object.freeze({
+    id: 'balancedFlow',
+    label: 'Balanced Flow',
+    rail: {
+      repeat: { x: 0.1, y: 0.62 },
+      rotation: 0,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.18, y: 0.48 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'widePlanks',
+    label: 'Wide Planks',
+    rail: {
+      repeat: { x: 0.08, y: 0.42 },
+      rotation: 0,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.14, y: 0.32 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'tightGrain',
+    label: 'Tight Grain',
+    rail: {
+      repeat: { x: 0.18, y: 0.88 },
+      rotation: 0,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.28, y: 0.58 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'longRun',
+    label: 'Long Run',
+    rail: {
+      repeat: { x: 0.06, y: 0.86 },
+      rotation: Math.PI / 18,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.16, y: 0.52 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'crossbanded',
+    label: 'Crossbanded',
+    rail: {
+      repeat: { x: 0.22, y: 0.54 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.34, y: 0.38 },
+      rotation: 0,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'quarterSawn',
+    label: 'Quarter Sawn',
+    rail: {
+      repeat: { x: 0.12, y: 0.72 },
+      rotation: -Math.PI / 20,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.2, y: 0.44 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'boldRibbon',
+    label: 'Bold Ribbon',
+    rail: {
+      repeat: { x: 0.05, y: 0.52 },
+      rotation: Math.PI / 5,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.22, y: 0.36 },
+      rotation: Math.PI / 3,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'rusticBoards',
+    label: 'Rustic Boards',
+    rail: {
+      repeat: { x: 0.14, y: 0.68 },
+      rotation: -Math.PI / 12,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.26, y: 0.5 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  })
+]);
+
+export const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0].id;
+
+export const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
+  WOOD_GRAIN_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
 export const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
 export const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
 

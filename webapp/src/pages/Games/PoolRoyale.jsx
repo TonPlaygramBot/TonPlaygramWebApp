@@ -27,6 +27,10 @@ import {
 } from '../../utils/createCueRackDisplay.js';
 import {
   WOOD_FINISH_PRESETS,
+  WOOD_GRAIN_OPTIONS,
+  WOOD_GRAIN_OPTIONS_BY_ID,
+  DEFAULT_WOOD_GRAIN_ID,
+  DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   createWoodMaterial,
   disposeMaterialWithWood,
@@ -1295,12 +1299,23 @@ const createClothTextures = (() => {
   };
 })();
 
-function resolveRepeatVector(repeat, material) {
-  if (repeat?.isVector2) {
-    return repeat.clone();
+function resolveRepeatVector(settings, material) {
+  if (!settings) {
+    const stored = material?.userData?.woodRepeat;
+    if (stored?.isVector2) {
+      return stored.clone();
+    }
+    if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) {
+      return new THREE.Vector2(stored.x, stored.y);
+    }
+    return new THREE.Vector2(1, 1);
   }
-  if (repeat && Number.isFinite(repeat.x) && Number.isFinite(repeat.y)) {
-    return new THREE.Vector2(repeat.x, repeat.y);
+  const value = settings?.repeat ?? settings;
+  if (value?.isVector2) {
+    return value.clone();
+  }
+  if (value && Number.isFinite(value.x) && Number.isFinite(value.y)) {
+    return new THREE.Vector2(value.x, value.y);
   }
   const stored = material?.userData?.woodRepeat;
   if (stored?.isVector2) {
@@ -1312,7 +1327,37 @@ function resolveRepeatVector(repeat, material) {
   return new THREE.Vector2(1, 1);
 }
 
-function ensureMaterialWoodOptions(material, repeatVec) {
+function resolveRotation(settings, material) {
+  if (settings && typeof settings.rotation === 'number') {
+    return settings.rotation;
+  }
+  const existing = material?.userData?.__woodOptions?.rotation;
+  if (typeof existing === 'number') {
+    return existing;
+  }
+  const stored = material?.userData?.woodRotation;
+  if (typeof stored === 'number') {
+    return stored;
+  }
+  return 0;
+}
+
+function resolveTextureSize(settings, material) {
+  if (settings && typeof settings.textureSize === 'number') {
+    return settings.textureSize;
+  }
+  const existing = material?.userData?.__woodOptions?.textureSize;
+  if (typeof existing === 'number') {
+    return existing;
+  }
+  const stored = material?.userData?.woodTextureSize;
+  if (typeof stored === 'number') {
+    return stored;
+  }
+  return undefined;
+}
+
+function ensureMaterialWoodOptions(material, targetSettings) {
   if (!material) return null;
   const existing = material.userData?.__woodOptions;
   if (existing) {
@@ -1322,12 +1367,17 @@ function ensureMaterialWoodOptions(material, repeatVec) {
   if (!preset) {
     return null;
   }
+  const repeatVec = targetSettings?.repeat ?? new THREE.Vector2(1, 1);
+  const rotation = targetSettings?.rotation ?? 0;
+  const textureSize = targetSettings?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE;
   applyWoodTextures(material, {
     hue: preset.hue,
     sat: preset.sat,
     light: preset.light,
     contrast: preset.contrast,
     repeat: { x: repeatVec.x, y: repeatVec.y },
+    rotation,
+    textureSize,
     sharedKey: `pool-wood-${preset.id}`,
     ...SHARED_WOOD_SURFACE_PROPS
   });
@@ -1337,27 +1387,44 @@ function ensureMaterialWoodOptions(material, repeatVec) {
 function applyWoodTextureToMaterial(material, repeat) {
   if (!material) return;
   const repeatVec = resolveRepeatVector(repeat, material);
+  const rotation = resolveRotation(repeat, material);
+  const textureSize = resolveTextureSize(repeat, material);
   const hadOptions = Boolean(material.userData?.__woodOptions);
-  const options = ensureMaterialWoodOptions(material, repeatVec);
+  const options = ensureMaterialWoodOptions(material, {
+    repeat: repeatVec,
+    rotation,
+    textureSize
+  });
   if (options) {
     const repeatChanged =
       Math.abs((options.repeat?.x ?? 1) - repeatVec.x) > 1e-6 ||
       Math.abs((options.repeat?.y ?? 1) - repeatVec.y) > 1e-6;
-    if (hadOptions && repeatChanged) {
+    const rotationChanged =
+      Math.abs((options.rotation ?? 0) - rotation) > 1e-6;
+    const textureSizeChanged =
+      typeof textureSize === 'number' &&
+      Math.abs((options.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE) - textureSize) > 1e-6;
+    if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged)) {
       applyWoodTextures(material, {
         ...options,
-        repeat: { x: repeatVec.x, y: repeatVec.y }
+        repeat: { x: repeatVec.x, y: repeatVec.y },
+        rotation,
+        textureSize: textureSize ?? options.textureSize
       });
     }
   } else {
     if (material.map) {
       material.map = material.map.clone();
       material.map.repeat.copy(repeatVec);
+      material.map.center.set(0.5, 0.5);
+      material.map.rotation = rotation;
       material.map.needsUpdate = true;
     }
     if (material.roughnessMap) {
       material.roughnessMap = material.roughnessMap.clone();
       material.roughnessMap.repeat.copy(repeatVec);
+      material.roughnessMap.center.set(0.5, 0.5);
+      material.roughnessMap.rotation = rotation;
       material.roughnessMap.needsUpdate = true;
     }
     material.needsUpdate = true;
@@ -1368,6 +1435,69 @@ function applyWoodTextureToMaterial(material, repeat) {
   } else {
     material.userData.woodRepeat = repeatVec.clone();
   }
+  material.userData.woodRotation = rotation;
+  if (typeof textureSize === 'number') {
+    material.userData.woodTextureSize = textureSize;
+  }
+}
+
+function toPlainWoodSurfaceConfig(settings) {
+  if (!settings) {
+    return null;
+  }
+  const repeatSource = settings.repeat ?? settings;
+  let repeatX = null;
+  let repeatY = null;
+  if (repeatSource?.isVector2) {
+    repeatX = repeatSource.x;
+    repeatY = repeatSource.y;
+  } else if (
+    repeatSource &&
+    Number.isFinite(repeatSource.x) &&
+    Number.isFinite(repeatSource.y)
+  ) {
+    repeatX = repeatSource.x;
+    repeatY = repeatSource.y;
+  }
+  const rotation = typeof settings.rotation === 'number' ? settings.rotation : 0;
+  const textureSize =
+    typeof settings.textureSize === 'number' ? settings.textureSize : undefined;
+  return {
+    repeat: {
+      x: Number.isFinite(repeatX) ? repeatX : 1,
+      y: Number.isFinite(repeatY) ? repeatY : 1
+    },
+    rotation,
+    textureSize
+  };
+}
+
+function resolveWoodSurfaceConfig(option, fallback) {
+  const base =
+    toPlainWoodSurfaceConfig(fallback) ??
+    toPlainWoodSurfaceConfig({ repeat: { x: 1, y: 1 }, rotation: 0 });
+  const resolvedOption = toPlainWoodSurfaceConfig(option);
+  return {
+    repeat: {
+      x: resolvedOption?.repeat?.x ?? base.repeat.x,
+      y: resolvedOption?.repeat?.y ?? base.repeat.y
+    },
+    rotation: resolvedOption?.rotation ?? base.rotation,
+    textureSize: resolvedOption?.textureSize ?? base.textureSize
+  };
+}
+
+function cloneWoodSurfaceConfig(config) {
+  if (!config) return null;
+  return {
+    repeat: {
+      x: Number.isFinite(config.repeat?.x) ? config.repeat.x : 1,
+      y: Number.isFinite(config.repeat?.y) ? config.repeat.y : 1
+    },
+    rotation: typeof config.rotation === 'number' ? config.rotation : 0,
+    textureSize:
+      typeof config.textureSize === 'number' ? config.textureSize : undefined
+  };
 }
 
 function enhanceChromeMaterial(material) {
@@ -3112,6 +3242,14 @@ function Table3D(
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
+  const defaultWoodOption =
+    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+  const resolvedWoodOption =
+    resolvedFinish?.woodTexture ||
+    (resolvedFinish?.woodTextureId &&
+      WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
+    defaultWoodOption;
+  finishParts.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
 
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
@@ -3147,7 +3285,8 @@ function Table3D(
     accentParent: null,
     accentMesh: null,
     dimensions: null,
-    woodRepeats: { frame: null, rail: null }
+    woodSurfaces: { frame: null, rail: null },
+    woodTextureId: null
   };
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
@@ -3266,7 +3405,8 @@ function Table3D(
     parts: finishParts,
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
-    applyClothDetail
+    applyClothDetail,
+    woodTextureId: finishParts.woodTextureId
   };
 
   const clothExtendBase = Math.max(
@@ -3408,9 +3548,21 @@ function Table3D(
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
-  const woodRailRepeat = TABLE_WOOD_REPEAT.clone();
-  applyWoodTextureToMaterial(railMat, woodRailRepeat);
-  finishParts.woodRepeats.rail = woodRailRepeat.clone();
+  const baseRailFallback = {
+    repeat: TABLE_WOOD_REPEAT,
+    rotation: 0,
+    textureSize: resolvedWoodOption?.rail?.textureSize
+  };
+  const woodRailSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.rail,
+    resolvedWoodOption?.frame ?? baseRailFallback
+  );
+  applyWoodTextureToMaterial(railMat, {
+    repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
+    rotation: woodRailSurface.rotation,
+    textureSize: woodRailSurface.textureSize
+  });
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.036; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
@@ -4168,15 +4320,35 @@ function Table3D(
   const legCircumference = 2 * Math.PI * legR;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
-  const woodFrameRepeat = TABLE_WOOD_REPEAT.clone();
-  applyWoodTextureToMaterial(frameMat, woodFrameRepeat);
+  const baseFrameFallback = {
+    repeat: TABLE_WOOD_REPEAT,
+    rotation: Math.PI / 2,
+    textureSize: resolvedWoodOption?.frame?.textureSize ?? woodRailSurface.textureSize
+  };
+  const woodFrameSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.frame,
+    resolvedWoodOption?.rail ?? baseFrameFallback
+  );
+  applyWoodTextureToMaterial(frameMat, {
+    repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
+    rotation: woodFrameSurface.rotation,
+    textureSize: woodFrameSurface.textureSize
+  });
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, woodFrameRepeat);
+    applyWoodTextureToMaterial(legMat, {
+      repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
+      rotation: woodFrameSurface.rotation,
+      textureSize: woodFrameSurface.textureSize
+    });
   }
-  finishParts.woodRepeats.frame = woodFrameRepeat.clone();
-  if (finishParts.woodRepeats.rail) {
-    finishParts.woodRepeats.rail.copy(woodFrameRepeat);
-    applyWoodTextureToMaterial(railMat, finishParts.woodRepeats.rail);
+  finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig(woodFrameSurface);
+  if (!resolvedWoodOption?.rail) {
+    finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodFrameSurface);
+    applyWoodTextureToMaterial(railMat, {
+      repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
+      rotation: woodFrameSurface.rotation,
+      textureSize: woodFrameSurface.textureSize
+    });
   }
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
@@ -4288,16 +4460,56 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
 
-  const woodRepeats = finishInfo.parts.woodRepeats;
-  if (woodRepeats?.rail) {
-    applyWoodTextureToMaterial(railMat, woodRepeats.rail);
-  }
-  if (woodRepeats?.frame) {
-    applyWoodTextureToMaterial(frameMat, woodRepeats.frame);
-    if (legMat !== frameMat) {
-      applyWoodTextureToMaterial(legMat, woodRepeats.frame);
+  const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
+    frame: null,
+    rail: null
+  };
+  finishInfo.parts.woodSurfaces = woodSurfaces;
+  const defaultWoodOption =
+    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+  const resolvedWoodOption =
+    resolvedFinish?.woodTexture ||
+    (resolvedFinish?.woodTextureId &&
+      WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
+    (finishInfo.woodTextureId &&
+      WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
+    defaultWoodOption;
+  const nextFrameSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.frame,
+    woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
+      repeat: { x: 1, y: 1 },
+      rotation: 0
     }
+  );
+  const nextRailSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.rail,
+    resolvedWoodOption?.frame ?? woodSurfaces.rail ?? woodSurfaces.frame ?? nextFrameSurface
+  );
+  applyWoodTextureToMaterial(railMat, {
+    repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
+    rotation: nextRailSurface.rotation,
+    textureSize: nextRailSurface.textureSize
+  });
+  applyWoodTextureToMaterial(frameMat, {
+    repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
+    rotation: nextFrameSurface.rotation,
+    textureSize: nextFrameSurface.textureSize
+  });
+  if (legMat !== frameMat) {
+    applyWoodTextureToMaterial(legMat, {
+      repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
+      rotation: nextFrameSurface.rotation,
+      textureSize: nextFrameSurface.textureSize
+    });
   }
+  if (!resolvedWoodOption?.rail) {
+    woodSurfaces.rail = cloneWoodSurfaceConfig(nextFrameSurface);
+  } else {
+    woodSurfaces.rail = cloneWoodSurfaceConfig(nextRailSurface);
+  }
+  woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
+  finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
+  finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
@@ -4370,6 +4582,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_TABLE_FINISH_ID;
   });
+  const [woodTextureId, setWoodTextureId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerWoodTexture');
+      if (stored && WOOD_GRAIN_OPTIONS_BY_ID[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_WOOD_GRAIN_ID;
+  });
   const [chromeColorId, setChromeColorId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerChromeColor');
@@ -4395,6 +4616,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
+  );
+  const activeWoodTexture = useMemo(
+    () =>
+      WOOD_GRAIN_OPTIONS_BY_ID[woodTextureId] ??
+      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ??
+      WOOD_GRAIN_OPTIONS[0],
+    [woodTextureId]
   );
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
@@ -4619,6 +4847,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
+    const woodSelection = activeWoodTexture;
     return {
       ...baseFinish,
       clothDetail:
@@ -4627,6 +4856,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         ...baseFinish.colors,
         cloth: clothSelection.color
       },
+      woodTexture: woodSelection,
+      woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -4655,7 +4886,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -4679,6 +4910,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerWoodTexture', woodTextureId);
+    }
+  }, [woodTextureId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -10633,7 +10869,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 </svg>
               </button>
             </div>
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
@@ -10648,6 +10884,31 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                         onClick={() => setTableFinishId(option.id)}
                         aria-pressed={active}
                         className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Wood Grain
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {WOOD_GRAIN_OPTIONS.map((option) => {
+                    const active = option.id === woodTextureId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setWoodTextureId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'
