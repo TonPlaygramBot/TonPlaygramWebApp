@@ -187,6 +187,124 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.68; // trim the inner chrome wedge without pulling the entire plate back
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.94; // extend the notch deeper along the short rail to remove the triangular sliver
 
+const RAIL_DIAMOND_LENGTH = SIDE_RAIL_INNER_THICKNESS * 0.78;
+const RAIL_DIAMOND_WIDTH = SIDE_RAIL_INNER_THICKNESS * 0.42;
+const RAIL_DIAMOND_THICKNESS = TABLE.THICK * 0.32;
+const RAIL_DIAMOND_INSET_RATIO = 0.38;
+const RAIL_DIAMOND_VERTICAL_OFFSET = 0.18;
+const LONG_RAIL_DIAMOND_FRACTIONS = Object.freeze([-0.375, -0.125, 0.125, 0.375]);
+const SHORT_RAIL_DIAMOND_FRACTIONS = Object.freeze([-0.33, 0.33]);
+
+const getRailDiamondGeometry = (() => {
+  let geometry = null;
+  return () => {
+    if (geometry) return geometry;
+    const shape = new THREE.Shape();
+    const halfLen = RAIL_DIAMOND_LENGTH / 2;
+    const halfWidth = RAIL_DIAMOND_WIDTH / 2;
+    shape.moveTo(0, halfLen);
+    shape.lineTo(halfWidth, 0);
+    shape.lineTo(0, -halfLen);
+    shape.lineTo(-halfWidth, 0);
+    shape.closePath();
+    geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: RAIL_DIAMOND_THICKNESS,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      bevelSize: RAIL_DIAMOND_THICKNESS * 0.22,
+      bevelThickness: RAIL_DIAMOND_THICKNESS * 0.42,
+      curveSegments: 12,
+      steps: 1
+    });
+    geometry.translate(0, 0, -RAIL_DIAMOND_THICKNESS / 2);
+    geometry.rotateX(-Math.PI / 2);
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+})();
+
+const createDiamondMaterialFromTrim = (trimMaterial) => {
+  const material = trimMaterial?.clone
+    ? trimMaterial.clone()
+    : new THREE.MeshPhysicalMaterial({
+        color: 0xf3f6fb,
+        metalness: 0.92,
+        roughness: 0.18,
+        clearcoat: 0.55,
+        clearcoatRoughness: 0.2
+      });
+  material.color = material.color || new THREE.Color(0xffffff);
+  material.color.lerp(new THREE.Color(0xf4f6f9), 0.4);
+  material.metalness = Math.max(0.88, material.metalness ?? 0.88);
+  material.roughness = Math.min(0.24, material.roughness ?? 0.24);
+  material.clearcoat = Math.max(0.5, material.clearcoat ?? 0.5);
+  material.clearcoatRoughness = Math.min(0.28, material.clearcoatRoughness ?? 0.28);
+  material.envMapIntensity = Math.max(1.05, material.envMapIntensity ?? 1.05);
+  material.needsUpdate = true;
+  return material;
+};
+
+const createRailDiamondMarkers = ({
+  railsTopY,
+  halfW,
+  halfH,
+  longRailW,
+  endRailW,
+  playWidth,
+  playHeight,
+  trimMaterial
+}) => {
+  const geometry = getRailDiamondGeometry();
+  const group = new THREE.Group();
+  const meshes = [];
+  const materialFactory = () => createDiamondMaterialFromTrim(trimMaterial);
+  const longRailCenter = halfH + longRailW * (0.5 - RAIL_DIAMOND_INSET_RATIO * 0.35);
+  const shortRailCenter = halfW + endRailW * (0.5 - RAIL_DIAMOND_INSET_RATIO * 0.35);
+  const baseY = railsTopY - RAIL_DIAMOND_THICKNESS * (0.5 - RAIL_DIAMOND_VERTICAL_OFFSET);
+
+  LONG_RAIL_DIAMOND_FRACTIONS.forEach((fraction) => {
+    const x = playWidth * fraction;
+    [-1, 1].forEach((sign) => {
+      const mesh = new THREE.Mesh(geometry, materialFactory());
+      mesh.position.set(x, baseY, sign * longRailCenter);
+      mesh.rotation.y = Math.PI / 2;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.name = 'railDiamondLong';
+      group.add(mesh);
+      meshes.push(mesh);
+    });
+  });
+
+  SHORT_RAIL_DIAMOND_FRACTIONS.forEach((fraction) => {
+    const z = playHeight * fraction;
+    [-1, 1].forEach((sign) => {
+      const mesh = new THREE.Mesh(geometry, materialFactory());
+      mesh.position.set(sign * shortRailCenter, baseY, z);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.name = 'railDiamondShort';
+      group.add(mesh);
+      meshes.push(mesh);
+    });
+  });
+
+  return { group, meshes };
+};
+
+const updateRailDiamondMaterials = (meshes, trimMaterial) => {
+  if (!Array.isArray(meshes) || !meshes.length) return;
+  meshes.forEach((mesh) => {
+    if (!mesh || !mesh.isMesh) return;
+    const previous = mesh.material;
+    const next = createDiamondMaterialFromTrim(trimMaterial);
+    mesh.material = next;
+    if (previous && previous !== next) {
+      disposeMaterialWithWood(previous);
+    }
+  });
+};
+
 function buildChromePlateGeometry({
   width,
   height,
@@ -3147,7 +3265,9 @@ function Table3D(
     accentParent: null,
     accentMesh: null,
     dimensions: null,
-    woodRepeats: { frame: null, rail: null }
+    woodRepeats: { frame: null, rail: null },
+    diamondMeshes: [],
+    diamondGroup: null
   };
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
@@ -3826,6 +3946,22 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
+  const diamonds = createRailDiamondMarkers({
+    railsTopY,
+    halfW,
+    halfH,
+    longRailW,
+    endRailW,
+    playWidth: PLAY_W,
+    playHeight: PLAY_H,
+    trimMaterial: trimMat
+  });
+  if (diamonds?.group && diamonds.meshes?.length) {
+    railsGroup.add(diamonds.group);
+    finishParts.diamondGroup = diamonds.group;
+    finishParts.diamondMeshes.push(...diamonds.meshes);
+  }
+
   table.add(railsGroup);
 
   const chalkGroup = new THREE.Group();
@@ -4287,6 +4423,7 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
+  updateRailDiamondMaterials(finishInfo.parts.diamondMeshes, trimMat);
 
   const woodRepeats = finishInfo.parts.woodRepeats;
   if (woodRepeats?.rail) {
