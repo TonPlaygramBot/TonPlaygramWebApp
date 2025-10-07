@@ -110,48 +110,6 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'balancedFlow',
-    label: 'Balanced Flow',
-    rail: {
-      repeat: { x: 0.1, y: 0.62 },
-      rotation: 0,
-      textureSize: 2048
-    },
-    frame: {
-      repeat: { x: 0.18, y: 0.48 },
-      rotation: Math.PI / 2,
-      textureSize: 2048
-    }
-  }),
-  Object.freeze({
-    id: 'widePlanks',
-    label: 'Wide Planks',
-    rail: {
-      repeat: { x: 0.08, y: 0.42 },
-      rotation: 0,
-      textureSize: 2048
-    },
-    frame: {
-      repeat: { x: 0.14, y: 0.32 },
-      rotation: Math.PI / 2,
-      textureSize: 2048
-    }
-  }),
-  Object.freeze({
-    id: 'tightGrain',
-    label: 'Tight Grain',
-    rail: {
-      repeat: { x: 0.18, y: 0.88 },
-      rotation: 0,
-      textureSize: 2048
-    },
-    frame: {
-      repeat: { x: 0.28, y: 0.58 },
-      rotation: Math.PI / 2,
-      textureSize: 2048
-    }
-  }),
-  Object.freeze({
     id: 'longRun',
     label: 'Long Run',
     rail: {
@@ -190,20 +148,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     frame: {
       repeat: { x: 0.2, y: 0.44 },
       rotation: Math.PI / 2,
-      textureSize: 2048
-    }
-  }),
-  Object.freeze({
-    id: 'boldRibbon',
-    label: 'Bold Ribbon',
-    rail: {
-      repeat: { x: 0.05, y: 0.52 },
-      rotation: Math.PI / 5,
-      textureSize: 2048
-    },
-    frame: {
-      repeat: { x: 0.22, y: 0.36 },
-      rotation: Math.PI / 3,
       textureSize: 2048
     }
   }),
@@ -250,20 +194,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     }
   }),
   Object.freeze({
-    id: 'cathedralSweep',
-    label: 'Cathedral Sweep',
-    rail: {
-      repeat: { x: 0.07, y: 0.48 },
-      rotation: -Math.PI / 20,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.22, y: 0.36 },
-      rotation: Math.PI / 2,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
     id: 'estateBands',
     label: 'Estate Bands',
     rail: {
@@ -287,20 +217,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     },
     frame: {
       repeat: { x: 0.24, y: 0.38 },
-      rotation: Math.PI / 2,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'grandArc',
-    label: 'Grand Arc',
-    rail: {
-      repeat: { x: 0.06, y: 0.6 },
-      rotation: -Math.PI / 12,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.2, y: 0.44 },
       rotation: Math.PI / 2,
       textureSize: 3072
     }
