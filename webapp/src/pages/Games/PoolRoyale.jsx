@@ -3577,17 +3577,17 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION; // give the cushions a little more breathing room so they stop shy of the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.03 * POCKET_VISUAL_EXPANSION; // ease back the short-rail cushions so they no longer intrude on the pocket mouths
+    POCKET_VIS_R * -0.045 * POCKET_VISUAL_EXPANSION; // ease back the short-rail cushions so they no longer intrude on the pocket mouths
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.35 * POCKET_VISUAL_EXPANSION; // tighten the long cushions slightly so their ends stay clear of the pockets
+    POCKET_VIS_R * 0.37 * POCKET_VISUAL_EXPANSION; // tighten the long cushions slightly so their ends stay clear of the pockets
   const LONG_CUSHION_CORNER_EXTENSION =
     POCKET_VIS_R * 0.01 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy without pressing into the chrome arches
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.15 * POCKET_VISUAL_EXPANSION; // create a touch more clearance around the side pockets
+    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // create a touch more clearance around the side pockets
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.15 * POCKET_VISUAL_EXPANSION; // maintain alignment while nudging the cushions away from the pocket openings
+    POCKET_VIS_R * 0.16 * POCKET_VISUAL_EXPANSION; // maintain alignment while nudging the cushions away from the pocket openings
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // trim back the vertical cushions so their tips sit just before the pocket edge
+    POCKET_VIS_R * 0.13 * POCKET_VISUAL_EXPANSION; // trim back the vertical cushions so their tips sit just before the pocket edge
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3629,7 +3629,7 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const CHROME_CORNER_EDGE_PULL = TABLE.THICK * 0.04; // shrink the chrome plates ever so slightly so they don't crowd the cushions
+  const CHROME_CORNER_EDGE_PULL = TABLE.THICK * 0.055; // shrink the chrome plates ever so slightly so they don't crowd the cushions
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
@@ -3658,7 +3658,7 @@ function Table3D(
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.05
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.07
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -3669,7 +3669,7 @@ function Table3D(
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.94,
+    chromePlateHeight * 0.92,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
