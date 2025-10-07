@@ -186,6 +186,10 @@ const CARD_THEMES = [
 
 const DEFAULT_APPEARANCE = { outfit: 0, table: 0, cards: 0, stools: 0 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
+const CAMERA_WORLD_UP = new THREE.Vector3(0, 1, 0);
+const TMP_CAMERA_VIEW_DIR = new THREE.Vector3();
+const TMP_CAMERA_SIDE = new THREE.Vector3();
+const TMP_CAMERA_UP = new THREE.Vector3();
 const CUSTOMIZATION_SECTIONS = [
   { key: 'outfit', label: 'Rroba', options: OUTFIT_THEMES },
   { key: 'table', label: 'Tavolinë', options: TABLE_THEMES },
@@ -2117,6 +2121,17 @@ function updateCameraFromSpherical(camera, spherical, target, store) {
     }
   }
 
+  const viewDir = TMP_CAMERA_VIEW_DIR.subVectors(target, camera.position).normalize();
+  TMP_CAMERA_SIDE.crossVectors(viewDir, CAMERA_WORLD_UP);
+  if (TMP_CAMERA_SIDE.lengthSq() < 1e-8) {
+    TMP_CAMERA_SIDE.set(1, 0, 0).cross(viewDir);
+    if (TMP_CAMERA_SIDE.lengthSq() < 1e-8) {
+      TMP_CAMERA_SIDE.set(0, 0, 1).cross(viewDir);
+    }
+  }
+  TMP_CAMERA_SIDE.normalize();
+  TMP_CAMERA_UP.crossVectors(TMP_CAMERA_SIDE, viewDir).normalize();
+  camera.up.copy(TMP_CAMERA_UP);
   camera.lookAt(target);
 }
 
