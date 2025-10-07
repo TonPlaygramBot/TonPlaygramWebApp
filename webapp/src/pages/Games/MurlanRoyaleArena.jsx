@@ -344,24 +344,37 @@ export default function MurlanRoyaleArena({ search }) {
         const spread = hand.length ? Math.min(hand.length * 0.18, 2.2) : 0;
         hand.forEach((card, idx) => {
           const tex = makeCardFace(card.r, card.s);
-          const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4, metalness: 0.05 });
-          cardMaterials.push(mat);
-          const mesh = new THREE.Mesh(cardGeo, mat);
-          mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(0, TABLE_HEIGHT + 0.05, 0);
+          const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.55, metalness: 0.1 });
+          const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.08 });
+          const backMat = new THREE.MeshStandardMaterial({ color: 0x111a2a, roughness: 0.6, metalness: 0.15 });
+          const materials = [
+            edgeMat,
+            edgeMat.clone(),
+            edgeMat.clone(),
+            edgeMat.clone(),
+            frontMat,
+            backMat
+          ];
+          cardMaterials.push(...materials);
+          const mesh = new THREE.Mesh(cardGeo, materials);
+          const cardBaseHeight = TABLE_HEIGHT + CARD_H / 2;
+          mesh.position.set(0, cardBaseHeight, 0);
           arena.add(mesh);
           cardMeshes.push({ mesh, texture: tex });
 
           const offset = idx - (hand.length - 1) / 2;
-          const cardAngle = angle - Math.PI / 2;
-          const radius = 3.4;
-          const target = new THREE.Vector3(
-            Math.cos(cardAngle) * radius - Math.sin(cardAngle) * (offset * (spread / Math.max(hand.length, 1))),
-            TABLE_HEIGHT + 0.02,
-            Math.sin(cardAngle) * radius + Math.cos(cardAngle) * (offset * (spread / Math.max(hand.length, 1)))
-          );
-          animateCard(mesh, target, TABLE_HEIGHT + 0.02, idx * 0.08 + i * 0.2);
-          mesh.lookAt(new THREE.Vector3(0, TABLE_HEIGHT + 0.02, 0));
+          const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+          const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+          const spreadOffset = offset * (spread / Math.max(hand.length, 1));
+          const radius = 3.25;
+          const target = forward
+            .clone()
+            .multiplyScalar(radius)
+            .addScaledVector(right, spreadOffset);
+          target.y = cardBaseHeight;
+          const seatFocus = forward.clone().multiplyScalar(chairRadius - 0.6);
+          seatFocus.y = cardBaseHeight;
+          animateCard(mesh, target, cardBaseHeight, idx * 0.08 + i * 0.2, seatFocus);
         });
       }
     }
@@ -379,8 +392,8 @@ export default function MurlanRoyaleArena({ search }) {
     const safeHorizontalReach = Math.max(2.5, maxHorizontalReach);
     const maxOrbitRadius = Math.max(3.5, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
     const minOrbitRadius = Math.max(2.5, maxOrbitRadius * 0.75);
-    const cameraBackOffset = 1.9;
-    const cameraHeightOffset = 1.75;
+    const cameraBackOffset = 2.6;
+    const cameraHeightOffset = 1.9;
     const initialCameraPosition = new THREE.Vector3(
       Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset),
       TABLE_HEIGHT + cameraHeightOffset,
@@ -389,7 +402,11 @@ export default function MurlanRoyaleArena({ search }) {
     const target = new THREE.Vector3(0, TABLE_HEIGHT + 0.2, 0);
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    spherical.radius = THREE.MathUtils.clamp(spherical.radius * 1.18, minOrbitRadius + 0.05, maxOrbitRadius);
+    spherical.radius = THREE.MathUtils.clamp(
+      spherical.radius * 1.35,
+      minOrbitRadius + 0.05,
+      maxOrbitRadius * 1.1
+    );
     spherical.phi = THREE.MathUtils.clamp(
       spherical.phi,
       ARENA_CAMERA_DEFAULTS.phiMin,
@@ -405,8 +422,8 @@ export default function MurlanRoyaleArena({ search }) {
     controls.maxPolarAngle = Math.min(ARENA_CAMERA_DEFAULTS.phiMax, spherical.phi + THREE.MathUtils.degToRad(8));
     controls.minAzimuthAngle = spherical.theta - azimuthSwing;
     controls.maxAzimuthAngle = spherical.theta + azimuthSwing;
-    controls.minDistance = Math.max(minOrbitRadius * 0.95, spherical.radius * 0.85);
-    controls.maxDistance = Math.min(maxOrbitRadius, spherical.radius * 1.25);
+    controls.minDistance = Math.max(minOrbitRadius * 0.9, spherical.radius * 0.75);
+    controls.maxDistance = Math.min(maxOrbitRadius * 1.1, spherical.radius * 1.6);
     controls.enablePan = false;
     controls.zoomSpeed = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
     controls.rotateSpeed = 0.5;
@@ -457,10 +474,16 @@ function updateCameraFromSpherical(camera, spherical, target) {
   camera.lookAt(target);
 }
 
-function animateCard(card, target, height, delay) {
+function animateCard(card, target, height, delay, lookTarget) {
   const start = card.position.clone();
   const duration = 900;
   const startTime = performance.now() + delay * 1000;
+
+  if (lookTarget) {
+    card.up.set(0, 1, 0);
+    card.lookAt(lookTarget);
+    card.rotation.z = 0;
+  }
 
   function step() {
     const elapsed = performance.now() - startTime;
@@ -472,11 +495,21 @@ function animateCard(card, target, height, delay) {
     const eased = 1 - Math.pow(1 - t, 3);
     card.position.lerpVectors(start, target, eased);
     card.position.y = height + Math.sin(Math.PI * eased) * 0.35;
+    if (lookTarget) {
+      card.up.set(0, 1, 0);
+      card.lookAt(lookTarget);
+      card.rotation.z = 0;
+    }
     if (t < 1) {
       requestAnimationFrame(step);
     } else {
       card.position.copy(target);
       card.position.y = height;
+      if (lookTarget) {
+        card.up.set(0, 1, 0);
+        card.lookAt(lookTarget);
+        card.rotation.z = 0;
+      }
     }
   }
 
