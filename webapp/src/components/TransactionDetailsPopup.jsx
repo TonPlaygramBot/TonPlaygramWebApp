@@ -22,6 +22,8 @@ const GAME_NAME_MAP = {
   brickbreaker: 'Brick Breaker Royale',
   fallingball: 'Falling Ball',
   pool: 'Pool Royale',
+  bowling: 'Bowling Royal',
+  bowlingroyal: 'Bowling Royal',
   texas: "Texas Hold'em",
   blackjack: 'Black Jack Multiplayer',
   freekick: 'Free Kick',
