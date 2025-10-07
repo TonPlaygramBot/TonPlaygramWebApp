@@ -86,17 +86,17 @@ export default function TableTennis3D({ player, ai }){
     const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
     scene.add(camera);
     const camRig = {
-      dist: 3.78,
-      minDist: 3.45,
-      height: 2.08,
-      minHeight: 1.78,
+      dist: 3.46,
+      minDist: 3.18,
+      height: 1.9,
+      minHeight: 1.68,
       pitch: 0.34,
-      forwardBias: 0.08,
+      forwardBias: 0.06,
       yawBase: 0,
       yawRange: 0.38,
       curYaw: 0,
-      curDist: 3.78,
-      curHeight: 2.08,
+      curDist: 3.46,
+      curHeight: 1.9,
     };
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
@@ -385,7 +385,7 @@ export default function TableTennis3D({ player, ai }){
       visualWrapper.rotation.y = orientation === 1 ? Math.PI : 0;
       g.add(visualWrapper);
 
-      g.userData = { headRadius, visualWrapper, baseYaw: visualWrapper.rotation.y };
+      g.userData = { headRadius, visualWrapper, baseYaw: visualWrapper.rotation.y, orientationSign: orientation };
       return g;
     }
 
@@ -469,14 +469,13 @@ export default function TableTennis3D({ player, ai }){
       zFar: 0.06,
     };
 
-    // Expanded touch surface so the finger can sit behind the paddle while
-    // still steering it comfortably. The pointer area is roughly 2× the
-    // paddle footprint, shifted toward the player, and we keep the actual
-    // paddle a little ahead of the touch point so the finger does not cover it.
-    const TOUCH_SURFACE_MULT = 2;
-    const TOUCH_DEPTH_MULT = 2.1;
-    const TOUCH_BACK_SHIFT = 0.26;
-    const TOUCH_FORWARD_OFFSET = 0.18;
+    // Touch surface remains slightly larger than the paddle so it feels forgiving,
+    // but we center it beneath the racket and keep only a tiny forward offset so
+    // the finger lines up with the paddle instead of sitting far behind it.
+    const TOUCH_SURFACE_MULT = 1.8;
+    const TOUCH_DEPTH_MULT = 1.6;
+    const TOUCH_BACK_SHIFT = 0.02;
+    const TOUCH_FORWARD_OFFSET = 0.02;
     const pointerXMin = -bounds.x * TOUCH_SURFACE_MULT;
     const pointerXMax = bounds.x * TOUCH_SURFACE_MULT;
     const pointerZSpan = (bounds.zNear - bounds.zFar) * TOUCH_DEPTH_MULT;
@@ -877,31 +876,42 @@ export default function TableTennis3D({ player, ai }){
         playerPrev.copy(player.position);
         oppPrev.copy(opp.position);
 
-        const adjustPlayerPaddle = () => {
-          const { visualWrapper, baseYaw } = player.userData || {};
-          if (!visualWrapper) return;
+        const adjustPaddleYaw = (paddle, velocity) => {
+          const { visualWrapper, baseYaw, orientationSign = 1 } = paddle.userData || {};
+          if (!visualWrapper || !Number.isFinite(baseYaw)) return;
 
-          const dx = ball.position.x - player.position.x;
-          const dz = ball.position.z - player.position.z;
-          const cos = Math.cos(baseYaw);
-          const sin = Math.sin(baseYaw);
-          const localX = cos * dx - sin * dz;
-          const localZ = sin * dx + cos * dz;
-          const ahead = localZ > 0.01;
+          const dx = ball.position.x - paddle.position.x;
+          const dz = ball.position.z - paddle.position.z;
+          const forwardX = Math.sin(baseYaw);
+          const forwardZ = Math.cos(baseYaw);
+          const ahead = forwardX * dx + forwardZ * dz > 0.01;
 
-          const localVelX = cos * playerVel.x - sin * playerVel.z;
-          const backhandAim = ahead ? Math.max(0, localX) : 0;
-          const swingBackhand = Math.max(0, -localVelX);
-          const swingForehand = Math.max(0, localVelX);
+          const rightX = forwardZ;
+          const rightZ = -forwardX;
+          const velLateral = velocity.x * rightX + velocity.z * rightZ;
+          const cross = forwardX * dz - forwardZ * dx;
+
+          const swingBackhand = Math.max(0, -velLateral * orientationSign);
+          const swingForehand = Math.max(0, velLateral * orientationSign);
+          const backhandAim = ahead ? Math.max(0, -cross * orientationSign) : 0;
 
           const offsetLeft = THREE.MathUtils.clamp(backhandAim * 0.7 + swingBackhand * 0.18, 0, 0.92);
           const offsetRight = Math.min(swingForehand * 0.12, 0.35);
-          const targetYaw = THREE.MathUtils.clamp(baseYaw + offsetLeft - offsetRight, baseYaw - 0.5, baseYaw + 0.95);
 
-          visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, 0.22);
+          const leftRange = orientationSign === 1 ? 0.5 : 0.95;
+          const rightRange = orientationSign === 1 ? 0.95 : 0.5;
+          const targetYaw = THREE.MathUtils.clamp(
+            baseYaw + orientationSign * offsetLeft - orientationSign * offsetRight,
+            baseYaw - leftRange,
+            baseYaw + rightRange
+          );
+
+          const damping = orientationSign === 1 ? 0.22 : 0.18;
+          visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, damping);
         };
 
-        adjustPlayerPaddle();
+        adjustPaddleYaw(player, playerVel);
+        adjustPaddleYaw(opp, oppVel);
 
         if (Sx.state !== 'dead'){
           if (Sx.state === 'serve'){
