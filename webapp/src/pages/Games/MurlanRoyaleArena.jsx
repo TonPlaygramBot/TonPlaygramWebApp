@@ -22,7 +22,7 @@ import {
 } from '../../../../lib/murlan.js';
 
 const MODEL_SCALE = 0.75;
-const ARENA_GROWTH = 1.3; // 30% larger arena footprint
+const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 
 const ARENA_COLOR = 0x0c1020;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
@@ -852,7 +852,7 @@ export default function MurlanRoyaleArena({ search }) {
     const arenaHalfWidth = boardSize * 1.35;
     const arenaHalfDepth = boardSize * 1.2;
     const wallInset = 0.5;
-    const wallProximity = 0.5;
+    const wallProximity = 0.62;
     const wallHeight = 6.0;
 
     const halfRoomX = (arenaHalfWidth - wallInset) * wallProximity;
@@ -1030,15 +1030,16 @@ export default function MurlanRoyaleArena({ search }) {
       headMaterial: headMat
     };
     const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH;
-    const seatWidth = 0.9 * MODEL_SCALE;
-    const seatDepth = 0.95 * MODEL_SCALE;
-    const seatThickness = 0.09 * MODEL_SCALE;
-    const backHeight = 0.68 * MODEL_SCALE;
-    const backThickness = 0.08 * MODEL_SCALE;
-    const armThickness = 0.05 * MODEL_SCALE;
-    const armHeight = 0.3 * MODEL_SCALE;
+    const stoolScale = 1.5;
+    const seatWidth = 0.9 * MODEL_SCALE * stoolScale;
+    const seatDepth = 0.95 * MODEL_SCALE * stoolScale;
+    const seatThickness = 0.09 * MODEL_SCALE * stoolScale;
+    const backHeight = 0.68 * MODEL_SCALE * stoolScale;
+    const backThickness = 0.08 * MODEL_SCALE * stoolScale;
+    const armThickness = 0.05 * MODEL_SCALE * stoolScale;
+    const armHeight = 0.3 * MODEL_SCALE * stoolScale;
     const armDepth = seatDepth * 0.75;
-    const baseColumnHeight = 0.5 * MODEL_SCALE;
+    const baseColumnHeight = 0.5 * MODEL_SCALE * stoolScale;
 
     const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
     const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
@@ -1059,7 +1060,12 @@ export default function MurlanRoyaleArena({ search }) {
       const armRight = armLeft.clone();
       armRight.position.x = armOffsetX;
       const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE, 0.2 * MODEL_SCALE, baseColumnHeight, 16),
+        new THREE.CylinderGeometry(
+          0.16 * MODEL_SCALE * stoolScale,
+          0.2 * MODEL_SCALE * stoolScale,
+          baseColumnHeight,
+          16
+        ),
         legMat
       );
       legBase.position.y = -seatThickness / 2 - baseColumnHeight / 2;
