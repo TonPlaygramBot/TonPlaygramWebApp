@@ -266,7 +266,7 @@ export default function TableTennis3D({ player, ai }){
       bladeShape.absarc(0, 0, bladeR, startAngle, endAngle, false);
 
       const HANDLE_DEPTH = 0.12;
-      const BLADE_DEPTH_EACH = HANDLE_DEPTH * 0.38;
+      const BLADE_DEPTH_EACH = HANDLE_DEPTH * 0.5;
       const midY = 0.49;
 
       const frontMat = new THREE.MeshStandardMaterial({ color: frontHex, roughness: 0.4, metalness: 0.05 });
@@ -276,58 +276,39 @@ export default function TableTennis3D({ player, ai }){
       frontGeo.rotateX(Math.PI / 2);
       frontGeo.translate(0, midY - BLADE_DEPTH_EACH, 0);
       const frontBlade = new THREE.Mesh(frontGeo, frontMat);
-      frontBlade.userData.component = 'bladeFront';
 
       const backGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: BLADE_DEPTH_EACH, bevelEnabled: false, curveSegments: 64 });
       backGeo.rotateX(Math.PI / 2);
       backGeo.translate(0, midY, 0);
       const backBlade = new THREE.Mesh(backGeo, backMat);
-      backBlade.userData.component = 'bladeBack';
 
       const stemW = 0.14;
       const stemH = 0.45;
       const triOut = 0.14;
       const forkDepth = 0.09;
-      const throatW = stemW * 0.54;
-      const flareW = stemW / 2 + triOut * 0.72;
 
       const s = new THREE.Shape();
-      s.moveTo(-flareW, 0);
-      s.quadraticCurveTo(-throatW * 0.95, -forkDepth * 0.18, -throatW * 0.86, -forkDepth * 0.64);
+      s.moveTo(-(stemW / 2 + triOut), 0);
+      s.quadraticCurveTo(0, 0.05, stemW / 2 + triOut, 0);
       s.bezierCurveTo(
-        -throatW * 0.78,
-        -forkDepth * 1.08,
-        -throatW * 0.62,
-        -stemH * 0.38,
-        -throatW * 0.46,
-        -stemH * 0.62
+        stemW / 2 + triOut * 0.8,
+        -forkDepth * 0.25,
+        stemW / 2 + triOut * 0.5,
+        -forkDepth * 0.6,
+        stemW / 2,
+        -forkDepth
       );
+      s.lineTo(stemW * 0.6, -stemH * 0.8);
+      s.lineTo(-stemW * 0.6, -stemH * 0.8);
+      s.lineTo(-stemW / 2, -forkDepth);
       s.bezierCurveTo(
-        -throatW * 0.28,
-        -stemH * 0.82,
-        -throatW * 0.1,
-        -stemH * 0.96,
-        0,
-        -stemH
+        -(stemW / 2 + triOut * 0.5),
+        -forkDepth * 0.6,
+        -(stemW / 2 + triOut * 0.8),
+        -forkDepth * 0.25,
+        -(stemW / 2 + triOut),
+        0
       );
-      s.bezierCurveTo(
-        throatW * 0.1,
-        -stemH * 0.96,
-        throatW * 0.28,
-        -stemH * 0.82,
-        throatW * 0.46,
-        -stemH * 0.62
-      );
-      s.bezierCurveTo(
-        throatW * 0.62,
-        -stemH * 0.38,
-        throatW * 0.78,
-        -forkDepth * 1.08,
-        throatW * 0.86,
-        -forkDepth * 0.64
-      );
-      s.quadraticCurveTo(throatW * 0.95, -forkDepth * 0.18, flareW, 0);
-      s.quadraticCurveTo(0, 0.06, -flareW, 0);
       s.closePath();
 
       const handleGeo = new THREE.ExtrudeGeometry(s, {
@@ -340,8 +321,6 @@ export default function TableTennis3D({ player, ai }){
       });
       handleGeo.rotateX(Math.PI / 2);
       const handle = new THREE.Mesh(handleGeo, woodMat);
-      handle.name = 'paddleHandle';
-      handle.userData.component = 'handle';
 
       const thetaA = startAngle;
       const thetaB = endAngle;
@@ -362,8 +341,7 @@ export default function TableTennis3D({ player, ai }){
 
       handle.position.set(mx + nx * 0.001, midY, mz + nz * 0.001);
       handle.rotation.y = alpha;
-      const handleThicknessScale = -1.12;
-      handle.scale.z = handleThicknessScale;
+      handle.scale.z = -1;
 
       const group = new THREE.Group();
       group.add(frontBlade);
@@ -387,56 +365,22 @@ export default function TableTennis3D({ player, ai }){
       const backColor = frontColor.clone();
       backColor.offsetHSL(-0.05, -0.18, -0.18);
 
+      const visualWrapper = new THREE.Group();
       const fancyPaddle = buildCurvedPaddle(frontColor.getHex(), backColor.getHex(), paddleWoodMat);
-      const handleMesh = fancyPaddle.children.find(child => child.userData?.component === 'handle');
-      if (handleMesh) fancyPaddle.remove(handleMesh);
-
-      const buildScale = fancyPaddle.scale.x || 1;
       const uniformScale = headRadius / BASE_HEAD_RADIUS;
-      const finalScale = uniformScale * buildScale;
-
-      const headGroup = fancyPaddle;
-      headGroup.userData.component = 'headGroup';
-      headGroup.scale.set(finalScale, finalScale, finalScale * 0.78);
-      headGroup.position.set(
-        0,
-        -BASE_HEAD_CENTER_Y * uniformScale,
-        -BASE_HEAD_CENTER_Z * uniformScale
-      );
-      headGroup.children.forEach(child => { child.castShadow = true; });
-
-      headAnchor.add(headGroup);
-
-      const handleWrapper = new THREE.Group();
-      handleWrapper.position.set(
+      fancyPaddle.scale.setScalar(uniformScale);
+      fancyPaddle.position.set(
         0,
         headYOffset - BASE_HEAD_CENTER_Y * uniformScale,
         -BASE_HEAD_CENTER_Z * uniformScale
       );
-      if (handleMesh){
-        handleMesh.scale.x *= finalScale;
-        handleMesh.scale.y *= finalScale;
-        handleMesh.scale.z *= finalScale * 1.12;
-        handleMesh.position.set(0, 0, 0);
-        handleMesh.castShadow = true;
-        handleWrapper.add(handleMesh);
-      }
-      handleWrapper.userData.component = 'handleWrapper';
-      const baseYaw = orientation === 1 ? Math.PI : 0;
-      handleWrapper.rotation.y = baseYaw;
-      headAnchor.rotation.y = baseYaw;
-      g.add(handleWrapper);
+      fancyPaddle.children.forEach(child => { child.castShadow = true; });
 
-      g.userData = {
-        headRadius,
-        headAnchor,
-        headGroup,
-        handleWrapper,
-        handleMesh: handleMesh || null,
-        pose: { yaw: 0, pitch: 0, roll: 0 },
-        baseYaw,
-        inputDir: new THREE.Vector2(0, 0),
-      };
+      visualWrapper.add(fancyPaddle);
+      visualWrapper.rotation.y = orientation === 1 ? Math.PI : 0;
+      g.add(visualWrapper);
+
+      g.userData = { headRadius };
       return g;
     }
 
@@ -487,11 +431,6 @@ export default function TableTennis3D({ player, ai }){
       tmpV: new THREE.Vector3(),
       tmpN: new THREE.Vector3(),
       tmpSpin: new THREE.Vector3(),
-      tmpQuat: new THREE.Quaternion(),
-      tmpWorld: new THREE.Vector3(),
-      tmpWorld2: new THREE.Vector3(),
-      tmpHit: new THREE.Vector3(),
-      tmpForward: new THREE.Vector3(),
       simPos: new THREE.Vector3(),
       simVel: new THREE.Vector3(),
       simSpin: new THREE.Vector3(),
@@ -545,12 +484,7 @@ export default function TableTennis3D({ player, ai }){
     let dragging=false;
     const onDown = (e)=>{ const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); dragging = (p.y > -0.12); if (dragging){ if (e.cancelable) e.preventDefault(); movePlayerTo(p.x,p.y); } };
     const onMove = (e)=>{ if(!dragging) return; const t=e.touches?e.touches[0]:e; if (e.cancelable) e.preventDefault(); const p=screenToXZ(t.clientX,t.clientY); movePlayerTo(p.x,p.y); };
-    const onUp = ()=>{
-      dragging=false;
-      if (player.userData?.inputDir){
-        player.userData.inputDir.multiplyScalar(0.35);
-      }
-    };
+    const onUp = ()=>{ dragging=false; };
 
     function movePlayerTo(x,z){
       const clampedX = THREE.MathUtils.clamp(x, pointerXMin, pointerXMax);
@@ -560,12 +494,6 @@ export default function TableTennis3D({ player, ai }){
       player.position.x = THREE.MathUtils.lerp(-bounds.x, bounds.x, normX);
       const desiredZ = THREE.MathUtils.lerp(bounds.zFar, bounds.zNear, normZ) - TOUCH_FORWARD_OFFSET;
       player.position.z = THREE.MathUtils.clamp(desiredZ, bounds.zFar, bounds.zNear);
-      if (player.userData?.inputDir){
-        player.userData.inputDir.set(
-          THREE.MathUtils.mapLinear(clampedX, pointerXMin, pointerXMax, -1, 1),
-          THREE.MathUtils.mapLinear(clampedZ, pointerZMin, pointerZMax, -1, 1)
-        );
-      }
     }
 
     renderer.domElement.addEventListener('touchstart', onDown, { passive:false });
@@ -746,47 +674,6 @@ export default function TableTennis3D({ player, ai }){
         opp.position.x = THREE.MathUtils.lerp(opp.position.x, 0, 0.16);
         opp.position.z = THREE.MathUtils.lerp(opp.position.z, baseZ - 0.04, 0.16);
       }
-
-      if (opp.userData?.inputDir){
-        const aimX = THREE.MathUtils.clamp((ball.position.x - opp.position.x) / (bounds.x * 1.2), -1, 1);
-        const aimZ = THREE.MathUtils.clamp((ball.position.z - opp.position.z) / 0.6, -1, 1);
-        opp.userData.inputDir.set(aimX, aimZ);
-      }
-    }
-
-    const poseTmp = new THREE.Vector3();
-    function updatePaddlePose(paddle, velocity, sideSign){
-      const pose = paddle.userData?.pose;
-      const headAnchor = paddle.userData?.headAnchor;
-      const handleWrapper = paddle.userData?.handleWrapper;
-      if (!pose || !headAnchor) return;
-
-      const input = paddle.userData.inputDir || null;
-      poseTmp.copy(ball.position).sub(paddle.position);
-      const ballInfluenceX = THREE.MathUtils.clamp(poseTmp.x / (bounds.x * 1.15), -1, 1);
-      const ballInfluenceZ = THREE.MathUtils.clamp(poseTmp.z * sideSign / 0.62, -1, 1);
-
-      const aimYaw = THREE.MathUtils.clamp((input?.x || 0) * 0.45, -0.55, 0.55);
-      const swingYaw = THREE.MathUtils.clamp(-velocity.x * 0.16 * sideSign, -0.45, 0.45);
-      const targetYaw = THREE.MathUtils.clamp(aimYaw + swingYaw + ballInfluenceX * 0.16, -0.7, 0.7);
-
-      const aimPitch = THREE.MathUtils.clamp(-(input?.y || 0) * 0.32, -0.55, 0.55);
-      const swingPitch = THREE.MathUtils.clamp(velocity.z * 0.22 * (sideSign === 1 ? -1 : 1), -0.42, 0.42);
-      const targetPitch = THREE.MathUtils.clamp(aimPitch + swingPitch - ballInfluenceZ * 0.2, -0.65, 0.65);
-
-      const aimRoll = THREE.MathUtils.clamp(-(input?.x || 0) * 0.22, -0.38, 0.38);
-      const swingRoll = THREE.MathUtils.clamp(-velocity.x * 0.08, -0.32, 0.32);
-      const targetRoll = THREE.MathUtils.clamp(aimRoll + swingRoll, -0.45, 0.45);
-
-      const responsiveness = sideSign === 1 ? 0.24 : 0.18;
-      pose.yaw += (targetYaw - pose.yaw) * responsiveness;
-      pose.pitch += (targetPitch - pose.pitch) * (responsiveness * 0.9);
-      pose.roll += (targetRoll - pose.roll) * (responsiveness * 0.82);
-
-      headAnchor.rotation.set(pose.pitch, paddle.userData.baseYaw + pose.yaw, pose.roll);
-      if (handleWrapper){
-        handleWrapper.rotation.set(pose.pitch * 0.18, paddle.userData.baseYaw, pose.roll * 0.42);
-      }
     }
 
     // ---------- Collisions ----------
@@ -845,82 +732,45 @@ export default function TableTennis3D({ player, ai }){
     function hitPaddle(paddle, who, paddleVel){
       if (Sx.state === 'dead') return false;
       if (Sx.state === 'serve' && who === Srv.side && Sx.serveProgress !== 'live') return false;
-      const headAnchor = paddle.userData?.headAnchor;
+      const head = paddle.children[0];
       const headRadius = paddle.userData?.headRadius || (0.092 * PADDLE_SCALE);
-      if (!headAnchor) return false;
-
-      headAnchor.updateWorldMatrix(true, false);
-      const headLocal = Sx.tmpWorld;
-      headAnchor.getWorldPosition(headLocal);
-      tableG.worldToLocal(headLocal);
-
-      const dx = ball.position.x - headLocal.x;
-      const dy = ball.position.y - headLocal.y;
-      const dz = ball.position.z - headLocal.z;
-      const detection = (headRadius + BALL_R) * 1.18;
-      if ((dx * dx + dy * dy + dz * dz) >= detection * detection) return false;
-
-      const orientQuat = Sx.tmpQuat;
-      headAnchor.getWorldQuaternion(orientQuat);
-      const faceNormal = Sx.tmpForward.set(0, 0, who === 'P' ? -1 : 1).applyQuaternion(orientQuat).normalize();
-      const n = Sx.tmpN.set(dx, dy, dz).normalize();
-      n.multiplyScalar(0.55).addScaledVector(faceNormal, 0.45).normalize();
-
-      const vN = Sx.v.dot(n);
-      const approach = Math.max(0, -vN);
-      const swingInfluence = paddleVel ? paddleVel.length() : 0;
-      const basePunch = THREE.MathUtils.clamp(2.9 + approach * 0.55 + swingInfluence * 0.18, 2.9, 4.6);
-      Sx.v.addScaledVector(n, basePunch - vN * 1.85);
-      if (paddleVel){
-        Sx.v.addScaledVector(paddleVel, 0.22);
+      const worldHeadX = paddle.position.x + head.position.x;
+      const worldHeadY = head.position.y;
+      const worldHeadZ = paddle.position.z + head.position.z;
+      const dx = ball.position.x - worldHeadX;
+      const dy = ball.position.y - worldHeadY;
+      const dz = ball.position.z - worldHeadZ;
+      const detection = (headRadius + BALL_R) * 1.2;
+      if ((dx * dx + dy * dy + dz * dz) < detection * detection){
+        const n = Sx.tmpN.set(dx, dy, dz).normalize();
+        const vN = Sx.v.dot(n);
+        const approach = Math.max(0, -vN);
+        const swingInfluence = paddleVel ? paddleVel.length() : 0;
+        const basePunch = THREE.MathUtils.clamp(2.9 + approach * 0.55 + swingInfluence * 0.18, 2.9, 4.5);
+        Sx.v.addScaledVector(n, basePunch - vN * 1.85);
+        if (paddleVel){
+          Sx.v.addScaledVector(paddleVel, 0.22);
+        }
+        const attackSign = who === 'P' ? -1 : 1;
+        const forwardBias = THREE.MathUtils.clamp(2.1 + approach * 0.42 + Math.abs(paddleVel?.z || 0) * 0.32, 1.6, 4.4);
+        Sx.v.z += attackSign * forwardBias;
+        Sx.v.x += THREE.MathUtils.clamp(n.x * 1.6 + (paddleVel?.x || 0) * 0.32, -3, 3);
+        Sx.w.x += (paddleVel?.z || 0) * -0.42 * attackSign;
+        Sx.w.y += (paddleVel?.x || 0) * 0.36;
+        Sx.w.z += -n.x * 4.7;
+        ball.position.set(
+          worldHeadX + n.x * (headRadius * 0.95),
+          Math.max(worldHeadY + n.y * (headRadius * 0.95), T.H + BALL_R),
+          worldHeadZ + n.z * (headRadius * 0.95)
+        );
+        Sx.state = 'rally';
+        Sx.serveProgress = 'live';
+        Sx.lastTouch = who;
+        Sx.bounces.P = 0;
+        Sx.bounces.O = 0;
+        return true;
       }
-
-      const attackSign = who === 'P' ? -1 : 1;
-      const pose = paddle.userData?.pose || { yaw: 0, pitch: 0, roll: 0 };
-      const orientSide = Math.sin(pose.yaw || 0);
-      const orientTop = Math.sin(-(pose.pitch || 0));
-      const orientSlice = Math.sin(pose.roll || 0);
-
-      const forwardBias = THREE.MathUtils.clamp(
-        2.1 + approach * 0.42 + Math.abs(paddleVel?.z || 0) * 0.32 + orientTop * 1.2,
-        1.6,
-        4.7
-      );
-      Sx.v.z += attackSign * forwardBias;
-      Sx.v.x += THREE.MathUtils.clamp(n.x * 1.6 + (paddleVel?.x || 0) * 0.32 + orientSide * 1.2, -3.4, 3.4);
-      Sx.v.y += THREE.MathUtils.clamp(orientTop * 1.05, -1.8, 1.8);
-      Sx.v.z += orientSlice * 0.82 * attackSign;
-
-      const ballWorld = Sx.tmpWorld2.copy(ball.position).applyMatrix4(tableG.matrixWorld);
-      const localHit = Sx.tmpHit.copy(ballWorld);
-      headAnchor.worldToLocal(localHit);
-      const sideContact = THREE.MathUtils.clamp(localHit.x / (headRadius * 0.95), -1.2, 1.2);
-      const verticalContact = THREE.MathUtils.clamp(localHit.y / (headRadius * 0.95), -1.2, 1.2);
-      const depthContact = THREE.MathUtils.clamp(localHit.z / (headRadius * 0.95), -1.2, 1.2);
-
-      Sx.w.x += (paddleVel?.z || 0) * -0.42 * attackSign;
-      Sx.w.y += (paddleVel?.x || 0) * 0.36;
-      Sx.w.z += -n.x * 4.7;
-
-      Sx.w.x += orientTop * 9.6 * attackSign - verticalContact * 6.4 * attackSign;
-      Sx.w.y += orientSide * 11.4 + sideContact * 8.8;
-      Sx.w.z += orientSlice * 7.4 + depthContact * 5.3;
-
-      Sx.v.x += sideContact * 0.62;
-      Sx.v.y += -verticalContact * 0.4;
-      Sx.v.z += depthContact * 0.45 * attackSign;
-
-      ball.position.set(
-        headLocal.x + n.x * (headRadius * 0.95),
-        Math.max(headLocal.y + n.y * (headRadius * 0.95), T.H + BALL_R),
-        headLocal.z + n.z * (headRadius * 0.95)
-      );
-      Sx.state = 'rally';
-      Sx.serveProgress = 'live';
-      Sx.lastTouch = who;
-      Sx.bounces.P = 0;
-      Sx.bounces.O = 0;
-      return true;
+      return false;
     }
 
     function hitNet(){
@@ -1021,9 +871,6 @@ export default function TableTennis3D({ player, ai }){
         oppVel.copy(opp.position).sub(oppPrev).multiplyScalar(invDt);
         playerPrev.copy(player.position);
         oppPrev.copy(opp.position);
-
-        updatePaddlePose(player, playerVel, 1);
-        updatePaddlePose(opp, oppVel, -1);
 
         if (Sx.state !== 'dead'){
           if (Sx.state === 'serve'){
