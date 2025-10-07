@@ -219,6 +219,7 @@ const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
 const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
+const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
 
 const GAME_CONFIG = { ...BASE_CONFIG, enableFiveCard: true };
@@ -261,12 +262,15 @@ export default function MurlanRoyaleArena({ search }) {
     cameraTarget: null,
     cameraSpherical: null,
     cameraRadius: null,
+    cameraIdealRadius: null,
     cameraPhi: null,
     cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
     cameraHomeTheta: null,
     cameraHeadLimit: CAMERA_HEAD_LIMIT,
     cameraAnimationId: null,
     cameraChangeHandler: null,
+    cameraBounds: null,
+    cameraAdjusting: false,
     arena: null,
     cardGeometry: null,
     cardMap: new Map(),
@@ -396,7 +400,7 @@ export default function MurlanRoyaleArena({ search }) {
     const spherical = three.cameraSpherical;
     if (!camera || !controls || !cameraTarget || !spherical) return;
 
-    const baseRadius = three.cameraRadius ?? spherical.radius;
+    const idealRadius = three.cameraIdealRadius ?? spherical.radius;
     const basePhi = three.cameraPhi ?? spherical.phi;
     const homeTheta = three.cameraHomeTheta ?? spherical.theta;
     const headLimit = three.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
@@ -413,17 +417,23 @@ export default function MurlanRoyaleArena({ search }) {
     const applyTheta = (value) => {
       const constrained = clampToHeadLimit(value);
       spherical.theta = constrained;
-      spherical.radius = baseRadius;
+      spherical.radius = idealRadius;
       spherical.phi = basePhi;
-      updateCameraFromSpherical(camera, spherical, cameraTarget);
-      controls.target.copy(cameraTarget);
-      controls.minPolarAngle = basePhi;
-      controls.maxPolarAngle = basePhi;
-      controls.minAzimuthAngle = minBound;
-      controls.maxAzimuthAngle = maxBound;
-      controls.minDistance = baseRadius;
-      controls.maxDistance = baseRadius;
-      controls.update();
+      three.cameraAdjusting = true;
+      try {
+        updateCameraFromSpherical(camera, spherical, cameraTarget, three);
+        const actualRadius = three.cameraRadius ?? spherical.radius;
+        controls.target.copy(cameraTarget);
+        controls.minPolarAngle = basePhi;
+        controls.maxPolarAngle = basePhi;
+        controls.minAzimuthAngle = minBound;
+        controls.maxAzimuthAngle = maxBound;
+        controls.minDistance = actualRadius;
+        controls.maxDistance = actualRadius;
+        controls.update();
+      } finally {
+        three.cameraAdjusting = false;
+      }
     };
 
     if (three.cameraAnimationId) {
@@ -877,6 +887,23 @@ export default function MurlanRoyaleArena({ search }) {
 
     const wallMat = createArenaWallMaterial();
     const wallT = 0.1;
+    const buildBound = (half) => {
+      const min = -half + wallT / 2 + CAMERA_WALL_PADDING;
+      const max = half - wallT / 2 - CAMERA_WALL_PADDING;
+      if (min > max) {
+        const center = (min + max) / 2;
+        return { min: center, max: center };
+      }
+      return { min, max };
+    };
+    const boundX = buildBound(halfRoomX);
+    const boundZ = buildBound(halfRoomZ);
+    threeStateRef.current.cameraBounds = {
+      minX: boundX.min,
+      maxX: boundX.max,
+      minZ: boundZ.min,
+      maxZ: boundZ.max
+    };
     const backWall = new THREE.Mesh(new THREE.BoxGeometry(halfRoomX * 2, wallHeight, wallT), wallMat);
     backWall.position.set(0, wallHeight / 2, halfRoomZ);
     const frontWall = new THREE.Mesh(new THREE.BoxGeometry(halfRoomX * 2, wallHeight, wallT), wallMat);
@@ -1197,7 +1224,11 @@ export default function MurlanRoyaleArena({ search }) {
       ARENA_CAMERA_DEFAULTS.phiMin,
       ARENA_CAMERA_DEFAULTS.phiMax
     );
-    updateCameraFromSpherical(camera, spherical, target);
+    threeStateRef.current.cameraIdealRadius = spherical.radius;
+    threeStateRef.current.cameraRadius = spherical.radius;
+    threeStateRef.current.cameraAdjusting = true;
+    updateCameraFromSpherical(camera, spherical, target, threeStateRef.current);
+    threeStateRef.current.cameraAdjusting = false;
 
     const storedSpherical = spherical.clone();
     storedSpherical.theta = normalizeAngle(storedSpherical.theta);
@@ -1220,6 +1251,7 @@ export default function MurlanRoyaleArena({ search }) {
     threeStateRef.current.cameraTarget = target.clone();
     threeStateRef.current.cameraSpherical = storedSpherical;
     threeStateRef.current.cameraRadius = storedSpherical.radius;
+    threeStateRef.current.cameraIdealRadius = storedSpherical.radius;
     threeStateRef.current.cameraPhi = storedSpherical.phi;
     threeStateRef.current.cameraAzimuthSwing = CAMERA_AZIMUTH_SWING;
     threeStateRef.current.cameraHomeTheta = homeTheta;
@@ -1227,10 +1259,25 @@ export default function MurlanRoyaleArena({ search }) {
 
     const handleControlChange = () => {
       const store = threeStateRef.current;
-      if (!store.cameraTarget || !store.cameraSpherical) return;
-      const offset = camera.position.clone().sub(store.cameraTarget);
-      const current = new THREE.Spherical().setFromVector3(offset);
-      store.cameraSpherical.theta = normalizeAngle(current.theta);
+      if (!store.cameraTarget || !store.cameraSpherical || store.cameraAdjusting) return;
+      store.cameraAdjusting = true;
+      try {
+        const offset = camera.position.clone().sub(store.cameraTarget);
+        const current = new THREE.Spherical().setFromVector3(offset);
+        updateCameraFromSpherical(camera, current, store.cameraTarget, store);
+        store.cameraSpherical.theta = normalizeAngle(current.theta);
+        store.cameraSpherical.phi = current.phi;
+        store.cameraSpherical.radius = current.radius;
+        if (typeof store.cameraIdealRadius !== 'number') {
+          store.cameraIdealRadius = current.radius;
+        }
+        const actualRadius = store.cameraRadius ?? current.radius;
+        controls.minDistance = actualRadius;
+        controls.maxDistance = actualRadius;
+        controls.update();
+      } finally {
+        store.cameraAdjusting = false;
+      }
     };
     controls.addEventListener('change', handleControlChange);
     threeStateRef.current.cameraChangeHandler = handleControlChange;
@@ -1383,12 +1430,15 @@ export default function MurlanRoyaleArena({ search }) {
         cameraTarget: null,
         cameraSpherical: null,
         cameraRadius: null,
+        cameraIdealRadius: null,
         cameraPhi: null,
         cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
         cameraHomeTheta: null,
         cameraHeadLimit: CAMERA_HEAD_LIMIT,
         cameraAnimationId: null,
         cameraChangeHandler: null,
+        cameraBounds: null,
+        cameraAdjusting: false,
         arena: null,
         cardGeometry: null,
         cardMap: new Map(),
@@ -2009,9 +2059,42 @@ function shortestAngleDifference(from, to) {
   return normalizeAngle(to - from);
 }
 
-function updateCameraFromSpherical(camera, spherical, target) {
-  const position = new THREE.Vector3().setFromSpherical(spherical).add(target);
-  camera.position.copy(position);
+function updateCameraFromSpherical(camera, spherical, target, store) {
+  const offset = new THREE.Vector3().setFromSpherical(spherical);
+  const position = offset.clone().add(target);
+
+  if (store?.cameraBounds) {
+    const { cameraBounds } = store;
+    const clamped = position.clone();
+    if (typeof cameraBounds.minX === 'number' && typeof cameraBounds.maxX === 'number') {
+      clamped.x = THREE.MathUtils.clamp(clamped.x, cameraBounds.minX, cameraBounds.maxX);
+    }
+    if (typeof cameraBounds.minY === 'number' || typeof cameraBounds.maxY === 'number') {
+      const lower = typeof cameraBounds.minY === 'number' ? cameraBounds.minY : clamped.y;
+      const upper = typeof cameraBounds.maxY === 'number' ? cameraBounds.maxY : clamped.y;
+      clamped.y = THREE.MathUtils.clamp(clamped.y, lower, upper);
+    }
+    if (typeof cameraBounds.minZ === 'number' && typeof cameraBounds.maxZ === 'number') {
+      clamped.z = THREE.MathUtils.clamp(clamped.z, cameraBounds.minZ, cameraBounds.maxZ);
+    }
+    if (!clamped.equals(position)) {
+      const correctedOffset = clamped.clone().sub(target);
+      const corrected = new THREE.Spherical().setFromVector3(correctedOffset);
+      spherical.radius = corrected.radius;
+      spherical.theta = corrected.theta;
+      spherical.phi = corrected.phi;
+      camera.position.copy(clamped);
+    } else {
+      camera.position.copy(position);
+    }
+    store.cameraRadius = spherical.radius;
+  } else {
+    camera.position.copy(position);
+    if (store) {
+      store.cameraRadius = spherical.radius;
+    }
+  }
+
   camera.lookAt(target);
 }
 
