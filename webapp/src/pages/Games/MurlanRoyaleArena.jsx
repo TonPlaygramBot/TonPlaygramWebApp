@@ -25,7 +25,7 @@ const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 
 const ARENA_COLOR = 0x0c1020;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_RADIUS = 3.1 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 
@@ -218,6 +218,7 @@ const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
+const SIDE_SEAT_ANGLE_SHIFT = THREE.MathUtils.degToRad(16);
 const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
@@ -476,11 +477,22 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seatConfigs?.length) return;
       const activeIdx = state.activePlayer;
       if (typeof activeIdx !== 'number') return;
-      const seat = seatConfigs[activeIdx];
-      if (!seat) return;
-      const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
-      const desiredTheta = Math.PI / 2 - seatAngle;
-      moveCameraToTheta(desiredTheta, immediate);
+      const homeTheta = three.cameraHomeTheta ?? three.cameraSpherical?.theta ?? 0;
+      const swing = three.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
+      const playersInState = state.players ?? [];
+      const humanIdx = playersInState.findIndex((player) => player?.isHuman);
+      if (humanIdx < 0) {
+        moveCameraToTheta(homeTheta, immediate);
+        return;
+      }
+      const relative = ((activeIdx - humanIdx) % CHAIR_COUNT + CHAIR_COUNT) % CHAIR_COUNT;
+      let targetTheta = homeTheta;
+      if (relative === 1) {
+        targetTheta = homeTheta - swing;
+      } else if (relative === CHAIR_COUNT - 1) {
+        targetTheta = homeTheta + swing;
+      }
+      moveCameraToTheta(targetTheta, immediate);
     },
     [moveCameraToTheta]
   );
@@ -1057,7 +1069,7 @@ export default function MurlanRoyaleArena({ search }) {
       accentMaterial: outfitAccentMat,
       headMaterial: headMat
     };
-    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.8;
     const stoolScale = 1.5 * 1.3;
     const seatWidth = 0.9 * MODEL_SCALE * stoolScale;
     const seatDepth = 0.95 * MODEL_SCALE * stoolScale;
@@ -1073,6 +1085,11 @@ export default function MurlanRoyaleArena({ search }) {
     const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
 
     const seatConfigs = [];
+    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
+    const leftSeatIndex =
+      humanSeatIndex >= 0 ? (humanSeatIndex + 1) % CHAIR_COUNT : -1;
+    const rightSeatIndex =
+      humanSeatIndex >= 0 ? (humanSeatIndex + CHAIR_COUNT - 1) % CHAIR_COUNT : -1;
 
     for (let i = 0; i < CHAIR_COUNT; i++) {
       const player = players[i] ?? null;
@@ -1113,7 +1130,12 @@ export default function MurlanRoyaleArena({ search }) {
       occupant.add(collar);
       chair.add(occupant);
 
-      const angle = (i / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
+      let angle = (i / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
+      if (i === leftSeatIndex) {
+        angle += SIDE_SEAT_ANGLE_SHIFT;
+      } else if (i === rightSeatIndex) {
+        angle -= SIDE_SEAT_ANGLE_SHIFT;
+      }
       const x = Math.cos(angle) * chairRadius;
       const z = Math.sin(angle) * chairRadius;
       const chairBaseHeight = TABLE_HEIGHT - seatThickness * 0.85;
@@ -1131,13 +1153,15 @@ export default function MurlanRoyaleArena({ search }) {
       const stoolPosition = forward.clone().multiplyScalar(chairRadius);
       stoolPosition.y = chairBaseHeight + seatThickness / 2;
       const stoolHeight = chairBaseHeight + seatThickness;
+      const isSideSeat = i === leftSeatIndex || i === rightSeatIndex;
+
       seatConfigs.push({
         forward,
         right,
         focus,
-        radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
+        radius: (isHumanSeat ? 2.65 : isSideSeat ? 3.0 : 3.15) * MODEL_SCALE,
         spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
-        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
+        maxSpread: (isHumanSeat ? 2.1 : 2.3) * MODEL_SCALE,
         stoolPosition,
         stoolHeight
       });
@@ -1159,7 +1183,6 @@ export default function MurlanRoyaleArena({ search }) {
       }
     }
 
-    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
     const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
     threeStateRef.current.appearance = { ...currentAppearance };
