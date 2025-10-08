@@ -179,12 +179,10 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_DIMENSION_SCALE = 0.985; // share snooker chrome dimensions so the plates sit flush with the cushions
-const CHROME_SIDE_DIMENSION_SCALE = 0.985;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // no extra stretch so the chrome meets pockets at the snooker offsets
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
+const CHROME_CORNER_EXPANSION_SCALE = 1.18;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.035; // expand the short-rail chrome slightly so the plates meet the side rails without intruding into the pockets
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -3567,7 +3565,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // align cushion spacing with the snooker baseline so trims stay consistent
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.036; // push cushions a touch farther from the rails to avoid overlapping the trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -3579,17 +3577,17 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
+    POCKET_VIS_R * -0.055 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs and align with the rounded rail cut
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+    POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
+    POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3631,23 +3629,15 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const baseChromePlateWidth = Math.max(
+  const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
-  const chromePlateWidth = Math.max(
-    MICRO_EPS,
-    baseChromePlateWidth * CHROME_CORNER_DIMENSION_SCALE
-  );
-  const baseChromePlateHeight = Math.max(
+  const chromePlateHeight = Math.max(
     MICRO_EPS,
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
-  );
-  const chromePlateHeight = Math.max(
-    MICRO_EPS,
-    baseChromePlateHeight * CHROME_CORNER_DIMENSION_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -3663,13 +3653,9 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
-  const baseSideChromePlateWidth = Math.max(
-    MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
-  );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    baseSideChromePlateWidth * CHROME_SIDE_DIMENSION_SCALE
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.05
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -3679,13 +3665,9 @@ function Table3D(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
-  const baseSideChromePlateHeight = Math.min(
+  const sideChromePlateHeight = Math.min(
     chromePlateHeight * 0.94,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
-  );
-  const sideChromePlateHeight = Math.max(
-    MICRO_EPS,
-    baseSideChromePlateHeight * CHROME_SIDE_DIMENSION_SCALE
   );
   const sideChromePlateRadius = Math.min(
     chromePlateRadius * 0.3,
@@ -6080,11 +6062,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         roughness: 0.5,
         metalness: 0.6
       });
+      const tvBezelMat = new THREE.MeshStandardMaterial({
+        color: 0x0b1323,
+        roughness: 0.35,
+        metalness: 0.55
+      });
       const signageScale = 3;
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const infoPanelDepth = signageDepth * 0.6;
+      const tvSizeReduction = 0.7;
+      const tvScale = 10 * 1.3 * tvSizeReduction;
+      const tvWidth = 9 * tvScale;
+      const tvHeight = 5.4 * tvScale;
+      const tvDepth = 0.42 * tvScale;
+      const tvMountHeight = tvHeight * 0.32;
+      const tvMountOffset = tvHeight * 0.42;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -6093,6 +6086,29 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           material.color = new THREE.Color(0x0f172a);
         }
         return material;
+      };
+      const createTv = (texture) => {
+        const group = new THREE.Group();
+        const bezel = new THREE.Mesh(
+          new THREE.BoxGeometry(tvWidth, tvHeight, tvDepth),
+          tvBezelMat
+        );
+        bezel.castShadow = false;
+        bezel.receiveShadow = true;
+        group.add(bezel);
+        const screen = new THREE.Mesh(
+          new THREE.PlaneGeometry(tvWidth * 0.92, tvHeight * 0.88),
+          makeScreenMaterial(texture)
+        );
+        screen.position.z = tvDepth / 2 + 0.02;
+        group.add(screen);
+        const mount = new THREE.Mesh(
+          new THREE.BoxGeometry(tvWidth * 0.18, tvMountHeight, tvDepth * 0.3),
+          tvBezelMat
+        );
+        mount.position.set(0, -tvMountOffset, -tvDepth * 0.35);
+        group.add(mount);
+        return group;
       };
       const createBillboardAssembly = () => {
         const assembly = new THREE.Group();
@@ -6111,34 +6127,29 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         assembly.add(billboardScreen);
         return assembly;
       };
-      const createMatchInfoAssembly = () => {
+      const createMatchTvAssembly = () => {
         const assembly = new THREE.Group();
-        const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(signageWidth, signageHeight, infoPanelDepth),
-          signageFrameMat
-        );
-        frame.castShadow = false;
-        frame.receiveShadow = true;
-        assembly.add(frame);
-        const infoSurface = new THREE.Mesh(
-          new THREE.PlaneGeometry(signageWidth * 0.94, signageHeight * 0.82),
-          makeScreenMaterial(matchTexture)
-        );
-        infoSurface.position.z = infoPanelDepth / 2 + 0.02;
-        assembly.add(infoSurface);
+        const tv = createTv(matchTexture);
+        assembly.add(tv);
         return assembly;
       };
       const signageGap = BALL_R * 3.2;
+      const tvAssemblyHalfHeight = Math.max(
+        tvHeight / 2,
+        tvMountOffset + tvMountHeight / 2
+      );
       const signageHalfHeight = signageHeight / 2;
       const signageY = floorY + signageGap + signageHalfHeight;
+      const signageBottomY = signageY - signageHalfHeight;
+      const tvY = signageBottomY + tvAssemblyHalfHeight;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
       [
-        { position: [0, signageY, frontInterior], rotationY: 0, type: 'info' },
-        { position: [0, signageY, backInterior], rotationY: Math.PI, type: 'info' },
+        { position: [0, tvY, frontInterior], rotationY: 0, type: 'tv' },
+        { position: [0, tvY, backInterior], rotationY: Math.PI, type: 'tv' },
         {
           position: [leftInterior, signageY, 0],
           rotationY: Math.PI / 2,
@@ -6151,7 +6162,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
       ].forEach(({ position, rotationY, type }) => {
         const signage =
-          type === 'info' ? createMatchInfoAssembly() : createBillboardAssembly();
+          type === 'tv' ? createMatchTvAssembly() : createBillboardAssembly();
         signage.position.set(position[0], position[1], position[2]);
         signage.rotation.y = rotationY;
         world.add(signage);
