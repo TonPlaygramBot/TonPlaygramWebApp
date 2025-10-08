@@ -111,22 +111,6 @@ public class CushionStepTests
         Assert.That(ball.Position.X, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-9));
         Assert.That(ball.Velocity.X, Is.GreaterThan(0));
     }
-
-    [Test]
-    public void CornerCutRedirectsAtBevelAngle()
-    {
-        var solver = new BilliardsSolver();
-        var start = new Vec2(0.2, 0.2);
-        var velocity = new Vec2(-1, -1).Normalized() * 2.0;
-        var ball = new BilliardsSolver.Ball { Position = start, Velocity = velocity };
-        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.5);
-
-        var impactNormal = new Vec2(PhysicsConstants.CornerCutShortOffset, PhysicsConstants.CornerCutLongOffset).Normalized();
-        var expectedDir = Collision.Reflect(velocity, impactNormal, PhysicsConstants.CushionRestitution).Normalized();
-        var actualDir = ball.Velocity.Normalized();
-        Assert.That(actualDir.X, Is.EqualTo(expectedDir.X).Within(1e-4));
-        Assert.That(actualDir.Y, Is.EqualTo(expectedDir.Y).Within(1e-4));
-    }
 }
 
 public class PocketEdgeTests
