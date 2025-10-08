@@ -19,6 +19,7 @@ export default function PoolRoyaleLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
+  const [variant, setVariant] = useState('uk');
   const [tableSize, setTableSize] = useState('9ft');
   const [playType, setPlayType] = useState('regular');
 
@@ -55,7 +56,7 @@ export default function PoolRoyaleLobby() {
     }
 
     const params = new URLSearchParams();
-    params.set('variant', 'uk');
+    params.set('variant', variant);
     params.set('type', playType);
     if (playType !== 'training') params.set('mode', mode);
     const initData = window.Telegram?.WebApp?.initData;
@@ -88,7 +89,7 @@ export default function PoolRoyaleLobby() {
           {winnerParam === '1' ? 'You won!' : 'CPU won!'}
         </div>
       )}
-      <h2 className="text-xl font-bold text-center">Pool Royale - 8 Ball UK Lobby</h2>
+      <h2 className="text-xl font-bold text-center">Pool Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
@@ -134,6 +135,24 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
       )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Variant</h3>
+        <div className="flex gap-2">
+          {[
+            { id: 'uk', label: '8 Pool UK' },
+            { id: 'american', label: 'American' },
+            { id: '9ball', label: '9-Ball' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setVariant(id)}
+              className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Table Size</h3>
         <div className="flex gap-2">
