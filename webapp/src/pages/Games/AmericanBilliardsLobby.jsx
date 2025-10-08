@@ -11,7 +11,7 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-export default function PoolRoyaleLobby() {
+export default function AmericanBilliardsLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
   useTelegramBackButton();
@@ -42,7 +42,7 @@ export default function PoolRoyaleLobby() {
         }
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'poolroyale',
+          game: 'americanbilliards',
           players: 2,
           accountId
         });
@@ -55,7 +55,7 @@ export default function PoolRoyaleLobby() {
     }
 
     const params = new URLSearchParams();
-    params.set('variant', 'uk');
+    params.set('variant', 'american');
     params.set('type', playType);
     if (playType !== 'training') params.set('mode', mode);
     const initData = window.Telegram?.WebApp?.initData;
@@ -76,7 +76,7 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    navigate(`/games/pollroyale?${params.toString()}`);
+    navigate(`/games/americanbilliards?${params.toString()}`);
   };
 
   const winnerParam = new URLSearchParams(search).get('winner');
@@ -88,7 +88,7 @@ export default function PoolRoyaleLobby() {
           {winnerParam === '1' ? 'You won!' : 'CPU won!'}
         </div>
       )}
-      <h2 className="text-xl font-bold text-center">Pool Royale - 8 Ball UK Lobby</h2>
+      <h2 className="text-xl font-bold text-center">American Billiards Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
