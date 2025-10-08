@@ -174,18 +174,19 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_DIMENSION_SCALE = 0.985;
-const CHROME_SIDE_DIMENSION_SCALE = 0.985;
+const POCKET_SIZE_SCALE = 1.08; // enlarge pockets slightly for easier pots
+const POCKET_VISUAL_EXPANSION = 1.05 * POCKET_SIZE_SCALE;
+const CHROME_CORNER_DIMENSION_SCALE = 1; // keep trim layout aligned with the updated cushion footprint
+const CHROME_SIDE_DIMENSION_SCALE = 1; // mirror cushion positioning on the side plates
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.02;
+const CHROME_CORNER_EXPANSION_SCALE = 1;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
@@ -3681,21 +3682,22 @@ function Table3D(
   );
 
   const POCKET_GAP =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
+    POCKET_VIS_R * 0.9 * POCKET_VISUAL_EXPANSION; // open the pocket entries a touch wider to match the enlarged pocket size
+  const CUSHION_POCKET_TRIM_SCALE = 0.92; // trim back the green cushions so they align with the wider pocket throats
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION * CUSHION_POCKET_TRIM_SCALE; // pull short cushions clear of the enlarged mouths
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION * CUSHION_POCKET_TRIM_SCALE; // align long cushions with the widened pocket arcs
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION * CUSHION_POCKET_TRIM_SCALE; // keep long cushions tapering into the corner cuts
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION * CUSHION_POCKET_TRIM_SCALE; // ensure side cushions meet the larger pocket mouth cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION * CUSHION_POCKET_TRIM_SCALE; // hold long rails centred after the cushion pullback
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
-  const WOOD_CORNER_NOTCH_SCALE = 0.993; // pull the wood pocket cuts a touch tighter so they align with the chrome trim
-  const WOOD_SIDE_POCKET_RADIUS_SCALE = 0.992; // shrink the side pocket cutouts slightly to match the chrome plates
+    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION * CUSHION_POCKET_TRIM_SCALE; // stop side cushions before the enlarged corner arcs
+  const WOOD_CORNER_NOTCH_SCALE = 1; // keep wood pocket cuts in lockstep with the new chrome trim openings
+  const WOOD_SIDE_POCKET_RADIUS_SCALE = 1; // match side pocket cutouts to the chrome plate geometry
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
