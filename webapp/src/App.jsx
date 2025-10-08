@@ -61,6 +61,10 @@ import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
+import AmericanBilliards from './pages/Games/AmericanBilliards.jsx';
+import AmericanBilliardsLobby from './pages/Games/AmericanBilliardsLobby.jsx';
+import NineBall from './pages/Games/NineBall.jsx';
+import NineBallLobby from './pages/Games/NineBallLobby.jsx';
 import Snooker from './pages/Games/Snooker.jsx';
 
 import Layout from './components/Layout.jsx';
@@ -192,6 +196,16 @@ export default function App() {
               element={<PoolRoyaleLobby />}
             />
             <Route path="/games/pollroyale" element={<PoolRoyale />} />
+            <Route
+              path="/games/americanbilliards/lobby"
+              element={<AmericanBilliardsLobby />}
+            />
+            <Route
+              path="/games/americanbilliards"
+              element={<AmericanBilliards />}
+            />
+            <Route path="/games/nineball/lobby" element={<NineBallLobby />} />
+            <Route path="/games/nineball" element={<NineBall />} />
             <Route path="/games/snooker" element={<Snooker />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
