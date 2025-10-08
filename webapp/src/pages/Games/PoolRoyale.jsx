@@ -191,6 +191,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
+const RAIL_POCKET_CUT_SCALE = 0.986; // tighten the wood rail pocket cuts so they align with the chrome trim
 
 function buildChromePlateGeometry({
   width,
@@ -3577,7 +3578,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.055 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they clear the pocket arcs and align with the rounded rail cut
+    POCKET_VIS_R * -0.085 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly more so they clear the pocket arcs without intruding on the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3900,17 +3901,22 @@ function Table3D(
     }
   }
 
+  const shrinkRailCut = (mp) => {
+    const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
+    return Array.isArray(scaled) && scaled.length ? scaled : mp;
+  };
+  const sidePocketCutRadius = sidePocketRadius * RAIL_POCKET_CUT_SCALE;
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, sidePocketRadius)
+    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketCutRadius),
+    ...circlePoly(innerHalfW - sideInset, 0, sidePocketCutRadius)
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...cornerNotchMP(1, 1),
-    ...cornerNotchMP(-1, 1),
-    ...cornerNotchMP(-1, -1),
-    ...cornerNotchMP(1, -1)
+    ...shrinkRailCut(cornerNotchMP(1, 1)),
+    ...shrinkRailCut(cornerNotchMP(-1, 1)),
+    ...shrinkRailCut(cornerNotchMP(-1, -1)),
+    ...shrinkRailCut(cornerNotchMP(1, -1))
   );
 
   const railsOuter = new THREE.Shape();
