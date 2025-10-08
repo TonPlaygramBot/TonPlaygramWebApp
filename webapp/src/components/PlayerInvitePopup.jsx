@@ -18,6 +18,9 @@ function getGameFromTableId(id) {
       'goalrush',
       'brickbreaker',
       'fruitsliceroyale',
+      'bubblepoproyale',
+      'bubblesmashroyale',
+      'tetrisroyale',
     ].includes(prefix)
   )
     return prefix;
@@ -191,9 +194,29 @@ export default function PlayerInvitePopup({
                   alt: 'Fruit Slice Royale',
                 },
                 {
+                  id: 'bowlingroyal',
+                  src: '/assets/icons/bowling-royal.svg',
+                  alt: 'Bowling Royal',
+                },
+                {
+                  id: 'bubblepoproyale',
+                  src: '/assets/icons/Bubble Pop Royale .png',
+                  alt: 'Bubble Pop Royale',
+                },
+                {
+                  id: 'bubblesmashroyale',
+                  src: '/assets/icons/Bubble Smash Royale .png',
+                  alt: 'Bubble Smash Royale',
+                },
+                {
                   id: 'goalrush',
                   src: '/assets/icons/goal_rush_card_1200x675.webp',
                   alt: 'Goal Rush',
+                },
+                {
+                  id: 'tetrisroyale',
+                  src: '/assets/icons/file_00000000240061f4abd28311d76970a5.png',
+                  alt: 'Tetris Royale',
                 },
                 {
                   id: 'pollroyale',
