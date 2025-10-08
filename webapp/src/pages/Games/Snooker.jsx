@@ -17,7 +17,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -5036,34 +5035,6 @@ function SnookerGame() {
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
-  const [loading, setLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const loadingClearedRef = useRef(false);
-  useEffect(() => {
-    let raf = null;
-    let active = true;
-    if (!loading) {
-      setLoadingProgress(100);
-      return () => {};
-    }
-    const start = performance.now();
-    const duration = 2200;
-    const tick = (now) => {
-      if (!active) return;
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const next = Math.min(95, Math.max(0, Math.round(eased * 95)));
-      setLoadingProgress((prev) => (prev >= next ? prev : next));
-      if (loading) {
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      active = false;
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [loading]);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -5672,7 +5643,6 @@ function SnookerGame() {
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
-    let loadTimer = null;
     const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
@@ -5681,7 +5651,6 @@ function SnookerGame() {
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
-      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -10580,13 +10549,6 @@ function SnookerGame() {
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-          if (!loadingClearedRef.current) {
-            loadingClearedRef.current = true;
-            loadTimer = window.setTimeout(() => {
-              setLoading(false);
-              setLoadingProgress(100);
-            }, 120);
-          }
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
@@ -10658,15 +10620,10 @@ function SnookerGame() {
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
-          if (loadTimer) {
-            clearTimeout(loadTimer);
-          }
         };
       } catch (e) {
         console.error(e);
         setErr(e?.message || String(e));
-        setLoading(false);
-        setLoadingProgress(100);
       }
   }, []);
 
@@ -10843,19 +10800,6 @@ function SnookerGame() {
     };
   }, [updateSpinDotPosition]);
 
-  const displayedProgress = Math.min(
-    100,
-    Math.max(0, Math.round(loadingProgress))
-  );
-  const cueStrikeProgress = Math.min(1, displayedProgress / 12);
-  const cueBaseOffset = 16;
-  const cueDrawBack = 18;
-  const cueTrackWidth = 200;
-  const ballOffsetStart = cueBaseOffset + 28;
-  const cueBallRadius = 12;
-  const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
-  const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
-  const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
   const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
@@ -11050,31 +10994,6 @@ function SnookerGame() {
         )}
       </div>
 
-      {(loading || displayedProgress < 100) && (
-        <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
-          <div className="relative w-64 h-24">
-            <div className="absolute left-0 top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-white/15" />
-            <div
-              className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-emerald-400/80 transition-all duration-150 ease-out"
-              style={{ width: `${displayedProgress}%` }}
-            />
-            <div
-              className="absolute left-0 top-1/2 h-2 w-28 rounded-r-full bg-amber-300 shadow-lg shadow-amber-500/40 transition-transform duration-150 ease-out"
-              style={{ transform: `translate(${cuePosition}px, -50%)` }}
-            />
-            <div
-              className="absolute left-0 top-1/2 h-6 w-6 rounded-full border border-emerald-200 bg-white shadow-[0_0_16px_rgba(74,222,128,0.5)] transition-transform duration-150 ease-out"
-              style={{
-                transform: `translate(${cueBallPosition - cueBallRadius}px, -50%)`
-              }}
-            />
-          </div>
-          <div className="text-sm tracking-[0.3em] uppercase text-emerald-200">
-            Loading {displayedProgress}%
-          </div>
-        </div>
-      )}
-
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
@@ -11158,15 +11077,5 @@ function SnookerGame() {
 }
 
 export default function NewSnookerGame() {
-  const isMobileOrTablet = useIsMobile(1366);
-
-  if (!isMobileOrTablet) {
-    return (
-      <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile phones and tablets only.</p>
-      </div>
-    );
-  }
-
   return <SnookerGame />;
 }
