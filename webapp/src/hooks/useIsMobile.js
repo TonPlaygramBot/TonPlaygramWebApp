@@ -1,19 +1,36 @@
 import { useEffect, useState } from 'react';
+import { isTelegramWebView } from '../utils/telegram.js';
+
+function computeIsMobile(maxWidth) {
+  if (typeof window === 'undefined') return false;
+
+  const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+  const touchCapable =
+    'ontouchstart' in window ||
+    (nav?.maxTouchPoints ?? 0) > 0 ||
+    (nav?.msMaxTouchPoints ?? 0) > 0 ||
+    coarsePointer ||
+    isTelegramWebView();
+
+  const widthOk = window.innerWidth <= maxWidth || isTelegramWebView();
+
+  return touchCapable && widthOk;
+}
 
 export function useIsMobile(maxWidth = 768) {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    return touch && window.innerWidth <= maxWidth;
-  });
+  const [isMobile, setIsMobile] = useState(() => computeIsMobile(maxWidth));
 
   useEffect(() => {
     const check = () => {
-      const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      setIsMobile(touch && window.innerWidth <= maxWidth);
+      setIsMobile(computeIsMobile(maxWidth));
     };
     window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
+    return () => {
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
+    };
   }, [maxWidth]);
 
   return isMobile;
