@@ -121,22 +121,6 @@ export default function Games() {
               </h3>
             </Link>
             <Link
-              to="/games/brickbreaker3d"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Brick Breaker Royale .png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                3D Brick Breaker
-              </h3>
-            </Link>
-            <Link
               to="/games/freekick/lobby"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
             >
@@ -181,102 +165,6 @@ export default function Games() {
               </h3>
             </Link>
             <Link
-              to="/games/fruitsliceroyale/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Fruit Slice Royale .png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Fruit Slice Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/brickbreaker/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Brick Breaker Royale .png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Brick Breaker Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/tetrisroyale/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/file_00000000240061f4abd28311d76970a5.png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Tetris Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/bubblesmashroyale/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Bubble Smash Royale .png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Bubble Smash Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/crazydice/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Crazy_Dice_Duel_Promo.webp"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Crazy Dice Duel
-              </h3>
-            </Link>
-            <Link
-              to="/games/bubblepoproyale/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Bubble Pop Royale .png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Bubble Pop Royale
-              </h3>
-            </Link>
-            <Link
               to="/games/murlanroyale/lobby"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
             >
@@ -290,18 +178,6 @@ export default function Games() {
                 style={{ WebkitTextStroke: '1px black' }}
               >
                 Murlan Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/tennisbattleroyal/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <div className="h-20 w-20 flex items-center justify-center text-5xl">🎾</div>
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Tennis Battle Royal
               </h3>
             </Link>
             <Link
