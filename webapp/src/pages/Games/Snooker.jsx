@@ -174,22 +174,22 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.08;
+const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_DIMENSION_SCALE = 0.985;
 const CHROME_SIDE_DIMENSION_SCALE = 0.985;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.035;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.04;
+const CHROME_CORNER_EXPANSION_SCALE = 1.02;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.035;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.05;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 
 function buildChromePlateGeometry({
   width,
@@ -462,7 +462,7 @@ const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_R = POCKET_VIS_R * 1.02;
+const POCKET_R = POCKET_VIS_R * 0.985;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -487,7 +487,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.18; // widen cloth openings further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
@@ -3681,21 +3681,21 @@ function Table3D(
   );
 
   const POCKET_GAP =
-    POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.065 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
+    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.075 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
+    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
+    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
+    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
+    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const WOOD_CORNER_NOTCH_SCALE = 0.993; // pull the wood pocket cuts a touch tighter so they align with the chrome trim
-  const WOOD_SIDE_POCKET_RADIUS_SCALE = 1; // adjust the side pocket cutouts to match the chrome plates
+  const WOOD_SIDE_POCKET_RADIUS_SCALE = 0.992; // shrink the side pocket cutouts slightly to match the chrome plates
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3763,8 +3763,7 @@ function Table3D(
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sidePocketRadius =
-    SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION * 1.04;
+  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
@@ -3801,10 +3800,10 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.14 * POCKET_VISUAL_EXPANSION;
-  const cornerChamfer = POCKET_VIS_R * 0.38 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = POCKET_VIS_R * 0.62 * POCKET_VISUAL_EXPANSION;
-  const sideInset = SIDE_POCKET_RADIUS * 0.87 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
