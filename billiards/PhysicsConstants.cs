@@ -1,3 +1,5 @@
+using System;
+
 namespace Billiards;
 
 /// <summary>Holds all tunable physics constants for determinism and easy calibration.</summary>
@@ -16,4 +18,23 @@ public static class PhysicsConstants
     public const double FixedDt = 1.0 / 120.0;         // simulation step
     public const double Epsilon = 1e-9;                // numerical epsilon
     public const double MaxPreviewTime = 30.0;         // safeguard for CCD
+
+    /// <summary>
+    /// Snooker corner cushions are bevelled at 32 degrees.  The cut begins a
+    /// short distance away from the actual corner along the long rail so that
+    /// balls entering the pocket do not bounce straight back out.
+    /// </summary>
+    public const double CornerCutAngleDegrees = 32.0;
+
+    /// <summary>Distance along the long cushion before the bevel begins (metres).</summary>
+    public const double CornerCutLongOffset = 0.095;
+
+    /// <summary>Corner cut angle in radians.</summary>
+    public static readonly double CornerCutAngleRadians = CornerCutAngleDegrees * Math.PI / 180.0;
+
+    /// <summary>
+    /// Depth of the bevel measured along the short cushion so that the surface
+    /// meets the 32 degree requirement.
+    /// </summary>
+    public static readonly double CornerCutShortOffset = CornerCutLongOffset * Math.Tan(CornerCutAngleRadians);
 }
