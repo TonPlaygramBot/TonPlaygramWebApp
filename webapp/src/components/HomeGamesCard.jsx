@@ -53,19 +53,6 @@ export default function HomeGamesCard() {
           </h3>
         </Link>
         <Link
-          to="/games/bowlingroyal/lobby"
-          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-        >
-          <img
-            src="/assets/icons/bowling-royal.svg"
-            alt=""
-            className="h-20 w-20"
-          />
-          <h3 className="text-sm font-semibold text-center text-yellow-400">
-            Bowling Royal
-          </h3>
-        </Link>
-        <Link
           to="/games/goalrush/lobby"
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
@@ -131,32 +118,6 @@ export default function HomeGamesCard() {
           </h3>
         </Link>
         <Link
-          to="/games/tetrisroyale/lobby"
-          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-        >
-          <img
-            src="/assets/icons/file_00000000240061f4abd28311d76970a5.png"
-            alt=""
-            className="h-20 w-20"
-          />
-          <h3 className="text-sm font-semibold text-center text-yellow-400">
-            Tetris Royale
-          </h3>
-        </Link>
-        <Link
-          to="/games/bubblesmashroyale/lobby"
-          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-        >
-          <img
-            src="/assets/icons/Bubble Smash Royale .png"
-            alt=""
-            className="h-20 w-20"
-          />
-          <h3 className="text-sm font-semibold text-center text-yellow-400">
-            Bubble Smash Royale
-          </h3>
-        </Link>
-        <Link
           to="/games/crazydice/lobby"
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
@@ -167,19 +128,6 @@ export default function HomeGamesCard() {
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
             Crazy Dice Duel
-          </h3>
-        </Link>
-        <Link
-          to="/games/bubblepoproyale/lobby"
-          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-        >
-          <img
-            src="/assets/icons/Bubble Pop Royale .png"
-            alt=""
-            className="h-20 w-20"
-          />
-          <h3 className="text-sm font-semibold text-center text-yellow-400">
-            Bubble Pop Royale
           </h3>
         </Link>
       </div>
