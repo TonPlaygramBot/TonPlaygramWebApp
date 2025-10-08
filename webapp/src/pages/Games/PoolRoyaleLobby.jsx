@@ -156,11 +156,7 @@ export default function PoolRoyaleLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Table Size</h3>
         <div className="flex gap-2">
-          {[
-            { id: '7ft', label: '7 ft' },
-            { id: '8ft', label: '8 ft' },
-            { id: '9ft', label: '9 ft' }
-          ].map(({ id, label }) => (
+          {[{ id: '9ft', label: '9 ft' }].map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setTableSize(id)}
