@@ -135,6 +135,16 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
+function scaleMultiPolygonBy(mp, scale) {
+  if (!Array.isArray(mp)) {
+    return [];
+  }
+  if (!Number.isFinite(scale) || Math.abs(scale - 1) < 1e-6) {
+    return mp;
+  }
+  return scaleMultiPolygon(mp, scale);
+}
+
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -188,6 +198,8 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const WOOD_CORNER_CUT_SCALE = 0.993; // tighten wooden rail corner cutouts to better match the chrome plates
+const WOOD_SIDE_CUT_SCALE = 0.995; // gently shrink side pocket cutouts on the wooden rails
 
 function buildChromePlateGeometry({
   width,
@@ -3681,7 +3693,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
+    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they sit a touch away from the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -4017,17 +4029,18 @@ function Table3D(
     }
   }
 
+  const woodSidePocketRadius = sidePocketRadius * WOOD_SIDE_CUT_SCALE;
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, sidePocketRadius)
+    ...circlePoly(-(innerHalfW - sideInset), 0, woodSidePocketRadius),
+    ...circlePoly(innerHalfW - sideInset, 0, woodSidePocketRadius)
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...cornerNotchMP(1, 1),
-    ...cornerNotchMP(-1, 1),
-    ...cornerNotchMP(-1, -1),
-    ...cornerNotchMP(1, -1)
+    ...scaleMultiPolygonBy(cornerNotchMP(1, 1), WOOD_CORNER_CUT_SCALE),
+    ...scaleMultiPolygonBy(cornerNotchMP(-1, 1), WOOD_CORNER_CUT_SCALE),
+    ...scaleMultiPolygonBy(cornerNotchMP(-1, -1), WOOD_CORNER_CUT_SCALE),
+    ...scaleMultiPolygonBy(cornerNotchMP(1, -1), WOOD_CORNER_CUT_SCALE)
   );
 
   const railsOuter = new THREE.Shape();
