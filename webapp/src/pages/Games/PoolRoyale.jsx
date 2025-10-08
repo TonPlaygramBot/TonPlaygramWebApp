@@ -703,7 +703,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.12, 0.66); // coarser grain so rails, skirts, and legs read at table scale
 
-const DEFAULT_POOL_VARIANT = 'uk';
+const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
@@ -847,12 +847,12 @@ const TABLE_SIZE_OPTIONS = Object.freeze({
 });
 const DEFAULT_TABLE_SIZE_ID = '9ft';
 
-export function resolvePoolVariant(variantId) {
+function resolvePoolVariant(variantId) {
   const key = typeof variantId === 'string' ? variantId.toLowerCase() : '';
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
-export function resolveTableSize(sizeId) {
+function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
   return TABLE_SIZE_OPTIONS[key] || TABLE_SIZE_OPTIONS[DEFAULT_TABLE_SIZE_ID];
 }
@@ -4569,7 +4569,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
+function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new UnitySnookerRules(), []);
@@ -11169,6 +11169,11 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 export default function PoolRoyale() {
   const isMobileOrTablet = useIsMobile(1366);
   const location = useLocation();
+  const variantKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('variant');
+    return resolvePoolVariant(requested).id;
+  }, [location.search]);
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableSize');
@@ -11183,5 +11188,5 @@ export default function PoolRoyale() {
     );
   }
 
-  return <PoolRoyaleGame variantKey="uk" tableSizeKey={tableSizeKey} />;
+  return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
 }
