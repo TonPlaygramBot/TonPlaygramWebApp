@@ -9,6 +9,19 @@ These notes capture the shared expectations for the upcoming 3D billiards experi
 - **Lighting** – Neutral three-point lighting with subtle rim highlights keeps all coloured balls readable, especially in portrait mode. Tone mapping should avoid clipping the cue ball or pink/blue balls.
 - **HUD Layout** – Score rails cling to the top/bottom edges of the portrait viewport. Toggle the rule card for the active mode on demand so newcomers can read the frame objective without leaving the table.
 
+### Table Geometry Consistency
+
+- All cue-sport variants reuse the **3D snooker table** blueprint for cushion nose placement, chrome plate trim, and pocket offsets. Only the overall playfield scale changes per discipline so every build feels identical from the pocket lips inward.
+- When scaling a mode, preserve the snooker ratios between the pocket arcs and the neighbouring chrome/cushion junctions. The UI leverages these offsets for pocket cameras and rail props, so any deviation creates visual jitter when swapping rule sets.
+- Reference playfield sizes to apply the correct scale multiplier:
+
+  | Mode | Playfield (mm) | Notes |
+  | --- | --- | --- |
+  | 3D Snooker | 3569 × 1778 | Standard 12 ft tournament surface |
+  | Pool Royal / American Billiards | 2540 × 1270 | 9 ft American pool table used for both arcade Pool Royal and regulation 8-ball |
+  | 3D 9 Ball | 2540 × 1270 | Shares the American 9 ft footprint so racks align with Pool Royal |
+  | 3D UK 8 Ball | 1930 × 965 | 7 ft pub table – cushions must still meet the chrome at the snooker offsets |
+
 ## Chalk Placement Rule
 
 Exactly **four** chalk blocks are visible at all times—one centred on each wooden rail of the table. The chalk meshes should sit near (but not overlapping) the pocket leather so that when a pocket is in frame the nearby chalk remains readable. Highlight the closest chalk when the cue tip is recharged so players always know which block was used.
