@@ -21,6 +21,9 @@ function getGameFromTableId(id) {
       'bubblepoproyale',
       'bubblesmashroyale',
       'tetrisroyale',
+      'pollroyale',
+      'americanbilliards',
+      'nineball',
     ].includes(prefix)
   )
     return prefix;
@@ -221,7 +224,17 @@ export default function PlayerInvitePopup({
                 {
                   id: 'pollroyale',
                   src: '/assets/icons/pool-royale.svg',
-                  alt: 'Pool Royale',
+                  alt: 'Pool Royale (UK 8-Ball)',
+                },
+                {
+                  id: 'americanbilliards',
+                  src: '/assets/icons/pool-royale.svg',
+                  alt: 'American Billiards',
+                },
+                {
+                  id: 'nineball',
+                  src: '/assets/icons/pool-royale.svg',
+                  alt: '9-Ball Pool',
                 },
               ].map((g) => (
                 <img

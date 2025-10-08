@@ -703,7 +703,7 @@ const UI_SCALE = SIZE_REDUCTION;
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.12, 0.66); // coarser grain so rails, skirts, and legs read at table scale
 
-const DEFAULT_POOL_VARIANT = 'american';
+const DEFAULT_POOL_VARIANT = 'uk';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
@@ -4569,7 +4569,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({ variantKey, tableSizeKey }) {
+function PoolRoyaleGame({ variantKey, tableSizeKey, gameTitle = 'Pool Royale 3D' }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new UnitySnookerRules(), []);
@@ -5278,8 +5278,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     [stopActiveCrowdSound]
   );
   useEffect(() => {
-    document.title = 'Pool Royale 3D';
-  }, []);
+    document.title = gameTitle;
+  }, [gameTitle]);
   useEffect(() => {
     setPlayer({
       name: getTelegramUsername() || 'Player',
@@ -11166,8 +11166,28 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   );
 }
 
-export default function PoolRoyale() {
+export function PoolGameContainer({ variantKey, tableSizeKey, gameTitle = 'Pool Royale 3D' }) {
   const isMobileOrTablet = useIsMobile(1366);
+  if (!isMobileOrTablet) {
+    return (
+      <div className="flex items-center justify-center w-full h-full p-4 text-center">
+        <p>This game is available on mobile phones and tablets only.</p>
+      </div>
+    );
+  }
+
+  return (
+    <PoolRoyaleGame
+      variantKey={variantKey}
+      tableSizeKey={tableSizeKey}
+      gameTitle={gameTitle}
+    />
+  );
+}
+
+export { PoolRoyaleGame, resolvePoolVariant, resolveTableSize };
+
+export default function PoolRoyale() {
   const location = useLocation();
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -11180,13 +11200,11 @@ export default function PoolRoyale() {
     return resolveTableSize(requested).id;
   }, [location.search]);
 
-  if (!isMobileOrTablet) {
-    return (
-      <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile phones and tablets only.</p>
-      </div>
-    );
-  }
-
-  return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
+  return (
+    <PoolGameContainer
+      variantKey={variantKey}
+      tableSizeKey={tableSizeKey}
+      gameTitle="Pool Royale 3D"
+    />
+  );
 }

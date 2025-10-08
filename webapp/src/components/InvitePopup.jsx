@@ -101,7 +101,17 @@ export default function InvitePopup({
                 {
                   id: 'pollroyale',
                   src: '/assets/icons/pool-royale.svg',
-                  alt: 'Pool Royale',
+                  alt: 'Pool Royale (UK 8-Ball)',
+                },
+                {
+                  id: 'americanbilliards',
+                  src: '/assets/icons/pool-royale.svg',
+                  alt: 'American Billiards',
+                },
+                {
+                  id: 'nineball',
+                  src: '/assets/icons/pool-royale.svg',
+                  alt: '9-Ball Pool',
                 },
               ].map((g) => (
                   <img

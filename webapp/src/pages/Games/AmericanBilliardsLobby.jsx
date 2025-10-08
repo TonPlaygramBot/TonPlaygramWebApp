@@ -6,12 +6,16 @@ import {
   ensureAccountId,
   getTelegramId,
   getTelegramPhotoUrl,
-  getTelegramFirstName
+  getTelegramFirstName,
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-export default function PoolRoyaleLobby() {
+const GAME_ID = 'americanbilliards';
+const ROUTE_PATH = '/games/americanbilliards';
+const VARIANT_ID = 'american';
+
+export default function AmericanBilliardsLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
   useTelegramBackButton();
@@ -42,9 +46,9 @@ export default function PoolRoyaleLobby() {
         }
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'poolroyale',
+          game: GAME_ID,
           players: 2,
-          accountId
+          accountId,
         });
       } catch {}
     } else {
@@ -55,7 +59,7 @@ export default function PoolRoyaleLobby() {
     }
 
     const params = new URLSearchParams();
-    params.set('variant', 'uk');
+    params.set('variant', VARIANT_ID);
     params.set('type', playType);
     if (playType !== 'training') params.set('mode', mode);
     const initData = window.Telegram?.WebApp?.initData;
@@ -76,7 +80,7 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    navigate(`/games/pollroyale?${params.toString()}`);
+    navigate(`${ROUTE_PATH}?${params.toString()}`);
   };
 
   const winnerParam = new URLSearchParams(search).get('winner');
@@ -88,13 +92,13 @@ export default function PoolRoyaleLobby() {
           {winnerParam === '1' ? 'You won!' : 'CPU won!'}
         </div>
       )}
-      <h2 className="text-xl font-bold text-center">Pool Royale (UK 8-Ball) Lobby</h2>
+      <h2 className="text-xl font-bold text-center">American Billiards Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' }
+            { id: 'training', label: 'Training' },
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -112,7 +116,7 @@ export default function PoolRoyaleLobby() {
           <div className="flex gap-2">
             {[
               { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online', disabled: true }
+              { id: 'online', label: '1v1 Online', disabled: true },
             ].map(({ id, label, disabled }) => (
               <div key={id} className="relative">
                 <button
@@ -140,7 +144,7 @@ export default function PoolRoyaleLobby() {
           {[
             { id: '7ft', label: '7 ft' },
             { id: '8ft', label: '8 ft' },
-            { id: '9ft', label: '9 ft' }
+            { id: '9ft', label: '9 ft' },
           ].map(({ id, label }) => (
             <button
               key={id}

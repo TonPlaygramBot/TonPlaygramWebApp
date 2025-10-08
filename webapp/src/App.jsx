@@ -59,19 +59,35 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
-import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
+import AmericanBilliardsLobby from './pages/Games/AmericanBilliardsLobby.jsx';
+import NineBallLobby from './pages/Games/NineBallLobby.jsx';
 import Snooker from './pages/Games/Snooker.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
 
+const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyale.jsx'));
+const AmericanBilliards = React.lazy(() => import('./pages/Games/AmericanBilliards.jsx'));
+const NineBall = React.lazy(() => import('./pages/Games/NineBall.jsx'));
+
 export default function App() {
   useTelegramAuth();
   useReferralClaim();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
+  const renderLazy = (LazyComponent, fallbackText = 'Loading game...') => (
+    <React.Suspense
+      fallback={
+        <div className="flex items-center justify-center w-full h-full p-4 text-center">
+          <p>{fallbackText}</p>
+        </div>
+      }
+    >
+      <LazyComponent />
+    </React.Suspense>
+  );
 
   return (
     <BrowserRouter>
@@ -191,7 +207,29 @@ export default function App() {
               path="/games/pollroyale/lobby"
               element={<PoolRoyaleLobby />}
             />
-            <Route path="/games/pollroyale" element={<PoolRoyale />} />
+            <Route
+              path="/games/pollroyale"
+              element={renderLazy(PoolRoyale, 'Loading Pool Royale...')}
+            />
+            <Route
+              path="/games/americanbilliards/lobby"
+              element={<AmericanBilliardsLobby />}
+            />
+            <Route
+              path="/games/americanbilliards"
+              element={renderLazy(
+                AmericanBilliards,
+                'Loading American Billiards...'
+              )}
+            />
+            <Route
+              path="/games/nineball/lobby"
+              element={<NineBallLobby />}
+            />
+            <Route
+              path="/games/nineball"
+              element={renderLazy(NineBall, 'Loading 9-Ball...')}
+            />
             <Route path="/games/snooker" element={<Snooker />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
