@@ -4991,6 +4991,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (raf) cancelAnimationFrame(raf);
     };
   }, [loading]);
+
+  useEffect(() => {
+    if (!loading) return () => {};
+    const timeout = setTimeout(() => {
+      if (!loadingClearedRef.current) {
+        loadingClearedRef.current = true;
+      }
+      setLoading(false);
+      setLoadingProgress(100);
+    }, 7000);
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [loading]);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -10853,15 +10867,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     100,
     Math.max(0, Math.round(loadingProgress))
   );
-  const cueStrikeProgress = Math.min(1, displayedProgress / 12);
-  const cueBaseOffset = 16;
-  const cueDrawBack = 18;
-  const cueTrackWidth = 200;
-  const ballOffsetStart = cueBaseOffset + 28;
-  const cueBallRadius = 12;
-  const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
-  const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
-  const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
   const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
@@ -11057,26 +11062,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       </div>
 
       {(loading || displayedProgress < 100) && (
-        <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
-          <div className="relative w-64 h-24">
-            <div className="absolute left-0 top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-white/15" />
+        <div className="pointer-events-none absolute top-4 right-4 z-[70] flex w-36 flex-col items-end gap-2 text-[10px] uppercase tracking-[0.35em] text-emerald-200">
+          <span>Loading {displayedProgress}%</span>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
             <div
-              className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-emerald-400/80 transition-all duration-150 ease-out"
+              className="h-full rounded-full bg-emerald-400 transition-all duration-150 ease-out"
               style={{ width: `${displayedProgress}%` }}
             />
-            <div
-              className="absolute left-0 top-1/2 h-2 w-28 rounded-r-full bg-amber-300 shadow-lg shadow-amber-500/40 transition-transform duration-150 ease-out"
-              style={{ transform: `translate(${cuePosition}px, -50%)` }}
-            />
-            <div
-              className="absolute left-0 top-1/2 h-6 w-6 rounded-full border border-emerald-200 bg-white shadow-[0_0_16px_rgba(74,222,128,0.5)] transition-transform duration-150 ease-out"
-              style={{
-                transform: `translate(${cueBallPosition - cueBallRadius}px, -50%)`
-              }}
-            />
-          </div>
-          <div className="text-sm tracking-[0.3em] uppercase text-emerald-200">
-            Loading {displayedProgress}%
           </div>
         </div>
       )}
