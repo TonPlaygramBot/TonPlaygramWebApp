@@ -841,6 +841,8 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
 });
 
 const TABLE_SIZE_OPTIONS = Object.freeze({
+  '7ft': { id: '7ft', label: '7 ft', scale: 0.78 },
+  '8ft': { id: '8ft', label: '8 ft', scale: 0.88 },
   '9ft': { id: '9ft', label: '9 ft', scale: 1 }
 });
 const DEFAULT_TABLE_SIZE_ID = '9ft';
@@ -6300,6 +6302,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
       const hospitalitySizeMultiplier = 2.5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
+      const hospitalityTableHeightScale = 0.6; // drop the bistro table height by 40% so it sits lower on the carpet line
+      const hospitalityChairGap =
+        toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
+      const hospitalityCarpetPull =
+        toHospitalityUnits(0.18) * hospitalityUpscale; // shift hospitality props off the wall and onto the nearby carpet border
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -6464,13 +6471,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
 
         const tableSet = createTableSet();
-        tableSet.scale.setScalar(scaledFurniture);
+        tableSet.scale.set(
+          scaledFurniture,
+          scaledFurniture * hospitalityTableHeightScale,
+          scaledFurniture
+        );
         const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
         const chairDistance = chairVector.length();
         if (chairDistance > 1e-6) {
+          const maxPull = Math.max(chairDistance - hospitalityChairGap, 0);
           const tablePull = Math.min(
-            chairDistance * 0.35,
-            toHospitalityUnits(0.12) * hospitalityUpscale
+            maxPull,
+            toHospitalityUnits(0.2) * hospitalityUpscale
           );
           const pullScale = tablePull / chairDistance;
           tableSet.position.set(
@@ -6492,7 +6504,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
-        group.position.set(position[0], floorY, position[1]);
+        const adjustForCarpet = (value) => {
+          const direction = Math.sign(value);
+          const magnitude = Math.max(Math.abs(value) - hospitalityCarpetPull, 0);
+          return direction * magnitude;
+        };
+        group.position.set(
+          adjustForCarpet(position[0]),
+          floorY,
+          adjustForCarpet(position[1])
+        );
         group.rotation.y = rotationY;
         ensureHospitalityVisibility(group);
         return group;
@@ -6509,8 +6530,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         rawCornerInset,
         Math.abs(backInterior) * 0.92
       );
-      const chairSideOffset = toHospitalityUnits(0.56) * hospitalityUpscale;
-      const chairForwardOffset = toHospitalityUnits(0.74) * hospitalityUpscale;
+      const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
+      const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
 
       [
         {
