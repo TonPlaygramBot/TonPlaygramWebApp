@@ -183,13 +183,12 @@ const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.18;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.035; // expand the short-rail chrome slightly so the plates meet the side rails without intruding into the pockets
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.02; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const CHROME_SIDE_NOTCH_EXPANSION_SCALE = 1.01; // let the chrome side trims open up just enough to mirror the pocket footprint
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 
@@ -3578,7 +3577,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION; // give the cushions a little more breathing room so they stop shy of the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.06 * POCKET_VISUAL_EXPANSION; // pull the short-rail cushions a touch further from the pockets so their tips clear the openings
+    POCKET_VIS_R * -0.045 * POCKET_VISUAL_EXPANSION; // ease back the short-rail cushions so they no longer intrude on the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.37 * POCKET_VISUAL_EXPANSION; // tighten the long cushions slightly so their ends stay clear of the pockets
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3680,8 +3679,6 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const RAIL_CORNER_OPENING_EXPANSION = 1.02; // slightly enlarge the wooden rail corner cut-outs to align with the pocket hardware
-  const RAIL_SIDE_OPENING_EXPANSION = 1.01; // widen the wooden rail side cut-outs so they match the chrome trim openings
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
@@ -3768,7 +3765,7 @@ function Table3D(
   };
   const ringArea = (ring) => signedRingArea(ring);
 
-  const cornerNotchMP = (sx, sz, expansionScale = CHROME_CORNER_NOTCH_EXPANSION_SCALE) => {
+  const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
     const notchCircle = circlePoly(
@@ -3799,13 +3796,13 @@ function Table3D(
       union = polygonClipping.union(union, fieldClip);
     }
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
-    if (expansionScale === 1) {
+    if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
     }
-    return scaleMultiPolygon(adjusted, expansionScale);
+    return scaleMultiPolygon(adjusted, CHROME_CORNER_NOTCH_EXPANSION_SCALE);
   };
 
-  const sideNotchMP = (sx, expansionScale = CHROME_SIDE_NOTCH_EXPANSION_SCALE) => {
+  const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
@@ -3832,11 +3829,7 @@ function Table3D(
     );
 
     const union = polygonClipping.union(circle, throat);
-    const adjusted = adjustSideNotchDepth(union);
-    if (expansionScale === 1) {
-      return adjusted;
-    }
-    return scaleMultiPolygon(adjusted, expansionScale);
+    return adjustSideNotchDepth(union);
   };
 
   const chromePlates = new THREE.Group();
@@ -3912,15 +3905,15 @@ function Table3D(
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius * RAIL_SIDE_OPENING_EXPANSION),
-    ...circlePoly(innerHalfW - sideInset, 0, sidePocketRadius * RAIL_SIDE_OPENING_EXPANSION)
+    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketRadius),
+    ...circlePoly(innerHalfW - sideInset, 0, sidePocketRadius)
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...cornerNotchMP(1, 1, RAIL_CORNER_OPENING_EXPANSION),
-    ...cornerNotchMP(-1, 1, RAIL_CORNER_OPENING_EXPANSION),
-    ...cornerNotchMP(-1, -1, RAIL_CORNER_OPENING_EXPANSION),
-    ...cornerNotchMP(1, -1, RAIL_CORNER_OPENING_EXPANSION)
+    ...cornerNotchMP(1, 1),
+    ...cornerNotchMP(-1, 1),
+    ...cornerNotchMP(-1, -1),
+    ...cornerNotchMP(1, -1)
   );
 
   const railsOuter = new THREE.Shape();
