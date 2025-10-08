@@ -47,8 +47,6 @@ import BubbleSmashRoyale from './pages/Games/BubbleSmashRoyale.jsx';
 import BubbleSmashRoyaleLobby from './pages/Games/BubbleSmashRoyaleLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
-import BowlingRoyal from './pages/Games/BowlingRoyal.jsx';
-import BowlingRoyalLobby from './pages/Games/BowlingRoyalLobby.jsx';
 import TennisBattleRoyal from './pages/Games/TennisBattleRoyal.jsx';
 import TennisBattleRoyalLobby from './pages/Games/TennisBattleRoyalLobby.jsx';
 import ChessBattleRoyal from './pages/Games/ChessBattleRoyal.jsx';
@@ -142,14 +140,6 @@ export default function App() {
             <Route
               path="/games/bubblesmashroyale"
               element={<BubbleSmashRoyale />}
-            />
-            <Route
-              path="/games/bowlingroyal/lobby"
-              element={<BowlingRoyalLobby />}
-            />
-            <Route
-              path="/games/bowlingroyal"
-              element={<BowlingRoyal />}
             />
             <Route
               path="/games/tennisbattleroyal/lobby"
