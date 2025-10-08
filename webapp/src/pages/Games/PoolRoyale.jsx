@@ -6065,11 +6065,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         roughness: 0.5,
         metalness: 0.6
       });
+      const tvBezelMat = new THREE.MeshStandardMaterial({
+        color: 0x0b1323,
+        roughness: 0.35,
+        metalness: 0.55
+      });
       const signageScale = 3;
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const infoPanelDepth = signageDepth * 0.6;
+      const tvSizeReduction = 0.7;
+      const tvScale = 10 * 1.3 * tvSizeReduction;
+      const tvWidth = 9 * tvScale;
+      const tvHeight = 5.4 * tvScale;
+      const tvDepth = 0.42 * tvScale;
+      const tvMountHeight = tvHeight * 0.32;
+      const tvMountOffset = tvHeight * 0.42;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -6078,6 +6089,29 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           material.color = new THREE.Color(0x0f172a);
         }
         return material;
+      };
+      const createTv = (texture) => {
+        const group = new THREE.Group();
+        const bezel = new THREE.Mesh(
+          new THREE.BoxGeometry(tvWidth, tvHeight, tvDepth),
+          tvBezelMat
+        );
+        bezel.castShadow = false;
+        bezel.receiveShadow = true;
+        group.add(bezel);
+        const screen = new THREE.Mesh(
+          new THREE.PlaneGeometry(tvWidth * 0.92, tvHeight * 0.88),
+          makeScreenMaterial(texture)
+        );
+        screen.position.z = tvDepth / 2 + 0.02;
+        group.add(screen);
+        const mount = new THREE.Mesh(
+          new THREE.BoxGeometry(tvWidth * 0.18, tvMountHeight, tvDepth * 0.3),
+          tvBezelMat
+        );
+        mount.position.set(0, -tvMountOffset, -tvDepth * 0.35);
+        group.add(mount);
+        return group;
       };
       const createBillboardAssembly = () => {
         const assembly = new THREE.Group();
@@ -6096,34 +6130,29 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         assembly.add(billboardScreen);
         return assembly;
       };
-      const createMatchInfoAssembly = () => {
+      const createMatchTvAssembly = () => {
         const assembly = new THREE.Group();
-        const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(signageWidth, signageHeight, infoPanelDepth),
-          signageFrameMat
-        );
-        frame.castShadow = false;
-        frame.receiveShadow = true;
-        assembly.add(frame);
-        const infoSurface = new THREE.Mesh(
-          new THREE.PlaneGeometry(signageWidth * 0.94, signageHeight * 0.82),
-          makeScreenMaterial(matchTexture)
-        );
-        infoSurface.position.z = infoPanelDepth / 2 + 0.02;
-        assembly.add(infoSurface);
+        const tv = createTv(matchTexture);
+        assembly.add(tv);
         return assembly;
       };
       const signageGap = BALL_R * 3.2;
+      const tvAssemblyHalfHeight = Math.max(
+        tvHeight / 2,
+        tvMountOffset + tvMountHeight / 2
+      );
       const signageHalfHeight = signageHeight / 2;
       const signageY = floorY + signageGap + signageHalfHeight;
+      const signageBottomY = signageY - signageHalfHeight;
+      const tvY = signageBottomY + tvAssemblyHalfHeight;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
       [
-        { position: [0, signageY, frontInterior], rotationY: 0, type: 'info' },
-        { position: [0, signageY, backInterior], rotationY: Math.PI, type: 'info' },
+        { position: [0, tvY, frontInterior], rotationY: 0, type: 'tv' },
+        { position: [0, tvY, backInterior], rotationY: Math.PI, type: 'tv' },
         {
           position: [leftInterior, signageY, 0],
           rotationY: Math.PI / 2,
@@ -6136,7 +6165,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
       ].forEach(({ position, rotationY, type }) => {
         const signage =
-          type === 'info' ? createMatchInfoAssembly() : createBillboardAssembly();
+          type === 'tv' ? createMatchTvAssembly() : createBillboardAssembly();
         signage.position.set(position[0], position[1], position[2]);
         signage.rotation.y = rotationY;
         world.add(signage);

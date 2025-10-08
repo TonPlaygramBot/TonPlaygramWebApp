@@ -110,6 +110,62 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
+    id: 'longRun',
+    label: 'Long Run',
+    rail: {
+      repeat: { x: 0.06, y: 0.86 },
+      rotation: Math.PI / 18,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.16, y: 0.52 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'crossbanded',
+    label: 'Crossbanded',
+    rail: {
+      repeat: { x: 0.22, y: 0.54 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.34, y: 0.38 },
+      rotation: 0,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'quarterSawn',
+    label: 'Quarter Sawn',
+    rail: {
+      repeat: { x: 0.12, y: 0.72 },
+      rotation: -Math.PI / 20,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.2, y: 0.44 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'rusticBoards',
+    label: 'Rustic Boards',
+    rail: {
+      repeat: { x: 0.14, y: 0.68 },
+      rotation: -Math.PI / 12,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.26, y: 0.5 },
+      rotation: Math.PI / 2,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
     id: 'heritagePlanks',
     label: 'Heritage Planks',
     rail: {
