@@ -37,18 +37,10 @@ import FreeKickLobby from './pages/Games/FreeKickLobby.jsx';
 import BrickBreaker from './pages/Games/BrickBreaker.jsx';
 import BrickBreakerLobby from './pages/Games/BrickBreakerLobby.jsx';
 import BrickBreaker3DPage from './pages/Games/BrickBreaker3D.jsx';
-import TetrisRoyale from './pages/Games/TetrisRoyale.jsx';
-import TetrisRoyaleLobby from './pages/Games/TetrisRoyaleLobby.jsx';
 import FruitSliceRoyale from './pages/Games/FruitSliceRoyale.jsx';
 import FruitSliceRoyaleLobby from './pages/Games/FruitSliceRoyaleLobby.jsx';
-import BubblePopRoyale from './pages/Games/BubblePopRoyale.jsx';
-import BubblePopRoyaleLobby from './pages/Games/BubblePopRoyaleLobby.jsx';
-import BubbleSmashRoyale from './pages/Games/BubbleSmashRoyale.jsx';
-import BubbleSmashRoyaleLobby from './pages/Games/BubbleSmashRoyaleLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
-import BowlingRoyal from './pages/Games/BowlingRoyal.jsx';
-import BowlingRoyalLobby from './pages/Games/BowlingRoyalLobby.jsx';
 import TennisBattleRoyal from './pages/Games/TennisBattleRoyal.jsx';
 import TennisBattleRoyalLobby from './pages/Games/TennisBattleRoyalLobby.jsx';
 import ChessBattleRoyal from './pages/Games/ChessBattleRoyal.jsx';
@@ -115,41 +107,12 @@ export default function App() {
               element={<BrickBreaker3DPage />}
             />
             <Route
-              path="/games/tetrisroyale/lobby"
-              element={<TetrisRoyaleLobby />}
-            />
-            <Route path="/games/tetrisroyale" element={<TetrisRoyale />} />
-            <Route
               path="/games/fruitsliceroyale/lobby"
               element={<FruitSliceRoyaleLobby />}
             />
             <Route
               path="/games/fruitsliceroyale"
               element={<FruitSliceRoyale />}
-            />
-            <Route
-              path="/games/bubblepoproyale/lobby"
-              element={<BubblePopRoyaleLobby />}
-            />
-            <Route
-              path="/games/bubblepoproyale"
-              element={<BubblePopRoyale />}
-            />
-            <Route
-              path="/games/bubblesmashroyale/lobby"
-              element={<BubbleSmashRoyaleLobby />}
-            />
-            <Route
-              path="/games/bubblesmashroyale"
-              element={<BubbleSmashRoyale />}
-            />
-            <Route
-              path="/games/bowlingroyal/lobby"
-              element={<BowlingRoyalLobby />}
-            />
-            <Route
-              path="/games/bowlingroyal"
-              element={<BowlingRoyal />}
             />
             <Route
               path="/games/tennisbattleroyal/lobby"
