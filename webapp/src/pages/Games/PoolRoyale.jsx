@@ -179,10 +179,12 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
+const CHROME_CORNER_DIMENSION_SCALE = 0.985; // share snooker chrome dimensions so the plates sit flush with the cushions
+const CHROME_SIDE_DIMENSION_SCALE = 0.985;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.18;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.035; // expand the short-rail chrome slightly so the plates meet the side rails without intruding into the pockets
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
+const CHROME_CORNER_EXPANSION_SCALE = 1.02;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // no extra stretch so the chrome meets pockets at the snooker offsets
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -3565,7 +3567,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.036; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // align cushion spacing with the snooker baseline so trims stay consistent
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -3575,19 +3577,19 @@ function Table3D(
   );
 
   const POCKET_GAP =
-    POCKET_VIS_R * 0.92 * POCKET_VISUAL_EXPANSION; // give the cushions a little more breathing room so they stop shy of the pocket arcs
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.045 * POCKET_VISUAL_EXPANSION; // ease back the short-rail cushions so they no longer intrude on the pocket mouths
+    POCKET_VIS_R * 0.05 * POCKET_VISUAL_EXPANSION; // shorten short rail cushions so they sit just shy of the pocket mouths
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.37 * POCKET_VISUAL_EXPANSION; // tighten the long cushions slightly so their ends stay clear of the pockets
+    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.01 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy without pressing into the chrome arches
+    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // create a touch more clearance around the side pockets
+    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.16 * POCKET_VISUAL_EXPANSION; // maintain alignment while nudging the cushions away from the pocket openings
+    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.13 * POCKET_VISUAL_EXPANSION; // trim back the vertical cushions so their tips sit just before the pocket edge
+    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -3629,18 +3631,23 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const CHROME_CORNER_EDGE_PULL = TABLE.THICK * 0.055; // shrink the chrome plates ever so slightly so they don't crowd the cushions
-  const chromePlateWidth = Math.max(
+  const baseChromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
-      chromeCornerPlateTrim -
-      CHROME_CORNER_EDGE_PULL
+      chromeCornerPlateTrim
+  );
+  const chromePlateWidth = Math.max(
+    MICRO_EPS,
+    baseChromePlateWidth * CHROME_CORNER_DIMENSION_SCALE
+  );
+  const baseChromePlateHeight = Math.max(
+    MICRO_EPS,
+    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
+      chromeCornerPlateTrim
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
-      chromeCornerPlateTrim -
-      CHROME_CORNER_EDGE_PULL
+    baseChromePlateHeight * CHROME_CORNER_DIMENSION_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -3656,9 +3663,13 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
+  const baseSideChromePlateWidth = Math.max(
+    MICRO_EPS,
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
+  );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.07
+    baseSideChromePlateWidth * CHROME_SIDE_DIMENSION_SCALE
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -3668,9 +3679,13 @@ function Table3D(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
-  const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.92,
+  const baseSideChromePlateHeight = Math.min(
+    chromePlateHeight * 0.94,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
+  );
+  const sideChromePlateHeight = Math.max(
+    MICRO_EPS,
+    baseSideChromePlateHeight * CHROME_SIDE_DIMENSION_SCALE
   );
   const sideChromePlateRadius = Math.min(
     chromePlateRadius * 0.3,
