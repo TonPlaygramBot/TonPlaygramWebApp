@@ -13,14 +13,10 @@ function getGameFromTableId(id) {
   if (
     [
       'snake',
-      'crazydice',
       'fallingball',
       'goalrush',
-      'brickbreaker',
-      'fruitsliceroyale',
-      'bubblepoproyale',
-      'bubblesmashroyale',
-      'tetrisroyale',
+      'pollroyale',
+      'poolroyale',
     ].includes(prefix)
   )
     return prefix;
@@ -174,44 +170,14 @@ export default function PlayerInvitePopup({
                   alt: 'Snake & Ladders',
                 },
                 {
-                  id: 'crazydice',
-                  src: '/assets/icons/Crazy_Dice_Duel_Promo.webp',
-                  alt: 'Crazy Dice Duel',
-                },
-                {
                   id: 'fallingball',
                   src: '/assets/icons/Falling Ball .png',
                   alt: 'Falling Ball',
                 },
                 {
-                  id: 'brickbreaker',
-                  src: '/assets/icons/Brick Breaker Royale .png',
-                  alt: 'Brick Breaker Royale',
-                },
-                {
-                  id: 'fruitsliceroyale',
-                  src: '/assets/icons/Fruit Slice Royale .png',
-                  alt: 'Fruit Slice Royale',
-                },
-                {
-                  id: 'bubblepoproyale',
-                  src: '/assets/icons/Bubble Pop Royale .png',
-                  alt: 'Bubble Pop Royale',
-                },
-                {
-                  id: 'bubblesmashroyale',
-                  src: '/assets/icons/Bubble Smash Royale .png',
-                  alt: 'Bubble Smash Royale',
-                },
-                {
                   id: 'goalrush',
                   src: '/assets/icons/goal_rush_card_1200x675.webp',
                   alt: 'Goal Rush',
-                },
-                {
-                  id: 'tetrisroyale',
-                  src: '/assets/icons/file_00000000240061f4abd28311d76970a5.png',
-                  alt: 'Tetris Royale',
                 },
                 {
                   id: 'pollroyale',

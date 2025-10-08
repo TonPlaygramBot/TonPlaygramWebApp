@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Bubble Smash Royale bubble styled like Bubble Pop Royale -->
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="512" cy="512" r="400" fill="#5aa2ff" stroke="#000" stroke-width="40" />
-  <circle cx="360" cy="360" r="110" fill="#ffffff" fill-opacity="0.6" />
-  <circle cx="300" cy="300" r="40" fill="#ffffff" fill-opacity="0.6" />
-</svg>

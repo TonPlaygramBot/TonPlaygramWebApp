@@ -170,10 +170,6 @@ Posts support **markdown formatting** and emoji **reactions**. Owners can pin fa
 
 The Wall also features a **Trending** section showing the most liked posts from the last 24 hours.
 
-### Brick Breaker Royale
-
-Bricks are pre-rendered to off-screen canvases and reused during board drawing, minimizing repeated `fillRect` calls for smoother gameplay.
-
 ### Free Kick goal sound
 
 The **Free Kick** game uses the `webapp/public/assets/sounds/a-football-hits-the-net-goal-313216-[AudioTrimmer.com].mp3` clip when a shot scores. Only the second half of the audio (~0.5 s) is played so players hear just the net impact.

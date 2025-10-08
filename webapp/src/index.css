@@ -231,15 +231,6 @@ input:focus {
   border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
-/* Adjusted placement for Crazy Dice Duel */
-.crazy-dice-bg {
-  top: 0;
-  bottom: 0;
-  /* Center the background image */
-  filter: brightness(3);
-  transform: translateY(90px) scale(1.2);
-}
-
 /* Overlay grid covering the entire background image */
 .board-grid-overlay {
   position: absolute;
@@ -270,11 +261,6 @@ input:focus {
 
 .dice-container {
   perspective: 600px;
-}
-
-/* Slightly smaller dice for Crazy Dice Duel */
-.crazy-dice {
-  transform: scale(0.8);
 }
 
 .dice-cube {
@@ -606,17 +592,6 @@ input:focus {
   font-size: 1.2rem;
   color: inherit;
   white-space: nowrap;
-}
-.crazy-dice-board.four-players .rank-name {
-  transform: translate(-50%, 0.6rem);
-  font-size: 1.2rem;
-}
-.crazy-dice-board.three-players .rank-name {
-  transform: translate(-50%, 0.6rem);
-  font-size: 1.2rem;
-}
-.crazy-dice-board.three-players .curved-name text {
-  font-size: 1.2rem;
 }
 .curved-name {
   width: 110%;
@@ -1111,13 +1086,6 @@ input:focus {
   font-weight: bold;
 }
 
-.crazy-dice-board .roll-result {
-  position: absolute;
-  top: -3.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
 .reward-dice-container {
   display: flex;
   gap: 0.5rem;
@@ -1535,204 +1503,6 @@ input:focus {
   font-size: 1.2rem;
 }
 
-.crazy-dice-board {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  /* Ensure the entire board image is visible */
-}
-.crazy-dice-board .board-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* Center the board background */
-  object-position: center;
-  transform: none;
-  filter: brightness(1.6);
-  z-index: -1;
-}
-.crazy-dice-board .dice-center {
-  position: absolute;
-  /* Default center aligned with J20 */
-  top: 66%;
-  left: 48%;
-  transform: translate(-50%, -50%);
-}
-
-/* Dice landing spot when facing two opponents */
-.crazy-dice-board.three-players .dice-center {
-  top: 66%;
-  left: 48%;
-}
-
-/* Adjust dice landing spot for 1v1 games */
-.crazy-dice-board.two-players .dice-center {
-  top: 72%;
-  left: 50%;
-}
-
-/* Player positions around the Crazy Dice board */
-.crazy-dice-board .player-bottom {
-  position: absolute;
-  /* Position aligned with J28 */
-  bottom: 8%;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-/* Position of the bottom avatar when facing two opponents */
-.crazy-dice-board.three-players .player-bottom {
-  bottom: 9%;
-  left: 50%;
-}
-
-/* Adjust bottom player position for 1v1 games */
-.crazy-dice-board.two-players .player-bottom {
-  /* Match bottom position used when facing multiple opponents */
-  bottom: 9%;
-}
-.crazy-dice-board.two-players .player-bottom .roll-history {
-  top: calc(100% + 1.8rem);
-}
-.crazy-dice-board.two-players .player-bottom .player-score {
-  top: calc(100% + 3.2rem);
-}
-
-.crazy-dice-board .player-left {
-  position: absolute;
-  top: 17.5%;
-  left: 5%;
-  transform: translate(-50%, -50%);
-}
-
-.crazy-dice-board.three-players .player-left {
-  /* Moved slightly left and up for better spacing */
-  top: 19.5%;
-  left: 6.5%;
-}
-
-.crazy-dice-board .player-center {
-  position: absolute;
-  top: 18%;
-  /* Nudged slightly to the right */
-  left: 52%;
-  transform: translate(-50%, -50%);
-}
-
-/* Slightly shift opponent avatar left in 1v1 games */
-.crazy-dice-board.two-players .player-center {
-  /* Move the lone opponent slightly further left */
-  left: 49.5%;
-}
-.crazy-dice-board.two-players .player-center .player-score {
-  font-size: 1rem;
-}
-.crazy-dice-board.two-players .curved-name text {
-  font-size: 2.4rem;
-}
-.crazy-dice-board .player-center .player-score,
-.crazy-dice-board .player-center .roll-history {
-  transform: translateX(-60%);
-}
-.crazy-dice-board .player-left .player-score,
-.crazy-dice-board .player-left .roll-history {
-  /* Move boxes slightly further left */
-  transform: translateX(-45%);
-}
-.crazy-dice-board .player-right .player-score,
-.crazy-dice-board .player-right .roll-history {
-  /* Shift right side slightly right */
-  transform: translateX(-60%);
-}
-
-/* Position roll boxes and scores for top players around row 9/10 */
-.crazy-dice-board .player-left .roll-history,
-.crazy-dice-board .player-center .roll-history,
-.crazy-dice-board .player-right .roll-history {
-  /* Roll history positioned a consistent distance below avatars */
-  top: calc(100% + 5rem);
-}
-.crazy-dice-board .player-left .player-score,
-.crazy-dice-board .player-center .player-score,
-.crazy-dice-board .player-right .player-score {
-  /* Scores sit slightly above the roll history */
-  top: calc(100% + 4rem);
-}
-
-/* Slight adjustments for the bottom player's info */
-.crazy-dice-board .player-bottom .roll-history {
-  top: calc(100% + 0.25rem);
-}
-.crazy-dice-board .player-bottom .player-score {
-  top: calc(100% + 1.45rem);
-}
-
-.crazy-dice-board.three-players .player-bottom .roll-history {
-  top: calc(100% + 2rem);
-}
-.crazy-dice-board.three-players .player-bottom .player-score {
-  top: calc(100% + 3.4rem);
-}
-
-.crazy-dice-board .player-right {
-  position: absolute;
-  /* Nudge slightly lower for better alignment */
-  top: 19%;
-  right: 5%;
-  transform: translate(50%, -50%);
-}
-
-.crazy-dice-board.three-players .player-right {
-  /* Shifted more to the left */
-  top: 20%;
-  right: 9%;
-}
-.crazy-dice-board.four-players .player-left {
-  /* Move the top left avatar closer to the screen edge */
-  top: 21%;
-  left: 6%;
-}
-.crazy-dice-board.four-players .player-center {
-  top: 17%;
-  left: 48%;
-}
-.crazy-dice-board.four-players .player-center .player-score,
-.crazy-dice-board.four-players .player-center .roll-history {
-  /* Nudge boxes slightly to the right */
-  transform: translateX(-55%);
-}
-.crazy-dice-board.four-players .player-right {
-  /* Lower and nudged further right */
-  top: 21%;
-  right: 6%;
-}
-.crazy-dice-board.four-players .player-bottom {
-  /* Raise the bottom player slightly */
-  bottom: 9%;
-}
-.crazy-dice-board.four-players .player-bottom .roll-history {
-  /* Place roll boxes a little further up */
-  top: calc(100% + 1.8rem);
-}
-.crazy-dice-board.four-players .player-bottom .player-score {
-  /* Score should appear below the roll boxes */
-  top: calc(100% + 3.2rem);
-}
-.crazy-dice-board.four-players .player-left .player-score,
-.crazy-dice-board.four-players .player-center .player-score,
-.crazy-dice-board.four-players .player-right .player-score {
-  /* Keep scores for all top players on the same row */
-  top: calc(100% + 4rem);
-}
-.crazy-dice-board.four-players .player-left .roll-history,
-.crazy-dice-board.four-players .player-center .roll-history,
-.crazy-dice-board.four-players .player-right .roll-history {
-  /* And align their roll boxes */
-  top: calc(100% + 5rem);
-}
 
 /* Rolling dice animation */
 .dice-screen-animation {
@@ -1749,9 +1519,6 @@ input:focus {
   pointer-events: none;
   transform: translate(-50%, -50%) scale(1);
   z-index: 101;
-}
-.crazy-dice-board.two-players .dice-travel {
-  transform: translate(-50%, -50%) scale(0.9);
 }
 
 /* Image that appears under the dice when the bottom player rolls */

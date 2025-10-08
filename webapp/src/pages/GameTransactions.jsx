@@ -5,13 +5,7 @@ import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 const GAME_NAME_MAP = {
   snake: 'Snake & Ladder',
-  crazydice: 'Crazy Dice Duel',
-  tetris: 'Tetris Royale',
   goalrush: 'Goal Rush',
-  bubblepop: 'Bubble Pop Royale',
-  bubblesmash: 'Bubble Smash Royale',
-  fruitslice: 'Fruit Slice Royale',
-  brickbreaker: 'Brick Breaker Royale',
   fallingball: 'Falling Ball',
   pool: 'Pool Royale',
   texas: "Texas Hold'em",
