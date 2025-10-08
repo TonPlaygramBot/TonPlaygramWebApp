@@ -60,7 +60,7 @@ public class BilliardsSolver
                     if (Ccd.CircleAabb(b.Position, b.Velocity, PhysicsConstants.BallRadius, min, max, out double tBox, out Vec2 nBox) && tBox <= remaining)
                     {
                         tHit = tBox;
-                        normal = ResolveCushionNormal(b.Position + b.Velocity * tBox, nBox);
+                        normal = nBox;
                         restitution = PhysicsConstants.CushionRestitution;
                         hit = true;
                     }
@@ -144,7 +144,7 @@ public class BilliardsSolver
         {
             if (tc < bestT)
             {
-                bestT = tc; hitNormal = ResolveCushionNormal(cueStart + velocity * tc, n); ballHit = false; pocketHit = false;
+                bestT = tc; hitNormal = n; ballHit = false; pocketHit = false;
             }
         }
 
@@ -251,70 +251,12 @@ public class BilliardsSolver
             if (Ccd.CircleAabb(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, new Vec2(0, 0), new Vec2(PhysicsConstants.TableWidth, PhysicsConstants.TableHeight), out double tc, out Vec2 n) && tc <= PhysicsConstants.FixedDt)
             {
                 cue.Position += cue.Velocity * tc;
-                var post = Collision.Reflect(cue.Velocity, ResolveCushionNormal(cue.Position, n));
+                var post = Collision.Reflect(cue.Velocity, n);
                 return new Impact { Point = cue.Position, CueVelocity = post };
             }
             Step(balls, PhysicsConstants.FixedDt);
             time += PhysicsConstants.FixedDt;
         }
         return new Impact { Point = cue.Position, CueVelocity = cue.Velocity };
-    }
-
-    private static Vec2 ResolveCushionNormal(Vec2 contactPoint, Vec2 fallbackNormal)
-    {
-        if (TryGetCornerCutNormal(contactPoint, out var cornerNormal))
-        {
-            return cornerNormal;
-        }
-        return fallbackNormal;
-    }
-
-    private static bool TryGetCornerCutNormal(Vec2 contactPoint, out Vec2 normal)
-    {
-        normal = default;
-        double longOffset = PhysicsConstants.CornerCutLongOffset;
-        double shortOffset = PhysicsConstants.CornerCutShortOffset;
-
-        if (longOffset <= 0 || shortOffset <= 0)
-        {
-            return false;
-        }
-
-        double radius = PhysicsConstants.BallRadius;
-        double width = PhysicsConstants.TableWidth;
-        double height = PhysicsConstants.TableHeight;
-
-        double leftLimit = radius + longOffset;
-        double rightLimit = width - (radius + longOffset);
-        double topLimit = radius + shortOffset;
-        double bottomLimit = height - (radius + shortOffset);
-
-        bool nearLeft = contactPoint.X <= leftLimit + PhysicsConstants.Epsilon;
-        bool nearRight = contactPoint.X >= rightLimit - PhysicsConstants.Epsilon;
-        bool nearTop = contactPoint.Y <= topLimit + PhysicsConstants.Epsilon;
-        bool nearBottom = contactPoint.Y >= bottomLimit - PhysicsConstants.Epsilon;
-
-        if (nearTop && nearLeft)
-        {
-            normal = new Vec2(shortOffset, longOffset).Normalized();
-            return true;
-        }
-        if (nearTop && nearRight)
-        {
-            normal = new Vec2(-shortOffset, longOffset).Normalized();
-            return true;
-        }
-        if (nearBottom && nearLeft)
-        {
-            normal = new Vec2(shortOffset, -longOffset).Normalized();
-            return true;
-        }
-        if (nearBottom && nearRight)
-        {
-            normal = new Vec2(-shortOffset, -longOffset).Normalized();
-            return true;
-        }
-
-        return false;
     }
 }
