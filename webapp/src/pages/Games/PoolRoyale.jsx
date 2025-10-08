@@ -1781,18 +1781,14 @@ function createBroadcastCameras({
     baseCornerZ + cameraCornerExtra + cameraDepthBoost + cameraTvClearance;
   const cameraScale = 1.2;
 
-  const createUnit = ({ xSign, zSign, alignCenter = false }) => {
+  const createUnit = (xSign, zSign) => {
     const base = new THREE.Group();
     const xDirection = Math.sign(xSign) || 1;
-    const zDirectionRaw = Math.sign(zSign);
-    const zDirection = alignCenter ? 0 : zDirectionRaw || 1;
-    const zPosition = alignCenter
-      ? 0
-      : (Math.sign(zSign) || 1) * cameraCornerZOffset;
+    const zDirection = Math.sign(zSign) || 1;
     base.position.set(
       xDirection * cameraCornerXOffset,
       floorY,
-      zPosition
+      zDirection * cameraCornerZOffset
     );
     const horizontalFocus = defaultFocus.clone();
     horizontalFocus.y = base.position.y;
@@ -1917,17 +1913,14 @@ function createBroadcastCameras({
       assembly: cameraAssembly,
       direction: zDirection,
       xDirection,
-      rail: alignCenter ? 'side' : zDirection >= 0 ? 'back' : 'front'
+      rail: zDirection >= 0 ? 'back' : 'front'
     };
   };
 
-  const leftUnit = createUnit({ xSign: -1, zSign: 0, alignCenter: true });
-  const rightUnit = createUnit({ xSign: 1, zSign: 0, alignCenter: true });
-
-  cameras.frontLeft = leftUnit;
-  cameras.frontRight = null;
-  cameras.backLeft = null;
-  cameras.backRight = rightUnit;
+  cameras.frontLeft = createUnit(-1, -1);
+  cameras.frontRight = createUnit(1, -1);
+  cameras.backLeft = createUnit(-1, 1);
+  cameras.backRight = createUnit(1, 1);
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
@@ -3032,31 +3025,6 @@ function calcTarget(cue, dir, balls) {
     checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
   if (dirNorm.y > 1e-8)
     checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
-
-  const cutRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-  const cutCos = Math.cos(cutRad);
-  const cutSin = Math.sin(cutRad);
-  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
-  const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
-  CORNER_SIGNS.forEach(({ sx, sy }) => {
-    const corner = new THREE.Vector2(sx * limX, sy * limY);
-    const normal = new THREE.Vector2(-sx * cutCos, -sy * cutSin);
-    const denom = dirNorm.dot(normal);
-    if (denom >= -1e-6) return;
-    const startDist = cuePos.clone().sub(corner).dot(normal);
-    if (startDist <= BALL_R - 1e-4) return;
-    const t = (BALL_R - startDist) / denom;
-    if (!Number.isFinite(t) || t <= 0 || t >= tHit) return;
-    const impact = cuePos.clone().add(dirNorm.clone().multiplyScalar(t));
-    const lateralAxis = new THREE.Vector2(-normal.y, normal.x);
-    const lateral = Math.abs(impact.clone().sub(corner).dot(lateralAxis));
-    if (lateral < pocketGuard) return;
-    const depth = impact.clone().sub(corner).dot(normal);
-    if (depth > BALL_R + cornerDepthLimit) return;
-    tHit = t;
-    railNormal = normal;
-    targetBall = null;
-  });
 
   const diam = BALL_R * 2;
   const diam2 = diam * diam;
@@ -5793,6 +5761,55 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
         else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
+        const createAvatarStore = () => ({
+          image: null,
+          src: '',
+          ready: false,
+          failed: false,
+          loading: false
+        });
+        const playerAvatarStore = createAvatarStore();
+        const challengerAvatarStore = createAvatarStore();
+        const updateAvatarStore = (store, src) => {
+          const nextSrc = typeof src === 'string' ? src.trim() : '';
+          if (!nextSrc) {
+            store.image = null;
+            store.src = '';
+            store.ready = false;
+            store.failed = false;
+            store.loading = false;
+            return;
+          }
+          if (store.src === nextSrc) {
+            if (store.ready || store.loading || store.failed) {
+              return;
+            }
+          }
+          const image = new Image();
+          store.image = image;
+          store.src = nextSrc;
+          store.ready = false;
+          store.failed = false;
+          store.loading = true;
+          try {
+            image.crossOrigin = 'anonymous';
+          } catch {}
+          image.onload = () => {
+            if (store.image === image) {
+              store.ready = true;
+              store.failed = false;
+              store.loading = false;
+            }
+          };
+          image.onerror = () => {
+            if (store.image === image) {
+              store.ready = false;
+              store.failed = true;
+              store.loading = false;
+            }
+          };
+          image.src = nextSrc;
+        };
         return {
           texture,
           update(delta) {
@@ -5808,6 +5825,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const playerName =
               playerState.name || frameStateCurrent.players?.A?.name || 'Player';
             const aiName = frameStateCurrent.players?.B?.name || 'AI';
+            const playerAvatarSrc =
+              playerState.avatar || frameStateCurrent.players?.A?.avatar || '';
+            const challengerAvatarSrc =
+              frameStateCurrent.players?.B?.avatar || '';
             const timerValue = Math.max(
               0,
               Math.floor(timerValueRef.current ?? 0)
@@ -5840,8 +5861,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               tag,
               active,
               badge,
-              stats = []
+              stats = [],
+              avatarSrc,
+              avatarStore
             }) => {
+              if (avatarStore) {
+                updateAvatarStore(avatarStore, avatarSrc);
+              }
               const scoreY = height * 0.3;
               ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
               ctx.textAlign = 'center';
@@ -5865,11 +5891,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ctx.globalAlpha = 1;
               const ringThickness = Math.max(10, avatarRadius * 0.18);
               const innerRadius = avatarRadius - ringThickness;
-              ctx.fillStyle = '#0b1120';
-              ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(badge, 0, 0);
+              if (avatarStore?.ready && avatarStore.image) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(
+                  avatarStore.image,
+                  -innerRadius,
+                  -innerRadius,
+                  innerRadius * 2,
+                  innerRadius * 2
+                );
+                ctx.restore();
+              } else {
+                ctx.fillStyle = '#0b1120';
+                ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(badge, 0, 0);
+              }
               ctx.lineWidth = Math.max(4, ringThickness * 0.6);
               ctx.strokeStyle = 'rgba(15,23,42,0.55)';
               ctx.beginPath();
@@ -5914,7 +5955,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               active: activeTurn === 'A',
               badge:
                 (playerName || 'P').trim().charAt(0).toUpperCase() || 'P',
-              stats: buildStats('A', activeTurn === 'A')
+              stats: buildStats('A', activeTurn === 'A'),
+              avatarSrc: playerAvatarSrc,
+              avatarStore: playerAvatarStore
             });
             drawCompetitor({
               x: width * 0.75,
@@ -5924,7 +5967,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               tag: 'CHALLENGER',
               active: activeTurn === 'B',
               badge: aiFlag || (aiName || 'A').charAt(0).toUpperCase(),
-              stats: buildStats('B', activeTurn === 'B')
+              stats: buildStats('B', activeTurn === 'B'),
+              avatarSrc: challengerAvatarSrc,
+              avatarStore: challengerAvatarStore
             });
             const timerY = height * 0.18;
             const warn = timerValue <= 5 && timerValue > 0;
@@ -6022,7 +6067,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         roughness: 0.35,
         metalness: 0.55
       });
-      const signageScale = 3 * 0.7;
+      const signageScale = 3;
       const signageDepth = 0.8 * signageScale;
       const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
       const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
@@ -6170,7 +6215,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const cueRackGap = signageGap;
       const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
       const cueRackPlacements = [
-        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 }
+        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
+        { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
       ];
 
       cueRackPlacements.forEach((placement, index) => {
@@ -6244,6 +6290,289 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         headPivot.lookAt(tripodTarget);
         headPivot.rotateY(Math.PI);
         headPivot.rotateX(tripodTilt);
+      });
+
+      const hospitalityMats = {
+        wood: new THREE.MeshStandardMaterial({
+          color: 0x8b5e3c,
+          roughness: 0.8
+        }),
+        fabric: new THREE.MeshStandardMaterial({
+          color: 0x1f2a44,
+          roughness: 0.9
+        }),
+        chrome: new THREE.MeshStandardMaterial({
+          color: 0xbfc7d5,
+          roughness: 0.25,
+          metalness: 0.9
+        }),
+        glass: new THREE.MeshStandardMaterial({
+          color: 0x9bd3ff,
+          roughness: 0.05,
+          metalness: 0,
+          transparent: true,
+          opacity: 0.3,
+          envMapIntensity: 1.5
+        }),
+        water: new THREE.MeshStandardMaterial({
+          color: 0x4ea9ff,
+          roughness: 0.1,
+          metalness: 0,
+          transparent: true,
+          opacity: 0.55
+        })
+      };
+
+      const hospitalityScale = (TABLE_H * 0.48) / 0.75;
+      const hospitalityUpscale = 6;
+      const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
+      const hospitalitySizeMultiplier = 2.5;
+      const toHospitalityUnits = (value = 0) => value * hospitalityScale;
+      const hospitalityTableHeightScale = 0.6; // drop the bistro table height by 40% so it sits lower on the carpet line
+      const hospitalityChairGap =
+        toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
+      const hospitalityCarpetPull =
+        toHospitalityUnits(0.18) * hospitalityUpscale; // shift hospitality props off the wall and onto the nearby carpet border
+
+      const createTableSet = () => {
+        const set = new THREE.Group();
+
+        const tableTop = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.35, 0.35, 0.03, 24),
+          hospitalityMats.wood
+        );
+        tableTop.position.y = 0.75;
+        tableTop.castShadow = true;
+        tableTop.receiveShadow = true;
+        set.add(tableTop);
+
+        const tableStem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.06, 0.7, 16),
+          hospitalityMats.chrome
+        );
+        tableStem.position.y = 0.75 - 0.35;
+        tableStem.castShadow = true;
+        tableStem.receiveShadow = true;
+        set.add(tableStem);
+
+        const tableBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.28, 0.28, 0.04, 24),
+          hospitalityMats.chrome
+        );
+        tableBase.position.y = 0.02;
+        tableBase.castShadow = true;
+        tableBase.receiveShadow = true;
+        set.add(tableBase);
+
+        const bottle = new THREE.Group();
+        bottle.position.set(0.05, 0.875, -0.08);
+        set.add(bottle);
+
+        const bottleBody = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.045, 0.05, 0.22, 16),
+          hospitalityMats.glass
+        );
+        bottleBody.castShadow = true;
+        bottleBody.receiveShadow = true;
+        bottle.add(bottleBody);
+
+        const bottleNeck = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.018, 0.022, 0.05, 12),
+          hospitalityMats.glass
+        );
+        bottleNeck.position.y = 0.135;
+        bottleNeck.castShadow = true;
+        bottleNeck.receiveShadow = true;
+        bottle.add(bottleNeck);
+
+        const bottleCap = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12),
+          hospitalityMats.chrome
+        );
+        bottleCap.position.y = 0.16;
+        bottleCap.castShadow = true;
+        bottleCap.receiveShadow = true;
+        bottle.add(bottleCap);
+
+        const bottleWater = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.043, 0.043, 0.12, 16),
+          hospitalityMats.water
+        );
+        bottleWater.position.y = -0.05;
+        bottleWater.castShadow = true;
+        bottle.add(bottleWater);
+
+        const glassOuter = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.036, 0.032, 0.1, 16, 1, true),
+          hospitalityMats.glass
+        );
+        glassOuter.position.set(-0.12, 0.8, 0.05);
+        glassOuter.castShadow = true;
+        glassOuter.receiveShadow = true;
+        set.add(glassOuter);
+
+        const glassBottom = new THREE.Mesh(
+          new THREE.CircleGeometry(0.032, 16),
+          hospitalityMats.glass
+        );
+        glassBottom.rotation.x = -Math.PI / 2;
+        glassBottom.position.set(-0.12, 0.75, 0.05);
+        glassBottom.castShadow = true;
+        glassBottom.receiveShadow = true;
+        set.add(glassBottom);
+
+        const glassWater = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.029, 0.029, 0.05, 16),
+          hospitalityMats.water
+        );
+        glassWater.position.set(-0.12, 0.775, 0.05);
+        glassWater.castShadow = true;
+        set.add(glassWater);
+
+        return set;
+      };
+
+      const createChair = () => {
+        const chair = new THREE.Group();
+        const legGeom = new THREE.CylinderGeometry(0.022, 0.022, 0.42, 10);
+        [
+          [-0.22, -0.22],
+          [0.22, -0.22],
+          [-0.2, 0.22],
+          [0.2, 0.22]
+        ].forEach(([x, z]) => {
+          const leg = new THREE.Mesh(legGeom, hospitalityMats.chrome);
+          leg.position.set(x, 0.21, z);
+          leg.castShadow = true;
+          leg.receiveShadow = true;
+          chair.add(leg);
+        });
+
+        const seat = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.06, 0.46),
+          hospitalityMats.fabric
+        );
+        seat.position.set(0, 0.46, 0);
+        seat.castShadow = true;
+        seat.receiveShadow = true;
+        chair.add(seat);
+
+        const back = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.5, 0.06),
+          hospitalityMats.fabric
+        );
+        back.position.set(0, 0.71, 0.23);
+        back.rotation.x = Math.PI * 0.05;
+        back.castShadow = true;
+        back.receiveShadow = true;
+        chair.add(back);
+
+        const armGeom = new THREE.BoxGeometry(0.08, 0.06, 0.46);
+        const armL = new THREE.Mesh(armGeom, hospitalityMats.fabric);
+        armL.position.set(-0.26, 0.56, 0);
+        armL.castShadow = true;
+        armL.receiveShadow = true;
+        chair.add(armL);
+        const armR = armL.clone();
+        armR.position.x = 0.26;
+        chair.add(armR);
+
+        return chair;
+      };
+
+      const ensureHospitalityVisibility = (object) => {
+        if (!object) return;
+        object.traverse((child) => {
+          child.visible = true;
+          child.frustumCulled = false;
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+      };
+
+      const createCornerHospitalitySet = ({ chairOffset, position, rotationY }) => {
+        const group = new THREE.Group();
+        const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
+
+        const tableSet = createTableSet();
+        tableSet.scale.set(
+          scaledFurniture,
+          scaledFurniture * hospitalityTableHeightScale,
+          scaledFurniture
+        );
+        const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
+        const chairDistance = chairVector.length();
+        if (chairDistance > 1e-6) {
+          const maxPull = Math.max(chairDistance - hospitalityChairGap, 0);
+          const tablePull = Math.min(
+            maxPull,
+            toHospitalityUnits(0.2) * hospitalityUpscale
+          );
+          const pullScale = tablePull / chairDistance;
+          tableSet.position.set(
+            chairVector.x * pullScale,
+            0,
+            chairVector.y * pullScale
+          );
+        } else {
+          tableSet.position.set(0, 0, 0);
+        }
+        group.add(tableSet);
+
+        const chair = createChair();
+        chair.scale.setScalar(scaledFurniture);
+        chair.position.set(chairOffset[0], 0, chairOffset[1]);
+        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
+        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
+        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
+        chair.rotation.y = baseAngle + diagonalBias;
+        group.add(chair);
+
+        const adjustForCarpet = (value) => {
+          const direction = Math.sign(value);
+          const magnitude = Math.max(Math.abs(value) - hospitalityCarpetPull, 0);
+          return direction * magnitude;
+        };
+        group.position.set(
+          adjustForCarpet(position[0]),
+          floorY,
+          adjustForCarpet(position[1])
+        );
+        group.rotation.y = rotationY;
+        ensureHospitalityVisibility(group);
+        return group;
+      };
+
+      const rawCornerInset =
+        toHospitalityUnits(0.58) * hospitalityUpscale + wallThickness * 0.5;
+      const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
+      const cornerInsetFront = Math.min(
+        rawCornerInset,
+        Math.abs(frontInterior) * 0.92
+      );
+      const cornerInsetBack = Math.min(
+        rawCornerInset,
+        Math.abs(backInterior) * 0.92
+      );
+      const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
+      const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
+
+      [
+        {
+          position: [leftInterior + cornerInsetX, frontInterior + cornerInsetFront],
+          rotationY: Math.PI / 4,
+          chairOffset: [chairSideOffset, -chairForwardOffset]
+        },
+        {
+          position: [rightInterior - cornerInsetX, backInterior - cornerInsetBack],
+          rotationY: -3 * Math.PI / 4,
+          chairOffset: [-chairSideOffset, chairForwardOffset]
+        }
+      ].forEach((config) => {
+        const hospitalitySet = createCornerHospitalitySet(config);
+        world.add(hospitalitySet);
       });
 
       const aspect = host.clientWidth / host.clientHeight;
@@ -10754,23 +11083,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 left-4 flex justify-start pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
         >
           <div
             className="pointer-events-auto flex items-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${UI_SCALE})`,
-              transformOrigin: 'bottom left'
+              transformOrigin: 'bottom center'
             }}
           >
             <div className="flex items-center gap-3">
-              <span
-                className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-emerald-300/70 bg-black/60 text-2xl"
-                aria-hidden="true"
-              >
-                ⭐
-              </span>
+              <img
+                src={player.avatar || '/assets/icons/profile.svg'}
+                alt="player avatar"
+                className="h-12 w-12 rounded-full border-2 border-emerald-300/70 object-cover"
+              />
               <div className="flex flex-col leading-tight">
                 <span className="text-[10px] uppercase tracking-[0.35em] text-emerald-200/80">
                   Your turn
