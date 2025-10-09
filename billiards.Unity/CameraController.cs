@@ -15,10 +15,11 @@ public class CameraController : MonoBehaviour
     // Height of the top of the wooden side rails in world space.  Slightly raised
     // to keep the camera from dipping too low relative to the table frame.
     public float railTopY = 0.33f;
-    // Small clearance so the camera always remains a little above the side rails.
-    public float railClearance = 0.1f;
+    // Optional clearance so the camera can be kept slightly above the side rails
+    // while still preventing it from dipping below their top surface.
+    public float railClearance = 0f;
     // How far above the rails the camera is allowed to travel.
-    public float maxHeightAboveTable = 1.5f;
+    public float maxHeightAboveTable = 1.8f;
     // Default distance of the camera from the table centre when fully raised to
     // provide a broad overview of the action.
     public float distanceFromCenter = 4.2f;
@@ -53,7 +54,7 @@ public class CameraController : MonoBehaviour
         // Clamp vertical movement so the camera never dips below the side rails
         // and doesn't fly too high above the table surface.
         Vector3 pos = transform.position;
-        float minY = railTopY + railClearance;
+        float minY = railTopY + Mathf.Max(0f, railClearance);
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
