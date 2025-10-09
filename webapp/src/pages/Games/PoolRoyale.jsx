@@ -3826,7 +3826,7 @@ function Table3D(
 
     const circle = circlePoly(cx, 0, radius, 256);
     const throat = roundedRectPoly(
-      cx + (sx * throatLength) / 2,
+      cx - (sx * throatLength) / 2,
       0,
       Math.abs(throatLength),
       throatHeight,
@@ -3916,8 +3916,8 @@ function Table3D(
   const sidePocketCutRadius = sidePocketRadius * RAIL_POCKET_CUT_SCALE;
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketCutRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, sidePocketCutRadius)
+    ...shrinkRailCut(sideNotchMP(-1)),
+    ...shrinkRailCut(sideNotchMP(1))
   );
   openingMP = polygonClipping.union(
     openingMP,
