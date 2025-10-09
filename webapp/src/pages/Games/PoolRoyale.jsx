@@ -5680,6 +5680,54 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         dynamicTextureEntries.push(entry);
         return entry.texture;
       };
+      const createAvatarStore = () => ({
+        image: null,
+        src: '',
+        ready: false,
+        failed: false,
+        loading: false
+      });
+      const updateAvatarStore = (store, src) => {
+        const nextSrc = typeof src === 'string' ? src.trim() : '';
+        if (!store) return;
+        if (!nextSrc) {
+          store.image = null;
+          store.src = '';
+          store.ready = false;
+          store.failed = false;
+          store.loading = false;
+          return;
+        }
+        if (store.src === nextSrc) {
+          if (store.ready || store.loading || store.failed) {
+            return;
+          }
+        }
+        const image = new Image();
+        store.image = image;
+        store.src = nextSrc;
+        store.ready = false;
+        store.failed = false;
+        store.loading = true;
+        try {
+          image.crossOrigin = 'anonymous';
+        } catch {}
+        image.onload = () => {
+          if (store.image === image) {
+            store.ready = true;
+            store.failed = false;
+            store.loading = false;
+          }
+        };
+        image.onerror = () => {
+          if (store.image === image) {
+            store.ready = false;
+            store.failed = true;
+            store.loading = false;
+          }
+        };
+        image.src = nextSrc;
+      };
       const coinTicker = (() => {
         const coins = [
           'BTC',
@@ -5761,244 +5809,79 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
         };
       };
-      const createMatchTvEntry = () => {
-        const baseWidth = 1024;
-        const baseHeight = 512;
-        const resolutionScale = 1;
+      const createChairLabelEntry = (getOccupant) => {
+        const size = 256;
         const canvas = document.createElement('canvas');
-        canvas.width = Math.round(baseWidth * resolutionScale);
-        canvas.height = Math.round(baseHeight * resolutionScale);
+        canvas.width = size;
+        canvas.height = size;
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = 4;
         if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
         else texture.encoding = THREE.sRGBEncoding;
-        let pulse = 0;
-        const createAvatarStore = () => ({
-          image: null,
-          src: '',
-          ready: false,
-          failed: false,
-          loading: false
-        });
-        const playerAvatarStore = createAvatarStore();
-        const challengerAvatarStore = createAvatarStore();
-        const updateAvatarStore = (store, src) => {
-          const nextSrc = typeof src === 'string' ? src.trim() : '';
-          if (!nextSrc) {
-            store.image = null;
-            store.src = '';
-            store.ready = false;
-            store.failed = false;
-            store.loading = false;
-            return;
-          }
-          if (store.src === nextSrc) {
-            if (store.ready || store.loading || store.failed) {
-              return;
-            }
-          }
-          const image = new Image();
-          store.image = image;
-          store.src = nextSrc;
-          store.ready = false;
-          store.failed = false;
-          store.loading = true;
-          try {
-            image.crossOrigin = 'anonymous';
-          } catch {}
-          image.onload = () => {
-            if (store.image === image) {
-              store.ready = true;
-              store.failed = false;
-              store.loading = false;
-            }
-          };
-          image.onerror = () => {
-            if (store.image === image) {
-              store.ready = false;
-              store.failed = true;
-              store.loading = false;
-            }
-          };
-          image.src = nextSrc;
-        };
+        const avatarStore = createAvatarStore();
         return {
           texture,
-          update(delta) {
+          update() {
             if (!ctx) return;
-            const width = baseWidth;
-            const height = baseHeight;
-            ctx.setTransform(resolutionScale, 0, 0, resolutionScale, 0, 0);
-            ctx.clearRect(0, 0, width, height);
-            pulse += delta;
-            const hudState = hudRef.current ?? {};
-            const playerState = playerInfoRef.current ?? {};
-            const frameStateCurrent = frameRef.current ?? {};
-            const playerName =
-              playerState.name || frameStateCurrent.players?.A?.name || 'Player';
-            const aiName = frameStateCurrent.players?.B?.name || 'AI';
-            const playerAvatarSrc =
-              playerState.avatar || frameStateCurrent.players?.A?.avatar || '';
-            const challengerAvatarSrc =
-              frameStateCurrent.players?.B?.avatar || '';
-            const timerValue = Math.max(
-              0,
-              Math.floor(timerValueRef.current ?? 0)
-            );
-            const minutes = Math.floor(timerValue / 60);
-            const seconds = timerValue % 60;
-            const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            const highestBreakA =
-              frameStateCurrent.players?.A?.highestBreak ?? 0;
-            const highestBreakB =
-              frameStateCurrent.players?.B?.highestBreak ?? 0;
-            const currentBreak = frameStateCurrent.currentBreak ?? 0;
-            ctx.fillStyle = '#050b18';
-            ctx.fillRect(0, 0, width, height);
-            const headerGrad = ctx.createLinearGradient(0, 0, width, 0);
-            headerGrad.addColorStop(0, '#0f172a');
-            headerGrad.addColorStop(1, '#1e293b');
-            ctx.fillStyle = headerGrad;
-            ctx.fillRect(0, 0, width, 120);
-            ctx.fillStyle = '#f1f5f9';
-            ctx.font = 'bold 42px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Pool Royale Match of the Day', width / 2, 60);
-            const drawCompetitor = ({
-              x,
-              name,
-              score,
-              accent,
-              tag,
-              active,
-              badge,
-              stats = [],
-              avatarSrc,
-              avatarStore
-            }) => {
-              if (avatarStore) {
-                updateAvatarStore(avatarStore, avatarSrc);
-              }
-              const scoreY = height * 0.3;
-              ctx.font = 'bold 120px "Segoe UI", "Helvetica Neue", sans-serif';
+            const data =
+              typeof getOccupant === 'function' ? getOccupant() ?? {} : {};
+            const rawName = (data.name || '').trim() || 'Guest';
+            const avatarSrc = typeof data.avatarSrc === 'string' ? data.avatarSrc : '';
+            updateAvatarStore(avatarStore, avatarSrc);
+            ctx.clearRect(0, 0, size, size);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+            ctx.fillRect(0, 0, size, size);
+            const centerX = size / 2;
+            const avatarCenterY = size * 0.42;
+            const avatarRadius = size * 0.32;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(centerX, avatarCenterY, avatarRadius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            if (avatarStore.ready && avatarStore.image) {
+              ctx.drawImage(
+                avatarStore.image,
+                centerX - avatarRadius,
+                avatarCenterY - avatarRadius,
+                avatarRadius * 2,
+                avatarRadius * 2
+              );
+            } else {
+              ctx.fillStyle = '#1f2937';
+              ctx.fillRect(
+                centerX - avatarRadius,
+                avatarCenterY - avatarRadius,
+                avatarRadius * 2,
+                avatarRadius * 2
+              );
+              ctx.fillStyle = '#94a3b8';
+              ctx.font = `bold ${Math.round(
+                avatarRadius * 1.15
+              )}px "Segoe UI", "Helvetica Neue", sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.shadowColor = active
-                ? 'rgba(56,189,248,0.45)'
-                : 'transparent';
-              ctx.shadowBlur = active ? 24 : 0;
-              ctx.fillStyle = active ? '#f8fafc' : '#e2e8f0';
-              ctx.fillText(String(score ?? 0), x, scoreY);
-              ctx.shadowBlur = 0;
-              const avatarY = height * 0.55;
-              const avatarRadius = 90;
-              ctx.save();
-              ctx.translate(x, avatarY);
-              ctx.fillStyle = accent;
-              ctx.globalAlpha = active ? 1 : 0.9;
-              ctx.beginPath();
-              ctx.arc(0, 0, avatarRadius, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.globalAlpha = 1;
-              const ringThickness = Math.max(10, avatarRadius * 0.18);
-              const innerRadius = avatarRadius - ringThickness;
-              if (avatarStore?.ready && avatarStore.image) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
-                ctx.clip();
-                ctx.drawImage(
-                  avatarStore.image,
-                  -innerRadius,
-                  -innerRadius,
-                  innerRadius * 2,
-                  innerRadius * 2
-                );
-                ctx.restore();
-              } else {
-                ctx.fillStyle = '#0b1120';
-                ctx.font = 'bold 52px "Segoe UI", "Helvetica Neue", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(badge, 0, 0);
-              }
-              ctx.lineWidth = Math.max(4, ringThickness * 0.6);
-              ctx.strokeStyle = 'rgba(15,23,42,0.55)';
-              ctx.beginPath();
-              ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
-              ctx.stroke();
-              ctx.restore();
-              ctx.fillStyle = active ? '#f1f5f9' : '#cbd5f5';
-              ctx.font = 'bold 56px "Segoe UI", "Helvetica Neue", sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'top';
-              ctx.fillText(name, x, avatarY + avatarRadius + 12);
-              ctx.fillStyle = '#94a3b8';
-              ctx.font = '500 32px "Segoe UI", "Helvetica Neue", sans-serif';
-              const tagY = avatarY + avatarRadius + 52;
-              ctx.fillText(tag, x, tagY);
-              const statsStartY = tagY + 36;
-              stats.forEach(({ label, value }, index) => {
-                const lineY = statsStartY + index * 30;
-                ctx.fillStyle = '#7c8faa';
-                ctx.font = '500 28px "Segoe UI", "Helvetica Neue", sans-serif';
-                ctx.fillText(`${label}: ${value}`, x, lineY);
-              });
-            };
-            const activeTurn = hudState.turn === 0 ? 'A' : 'B';
-            const buildStats = (id, isActive) => {
-              const highestBreak =
-                id === 'A' ? highestBreakA : highestBreakB;
-              const status = isActive
-                ? `AT TABLE · BREAK ${Math.max(currentBreak, 0)}`
-                : 'WAITING TURN';
-              return [
-                { label: 'HIGHEST BREAK', value: highestBreak },
-                { label: 'STATUS', value: status }
-              ];
-            };
-            drawCompetitor({
-              x: width * 0.25,
-              name: playerName,
-              score: hudState.A ?? 0,
-              accent: '#0ea5e9',
-              tag: 'PLAYER ONE',
-              active: activeTurn === 'A',
-              badge:
-                (playerName || 'P').trim().charAt(0).toUpperCase() || 'P',
-              stats: buildStats('A', activeTurn === 'A'),
-              avatarSrc: playerAvatarSrc,
-              avatarStore: playerAvatarStore
-            });
-            drawCompetitor({
-              x: width * 0.75,
-              name: aiName,
-              score: hudState.B ?? 0,
-              accent: '#f97316',
-              tag: 'CHALLENGER',
-              active: activeTurn === 'B',
-              badge: aiFlag || (aiName || 'A').charAt(0).toUpperCase(),
-              stats: buildStats('B', activeTurn === 'B'),
-              avatarSrc: challengerAvatarSrc,
-              avatarStore: challengerAvatarStore
-            });
-            const timerY = height * 0.18;
-            const warn = timerValue <= 5 && timerValue > 0;
-            const timerColor = warn
-              ? pulse % 0.4 < 0.2
-                ? '#f87171'
-                : '#facc15'
-              : '#38bdf8';
-            ctx.fillStyle = timerColor;
-            ctx.font = 'bold 110px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText(timerText, width / 2, timerY);
-            ctx.fillStyle = '#cbd5f5';
-            ctx.font = '600 32px "Segoe UI", "Helvetica Neue", sans-serif';
-            ctx.fillText('SHOT CLOCK', width / 2, timerY + 70);
+              ctx.fillText(rawName.charAt(0).toUpperCase(), centerX, avatarCenterY + 2);
+            }
+            ctx.restore();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = avatarRadius * 0.18;
+            ctx.beginPath();
+            ctx.arc(centerX, avatarCenterY, avatarRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = `600 ${Math.round(size * 0.18)}px "Segoe UI", "Helvetica Neue", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const maxChars = 12;
+            const label =
+              rawName.length > maxChars
+                ? `${rawName.slice(0, maxChars - 1)}…`
+                : rawName;
+            ctx.fillText(label, centerX, size * 0.84);
             texture.needsUpdate = true;
           }
         };
@@ -6071,28 +5954,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       rightWall.position.x = roomWidth / 2;
 
       const billboardTexture = registerDynamicTexture(createTickerEntry());
-      const matchTexture = registerDynamicTexture(createMatchTvEntry());
       const signageFrameMat = new THREE.MeshStandardMaterial({
         color: 0x1f2937,
         roughness: 0.5,
         metalness: 0.6
       });
-      const tvBezelMat = new THREE.MeshStandardMaterial({
-        color: 0x0b1323,
-        roughness: 0.35,
-        metalness: 0.55
-      });
       const signageScale = 3;
-      const signageDepth = 0.8 * signageScale;
-      const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
-      const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvSizeReduction = 0.7;
-      const tvScale = 10 * 1.3 * tvSizeReduction;
-      const tvWidth = 9 * tvScale;
-      const tvHeight = 5.4 * tvScale;
-      const tvDepth = 0.42 * tvScale;
-      const tvMountHeight = tvHeight * 0.32;
-      const tvMountOffset = tvHeight * 0.42;
+      const billboardSizeScale = 0.8;
+      const baseSignageDepth = 0.8 * signageScale;
+      const baseSignageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
+      const baseSignageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
+      const signageDepth = baseSignageDepth * billboardSizeScale;
+      const signageWidth = baseSignageWidth * billboardSizeScale;
+      const signageHeight = baseSignageHeight * billboardSizeScale;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -6101,29 +5975,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           material.color = new THREE.Color(0x0f172a);
         }
         return material;
-      };
-      const createTv = (texture) => {
-        const group = new THREE.Group();
-        const bezel = new THREE.Mesh(
-          new THREE.BoxGeometry(tvWidth, tvHeight, tvDepth),
-          tvBezelMat
-        );
-        bezel.castShadow = false;
-        bezel.receiveShadow = true;
-        group.add(bezel);
-        const screen = new THREE.Mesh(
-          new THREE.PlaneGeometry(tvWidth * 0.92, tvHeight * 0.88),
-          makeScreenMaterial(texture)
-        );
-        screen.position.z = tvDepth / 2 + 0.02;
-        group.add(screen);
-        const mount = new THREE.Mesh(
-          new THREE.BoxGeometry(tvWidth * 0.18, tvMountHeight, tvDepth * 0.3),
-          tvBezelMat
-        );
-        mount.position.set(0, -tvMountOffset, -tvDepth * 0.35);
-        group.add(mount);
-        return group;
       };
       const createBillboardAssembly = () => {
         const assembly = new THREE.Group();
@@ -6142,47 +5993,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         assembly.add(billboardScreen);
         return assembly;
       };
-      const createMatchTvAssembly = () => {
-        const assembly = new THREE.Group();
-        const tv = createTv(matchTexture);
-        assembly.add(tv);
-        return assembly;
-      };
       const signageGap = BALL_R * 3.2;
-      const tvAssemblyHalfHeight = Math.max(
-        tvHeight / 2,
-        tvMountOffset + tvMountHeight / 2
-      );
       const signageHalfHeight = signageHeight / 2;
       const signageY = floorY + signageGap + signageHalfHeight;
-      const signageBottomY = signageY - signageHalfHeight;
-      const tvY = signageBottomY + tvAssemblyHalfHeight;
       const wallInset = wallThickness / 2 + 0.2;
-      const frontInterior = -roomDepth / 2 + wallInset;
-      const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
       [
-        { position: [0, tvY, frontInterior], rotationY: 0, type: 'tv' },
-        { position: [0, tvY, backInterior], rotationY: Math.PI, type: 'tv' },
         {
           position: [leftInterior, signageY, 0],
-          rotationY: Math.PI / 2,
-          type: 'billboard'
+          rotationY: Math.PI / 2
         },
         {
           position: [rightInterior, signageY, 0],
-          rotationY: -Math.PI / 2,
-          type: 'billboard'
-        }
-      ].forEach(({ position, rotationY, type }) => {
-        const signage =
-          type === 'tv' ? createMatchTvAssembly() : createBillboardAssembly();
+          rotationY: -Math.PI / 2
+        },
+      ].forEach(({ position, rotationY }) => {
+        const signage = createBillboardAssembly();
         signage.position.set(position[0], position[1], position[2]);
         signage.rotation.y = rotationY;
         world.add(signage);
       });
-
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
       cueRackMetaRef.current = new Map();
@@ -6288,10 +6119,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         { x: tripodXOffset, z: -tripodZOffset },
         { x: -tripodXOffset, z: -tripodZOffset }
       ];
+      const tripodLateralSpread = 1.08;
+      const tripodDepthSpread = 1.06;
       tripodPositions.forEach(({ x, z }) => {
         const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
         tripodGroup.scale.setScalar(tripodScale);
-        tripodGroup.position.set(x, floorY, z);
+        const expandedX = THREE.MathUtils.clamp(
+          x * tripodLateralSpread,
+          -tripodMaxX,
+          tripodMaxX
+        );
+        const expandedZ = THREE.MathUtils.clamp(
+          z * tripodDepthSpread,
+          -tripodMaxZ,
+          tripodMaxZ
+        );
+        tripodGroup.position.set(expandedX, floorY, expandedZ);
         const toTarget = new THREE.Vector3()
           .subVectors(tripodTarget, tripodGroup.position)
           .setY(0);
@@ -6346,6 +6189,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const hospitalityTableHeightScale = 0.6; // drop the bistro table height by 40% so it sits lower on the carpet line
       const hospitalityChairGap =
         toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
+      const hospitalityChairSeparation =
+        toHospitalityUnits(0.1) * hospitalityUpscale; // push seats slightly farther from the table
       const hospitalityCarpetPull =
         toHospitalityUnits(0.18) * hospitalityUpscale; // shift hospitality props off the wall and onto the nearby carpet border
 
@@ -6507,7 +6352,31 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         });
       };
 
-      const createCornerHospitalitySet = ({ chairOffset, position, rotationY }) => {
+      const hospitalitySeatSources = [
+        () => {
+          const frameStateCurrent = frameRef.current ?? {};
+          const playerState = playerInfoRef.current ?? {};
+          return {
+            name:
+              playerState.name ||
+              frameStateCurrent.players?.A?.name ||
+              'Player',
+            avatarSrc:
+              playerState.avatar ||
+              frameStateCurrent.players?.A?.avatar ||
+              '',
+          };
+        },
+        () => {
+          const frameStateCurrent = frameRef.current ?? {};
+          return {
+            name: frameStateCurrent.players?.B?.name || 'Challenger',
+            avatarSrc: frameStateCurrent.players?.B?.avatar || '',
+          };
+        },
+      ];
+
+      const createCornerHospitalitySet = ({ chairOffset, position, rotationY, getOccupant }) => {
         const group = new THREE.Group();
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
 
@@ -6536,13 +6405,44 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         group.add(tableSet);
 
+        const expandedOffset = (() => {
+          if (chairDistance <= 1e-6) return chairVector.clone();
+          const direction = chairVector.clone().normalize();
+          return chairVector.clone().add(
+            direction.multiplyScalar(hospitalityChairSeparation)
+          );
+        })();
         const chair = createChair();
+        chair.position.set(expandedOffset.x, 0, expandedOffset.y);
+        const toCenter = new THREE.Vector2(
+          -expandedOffset.x,
+          -expandedOffset.y
+        );
+        if (toCenter.lengthSq() > 1e-6) {
+          chair.rotation.y = Math.atan2(toCenter.x, toCenter.y);
+        } else {
+          chair.rotation.y = rotationY ?? 0;
+        }
+        if (typeof getOccupant === 'function') {
+          const labelEntry = createChairLabelEntry(getOccupant);
+          const labelTexture = registerDynamicTexture(labelEntry);
+          if (labelTexture) {
+            const label = new THREE.Mesh(
+              new THREE.PlaneGeometry(0.42, 0.28),
+              new THREE.MeshBasicMaterial({
+                map: labelTexture,
+                transparent: true,
+                toneMapped: false,
+                side: THREE.DoubleSide,
+                depthWrite: false
+              })
+            );
+            label.position.set(0, 0.92, -0.18);
+            label.renderOrder = 3;
+            chair.add(label);
+          }
+        }
         chair.scale.setScalar(scaledFurniture);
-        chair.position.set(chairOffset[0], 0, chairOffset[1]);
-        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
-        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
-        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
-        chair.rotation.y = baseAngle + diagonalBias;
         group.add(chair);
 
         const adjustForCarpet = (value) => {
@@ -6578,12 +6478,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         {
           position: [leftInterior + cornerInsetX, frontInterior + cornerInsetFront],
           rotationY: Math.PI / 4,
-          chairOffset: [chairSideOffset, -chairForwardOffset]
+          chairOffset: [chairSideOffset, -chairForwardOffset],
+          getOccupant: hospitalitySeatSources[0]
         },
         {
           position: [rightInterior - cornerInsetX, backInterior - cornerInsetBack],
           rotationY: -3 * Math.PI / 4,
-          chairOffset: [-chairSideOffset, chairForwardOffset]
+          chairOffset: [-chairSideOffset, chairForwardOffset],
+          getOccupant: hospitalitySeatSources[1]
         }
       ].forEach((config) => {
         const hospitalitySet = createCornerHospitalitySet(config);
