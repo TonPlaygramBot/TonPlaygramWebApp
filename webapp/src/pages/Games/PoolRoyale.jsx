@@ -2295,7 +2295,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.96;
+const STANDING_VIEW_PHI = 0.94;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0026;
 const STANDING_VIEW_FOV = 66;
@@ -2322,7 +2322,7 @@ const CAMERA = {
   maxPhi: CAMERA_MAX_PHI
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.82; // keep standing orbit safely above cushion lip and align with pocket cam height
-const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.45; // clamp cue view so the camera remains above the rail surface
+const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.98; // clamp cue view so the camera cannot dip below the cushion tops
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2341,11 +2341,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.012;
-const CUE_VIEW_RADIUS_RATIO = 0.26;
+const CUE_VIEW_RADIUS_RATIO = 0.22;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 // Encourage the cue camera to sit higher above the cloth while staying within the
 // allowed orbit envelope.
-const CUE_VIEW_HEIGHT_OFFSET = 0.085;
+const CUE_VIEW_HEIGHT_OFFSET = 0.11;
 const CUE_VIEW_MIN_PHI = Math.max(
   CAMERA.minPhi,
   Math.min(CAMERA.maxPhi - CAMERA_RAIL_SAFETY, STANDING_VIEW_PHI + 0.22) -
