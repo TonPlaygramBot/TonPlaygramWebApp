@@ -16,8 +16,6 @@ public class DemoBehaviour : MonoBehaviour
     // accurate shots without the aim jumping in large steps.
     public float aimSmoothing = 4f;
     public float previewSpeed = 2.0f;
-    // Toggle whether the aiming guide should be visible. Defaults to off for broadcast play.
-    public bool showAimingLine = false;
 
     private BilliardsSolver solver = new BilliardsSolver();
     private List<BilliardsSolver.Ball> balls = new List<BilliardsSolver.Ball>();
@@ -26,14 +24,22 @@ public class DemoBehaviour : MonoBehaviour
     private void Start()
     {
         solver.InitStandardTable();
-        ClearRenderers();
+        Line.positionCount = 0;
+        if (Circle != null)
+        {
+            Circle.positionCount = 0;
+        }
     }
 
     private void Update()
     {
         if (CueBall == null)
         {
-            ClearRenderers();
+            Line.positionCount = 0;
+            if (Circle != null)
+            {
+                Circle.positionCount = 0;
+            }
             return;
         }
 
@@ -50,53 +56,34 @@ public class DemoBehaviour : MonoBehaviour
         currentDir = (currentDir + (desiredDir - currentDir) * smoothingFactor).Normalized();
 
         var preview = AimPreview.Build(solver, cueStart, currentDir, previewSpeed, balls);
-        if (!showAimingLine || Line == null)
+        Line.positionCount = preview.Path.Length;
+        for (int i = 0; i < preview.Path.Length; i++)
         {
-            ClearRenderers();
+            Line.SetPosition(i, new Vector3((float)preview.Path[i].X, CueBall.position.y, (float)preview.Path[i].Y));
         }
-        else
-        {
-            Line.positionCount = preview.Path.Length;
-            for (int i = 0; i < preview.Path.Length; i++)
-            {
-                Line.SetPosition(i, new Vector3((float)preview.Path[i].X, CueBall.position.y, (float)preview.Path[i].Y));
-            }
 
-            if (Circle != null)
-            {
-                if (preview.Path.Length > 0)
-                {
-                    // Draw a circle at the end of the aiming line sized to match the ball.
-                    const int segments = 32;
-                    Circle.positionCount = segments + 1;
-                    var endPoint = preview.Path[preview.Path.Length - 1];
-                    Vector3 centre = new Vector3((float)endPoint.X, CueBall.position.y, (float)endPoint.Y);
-                    float radius = (float)PhysicsConstants.BallRadius;
-                    for (int i = 0; i <= segments; i++)
-                    {
-                        float angle = (float)i / segments * Mathf.PI * 2f;
-                        float x = Mathf.Cos(angle) * radius;
-                        float z = Mathf.Sin(angle) * radius;
-                        Circle.SetPosition(i, centre + new Vector3(x, 0f, z));
-                    }
-                }
-                else
-                {
-                    Circle.positionCount = 0;
-                }
-            }
-        }
-    }
-
-    private void ClearRenderers()
-    {
-        if (Line != null)
-        {
-            Line.positionCount = 0;
-        }
         if (Circle != null)
         {
-            Circle.positionCount = 0;
+            if (preview.Path.Length > 0)
+            {
+                // Draw a circle at the end of the aiming line sized to match the ball.
+                const int segments = 32;
+                Circle.positionCount = segments + 1;
+                var endPoint = preview.Path[preview.Path.Length - 1];
+                Vector3 centre = new Vector3((float)endPoint.X, CueBall.position.y, (float)endPoint.Y);
+                float radius = (float)PhysicsConstants.BallRadius;
+                for (int i = 0; i <= segments; i++)
+                {
+                    float angle = (float)i / segments * Mathf.PI * 2f;
+                    float x = Mathf.Cos(angle) * radius;
+                    float z = Mathf.Sin(angle) * radius;
+                    Circle.SetPosition(i, centre + new Vector3(x, 0f, z));
+                }
+            }
+            else
+            {
+                Circle.positionCount = 0;
+            }
         }
     }
 }
