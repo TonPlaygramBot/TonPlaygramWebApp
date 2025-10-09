@@ -1,4 +1,4 @@
-import { Ball, BallColor, FrameState, Player, ShotEvent } from '../types';
+import { Ball, BallColor, FrameState, Player, ShotEvent, ShotContext } from '../types';
 
 type TargetMode = 'RED' | 'COLOUR' | 'SPECIFIC';
 
@@ -78,7 +78,7 @@ export class UnitySnookerRules {
     };
   }
 
-  applyShot(state: FrameState, events: ShotEvent[]): FrameState {
+  applyShot(state: FrameState, events: ShotEvent[], _context?: ShotContext): FrameState {
     const snapshot = this.cloneState(state);
     const shot = this.describeShot(events);
     const target = this.determineTarget(snapshot);
@@ -103,15 +103,31 @@ export class UnitySnookerRules {
     let cueBallPotted = false;
     for (const ev of events) {
       if (ev.type === 'HIT') {
-        if (firstContact == null && ev.firstContact) {
-          firstContact = ev.firstContact;
+        if (firstContact == null && ev.firstContact != null) {
+          const resolved = this.toBallColor(ev.firstContact);
+          if (resolved) {
+            firstContact = resolved;
+          }
         }
       } else if (ev.type === 'POTTED') {
-        pottedBalls.push(ev.ball);
-        if (ev.ball === 'CUE') cueBallPotted = true;
+        const resolved = this.toBallColor(ev.ball);
+        if (resolved) {
+          pottedBalls.push(resolved);
+          if (resolved === 'CUE') cueBallPotted = true;
+        }
       }
     }
     return { firstContact, pottedBalls, cueBallPotted };
+  }
+
+  private toBallColor(value: unknown): BallColor | null {
+    if (typeof value !== 'string') return null;
+    const upper = value.toUpperCase();
+    if ((this.ballValues as Record<string, number>)[upper as BallColor] != null) {
+      return upper as BallColor;
+    }
+    if (upper === 'CUE') return 'CUE';
+    return null;
   }
 
   private determineTarget(state: FrameState): {

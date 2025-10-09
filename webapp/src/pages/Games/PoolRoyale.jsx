@@ -16,7 +16,7 @@ import {
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
+import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
@@ -886,6 +886,21 @@ function getPoolBallPattern(variant, index) {
     return 'solid';
   }
   return patterns[index] || 'solid';
+}
+
+function getPoolBallId(variant, index) {
+  if (!variant) return `ball_${index + 1}`;
+  if (variant.id === 'uk') {
+    const color = getPoolBallColor(variant, index);
+    if (color === UK_POOL_BLACK) return 'black_8';
+    if (color === UK_POOL_YELLOW) return `yellow_${index + 1}`;
+    return `red_${index + 1}`;
+  }
+  const number = getPoolBallNumber(variant, index);
+  if (typeof number === 'number') {
+    return `ball_${number}`;
+  }
+  return `ball_${index + 1}`;
 }
 
 function generateRackPositions(ballCount, layout, ballRadius, startZ) {
@@ -3144,10 +3159,24 @@ function Guret(parent, id, color, x, y, options = {}) {
 }
 
 const toBallColorId = (id) => {
-  if (!id) return null;
-  if (id === 'cue' || id === 'CUE') return 'CUE';
-  if (typeof id === 'string' && id.toLowerCase().startsWith('red')) return 'RED';
-  return typeof id === 'string' ? id.toUpperCase() : null;
+  if (id == null) return null;
+  if (typeof id === 'number') {
+    return `BALL_${id}`;
+  }
+  if (typeof id !== 'string') return null;
+  const lower = id.toLowerCase();
+  if (lower === 'cue' || lower === 'cue_ball') return 'CUE';
+  if (lower.startsWith('ball_')) return lower.toUpperCase();
+  if (lower.startsWith('red')) return 'RED';
+  if (lower.startsWith('yellow')) return 'YELLOW';
+  if (lower.startsWith('blue')) return 'BLUE';
+  if (lower.startsWith('green')) return 'GREEN';
+  if (lower.startsWith('brown')) return 'BROWN';
+  if (lower.startsWith('pink')) return 'PINK';
+  if (lower.startsWith('black')) return 'BLACK';
+  if (lower.startsWith('stripe')) return 'STRIPE';
+  if (lower.startsWith('solid')) return 'SOLID';
+  return lower.toUpperCase();
 };
 
 function alignRailsToCushions(table, frame) {
@@ -4590,7 +4619,7 @@ function applyTableFinishToTable(table, finish) {
 function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
-  const rules = useMemo(() => new UnitySnookerRules(), []);
+  const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
     [variantKey]
@@ -4967,6 +4996,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [frameState, setFrameState] = useState(() =>
     rules.getInitialFrame('Player', 'AI')
   );
+  useEffect(() => {
+    setFrameState(rules.getInitialFrame('Player', 'AI'));
+  }, [rules]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -4978,6 +5010,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
+  const shotContextRef = useRef({
+    placedFromHand: false,
+    contactMade: false,
+    cushionAfterContact: false
+  });
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
   const stopAiThinkingRef = useRef(() => {});
@@ -5390,24 +5427,30 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [stopActiveCrowdSound]);
   useEffect(() => {
     setHud((prev) => {
-      const nextTargets = frameState.ballOn.map((c) => c.toLowerCase());
-      let nextLabel = prev.next;
-      if (nextTargets.length === 1) {
-        nextLabel = nextTargets[0];
-      } else if (nextTargets.length > 1) {
-        nextLabel = nextTargets.includes('red')
-          ? 'red'
-          : nextTargets[0];
-      } else if (frameState.phase === 'COLORS_ORDER') {
-        nextLabel = 'yellow';
-      }
+      const hudMeta =
+        frameState.meta && typeof frameState.meta === 'object'
+          ? frameState.meta.hud
+          : null;
+      const nextLabel = hudMeta?.next
+        ? hudMeta.next
+        : frameState.ballOn.length > 0
+          ? frameState.ballOn
+              .map((c) => (typeof c === 'string' ? c.toLowerCase() : String(c)))
+              .join(' / ')
+          : prev.next;
+      const phaseLabel = hudMeta?.phase
+        ? hudMeta.phase
+        : frameState.phase === 'REDS_AND_COLORS'
+          ? 'reds'
+          : 'colors';
+      const scoreA = hudMeta?.scores?.A ?? frameState.players.A.score;
+      const scoreB = hudMeta?.scores?.B ?? frameState.players.B.score;
       return {
         ...prev,
-        A: frameState.players.A.score,
-        B: frameState.players.B.score,
+        A: scoreA,
+        B: scoreB,
         turn: frameState.activePlayer === 'A' ? 0 : 1,
-        phase:
-          frameState.phase === 'REDS_AND_COLORS' ? 'reds' : 'colors',
+        phase: phaseLabel,
         next: nextLabel,
         over: frameState.frameOver
       };
@@ -8269,7 +8312,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const color = getPoolBallColor(variantConfig, rid);
         const number = getPoolBallNumber(variantConfig, rid);
         const pattern = getPoolBallPattern(variantConfig, rid);
-        add(`red_${rid}`, color, pos.x, pos.z, { number, pattern });
+        const ballId = getPoolBallId(variantConfig, rid);
+        add(ballId, color, pos.x, pos.z, { number, pattern });
       }
 
       // colours
@@ -8995,6 +9039,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(1);
         updateCamera();
+        const frameSnapshot = frameRef.current ?? frameState;
+        let placedFromHand = false;
+        const meta = frameSnapshot?.meta;
+        if (meta && typeof meta === 'object') {
+          if (meta.variant === 'american' && meta.state) {
+            placedFromHand = Boolean(meta.state.ballInHand);
+          } else if (meta.variant === '9ball' && meta.state) {
+            placedFromHand = Boolean(meta.state.ballInHand);
+          } else if (meta.variant === 'uk' && meta.state) {
+            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
+          }
+        }
+        shotContextRef.current = {
+          placedFromHand,
+          contactMade: false,
+          cushionAfterContact: false
+        };
         setShootingState(true);
           activeShotView = null;
           aimFocusRef.current = null;
@@ -9281,10 +9342,28 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (!colorId) return fallback;
           try {
             const events = [
-              { type: 'HIT', firstContact: colorId },
-              { type: 'POTTED', ball: colorId, pocket: plan.pocketId ?? 'TL' }
+              {
+                type: 'HIT',
+                firstContact: colorId,
+                ballId: plan.targetBall?.id ?? null
+              },
+              {
+                type: 'POTTED',
+                ball: colorId,
+                pocket: plan.pocketId ?? 'TL',
+                ballId: plan.targetBall?.id ?? null
+              }
             ];
-            const nextState = rules.applyShot(stateSnapshot, events);
+            const simContext = {
+              placedFromHand: false,
+              cueBallPotted: false,
+              contactMade: true,
+              cushionAfterContact: true,
+              noCushionAfterContact: false,
+              variant: activeVariantRef.current?.id ?? variantKey,
+              simulated: true
+            };
+            const nextState = rules.applyShot(stateSnapshot, events, simContext);
             const nextTargetsRaw = Array.isArray(nextState?.ballOn)
               ? nextState.ballOn.map((entry) =>
                   typeof entry === 'string' ? entry.toUpperCase() : entry
@@ -9589,19 +9668,46 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resolve shot
       function resolve() {
+        const variantId = activeVariantRef.current?.id ?? 'american';
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
-        shotEvents.push({ type: 'HIT', firstContact: firstContactColor });
+        if (firstContactColor || firstHit) {
+          shotEvents.push({
+            type: 'HIT',
+            firstContact: firstContactColor,
+            ballId: firstHit ?? null
+          });
+        }
         potted.forEach((entry) => {
           const pocket = entry.pocket ?? 'TM';
           shotEvents.push({
             type: 'POTTED',
             ball: entry.color,
-            pocket
+            pocket,
+            ballId: entry.id
           });
         });
         const currentState = frameRef.current ?? frameState;
-        const nextState = rules.applyShot(currentState, shotEvents);
+        const cueBallPotted =
+          potted.some((entry) => entry.color === 'CUE') || !cue.active;
+        const noCushionAfterContact =
+          shotContextRef.current.contactMade &&
+          !shotContextRef.current.cushionAfterContact &&
+          potted.every((entry) => entry.id !== 'cue');
+        const shotContext = {
+          placedFromHand: shotContextRef.current.placedFromHand,
+          cueBallPotted,
+          contactMade: shotContextRef.current.contactMade,
+          cushionAfterContact: shotContextRef.current.cushionAfterContact,
+          noCushionAfterContact,
+          variant: variantId
+        };
+        const nextState = rules.applyShot(currentState, shotEvents, shotContext);
+        shotContextRef.current = {
+          placedFromHand: false,
+          contactMade: false,
+          cushionAfterContact: false
+        };
         if (nextState.foul) {
           const foulPoints = nextState.foul.points ?? 4;
           const foulVol = clamp(foulPoints / 7, 0, 1);
@@ -9621,8 +9727,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         frameRef.current = nextState;
         setFrameState(nextState);
-        const cueBallPotted =
-          potted.some((entry) => entry.color === 'CUE') || !cue.active;
         const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
         colourNames.forEach((name) => {
           const simBall = colors[name];
@@ -9666,7 +9770,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cue.impacted = false;
           cue.launchDir = null;
         }
-        setHud((prev) => ({ ...prev, inHand: cueBallPotted }));
+        const nextMeta = nextState.meta;
+        let nextInHand = cueBallPotted;
+        if (nextMeta && typeof nextMeta === 'object') {
+          if (nextMeta.variant === 'american' && nextMeta.state) {
+            nextInHand = Boolean(nextMeta.state.ballInHand);
+          } else if (nextMeta.variant === '9ball' && nextMeta.state) {
+            nextInHand = Boolean(nextMeta.state.ballInHand);
+          } else if (nextMeta.variant === 'uk' && nextMeta.state) {
+            nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+          }
+        }
+        setHud((prev) => ({ ...prev, inHand: nextInHand }));
         setShootingState(false);
         shotPrediction = null;
         activeShotView = null;
@@ -10095,6 +10210,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             const hitRail = reflectRails(b);
             if (hitRail && b.id === 'cue') b.impacted = true;
+            if (hitRail && shotContextRef.current.contactMade) {
+              shotContextRef.current.cushionAfterContact = true;
+            }
             if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
               applySpinImpulse(b, 1);
             }
@@ -10170,6 +10288,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
+                }
+                if (
+                  !shotContextRef.current.contactMade &&
+                  (a.id === 'cue' || b.id === 'cue')
+                ) {
+                  shotContextRef.current.contactMade = true;
                 }
                 const hitBallId =
                   a.id === 'cue' && b.id !== 'cue'
@@ -10425,11 +10549,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
-              const colorId = b.id === 'cue'
-                ? 'CUE'
-                : b.id.startsWith('red')
-                  ? 'RED'
-                  : b.id.toUpperCase();
+              const mappedColor = toBallColorId(b.id);
+              const colorId =
+                mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               if (
                 activeShotView?.mode === 'pocket' &&
