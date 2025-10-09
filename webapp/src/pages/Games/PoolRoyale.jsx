@@ -3585,7 +3585,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.11 * POCKET_VISUAL_EXPANSION; // trim the short rail cushions a bit further so they stay just shy of the pocket mouths
+    POCKET_VIS_R * -0.16 * POCKET_VISUAL_EXPANSION; // trim the short rail cushions further so they stop clear of the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3593,7 +3593,7 @@ function Table3D(
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.17 * POCKET_VISUAL_EXPANSION; // nudge the long-side cushions slightly toward the middle pockets
+    POCKET_VIS_R * 0.22 * POCKET_VISUAL_EXPANSION; // push the long-side cushions a touch more toward the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
@@ -3913,11 +3913,10 @@ function Table3D(
     const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
-  const sidePocketCutRadius = sidePocketRadius * RAIL_POCKET_CUT_SCALE;
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, sidePocketCutRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, sidePocketCutRadius)
+    ...shrinkRailCut(sideNotchMP(-1)),
+    ...shrinkRailCut(sideNotchMP(1))
   );
   openingMP = polygonClipping.union(
     openingMP,
