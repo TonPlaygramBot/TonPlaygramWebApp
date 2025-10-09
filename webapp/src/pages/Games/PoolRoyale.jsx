@@ -574,11 +574,11 @@ const ACTION_CAM = Object.freeze({
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 9.2,
+  heightOffset: BALL_R * 10.4,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
-  followHeightOffset: BALL_R * 7.4,
+  followHeightOffset: BALL_R * 8.4,
   followHoldMs: 900
 });
 /**
@@ -619,7 +619,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 14;
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -2300,10 +2300,10 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0026;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.16);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.22);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.32; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.2;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.17;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.18;
@@ -2321,7 +2321,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.82; // keep standing orbit safely above cushion lip and align with pocket cam height
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 1.02; // keep standing orbit safely above cushion lip and align with pocket cam height
 const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.98; // clamp cue view so the camera cannot dip below the cushion tops
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
