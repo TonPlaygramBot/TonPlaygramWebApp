@@ -191,7 +191,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const RAIL_POCKET_CUT_SCALE = 0.986; // tighten the wood rail pocket cuts so they align with the chrome trim
+const RAIL_POCKET_CUT_SCALE = 1; // keep rail cut-outs the same size/orientation as the chrome pocket trims
 
 function buildChromePlateGeometry({
   width,
@@ -3585,7 +3585,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.085 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly more so they clear the pocket arcs without intruding on the pocket mouths
+    POCKET_VIS_R * -0.11 * POCKET_VISUAL_EXPANSION; // trim the short rail cushions a bit further so they stay just shy of the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
@@ -3593,7 +3593,7 @@ function Table3D(
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // keep cushions aligned without crowding the pocket mouths
+    POCKET_VIS_R * 0.17 * POCKET_VISUAL_EXPANSION; // nudge the long-side cushions slightly toward the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
     POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
