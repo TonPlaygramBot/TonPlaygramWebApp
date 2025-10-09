@@ -3695,7 +3695,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they sit a touch away from the pocket mouths
+    POCKET_VIS_R * 0.065 * POCKET_VISUAL_EXPANSION; // pull short rail cushions further back so they stay clear of the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
