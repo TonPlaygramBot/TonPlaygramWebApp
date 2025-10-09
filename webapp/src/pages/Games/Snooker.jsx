@@ -514,7 +514,7 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
 const FRICTION = 0.993;
-const CUSHION_RESTITUTION = 0.99;
+const CUSHION_RESTITUTION = 1;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
@@ -3025,13 +3025,7 @@ function reflectRails(ball) {
     if (vn < 0) {
       const restitution = CUSHION_RESTITUTION;
       ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
-      const vt = TMP_VEC2_D.copy(ball.vel).sub(
-        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
-      );
-      const tangentDamping = 0.96;
-      ball.vel
-        .sub(vt)
-        .add(vt.multiplyScalar(tangentDamping));
+      // No tangential damping: preserve the tangential component.
     }
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
