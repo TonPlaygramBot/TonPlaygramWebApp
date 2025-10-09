@@ -465,6 +465,8 @@ const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
+const CORNER_POCKET_CENTER_INSET =
+  POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -2581,11 +2583,16 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   return limits;
 }
 
+const cornerPocketCenter = (sx, sz) =>
+  new THREE.Vector2(
+    sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
+    sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
+  );
 const pocketCenters = () => [
-  new THREE.Vector2(-PLAY_W / 2, -PLAY_H / 2),
-  new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
-  new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
+  cornerPocketCenter(-1, -1),
+  cornerPocketCenter(1, -1),
+  cornerPocketCenter(-1, 1),
+  cornerPocketCenter(1, 1),
   new THREE.Vector2(-PLAY_W / 2, 0),
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
@@ -2617,13 +2624,13 @@ const formatBallLabel = (colorId) => {
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
-      return new THREE.Vector2(-PLAY_W / 2, -PLAY_H / 2);
+      return cornerPocketCenter(-1, -1);
     case 'TR':
-      return new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2);
+      return cornerPocketCenter(1, -1);
     case 'BL':
-      return new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2);
+      return cornerPocketCenter(-1, 1);
     case 'BR':
-      return new THREE.Vector2(PLAY_W / 2, PLAY_H / 2);
+      return cornerPocketCenter(1, 1);
     case 'TM':
       return new THREE.Vector2(-PLAY_W / 2, 0);
     case 'BM':
@@ -3679,7 +3686,8 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
+  const cornerInset =
+    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
