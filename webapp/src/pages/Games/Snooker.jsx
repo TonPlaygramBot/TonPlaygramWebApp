@@ -4207,8 +4207,6 @@ function Table3D(
   const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const cushionHeightTarget = railsTopY - cushionBaseY;
   const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
@@ -4244,28 +4242,6 @@ function Table3D(
       curveSegments: 8
     });
 
-    const pos = geo.attributes.position;
-    const arr = pos.array;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
-    for (let i = 0; i < arr.length; i += 3) {
-      const z = arr[i + 2];
-      if (z < minZ) minZ = z;
-      if (z > maxZ) maxZ = z;
-    }
-    const depth = maxZ - minZ;
-    const frontSpan = backY - frontY;
-    for (let i = 0; i < arr.length; i += 3) {
-      const y = arr[i + 1];
-      const z = arr[i + 2];
-      const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
-      if (frontFactor <= 0) continue;
-      const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
-      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
-      const minAllowedZ = minZ + depth * lift;
-      if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
-    }
-    pos.needsUpdate = true;
     geo.computeVertexNormals();
     return geo;
   }
