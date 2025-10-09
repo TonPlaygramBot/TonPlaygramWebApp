@@ -971,15 +971,25 @@ const SHARED_WOOD_REPEAT = Object.freeze({
   y: TABLE_WOOD_REPEAT.y
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.16,
-  roughnessVariance: 0.22,
-  roughness: 0.38,
-  metalness: 0.16,
-  clearcoat: 0.5,
-  clearcoatRoughness: 0.16,
-  sheen: 0.22,
-  sheenRoughness: 0.5,
-  envMapIntensity: 1.1
+  roughnessBase: 0.12,
+  roughnessVariance: 0.18,
+  roughness: 0.32,
+  metalness: 0.18,
+  clearcoat: 0.58,
+  clearcoatRoughness: 0.12,
+  sheen: 0.26,
+  sheenRoughness: 0.42,
+  envMapIntensity: 1.25
+});
+
+const RAIL_AND_SKIRT_GLOSS_PROPS = Object.freeze({
+  roughness: 0.22,
+  metalness: 0.22,
+  clearcoat: 0.78,
+  clearcoatRoughness: 0.08,
+  sheen: 0.32,
+  sheenRoughness: 0.28,
+  envMapIntensity: 1.55
 });
 
 function applySharedWoodSurfaceProps(material) {
@@ -1004,6 +1014,35 @@ function applySharedWoodSurfaceProps(material) {
     material.sheenRoughness = props.sheenRoughness;
   }
   if ('envMapIntensity' in material) {
+    material.envMapIntensity = props.envMapIntensity;
+  }
+  material.needsUpdate = true;
+}
+
+function applyWoodGlossBoost(material, props = RAIL_AND_SKIRT_GLOSS_PROPS) {
+  if (!material) return;
+  if ('roughness' in material && Number.isFinite(props.roughness)) {
+    material.roughness = props.roughness;
+  }
+  if ('metalness' in material && Number.isFinite(props.metalness)) {
+    material.metalness = props.metalness;
+  }
+  if ('clearcoat' in material && Number.isFinite(props.clearcoat)) {
+    material.clearcoat = props.clearcoat;
+  }
+  if (
+    'clearcoatRoughness' in material &&
+    Number.isFinite(props.clearcoatRoughness)
+  ) {
+    material.clearcoatRoughness = props.clearcoatRoughness;
+  }
+  if ('sheen' in material && Number.isFinite(props.sheen)) {
+    material.sheen = props.sheen;
+  }
+  if ('sheenRoughness' in material && Number.isFinite(props.sheenRoughness)) {
+    material.sheenRoughness = props.sheenRoughness;
+  }
+  if ('envMapIntensity' in material && Number.isFinite(props.envMapIntensity)) {
     material.envMapIntensity = props.envMapIntensity;
   }
   material.needsUpdate = true;
@@ -1043,6 +1082,8 @@ const TABLE_FINISHES = Object.freeze(
         const frame = createWoodMaterial(sharedOptions);
         const rail = createWoodMaterial(sharedOptions);
         const leg = createWoodMaterial(sharedOptions);
+        applyWoodGlossBoost(frame);
+        applyWoodGlossBoost(rail);
         const trim = new THREE.MeshPhysicalMaterial({
           color: 0xf2f6fb,
           metalness: 0.95,
