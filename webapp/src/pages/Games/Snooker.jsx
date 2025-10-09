@@ -4222,9 +4222,9 @@ function Table3D(
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = Math.min(
-      halfLen,
-      Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad))
+    const straightCut = Math.max(
+      baseThickness * 0.25,
+      noseThickness / Math.tan(rad)
     );
 
     const shape = new THREE.Shape();
