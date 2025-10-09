@@ -187,21 +187,21 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
+const CHROME_CORNER_EXPANSION_SCALE = 1.035;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.02;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.99; // gently shrink chrome plates along the long rails
-const CHROME_CORNER_HEIGHT_SCALE = 0.99; // gently shrink chrome plates along the short rails
+const CHROME_CORNER_WIDTH_SCALE = 1.01; // expand chrome plates slightly along the long rails so they reach the pocket cuts
+const CHROME_CORNER_HEIGHT_SCALE = 1.01; // expand chrome plates slightly along the short rails so they reach the pocket cuts
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const WOOD_CORNER_CUT_SCALE = 0.993; // tighten wooden rail corner cutouts to better match the chrome plates
-const WOOD_SIDE_CUT_SCALE = 0.995; // gently shrink side pocket cutouts on the wooden rails
+const WOOD_CORNER_CUT_SCALE = 0.988; // tighten wooden rail corner cutouts a touch more to mirror the chrome plates
+const WOOD_SIDE_CUT_SCALE = 0.992; // gently shrink side pocket cutouts on the wooden rails so they match the chrome
 
 function buildChromePlateGeometry({
   width,
@@ -3695,7 +3695,7 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back slightly so they sit a touch away from the pocket mouths
+    POCKET_VIS_R * 0.032 * POCKET_VISUAL_EXPANSION; // pull short rail cushions back a little further so they stay clear of the pocket mouths
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
