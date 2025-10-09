@@ -708,7 +708,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.12, 0.66); // coarser grain so rails, skirts, and legs read at table scale
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08, 0.44); // enlarge grain ~50% so rails, skirts, and legs read at table scale
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -981,6 +981,33 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   sheenRoughness: 0.5,
   envMapIntensity: 1.1
 });
+
+function applySharedWoodSurfaceProps(material) {
+  if (!material) return;
+  const props = SHARED_WOOD_SURFACE_PROPS;
+  if ('roughness' in material) {
+    material.roughness = props.roughness;
+  }
+  if ('metalness' in material) {
+    material.metalness = props.metalness;
+  }
+  if ('clearcoat' in material) {
+    material.clearcoat = props.clearcoat;
+  }
+  if ('clearcoatRoughness' in material) {
+    material.clearcoatRoughness = props.clearcoatRoughness;
+  }
+  if ('sheen' in material) {
+    material.sheen = props.sheen;
+  }
+  if ('sheenRoughness' in material) {
+    material.sheenRoughness = props.sheenRoughness;
+  }
+  if ('envMapIntensity' in material) {
+    material.envMapIntensity = props.envMapIntensity;
+  }
+  material.needsUpdate = true;
+}
 const WOOD_PRESETS_BY_ID = Object.freeze(
   WOOD_FINISH_PRESETS.reduce((acc, preset) => {
     acc[preset.id] = preset;
@@ -1404,6 +1431,7 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     sharedKey: `pool-wood-${preset.id}`,
     ...SHARED_WOOD_SURFACE_PROPS
   });
+  applySharedWoodSurfaceProps(material);
   return material.userData?.__woodOptions || null;
 }
 
@@ -1452,6 +1480,7 @@ function applyWoodTextureToMaterial(material, repeat) {
     }
     material.needsUpdate = true;
   }
+  applySharedWoodSurfaceProps(material);
   material.userData = material.userData || {};
   if (material.userData.woodRepeat?.isVector2) {
     material.userData.woodRepeat.copy(repeatVec);
