@@ -18,13 +18,13 @@ public class CameraController : MonoBehaviour
     // Small clearance so the camera always remains a little above the side rails.
     public float railClearance = 0.1f;
     // How far above the rails the camera is allowed to travel.
-    public float maxHeightAboveTable = 2f;
+    public float maxHeightAboveTable = 1.8f;
     // Default distance of the camera from the table centre when fully raised to
     // provide a broad overview of the action.
-    public float distanceFromCenter = 5.2f;
+    public float distanceFromCenter = 4.8f;
     // Minimum distance from the table centre allowed when the camera is pulled
     // down toward the rails for a closer look.
-    public float minDistanceFromCenter = 3.1f;
+    public float minDistanceFromCenter = 2.8f;
     // Extra pullback applied when the camera is raised to its maximum height so
     // the player gets a slightly wider view while aiming.
     public float zoomOutWhenRaised = 0.25f;
@@ -33,7 +33,7 @@ public class CameraController : MonoBehaviour
     public float railBuffer = 0.05f;
     // Slight height offset so the camera looks just above the table centre
     // to reduce the viewing angle and give a lower perspective.
-    public float lookAtHeightOffset = 0.05f;
+    public float lookAtHeightOffset = 0.035f;
     // When the camera moves close to the table corners pull back slightly so
     // the rails remain visible and aiming is easier.
     public float cornerXThreshold = 2.6f;
