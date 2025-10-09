@@ -17,9 +17,9 @@ public class CueCamera : MonoBehaviour
     public Transform TargetBall;
 
     // Distance behind the ball when preparing a shot from the cue view.
-    public float cueAimDistance = 0.62f;
+    public float cueAimDistance = 0.52f;
     // Height of the camera above the table surface while aiming.
-    public float cueAimHeight = 0.32f;
+    public float cueAimHeight = 0.36f;
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 1.05f;
     public float broadcastHeight = 0.5f;
