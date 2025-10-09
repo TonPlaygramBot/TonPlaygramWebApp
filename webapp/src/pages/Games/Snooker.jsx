@@ -2457,62 +2457,6 @@ const CORNER_SIGNS = [
   { sx: -1, sy: 1 },
   { sx: 1, sy: 1 }
 ];
-const CORNER_CUT_RAD = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-const CORNER_CUT_COS = Math.cos(CORNER_CUT_RAD);
-const CORNER_CUT_SIN = Math.sin(CORNER_CUT_RAD);
-const CORNER_POCKET_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
-const CORNER_CUSHION_PLANES = [];
-
-function rebuildCornerCushionPlanes() {
-  CORNER_CUSHION_PLANES.length = 0;
-  for (const { sx, sy } of CORNER_SIGNS) {
-    const normal = new THREE.Vector2(-sx * CORNER_CUT_COS, -sy * CORNER_CUT_SIN);
-    const tangent = new THREE.Vector2(normal.y, -normal.x);
-    const pocketCenter = new THREE.Vector2((PLAY_W / 2) * sx, (PLAY_H / 2) * sy);
-    const planeConstant = normal.dot(pocketCenter) + CORNER_POCKET_RADIUS;
-
-    if (Math.abs(normal.x) < 1e-6 || Math.abs(normal.y) < 1e-6) {
-      continue;
-    }
-
-    const seamVerticalY =
-      (planeConstant - normal.x * sx * RAIL_LIMIT_X) / normal.y;
-    const seamHorizontalX =
-      (planeConstant - normal.y * sy * RAIL_LIMIT_Y) / normal.x;
-
-    const verticalPoint = new THREE.Vector2(sx * RAIL_LIMIT_X, seamVerticalY);
-    const horizontalPoint = new THREE.Vector2(
-      seamHorizontalX,
-      sy * RAIL_LIMIT_Y
-    );
-
-    verticalPoint.y = THREE.MathUtils.clamp(
-      verticalPoint.y,
-      -RAIL_LIMIT_Y,
-      RAIL_LIMIT_Y
-    );
-    horizontalPoint.x = THREE.MathUtils.clamp(
-      horizontalPoint.x,
-      -RAIL_LIMIT_X,
-      RAIL_LIMIT_X
-    );
-
-    const tVertical = tangent.dot(verticalPoint);
-    const tHorizontal = tangent.dot(horizontalPoint);
-    const minT = Math.min(tVertical, tHorizontal) - BALL_R;
-    const maxT = Math.max(tVertical, tHorizontal) + BALL_R;
-
-    CORNER_CUSHION_PLANES.push({
-      normal,
-      tangent,
-      planeConstant,
-      minT,
-      maxT
-    });
-  }
-}
-
-rebuildCornerCushionPlanes();
 const fitRadius = (camera, margin = 1.1) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
@@ -2646,16 +2590,6 @@ function distanceToTableEdge(pos, dir) {
     const boundY = dir.y > 0 ? RAIL_LIMIT_Y : -RAIL_LIMIT_Y;
     const ty = (boundY - pos.y) / dir.y;
     if (ty > 0) minT = Math.min(minT, ty);
-  }
-  for (const plane of CORNER_CUSHION_PLANES) {
-    const denom = dir.dot(plane.normal);
-    if (denom >= -1e-6) continue;
-    const t = (plane.planeConstant - plane.normal.dot(pos)) / denom;
-    if (t <= 0 || t >= minT) continue;
-    TMP_VEC2_LIMIT.copy(pos).addScaledVector(dir, t);
-    const tangentCoord = plane.tangent.dot(TMP_VEC2_LIMIT);
-    if (tangentCoord < plane.minT || tangentCoord > plane.maxT) continue;
-    minT = t;
   }
   return minT;
 }
@@ -3070,30 +3004,38 @@ function makeWoodTexture({
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
+  const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
   const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
-  for (const plane of CORNER_CUSHION_PLANES) {
-    const distance = plane.normal.dot(ball.pos) - plane.planeConstant;
-    if (distance >= BALL_R) continue;
-    if (distance < -cornerDepthLimit) continue;
-    const tangentCoord = plane.tangent.dot(ball.pos);
-    if (tangentCoord < plane.minT || tangentCoord > plane.maxT) continue;
-
-    const push = BALL_R - distance;
-    ball.pos.addScaledVector(plane.normal, push);
-
-    const vn = ball.vel.dot(plane.normal);
+  for (const { sx, sy } of CORNER_SIGNS) {
+    TMP_VEC2_C.set(sx * limX, sy * limY);
+    TMP_VEC2_B.set(-sx * cos, -sy * sin);
+    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+    if (distNormal >= BALL_R) continue;
+    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    if (lateral < pocketGuard) continue;
+    if (distNormal < -cornerDepthLimit) continue;
+    const push = BALL_R - distNormal;
+    ball.pos.addScaledVector(TMP_VEC2_B, push);
+    const vn = ball.vel.dot(TMP_VEC2_B);
     if (vn < 0) {
       const restitution = CUSHION_RESTITUTION;
-      ball.vel.addScaledVector(plane.normal, -(1 + restitution) * vn);
-      const vt = ball.vel.dot(plane.tangent);
+      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+      const vt = TMP_VEC2_D.copy(ball.vel).sub(
+        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+      );
       const tangentDamping = 0.96;
-      ball.vel.addScaledVector(plane.tangent, (tangentDamping - 1) * vt);
+      ball.vel
+        .sub(vt)
+        .add(vt.multiplyScalar(tangentDamping));
     }
-
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
-
     const stamp =
       typeof performance !== 'undefined' && performance.now
         ? performance.now()
@@ -3204,19 +3146,6 @@ function calcTarget(cue, dir, balls) {
     checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
   if (dirNorm.y > 1e-8)
     checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
-
-  for (const plane of CORNER_CUSHION_PLANES) {
-    const denom = dirNorm.dot(plane.normal);
-    if (denom >= -1e-8) continue;
-    const t = (plane.planeConstant - plane.normal.dot(cuePos)) / denom;
-    if (t <= 0 || t >= tHit) continue;
-    TMP_VEC2_LIMIT.copy(cuePos).addScaledVector(dirNorm, t);
-    const tangentCoord = plane.tangent.dot(TMP_VEC2_LIMIT);
-    if (tangentCoord < plane.minT || tangentCoord > plane.maxT) continue;
-    tHit = t;
-    railNormal = plane.normal.clone();
-    targetBall = null;
-  }
 
   const diam = BALL_R * 2;
   const diam2 = diam * diam;
@@ -3346,8 +3275,6 @@ function updateRailLimitsFromTable(table) {
   table.updateMatrixWorld(true);
   let minAbsX = Infinity;
   let minAbsZ = Infinity;
-  const prevLimitX = RAIL_LIMIT_X;
-  const prevLimitY = RAIL_LIMIT_Y;
   for (const cushion of table.userData.cushions) {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) continue;
@@ -3363,26 +3290,14 @@ function updateRailLimitsFromTable(table) {
   if (minAbsX !== Infinity) {
     const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
     if (computedX > 0) {
-      const next = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
-      if (Math.abs(next - RAIL_LIMIT_X) > 1e-6) {
-        RAIL_LIMIT_X = next;
-      }
+      RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
     }
   }
   if (minAbsZ !== Infinity) {
     const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
     if (computedZ > 0) {
-      const next = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
-      if (Math.abs(next - RAIL_LIMIT_Y) > 1e-6) {
-        RAIL_LIMIT_Y = next;
-      }
+      RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
-  }
-  if (
-    Math.abs(prevLimitX - RAIL_LIMIT_X) > 1e-6 ||
-    Math.abs(prevLimitY - RAIL_LIMIT_Y) > 1e-6
-  ) {
-    rebuildCornerCushionPlanes();
   }
 }
 
