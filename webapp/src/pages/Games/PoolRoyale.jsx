@@ -3597,7 +3597,7 @@ function Table3D(
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.26 * POCKET_VISUAL_EXPANSION; // push the long-side cushions a touch more toward the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
+    POCKET_VIS_R * 0.11 * POCKET_VISUAL_EXPANSION; // pull corner cushions back slightly so they stay clear of the pocket mouths
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
