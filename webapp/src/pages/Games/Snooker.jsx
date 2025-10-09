@@ -194,8 +194,8 @@ const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.995; // gently shrink chrome plates along the long rails
-const CHROME_CORNER_HEIGHT_SCALE = 0.995; // gently shrink chrome plates along the short rails
+const CHROME_CORNER_WIDTH_SCALE = 0.992; // gently shrink chrome plates along the long rails
+const CHROME_CORNER_HEIGHT_SCALE = 0.992; // gently shrink chrome plates along the short rails
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
@@ -698,7 +698,7 @@ const SPIN_BOX_FILL_RATIO =
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 32;
+const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
