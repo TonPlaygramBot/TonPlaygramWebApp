@@ -6,7 +6,6 @@ These notes capture the shared expectations for the upcoming 3D billiards experi
 
 - **Camera & Controls** – Reuse the mobile-first three.js mappings defined in `mobile-3d-controls-prompt.md`. Players must be able to orbit, zoom, and line up shots comfortably while the device is held in portrait orientation.
 - **Physics Scale** – Keep cushions, pockets, and ball radii in real-world proportions so mode switching does not require reauthoring cues or aiming aids. Balls share the same rigid body settings across every variant.
-- **Pocket Cutouts** – Ensure the pocket openings carved into the wooden rails and chrome plates match the true pocket diameter so balls never snag on mismatched trims.
 - **Lighting** – Neutral three-point lighting with subtle rim highlights keeps all coloured balls readable, especially in portrait mode. Tone mapping should avoid clipping the cue ball or pink/blue balls.
 - **HUD Layout** – Score rails cling to the top/bottom edges of the portrait viewport. Toggle the rule card for the active mode on demand so newcomers can read the frame objective without leaving the table.
 
