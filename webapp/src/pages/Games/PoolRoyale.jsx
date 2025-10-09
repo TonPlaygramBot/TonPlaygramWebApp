@@ -462,9 +462,11 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_MOUTH_SCALE = 0.97; // shrink pocket mouths slightly so shots require more precision
-const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_MOUTH_SCALE;
+const POCKET_CORNER_MOUTH_SCALE = 0.985; // open the corner pockets slightly so they sit clear of the chrome
+const POCKET_SIDE_MOUTH_SCALE = 0.955; // tighten the middle pockets a touch for cleaner rail alignment
+const POCKET_CORNER_MOUTH =
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
@@ -2143,8 +2145,10 @@ function applySnookerScaling({
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
     'applySnookerScaling: table aspect ratio must remain 2:1.'
   );
-  const expectedCornerMouth = CORNER_MOUTH_REF * mmToUnits;
-  const expectedSideMouth = SIDE_MOUTH_REF * mmToUnits;
+  const expectedCornerMouth =
+    CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
+  const expectedSideMouth =
+    SIDE_MOUTH_REF * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
   const actualCornerMouth = POCKET_VIS_R * 2;
   const actualSideMouth = SIDE_POCKET_RADIUS * 2;
   console.assert(
