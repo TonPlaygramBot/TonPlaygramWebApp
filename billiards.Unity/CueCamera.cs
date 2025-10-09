@@ -2,11 +2,12 @@
 using UnityEngine;
 
 /// <summary>
-/// Broadcast-oriented cue camera that stays locked to the short rails. The
-/// pre-shot framing hugs the cloth from the player's chosen end of the table
-/// while the moment a shot is triggered the view automatically cuts to the
-/// opposite short rail to follow the action. The framing keeps the cue ball and
-/// target in view without showing a standing orbit or aiming guide.
+/// Simple orbital camera that stays behind the cue ball. Horizontal drag
+/// rotates the camera around the ball so the player can aim by moving the
+/// camera rather than the aiming line.  Pulling the view downward blends to a
+/// close‑up shot of the cue ball, while dragging upward restores the normal
+/// overview.  The camera always looks along the aiming line so it follows the
+/// shot direction wherever the ball is on the table.
 /// </summary>
 public class CueCamera : MonoBehaviour
 {
@@ -16,35 +17,43 @@ public class CueCamera : MonoBehaviour
     // can immediately frame the action around it.
     public Transform TargetBall;
 
-    // Distance behind the ball when preparing a shot from the cue view.
-    public float cueAimDistance = 0.7f;
-    // Height of the camera above the table surface while aiming.
-    public float cueAimHeight = 0.36f;
-    // Distance and height for the short-rail broadcast view used once a shot begins.
-    public float broadcastDistance = 1.05f;
-    public float broadcastHeight = 0.5f;
+    // Distance behind the ball in the normal overview.
+    public float normalDistance = 1.45f;
+    // Height of the camera above the table surface in the normal overview.
+    public float normalHeight = 0.48f;
+    // Distance and height when pulling the camera down for a close-up view.
+    public float closeDistance = 0.55f;
+    public float closeHeight = 0.33f;
+    // Additional offsets applied while the action camera is following a shot.
+    public float actionDistanceOffset = 0.1f;
+    public float actionHeightOffset = 0f;
+    // Rotation speed in degrees per second for horizontal mouse movement.
+    public float rotationSpeed = 90f;
+    // Speed at which the view blends between normal and close-up when dragging vertically.
+    public float zoomSpeed = 2f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
+
+    [Header("Shot view settings")]
+    // Distance and height used when cutting to the targeted ball camera.
+    public float targetViewDistance = 1.8f;
+    public float targetViewHeight = 0.35f;
     // How quickly the camera aligns to the stored shot angle.
     public float shotSnapSpeed = 6f;
-    // Speed used when easing between cue and broadcast framing while balls roll.
+    // Speed used when returning to the player's standing view.
     public float returnSpeed = 3f;
-    // Choose which short rail the player view should favour before a shot begins.
-    public bool startLookingTowardPositiveZ = true;
 
     private float yaw;
-    // Blend value retained for compatibility with existing animation logic.
-    private float viewBlend = 1f;
+    // Blend value: 0 for normal view, 1 for close-up view.
+    private float viewBlend;
     // The ball the camera is currently following.
     private Transform currentBall;
     private bool shotInProgress;
     private bool usingTargetCamera;
+    private float preShotYaw;
+    private float preShotViewBlend;
     private float targetViewYaw;
     private Vector3 targetViewFocus;
-    private int defaultShortRailSign = 1;
-    private int cueAimSideSign = 1;
-    private int broadcastSideSign = -1;
-    private bool nextShotIsAi;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -71,38 +80,37 @@ public class CueCamera : MonoBehaviour
     {
         TargetBall = target;
         currentBall = CueBall;
+        preShotYaw = yaw;
+        preShotViewBlend = viewBlend;
         shotInProgress = true;
         usingTargetCamera = target != null;
 
-        int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
-        cueAimSideSign = aimSide;
-        broadcastSideSign = -aimSide;
-
-        Vector3 focus = CueBall != null ? CueBall.position : Vector3.zero;
-        if (target != null && target.gameObject.activeInHierarchy)
+        Vector3 forward = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+        if (CueBall != null)
         {
-            focus = target.position;
-            currentBall = target;
+            targetViewFocus = CueBall.position;
         }
 
-        targetViewFocus = focus;
-        targetViewYaw = GetShortRailYaw(broadcastSideSign);
-        yaw = targetViewYaw;
-        viewBlend = 1f;
+        if (target != null && CueBall != null)
+        {
+            Vector3 dir = target.position - CueBall.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.0001f)
+            {
+                dir.Normalize();
+                forward = dir;
+            }
+            targetViewFocus = target.position;
+        }
 
-        nextShotIsAi = false;
+        targetViewYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+        yaw = targetViewYaw;
+        currentBall = usingTargetCamera && target != null ? target : CueBall;
     }
 
     private void Awake()
     {
         cachedCamera = GetComponent<Camera>();
-        defaultShortRailSign = startLookingTowardPositiveZ ? 1 : -1;
-        cueAimSideSign = defaultShortRailSign;
-        broadcastSideSign = -cueAimSideSign;
-        yaw = GetShortRailYaw(cueAimSideSign);
-        targetViewYaw = GetShortRailYaw(broadcastSideSign);
-        currentBall = CueBall;
-        viewBlend = 1f;
     }
 
     private void LateUpdate()
@@ -114,7 +122,8 @@ public class CueCamera : MonoBehaviour
 
         if (!shotInProgress)
         {
-            UpdateCueAimCamera();
+            HandlePlayerInput();
+            ApplyStandardCamera();
             return;
         }
 
@@ -124,54 +133,39 @@ public class CueCamera : MonoBehaviour
         }
         else
         {
-            UpdateBroadcastCamera();
+            UpdateStandingCameraDuringShot();
         }
     }
 
-    private void UpdateCueAimCamera()
+    private void HandlePlayerInput()
     {
-        if (CueBall == null)
+        // Normal orbiting around the cue ball under player control.
+        bool dragging = Input.GetMouseButton(0);
+
+        // Support both mouse dragging and single‑finger touch.
+        if (Input.touchCount == 1)
         {
-            return;
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Moved)
+            {
+                Vector2 d = t.deltaPosition;
+                yaw += d.x * rotationSpeed * Time.deltaTime * 0.1f;
+                viewBlend = Mathf.Clamp01(viewBlend - d.y * zoomSpeed * Time.deltaTime * 0.01f);
+            }
+        }
+        else if (dragging)
+        {
+            // Accumulate horizontal movement to orbit around the cue ball.
+            yaw += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
+
+            // Vertical dragging blends between the normal overview and a close‑up
+            // shot.  Dragging down increases the blend; dragging up restores the
+            // default view.
+            float yInput = Input.GetAxis("Mouse Y");
+            viewBlend = Mathf.Clamp01(viewBlend - yInput * zoomSpeed * Time.deltaTime);
         }
 
-        int desiredSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
-        if (cueAimSideSign != desiredSide)
-        {
-            cueAimSideSign = desiredSide;
-        }
-
-        float desiredYaw = GetShortRailYaw(cueAimSideSign);
-        yaw = Mathf.LerpAngle(yaw, desiredYaw, Time.deltaTime * returnSpeed);
-        viewBlend = 1f;
         currentBall = CueBall;
-        ApplyShortRailCamera(CueBall.position, cueAimDistance, cueAimHeight);
-    }
-
-    private void UpdateBroadcastCamera()
-    {
-        currentBall = CueBall;
-        yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
-        ApplyShortRailCamera(CueBall.position, broadcastDistance, broadcastHeight);
-
-        bool cueMoving = IsMoving(CueBall);
-        bool targetMoving = TargetBall != null && IsMoving(TargetBall);
-        if (!cueMoving && !targetMoving)
-        {
-            EndShot();
-            UpdateCueAimCamera();
-        }
-    }
-
-    public void SetNextShooterIsAi(bool value)
-    {
-        nextShotIsAi = value;
-        if (!shotInProgress)
-        {
-            cueAimSideSign = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
-            yaw = GetShortRailYaw(cueAimSideSign);
-            ApplyStandardCamera();
-        }
     }
 
     private void UpdateTargetCamera()
@@ -184,7 +178,7 @@ public class CueCamera : MonoBehaviour
 
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
-        ApplyShortRailCamera(targetViewFocus, broadcastDistance, broadcastHeight);
+        ApplyCameraAt(targetViewFocus, targetViewDistance, targetViewHeight);
 
         bool targetSettled = TargetBall == null || !TargetBall.gameObject.activeInHierarchy || !IsMoving(TargetBall);
         if (!targetSettled)
@@ -202,32 +196,41 @@ public class CueCamera : MonoBehaviour
         if (!IsMoving(CueBall))
         {
             EndShot();
-            UpdateCueAimCamera();
+            ApplyStandardCamera();
+        }
+    }
+
+    private void UpdateStandingCameraDuringShot()
+    {
+        currentBall = CueBall;
+        yaw = Mathf.LerpAngle(yaw, preShotYaw, Time.deltaTime * returnSpeed);
+        viewBlend = Mathf.MoveTowards(viewBlend, preShotViewBlend, Time.deltaTime * returnSpeed);
+
+        float distance = Mathf.Lerp(normalDistance, closeDistance, viewBlend) + actionDistanceOffset;
+        float height = Mathf.Max(0.05f, Mathf.Lerp(normalHeight, closeHeight, viewBlend) + actionHeightOffset);
+
+        ApplyCameraAt(CueBall.position, distance, height);
+
+        bool cueMoving = IsMoving(CueBall);
+        bool targetMoving = TargetBall != null && IsMoving(TargetBall);
+        if (!cueMoving && !targetMoving)
+        {
+            EndShot();
+            ApplyStandardCamera();
         }
     }
 
     private void ApplyStandardCamera()
     {
-        if (CueBall == null)
+        Transform focus = currentBall != null ? currentBall : CueBall;
+        if (focus == null)
         {
             return;
         }
 
-        ApplyShortRailCamera(CueBall.position, cueAimDistance, cueAimHeight);
-    }
-
-    private void ApplyShortRailCamera(Vector3 focusPosition, float distance, float height)
-    {
-        ApplyCameraAt(focusPosition, distance, height);
-
-        Vector3 pos = transform.position;
-        pos.x = 0f;
-        transform.position = pos;
-
-        Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
-        Vector3 forward = rotation * Vector3.forward;
-        Vector3 lookTarget = focusPosition + forward * 5f;
-        transform.LookAt(lookTarget);
+        float distance = Mathf.Lerp(normalDistance, closeDistance, viewBlend);
+        float height = Mathf.Lerp(normalHeight, closeHeight, viewBlend);
+        ApplyCameraAt(focus.position, distance, height);
     }
 
     private void ApplyCameraAt(Vector3 focusPosition, float distance, float height)
@@ -265,18 +268,10 @@ public class CueCamera : MonoBehaviour
     {
         shotInProgress = false;
         usingTargetCamera = false;
+        yaw = preShotYaw;
+        viewBlend = preShotViewBlend;
         currentBall = CueBall;
         TargetBall = null;
-        cueAimSideSign = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
-        broadcastSideSign = -cueAimSideSign;
-        yaw = GetShortRailYaw(cueAimSideSign);
-        targetViewYaw = GetShortRailYaw(broadcastSideSign);
-        viewBlend = 1f;
-    }
-
-    private static float GetShortRailYaw(int sideSign)
-    {
-        return sideSign >= 0 ? 0f : 180f;
     }
 
     private bool CueBallInView()
