@@ -2341,11 +2341,15 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.012;
-const CUE_VIEW_RADIUS_RATIO = 0.4;
+const CUE_VIEW_RADIUS_RATIO = 0.34;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
-const CUE_VIEW_MIN_PHI = Math.min(
-  CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+// Encourage the cue camera to sit higher above the cloth while staying within the
+// allowed orbit envelope.
+const CUE_VIEW_HEIGHT_OFFSET = 0.06;
+const CUE_VIEW_MIN_PHI = Math.max(
+  CAMERA.minPhi,
+  Math.min(CAMERA.maxPhi - CAMERA_RAIL_SAFETY, STANDING_VIEW_PHI + 0.22) -
+    CUE_VIEW_HEIGHT_OFFSET
 );
 const CUE_VIEW_PHI_LIFT = 0.04;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
