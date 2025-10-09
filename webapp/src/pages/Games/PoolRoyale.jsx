@@ -191,7 +191,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const RAIL_POCKET_CUT_SCALE = 1; // keep rail cut-outs the same size/orientation as the chrome pocket trims
+const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
   width,
@@ -461,8 +461,9 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
+const POCKET_MOUTH_SCALE = 0.97; // shrink pocket mouths slightly so shots require more precision
+const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
