@@ -178,20 +178,20 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 0.96;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.94;
+const POCKET_VISUAL_EXPANSION = 1.05;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.2;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.05; // expand the short-rail chrome slightly so the plates meet the side rails without intruding into the pockets
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.95;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const RAIL_POCKET_CUT_SCALE = 0.95; // keep rail cut-outs aligned with the tightened chrome pocket trims
+const RAIL_POCKET_CUT_SCALE = 1; // keep rail cut-outs the same size/orientation as the chrome pocket trims
 
 function buildChromePlateGeometry({
   width,
@@ -421,9 +421,8 @@ const BALL_D_REF = 57.15;
 const BAULK_FROM_BAULK_REF = 635;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 635;
-const POCKET_MOUTH_SCALE = 0.94;
-const CORNER_MOUTH_REF = 114 * POCKET_MOUTH_SCALE;
-const SIDE_MOUTH_REF = 127 * POCKET_MOUTH_SCALE;
+const CORNER_MOUTH_REF = 114;
+const SIDE_MOUTH_REF = 127;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -492,7 +491,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.05; // keep cloth openings tidy while matching the smaller pocket hardware
+const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
