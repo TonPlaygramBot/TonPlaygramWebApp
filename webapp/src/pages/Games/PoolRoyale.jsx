@@ -3591,13 +3591,13 @@ function Table3D(
   const LONG_CUSHION_TRIM =
     POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * -0.015 * POCKET_VISUAL_EXPANSION; // pull the long cushions slightly back so they clear the corner pocket mouths
+    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
   const SIDE_CUSHION_POCKET_CLEARANCE =
     POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
   const SIDE_CUSHION_CENTER_PULL =
     POCKET_VIS_R * 0.26 * POCKET_VISUAL_EXPANSION; // push the long-side cushions a touch more toward the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.11 * POCKET_VISUAL_EXPANSION; // trim back the short cushions a touch more to keep them out of the corner pockets
+    POCKET_VIS_R * 0.082 * POCKET_VISUAL_EXPANSION; // stop the green cushions right where the chrome arches finish
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
