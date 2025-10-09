@@ -1899,11 +1899,13 @@ function createBroadcastCameras({
     typeof arenaHalfDepth === 'number'
       ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
       : fallbackCornerZ;
-  const cameraTvClearance = BALL_R * 8;
+  const cameraAdditionalSideOffset = BALL_R * 6;
+  const cameraAdditionalDepthOffset = BALL_R * 4;
   const cameraCornerXOffset =
-    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide + cameraTvClearance;
+    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide +
+    cameraAdditionalSideOffset;
   const cameraCornerZOffset =
-    baseCornerZ + cameraCornerExtra + cameraDepthBoost + cameraTvClearance;
+    baseCornerZ + cameraCornerExtra + cameraDepthBoost + cameraAdditionalDepthOffset;
   const cameraScale = 1.2;
 
   const createUnit = (xSign, zSign) => {
@@ -6151,26 +6153,18 @@ function SnookerGame() {
       rightWall.position.x = roomWidth / 2;
 
       const billboardTexture = registerDynamicTexture(createTickerEntry());
-      const matchTexture = registerDynamicTexture(createMatchTvEntry());
       const signageFrameMat = new THREE.MeshStandardMaterial({
         color: 0x1f2937,
         roughness: 0.5,
         metalness: 0.6
       });
-      const tvBezelMat = new THREE.MeshStandardMaterial({
-        color: 0x0b1323,
-        roughness: 0.35,
-        metalness: 0.55
-      });
       const signageScale = 3;
-      const signageDepth = 0.8 * signageScale;
-      const signageWidth = Math.min(roomWidth * 0.58, 52) * signageScale;
-      const signageHeight = Math.min(wallHeight * 0.28, 12) * signageScale;
-      const tvSizeReduction = 0.7;
-      const tvScale = 10 * 1.3 * tvSizeReduction;
-      const tvWidth = 9 * tvScale;
-      const tvHeight = 5.4 * tvScale;
-      const tvDepth = 0.42 * tvScale;
+      const billboardScale = 0.8;
+      const signageDepth = 0.8 * signageScale * billboardScale;
+      const signageWidth =
+        Math.min(roomWidth * 0.58, 52) * signageScale * billboardScale;
+      const signageHeight =
+        Math.min(wallHeight * 0.28, 12) * signageScale * billboardScale;
       const makeScreenMaterial = (texture) => {
         const material = new THREE.MeshBasicMaterial({ toneMapped: false });
         if (texture) {
@@ -6179,29 +6173,6 @@ function SnookerGame() {
           material.color = new THREE.Color(0x0f172a);
         }
         return material;
-      };
-      const createTv = (texture) => {
-        const group = new THREE.Group();
-        const bezel = new THREE.Mesh(
-          new THREE.BoxGeometry(tvWidth, tvHeight, tvDepth),
-          tvBezelMat
-        );
-        bezel.castShadow = false;
-        bezel.receiveShadow = true;
-        group.add(bezel);
-        const screen = new THREE.Mesh(
-          new THREE.PlaneGeometry(tvWidth * 0.92, tvHeight * 0.88),
-          makeScreenMaterial(texture)
-        );
-        screen.position.z = tvDepth / 2 + 0.02;
-        group.add(screen);
-        const mount = new THREE.Mesh(
-          new THREE.BoxGeometry(tvWidth * 0.18, tvHeight * 0.6, tvDepth * 0.3),
-          tvBezelMat
-        );
-        mount.position.set(0, -tvHeight * 0.55, -tvDepth * 0.35);
-        group.add(mount);
-        return group;
       };
       const createBillboardAssembly = () => {
         const assembly = new THREE.Group();
@@ -6220,12 +6191,6 @@ function SnookerGame() {
         assembly.add(billboardScreen);
         return assembly;
       };
-      const createMatchTvAssembly = () => {
-        const assembly = new THREE.Group();
-        const tv = createTv(matchTexture);
-        assembly.add(tv);
-        return assembly;
-      };
       const signageY = floorY + wallHeight * 0.58;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
@@ -6233,21 +6198,16 @@ function SnookerGame() {
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
       [
-        { position: [0, signageY, frontInterior], rotationY: 0, type: 'tv' },
-        { position: [0, signageY, backInterior], rotationY: Math.PI, type: 'tv' },
         {
           position: [leftInterior, signageY, 0],
-          rotationY: Math.PI / 2,
-          type: 'billboard'
+          rotationY: Math.PI / 2
         },
         {
           position: [rightInterior, signageY, 0],
-          rotationY: -Math.PI / 2,
-          type: 'billboard'
+          rotationY: -Math.PI / 2
         }
-      ].forEach(({ position, rotationY, type }) => {
-        const signage =
-          type === 'tv' ? createMatchTvAssembly() : createBillboardAssembly();
+      ].forEach(({ position, rotationY }) => {
+        const signage = createBillboardAssembly();
         signage.position.set(position[0], position[1], position[2]);
         signage.rotation.y = rotationY;
         world.add(signage);
@@ -6597,11 +6557,14 @@ function SnookerGame() {
 
         const chair = createChair();
         chair.scale.setScalar(scaledFurniture);
-        chair.position.set(chairOffset[0], 0, chairOffset[1]);
-        const toCenter = new THREE.Vector2(-chairOffset[0], -chairOffset[1]);
+        const chairClearanceMultiplier = 1.08;
+        const chairPlacement = chairVector
+          .clone()
+          .multiplyScalar(chairClearanceMultiplier);
+        chair.position.set(chairPlacement.x, 0, chairPlacement.y);
+        const toCenter = chairPlacement.clone().multiplyScalar(-1);
         const baseAngle = Math.atan2(toCenter.x, toCenter.y);
-        const diagonalBias = Math.sign(chairOffset[0] || 0) * (Math.PI / 6);
-        chair.rotation.y = baseAngle + diagonalBias;
+        chair.rotation.y = baseAngle;
         group.add(chair);
 
         group.position.set(position[0], floorY, position[1]);
