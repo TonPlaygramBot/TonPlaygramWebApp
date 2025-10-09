@@ -17,9 +17,9 @@ public class CueCamera : MonoBehaviour
     public Transform TargetBall;
 
     // Distance behind the ball when preparing a shot from the cue view.
-    public float cueAimDistance = 0.62f;
+    public float cueAimDistance = 0.7f;
     // Height of the camera above the table surface while aiming.
-    public float cueAimHeight = 0.32f;
+    public float cueAimHeight = 0.36f;
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 1.05f;
     public float broadcastHeight = 0.5f;
@@ -145,12 +145,7 @@ public class CueCamera : MonoBehaviour
         yaw = Mathf.LerpAngle(yaw, desiredYaw, Time.deltaTime * returnSpeed);
         viewBlend = 1f;
         currentBall = CueBall;
-        ApplyShortRailCamera(
-            CueBall.position,
-            cueAimDistance,
-            cueAimHeight,
-            Mathf.Max(cueAimHeight, minimumHeightAboveFocus)
-        );
+        ApplyShortRailCamera(CueBall.position, cueAimDistance, cueAimHeight);
     }
 
     private void UpdateBroadcastCamera()
@@ -218,32 +213,12 @@ public class CueCamera : MonoBehaviour
             return;
         }
 
-        ApplyShortRailCamera(
-            CueBall.position,
-            cueAimDistance,
-            cueAimHeight,
-            Mathf.Max(cueAimHeight, minimumHeightAboveFocus)
-        );
+        ApplyShortRailCamera(CueBall.position, cueAimDistance, cueAimHeight);
     }
 
     private void ApplyShortRailCamera(Vector3 focusPosition, float distance, float height)
     {
-        ApplyShortRailCamera(
-            focusPosition,
-            distance,
-            height,
-            minimumHeightAboveFocus
-        );
-    }
-
-    private void ApplyShortRailCamera(
-        Vector3 focusPosition,
-        float distance,
-        float height,
-        float minimumHeightOffset
-    )
-    {
-        ApplyCameraAt(focusPosition, distance, height, minimumHeightOffset);
+        ApplyCameraAt(focusPosition, distance, height);
 
         Vector3 pos = transform.position;
         pos.x = 0f;
@@ -255,23 +230,16 @@ public class CueCamera : MonoBehaviour
         transform.LookAt(lookTarget);
     }
 
-    private void ApplyCameraAt(
-        Vector3 focusPosition,
-        float distance,
-        float height,
-        float minimumHeightOffset
-    )
+    private void ApplyCameraAt(Vector3 focusPosition, float distance, float height)
     {
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
         Vector3 desiredPosition = focusPosition - forward * distance + Vector3.up * height;
         Vector3 lookTarget = focusPosition + forward * 5f;
 
-        float minimumHeight = focusPosition.y + Mathf.Max(minimumHeightAboveFocus, minimumHeightOffset);
-
         // Prevent the camera from getting stuck behind walls or decorations by
         // nudging it toward the table if something blocks the line of sight.
-        Vector3 focusOrigin = focusPosition + Vector3.up * Mathf.Max(minimumHeightAboveFocus, minimumHeightOffset);
+        Vector3 focusOrigin = focusPosition + Vector3.up * minimumHeightAboveFocus;
         Vector3 toCamera = desiredPosition - focusOrigin;
         float maxDistance = toCamera.magnitude;
 
@@ -284,12 +252,11 @@ public class CueCamera : MonoBehaviour
             if (Physics.SphereCast(focusOrigin, collisionRadius, dir, out hit, maxDistance, occluderLayers, QueryTriggerInteraction.Ignore))
             {
                 Vector3 adjustedPosition = hit.point - dir * collisionBuffer;
-                adjustedPosition.y = Mathf.Max(adjustedPosition.y, minimumHeight);
+                adjustedPosition.y = Mathf.Max(adjustedPosition.y, focusPosition.y + minimumHeightAboveFocus);
                 desiredPosition = adjustedPosition;
             }
         }
 
-        desiredPosition.y = Mathf.Max(desiredPosition.y, minimumHeight);
         transform.position = desiredPosition;
         transform.LookAt(lookTarget);
     }
