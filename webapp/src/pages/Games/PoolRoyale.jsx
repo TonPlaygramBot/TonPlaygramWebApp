@@ -462,8 +462,8 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 0.985; // open the corner pockets slightly so they sit clear of the chrome
-const POCKET_SIDE_MOUTH_SCALE = 0.955; // tighten the middle pockets a touch for cleaner rail alignment
+const POCKET_CORNER_MOUTH_SCALE = 0.995; // open the corner pockets a touch more while keeping clear of the chrome
+const POCKET_SIDE_MOUTH_SCALE = 0.945; // tighten the middle pockets slightly further for consistent rail alignment
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
