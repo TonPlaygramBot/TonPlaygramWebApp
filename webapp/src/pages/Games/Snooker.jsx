@@ -1418,13 +1418,14 @@ function applyCueWoodGloss(material) {
       material[key] = value;
     }
   };
-  ensure('metalness', 0.16);
-  ensure('roughness', 0.38);
-  ensure('clearcoat', 0.5);
-  ensure('clearcoatRoughness', 0.16);
-  ensure('sheen', 0.22);
-  ensure('sheenRoughness', 0.5);
-  ensure('envMapIntensity', 1.1);
+  ensure('metalness', 0.22);
+  ensure('roughness', 0.22);
+  ensure('clearcoat', 0.85);
+  ensure('clearcoatRoughness', 0.08);
+  ensure('sheen', 0.32);
+  ensure('sheenRoughness', 0.36);
+  ensure('envMapIntensity', 1.55);
+  ensure('reflectivity', 0.92);
   material.needsUpdate = true;
 }
 
@@ -4203,7 +4204,7 @@ function Table3D(
   });
   table.add(chalkGroup);
 
-  const FACE_SHRINK_LONG = 0.955;
+  const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
@@ -4221,7 +4222,7 @@ function Table3D(
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
     const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
+    const straightCut = Math.min(halfLen, Math.max(noseThickness / Math.tan(rad), baseThickness * 0.08));
 
     const shape = new THREE.Shape();
     shape.moveTo(-halfLen, backY);
