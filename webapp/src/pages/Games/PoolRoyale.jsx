@@ -191,7 +191,9 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.52; // extend the center chrome toward the corner pockets so the trim overlaps the pocket entry a little more
+const CHROME_CORNER_WIDTH_SCALE = 0.985; // subtly narrow the corner plates along the long rails
+const CHROME_CORNER_HEIGHT_SCALE = 0.985; // subtly narrow the corner plates along the short rails
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // extend the center chrome toward the corner pockets so the trim overlaps the pocket entry a little more
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3639,15 +3641,23 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const chromePlateWidth = Math.max(
+  const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
-  const chromePlateHeight = Math.max(
+  const chromePlateBaseHeight = Math.max(
     MICRO_EPS,
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
+  );
+  const chromePlateWidth = Math.max(
+    MICRO_EPS,
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
+  );
+  const chromePlateHeight = Math.max(
+    MICRO_EPS,
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
