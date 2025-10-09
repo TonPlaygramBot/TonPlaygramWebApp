@@ -25,15 +25,26 @@ export interface FrameState {
   phase: Phase;
   redsRemaining: number;
   colorOnAfterRed?: boolean;
-  ballOn: BallColor[];
+  ballOn: (BallColor|string)[];
   foul?: { points:number; reason:string };
   freeBall?: boolean;
   frameOver: boolean;
   winner?: 'A'|'B'|'TIE';
+  meta?: Record<string, unknown>;
 }
 
 export type ShotEvent =
-  | { type:'HIT'; firstContact:BallColor|null }
-  | { type:'POTTED'; ball:BallColor; pocket:PocketId }
+  | { type:'HIT'; firstContact:BallColor|string|number|null; ballId?:string|number|null }
+  | { type:'POTTED'; ball:BallColor|string|number; pocket:PocketId; ballId?:string|number|null }
   | { type:'FOUL'; reason:string; ball?:BallColor }
   | { type:'END_TURN' };
+
+export interface ShotContext {
+  placedFromHand?: boolean;
+  cueBallPotted?: boolean;
+  contactMade?: boolean;
+  cushionAfterContact?: boolean;
+  noCushionAfterContact?: boolean;
+  variant?: string;
+  simulated?: boolean;
+}
