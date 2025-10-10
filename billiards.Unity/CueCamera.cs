@@ -47,6 +47,11 @@ public class CueCamera : MonoBehaviour
     // the plastic cap.
     [Range(0.1f, 1f)]
     public float cueBackFraction = 0.32f;
+    // When the camera is fully lowered we further tighten the clamp so that the
+    // framing slides forward along the cue toward the cue ball instead of
+    // lingering near the butt.
+    [Range(0.05f, 1f)]
+    public float cueLoweredBackFraction = 0.18f;
     // Radius of the cue ball so the aiming view can remain above the cloth while
     // gliding toward the shot.
     public float cueBallRadius = 0.028575f;
@@ -347,7 +352,15 @@ public class CueCamera : MonoBehaviour
         float maxDistance,
         out Vector3 cueSamplePoint)
     {
-        float distance = Mathf.Lerp(maxDistance, minDistance, Mathf.Clamp01(blend));
+        float fractionBlend = Mathf.Clamp01(blend);
+        float upperFraction = Mathf.Clamp01(cueBackFraction);
+        float loweredFraction = Mathf.Clamp01(cueLoweredBackFraction);
+        if (loweredFraction > upperFraction)
+        {
+            loweredFraction = upperFraction;
+        }
+
+        float distance = Mathf.Lerp(maxDistance, minDistance, fractionBlend);
         cueSamplePoint = CueBall != null ? CueBall.position : Vector3.zero;
 
         if (CueBall == null)
@@ -365,9 +378,8 @@ public class CueCamera : MonoBehaviour
             {
                 float buttClearance = Mathf.Max(0f, cueButtClearance);
                 float usableLength = Mathf.Max(0f, projectedLength - buttClearance);
-                float fractionLimit = Mathf.Clamp01(cueBackFraction);
-                float limitBlend = Mathf.Clamp01(blend);
-                float limitDistance = Mathf.Lerp(usableLength, usableLength * fractionLimit, limitBlend);
+                float fraction = Mathf.Lerp(upperFraction, loweredFraction, fractionBlend);
+                float limitDistance = Mathf.Lerp(usableLength, usableLength * fraction, fractionBlend);
                 limitDistance = Mathf.Clamp(limitDistance, 0f, usableLength);
 
                 float minClamp = usableLength >= minDistance ? Mathf.Min(minDistance, limitDistance) : 0f;
@@ -391,8 +403,8 @@ public class CueCamera : MonoBehaviour
         }
 
         float fallbackLength = Mathf.Max(maxDistance, minDistance);
-        float fallbackFraction = Mathf.Clamp01(cueBackFraction);
-        float fallbackLimit = Mathf.Lerp(fallbackLength, fallbackLength * fallbackFraction, Mathf.Clamp01(blend));
+        float fallbackFraction = Mathf.Lerp(upperFraction, loweredFraction, fractionBlend);
+        float fallbackLimit = Mathf.Lerp(fallbackLength, fallbackLength * fallbackFraction, fractionBlend);
         fallbackLimit = Mathf.Clamp(fallbackLimit, 0f, fallbackLength);
         float fallbackMin = Mathf.Min(minDistance, fallbackLimit);
         distance = Mathf.Clamp(distance, fallbackMin, Mathf.Max(fallbackLimit, fallbackMin));
