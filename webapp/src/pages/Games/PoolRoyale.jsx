@@ -2278,8 +2278,8 @@ const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
-// Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.25;
+// Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.19;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
@@ -2319,8 +2319,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.24;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.72;
+const CUE_VIEW_RADIUS_RATIO = 0.18;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.6;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
