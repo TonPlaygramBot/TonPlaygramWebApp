@@ -22,15 +22,15 @@ public class CueCamera : MonoBehaviour
 
     [Header("Cue aim view")]
     // Distance from the cue ball when the camera is fully raised above the cue.
-    public float cueRaisedDistanceFromBall = 1.05f;
+    public float cueRaisedDistanceFromBall = 0.82f;
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
-    public float cueLoweredDistanceFromBall = 0.22f;
+    public float cueLoweredDistanceFromBall = 0.18f;
     // Height the cue view should reach when the player lifts the camera.
-    public float cueRaisedHeight = 1.0f;
+    public float cueRaisedHeight = 0.82f;
     // Minimum height maintained when the player drops the camera toward the cue.
-    public float cueLoweredHeight = 0.38f;
+    public float cueLoweredHeight = 0.3f;
     // Keep a small safety buffer from the butt of the cue so the camera never
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
