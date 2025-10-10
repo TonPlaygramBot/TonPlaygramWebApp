@@ -719,10 +719,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff69b4,
   black: 0x000000
 });
-const CLOTH_TEXTURE_INTENSITY = 0.45;
-const CLOTH_HAIR_INTENSITY = 0.18;
-const CLOTH_BUMP_INTENSITY = 0.36;
-const CLOTH_SOFT_BLEND = 0.6;
+const CLOTH_TEXTURE_INTENSITY = 0.48;
+const CLOTH_HAIR_INTENSITY = 0.26;
+const CLOTH_BUMP_INTENSITY = 0.42;
+const CLOTH_SOFT_BLEND = 0.52;
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   cloth,
@@ -787,7 +787,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'classicWood',
     label: 'Classic Wood',
     colors: makeColorPalette({
-      cloth: 0x2b7e4f,
+      cloth: 0x33a86a,
       rail: 0x5e3d24,
       base: 0x5e3d24
     }),
@@ -838,7 +838,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'goldenMaple',
     label: 'Golden Maple',
     colors: makeColorPalette({
-      cloth: 0x2b7e4f,
+      cloth: 0x33a86a,
       rail: 0xc98738,
       base: 0xc27a2f
     }),
@@ -889,7 +889,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'nordicBirch',
     label: 'Nordic Birch',
     colors: makeColorPalette({
-      cloth: 0x2b7e4f,
+      cloth: 0x33a86a,
       rail: 0xd8b47c,
       base: 0xd2a86a
     }),
@@ -940,7 +940,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'matteGraphite',
     label: 'Matte Graphite',
     colors: makeColorPalette({
-      cloth: 0x2b7e4f,
+      cloth: 0x33a86a,
       rail: 0x2f2f2f,
       base: 0x2b2b2b
     }),
@@ -993,7 +993,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'matteGraphiteNeon',
     label: 'Matte Graphite Neon',
     colors: makeColorPalette({
-      cloth: 0x2b7e4f,
+      cloth: 0x33a86a,
       rail: 0x2f2f2f,
       base: 0x2b2b2b
     }),
@@ -1060,7 +1060,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'twoToneHybrid',
     label: 'Two-Tone Hybrid',
     colors: makeColorPalette({
-      cloth: 0x2b7e4f,
+      cloth: 0x33a86a,
       rail: 0x151a1f,
       base: 0x1c2026
     }),
@@ -1166,7 +1166,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'freshGreen', label: 'Fresh Green', color: 0x379a5f },
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
   { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
     id: 'emeraldClassic',
@@ -1229,10 +1229,10 @@ const createClothTextures = (() => {
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x16, g: 0x58, b: 0x32 };
-    const base = { r: 0x27, g: 0x82, b: 0x40 };
-    const accent = { r: 0x37, g: 0x9d, b: 0x50 };
-    const highlight = { r: 0x58, g: 0xc4, b: 0x77 };
+    const shadow = { r: 0x1a, g: 0x64, b: 0x39 };
+    const base = { r: 0x2f, g: 0x97, b: 0x53 };
+    const accent = { r: 0x41, g: 0xb4, b: 0x67 };
+    const highlight = { r: 0x62, g: 0xd8, b: 0x8b };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -3413,16 +3413,18 @@ function Table3D(
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothPrimary = new THREE.Color(palette.cloth);
-  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.12);
+  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.18);
+  const sheenColor = clothColor.clone().lerp(new THREE.Color(0xffffff), 0.12);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.74,
-    sheen: 0.92,
-    sheenRoughness: 0.38,
-    clearcoat: 0.06,
-    clearcoatRoughness: 0.26,
-    emissive: clothColor.clone().multiplyScalar(0.06),
-    emissiveIntensity: 0.48
+    roughness: 0.7,
+    sheen: 0.98,
+    sheenColor,
+    sheenRoughness: 0.34,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.24,
+    emissive: clothColor.clone().multiplyScalar(0.08),
+    emissiveIntensity: 0.58
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
@@ -3432,7 +3434,7 @@ function Table3D(
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.25;
-  const baseBumpScale = 0.52;
+  const baseBumpScale = 0.64;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
