@@ -62,6 +62,12 @@ public class CameraController : MonoBehaviour
     // toward the cloth.  A value of 1 makes the camera fully orbit the player at
     // the lowest angle while 0 keeps the orbit centred on the table.
     public float lowHeightPlayerFocus = 0.75f;
+    // Maximum fraction of the cue stick distance the camera is allowed to slide
+    // toward the butt when hugging the table.  Keeping this below 1 ensures the
+    // view settles closer to the middle of the cue instead of drifting all the
+    // way to the plastic cap at the end of the stick.
+    [Range(0f, 1f)]
+    public float cueViewMaxCueDistanceRatio = 0.65f;
 
     private void LateUpdate()
     {
@@ -134,7 +140,16 @@ public class CameraController : MonoBehaviour
             if (cueAxis.sqrMagnitude > 0.0001f && cueSlide > 0f)
             {
                 Vector3 cueDir = cueAxis.normalized;
-                Vector3 cueViewPos = playerFlat + cueDir * currentDistance;
+                float maxCueViewDistance = currentDistance;
+                if (cueViewMaxCueDistanceRatio < 1f)
+                {
+                    float limitedDistance = Mathf.Lerp(
+                        currentDistance,
+                        currentDistance * Mathf.Max(0f, cueViewMaxCueDistanceRatio),
+                        cueSlide);
+                    maxCueViewDistance = Mathf.Min(maxCueViewDistance, limitedDistance);
+                }
+                Vector3 cueViewPos = playerFlat + cueDir * maxCueViewDistance;
                 desiredFlat = Vector3.Lerp(desiredFlat, cueViewPos, cueSlide);
             }
         }
