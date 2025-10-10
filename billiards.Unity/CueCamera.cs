@@ -744,16 +744,31 @@ public class CueCamera : MonoBehaviour
         flatForward = flatForward.normalized;
 
         float lowering = Mathf.Clamp01(cueAimLowering);
-        float overshoot = Mathf.Lerp(0.05f, 0.25f, lowering);
-        Vector3 extendedAim = aimEnd + flatForward * overshoot;
+
+        Vector3 aimVector = aimEnd - focus;
+        aimVector.y = 0f;
+        float aimDistance = aimVector.magnitude;
+        if (aimDistance < 0.0001f)
+        {
+            return defaultTarget;
+        }
+
+        Vector3 aimDirection = aimVector / aimDistance;
+
+        float overshootBlend = 1f - lowering;
+        float overshoot = Mathf.Lerp(0.05f, 0.25f, lowering) * overshootBlend;
+        Vector3 extendedAim = aimEnd + aimDirection * overshoot;
         extendedAim = tableBounds.ClosestPoint(extendedAim);
 
-        float lookFraction = Mathf.Lerp(0.55f, 1.1f, lowering);
-        Vector3 lookPoint = Vector3.LerpUnclamped(focus, extendedAim, lookFraction);
+        float lookFraction = Mathf.Lerp(0.55f, 1f, lowering);
+        float lookDistance = Mathf.Clamp(aimDistance * lookFraction, 0f, aimDistance);
+        Vector3 aimLockedLook = focus + aimDirection * lookDistance;
+
+        Vector3 lookPoint = Vector3.Lerp(extendedAim, aimLockedLook, lowering);
 
         float railTop = railHeight + Mathf.Max(0f, railClearance);
         float minimumLookHeight = focus.y + cueBallLookOffset;
-        float railLookHeight = Mathf.Max(railTop, extendedAim.y) + cueBallLookOffset;
+        float railLookHeight = Mathf.Max(railTop, aimEnd.y) + cueBallLookOffset;
         float heightBlend = Mathf.Lerp(0.35f, 0.85f, lowering);
         float desiredHeight = Mathf.Lerp(minimumLookHeight, railLookHeight, heightBlend);
         lookPoint.y = Mathf.Max(desiredHeight, minimumLookHeight);
