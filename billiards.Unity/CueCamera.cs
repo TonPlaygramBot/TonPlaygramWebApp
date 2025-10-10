@@ -26,7 +26,7 @@ public class CueCamera : MonoBehaviour
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
-    public float cueLoweredDistanceFromBall = 0.72f;
+    public float cueLoweredDistanceFromBall = 0.52f;
     // Height the cue view should reach when the player lifts the camera.
     public float cueRaisedHeight = 1.1f;
     // Minimum height maintained when the player drops the camera toward the cue.
@@ -36,6 +36,11 @@ public class CueCamera : MonoBehaviour
     public float cueButtClearance = 0.12f;
     // Extra clearance to ensure the camera stays above the cue stick.
     public float cueHeightClearance = 0.04f;
+    // Limit how far toward the butt end the camera can travel as it lowers.
+    // Keeps the framing over the upper half of the cue rather than drifting to
+    // the plastic cap.
+    [Range(0.1f, 1f)]
+    public float cueBackFraction = 0.55f;
     // Radius of the cue ball so the aiming view can remain above the cloth while
     // gliding toward the shot.
     public float cueBallRadius = 0.028575f;
@@ -260,18 +265,43 @@ public class CueCamera : MonoBehaviour
         float maxDistance = Mathf.Max(minDistance, cueRaisedDistanceFromBall);
         float distance = Mathf.Lerp(maxDistance, minDistance, blend);
 
+        float minimumCueHeight = CueBall.position.y + cueBallRadius + Mathf.Max(0f, cueHeightClearance);
+
         if (CueButtReference != null)
         {
             Vector3 buttToBall = CueBall.position - CueButtReference.position;
-            float cueLength = Vector3.Project(buttToBall, cueAimForward).magnitude;
-            if (cueLength > 0f)
+            float cueLengthFlat = Vector3.Project(buttToBall, cueAimForward).magnitude;
+            if (cueLengthFlat > 0f)
             {
-                float allowed = Mathf.Max(minDistance, cueLength - Mathf.Max(0f, cueButtClearance));
-                distance = Mathf.Min(distance, allowed);
+                float buttClearance = Mathf.Max(0f, cueButtClearance);
+                float usableFlat = Mathf.Max(0f, cueLengthFlat - buttClearance);
+                float fractionLimit = Mathf.Clamp01(cueBackFraction);
+                float limitBlend = Mathf.Clamp01(blend);
+                float appliedFraction = Mathf.Lerp(1f, fractionLimit, limitBlend);
+                float maxAllowed = usableFlat;
+                if (appliedFraction < 0.999f)
+                {
+                    maxAllowed = Mathf.Min(maxAllowed, usableFlat * appliedFraction);
+                }
+
+                distance = Mathf.Min(distance, maxAllowed);
+
+                if (usableFlat >= minDistance)
+                {
+                    distance = Mathf.Max(distance, minDistance);
+                }
+                else
+                {
+                    distance = Mathf.Max(distance, 0f);
+                }
+
+                float flatLength = Mathf.Max(cueLengthFlat, 0.0001f);
+                float alongFraction = Mathf.Clamp01(distance / flatLength);
+                Vector3 cuePoint = Vector3.Lerp(CueBall.position, CueButtReference.position, alongFraction);
+                minimumCueHeight = Mathf.Max(minimumCueHeight, cuePoint.y + Mathf.Max(0f, cueHeightClearance));
             }
         }
 
-        float minimumCueHeight = CueBall.position.y + cueBallRadius + Mathf.Max(0f, cueHeightClearance);
         float raisedHeight = Mathf.Max(minimumCueHeight, cueRaisedHeight);
         float loweredHeight = Mathf.Max(minimumCueHeight, cueLoweredHeight);
         float height = Mathf.Lerp(raisedHeight, loweredHeight, blend);
