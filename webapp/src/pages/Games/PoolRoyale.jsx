@@ -1794,7 +1794,6 @@ function createBroadcastCameras({
   cameraHeight,
   shortRailZ,
   slideLimit,
-  arenaHalfWidth = null,
   arenaHalfDepth = null
 }) {
   const group = new THREE.Group();
@@ -1850,41 +1849,20 @@ function createBroadcastCameras({
     0
   );
 
-  const fallbackCornerX = TABLE.W / 2 + BALL_R * 14;
-  const fallbackCornerZ = Math.max(
-    shortRailZ + BALL_R * 10,
+  const fallbackDepth = Math.max(
+    shortRailZ + BALL_R * 12,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerExtra = BALL_R * 9;
-  const cameraSideBoost = BALL_R * 16;
-  const cameraDepthBoost = BALL_R * 3;
-  const cameraWallSlide = BALL_R * 6;
-  const baseCornerX =
-    typeof arenaHalfWidth === 'number'
-      ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
-      : fallbackCornerX;
-  const baseCornerZ =
-    typeof arenaHalfDepth === 'number'
-      ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
-      : fallbackCornerZ;
-  const cameraAdditionalSideOffset = BALL_R * 6;
-  const cameraAdditionalDepthOffset = BALL_R * 4;
-  const cameraCornerXOffset =
-    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide +
-    cameraAdditionalSideOffset;
-  const cameraCornerZOffset =
-    baseCornerZ + cameraCornerExtra + cameraDepthBoost + cameraAdditionalDepthOffset;
+  const maxDepth = typeof arenaHalfDepth === 'number'
+    ? Math.max(shortRailZ + BALL_R * 8, arenaHalfDepth)
+    : fallbackDepth;
+  const cameraCenterZOffset = Math.min(maxDepth, fallbackDepth + BALL_R * 8);
   const cameraScale = 1.2;
 
-  const createUnit = (xSign, zSign) => {
+  const createShortRailUnit = (zSign) => {
+    const direction = Math.sign(zSign) || 1;
     const base = new THREE.Group();
-    const xDirection = Math.sign(xSign) || 1;
-    const zDirection = Math.sign(zSign) || 1;
-    base.position.set(
-      xDirection * cameraCornerXOffset,
-      floorY,
-      zDirection * cameraCornerZOffset
-    );
+    base.position.set(0, floorY, direction * cameraCenterZOffset);
     const horizontalFocus = defaultFocus.clone();
     horizontalFocus.y = base.position.y;
     base.lookAt(horizontalFocus);
@@ -1893,6 +1871,7 @@ function createBroadcastCameras({
     group.add(base);
 
     const slider = new THREE.Group();
+    slider.userData.slideLimit = Math.max(slideLimit ?? 0, 0);
     base.add(slider);
     slider.scale.setScalar(cameraScale);
 
@@ -2006,16 +1985,13 @@ function createBroadcastCameras({
       slider,
       head: headPivot,
       assembly: cameraAssembly,
-      direction: zDirection,
-      xDirection,
-      rail: zDirection >= 0 ? 'back' : 'front'
+      direction,
+      rail: direction >= 0 ? 'back' : 'front'
     };
   };
 
-  cameras.frontLeft = createUnit(-1, -1);
-  cameras.frontRight = createUnit(1, -1);
-  cameras.backLeft = createUnit(-1, 1);
-  cameras.backRight = createUnit(1, 1);
+  cameras.front = createShortRailUnit(-1);
+  cameras.back = createShortRailUnit(1);
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
@@ -2311,6 +2287,8 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.18;
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.82;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.8;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.004;
+const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
+const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2349,6 +2327,12 @@ const CUE_VIEW_MIN_PHI = Math.min(
 );
 const CUE_VIEW_PHI_LIFT = 0.06;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
+const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.12;
+const CUE_VIEW_ABOVE_CUE = BALL_R * 0.65;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.2;
+const CUE_VIEW_BACK_MIN_RATIO = 0.34;
+const CUE_VIEW_BACK_RATIO = 0.46;
+const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
   CAMERA_MAX_PHI - 0.02
@@ -2423,6 +2407,9 @@ const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
+const TMP_VEC3_B = new THREE.Vector3();
+const TMP_VEC3_CAMERA = new THREE.Vector3();
+const TMP_VEC3_DIR = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
@@ -2495,6 +2482,82 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
+};
+
+const computeCueCameraMinHeight = (worldScaleFactor, cushionHeight = TABLE.THICK) => {
+  const cushion = Number.isFinite(cushionHeight) ? cushionHeight : TABLE.THICK;
+  const railHeightLocal = TABLE_Y + cushion;
+  const railHeightWorld = railHeightLocal * worldScaleFactor;
+  const cueHeightWorld = CUE_Y * worldScaleFactor;
+  const railClearanceWorld = CUE_VIEW_RAIL_CLEARANCE * worldScaleFactor;
+  const aboveCueWorld = CUE_VIEW_ABOVE_CUE * worldScaleFactor;
+  return Math.max(railHeightWorld + railClearanceWorld, cueHeightWorld + aboveCueWorld);
+};
+
+const computeCueAimCameraOffset = ({
+  cueBall,
+  aimDir,
+  focusWorld,
+  worldScaleFactor,
+  cushionHeight,
+  orbitOffset
+}) => {
+  if (!cueBall || !aimDir || !focusWorld) return null;
+  const aimX = Number.isFinite(aimDir.x) ? aimDir.x : 0;
+  const aimY = Number.isFinite(aimDir.y) ? aimDir.y : 0;
+  TMP_VEC3_DIR.set(-aimX, 0, -aimY);
+  if (TMP_VEC3_DIR.lengthSq() < 1e-6) return null;
+  TMP_VEC3_DIR.normalize();
+  const cueLengthWorld = CUE_VIEW_BASE_CUE_LENGTH * worldScaleFactor;
+  const tipGapWorld = CUE_TIP_GAP * worldScaleFactor;
+  const minBackWorld = Math.max(
+    cueLengthWorld * CUE_VIEW_BACK_MIN_RATIO,
+    BALL_R * 10 * worldScaleFactor
+  );
+  const maxBackWorld = Math.max(
+    cueLengthWorld + tipGapWorld - BALL_R * 2.2 * worldScaleFactor,
+    minBackWorld
+  );
+  const targetBackWorld = THREE.MathUtils.clamp(
+    cueLengthWorld * CUE_VIEW_BACK_RATIO,
+    minBackWorld,
+    maxBackWorld
+  );
+  TMP_VEC3_B.copy(TMP_VEC3_DIR).multiplyScalar(targetBackWorld);
+  const cueBallWorldY = focusWorld.y;
+  const minCameraY = computeCueCameraMinHeight(worldScaleFactor, cushionHeight);
+  const desiredY = Math.max(
+    minCameraY,
+    cueBallWorldY + CUE_VIEW_EXTRA_HEIGHT * worldScaleFactor
+  );
+  TMP_VEC3_B.y = desiredY - cueBallWorldY;
+  if (orbitOffset) {
+    const orbitHorizontal = Math.hypot(orbitOffset.x, orbitOffset.z);
+    const cueHorizontal = Math.hypot(TMP_VEC3_B.x, TMP_VEC3_B.z);
+    if (cueHorizontal > orbitHorizontal && orbitHorizontal > 1e-3) {
+      const scale = orbitHorizontal / cueHorizontal;
+      TMP_VEC3_B.x *= scale;
+      TMP_VEC3_B.z *= scale;
+    }
+  }
+  return TMP_VEC3_B.clone();
+};
+
+const computeShortRailBroadcastDistance = (camera) => {
+  if (!camera) return SHORT_RAIL_CAMERA_DISTANCE;
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov || STANDING_VIEW_FOV);
+  const aspect = camera.aspect || 1;
+  const halfVertical = Math.max(verticalFov / 2, 1e-3);
+  const halfHorizontal = Math.max(
+    Math.atan(Math.tan(halfVertical) * aspect),
+    1e-3
+  );
+  const halfWidth = PLAY_W / 2 + BROADCAST_MARGIN_WIDTH;
+  const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
+  const widthDistance = halfWidth / Math.tan(halfHorizontal);
+  const lengthDistance = halfLength / Math.tan(halfVertical);
+  const required = Math.max(widthDistance, lengthDistance);
+  return Math.max(SHORT_RAIL_CAMERA_DISTANCE, required);
 };
 
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
@@ -6326,7 +6389,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
-        arenaHalfWidth: roomWidth / 2 - wallThickness - BALL_R * 4,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
       });
       world.add(broadcastRig.group);
@@ -6904,8 +6966,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             if (!unit) return;
             if (unit.slider) {
               const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
+              const limit = Math.max(
+                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
+                0
+              );
+              const targetX = lookAt
+                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
+                : 0;
               unit.slider.position.x = THREE.MathUtils.lerp(
                 unit.slider.position.x,
+                targetX,
+                settle
+              );
+              unit.slider.position.z = THREE.MathUtils.lerp(
+                unit.slider.position.z,
                 0,
                 settle
               );
@@ -6914,14 +6988,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               unit.head.lookAt(lookAt);
             }
           };
-          const frontUnits = [
-            rig.cameras.frontLeft,
-            rig.cameras.frontRight
-          ].filter(Boolean);
-          const backUnits = [
-            rig.cameras.backLeft,
-            rig.cameras.backRight
-          ].filter(Boolean);
+          const frontUnits = [rig.cameras.front].filter(Boolean);
+          const backUnits = [rig.cameras.back].filter(Boolean);
           const activeUnits = railDir >= 0 ? backUnits : frontUnits;
           const idleUnits = railDir >= 0 ? frontUnits : backUnits;
           activeUnits.forEach((unit) =>
@@ -7102,10 +7170,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                     activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.5 : 0;
+                  const baseDistance = computeShortRailBroadcastDistance(camera);
+                  const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
                     0,
                     heightBase + ACTION_CAM.heightOffset + heightLift,
-                    railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
+                    railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
                   if (activeShotView.longShot) {
@@ -7122,8 +7192,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   lookAnchor.x +=
                     focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  lookAnchor.z +=
-                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
+                  lookAnchor.z = THREE.MathUtils.lerp(
+                    lookAnchor.z,
+                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4),
+                    0.65
+                  );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
@@ -7185,10 +7258,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                     activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.2 : 0;
+                  const baseDistance = computeShortRailBroadcastDistance(camera);
+                  const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
                     0,
                     heightBase + ACTION_CAM.followHeightOffset + heightLift,
-                    railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
+                    railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
                   if (activeShotView.longShot) {
@@ -7205,8 +7280,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   lookAnchor.x +=
                     focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  lookAnchor.z +=
-                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
+                  lookAnchor.z = THREE.MathUtils.lerp(
+                    lookAnchor.z,
+                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5),
+                    0.65
+                  );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
@@ -7514,7 +7592,48 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
-            camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+            TMP_VEC3_A.setFromSpherical(TMP_SPH);
+            let finalOffset = TMP_VEC3_A;
+            const cueBlend = THREE.MathUtils.clamp(
+              cameraBlendRef.current ?? 1,
+              0,
+              1
+            );
+            const cueWeight = Math.pow(1 - cueBlend, 0.85);
+            if (
+              cueWeight > 1e-4 &&
+              cue?.active &&
+              !shooting &&
+              aimDirRef.current &&
+              Number.isFinite(aimDirRef.current.x) &&
+              Number.isFinite(aimDirRef.current.y)
+            ) {
+              TMP_VEC2_A.copy(aimDirRef.current);
+              if (TMP_VEC2_A.lengthSq() > 1e-6) {
+                TMP_VEC2_A.normalize();
+                const cueOffset = computeCueAimCameraOffset({
+                  cueBall: cue,
+                  aimDir: TMP_VEC2_A,
+                  focusWorld: lookTarget,
+                  worldScaleFactor,
+                  cushionHeight: cushionHeightRef.current ?? TABLE.THICK,
+                  orbitOffset: TMP_VEC3_A
+                });
+                if (cueOffset) {
+                  TMP_VEC3_B.copy(TMP_VEC3_A).lerp(cueOffset, cueWeight);
+                  finalOffset = TMP_VEC3_B;
+                }
+              }
+            }
+            TMP_VEC3_CAMERA.copy(lookTarget).add(finalOffset);
+            const minCameraHeight = computeCueCameraMinHeight(
+              worldScaleFactor,
+              cushionHeightRef.current ?? TABLE.THICK
+            );
+            if (TMP_VEC3_CAMERA.y < minCameraHeight) {
+              TMP_VEC3_CAMERA.y = minCameraHeight;
+            }
+            camera.position.copy(TMP_VEC3_CAMERA);
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
