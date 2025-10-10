@@ -578,11 +578,11 @@ const ACTION_CAM = Object.freeze({
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 10.5,
+  heightOffset: BALL_R * 9.2,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
-  followHeightOffset: BALL_R * 8.4,
+  followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
 });
 /**
@@ -656,18 +656,21 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
+const LEG_HEIGHT_BOOST = 1.15; // lift the playfield by extending the legs 15%
 const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
-const TABLE_LIFT =
+const TABLE_LIFT_BASE =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
-// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
-const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
-const LEG_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ROOM_HEIGHT_RAW_BASE = BASE_LEG_HEIGHT + TABLE_LIFT_BASE;
+const LEG_ROOM_HEIGHT_BASE =
+  (LEG_ROOM_HEIGHT_RAW_BASE + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ROOM_HEIGHT = LEG_ROOM_HEIGHT_BASE * LEG_HEIGHT_BOOST;
+const TABLE_LIFT = TABLE_LIFT_BASE + (LEG_ROOM_HEIGHT - LEG_ROOM_HEIGHT_BASE);
+// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)

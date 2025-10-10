@@ -2271,22 +2271,22 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.96;
+const STANDING_VIEW_PHI = 0.92;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0026;
+const STANDING_VIEW_MARGIN = 0.0035;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.16);
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.2;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.25;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.18;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.82;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.8;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.004;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
 const CAMERA = {
@@ -2299,8 +2299,8 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.82; // keep standing orbit safely above cushion lip and align with pocket cam height
-const CUE_VIEW_CUSHION_CLEARANCE = TABLE.THICK * 0.45; // clamp cue view so the camera remains above the rail surface
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep standing orbit safely above cushion lip and align with pocket cam height
+const CUE_VIEW_CUSHION_CLEARANCE = CAMERA_CUSHION_CLEARANCE; // match the snooker cue clearance so transitions stay consistent
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2315,17 +2315,17 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
-  radius: CAMERA.minR + BALL_R * 10, // pull the opening view further back while keeping the table centred
+  radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
 });
-const CAMERA_RAIL_SAFETY = 0.012;
-const CUE_VIEW_RADIUS_RATIO = 0.35;
+const CAMERA_RAIL_SAFETY = 0.02;
+const CUE_VIEW_RADIUS_RATIO = 0.32;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.06;
+const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.12;
 const CUE_VIEW_ABOVE_CUE = BALL_R * 0.65;
@@ -2340,8 +2340,8 @@ const CAMERA_RAIL_APPROACH_PHI = Math.min(
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.45;
-const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.18;
+const CAMERA_DOWNWARD_PULL = 1.9;
+const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
