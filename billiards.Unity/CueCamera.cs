@@ -47,6 +47,11 @@ public class CueCamera : MonoBehaviour
     // the plastic cap.
     [Range(0.1f, 1f)]
     public float cueBackFraction = 0.32f;
+    // Fraction of the cue length we allow when the player completely lowers the
+    // camera.  Keeps the framing over the forward half of the stick so the
+    // camera hugs the cue ball instead of drifting all the way to the butt.
+    [Range(0.05f, 1f)]
+    public float cueLoweredBackFraction = 0.18f;
     // Radius of the cue ball so the aiming view can remain above the cloth while
     // gliding toward the shot.
     public float cueBallRadius = 0.028575f;
@@ -135,6 +140,11 @@ public class CueCamera : MonoBehaviour
     public void SetCueAimLowering(float value)
     {
         cueAimLowering = Mathf.Clamp01(value);
+    }
+
+    private static float SmoothCueBlend(float value)
+    {
+        return Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(value));
     }
 
     private Vector3 GetInitialCueForward()
@@ -266,7 +276,7 @@ public class CueCamera : MonoBehaviour
 
         cueAimForward = cueAimForward.normalized;
 
-        float blend = Mathf.Clamp01(cueAimLowering);
+        float blend = SmoothCueBlend(cueAimLowering);
         float minimumDistanceLimit = Mathf.Max(0.0001f, cueMinimumDistance);
         float minDistance = Mathf.Max(minimumDistanceLimit, cueLoweredDistanceFromBall);
         float maxDistance = Mathf.Max(minDistance, cueRaisedDistanceFromBall);
@@ -274,7 +284,7 @@ public class CueCamera : MonoBehaviour
         Vector3 cueSamplePoint;
         float baseDistance = ResolveCueAimDistance(blend, cueAimForward, minDistance, maxDistance, out cueSamplePoint);
 
-        float pullIn = Mathf.Max(0f, cueDistancePullIn);
+        float pullIn = Mathf.Max(0f, cueDistancePullIn) * blend;
         float minPulledDistance = Mathf.Max(minimumDistanceLimit, minDistance - pullIn);
         float distance = Mathf.Max(baseDistance - pullIn, minPulledDistance);
 
@@ -347,7 +357,8 @@ public class CueCamera : MonoBehaviour
         float maxDistance,
         out Vector3 cueSamplePoint)
     {
-        float distance = Mathf.Lerp(maxDistance, minDistance, Mathf.Clamp01(blend));
+        float clampedBlend = Mathf.Clamp01(blend);
+        float distance = Mathf.Lerp(maxDistance, minDistance, clampedBlend);
         cueSamplePoint = CueBall != null ? CueBall.position : Vector3.zero;
 
         if (CueBall == null)
@@ -366,8 +377,13 @@ public class CueCamera : MonoBehaviour
                 float buttClearance = Mathf.Max(0f, cueButtClearance);
                 float usableLength = Mathf.Max(0f, projectedLength - buttClearance);
                 float fractionLimit = Mathf.Clamp01(cueBackFraction);
-                float limitBlend = Mathf.Clamp01(blend);
-                float limitDistance = Mathf.Lerp(usableLength, usableLength * fractionLimit, limitBlend);
+                float loweredFraction = Mathf.Clamp01(cueLoweredBackFraction > 0f ? cueLoweredBackFraction : fractionLimit);
+                if (loweredFraction > fractionLimit)
+                {
+                    loweredFraction = fractionLimit;
+                }
+                float activeFraction = Mathf.Lerp(fractionLimit, loweredFraction, clampedBlend);
+                float limitDistance = Mathf.Clamp(usableLength * activeFraction, 0f, usableLength);
                 limitDistance = Mathf.Clamp(limitDistance, 0f, usableLength);
 
                 float minClamp = usableLength >= minDistance ? Mathf.Min(minDistance, limitDistance) : 0f;
@@ -392,7 +408,13 @@ public class CueCamera : MonoBehaviour
 
         float fallbackLength = Mathf.Max(maxDistance, minDistance);
         float fallbackFraction = Mathf.Clamp01(cueBackFraction);
-        float fallbackLimit = Mathf.Lerp(fallbackLength, fallbackLength * fallbackFraction, Mathf.Clamp01(blend));
+        float fallbackLoweredFraction = Mathf.Clamp01(cueLoweredBackFraction > 0f ? cueLoweredBackFraction : fallbackFraction);
+        if (fallbackLoweredFraction > fallbackFraction)
+        {
+            fallbackLoweredFraction = fallbackFraction;
+        }
+        float fallbackActiveFraction = Mathf.Lerp(fallbackFraction, fallbackLoweredFraction, clampedBlend);
+        float fallbackLimit = Mathf.Clamp(fallbackLength * fallbackActiveFraction, 0f, fallbackLength);
         fallbackLimit = Mathf.Clamp(fallbackLimit, 0f, fallbackLength);
         float fallbackMin = Mathf.Min(minDistance, fallbackLimit);
         distance = Mathf.Clamp(distance, fallbackMin, Mathf.Max(fallbackLimit, fallbackMin));
@@ -761,7 +783,7 @@ public class CueCamera : MonoBehaviour
 
         flatForward = flatForward.normalized;
 
-        float lowering = Mathf.Clamp01(cueAimLowering);
+        float lowering = SmoothCueBlend(cueAimLowering);
 
         Vector3 aimVector = aimEnd - focus;
         aimVector.y = 0f;
@@ -789,7 +811,8 @@ public class CueCamera : MonoBehaviour
         float railLookHeight = Mathf.Max(railTop, aimEnd.y) + cueBallLookOffset;
         float heightBlend = Mathf.Lerp(0.35f, 0.85f, lowering);
         float desiredHeight = Mathf.Lerp(minimumLookHeight, railLookHeight, heightBlend);
-        lookPoint.y = Mathf.Max(desiredHeight, minimumLookHeight);
+        float minimumRailHeight = railTop + cueBallLookOffset;
+        lookPoint.y = Mathf.Max(desiredHeight, Mathf.Max(minimumLookHeight, minimumRailHeight));
 
         return lookPoint;
     }
