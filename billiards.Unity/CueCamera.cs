@@ -27,6 +27,12 @@ public class CueCamera : MonoBehaviour
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
     public float cueLoweredDistanceFromBall = 0.12f;
+    // Additional pull-in applied to the cue camera so the portrait framing hugs
+    // the cloth like a player leaning over the shot.
+    public float cueDistancePullIn = 0.18f;
+    // Minimum separation we allow once the pull-in is applied. Prevents the
+    // camera from intersecting the cue or cloth when the player drops in tight.
+    public float cueMinimumDistance = 0.05f;
     // Height the cue view should reach when the player lifts the camera.
     public float cueRaisedHeight = 0.82f;
     // Minimum height maintained when the player drops the camera toward the cue.
@@ -261,11 +267,23 @@ public class CueCamera : MonoBehaviour
         cueAimForward = cueAimForward.normalized;
 
         float blend = Mathf.Clamp01(cueAimLowering);
-        float minDistance = Mathf.Max(0.1f, cueLoweredDistanceFromBall);
+        float minimumDistanceLimit = Mathf.Max(0.0001f, cueMinimumDistance);
+        float minDistance = Mathf.Max(minimumDistanceLimit, cueLoweredDistanceFromBall);
         float maxDistance = Mathf.Max(minDistance, cueRaisedDistanceFromBall);
 
         Vector3 cueSamplePoint;
-        float distance = ResolveCueAimDistance(blend, cueAimForward, minDistance, maxDistance, out cueSamplePoint);
+        float baseDistance = ResolveCueAimDistance(blend, cueAimForward, minDistance, maxDistance, out cueSamplePoint);
+
+        float pullIn = Mathf.Max(0f, cueDistancePullIn);
+        float minPulledDistance = Mathf.Max(minimumDistanceLimit, minDistance - pullIn);
+        float distance = Mathf.Max(baseDistance - pullIn, minPulledDistance);
+
+        if (!Mathf.Approximately(distance, baseDistance) && CueBall != null)
+        {
+            Vector3 adjustedCuePoint = CueBall.position - cueAimForward * Mathf.Max(distance, 0f);
+            adjustedCuePoint.y = CueBall.position.y;
+            cueSamplePoint = adjustedCuePoint;
+        }
 
         float minimumCueHeight = CueBall.position.y + cueBallRadius + Mathf.Max(0f, cueHeightClearance);
         minimumCueHeight = Mathf.Max(minimumCueHeight, cueSamplePoint.y + Mathf.Max(0f, cueHeightClearance));
