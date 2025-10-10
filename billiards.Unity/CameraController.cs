@@ -18,6 +18,9 @@ public class CameraController : MonoBehaviour
     // Optional clearance so the camera can be kept slightly above the side rails
     // while still preventing it from dipping below their top surface.
     public float railClearance = 0.08f;
+    // Extra clearance used when clamping the camera height so it always remains
+    // above the cue stick and keeps the stick visible in frame.
+    public float cueStickHeightClearance = 0.05f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 1.9f;
     // Default distance of the camera from the table centre when fully raised to
@@ -26,6 +29,9 @@ public class CameraController : MonoBehaviour
     // Minimum distance from the table centre allowed when the camera is pulled
     // down toward the rails for a closer look.
     public float minDistanceFromCenter = 2.15f;
+    // Extra distance the camera is allowed to shed as it hugs the table so the
+    // cue ball fills more of the view during low-angle aiming.
+    public float lowHeightDistanceReduction = 0.45f;
     // Extra pullback applied when the camera is raised to its maximum height so
     // the player gets a slightly wider view while aiming.
     public float zoomOutWhenRaised = 0.25f;
@@ -48,13 +54,21 @@ public class CameraController : MonoBehaviour
     // corner pullback is based on the player's position instead of the camera
     // so that approaching a rail gives a better view of the shot.
     public Transform player;
+    // How strongly the camera should favour the player's position as it drops
+    // toward the cloth.  A value of 1 makes the camera fully orbit the player at
+    // the lowest angle while 0 keeps the orbit centred on the table.
+    public float lowHeightPlayerFocus = 0.75f;
 
     private void LateUpdate()
     {
         // Clamp vertical movement so the camera never dips below the side rails
         // and doesn't fly too high above the table surface.
         Vector3 pos = transform.position;
-        float minY = railTopY + Mathf.Max(0f, railClearance);
+        float minRailY = railTopY + Mathf.Max(0f, railClearance);
+        float cueStickMinY = player != null
+            ? player.position.y + Mathf.Max(0f, cueStickHeightClearance)
+            : minRailY;
+        float minY = Mathf.Max(minRailY, cueStickMinY);
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
@@ -64,8 +78,9 @@ public class CameraController : MonoBehaviour
         float heightBlend = Mathf.InverseLerp(maxY, minY, pos.y);
 
         float minAllowedDistance = Mathf.Max(minDistanceFromCenter, Mathf.Max(cornerXThreshold, cornerZThreshold) + railBuffer);
+        float lowHeightDistance = Mathf.Max(minAllowedDistance - Mathf.Max(0f, lowHeightDistanceReduction), railBuffer + 0.1f);
         float raisedDistance = Mathf.Max(minAllowedDistance, distanceFromCenter + zoomOutWhenRaised);
-        float currentDistance = Mathf.Lerp(raisedDistance, minAllowedDistance, heightBlend);
+        float currentDistance = Mathf.Lerp(raisedDistance, lowHeightDistance, heightBlend);
 
         // If the player (or the camera if no player reference is set) moves
         // close to a corner, increase the distance a little to give a clearer
@@ -79,18 +94,45 @@ public class CameraController : MonoBehaviour
             currentDistance += cornerPullback * Mathf.Clamp01(blend);
         }
 
-        // Keep the camera at a fixed distance from the origin (assumed table
-        // centre) while applying the calculated zoom factor.
-        Vector3 flatDir = new Vector3(pos.x, 0f, pos.z).normalized;
-        pos = new Vector3(flatDir.x * currentDistance,
-                          pos.y,
-                          flatDir.z * currentDistance);
+        Vector3 pivot = Vector3.zero;
+        float focusBlend = 0f;
+        if (player != null)
+        {
+            Vector3 playerFlat = new Vector3(player.position.x, 0f, player.position.z);
+            focusBlend = Mathf.Clamp01(heightBlend * Mathf.Clamp01(lowHeightPlayerFocus));
+            pivot = Vector3.Lerp(Vector3.zero, playerFlat, focusBlend);
+        }
+
+        Vector3 pivotFlat = new Vector3(pivot.x, 0f, pivot.z);
+        Vector3 flatOffset = new Vector3(pos.x - pivotFlat.x, 0f, pos.z - pivotFlat.z);
+        if (flatOffset.sqrMagnitude < 0.0001f)
+        {
+            Vector3 fallbackDir = new Vector3(transform.forward.x, 0f, transform.forward.z);
+            if (fallbackDir.sqrMagnitude < 0.0001f)
+            {
+                fallbackDir = Vector3.forward;
+            }
+
+            flatOffset = -fallbackDir.normalized * currentDistance;
+        }
+
+        Vector3 flatDir = flatOffset.normalized;
+        Vector3 desiredFlat = pivotFlat + flatDir * currentDistance;
+        pos = new Vector3(desiredFlat.x, pos.y, desiredFlat.z);
 
         transform.position = pos;
 
         // Maintain a slightly lower viewing angle by looking just above the table
         // centre rather than straight down at it.
-        Vector3 lookTarget = new Vector3(0f, tableTopY + lookAtHeightOffset, 0f);
+        Vector3 tableFocus = new Vector3(0f, tableTopY + lookAtHeightOffset, 0f);
+        Vector3 lookTarget = tableFocus;
+        if (player != null)
+        {
+            float focusHeight = Mathf.Max(tableTopY + lookAtHeightOffset, player.position.y + Mathf.Max(0f, cueStickHeightClearance));
+            Vector3 playerFocus = new Vector3(player.position.x, focusHeight, player.position.z);
+            lookTarget = Vector3.Lerp(tableFocus, playerFocus, focusBlend);
+        }
+
         transform.LookAt(lookTarget);
     }
 }
