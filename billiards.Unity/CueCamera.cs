@@ -278,7 +278,7 @@ public class CueCamera : MonoBehaviour
 
         Vector3 focus = CueBall.position;
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
-        Vector3 lookTarget = focus + Vector3.up * cueBallLookOffset;
+        Vector3 lookTarget = GetCueAimLookTarget(focus, cueAimForward);
 
         ApplyCameraAt(focus, cueAimForward, distance, height, minimumHeightOffset, lookTarget);
 
@@ -718,6 +718,88 @@ public class CueCamera : MonoBehaviour
         }
         Rigidbody rb = ball.GetComponent<Rigidbody>();
         return rb != null && rb.velocity.sqrMagnitude > velocityThreshold;
+    }
+
+    private Vector3 GetCueAimLookTarget(Vector3 focus, Vector3 forward)
+    {
+        Vector3 defaultTarget = focus + Vector3.up * cueBallLookOffset;
+
+        if (CueBall == null)
+        {
+            return defaultTarget;
+        }
+
+        Vector3 aimEnd;
+        if (!TryGetAimLineEndPoint(forward, out aimEnd))
+        {
+            return defaultTarget;
+        }
+
+        Vector3 midpoint = Vector3.Lerp(focus, aimEnd, 0.5f);
+        midpoint.y = Mathf.Max(midpoint.y, focus.y) + cueBallLookOffset;
+        return midpoint;
+    }
+
+    private bool TryGetAimLineEndPoint(Vector3 forward, out Vector3 aimEnd)
+    {
+        aimEnd = CueBall != null ? CueBall.position : Vector3.zero;
+
+        if (CueBall == null)
+        {
+            return false;
+        }
+
+        if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
+        {
+            aimEnd = TargetBall.position;
+            return true;
+        }
+
+        Vector3 flatForward = new Vector3(forward.x, 0f, forward.z);
+        if (flatForward.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+
+        flatForward = flatForward.normalized;
+
+        Bounds bounds = tableBounds;
+        Vector3 min = bounds.min;
+        Vector3 max = bounds.max;
+        Vector3 start = CueBall.position;
+
+        float t = float.PositiveInfinity;
+        const float epsilon = 0.0001f;
+        float margin = Mathf.Max(0f, cueBallRadius);
+
+        if (Mathf.Abs(flatForward.x) > epsilon)
+        {
+            float limitX = flatForward.x > 0f ? max.x - margin : min.x + margin;
+            float tx = (limitX - start.x) / flatForward.x;
+            if (tx > 0f)
+            {
+                t = Mathf.Min(t, tx);
+            }
+        }
+
+        if (Mathf.Abs(flatForward.z) > epsilon)
+        {
+            float limitZ = flatForward.z > 0f ? max.z - margin : min.z + margin;
+            float tz = (limitZ - start.z) / flatForward.z;
+            if (tz > 0f)
+            {
+                t = Mathf.Min(t, tz);
+            }
+        }
+
+        if (float.IsPositiveInfinity(t))
+        {
+            return false;
+        }
+
+        aimEnd = start + flatForward * Mathf.Max(t, 0f);
+        aimEnd.y = start.y;
+        return true;
     }
 }
 #endif
