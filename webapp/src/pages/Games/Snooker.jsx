@@ -2374,8 +2374,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.32;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR;
+const CUE_VIEW_RADIUS_RATIO = 0.24;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.72;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
@@ -6703,8 +6703,11 @@ function SnookerGame() {
             ? CAMERA.maxR
             : Math.min(CAMERA.maxR, orbitRadiusLimitRef.current ?? CAMERA.maxR);
 
-        const clampOrbitRadius = (value) =>
-          clamp(value, CAMERA.minR, getMaxOrbitRadius());
+        const clampOrbitRadius = (value, minRadius = CAMERA.minR) => {
+          const maxRadius = getMaxOrbitRadius();
+          const min = Math.min(minRadius, maxRadius);
+          return clamp(value, min, maxRadius);
+        };
 
         const syncBlendToSpherical = () => {
           const bounds = cameraBoundsRef.current;
@@ -6733,17 +6736,22 @@ function SnookerGame() {
             1
           );
           cameraBlendRef.current = blend;
+          const cueMinRadius = THREE.MathUtils.lerp(
+            CUE_VIEW_MIN_RADIUS,
+            CAMERA.minR,
+            blend
+          );
           const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
           const baseRadius = THREE.MathUtils.lerp(
             cueShot.radius,
             standing.radius,
             blend
           );
-          let radius = clampOrbitRadius(baseRadius);
+          let radius = clampOrbitRadius(baseRadius, cueMinRadius);
           if (CAMERA_DOWNWARD_PULL > 0) {
             const pull = CAMERA_DOWNWARD_PULL * (1 - blend);
             if (pull > 0) {
-              radius = clampOrbitRadius(radius - pull);
+              radius = clampOrbitRadius(radius - pull, cueMinRadius);
             }
           }
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
@@ -6761,7 +6769,10 @@ function SnookerGame() {
           if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
             const sinPhi = Math.sin(clampedPhi);
             if (sinPhi > 1e-4) {
-              minRadiusForRails = clampOrbitRadius(CAMERA_MIN_HORIZONTAL / sinPhi);
+              minRadiusForRails = clampOrbitRadius(
+                CAMERA_MIN_HORIZONTAL / sinPhi,
+                cueMinRadius
+              );
               finalRadius = Math.max(finalRadius, minRadiusForRails);
             }
           }
@@ -6776,14 +6787,17 @@ function SnookerGame() {
           }
           const dynamicPull = CAMERA_DYNAMIC_PULL_RANGE * (1 - phiProgress);
           if (dynamicPull > 1e-5) {
-            const adjusted = clampOrbitRadius(finalRadius - dynamicPull);
+            const adjusted = clampOrbitRadius(
+              finalRadius - dynamicPull,
+              cueMinRadius
+            );
             finalRadius =
               minRadiusForRails != null
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
           }
           sph.phi = clampedPhi;
-          sph.radius = clampOrbitRadius(finalRadius);
+          sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
           syncBlendToSpherical();
         };
 
@@ -7790,7 +7804,8 @@ function SnookerGame() {
             Math.max(
               playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
               CUE_VIEW_MIN_RADIUS
-            )
+            ),
+            CUE_VIEW_MIN_RADIUS
           );
           const cuePhi = THREE.MathUtils.clamp(
             CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
