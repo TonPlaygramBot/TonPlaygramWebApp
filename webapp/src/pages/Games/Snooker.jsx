@@ -2342,9 +2342,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
