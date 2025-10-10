@@ -735,10 +735,29 @@ public class CueCamera : MonoBehaviour
             return defaultTarget;
         }
 
+        Vector3 flatForward = new Vector3(forward.x, 0f, forward.z);
+        if (flatForward.sqrMagnitude < 0.0001f)
+        {
+            return defaultTarget;
+        }
+
+        flatForward = flatForward.normalized;
+
         float lowering = Mathf.Clamp01(cueAimLowering);
-        float lookFraction = Mathf.Lerp(0.5f, 0.9f, lowering);
-        Vector3 lookPoint = Vector3.LerpUnclamped(focus, aimEnd, lookFraction);
-        lookPoint.y = Mathf.Max(lookPoint.y, focus.y) + cueBallLookOffset;
+        float overshoot = Mathf.Lerp(0.05f, 0.25f, lowering);
+        Vector3 extendedAim = aimEnd + flatForward * overshoot;
+        extendedAim = tableBounds.ClosestPoint(extendedAim);
+
+        float lookFraction = Mathf.Lerp(0.55f, 1.1f, lowering);
+        Vector3 lookPoint = Vector3.LerpUnclamped(focus, extendedAim, lookFraction);
+
+        float railTop = railHeight + Mathf.Max(0f, railClearance);
+        float minimumLookHeight = focus.y + cueBallLookOffset;
+        float railLookHeight = Mathf.Max(railTop, extendedAim.y) + cueBallLookOffset;
+        float heightBlend = Mathf.Lerp(0.35f, 0.85f, lowering);
+        float desiredHeight = Mathf.Lerp(minimumLookHeight, railLookHeight, heightBlend);
+        lookPoint.y = Mathf.Max(desiredHeight, minimumLookHeight);
+
         return lookPoint;
     }
 
