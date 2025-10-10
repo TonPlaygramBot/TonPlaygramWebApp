@@ -42,7 +42,7 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
-import PoolRoyale from './pages/Games/PoolRoyaleCamera.jsx';
+import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import Snooker from './pages/Games/Snooker.jsx';
 
