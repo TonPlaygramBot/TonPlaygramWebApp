@@ -263,49 +263,18 @@ public class CueCamera : MonoBehaviour
         float blend = Mathf.Clamp01(cueAimLowering);
         float minDistance = Mathf.Max(0.1f, cueLoweredDistanceFromBall);
         float maxDistance = Mathf.Max(minDistance, cueRaisedDistanceFromBall);
-        float distance = Mathf.Lerp(maxDistance, minDistance, blend);
+
+        Vector3 cueSamplePoint;
+        float distance = ResolveCueAimDistance(blend, cueAimForward, minDistance, maxDistance, out cueSamplePoint);
 
         float minimumCueHeight = CueBall.position.y + cueBallRadius + Mathf.Max(0f, cueHeightClearance);
-
-        if (CueButtReference != null)
-        {
-            Vector3 buttToBall = CueBall.position - CueButtReference.position;
-            float cueLengthFlat = Vector3.Project(buttToBall, cueAimForward).magnitude;
-            if (cueLengthFlat > 0f)
-            {
-                float buttClearance = Mathf.Max(0f, cueButtClearance);
-                float usableFlat = Mathf.Max(0f, cueLengthFlat - buttClearance);
-                float fractionLimit = Mathf.Clamp01(cueBackFraction);
-                float limitBlend = Mathf.Clamp01(blend);
-                float appliedFraction = Mathf.Lerp(1f, fractionLimit, limitBlend);
-                float maxAllowed = usableFlat;
-                if (appliedFraction < 0.999f)
-                {
-                    maxAllowed = Mathf.Min(maxAllowed, usableFlat * appliedFraction);
-                }
-
-                distance = Mathf.Min(distance, maxAllowed);
-
-                if (usableFlat >= minDistance)
-                {
-                    distance = Mathf.Max(distance, minDistance);
-                }
-                else
-                {
-                    distance = Mathf.Max(distance, 0f);
-                }
-
-                float flatLength = Mathf.Max(cueLengthFlat, 0.0001f);
-                float alongFraction = Mathf.Clamp01(distance / flatLength);
-                Vector3 cuePoint = Vector3.Lerp(CueBall.position, CueButtReference.position, alongFraction);
-                minimumCueHeight = Mathf.Max(minimumCueHeight, cuePoint.y + Mathf.Max(0f, cueHeightClearance));
-            }
-        }
+        minimumCueHeight = Mathf.Max(minimumCueHeight, cueSamplePoint.y + Mathf.Max(0f, cueHeightClearance));
 
         float raisedHeight = Mathf.Max(minimumCueHeight, cueRaisedHeight);
         float loweredHeight = Mathf.Max(minimumCueHeight, cueLoweredHeight);
         float height = Mathf.Lerp(raisedHeight, loweredHeight, blend);
-        height = Mathf.Max(height, railHeight + Mathf.Max(0f, railClearance));
+        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        height = Mathf.Max(height, minRailHeight);
 
         Vector3 focus = CueBall.position;
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
@@ -351,6 +320,78 @@ public class CueCamera : MonoBehaviour
 
         Quaternion fallback = Quaternion.Euler(0f, GetShortRailYaw(cueAimSideSign), 0f);
         return fallback * Vector3.forward;
+    }
+
+    private float ResolveCueAimDistance(
+        float blend,
+        Vector3 forward,
+        float minDistance,
+        float maxDistance,
+        out Vector3 cueSamplePoint)
+    {
+        float distance = Mathf.Lerp(maxDistance, minDistance, Mathf.Clamp01(blend));
+        cueSamplePoint = CueBall != null ? CueBall.position : Vector3.zero;
+
+        if (CueBall == null)
+        {
+            return distance;
+        }
+
+        Vector3 cuePoint = CueBall.position;
+
+        if (CueButtReference != null)
+        {
+            Vector3 buttToBall = CueBall.position - CueButtReference.position;
+            float projectedLength = Mathf.Abs(Vector3.Dot(buttToBall, forward));
+            if (projectedLength > 0.0001f)
+            {
+                float buttClearance = Mathf.Max(0f, cueButtClearance);
+                float usableLength = Mathf.Max(0f, projectedLength - buttClearance);
+                float fractionLimit = Mathf.Clamp01(cueBackFraction);
+                float limitBlend = Mathf.Clamp01(blend);
+                float limitDistance = Mathf.Lerp(usableLength, usableLength * fractionLimit, limitBlend);
+                limitDistance = Mathf.Clamp(limitDistance, 0f, usableLength);
+
+                float minClamp = usableLength >= minDistance ? Mathf.Min(minDistance, limitDistance) : 0f;
+                float maxClamp = Mathf.Max(limitDistance, minClamp);
+                distance = Mathf.Clamp(distance, minClamp, maxClamp);
+                if (limitDistance < minClamp)
+                {
+                    distance = limitDistance;
+                }
+                else
+                {
+                    distance = Mathf.Min(distance, limitDistance);
+                }
+
+                float along = projectedLength > 0.0001f ? Mathf.Clamp01(distance / projectedLength) : 0f;
+                cuePoint = Vector3.Lerp(CueBall.position, CueButtReference.position, along);
+
+                cueSamplePoint = cuePoint;
+                return Mathf.Max(distance, 0f);
+            }
+        }
+
+        float fallbackLength = Mathf.Max(maxDistance, minDistance);
+        float fallbackFraction = Mathf.Clamp01(cueBackFraction);
+        float fallbackLimit = Mathf.Lerp(fallbackLength, fallbackLength * fallbackFraction, Mathf.Clamp01(blend));
+        fallbackLimit = Mathf.Clamp(fallbackLimit, 0f, fallbackLength);
+        float fallbackMin = Mathf.Min(minDistance, fallbackLimit);
+        distance = Mathf.Clamp(distance, fallbackMin, Mathf.Max(fallbackLimit, fallbackMin));
+        if (fallbackLimit < fallbackMin)
+        {
+            distance = fallbackLimit;
+        }
+        else
+        {
+            distance = Mathf.Min(distance, fallbackLimit);
+        }
+
+        cuePoint = CueBall.position - forward * Mathf.Max(distance, 0f);
+        cuePoint.y = CueBall.position.y;
+        cueSamplePoint = cuePoint;
+
+        return Mathf.Max(distance, 0f);
     }
 
     private void UpdateBroadcastCamera()
@@ -450,6 +491,8 @@ public class CueCamera : MonoBehaviour
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
+
+        focus.x = 0f;
 
         float distance = ComputeBroadcastDistance(focus, height, forward, cam);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
