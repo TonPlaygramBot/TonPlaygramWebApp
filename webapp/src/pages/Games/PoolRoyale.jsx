@@ -2334,6 +2334,7 @@ const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.14;
 const CUE_VIEW_BACK_MIN_RATIO = 0.28;
 const CUE_VIEW_BACK_RATIO = 0.42;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
+const CUE_VIEW_LEVEL_BLEND_RANGE = BALL_R * 0.55;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
   CAMERA_MAX_PHI - 0.02
@@ -7649,6 +7650,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             );
             if (TMP_VEC3_CAMERA.y < minCameraHeight) {
               TMP_VEC3_CAMERA.y = minCameraHeight;
+            }
+            const cameraHeight = TMP_VEC3_CAMERA.y;
+            if (lookTarget) {
+              const levelBlendRange = Math.max(
+                CUE_VIEW_LEVEL_BLEND_RANGE * worldScaleFactor,
+                1e-3
+              );
+              const blend = THREE.MathUtils.clamp(
+                1 - (cameraHeight - minCameraHeight) / levelBlendRange,
+                0,
+                1
+              );
+              if (blend > 1e-4) {
+                const leveledTarget = lookTarget.clone();
+                leveledTarget.y = THREE.MathUtils.lerp(
+                  lookTarget.y,
+                  cameraHeight,
+                  blend
+                );
+                lookTarget = leveledTarget;
+              }
             }
             camera.position.copy(TMP_VEC3_CAMERA);
             camera.lookAt(lookTarget);
