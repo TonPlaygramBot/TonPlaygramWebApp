@@ -735,9 +735,11 @@ public class CueCamera : MonoBehaviour
             return defaultTarget;
         }
 
-        Vector3 midpoint = Vector3.Lerp(focus, aimEnd, 0.5f);
-        midpoint.y = Mathf.Max(midpoint.y, focus.y) + cueBallLookOffset;
-        return midpoint;
+        float lowering = Mathf.Clamp01(cueAimLowering);
+        float lookFraction = Mathf.Lerp(0.5f, 0.9f, lowering);
+        Vector3 lookPoint = Vector3.LerpUnclamped(focus, aimEnd, lookFraction);
+        lookPoint.y = Mathf.Max(lookPoint.y, focus.y) + cueBallLookOffset;
+        return lookPoint;
     }
 
     private bool TryGetAimLineEndPoint(Vector3 forward, out Vector3 aimEnd)
