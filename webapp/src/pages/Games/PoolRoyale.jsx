@@ -2330,6 +2330,7 @@ const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.12;
 const CUE_VIEW_ABOVE_CUE = BALL_R * 0.65;
 const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.2;
+const CUE_VIEW_LOOK_OFFSET = BALL_R * 0.35;
 const CUE_VIEW_BACK_MIN_RATIO = 0.34;
 const CUE_VIEW_BACK_RATIO = 0.46;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
@@ -2541,6 +2542,58 @@ const computeCueAimCameraOffset = ({
     }
   }
   return TMP_VEC3_B.clone();
+};
+
+const computeCueAimLookTarget = ({
+  cueBall,
+  aimDir,
+  focusWorld,
+  worldScaleFactor,
+  balls,
+  lowering = 0
+}) => {
+  if (!cueBall || !aimDir || !focusWorld) return null;
+  const aimX = Number.isFinite(aimDir.x) ? aimDir.x : 0;
+  const aimY = Number.isFinite(aimDir.y) ? aimDir.y : 0;
+  TMP_VEC2_B.set(aimX, aimY);
+  if (TMP_VEC2_B.lengthSq() < 1e-6) return null;
+  TMP_VEC2_B.normalize();
+
+  const cueBalls = Array.isArray(balls) ? balls : [];
+  const prediction = calcTarget(cueBall, TMP_VEC2_B.clone(), cueBalls);
+  const impact = prediction?.impact ?? null;
+  if (!impact) return null;
+
+  const focus = focusWorld.clone();
+  const aimPoint = new THREE.Vector3(
+    impact.x * worldScaleFactor,
+    focus.y,
+    impact.y * worldScaleFactor
+  );
+
+  const lookBlend = THREE.MathUtils.lerp(0.52, 0.94, THREE.MathUtils.clamp(lowering, 0, 1));
+  const lookPoint = focus.lerp(aimPoint, lookBlend);
+
+  const minHeight = focusWorld.y + CUE_VIEW_LOOK_OFFSET * worldScaleFactor;
+  if (lookPoint.y < minHeight) {
+    lookPoint.y = minHeight;
+  }
+
+  const limitX = (PLAY_W / 2) * worldScaleFactor;
+  const limitZ = (PLAY_H / 2) * worldScaleFactor;
+  lookPoint.x = THREE.MathUtils.clamp(lookPoint.x, -limitX, limitX);
+  lookPoint.z = THREE.MathUtils.clamp(lookPoint.z, -limitZ, limitZ);
+
+  const railMargin = (BALL_R * 0.5 + CUSHION_FACE_INSET) * worldScaleFactor;
+  if (
+    Math.abs(aimPoint.x) > limitX - railMargin ||
+    Math.abs(aimPoint.z) > limitZ - railMargin
+  ) {
+    const railHeightBoost = BALL_R * 0.4 * worldScaleFactor;
+    lookPoint.y = Math.max(lookPoint.y, minHeight + railHeightBoost);
+  }
+
+  return lookPoint;
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -7589,8 +7642,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
               focusTarget = store.target.clone();
             }
+            const ballsList =
+              ballsRef.current?.length > 0 ? ballsRef.current : balls;
             focusTarget.multiplyScalar(worldScaleFactor);
-            lookTarget = focusTarget;
+            const orbitFocusWorld = focusTarget.clone();
+            lookTarget = orbitFocusWorld.clone();
             TMP_SPH.copy(sph);
             TMP_VEC3_A.setFromSpherical(TMP_SPH);
             let finalOffset = TMP_VEC3_A;
@@ -7600,6 +7656,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               1
             );
             const cueWeight = Math.pow(1 - cueBlend, 0.85);
+            const cueLowering = THREE.MathUtils.clamp(1 - cueBlend, 0, 1);
             if (
               cueWeight > 1e-4 &&
               cue?.active &&
@@ -7611,10 +7668,21 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               TMP_VEC2_A.copy(aimDirRef.current);
               if (TMP_VEC2_A.lengthSq() > 1e-6) {
                 TMP_VEC2_A.normalize();
+                const cueLookTarget = computeCueAimLookTarget({
+                  cueBall: cue,
+                  aimDir: TMP_VEC2_A,
+                  focusWorld: orbitFocusWorld,
+                  worldScaleFactor,
+                  balls: ballsList,
+                  lowering: cueLowering
+                });
+                if (cueLookTarget) {
+                  lookTarget.copy(cueLookTarget);
+                }
                 const cueOffset = computeCueAimCameraOffset({
                   cueBall: cue,
                   aimDir: TMP_VEC2_A,
-                  focusWorld: lookTarget,
+                  focusWorld: orbitFocusWorld,
                   worldScaleFactor,
                   cushionHeight: cushionHeightRef.current ?? TABLE.THICK,
                   orbitOffset: TMP_VEC3_A
@@ -7625,7 +7693,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 }
               }
             }
-            TMP_VEC3_CAMERA.copy(lookTarget).add(finalOffset);
+            TMP_VEC3_CAMERA.copy(orbitFocusWorld).add(finalOffset);
             const minCameraHeight = computeCueCameraMinHeight(
               worldScaleFactor,
               cushionHeightRef.current ?? TABLE.THICK
