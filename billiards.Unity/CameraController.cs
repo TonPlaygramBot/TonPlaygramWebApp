@@ -21,6 +21,10 @@ public class CameraController : MonoBehaviour
     // Extra clearance used when clamping the camera height so it always remains
     // above the cue stick and keeps the stick visible in frame.
     public float cueStickHeightClearance = 0.05f;
+    // Minimum distance the camera should maintain when hugging the table so the
+    // framing ends up closer to the cue ball without drifting toward the butt of
+    // the cue stick.
+    public float minimumCueViewDistance = 1.45f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 1.9f;
     // Default distance of the camera from the table centre when fully raised to
@@ -68,7 +72,7 @@ public class CameraController : MonoBehaviour
         float cueStickMinY = player != null
             ? player.position.y + Mathf.Max(0f, cueStickHeightClearance)
             : minRailY;
-        float minY = Mathf.Max(minRailY, cueStickMinY);
+        float minY = Mathf.Max(minRailY, cueStickMinY, tableTopY + Mathf.Max(0f, cueStickHeightClearance));
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
@@ -78,9 +82,10 @@ public class CameraController : MonoBehaviour
         float heightBlend = Mathf.InverseLerp(maxY, minY, pos.y);
 
         float minAllowedDistance = Mathf.Max(minDistanceFromCenter, Mathf.Max(cornerXThreshold, cornerZThreshold) + railBuffer);
-        float lowHeightDistance = Mathf.Max(minAllowedDistance - Mathf.Max(0f, lowHeightDistanceReduction), railBuffer + 0.1f);
+        float cueViewDistance = Mathf.Max(minAllowedDistance - Mathf.Max(0f, lowHeightDistanceReduction), minimumCueViewDistance);
         float raisedDistance = Mathf.Max(minAllowedDistance, distanceFromCenter + zoomOutWhenRaised);
-        float currentDistance = Mathf.Lerp(raisedDistance, lowHeightDistance, heightBlend);
+        float closeViewBlend = Mathf.SmoothStep(0f, 1f, heightBlend);
+        float currentDistance = Mathf.Lerp(raisedDistance, cueViewDistance, closeViewBlend);
 
         // If the player (or the camera if no player reference is set) moves
         // close to a corner, increase the distance a little to give a clearer
@@ -99,7 +104,10 @@ public class CameraController : MonoBehaviour
         if (player != null)
         {
             Vector3 playerFlat = new Vector3(player.position.x, 0f, player.position.z);
-            focusBlend = Mathf.Clamp01(heightBlend * Mathf.Clamp01(lowHeightPlayerFocus));
+            float desiredFocus = Mathf.Clamp01(lowHeightPlayerFocus);
+            float cueFocusBias = Mathf.SmoothStep(0f, 1f, heightBlend);
+            focusBlend = Mathf.Clamp01(Mathf.Lerp(0f, desiredFocus, cueFocusBias));
+            focusBlend = Mathf.Lerp(focusBlend, 1f, cueFocusBias);
             pivot = Vector3.Lerp(Vector3.zero, playerFlat, focusBlend);
         }
 
@@ -118,6 +126,18 @@ public class CameraController : MonoBehaviour
 
         Vector3 flatDir = flatOffset.normalized;
         Vector3 desiredFlat = pivotFlat + flatDir * currentDistance;
+        if (player != null)
+        {
+            Vector3 playerFlat = new Vector3(player.position.x, 0f, player.position.z);
+            Vector3 cueAxis = pivotFlat - playerFlat;
+            float cueSlide = Mathf.SmoothStep(0f, 1f, heightBlend);
+            if (cueAxis.sqrMagnitude > 0.0001f && cueSlide > 0f)
+            {
+                Vector3 cueDir = cueAxis.normalized;
+                Vector3 cueViewPos = playerFlat + cueDir * currentDistance;
+                desiredFlat = Vector3.Lerp(desiredFlat, cueViewPos, cueSlide);
+            }
+        }
         pos = new Vector3(desiredFlat.x, pos.y, desiredFlat.z);
 
         transform.position = pos;
