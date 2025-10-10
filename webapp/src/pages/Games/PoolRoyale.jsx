@@ -2329,8 +2329,9 @@ const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
-const CUE_VIEW_ABOVE_CUE = BALL_R * 0.74;
-const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.28;
+// Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
+const CUE_VIEW_ABOVE_CUE = BALL_R * 1.08;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.42;
 const CUE_VIEW_BACK_MIN_RATIO = 0.26;
 const CUE_VIEW_BACK_RATIO = 0.34;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
