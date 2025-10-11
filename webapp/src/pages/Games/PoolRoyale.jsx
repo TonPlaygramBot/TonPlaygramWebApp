@@ -2337,10 +2337,8 @@ const CUE_VIEW_TARGET_PHI = Math.min(
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
 // Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
-const CUE_VIEW_ABOVE_CUE = BALL_R * 0.48;
-const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.16;
-const SPIN_CAMERA_ZOOM_RANGE = BALL_R * 6;
-const SPIN_CAMERA_ZOOM_THRESHOLD = 0.08;
+const CUE_VIEW_ABOVE_CUE = BALL_R * 0.72;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.24;
 const CUE_VIEW_BACK_MIN_RATIO = 0.26;
 const CUE_VIEW_BACK_RATIO = 0.34;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
@@ -7764,20 +7762,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
-            const spinState = spinAppliedRef.current;
-            if (spinState?.magnitude > SPIN_CAMERA_ZOOM_THRESHOLD) {
-              const spinStrength = THREE.MathUtils.clamp(
-                (spinState.magnitude - SPIN_CAMERA_ZOOM_THRESHOLD) /
-                  (1 - SPIN_CAMERA_ZOOM_THRESHOLD),
-                0,
-                1
-              );
-              const zoomAmount = SPIN_CAMERA_ZOOM_RANGE * worldScaleFactor * spinStrength;
-              TMP_SPH.radius = clampOrbitRadius(
-                TMP_SPH.radius - zoomAmount,
-                CUE_VIEW_MIN_RADIUS
-              );
-            }
             TMP_VEC3_A.setFromSpherical(TMP_SPH);
             let finalOffset = TMP_VEC3_A;
             const cueBlend = THREE.MathUtils.clamp(
@@ -9423,7 +9407,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let potted = [];
       let firstHit = null;
 
-      const alignStandingCameraToAim = (cueBall, aimDir, options = {}) => {
+      const alignStandingCameraToAim = (cueBall, aimDir) => {
         if (!cueBall || !aimDir) return;
         const dir = aimDir.clone();
         if (dir.lengthSq() < 1e-6) return;
@@ -9439,10 +9423,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             CAMERA.maxPhi
           );
         }
-        const perspective =
-          options.perspective ?? (hudRef.current?.turn === 1 ? 'opponent' : 'player');
-        const aimTheta =
-          Math.atan2(dir.x, dir.y) + (perspective === 'opponent' ? 0 : Math.PI);
+        const aimTheta = Math.atan2(dir.x, dir.y) + Math.PI;
         sph.theta = aimTheta;
         syncBlendToSpherical();
         const focusStore = ensureOrbitFocus();
@@ -10055,9 +10036,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
-              alignStandingCameraToAim(cue, plan.aimDir, {
-                perspective: 'opponent'
-              });
+              alignStandingCameraToAim(cue, plan.aimDir);
             } else {
               aiPlanRef.current = null;
             }
@@ -10127,7 +10106,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
           topViewRef.current = false;
-          alignStandingCameraToAim(cue, dir, { perspective: 'opponent' });
+          alignStandingCameraToAim(cue, dir);
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
           const spinToApply = plan.spin ?? { x: 0, y: 0 };
@@ -10340,7 +10319,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
-          aimFocusRef.current = start.clone().lerp(end, 0.5);
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
           shouldSlowAim = hasTarget;
@@ -10545,7 +10523,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
-          aimFocusRef.current = null;
           updateChalkVisibility(null);
           const planDir = activeAiPlan.aimDir
             ? activeAiPlan.aimDir.clone()
