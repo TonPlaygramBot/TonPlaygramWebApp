@@ -2273,15 +2273,12 @@ function applySnookerScaling({
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
-// Lower the cue shot tilt so the camera can skim the rail line while staying just
-// above the cloth. Keeping the delta small ensures we don't clip through the
-// table surface when blending between views.
-const CUE_SHOT_PHI = Math.PI / 2 - 0.12;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // keep orbit camera from dipping below the table surface
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2323,11 +2320,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.085;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
+const CUE_VIEW_RADIUS_RATIO = 0.095;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.45;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.38
+  STANDING_VIEW_PHI + 0.22
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
@@ -2419,11 +2416,6 @@ const TMP_VEC3_DIR = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
-const TMP_VEC3_OTS_TIP = new THREE.Vector3();
-const TMP_VEC3_OTS_DIR = new THREE.Vector3();
-const TMP_VEC3_OTS_RIGHT = new THREE.Vector3();
-const TMP_VEC3_OTS_CUEBALL = new THREE.Vector3();
-const WORLD_UP_VEC = new THREE.Vector3(0, 1, 0);
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -7075,60 +7067,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const now = performance.now();
             lastCameraTickRef.current = now;
             mobileRig.setViewport(host.clientWidth, host.clientHeight);
-            let rigInput = null;
-            const cueBall = cue;
-            const aimVec2 = aimDirRef.current;
-            const worldScale = worldScaleFactor;
-            if (
-              cueBall?.active &&
-              cueBall.pos &&
-              aimVec2 &&
-              Number.isFinite(aimVec2.x) &&
-              Number.isFinite(aimVec2.y)
-            ) {
-              TMP_VEC3_OTS_DIR.set(aimVec2.x, 0, aimVec2.y);
-              if (TMP_VEC3_OTS_DIR.lengthSq() > 1e-6) {
-                TMP_VEC3_OTS_DIR.normalize();
-                TMP_VEC3_OTS_RIGHT.crossVectors(WORLD_UP_VEC, TMP_VEC3_OTS_DIR);
-                if (TMP_VEC3_OTS_RIGHT.lengthSq() < 1e-6) {
-                  TMP_VEC3_OTS_RIGHT.set(1, 0, 0);
-                } else {
-                  TMP_VEC3_OTS_RIGHT.normalize();
-                }
-                const cueBallWorld = TMP_VEC3_OTS_CUEBALL.set(
-                  Number.isFinite(cueBall.pos.x) ? cueBall.pos.x : 0,
-                  BALL_CENTER_Y,
-                  Number.isFinite(cueBall.pos.y) ? cueBall.pos.y : 0
-                ).multiplyScalar(worldScale);
-                let tipWorld = cueBallWorld;
-                const tipGroup = tipGroupRef.current;
-                if (tipGroup?.getWorldPosition) {
-                  tipGroup.updateWorldMatrix?.(true, false);
-                  tipGroup.getWorldPosition(TMP_VEC3_OTS_TIP);
-                  tipWorld = TMP_VEC3_OTS_TIP;
-                } else {
-                  TMP_VEC3_OTS_TIP.copy(cueBallWorld).addScaledVector(
-                    TMP_VEC3_OTS_DIR,
-                    BALL_R * worldScale
-                  );
-                  tipWorld = TMP_VEC3_OTS_TIP;
-                }
-                const ballsList =
-                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
-                rigInput = {
-                  tip: tipWorld,
-                  cueDirection: TMP_VEC3_OTS_DIR,
-                  cueRight: TMP_VEC3_OTS_RIGHT,
-                  cueBall: cueBallWorld,
-                  balls: ballsList,
-                  cueBallRef: cueBall,
-                  worldScale,
-                  ballRadiusWorld: BALL_R * worldScale,
-                  ballCenterYWorld: BALL_CENTER_Y * worldScale
-                };
-              }
-            }
-            mobileRig.update(now, rigInput);
+            mobileRig.update(now);
             const state = mobileRig.getState();
             const currentSph = sphRef.current;
             if (currentSph) {
@@ -7136,6 +7075,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               currentSph.theta = state.phi;
               currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
             }
+            camera.up.set(0, 1, 0);
+            camera.lookAt(0, 0, 0);
             activeRenderCameraRef.current = camera;
             return camera;
           }
@@ -8621,13 +8562,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (mobileCameraRigRef.current) {
         mobileCameraRigRef.current.setTableDimensions(
           PLAY_W * worldScaleFactor,
-          PLAY_H * worldScaleFactor,
-          {
-            surfaceY: tableSurfaceY * worldScaleFactor,
-            railTop:
-              (TABLE_Y + (cushionHeightRef.current ?? TABLE.THICK)) *
-              worldScaleFactor
-          }
+          PLAY_H * worldScaleFactor
         );
       }
       world.scale.setScalar(worldScaleFactor);
