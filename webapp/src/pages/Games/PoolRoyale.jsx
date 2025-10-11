@@ -36,7 +36,12 @@ import {
   disposeMaterialWithWood,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
-import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
+import {
+  MobilePortraitCameraRig,
+  rad,
+  isCueAttachedCameraEnabled,
+  updateCameraWithCue
+} from './simpleOrbitCamera';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -2425,6 +2430,11 @@ const TMP_VEC3_DIR = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
+const TMP_VEC3_CUE_TIP = new THREE.Vector3();
+const TMP_VEC3_CUE_DIR = new THREE.Vector3();
+const TMP_VEC3_CUE_RIGHT = new THREE.Vector3();
+const TMP_VEC3_CUE_LOOK = new THREE.Vector3();
+const TMP_QUAT_CUE = new THREE.Quaternion();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -5360,6 +5370,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
+  const cueTipRef = useRef(null);
   const cueBodyRef = useRef(null);
   const spinRangeRef = useRef({
     side: 0,
@@ -7136,8 +7147,37 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
             lerp: 0.18
           };
+          let cueCameraActive = false;
+          if (isCueAttachedCameraEnabled()) {
+            const tipMesh = cueTipRef.current;
+            if (cueStick?.visible && tipMesh) {
+              cueStick.updateMatrixWorld(true);
+              tipMesh.updateMatrixWorld(true);
+              tipMesh.getWorldPosition(TMP_VEC3_CUE_TIP);
+              cueStick.getWorldQuaternion(TMP_QUAT_CUE);
+              TMP_VEC3_CUE_DIR.set(0, 0, -1).applyQuaternion(TMP_QUAT_CUE);
+              TMP_VEC3_CUE_RIGHT.set(1, 0, 0).applyQuaternion(TMP_QUAT_CUE);
+              if (
+                updateCameraWithCue(
+                  camera,
+                  TMP_VEC3_CUE_TIP,
+                  TMP_VEC3_CUE_DIR,
+                  TMP_VEC3_CUE_RIGHT
+                )
+              ) {
+                cueCameraActive = true;
+                TMP_VEC3_CUE_LOOK.copy(TMP_VEC3_CUE_TIP).add(TMP_VEC3_CUE_DIR);
+                lookTarget = TMP_VEC3_CUE_LOOK;
+                renderCamera = camera;
+                broadcastArgs.railDir = 1;
+                broadcastArgs.targetWorld = TMP_VEC3_CUE_TIP;
+                broadcastArgs.focusWorld = TMP_VEC3_CUE_LOOK;
+                broadcastArgs.lerp = 0.12;
+              }
+            }
+          }
           const galleryState = cueGalleryStateRef.current;
-          if (galleryState?.active) {
+          if (!cueCameraActive && galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
             const baseTarget =
@@ -7175,7 +7215,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (topViewRef.current) {
+          } else if (!cueCameraActive && topViewRef.current) {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
             );
@@ -7185,7 +7225,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             broadcastArgs.focusWorld =
               broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
             broadcastArgs.targetWorld = null;
-          } else if (activeShotView?.mode === 'action') {
+          } else if (!cueCameraActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             if (!cueBall?.active) {
@@ -7464,7 +7504,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 renderCamera = camera;
               }
             }
-          } else if (activeShotView?.mode === 'pocket') {
+          } else if (!cueCameraActive && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -7691,7 +7731,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               renderCamera = pocketCamera;
             }
             lookTarget = activeShotView.smoothedTarget;
-          } else {
+          } else if (!cueCameraActive) {
             const aimFocus =
               !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
@@ -8944,6 +8984,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       tip.rotation.x = -Math.PI / 2;
       tip.position.z = -(tipCylinderLen / 2 + tipRadius + connectorHeight);
       tipGroup.add(tip);
+      cueTipRef.current = tip;
 
       const connector = new THREE.Mesh(
         new THREE.CylinderGeometry(
@@ -11167,6 +11208,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           mobileCameraRigRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
+          cueTipRef.current = null;
           try {
             host.removeChild(renderer.domElement);
           } catch {}
