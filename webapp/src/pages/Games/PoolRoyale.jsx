@@ -2526,49 +2526,28 @@ const computeActionCameraMidHeight = (
   return midpointWorld / scale;
 };
 
-const computeAimFocusTarget = (cueBall, aimDir, ballsList) => {
+const computeAimFocusTarget = (cueBall, aimDir) => {
   if (!cueBall?.pos || !aimDir) return null;
-  const dirX = Number.isFinite(aimDir.x) ? aimDir.x : 0;
-  const dirY = Number.isFinite(aimDir.y) ? aimDir.y : 0;
-  TMP_VEC2_FORWARD.set(dirX, dirY);
-  if (TMP_VEC2_FORWARD.lengthSq() < 1e-6) return null;
-  TMP_VEC2_FORWARD.normalize();
-
-  let focus = null;
-  const candidates = Array.isArray(ballsList) ? ballsList : null;
-  if (candidates && candidates.length > 0) {
-    const prediction = calcTarget(cueBall, TMP_VEC2_FORWARD, candidates);
-    const targetBall = prediction?.targetBall;
-    if (targetBall?.pos) {
-      focus = new THREE.Vector3(
-        targetBall.pos.x,
-        BALL_CENTER_Y,
-        targetBall.pos.y
-      );
-    } else if (prediction?.impact?.isVector2) {
-      focus = new THREE.Vector3(
-        prediction.impact.x,
-        BALL_CENTER_Y,
-        prediction.impact.y
-      );
-    }
-  }
-
-  if (!focus) {
-    const focusDistance = Math.max(
-      BALL_R * 32,
-      Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.48)
-    );
-    focus = new THREE.Vector3(
-      cueBall.pos.x + TMP_VEC2_FORWARD.x * focusDistance,
-      BALL_CENTER_Y,
-      cueBall.pos.y + TMP_VEC2_FORWARD.y * focusDistance
-    );
-  }
-
-  focus.x = THREE.MathUtils.clamp(focus.x, -PLAY_W / 2, PLAY_W / 2);
-  focus.z = THREE.MathUtils.clamp(focus.z, -PLAY_H / 2, PLAY_H / 2);
-  return focus;
+  const dir = new THREE.Vector2(aimDir.x ?? 0, aimDir.y ?? 0);
+  if (dir.lengthSq() < 1e-6) return null;
+  dir.normalize();
+  const focusDistance = Math.max(
+    BALL_R * 32,
+    Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.48)
+  );
+  return new THREE.Vector3(
+    THREE.MathUtils.clamp(
+      cueBall.pos.x + dir.x * focusDistance,
+      -PLAY_W / 2,
+      PLAY_W / 2
+    ),
+    BALL_CENTER_Y,
+    THREE.MathUtils.clamp(
+      cueBall.pos.y + dir.y * focusDistance,
+      -PLAY_H / 2,
+      PLAY_H / 2
+    )
+  );
 };
 
 const computeCueAimCameraOffset = ({
@@ -7745,8 +7724,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             lookTarget = activeShotView.smoothedTarget;
           } else {
-            const aimFocus =
-              !shooting && cue?.active ? aimFocusRef.current : null;
+            const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
             if (
               aimFocus &&
@@ -7756,11 +7734,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ) {
               focusTarget = aimFocus.clone();
             } else if (cue?.active && !shooting) {
-              const aimFocus = computeAimFocusTarget(
-                cue,
-                aimDirRef.current,
-                ballsRef.current
-              );
+              const aimFocus = computeAimFocusTarget(cue, aimDirRef.current);
               if (aimFocus) {
                 aimFocusRef.current = aimFocus.clone();
                 focusTarget = aimFocus;
