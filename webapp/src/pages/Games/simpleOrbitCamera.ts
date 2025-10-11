@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 const DEG2RAD = Math.PI / 180;
-const MIN_THETA = 30 * DEG2RAD;
+const MIN_THETA = 24 * DEG2RAD;
 const MAX_THETA = 48 * DEG2RAD;
 const DEFAULT_THETA = 35 * DEG2RAD;
 const MAX_SMOOTH_STEP = 1 / 30;
@@ -97,6 +97,11 @@ export class MobilePortraitCameraRig {
     this.tableHeight = 7.2;
     this.camera.up.copy(sharedUp);
     this.camera.lookAt(this.target);
+  }
+
+  setTarget(target: THREE.Vector3) {
+    if (!target) return;
+    this.target.copy(target);
   }
 
   setViewport(width: number, height: number) {

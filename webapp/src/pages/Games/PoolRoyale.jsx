@@ -6773,6 +6773,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         phi: Math.PI,
         radius: fitRadius(camera, 1.6)
       });
+      mobileCameraRig.setTarget(
+        getDefaultOrbitTarget().clone().multiplyScalar(worldScaleFactor)
+      );
       mobileCameraRig.setViewport(host.clientWidth, host.clientHeight);
       mobileCameraRigRef.current = mobileCameraRig;
         const standingPhi = THREE.MathUtils.clamp(
@@ -7061,6 +7064,59 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           );
         };
 
+        const resolveCameraFocusTarget = () => {
+          let focusTarget = null;
+          const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
+          if (
+            aimFocus &&
+            Number.isFinite(aimFocus.x) &&
+            Number.isFinite(aimFocus.y) &&
+            Number.isFinite(aimFocus.z)
+          ) {
+            focusTarget = aimFocus.clone();
+          } else if (cue?.active && !shooting) {
+            const aimDir = aimDirRef.current;
+            const computed = computeAimFocusTarget(cue, aimDir);
+            if (computed) {
+              aimFocusRef.current = computed.clone();
+              focusTarget = computed;
+            } else {
+              aimFocusRef.current = null;
+              focusTarget = new THREE.Vector3(
+                cue.pos.x,
+                BALL_CENTER_Y,
+                cue.pos.y
+              );
+            }
+          } else {
+            aimFocusRef.current = null;
+            const store = ensureOrbitFocus();
+            if (store.ballId) {
+              const ballsList =
+                ballsRef.current?.length > 0 ? ballsRef.current : balls;
+              const focusBall = ballsList.find((b) => b.id === store.ballId);
+              if (focusBall?.active) {
+                store.target.set(
+                  focusBall.pos.x,
+                  BALL_CENTER_Y,
+                  focusBall.pos.y
+                );
+              } else {
+                setOrbitFocusToDefault();
+              }
+            }
+            focusTarget = store.target.clone();
+          }
+          if (!focusTarget) {
+            const store = ensureOrbitFocus();
+            focusTarget = store.target.clone();
+          }
+          return {
+            local: focusTarget,
+            world: focusTarget.clone().multiplyScalar(worldScaleFactor)
+          };
+        };
+
         const updateCamera = () => {
           const mobileRig = mobileCameraRigRef.current;
           if (
@@ -7073,6 +7129,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const now = performance.now();
             lastCameraTickRef.current = now;
             mobileRig.setViewport(host.clientWidth, host.clientHeight);
+            const focus = resolveCameraFocusTarget();
+            if (focus.world) {
+              mobileRig.setTarget(focus.world);
+              lastCameraTargetRef.current.copy(focus.world);
+            }
             mobileRig.update(now);
             const state = mobileRig.getState();
             const currentSph = sphRef.current;
@@ -7082,7 +7143,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
             }
             camera.up.set(0, 1, 0);
-            camera.lookAt(0, 0, 0);
+            if (focus.world) {
+              camera.lookAt(focus.world);
+            } else {
+              camera.lookAt(0, 0, 0);
+            }
             activeRenderCameraRef.current = camera;
             return camera;
           }
@@ -7644,45 +7709,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             lookTarget = activeShotView.smoothedTarget;
           } else {
-            const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
-            let focusTarget;
-            if (
-              aimFocus &&
-              Number.isFinite(aimFocus.x) &&
-              Number.isFinite(aimFocus.y) &&
-              Number.isFinite(aimFocus.z)
-            ) {
-              focusTarget = aimFocus.clone();
-            } else if (cue?.active && !shooting) {
-              const aimFocus = computeAimFocusTarget(cue, aimDirRef.current);
-              if (aimFocus) {
-                aimFocusRef.current = aimFocus.clone();
-                focusTarget = aimFocus;
-              } else {
-                aimFocusRef.current = null;
-                focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-              }
-            } else {
-              aimFocusRef.current = null;
-              const store = ensureOrbitFocus();
-              if (store.ballId) {
-                const ballsList =
-                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
-                const focusBall = ballsList.find((b) => b.id === store.ballId);
-                if (focusBall?.active) {
-                  store.target.set(
-                    focusBall.pos.x,
-                    BALL_CENTER_Y,
-                    focusBall.pos.y
-                  );
-                } else {
-                  setOrbitFocusToDefault();
-                }
-              }
-              focusTarget = store.target.clone();
-            }
-            focusTarget.multiplyScalar(worldScaleFactor);
-            lookTarget = focusTarget;
+            const focus = resolveCameraFocusTarget();
+            lookTarget = focus.world ??
+              getDefaultOrbitTarget().clone().multiplyScalar(worldScaleFactor);
             TMP_SPH.copy(sph);
             TMP_VEC3_A.setFromSpherical(TMP_SPH);
             let finalOffset = TMP_VEC3_A;
