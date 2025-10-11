@@ -2281,7 +2281,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2327,13 +2327,10 @@ const CUE_VIEW_RADIUS_RATIO = 0.085;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.5
+  STANDING_VIEW_PHI + 0.38
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
-const CUE_VIEW_TARGET_PHI = Math.min(
-  CAMERA.maxPhi,
-  CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5
-);
+const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
 // Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
@@ -9393,44 +9390,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           BALL_R * 28,
           Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.5)
         );
-        const tableHalfWidth = PLAY_W / 2;
-        const tableHalfLength = PLAY_H / 2;
-        const focusMargin = Math.max(BALL_R * 0.5, 0.01);
-        const safeXMin = -tableHalfWidth + focusMargin;
-        const safeXMax = tableHalfWidth - focusMargin;
-        const safeZMin = -tableHalfLength + focusMargin;
-        const safeZMax = tableHalfLength - focusMargin;
-        let maxDistance = focusDistance;
-        const originX = cueBall.pos.x;
-        const originZ = cueBall.pos.y;
-        const applyAxisLimit = (dirComponent, originComponent, minLimit, maxLimit) => {
-          if (Math.abs(dirComponent) < 1e-6) return;
-          const limitValue = dirComponent > 0 ? maxLimit : minLimit;
-          const travel = (limitValue - originComponent) / dirComponent;
-          if (travel > 0) {
-            maxDistance = Math.min(maxDistance, travel);
-          }
-        };
-        applyAxisLimit(dir.x, originX, safeXMin, safeXMax);
-        applyAxisLimit(dir.y, originZ, safeZMin, safeZMax);
-        if (!Number.isFinite(maxDistance) || maxDistance <= 0) {
-          maxDistance = focusDistance;
-        }
-        let limitedDistance = Math.min(focusDistance, maxDistance);
-        if (!Number.isFinite(limitedDistance) || limitedDistance <= 0) {
-          limitedDistance = Math.max(
-            BALL_R * 3,
-            Math.min(focusDistance, LONG_SHOT_DISTANCE)
-          );
-        } else {
-          const minimum = Math.min(BALL_R * 3, focusDistance);
-          limitedDistance = Math.max(limitedDistance, minimum);
-          limitedDistance = Math.min(limitedDistance, maxDistance);
-        }
         const focusTarget = new THREE.Vector3(
-          originX + dir.x * limitedDistance,
+          THREE.MathUtils.clamp(
+            cueBall.pos.x + dir.x * focusDistance,
+            -PLAY_W / 2,
+            PLAY_W / 2
+          ),
           BALL_CENTER_Y,
-          originZ + dir.y * limitedDistance
+          THREE.MathUtils.clamp(
+            cueBall.pos.y + dir.y * focusDistance,
+            -PLAY_H / 2,
+            PLAY_H / 2
+          )
         );
         focusStore.ballId = cueBall.id ?? null;
         focusStore.target.copy(focusTarget);
