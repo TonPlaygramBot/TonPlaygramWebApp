@@ -2566,20 +2566,26 @@ const computeAimFocusTarget = (cueBall, aimDir, ballsList) => {
   return focus;
 };
 
-const computeCueAimCameraOffset = ({
+const computeCueAimCameraPosition = ({
   cueBall,
   aimDir,
-  focusWorld,
   worldScaleFactor,
   cushionHeight,
   orbitOffset
 }) => {
-  if (!cueBall || !aimDir || !focusWorld) return null;
+  if (!cueBall || !aimDir) return null;
   const aimX = Number.isFinite(aimDir.x) ? aimDir.x : 0;
   const aimY = Number.isFinite(aimDir.y) ? aimDir.y : 0;
   TMP_VEC3_DIR.set(-aimX, 0, -aimY);
   if (TMP_VEC3_DIR.lengthSq() < 1e-6) return null;
   TMP_VEC3_DIR.normalize();
+  const cuePos = cueBall.pos;
+  if (!cuePos) return null;
+  const cueWorld = new THREE.Vector3(
+    Number.isFinite(cuePos.x) ? cuePos.x : 0,
+    BALL_CENTER_Y,
+    Number.isFinite(cuePos.y) ? cuePos.y : 0
+  ).multiplyScalar(worldScaleFactor);
   const cueLengthWorld = CUE_VIEW_BASE_CUE_LENGTH * worldScaleFactor;
   const tipGapWorld = CUE_TIP_GAP * worldScaleFactor;
   const minBackWorld = Math.max(
@@ -2590,29 +2596,26 @@ const computeCueAimCameraOffset = ({
     cueLengthWorld + tipGapWorld - BALL_R * 2.2 * worldScaleFactor,
     minBackWorld
   );
-  const targetBackWorld = THREE.MathUtils.clamp(
+  let backDistance = THREE.MathUtils.clamp(
     cueLengthWorld * CUE_VIEW_BACK_RATIO,
     minBackWorld,
     maxBackWorld
   );
-  TMP_VEC3_B.copy(TMP_VEC3_DIR).multiplyScalar(targetBackWorld);
-  const cueBallWorldY = focusWorld.y;
+  if (orbitOffset) {
+    const orbitHorizontal = Math.hypot(orbitOffset.x, orbitOffset.z);
+    if (orbitHorizontal > 1e-3) {
+      backDistance = Math.min(backDistance, orbitHorizontal);
+    }
+  }
+  TMP_VEC3_B.copy(TMP_VEC3_DIR).multiplyScalar(backDistance);
+  const cameraPosition = cueWorld.clone().add(TMP_VEC3_B);
   const minCameraY = computeCueCameraMinHeight(worldScaleFactor, cushionHeight);
   const desiredY = Math.max(
     minCameraY,
-    cueBallWorldY + CUE_VIEW_EXTRA_HEIGHT * worldScaleFactor
+    cueWorld.y + CUE_VIEW_EXTRA_HEIGHT * worldScaleFactor
   );
-  TMP_VEC3_B.y = desiredY - cueBallWorldY;
-  if (orbitOffset) {
-    const orbitHorizontal = Math.hypot(orbitOffset.x, orbitOffset.z);
-    const cueHorizontal = Math.hypot(TMP_VEC3_B.x, TMP_VEC3_B.z);
-    if (cueHorizontal > orbitHorizontal && orbitHorizontal > 1e-3) {
-      const scale = orbitHorizontal / cueHorizontal;
-      TMP_VEC3_B.x *= scale;
-      TMP_VEC3_B.z *= scale;
-    }
-  }
-  return TMP_VEC3_B.clone();
+  cameraPosition.y = desiredY;
+  return cameraPosition;
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -7749,7 +7752,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               );
             }
             TMP_VEC3_A.setFromSpherical(TMP_SPH);
-            let finalOffset = TMP_VEC3_A;
+            TMP_VEC3_CAMERA.copy(lookTarget).add(TMP_VEC3_A);
             const cueBlend = THREE.MathUtils.clamp(
               cameraBlendRef.current ?? 1,
               0,
@@ -7767,21 +7770,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               TMP_VEC2_A.copy(aimDirRef.current);
               if (TMP_VEC2_A.lengthSq() > 1e-6) {
                 TMP_VEC2_A.normalize();
-                const cueOffset = computeCueAimCameraOffset({
+                const cuePosition = computeCueAimCameraPosition({
                   cueBall: cue,
                   aimDir: TMP_VEC2_A,
-                  focusWorld: lookTarget,
                   worldScaleFactor,
                   cushionHeight: cushionHeightRef.current ?? TABLE.THICK,
                   orbitOffset: TMP_VEC3_A
                 });
-                if (cueOffset) {
-                  TMP_VEC3_B.copy(TMP_VEC3_A).lerp(cueOffset, cueWeight);
-                  finalOffset = TMP_VEC3_B;
+                if (cuePosition) {
+                  TMP_VEC3_CAMERA.lerp(cuePosition, cueWeight);
                 }
               }
             }
-            TMP_VEC3_CAMERA.copy(lookTarget).add(finalOffset);
             const minCameraHeight = computeCueCameraMinHeight(
               worldScaleFactor,
               cushionHeightRef.current ?? TABLE.THICK
