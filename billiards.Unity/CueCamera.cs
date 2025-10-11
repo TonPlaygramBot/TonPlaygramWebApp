@@ -36,7 +36,7 @@ public class CueCamera : MonoBehaviour
     // Height the cue view should reach when the player lifts the camera.
     public float cueRaisedHeight = 0.82f;
     // Minimum height maintained when the player drops the camera toward the cue.
-    public float cueLoweredHeight = 0.24f;
+    public float cueLoweredHeight = 0.3f;
     // Keep a small safety buffer from the butt of the cue so the camera never
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
