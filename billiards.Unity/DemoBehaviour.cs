@@ -40,10 +40,31 @@ public class DemoBehaviour : MonoBehaviour
         // Convert cue ball position to solver coordinates. The solver operates
         // in the XZ plane while Unity uses Y for height.
         var cueStart = new Vec2(CueBall.position.x, CueBall.position.z);
-        // Aim direction is derived from the camera's forward vector so the
-        // player aims by moving the camera rather than dragging the line.
-        var camForward = Camera.main.transform.forward;
-        var desiredDir = new Vec2(camForward.x, camForward.z).Normalized();
+        // Aim direction is derived from the camera's centre ray so the
+        // guiding line always matches what the player sees on screen even
+        // when the camera strafes.
+        Camera cam = Camera.main;
+        var desiredDir = currentDir;
+        if (cam != null)
+        {
+            Ray viewRay = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            Plane clothPlane = new Plane(Vector3.up, new Vector3(0f, CueBall.position.y, 0f));
+            float distance;
+            if (clothPlane.Raycast(viewRay, out distance))
+            {
+                Vector3 aimPoint = viewRay.GetPoint(distance);
+                Vector3 flat = new Vector3(aimPoint.x - CueBall.position.x, 0f, aimPoint.z - CueBall.position.z);
+                if (flat.sqrMagnitude > 0.0001f)
+                {
+                    desiredDir = new Vec2(flat.x, flat.z).Normalized();
+                }
+            }
+            else
+            {
+                Vector3 forward = cam.transform.forward;
+                desiredDir = new Vec2(forward.x, forward.z).Normalized();
+            }
+        }
 
         // Smoothly adjust the aim for small camera movements.
         float smoothingFactor = Mathf.Clamp01(1f - Mathf.Exp(-Time.deltaTime * aimSmoothing));
