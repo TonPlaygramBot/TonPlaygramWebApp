@@ -25,24 +25,6 @@ const cueContact = new THREE.Vector3();
 const cueDirection = new THREE.Vector3();
 const cueButt = new THREE.Vector3();
 const sharedUp = new THREE.Vector3(0, 1, 0);
-const cueCameraAnchor = new THREE.Vector3();
-const cueCameraLook = new THREE.Vector3();
-const cueCameraForward = new THREE.Vector3();
-const cueCameraRight = new THREE.Vector3();
-const cueCameraX = new THREE.Vector3();
-const cueCameraY = new THREE.Vector3();
-const cueCameraZ = new THREE.Vector3();
-const cueCameraMatrix = new THREE.Matrix4();
-
-let cueAttachedCameraEnabled = false;
-
-const CUE_CAMERA_OFFSETS = Object.freeze({
-  back: 0.28,
-  height: 0.12,
-  side: 0.03,
-  nearMin: 0.08,
-  maxExtraBack: 0.5
-});
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -212,101 +194,6 @@ export class MobilePortraitCameraRig {
       radiusTarget: this.radiusTarget
     };
   }
-}
-
-export function setCueAttachedCameraEnabled(value: boolean) {
-  cueAttachedCameraEnabled = !!value;
-}
-
-export function isCueAttachedCameraEnabled() {
-  return cueAttachedCameraEnabled;
-}
-
-export function updateCameraWithCue(
-  camera: THREE.PerspectiveCamera,
-  tip: THREE.Vector3,
-  dir: THREE.Vector3,
-  right?: THREE.Vector3
-) {
-  if (!cueAttachedCameraEnabled) return false;
-  if (!camera || !tip || !dir) return false;
-
-  cueCameraForward.copy(dir);
-  const forwardLenSq = cueCameraForward.lengthSq();
-  if (!Number.isFinite(forwardLenSq) || forwardLenSq < 1e-12) {
-    return false;
-  }
-  cueCameraForward.multiplyScalar(1 / Math.sqrt(forwardLenSq));
-
-  if (right) {
-    cueCameraRight.copy(right);
-  } else {
-    cueCameraRight.crossVectors(sharedUp, cueCameraForward);
-  }
-
-  const forwardDot = cueCameraRight.dot(cueCameraForward);
-  if (Math.abs(forwardDot) > 1e-6) {
-    cueCameraRight.addScaledVector(cueCameraForward, -forwardDot);
-  }
-  if (cueCameraRight.lengthSq() < 1e-10) {
-    cueCameraRight.crossVectors(sharedUp, cueCameraForward);
-  }
-  if (cueCameraRight.lengthSq() < 1e-10) {
-    return false;
-  }
-  cueCameraRight.normalize();
-
-  cueCameraAnchor
-    .copy(tip)
-    .addScaledVector(cueCameraForward, -CUE_CAMERA_OFFSETS.back)
-    .addScaledVector(sharedUp, CUE_CAMERA_OFFSETS.height)
-    .addScaledVector(cueCameraRight, CUE_CAMERA_OFFSETS.side);
-
-  const dist = cueCameraAnchor.distanceTo(tip);
-  if (Number.isFinite(dist) && dist < CUE_CAMERA_OFFSETS.nearMin) {
-    const delta = Math.min(
-      CUE_CAMERA_OFFSETS.nearMin - dist,
-      CUE_CAMERA_OFFSETS.maxExtraBack
-    );
-    if (delta > 1e-6) {
-      cueCameraAnchor.addScaledVector(cueCameraForward, -delta);
-    }
-  }
-
-  camera.position.copy(cueCameraAnchor);
-
-  cueCameraLook.copy(tip).add(cueCameraForward);
-  camera.lookAt(cueCameraLook);
-
-  cueCameraZ.copy(cueCameraLook).sub(camera.position);
-  if (cueCameraZ.lengthSq() < 1e-12) {
-    cueCameraZ.copy(cueCameraForward);
-  }
-  cueCameraZ.normalize();
-
-  cueCameraX.crossVectors(sharedUp, cueCameraZ);
-  if (cueCameraX.lengthSq() < 1e-10) {
-    cueCameraX.copy(cueCameraRight);
-  }
-  if (cueCameraX.lengthSq() < 1e-10) {
-    cueCameraX.crossVectors(cueCameraZ, cueCameraForward);
-  }
-  if (cueCameraX.lengthSq() < 1e-10) {
-    return true;
-  }
-  cueCameraX.normalize();
-
-  cueCameraY.crossVectors(cueCameraZ, cueCameraX);
-  if (cueCameraY.lengthSq() < 1e-12) {
-    return true;
-  }
-  cueCameraY.normalize();
-
-  cueCameraMatrix.makeBasis(cueCameraX, cueCameraY, cueCameraZ);
-  camera.quaternion.setFromRotationMatrix(cueCameraMatrix);
-  camera.up.copy(sharedUp);
-
-  return true;
 }
 
 export function alignCueRollToUp(
