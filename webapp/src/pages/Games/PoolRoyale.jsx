@@ -36,6 +36,7 @@ import {
   disposeMaterialWithWood,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
+import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -5262,6 +5263,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
+  const mobileCameraRigRef = useRef(null);
+  const lastCameraTickRef = useRef(
+    typeof performance !== 'undefined' ? performance.now() : 0
+  );
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
@@ -6754,9 +6759,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         aspect,
-          CAMERA.near,
-          CAMERA.far
-        );
+        CAMERA.near,
+        CAMERA.far
+      );
+      const mobileCameraRig = new MobilePortraitCameraRig(camera, {
+        theta: rad(35),
+        phi: Math.PI,
+        radius: fitRadius(camera, 1.6)
+      });
+      mobileCameraRig.setViewport(host.clientWidth, host.clientHeight);
+      mobileCameraRigRef.current = mobileCameraRig;
         const standingPhi = THREE.MathUtils.clamp(
           STANDING_VIEW.phi,
           CAMERA.minPhi,
@@ -7044,6 +7056,30 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const updateCamera = () => {
+          const mobileRig = mobileCameraRigRef.current;
+          if (
+            mobileRig &&
+            !topViewRef.current &&
+            !(cueGalleryStateRef.current?.active ?? false) &&
+            !(activeShotView && activeShotView.mode === 'action') &&
+            !pocketCameraStateRef.current
+          ) {
+            const now = performance.now();
+            lastCameraTickRef.current = now;
+            mobileRig.setViewport(host.clientWidth, host.clientHeight);
+            mobileRig.update(now);
+            const state = mobileRig.getState();
+            const currentSph = sphRef.current;
+            if (currentSph) {
+              currentSph.radius = state.radius;
+              currentSph.theta = state.phi;
+              currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
+            }
+            camera.up.set(0, 1, 0);
+            camera.lookAt(0, 0, 0);
+            activeRenderCameraRef.current = camera;
+            return camera;
+          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -8163,6 +8199,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
+        const pinch = { active: false, distance: 0 };
         const galleryDrag = {
           active: false,
           startX: 0,
@@ -8222,7 +8259,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          if (e.touches?.length === 2) return;
+          if (e.touches?.length === 2) {
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            if (t0 && t1) {
+              const dx = t0.clientX - t1.clientX;
+              const dy = t0.clientY - t1.clientY;
+              pinch.active = true;
+              pinch.distance = Math.hypot(dx, dy);
+            }
+            return;
+          }
           if (topViewRef.current) return;
           drag.on = true;
           drag.moved = false;
@@ -8282,6 +8329,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             registerInteraction();
             return;
           }
+          if (pinch.active && e.touches?.length === 2) {
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            if (t0 && t1) {
+              const dx = t0.clientX - t1.clientX;
+              const dy = t0.clientY - t1.clientY;
+              const dist = Math.hypot(dx, dy);
+              if (dist > 0 && pinch.distance > 0 && mobileCameraRigRef.current) {
+                const scale = dist / pinch.distance;
+                if (Math.abs(scale - 1) > 1e-3) {
+                  mobileCameraRigRef.current.zoomBy(scale);
+                }
+              }
+              pinch.distance = dist;
+            }
+            registerInteraction();
+            return;
+          }
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -8310,6 +8375,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 ? CHALK_PRECISION_SLOW_MULTIPLIER
                 : 1;
             const precisionScale = basePrecisionScale * slowScale;
+            if (mobileCameraRigRef.current) {
+              const yawDelta = -dx * 0.005 * precisionScale;
+              const pitchDelta = -dy * 0.003 * precisionScale;
+              mobileCameraRigRef.current.orbit(yawDelta, pitchDelta);
+            }
             sph.theta -= dx * 0.0035 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const phiDelta = dy * 0.0025 * precisionScale;
@@ -8337,6 +8407,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
+          pinch.active = false;
+          pinch.distance = 0;
           if (
             !moved &&
             !topViewRef.current &&
@@ -8365,14 +8437,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const step = baseStep * slowScale;
           if (e.code === 'ArrowLeft') {
             sph.theta += step;
+            mobileCameraRigRef.current?.orbit(step, 0);
           } else if (e.code === 'ArrowRight') {
             sph.theta -= step;
+            mobileCameraRigRef.current?.orbit(-step, 0);
           } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const dir = e.code === 'ArrowUp' ? -1 : 1;
             const blendDelta =
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
+            mobileCameraRigRef.current?.orbit(0, step * dir * 0.6);
           } else return;
           registerInteraction();
           updateCamera();
@@ -8484,6 +8559,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       sph.radius = clampOrbitRadius(sph.radius);
       const tableScale = tableSizeRef.current?.scale ?? 1;
       worldScaleFactor = WORLD_SCALE * tableScale;
+      if (mobileCameraRigRef.current) {
+        mobileCameraRigRef.current.setTableDimensions(
+          PLAY_W * worldScaleFactor,
+          PLAY_H * worldScaleFactor
+        );
+      }
       world.scale.setScalar(worldScaleFactor);
       const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * worldScaleFactor;
       world.position.y = surfaceOffset;
@@ -10932,6 +11013,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
+          if (mobileCameraRigRef.current) {
+            mobileCameraRigRef.current.setViewport(
+              host.clientWidth,
+              host.clientHeight
+            );
+          }
           const margin = Math.max(
             STANDING_VIEW.margin,
             topViewRef.current
@@ -10957,6 +11044,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           activeRenderCameraRef.current = null;
+          mobileCameraRigRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
