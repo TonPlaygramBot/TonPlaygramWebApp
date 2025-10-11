@@ -2425,6 +2425,11 @@ const TMP_VEC3_DIR = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
+const TMP_VEC3_OTS_TIP = new THREE.Vector3();
+const TMP_VEC3_OTS_DIR = new THREE.Vector3();
+const TMP_VEC3_OTS_RIGHT = new THREE.Vector3();
+const TMP_VEC3_OTS_CUEBALL = new THREE.Vector3();
+const WORLD_UP_VEC = new THREE.Vector3(0, 1, 0);
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -7115,7 +7120,60 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const now = performance.now();
             lastCameraTickRef.current = now;
             mobileRig.setViewport(host.clientWidth, host.clientHeight);
-            mobileRig.update(now);
+            let rigInput = null;
+            const cueBall = cue;
+            const aimVec2 = aimDirRef.current;
+            const worldScale = worldScaleFactor;
+            if (
+              cueBall?.active &&
+              cueBall.pos &&
+              aimVec2 &&
+              Number.isFinite(aimVec2.x) &&
+              Number.isFinite(aimVec2.y)
+            ) {
+              TMP_VEC3_OTS_DIR.set(aimVec2.x, 0, aimVec2.y);
+              if (TMP_VEC3_OTS_DIR.lengthSq() > 1e-6) {
+                TMP_VEC3_OTS_DIR.normalize();
+                TMP_VEC3_OTS_RIGHT.crossVectors(WORLD_UP_VEC, TMP_VEC3_OTS_DIR);
+                if (TMP_VEC3_OTS_RIGHT.lengthSq() < 1e-6) {
+                  TMP_VEC3_OTS_RIGHT.set(1, 0, 0);
+                } else {
+                  TMP_VEC3_OTS_RIGHT.normalize();
+                }
+                const cueBallWorld = TMP_VEC3_OTS_CUEBALL.set(
+                  Number.isFinite(cueBall.pos.x) ? cueBall.pos.x : 0,
+                  BALL_CENTER_Y,
+                  Number.isFinite(cueBall.pos.y) ? cueBall.pos.y : 0
+                ).multiplyScalar(worldScale);
+                let tipWorld = cueBallWorld;
+                const tipGroup = tipGroupRef.current;
+                if (tipGroup?.getWorldPosition) {
+                  tipGroup.updateWorldMatrix?.(true, false);
+                  tipGroup.getWorldPosition(TMP_VEC3_OTS_TIP);
+                  tipWorld = TMP_VEC3_OTS_TIP;
+                } else {
+                  TMP_VEC3_OTS_TIP.copy(cueBallWorld).addScaledVector(
+                    TMP_VEC3_OTS_DIR,
+                    BALL_R * worldScale
+                  );
+                  tipWorld = TMP_VEC3_OTS_TIP;
+                }
+                const ballsList =
+                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
+                rigInput = {
+                  tip: tipWorld,
+                  cueDirection: TMP_VEC3_OTS_DIR,
+                  cueRight: TMP_VEC3_OTS_RIGHT,
+                  cueBall: cueBallWorld,
+                  balls: ballsList,
+                  cueBallRef: cueBall,
+                  worldScale,
+                  ballRadiusWorld: BALL_R * worldScale,
+                  ballCenterYWorld: BALL_CENTER_Y * worldScale
+                };
+              }
+            }
+            mobileRig.update(now, rigInput);
             const state = mobileRig.getState();
             const currentSph = sphRef.current;
             if (currentSph) {
@@ -7123,8 +7181,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               currentSph.theta = state.phi;
               currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
             }
-            camera.up.set(0, 1, 0);
-            camera.lookAt(0, 0, 0);
             activeRenderCameraRef.current = camera;
             return camera;
           }
@@ -8648,7 +8704,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (mobileCameraRigRef.current) {
         mobileCameraRigRef.current.setTableDimensions(
           PLAY_W * worldScaleFactor,
-          PLAY_H * worldScaleFactor
+          PLAY_H * worldScaleFactor,
+          {
+            surfaceY: tableSurfaceY * worldScaleFactor,
+            railTop:
+              (TABLE_Y + (cushionHeightRef.current ?? TABLE.THICK)) *
+              worldScaleFactor
+          }
         );
       }
       world.scale.setScalar(worldScaleFactor);
