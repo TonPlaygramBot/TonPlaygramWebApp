@@ -546,12 +546,6 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
   POCKET_VIS_R * 5.2 +
   BALL_R * 3.7;
-const BROADCAST_LOWEST_LEVEL = TABLE_Y;
-const BROADCAST_HIGHEST_LEVEL = TABLE_Y + TABLE.THICK + BALL_R * 6;
-const BROADCAST_MID_HEIGHT = Math.max(
-  TABLE_Y + TABLE.THICK + BALL_R * 0.6,
-  (BROADCAST_LOWEST_LEVEL + BROADCAST_HIGHEST_LEVEL) / 2
-);
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
@@ -581,11 +575,11 @@ const ACTION_CAM = Object.freeze({
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BROADCAST_MID_HEIGHT - (TABLE_Y + TABLE.THICK),
+  heightOffset: BALL_R * 9.2,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
-  followHeightOffset: BROADCAST_MID_HEIGHT - (TABLE_Y + TABLE.THICK),
+  followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
 });
 /**
@@ -2342,9 +2336,9 @@ const CUE_VIEW_TARGET_PHI = Math.min(
 );
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
-// Lower the cue-view camera so it rests just above the stick midpoint for a clearer sight line.
-const CUE_VIEW_ABOVE_CUE = BALL_R * 0.82;
-const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.24;
+// Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
+const CUE_VIEW_ABOVE_CUE = BALL_R * 1.08;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.42;
 const CUE_VIEW_BACK_MIN_RATIO = 0.26;
 const CUE_VIEW_BACK_RATIO = 0.34;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
@@ -2358,7 +2352,6 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
-const CUE_SPIN_ZOOM_SCALE = 0.88;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -2424,7 +2417,6 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_B = new THREE.Vector3();
-const TMP_VEC3_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CAMERA = new THREE.Vector3();
 const TMP_VEC3_DIR = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
@@ -2541,14 +2533,12 @@ const computeCueAimCameraOffset = ({
   focusWorld,
   worldScaleFactor,
   cushionHeight,
-  orbitOffset,
-  viewSide = 1
+  orbitOffset
 }) => {
   if (!cueBall || !aimDir || !focusWorld) return null;
   const aimX = Number.isFinite(aimDir.x) ? aimDir.x : 0;
   const aimY = Number.isFinite(aimDir.y) ? aimDir.y : 0;
-  const viewSign = viewSide >= 0 ? 1 : -1;
-  TMP_VEC3_DIR.set(-aimX * viewSign, 0, -aimY * viewSign);
+  TMP_VEC3_DIR.set(-aimX, 0, -aimY);
   if (TMP_VEC3_DIR.lengthSq() < 1e-6) return null;
   TMP_VEC3_DIR.normalize();
   const cueLengthWorld = CUE_VIEW_BASE_CUE_LENGTH * worldScaleFactor;
@@ -7654,50 +7644,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             lookTarget = activeShotView.smoothedTarget;
           } else {
-            const hudState = hudRef.current ?? {};
-            const aimingActive = cue?.active && !shooting;
-            const aiPerspective = aimingActive && hudState.turn === 1;
-            let aimFocus = null;
-            if (aimingActive) {
-              const storedFocus = aimFocusRef.current;
-              if (
-                storedFocus &&
-                Number.isFinite(storedFocus.x) &&
-                Number.isFinite(storedFocus.y) &&
-                Number.isFinite(storedFocus.z)
-              ) {
-                aimFocus = storedFocus.clone();
+            const aimFocus = !shooting && cue?.active ? aimFocusRef.current : null;
+            let focusTarget;
+            if (
+              aimFocus &&
+              Number.isFinite(aimFocus.x) &&
+              Number.isFinite(aimFocus.y) &&
+              Number.isFinite(aimFocus.z)
+            ) {
+              focusTarget = aimFocus.clone();
+            } else if (cue?.active && !shooting) {
+              const aimFocus = computeAimFocusTarget(cue, aimDirRef.current);
+              if (aimFocus) {
+                aimFocusRef.current = aimFocus.clone();
+                focusTarget = aimFocus;
               } else {
-                const computedFocus = computeAimFocusTarget(
-                  cue,
-                  aimDirRef.current
-                );
-                if (computedFocus) {
-                  aimFocusRef.current = computedFocus.clone();
-                  aimFocus = computedFocus;
-                } else {
-                  aimFocusRef.current = null;
-                }
+                aimFocusRef.current = null;
+                focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
               }
             } else {
               aimFocusRef.current = null;
-            }
-            let focusTarget;
-            if (aiPerspective && cue?.active) {
-              focusTarget = new THREE.Vector3(
-                cue.pos.x,
-                BALL_CENTER_Y,
-                cue.pos.y
-              );
-            } else if (aimFocus) {
-              focusTarget = aimFocus.clone();
-            } else if (cue?.active && !shooting) {
-              focusTarget = new THREE.Vector3(
-                cue.pos.x,
-                BALL_CENTER_Y,
-                cue.pos.y
-              );
-            } else {
               const store = ensureOrbitFocus();
               if (store.ballId) {
                 const ballsList =
@@ -7743,8 +7709,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   focusWorld: lookTarget,
                   worldScaleFactor,
                   cushionHeight: cushionHeightRef.current ?? TABLE.THICK,
-                  orbitOffset: TMP_VEC3_A,
-                  viewSide: aiPerspective ? -1 : 1
+                  orbitOffset: TMP_VEC3_A
                 });
                 if (cueOffset) {
                   TMP_VEC3_B.copy(TMP_VEC3_A).lerp(cueOffset, cueWeight);
@@ -7752,17 +7717,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 }
               }
             }
-            TMP_VEC3_OFFSET.copy(finalOffset);
-            const spinMagnitude = THREE.MathUtils.clamp(
-              spinAppliedRef.current?.magnitude ?? 0,
-              0,
-              1
-            );
-            if (spinMagnitude > 1e-4) {
-              const zoom = THREE.MathUtils.lerp(1, CUE_SPIN_ZOOM_SCALE, spinMagnitude);
-              TMP_VEC3_OFFSET.multiplyScalar(zoom);
-            }
-            TMP_VEC3_CAMERA.copy(lookTarget).add(TMP_VEC3_OFFSET);
+            TMP_VEC3_CAMERA.copy(lookTarget).add(finalOffset);
             const minCameraHeight = computeCueCameraMinHeight(
               worldScaleFactor,
               cushionHeightRef.current ?? TABLE.THICK
@@ -7952,14 +7907,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               Math.abs(targetBall.pos.y) > nearRailThresholdY
             : false;
           const axis = 'short'; // force short-rail broadcast framing
-          let contactY = targetBall
-            ? targetBall.pos.y
-            : cueBall.pos.y +
-              (cueBall.launchDir?.y ?? railNormal?.y ?? 0) * BALL_R * 6;
-          if (!Number.isFinite(contactY) || Math.abs(contactY) < 1e-6) {
-            contactY = cueBall.launchDir?.y ?? railNormal?.y ?? 1;
-          }
-          const initialRailDir = contactY >= 0 ? 1 : -1;
+          const initialRailDir =
+            axis === 'side'
+              ? signed(
+                  railNormal?.x ?? cueBall.pos.x ?? cueBall.launchDir?.x ?? 1
+                )
+              : signed(
+                  cueBall.pos.y ??
+                    cueBall.launchDir?.y ??
+                    railNormal?.y ??
+                    1
+                );
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
