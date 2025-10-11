@@ -3,9 +3,14 @@ import * as THREE from 'three';
 
 const DEG2RAD = Math.PI / 180;
 const MIN_THETA = 30 * DEG2RAD;
-const MAX_THETA = 55 * DEG2RAD;
+const MAX_THETA = 48 * DEG2RAD;
 const DEFAULT_THETA = 35 * DEG2RAD;
 const MAX_SMOOTH_STEP = 1 / 30;
+const TABLE_MARGIN_SCALE = 1.03;
+const FIT_EXTRA_MARGIN = 1.005;
+const LOW_TILT_RADIUS_SCALE = 0.86;
+const AUTO_ZOOM_STRENGTH = 0.45;
+const MAX_RADIUS_SCALE = 1.35;
 
 const tmpForward = new THREE.Vector3();
 const tmpUp = new THREE.Vector3();
@@ -44,12 +49,12 @@ export function computeRFit(
   const aspect = safeHeight / safeWidth;
   const vFov = 50 * DEG2RAD;
   const hFov = 2 * Math.atan(Math.tan(vFov / 2) * (1 / aspect));
-  const hx = 0.5 * tableWidth * 1.05;
-  const hz = 0.5 * tableHeight * 1.05;
+  const hx = 0.5 * tableWidth * TABLE_MARGIN_SCALE;
+  const hz = 0.5 * tableHeight * TABLE_MARGIN_SCALE;
   const rW = hx / Math.tan(hFov / 2);
   const cosTheta = Math.max(Math.cos(thetaRad), 1e-4);
   const rH = (hz / cosTheta) / Math.tan(vFov / 2);
-  return Math.max(rW, rH) * 1.02;
+  return Math.max(rW, rH) * FIT_EXTRA_MARGIN;
 }
 
 type CameraOptions = {
@@ -144,12 +149,26 @@ export class MobilePortraitCameraRig {
       this.tableHeight,
       this.thetaTarget
     );
-    const minRadius = fit;
-    const maxRadius = fit * 1.5;
+    const tiltNormalized = THREE.MathUtils.clamp(
+      (this.thetaTarget - MIN_THETA) / (MAX_THETA - MIN_THETA),
+      0,
+      1
+    );
+    const preferredRadius = fit * THREE.MathUtils.lerp(LOW_TILT_RADIUS_SCALE, 1, tiltNormalized);
+    const minRadius = preferredRadius;
+    const maxRadius = fit * MAX_RADIUS_SCALE;
     if (!Number.isFinite(this.radiusTarget)) {
-      this.radiusTarget = minRadius;
+      this.radiusTarget = preferredRadius;
     }
     this.radiusTarget = clamp(this.radiusTarget, minRadius, maxRadius);
+    const autoZoomInfluence = (1 - tiltNormalized) * AUTO_ZOOM_STRENGTH;
+    if (autoZoomInfluence > 1e-3) {
+      this.radiusTarget = THREE.MathUtils.lerp(
+        this.radiusTarget,
+        preferredRadius,
+        autoZoomInfluence
+      );
+    }
     if (this.radius < 1e-3) this.radius = this.radiusTarget;
 
     const smooth = 1 - Math.pow(1 - 0.18, Math.max(dt * 60, 1));
