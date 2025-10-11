@@ -2273,12 +2273,15 @@ function applySnookerScaling({
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
+// Lower the cue shot tilt so the camera can skim the rail line while staying just
+// above the cloth. Keeping the delta small ensures we don't clip through the
+// table surface when blending between views.
+const CUE_SHOT_PHI = Math.PI / 2 - 0.12;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2320,11 +2323,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.095;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.45;
+const CUE_VIEW_RADIUS_RATIO = 0.085;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+  STANDING_VIEW_PHI + 0.38
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
