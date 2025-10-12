@@ -17,7 +17,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -11163,15 +11162,5 @@ function SnookerGame() {
 }
 
 export default function NewSnookerGame() {
-  const isMobileOrTablet = useIsMobile(1366);
-
-  if (!isMobileOrTablet) {
-    return (
-      <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile phones and tablets only.</p>
-      </div>
-    );
-  }
-
   return <SnookerGame />;
 }
