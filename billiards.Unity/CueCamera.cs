@@ -370,12 +370,6 @@ public class CueCamera : MonoBehaviour
         float heightScale = Mathf.Lerp(1f, Mathf.Clamp(cueHeightClothScale, 0.1f, 1f), blend);
         height = clothAnchorHeight + (height - clothAnchorHeight) * heightScale;
 
-        // Blend the camera height toward the cue plane when lowering so we stay just
-        // above the stick instead of drifting into a top-down view. This mimics the
-        // way a player brings their head down to the cue in real life.
-        float cuePlane = Mathf.Max(minimumCueHeight, cueSamplePoint.y + Mathf.Max(0f, cueHeightClearance));
-        height = Mathf.Lerp(height, cuePlane, Mathf.SmoothStep(0f, 1f, blend));
-
         // When the cue camera is lowered, blend the height toward the aiming line so the
         // framing matches a real cue view instead of hovering noticeably above it.
         if (blend > 0f)
@@ -392,15 +386,11 @@ public class CueCamera : MonoBehaviour
         Vector3 cueFocus = CueBall.position;
         if (cueSamplePoint.sqrMagnitude > 0.0001f)
         {
-            // Keep roughly forty percent of the cue visible from the cue ball toward the
-            // player's side so the aiming view mirrors the perspective of a player with
-            // their chin on the cue. Raised views still favour the table but never fully
-            // abandon that visibility requirement.
-            float cueVisibility = Mathf.Clamp01(cueBallGapFraction);
-            float raisedFocusBlend = Mathf.Clamp01(Mathf.Lerp(0.2f, 0.35f, cueVisibility));
-            float loweredFocusBlend = cueVisibility;
-            float focusBlend = Mathf.Lerp(raisedFocusBlend, loweredFocusBlend, Mathf.Clamp01(blend));
-            cueFocus = Vector3.Lerp(CueBall.position, cueSamplePoint, focusBlend);
+            // Blend the camera's focal point toward the sampled cue position so the
+            // portrait cue view slides above the stick similar to the snooker setup
+            // while keeping the existing distance and height limits intact.
+            float focusBlend = Mathf.Lerp(0.32f, 0.68f, blend);
+            cueFocus = Vector3.Lerp(CueBall.position, cueSamplePoint, Mathf.Clamp01(focusBlend));
         }
 
         float minimumHeightBuffer = Mathf.Lerp(minimumHeightAboveFocus, 0f, blend);
@@ -912,7 +902,6 @@ public class CueCamera : MonoBehaviour
         Vector3 aimLockedLook = focus + aimDirection * lookDistance;
 
         float aimLineWeight = Mathf.Clamp01(cueAimLineFocusWeight);
-        float minimumLookHeight = focus.y + cueBallLookOffset;
         Vector3 lookPoint = Vector3.Lerp(extendedAim, aimLockedLook, aimLineWeight);
 
         // Nudge the focus toward the pure aim direction as the camera lowers so the
@@ -921,28 +910,11 @@ public class CueCamera : MonoBehaviour
         {
             Vector3 aimAlignedPoint = focus + aimDirection * Mathf.Max(aimDistance + overshoot, 0.01f);
             aimAlignedPoint = tableBounds.ClosestPoint(aimAlignedPoint);
-            aimAlignedPoint.y = Mathf.Max(aimAlignedPoint.y, minimumLookHeight);
             lookPoint = Vector3.Lerp(lookPoint, aimAlignedPoint, lowering);
         }
 
-        if (lowering > 0f)
-        {
-            // When the cue camera is dropped into the player's chin position we bias the
-            // look target along the aiming line so the view stays level with the cue ball
-            // rather than tilting down from above. This keeps the cue ball, object ball,
-            // and cue visible together without introducing a zoom effect.
-            float cueVisibility = Mathf.Clamp01(cueBallGapFraction);
-            float forwardFraction = Mathf.Lerp(1f - cueVisibility, 1f - cueVisibility * 0.5f, lowering);
-            float minForwardDistance = aimDistance * (1f - cueVisibility);
-            float forwardDistance = Mathf.Clamp(aimDistance * forwardFraction, minForwardDistance, aimDistance);
-            forwardDistance = Mathf.Max(forwardDistance, cueBallRadius * 2f);
-            Vector3 chinTarget = focus + aimDirection * forwardDistance;
-            chinTarget = tableBounds.ClosestPoint(chinTarget);
-            chinTarget.y = Mathf.Max(chinTarget.y, minimumLookHeight);
-            lookPoint = Vector3.Lerp(lookPoint, chinTarget, Mathf.SmoothStep(0f, 1f, lowering));
-        }
-
         float railTop = railHeight + Mathf.Max(0f, railClearance);
+        float minimumLookHeight = focus.y + cueBallLookOffset;
         float railLookHeight = Mathf.Max(railTop, aimEnd.y) + cueBallLookOffset;
         float heightBias = Mathf.Clamp01(cueAimHeightFocus);
         float heightBlend = Mathf.Lerp(heightBias, 0.85f, Mathf.Clamp01(lowering));
