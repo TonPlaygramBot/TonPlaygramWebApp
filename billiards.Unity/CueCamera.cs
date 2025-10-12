@@ -425,7 +425,7 @@ public class CueCamera : MonoBehaviour
             // abandon that visibility requirement.
             float cueVisibility = Mathf.Clamp01(cueBallGapFraction);
             float raisedFocusBlend = Mathf.Clamp01(Mathf.Lerp(0.2f, 0.35f, cueVisibility));
-            float loweredFocusBlend = cueVisibility;
+            float loweredFocusBlend = Mathf.Max(cueVisibility, 0.5f);
             float focusBlend = Mathf.Lerp(raisedFocusBlend, loweredFocusBlend, Mathf.Clamp01(blend));
             cueFocus = Vector3.Lerp(CueBall.position, cueSamplePoint, focusBlend);
         }
@@ -493,6 +493,8 @@ public class CueCamera : MonoBehaviour
             loweredFraction = upperFraction;
         }
 
+        float midpointWeight = Mathf.SmoothStep(0f, 1f, fractionBlend);
+
         float distance = Mathf.Lerp(maxDistance, minDistance, fractionBlend);
         maxAllowedDistance = Mathf.Max(0f, maxDistance);
         cueSamplePoint = CueBall != null ? CueBall.position : Vector3.zero;
@@ -523,6 +525,10 @@ public class CueCamera : MonoBehaviour
                 minimumGapDistance = Mathf.Max(minClamp, gapDistance);
                 float maxClamp = Mathf.Max(limitDistance, minimumGapDistance);
                 distance = Mathf.Clamp(distance, minimumGapDistance, maxClamp);
+
+                float midpointDistance = Mathf.Clamp(usableLength * 0.5f, minimumGapDistance, usableLength);
+                distance = Mathf.Lerp(distance, midpointDistance, midpointWeight);
+                distance = Mathf.Clamp(distance, minimumGapDistance, maxClamp);
                 distance = Mathf.Min(distance, limitDistance);
 
                 float along = projectedLength > 0.0001f ? Mathf.Clamp01(distance / projectedLength) : 0f;
@@ -541,7 +547,12 @@ public class CueCamera : MonoBehaviour
         float fallbackMin = Mathf.Min(minDistance, fallbackLimit);
         float fallbackGap = Mathf.Clamp(fallbackLength * gapFraction, 0f, fallbackLimit);
         minimumGapDistance = Mathf.Max(fallbackMin, fallbackGap);
-        distance = Mathf.Clamp(distance, minimumGapDistance, Mathf.Max(fallbackLimit, minimumGapDistance));
+        float fallbackClampMax = Mathf.Max(fallbackLimit, minimumGapDistance);
+        distance = Mathf.Clamp(distance, minimumGapDistance, fallbackClampMax);
+
+        float fallbackMidpoint = Mathf.Clamp(fallbackLimit * 0.5f, minimumGapDistance, fallbackLimit);
+        distance = Mathf.Lerp(distance, fallbackMidpoint, midpointWeight);
+        distance = Mathf.Clamp(distance, minimumGapDistance, fallbackClampMax);
         distance = Mathf.Min(distance, fallbackLimit);
 
         cuePoint = CueBall.position - forward * Mathf.Max(distance, 0f);
