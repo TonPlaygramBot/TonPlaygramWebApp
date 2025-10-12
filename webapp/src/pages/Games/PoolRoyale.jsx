@@ -18,7 +18,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -11657,7 +11656,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 }
 
 export default function PoolRoyale() {
-  const isMobileOrTablet = useIsMobile(1366);
   const location = useLocation();
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -11669,14 +11667,6 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
-
-  if (!isMobileOrTablet) {
-    return (
-      <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile phones and tablets only.</p>
-      </div>
-    );
-  }
 
   return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
 }
