@@ -2381,8 +2381,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.0075;
-const CUE_VIEW_RADIUS_RATIO = 0.26; // double the cue distance so the zoom is 50% wider
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.675; // maintain the wider framing even when clamped to the minimum distance
+const CUE_VIEW_RADIUS_RATIO = 0.34; // pull the cue view back so the camera stops short of the cue ball
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.82; // keep additional distance to reveal more of the cue stick
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.4
