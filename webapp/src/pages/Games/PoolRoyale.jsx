@@ -2328,13 +2328,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.0075;
-const CUE_VIEW_RADIUS_RATIO = 0.28; // keep the lowered camera nearer the cue ball so we only travel halfway down the stick
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.74; // allow a closer orbit while still revealing the cue midpoint
+const CUE_VIEW_RADIUS_RATIO = 0.34; // pull the cue view back so the camera stops short of the cue ball
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.82; // keep additional distance to reveal more of the cue stick
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.28
+  STANDING_VIEW_PHI + 0.4
 );
-const CUE_VIEW_PHI_LIFT = 0.035; // hover a touch higher so the camera remains above the cue stick
+const CUE_VIEW_PHI_LIFT = 0.02; // keep the lowered view almost flush with the aiming line
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -2343,7 +2343,7 @@ const CAMERA_RAIL_APPROACH_PHI = Math.min(
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.6;
+const CAMERA_DOWNWARD_PULL = 2.3;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.34;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const AIM_CAMERA_LOCK_FACTOR = 0.2; // match the snooker aim smoothing so the cue settles naturally
