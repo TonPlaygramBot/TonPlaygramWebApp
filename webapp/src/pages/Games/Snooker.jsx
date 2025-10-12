@@ -2337,7 +2337,7 @@ const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
@@ -2355,7 +2355,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep orbit height safely above cushion lip
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2373,9 +2373,9 @@ const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
 });
-const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.12;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.5;
+const CAMERA_RAIL_SAFETY = 0.006;
+const CUE_VIEW_RADIUS_RATIO = 0.085;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.35;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
