@@ -32,6 +32,20 @@ import {
   applyWoodTextures
 } from '../../utils/woodMaterials.js';
 
+const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
+const LEGACY_LINEAR_ENCODING = Reflect.get(THREE, 'LinearEncoding');
+const applyTextureSRGB = (texture) => {
+  if (!texture) return;
+  if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  } else if ('encoding' in texture) {
+    const fallbackEncoding = LEGACY_SRGB_ENCODING ?? LEGACY_LINEAR_ENCODING;
+    if (fallbackEncoding !== undefined) {
+      texture.encoding = fallbackEncoding;
+    }
+  }
+};
+
 function signedRingArea(ring) {
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
@@ -1350,8 +1364,7 @@ const createClothTextures = (() => {
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
-    else colorMap.encoding = THREE.sRGBEncoding;
+    applyTextureSRGB(colorMap);
     colorMap.needsUpdate = true;
 
     const bumpCanvas = document.createElement('canvas');
@@ -1789,8 +1802,7 @@ const createCarpetTextures = (() => {
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
-    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-    else texture.encoding = THREE.sRGBEncoding;
+    applyTextureSRGB(texture);
 
     // bump map: derive from red base with extra fiber noise
     const bumpCanvas = document.createElement('canvas');
@@ -2908,8 +2920,7 @@ function makeClothTexture(
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 48;
-  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-  else texture.encoding = THREE.sRGBEncoding;
+  applyTextureSRGB(texture);
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -3000,8 +3011,7 @@ function makeWoodTexture({
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 8;
-  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-  else texture.encoding = THREE.sRGBEncoding;
+  applyTextureSRGB(texture);
   texture.needsUpdate = true;
   return texture;
 }
@@ -5819,8 +5829,7 @@ function SnookerGame() {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 4;
-        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-        else texture.encoding = THREE.sRGBEncoding;
+        applyTextureSRGB(texture);
         let offset = 0;
         return {
           texture,
@@ -5858,8 +5867,7 @@ function SnookerGame() {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 8;
-        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-        else texture.encoding = THREE.sRGBEncoding;
+        applyTextureSRGB(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
           image: null,
