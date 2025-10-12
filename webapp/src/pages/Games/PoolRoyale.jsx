@@ -2319,8 +2319,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.095;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.45;
+const CUE_VIEW_RADIUS_RATIO = 0.12;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.5;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
@@ -2329,11 +2329,10 @@ const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
-// Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
-const CUE_VIEW_ABOVE_CUE = BALL_R * 1.08;
-const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.42;
-const CUE_VIEW_BACK_MIN_RATIO = 0.26;
-const CUE_VIEW_BACK_RATIO = 0.34;
+const CUE_VIEW_ABOVE_CUE = BALL_R * 0.54;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.14;
+const CUE_VIEW_BACK_MIN_RATIO = 0.28;
+const CUE_VIEW_BACK_RATIO = 0.42;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -2494,30 +2493,6 @@ const computeCueCameraMinHeight = (worldScaleFactor, cushionHeight = TABLE.THICK
   const railClearanceWorld = CUE_VIEW_RAIL_CLEARANCE * worldScaleFactor;
   const aboveCueWorld = CUE_VIEW_ABOVE_CUE * worldScaleFactor;
   return Math.max(railHeightWorld + railClearanceWorld, cueHeightWorld + aboveCueWorld);
-};
-
-const computeAimFocusTarget = (cueBall, aimDir) => {
-  if (!cueBall?.pos || !aimDir) return null;
-  const dir = new THREE.Vector2(aimDir.x ?? 0, aimDir.y ?? 0);
-  if (dir.lengthSq() < 1e-6) return null;
-  dir.normalize();
-  const focusDistance = Math.max(
-    BALL_R * 32,
-    Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.48)
-  );
-  return new THREE.Vector3(
-    THREE.MathUtils.clamp(
-      cueBall.pos.x + dir.x * focusDistance,
-      -PLAY_W / 2,
-      PLAY_W / 2
-    ),
-    BALL_CENTER_Y,
-    THREE.MathUtils.clamp(
-      cueBall.pos.y + dir.y * focusDistance,
-      -PLAY_H / 2,
-      PLAY_H / 2
-    )
-  );
 };
 
 const computeCueAimCameraOffset = ({
@@ -7612,16 +7587,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ) {
               focusTarget = aimFocus.clone();
             } else if (cue?.active && !shooting) {
-              const aimFocus = computeAimFocusTarget(cue, aimDirRef.current);
-              if (aimFocus) {
-                aimFocusRef.current = aimFocus.clone();
-                focusTarget = aimFocus;
-              } else {
-                aimFocusRef.current = null;
-                focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-              }
+              focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
             } else {
-              aimFocusRef.current = null;
               const store = ensureOrbitFocus();
               if (store.ballId) {
                 const ballsList =
