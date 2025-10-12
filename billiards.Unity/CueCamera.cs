@@ -313,25 +313,52 @@ public class CueCamera : MonoBehaviour
 
         Vector3 cueSamplePoint;
         float minimumGapDistance;
+        float raisedBaseDistance = ResolveCueAimDistance(
+            0f,
+            cueAimForward,
+            minDistance,
+            maxDistance,
+            out _,
+            out float raisedGapDistance,
+            out float raisedMaxDistance);
+
         float baseDistance = ResolveCueAimDistance(
             blend,
             cueAimForward,
             minDistance,
             maxDistance,
             out cueSamplePoint,
-            out minimumGapDistance);
+            out minimumGapDistance,
+            out float loweredMaxDistance);
+
+        float combinedGapDistance = Mathf.Max(minimumGapDistance, raisedGapDistance);
+        minimumGapDistance = combinedGapDistance;
 
         float pullIn = Mathf.Max(0f, cueDistancePullIn);
         float minPulledDistance = Mathf.Max(minimumDistanceLimit, minDistance - pullIn);
-        minPulledDistance = Mathf.Max(minPulledDistance, minimumGapDistance);
-        float distance = Mathf.Max(baseDistance - pullIn, minPulledDistance);
-        distance = Mathf.Max(distance, minimumGapDistance);
+        minPulledDistance = Mathf.Max(minPulledDistance, combinedGapDistance);
+
+        float loweredDistance = Mathf.Max(baseDistance - pullIn, minPulledDistance);
+        loweredDistance = Mathf.Max(loweredDistance, combinedGapDistance);
+
+        float raisedDistance = Mathf.Max(raisedBaseDistance - pullIn, minPulledDistance);
+        raisedDistance = Mathf.Max(raisedDistance, combinedGapDistance);
 
         float raisedScale = Mathf.Clamp(cueRaisedDistanceScale, 0.1f, 1f);
         float loweredScale = Mathf.Clamp(cueLoweredDistanceScale, 0.1f, raisedScale);
         float distanceScale = Mathf.Lerp(raisedScale, loweredScale, blend);
-        float minimumDistanceWithGap = Mathf.Max(minimumDistanceLimit, minimumGapDistance);
-        distance = Mathf.Max(distance * distanceScale, minimumDistanceWithGap);
+        float minimumDistanceWithGap = Mathf.Max(minimumDistanceLimit, combinedGapDistance);
+
+        float loweredScaledDistance = Mathf.Max(loweredDistance * distanceScale, minimumDistanceWithGap);
+        float loweredClampMax = Mathf.Max(loweredMaxDistance, minimumDistanceWithGap);
+        loweredScaledDistance = Mathf.Clamp(loweredScaledDistance, minimumDistanceWithGap, loweredClampMax);
+
+        float raisedScaledDistance = Mathf.Max(raisedDistance * raisedScale, minimumDistanceWithGap);
+        float raisedClampMax = Mathf.Min(raisedMaxDistance, loweredClampMax);
+        raisedClampMax = Mathf.Max(raisedClampMax, minimumDistanceWithGap);
+        raisedScaledDistance = Mathf.Clamp(raisedScaledDistance, minimumDistanceWithGap, raisedClampMax);
+
+        float distance = Mathf.Max(loweredScaledDistance, raisedScaledDistance);
 
         if (CueBall != null)
         {
@@ -455,7 +482,8 @@ public class CueCamera : MonoBehaviour
         float minDistance,
         float maxDistance,
         out Vector3 cueSamplePoint,
-        out float minimumGapDistance)
+        out float minimumGapDistance,
+        out float maxAllowedDistance)
     {
         float fractionBlend = Mathf.Clamp01(blend);
         float upperFraction = Mathf.Clamp01(cueBackFraction);
@@ -466,6 +494,7 @@ public class CueCamera : MonoBehaviour
         }
 
         float distance = Mathf.Lerp(maxDistance, minDistance, fractionBlend);
+        maxAllowedDistance = Mathf.Max(0f, maxDistance);
         cueSamplePoint = CueBall != null ? CueBall.position : Vector3.zero;
         minimumGapDistance = Mathf.Max(0f, minDistance);
 
@@ -500,6 +529,7 @@ public class CueCamera : MonoBehaviour
                 cuePoint = Vector3.Lerp(CueBall.position, CueButtReference.position, along);
 
                 cueSamplePoint = cuePoint;
+                maxAllowedDistance = Mathf.Max(usableLength, 0f);
                 return Mathf.Max(distance, 0f);
             }
         }
@@ -517,6 +547,7 @@ public class CueCamera : MonoBehaviour
         cuePoint = CueBall.position - forward * Mathf.Max(distance, 0f);
         cuePoint.y = CueBall.position.y;
         cueSamplePoint = cuePoint;
+        maxAllowedDistance = Mathf.Max(fallbackLimit, 0f);
 
         return Mathf.Max(distance, 0f);
     }
