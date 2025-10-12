@@ -2287,7 +2287,7 @@ const STANDING_VIEW_MARGIN = 0.0035;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.26);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.01; // allow the cue view to settle right on the aiming line while keeping a safety margin
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.28; // clamp cue sweep so the player lens stays above the rail tops
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.15;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2328,13 +2328,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.0075;
-const CUE_VIEW_RADIUS_RATIO = 0.26; // double the cue distance so the zoom is 50% wider
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.675; // maintain the wider framing even when clamped to the minimum distance
+const CUE_VIEW_RADIUS_RATIO = 0.13;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.45;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.4
+  STANDING_VIEW_PHI + 0.2
 );
-const CUE_VIEW_PHI_LIFT = 0.02; // keep the lowered view almost flush with the aiming line
+const CUE_VIEW_PHI_LIFT = 0.06;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
