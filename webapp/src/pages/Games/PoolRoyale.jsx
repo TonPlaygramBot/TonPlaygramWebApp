@@ -2282,21 +2282,21 @@ const STANDING_VIEW_PHI = 0.92;
 // Lower the cue shot tilt so the camera can skim the rail line while staying just
 // above the cloth. Keeping the delta small ensures we don't clip through the
 // table surface when blending between views.
-const CUE_SHOT_PHI = Math.PI / 2 - 0.07;
-const STANDING_VIEW_MARGIN = 0.0024;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
+const STANDING_VIEW_MARGIN = 0.0035;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.19;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
 const CAMERA = {
@@ -2328,8 +2328,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.085;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
+const CUE_VIEW_RADIUS_RATIO = 0.18;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.6;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
