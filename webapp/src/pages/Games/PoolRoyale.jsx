@@ -36,6 +36,7 @@ import {
   disposeMaterialWithWood,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
+import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -574,11 +575,11 @@ const ACTION_CAM = Object.freeze({
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: BALL_R * 9.2,
+  heightOffset: 0,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
-  followHeightOffset: BALL_R * 7.4,
+  followHeightOffset: 0,
   followHoldMs: 900
 });
 /**
@@ -2272,12 +2273,15 @@ function applySnookerScaling({
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
+// Lower the cue shot tilt so the camera can skim the rail line while staying just
+// above the cloth. Keeping the delta small ensures we don't clip through the
+// table surface when blending between views.
+const CUE_SHOT_PHI = Math.PI / 2 - 0.07;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2319,20 +2323,24 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.12;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.5;
+const CUE_VIEW_RADIUS_RATIO = 0.085;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+  STANDING_VIEW_PHI + 0.5
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
-const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
+const CUE_VIEW_TARGET_PHI = Math.min(
+  CAMERA.maxPhi,
+  CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5
+);
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
-const CUE_VIEW_ABOVE_CUE = BALL_R * 0.54;
-const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.14;
-const CUE_VIEW_BACK_MIN_RATIO = 0.28;
-const CUE_VIEW_BACK_RATIO = 0.42;
+// Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
+const CUE_VIEW_ABOVE_CUE = BALL_R * 0.72;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.24;
+const CUE_VIEW_BACK_MIN_RATIO = 0.26;
+const CUE_VIEW_BACK_RATIO = 0.34;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -2344,6 +2352,7 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
+const AIM_CAMERA_LOCK_FACTOR = 1; // keep the aim direction locked to the active camera heading
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -2493,6 +2502,45 @@ const computeCueCameraMinHeight = (worldScaleFactor, cushionHeight = TABLE.THICK
   const railClearanceWorld = CUE_VIEW_RAIL_CLEARANCE * worldScaleFactor;
   const aboveCueWorld = CUE_VIEW_ABOVE_CUE * worldScaleFactor;
   return Math.max(railHeightWorld + railClearanceWorld, cueHeightWorld + aboveCueWorld);
+};
+
+const computeActionCameraMidHeight = (
+  worldScaleFactor,
+  heightBaseLocal = TABLE_Y + TABLE.THICK,
+  cushionHeight = TABLE.THICK
+) => {
+  const scale = Number.isFinite(worldScaleFactor) && worldScaleFactor > 0 ? worldScaleFactor : 1;
+  const tableTopWorld = heightBaseLocal * scale;
+  const highestWorld = Math.max(
+    computeCueCameraMinHeight(scale, cushionHeight),
+    tableTopWorld
+  );
+  const midpointWorld = (tableTopWorld + highestWorld) * 0.5;
+  return midpointWorld / scale;
+};
+
+const computeAimFocusTarget = (cueBall, aimDir) => {
+  if (!cueBall?.pos || !aimDir) return null;
+  const dir = new THREE.Vector2(aimDir.x ?? 0, aimDir.y ?? 0);
+  if (dir.lengthSq() < 1e-6) return null;
+  dir.normalize();
+  const focusDistance = Math.max(
+    BALL_R * 32,
+    Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.48)
+  );
+  return new THREE.Vector3(
+    THREE.MathUtils.clamp(
+      cueBall.pos.x + dir.x * focusDistance,
+      -PLAY_W / 2,
+      PLAY_W / 2
+    ),
+    BALL_CENTER_Y,
+    THREE.MathUtils.clamp(
+      cueBall.pos.y + dir.y * focusDistance,
+      -PLAY_H / 2,
+      PLAY_H / 2
+    )
+  );
 };
 
 const computeCueAimCameraOffset = ({
@@ -5237,6 +5285,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
+  const mobileCameraRigRef = useRef(null);
+  const lastCameraTickRef = useRef(
+    typeof performance !== 'undefined' ? performance.now() : 0
+  );
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
@@ -6729,9 +6781,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         aspect,
-          CAMERA.near,
-          CAMERA.far
-        );
+        CAMERA.near,
+        CAMERA.far
+      );
+      const mobileCameraRig = new MobilePortraitCameraRig(camera, {
+        theta: rad(35),
+        phi: Math.PI,
+        radius: fitRadius(camera, 1.6)
+      });
+      mobileCameraRig.setViewport(host.clientWidth, host.clientHeight);
+      mobileCameraRigRef.current = mobileCameraRig;
         const standingPhi = THREE.MathUtils.clamp(
           STANDING_VIEW.phi,
           CAMERA.minPhi,
@@ -7019,6 +7078,30 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const updateCamera = () => {
+          const mobileRig = mobileCameraRigRef.current;
+          if (
+            mobileRig &&
+            !topViewRef.current &&
+            !(cueGalleryStateRef.current?.active ?? false) &&
+            !(activeShotView && activeShotView.mode === 'action') &&
+            !pocketCameraStateRef.current
+          ) {
+            const now = performance.now();
+            lastCameraTickRef.current = now;
+            mobileRig.setViewport(host.clientWidth, host.clientHeight);
+            mobileRig.update(now);
+            const state = mobileRig.getState();
+            const currentSph = sphRef.current;
+            if (currentSph) {
+              currentSph.radius = state.radius;
+              currentSph.theta = state.phi;
+              currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
+            }
+            camera.up.set(0, 1, 0);
+            camera.lookAt(0, 0, 0);
+            activeRenderCameraRef.current = camera;
+            return camera;
+          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -7142,6 +7225,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
+              const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
+              const actionBaseHeight = computeActionCameraMidHeight(
+                worldScaleFactor,
+                heightBase,
+                cushionHeight
+              );
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -7191,7 +7280,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
                     0,
-                    heightBase + ACTION_CAM.heightOffset + heightLift,
+                    actionBaseHeight + ACTION_CAM.heightOffset + heightLift,
                     railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
@@ -7226,7 +7315,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   const desired = new THREE.Vector3(
                     railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    heightBase + ACTION_CAM.heightOffset,
+                    actionBaseHeight + ACTION_CAM.heightOffset,
                     baseZ
                   );
                   const lookAnchor = anchor.clone();
@@ -7279,7 +7368,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
                     0,
-                    heightBase + ACTION_CAM.followHeightOffset + heightLift,
+                    actionBaseHeight + ACTION_CAM.followHeightOffset + heightLift,
                     railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
@@ -7314,7 +7403,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   const desired = new THREE.Vector3(
                     railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    heightBase + ACTION_CAM.followHeightOffset,
+                    actionBaseHeight + ACTION_CAM.followHeightOffset,
                     baseZ
                   );
                   const lookAnchor = anchor.clone();
@@ -7587,8 +7676,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ) {
               focusTarget = aimFocus.clone();
             } else if (cue?.active && !shooting) {
-              focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+              const aimFocus = computeAimFocusTarget(cue, aimDirRef.current);
+              if (aimFocus) {
+                aimFocusRef.current = aimFocus.clone();
+                focusTarget = aimFocus;
+              } else {
+                aimFocusRef.current = null;
+                focusTarget = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+              }
             } else {
+              aimFocusRef.current = null;
               const store = ensureOrbitFocus();
               if (store.ballId) {
                 const ballsList =
@@ -7807,7 +7904,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0 } = {}
+          { longShot = false, travelDistance = 0, impactPoint = null } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -7815,6 +7912,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             targetId != null
               ? ballsList.find((b) => b.id === targetId) || null
               : null;
+          const cuePos2 = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
           const orbitSnapshot = followView?.orbitSnapshot
             ? {
                 radius: followView.orbitSnapshot.radius,
@@ -7832,17 +7930,31 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               Math.abs(targetBall.pos.y) > nearRailThresholdY
             : false;
           const axis = 'short'; // force short-rail broadcast framing
+          const impactPos = impactPoint
+            ? new THREE.Vector2(impactPoint.x, impactPoint.y)
+            : targetBall
+              ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
+              : cuePos2.clone();
+          const halfLength = PLAY_H / 2;
+          const frontRail = -halfLength;
+          const backRail = halfLength;
+          const distToFront = Math.abs(impactPos.y - frontRail);
+          const distToBack = Math.abs(impactPos.y - backRail);
+          let impactRailDir = distToBack <= distToFront ? 1 : -1;
+          if (Math.abs(distToBack - distToFront) < BALL_R * 0.25) {
+            const fallbackDir =
+              railNormal?.y ??
+              cueBall.launchDir?.y ??
+              (targetBall ? targetBall.pos.y - cueBall.pos.y : cueBall.pos.y);
+            impactRailDir = signed(fallbackDir, impactRailDir);
+          }
+          impactRailDir = signed(impactRailDir, 1);
           const initialRailDir =
             axis === 'side'
               ? signed(
                   railNormal?.x ?? cueBall.pos.x ?? cueBall.launchDir?.x ?? 1
                 )
-              : signed(
-                  cueBall.pos.y ??
-                    cueBall.launchDir?.y ??
-                    railNormal?.y ??
-                    1
-                );
+              : impactRailDir;
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -7880,6 +7992,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             activationTravel,
             pendingActivation: longShot,
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
+            impactPos,
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
               : null
@@ -8130,6 +8243,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
+        const pinch = { active: false, distance: 0 };
         const galleryDrag = {
           active: false,
           startX: 0,
@@ -8189,7 +8303,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          if (e.touches?.length === 2) return;
+          if (e.touches?.length === 2) {
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            if (t0 && t1) {
+              const dx = t0.clientX - t1.clientX;
+              const dy = t0.clientY - t1.clientY;
+              pinch.active = true;
+              pinch.distance = Math.hypot(dx, dy);
+            }
+            return;
+          }
           if (topViewRef.current) return;
           drag.on = true;
           drag.moved = false;
@@ -8249,6 +8373,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             registerInteraction();
             return;
           }
+          if (pinch.active && e.touches?.length === 2) {
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            if (t0 && t1) {
+              const dx = t0.clientX - t1.clientX;
+              const dy = t0.clientY - t1.clientY;
+              const dist = Math.hypot(dx, dy);
+              if (dist > 0 && pinch.distance > 0 && mobileCameraRigRef.current) {
+                const scale = dist / pinch.distance;
+                if (Math.abs(scale - 1) > 1e-3) {
+                  mobileCameraRigRef.current.zoomBy(scale);
+                }
+              }
+              pinch.distance = dist;
+            }
+            registerInteraction();
+            return;
+          }
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -8277,6 +8419,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 ? CHALK_PRECISION_SLOW_MULTIPLIER
                 : 1;
             const precisionScale = basePrecisionScale * slowScale;
+            if (mobileCameraRigRef.current) {
+              const yawDelta = -dx * 0.005 * precisionScale;
+              const pitchDelta = -dy * 0.003 * precisionScale;
+              mobileCameraRigRef.current.orbit(yawDelta, pitchDelta);
+            }
             sph.theta -= dx * 0.0035 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const phiDelta = dy * 0.0025 * precisionScale;
@@ -8304,6 +8451,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
+          pinch.active = false;
+          pinch.distance = 0;
           if (
             !moved &&
             !topViewRef.current &&
@@ -8332,14 +8481,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const step = baseStep * slowScale;
           if (e.code === 'ArrowLeft') {
             sph.theta += step;
+            mobileCameraRigRef.current?.orbit(step, 0);
           } else if (e.code === 'ArrowRight') {
             sph.theta -= step;
+            mobileCameraRigRef.current?.orbit(-step, 0);
           } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const dir = e.code === 'ArrowUp' ? -1 : 1;
             const blendDelta =
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
+            mobileCameraRigRef.current?.orbit(0, step * dir * 0.6);
           } else return;
           registerInteraction();
           updateCamera();
@@ -8451,6 +8603,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       sph.radius = clampOrbitRadius(sph.radius);
       const tableScale = tableSizeRef.current?.scale ?? 1;
       worldScaleFactor = WORLD_SCALE * tableScale;
+      if (mobileCameraRigRef.current) {
+        mobileCameraRigRef.current.setTableDimensions(
+          PLAY_W * worldScaleFactor,
+          PLAY_H * worldScaleFactor
+        );
+      }
       world.scale.setScalar(worldScaleFactor);
       const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * worldScaleFactor;
       world.position.y = surfaceOffset;
@@ -9211,18 +9369,44 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           BALL_R * 28,
           Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.5)
         );
+        const tableHalfWidth = PLAY_W / 2;
+        const tableHalfLength = PLAY_H / 2;
+        const focusMargin = Math.max(BALL_R * 0.5, 0.01);
+        const safeXMin = -tableHalfWidth + focusMargin;
+        const safeXMax = tableHalfWidth - focusMargin;
+        const safeZMin = -tableHalfLength + focusMargin;
+        const safeZMax = tableHalfLength - focusMargin;
+        let maxDistance = focusDistance;
+        const originX = cueBall.pos.x;
+        const originZ = cueBall.pos.y;
+        const applyAxisLimit = (dirComponent, originComponent, minLimit, maxLimit) => {
+          if (Math.abs(dirComponent) < 1e-6) return;
+          const limitValue = dirComponent > 0 ? maxLimit : minLimit;
+          const travel = (limitValue - originComponent) / dirComponent;
+          if (travel > 0) {
+            maxDistance = Math.min(maxDistance, travel);
+          }
+        };
+        applyAxisLimit(dir.x, originX, safeXMin, safeXMax);
+        applyAxisLimit(dir.y, originZ, safeZMin, safeZMax);
+        if (!Number.isFinite(maxDistance) || maxDistance <= 0) {
+          maxDistance = focusDistance;
+        }
+        let limitedDistance = Math.min(focusDistance, maxDistance);
+        if (!Number.isFinite(limitedDistance) || limitedDistance <= 0) {
+          limitedDistance = Math.max(
+            BALL_R * 3,
+            Math.min(focusDistance, LONG_SHOT_DISTANCE)
+          );
+        } else {
+          const minimum = Math.min(BALL_R * 3, focusDistance);
+          limitedDistance = Math.max(limitedDistance, minimum);
+          limitedDistance = Math.min(limitedDistance, maxDistance);
+        }
         const focusTarget = new THREE.Vector3(
-          THREE.MathUtils.clamp(
-            cueBall.pos.x + dir.x * focusDistance,
-            -PLAY_W / 2,
-            PLAY_W / 2
-          ),
+          originX + dir.x * limitedDistance,
           BALL_CENTER_Y,
-          THREE.MathUtils.clamp(
-            cueBall.pos.y + dir.y * focusDistance,
-            -PLAY_H / 2,
-            PLAY_H / 2
-          )
+          originZ + dir.y * limitedDistance
         );
         focusStore.ballId = cueBall.id ?? null;
         focusStore.target.copy(focusTarget);
@@ -9353,7 +9537,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 shotPrediction.railNormal,
                 {
                   longShot: isLongShot,
-                  travelDistance: predictedTravel
+                  travelDistance: predictedTravel,
+                  impactPoint: shotPrediction.impact
                 }
               )
             : null;
@@ -10044,7 +10229,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         tmpAim.set(camFwd.x, camFwd.z).normalize();
         const aimLerpFactor = chalkAssistTargetRef.current
           ? CHALK_AIM_LERP_SLOW
-          : 0.2;
+          : AIM_CAMERA_LOCK_FACTOR;
         aimDir.lerp(tmpAim, aimLerpFactor);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
@@ -10899,6 +11084,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
+          if (mobileCameraRigRef.current) {
+            mobileCameraRigRef.current.setViewport(
+              host.clientWidth,
+              host.clientHeight
+            );
+          }
           const margin = Math.max(
             STANDING_VIEW.margin,
             topViewRef.current
@@ -10924,6 +11115,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           activeRenderCameraRef.current = null;
+          mobileCameraRigRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
