@@ -359,12 +359,21 @@ public class CueCamera : MonoBehaviour
         cueRailClamp = Mathf.Max(cueRailClamp, railHeight);
         height = Mathf.Max(height, cueRailClamp);
 
-        Vector3 focus = CueBall.position;
-        float minimumHeightBuffer = Mathf.Lerp(minimumHeightAboveFocus, 0f, blend);
-        float minimumHeightOffset = Mathf.Max(minimumHeightBuffer, height - focus.y);
-        Vector3 lookTarget = GetCueAimLookTarget(focus, cueAimForward);
+        Vector3 cueFocus = CueBall.position;
+        if (cueSamplePoint.sqrMagnitude > 0.0001f)
+        {
+            // Blend the camera's focal point toward the sampled cue position so the
+            // portrait cue view slides above the stick similar to the snooker setup
+            // while keeping the existing distance and height limits intact.
+            float focusBlend = Mathf.Lerp(0.32f, 0.68f, blend);
+            cueFocus = Vector3.Lerp(CueBall.position, cueSamplePoint, Mathf.Clamp01(focusBlend));
+        }
 
-        ApplyCameraAt(focus, cueAimForward, distance, height, minimumHeightOffset, lookTarget, cueRailClamp);
+        float minimumHeightBuffer = Mathf.Lerp(minimumHeightAboveFocus, 0f, blend);
+        float minimumHeightOffset = Mathf.Max(minimumHeightBuffer, height - cueFocus.y);
+        Vector3 lookTarget = GetCueAimLookTarget(CueBall.position, cueAimForward);
+
+        ApplyCameraAt(cueFocus, cueAimForward, distance, height, minimumHeightOffset, lookTarget, cueRailClamp);
 
         Vector3 flatForward = new Vector3(cueAimForward.x, 0f, cueAimForward.z);
         if (flatForward.sqrMagnitude > 0.0001f)
