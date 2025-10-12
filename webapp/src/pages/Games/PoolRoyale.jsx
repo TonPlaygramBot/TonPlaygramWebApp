@@ -2286,10 +2286,10 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0035;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.26);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.28; // clamp cue sweep so the player lens stays above the rail tops
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.19;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.17;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
@@ -2309,7 +2309,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep standing orbit safely above cushion lip and align with pocket cam height
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep standing orbit safely above cushion lip and align with pocket cam height
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2328,8 +2328,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.18;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.6;
+const CUE_VIEW_RADIUS_RATIO = 0.16;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.52;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
@@ -6967,6 +6967,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           );
         };
 
+        const clampCameraAboveRails = (focusTarget, spherical) => {
+          if (!focusTarget) return false;
+          const minRailWorldY = (TABLE_Y + TABLE_RAIL_TOP_Y) * worldScaleFactor;
+          const minOffsetY = minRailWorldY - focusTarget.y;
+          if (!Number.isFinite(minOffsetY)) return false;
+          TMP_VEC3_A.copy(camera.position).sub(focusTarget);
+          if (TMP_VEC3_A.y >= minOffsetY - 1e-4) return false;
+          TMP_VEC3_A.y = minOffsetY;
+          const horizontalSq = TMP_VEC3_A.x * TMP_VEC3_A.x + TMP_VEC3_A.z * TMP_VEC3_A.z;
+          const newRadius = Math.sqrt(horizontalSq + TMP_VEC3_A.y * TMP_VEC3_A.y);
+          const newPhi = Math.acos(
+            THREE.MathUtils.clamp(TMP_VEC3_A.y / Math.max(newRadius, 1e-6), -1, 1)
+          );
+          camera.position.copy(focusTarget).add(TMP_VEC3_A);
+          if (spherical) {
+            spherical.radius = newRadius;
+            spherical.phi = THREE.MathUtils.clamp(newPhi, CAMERA.minPhi, CAMERA.maxPhi);
+          }
+          return true;
+        };
+
         const updateCamera = () => {
           let renderCamera = camera;
           let lookTarget = null;
@@ -7020,6 +7041,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               worldScaleFactor
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
+            if (clampCameraAboveRails(lookTarget, sph)) {
+              syncBlendToSpherical();
+            }
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
@@ -7561,6 +7585,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+            if (clampCameraAboveRails(lookTarget, sph)) {
+              TMP_SPH.copy(sph);
+              syncBlendToSpherical();
+            }
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
