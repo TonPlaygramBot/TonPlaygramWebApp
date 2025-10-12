@@ -685,6 +685,9 @@ const CUE_MARKER_RADIUS = CUE_TIP_RADIUS; // cue ball dots match the cue tip foo
 const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
+const CUE_HALF_LENGTH =
+  (BALL_R * 0.75 * CUE_LENGTH_MULTIPLIER) /
+  0.0525; // align cue-view framing with the physical shaft length
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const MAX_SPIN_CONTACT_OFFSET = Math.max(0, BALL_R - CUE_TIP_RADIUS);
@@ -2399,6 +2402,13 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 2.3;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.34;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
+const CUE_VIEW_FOCUS_MIN = CUE_HALF_LENGTH * 0.92;
+const CUE_VIEW_FOCUS_MAX = LONG_SHOT_DISTANCE;
+const CUE_VIEW_FOCUS_RATIO = 0.58;
+const CUE_VIEW_FOCUS_EXTRA = BALL_R * 6.2;
+const CUE_VIEW_FOCUS_BLEND_EXP = 0.65;
+const CUE_VIEW_THETA_LOCK_BASE = 0.12;
+const CUE_VIEW_THETA_BLEND_EXP = 1.4;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -5163,6 +5173,7 @@ function SnookerGame() {
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
+  const aimTargetInfoRef = useRef(null);
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
@@ -6817,12 +6828,28 @@ function SnookerGame() {
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
           }
+          const cueSnap = Math.pow(
+            THREE.MathUtils.clamp(1 - blend, 0, 1),
+            CUE_VIEW_THETA_BLEND_EXP
+          );
+          if (cueSnap > 1e-4) {
+            const aimVec = aimDirRef.current;
+            if (aimVec && aimVec.lengthSq() > 1e-6) {
+              const thetaTarget = Math.atan2(aimVec.x, aimVec.y) + Math.PI;
+              const thetaT = THREE.MathUtils.clamp(
+                cueSnap + (1 - blend) * CUE_VIEW_THETA_LOCK_BASE,
+                0,
+                1
+              );
+              sph.theta = lerpAngle(sph.theta, thetaTarget, thetaT);
+            }
+          }
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
           if (cue?.active && !shooting) {
             const aimFocus =
               blend < 0.999
-                ? computeAimFocusTarget(cue, aimDirRef.current)
+                ? computeAimFocusTarget(cue, aimDirRef.current, { blend })
                 : null;
             aimFocusRef.current = aimFocus ? aimFocus.clone() : null;
           } else {
@@ -8969,28 +8996,74 @@ function SnookerGame() {
       let potted = [];
       let firstHit = null;
 
-      const computeAimFocusTarget = (cueBall, aimDir) => {
+      const computeAimFocusTarget = (cueBall, aimDir, options = {}) => {
         if (!cueBall || !aimDir) return null;
         const dir = aimDir.clone();
         if (dir.lengthSq() < 1e-6) return null;
         dir.normalize();
-        const focusDistance = Math.max(
+        const blend = THREE.MathUtils.clamp(options.blend ?? 0, 0, 1);
+        const cuePos = new THREE.Vector3(
+          cueBall.pos.x,
+          BALL_CENTER_Y,
+          cueBall.pos.y
+        );
+        const aimForward = new THREE.Vector3(dir.x, 0, dir.y);
+        const aimInfo = aimTargetInfoRef.current;
+        const fallbackDistance = Math.max(
           BALL_R * 32,
           Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.55)
         );
-        return new THREE.Vector3(
-          THREE.MathUtils.clamp(
-            cueBall.pos.x + dir.x * focusDistance,
-            -PLAY_W / 2,
-            PLAY_W / 2
-          ),
-          BALL_CENTER_Y,
-          THREE.MathUtils.clamp(
-            cueBall.pos.y + dir.y * focusDistance,
-            -PLAY_H / 2,
-            PLAY_H / 2
-          )
+        let desiredDistance = fallbackDistance;
+        let targetPoint = null;
+        if (aimInfo) {
+          const availableDistance =
+            aimInfo.cueToTarget != null
+              ? aimInfo.cueToTarget
+              : aimInfo.cueToImpact ?? null;
+          if (availableDistance != null && availableDistance > 1e-4) {
+            const maxFocus = Math.max(
+              availableDistance - BALL_R * 2.5,
+              CUE_VIEW_FOCUS_MIN
+            );
+            const baseTarget =
+              availableDistance * CUE_VIEW_FOCUS_RATIO + CUE_VIEW_FOCUS_EXTRA;
+            desiredDistance = THREE.MathUtils.clamp(
+              baseTarget,
+              CUE_VIEW_FOCUS_MIN,
+              Math.min(CUE_VIEW_FOCUS_MAX, maxFocus)
+            );
+          }
+          targetPoint =
+            aimInfo.targetPoint?.clone() ??
+            aimInfo.impactPoint?.clone() ??
+            null;
+        }
+        const cueBias = aimInfo
+          ? Math.pow(1 - blend, CUE_VIEW_FOCUS_BLEND_EXP)
+          : 0;
+        const focusDistance = THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp(fallbackDistance, desiredDistance, cueBias),
+          CUE_VIEW_FOCUS_MIN,
+          CUE_VIEW_FOCUS_MAX
         );
+        const focusTarget = cuePos
+          .clone()
+          .add(aimForward.multiplyScalar(focusDistance));
+        if (targetPoint && cueBias > 1e-3) {
+          focusTarget.lerp(targetPoint, cueBias * 0.35);
+        }
+        focusTarget.y = BALL_CENTER_Y + BALL_R * 0.04;
+        focusTarget.x = THREE.MathUtils.clamp(
+          focusTarget.x,
+          -PLAY_W / 2,
+          PLAY_W / 2
+        );
+        focusTarget.z = THREE.MathUtils.clamp(
+          focusTarget.z,
+          -PLAY_H / 2,
+          PLAY_H / 2
+        );
+        return focusTarget;
       };
 
       const alignStandingCameraToAim = (cueBall, aimDir) => {
@@ -9013,7 +9086,7 @@ function SnookerGame() {
         sph.theta = aimTheta;
         syncBlendToSpherical();
         const focusStore = ensureOrbitFocus();
-        const focusTarget = computeAimFocusTarget(cueBall, dir);
+        const focusTarget = computeAimFocusTarget(cueBall, dir, { blend: 0 });
         if (!focusTarget) return;
         aimFocusRef.current = focusTarget.clone();
         focusStore.ballId = cueBall.id ?? null;
@@ -9909,6 +9982,20 @@ function SnookerGame() {
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
+          aimTargetInfoRef.current = {
+            cueToImpact: start.distanceTo(end),
+            cueToTarget: targetBall
+              ? cue.pos.distanceTo(targetBall.pos)
+              : null,
+            impactPoint: end.clone(),
+            targetPoint: targetBall
+              ? new THREE.Vector3(
+                  targetBall.pos.x,
+                  BALL_CENTER_Y,
+                  targetBall.pos.y
+                )
+              : null
+          };
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
           shouldSlowAim = hasTarget;
@@ -10111,6 +10198,7 @@ function SnookerGame() {
           }
         } else {
           aimFocusRef.current = null;
+          aimTargetInfoRef.current = null;
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
