@@ -115,10 +115,10 @@ export default function App() {
             />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route
-              path="/games/poolroyale/lobby"
+              path="/games/pollroyale/lobby"
               element={<PoolRoyaleLobby />}
             />
-            <Route path="/games/poolroyale" element={<PoolRoyale />} />
+            <Route path="/games/pollroyale" element={<PoolRoyale />} />
             <Route path="/games/snooker" element={<Snooker />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
