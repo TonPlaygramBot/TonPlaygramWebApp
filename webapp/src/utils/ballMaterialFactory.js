@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
+
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
@@ -247,8 +249,11 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-  else texture.encoding = THREE.sRGBEncoding;
+  if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
+    texture.encoding = LEGACY_SRGB_ENCODING;
+  }
   texture.needsUpdate = true;
 
   BALL_TEXTURE_CACHE.set(key, texture);
