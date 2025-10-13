@@ -18,7 +18,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import useOrientationLock from '../../hooks/useOrientationLock.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -4815,7 +4814,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
-  useOrientationLock('portrait-primary');
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
     [variantKey]
@@ -5872,6 +5870,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
+      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
