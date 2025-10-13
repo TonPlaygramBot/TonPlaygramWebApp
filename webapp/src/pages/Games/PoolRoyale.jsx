@@ -493,7 +493,9 @@ const CLOTH_LIFT = (() => {
   const eps = ballR * microEpsRatio;
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
-const ACTION_CAMERA_START_BLEND = 1;
+const ACTION_CAMERA_START_BLEND = 0;
+const ENABLE_ACTION_CAMERAS = false;
+const ENABLE_POCKET_CAMERAS = false;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -5866,6 +5868,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
+        if (!ENABLE_POCKET_CAMERAS) {
+          if (pocketCameraStateRef.current) {
+            pocketCameraStateRef.current = false;
+            setPocketCameraActive(false);
+          }
+          return;
+        }
         if (pocketCameraStateRef.current === active) return;
         pocketCameraStateRef.current = active;
         setPocketCameraActive(active);
@@ -7178,7 +7187,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             broadcastArgs.focusWorld =
               broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
             broadcastArgs.targetWorld = null;
-          } else if (activeShotView?.mode === 'action') {
+          } else if (ENABLE_ACTION_CAMERAS && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             if (!cueBall?.active) {
@@ -7457,7 +7466,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 renderCamera = camera;
               }
             }
-          } else if (activeShotView?.mode === 'pocket') {
+          } else if (ENABLE_POCKET_CAMERAS && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -7925,6 +7934,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           railNormal,
           { longShot = false, travelDistance = 0, impactPoint = null } = {}
         ) => {
+          if (!ENABLE_ACTION_CAMERAS) return null;
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
           const targetBall =
@@ -8018,6 +8028,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
+          if (!ENABLE_POCKET_CAMERAS) return null;
           if (!followView) return null;
           const { forceEarly = false } = options;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
@@ -10725,6 +10736,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
         }
         if (
+          ENABLE_ACTION_CAMERAS &&
           !activeShotView &&
           suspendedActionView?.mode === 'action' &&
           suspendedActionView.pendingActivation
@@ -10758,7 +10770,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
           }
         }
-        if (activeShotView?.mode === 'action') {
+        if (ENABLE_ACTION_CAMERAS && activeShotView?.mode === 'action') {
           const now = performance.now();
           const cueBall = balls.find((b) => b.id === activeShotView.cueId);
           if (!cueBall?.active) {
@@ -10808,6 +10820,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
         }
         if (
+          ENABLE_POCKET_CAMERAS &&
           shooting &&
           !topViewRef.current &&
           (activeShotView?.mode !== 'pocket' || !activeShotView)
@@ -10982,7 +10995,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
           }
         });
-        if (activeShotView?.mode === 'pocket') {
+        if (ENABLE_POCKET_CAMERAS && activeShotView?.mode === 'pocket') {
           const pocketView = activeShotView;
           const focusBall = balls.find((b) => b.id === pocketView.ballId);
           const now = performance.now();
