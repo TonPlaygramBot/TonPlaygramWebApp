@@ -2344,7 +2344,13 @@ const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
+// Pull the baseline player orbit in closer without collapsing the camera
+// straight into the cloth. The previous value (0.085) shrank the orbit radius
+// so aggressively that the camera spawned inside the table volume, resulting in
+// a black screen and the appearance that the 3D scene never loaded. Bumping the
+// factor back into the expected 0.8 range restores the original framing while
+// still allowing the refined cushion clearance tweaks below to take effect.
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.85;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.36;

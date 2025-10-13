@@ -2290,7 +2290,12 @@ const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
+// Keep the shared snooker/pool orbit at the same comfortable distance as the
+// previous builds. A mistaken decimal shift (0.135) placed the camera nearly on
+// top of the cloth which made the entire scene render as a dark void. Restoring
+// the 0.85 scale matches the snooker tuning and lets the cue/standing views
+// blend correctly again.
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.85;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
