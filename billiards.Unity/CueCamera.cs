@@ -357,7 +357,7 @@ public class CueCamera : MonoBehaviour
         float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
         height = Mathf.Max(height, minRailHeight);
 
-        Vector3 focus = ComputeCueAimFocus(cueAimForward);
+        Vector3 focus = CueBall.position;
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = GetCueAimLookTarget(focus, cueAimForward);
 
@@ -808,34 +808,6 @@ public class CueCamera : MonoBehaviour
         return rb != null && rb.velocity.sqrMagnitude > velocityThreshold;
     }
 
-    private Vector3 ComputeCueAimFocus(Vector3 forward)
-    {
-        if (CueBall == null)
-        {
-            return tableBounds.center;
-        }
-
-        Vector3 focus = CueBall.position;
-
-        Vector3 aimEnd;
-        if (!TryGetAimLineEndPoint(forward, out aimEnd))
-        {
-            return focus;
-        }
-
-        float lowering = Mathf.Clamp01(cueAimLowering);
-
-        Vector3 midPoint = Vector3.Lerp(CueBall.position, aimEnd, 0.5f);
-        float baseBias = TargetBall != null && TargetBall.gameObject.activeInHierarchy ? 0.75f : 0.6f;
-        float focusBias = Mathf.Lerp(0.25f, baseBias, lowering);
-        focusBias = Mathf.Clamp01(focusBias);
-
-        Vector3 focusPoint = Vector3.Lerp(midPoint, aimEnd, focusBias);
-        focusPoint.y = CueBall.position.y;
-
-        return focusPoint;
-    }
-
     private Vector3 GetCueAimLookTarget(Vector3 focus, Vector3 forward)
     {
         Vector3 defaultTarget = focus + Vector3.up * cueBallLookOffset;
@@ -872,7 +844,7 @@ public class CueCamera : MonoBehaviour
         Vector3 aimDirection = aimVector / aimDistance;
 
         float overshootBase = Mathf.Max(0f, cueAimTargetOvershoot);
-        float overshoot = Mathf.Lerp(overshootBase * 0.5f, overshootBase * 1.35f, Mathf.Clamp01(lowering));
+        float overshoot = Mathf.Lerp(overshootBase, overshootBase * 0.5f, Mathf.Clamp01(lowering));
         Vector3 extendedAim = aimEnd + aimDirection * overshoot;
         extendedAim = tableBounds.ClosestPoint(extendedAim);
 
@@ -883,14 +855,6 @@ public class CueCamera : MonoBehaviour
 
         float aimLineWeight = Mathf.Clamp01(cueAimLineFocusWeight);
         Vector3 lookPoint = Vector3.Lerp(extendedAim, aimLockedLook, aimLineWeight);
-
-        if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
-        {
-            Vector3 targetFocus = TargetBall.position;
-            targetFocus.y += cueBallLookOffset;
-            float targetWeight = Mathf.Lerp(0.4f, 0.85f, lowering);
-            lookPoint = Vector3.Lerp(lookPoint, targetFocus, Mathf.Clamp01(targetWeight));
-        }
 
         float railTop = railHeight + Mathf.Max(0f, railClearance);
         float minimumLookHeight = focus.y + cueBallLookOffset;
