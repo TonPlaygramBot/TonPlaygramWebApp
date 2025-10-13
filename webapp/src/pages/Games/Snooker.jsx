@@ -2344,13 +2344,7 @@ const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-// Pull the baseline player orbit in closer without collapsing the camera
-// straight into the cloth. The previous value (0.085) shrank the orbit radius
-// so aggressively that the camera spawned inside the table volume, resulting in
-// a black screen and the appearance that the 3D scene never loaded. Bumping the
-// factor back into the expected 0.8 range restores the original framing while
-// still allowing the refined cushion clearance tweaks below to take effect.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.85;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
 const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
@@ -5084,30 +5078,6 @@ function SnookerGame() {
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
-  const computeRendererQualityPreset = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return { pixelRatio: 1, enableShadows: true };
-    }
-    const width = window.innerWidth || 0;
-    const height = window.innerHeight || width;
-    const shortestEdge = Math.max(1, Math.min(width || 1, height || 1));
-    let pixelCap = 2;
-    if (shortestEdge <= 420) {
-      pixelCap = 1.1;
-    } else if (shortestEdge <= 768) {
-      pixelCap = 1.25;
-    } else if (shortestEdge <= 1024) {
-      pixelCap = 1.5;
-    } else if (width <= 1366) {
-      pixelCap = 1.75;
-    }
-    const deviceRatio = typeof window.devicePixelRatio === 'number'
-      ? window.devicePixelRatio
-      : 1;
-    const pixelRatio = Math.min(deviceRatio, pixelCap);
-    const enableShadows = pixelRatio > 1.3;
-    return { pixelRatio, enableShadows };
-  }, []);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const loadingClearedRef = useRef(false);
@@ -5764,15 +5734,11 @@ function SnookerGame() {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const applyRendererQuality = () => {
-        const { pixelRatio, enableShadows } = computeRendererQualityPreset();
-        renderer.setPixelRatio(pixelRatio);
-        renderer.shadowMap.enabled = enableShadows;
-        renderer.shadowMap.type = enableShadows
-          ? THREE.PCFSoftShadowMap
-          : THREE.BasicShadowMap;
-      };
-      applyRendererQuality();
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -10651,7 +10617,6 @@ function SnookerGame() {
 
       // Resize
         const onResize = () => {
-          applyRendererQuality();
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
@@ -10727,7 +10692,7 @@ function SnookerGame() {
         setLoading(false);
         setLoadingProgress(100);
       }
-  }, [computeRendererQualityPreset]);
+  }, []);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
