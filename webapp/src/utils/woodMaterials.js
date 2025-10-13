@@ -7,6 +7,51 @@ const normalizeHue = (h) => {
   return hue;
 };
 
+const getDocument = () => {
+  if (typeof globalThis === 'undefined') return null;
+  const { document: doc } = globalThis;
+  return doc && typeof doc.createElement === 'function' ? doc : null;
+};
+
+const createCanvas2D = (width, height) => {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+  if (width <= 0 || height <= 0) return null;
+  const doc = getDocument();
+  if (doc) {
+    const canvas = doc.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  return null;
+};
+
+const createSolidDataTexture = (r, g, b, { colorSpace = null } = {}) => {
+  const data = new Uint8Array([r, g, b, 255]);
+  const texture = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+  if (colorSpace) {
+    texture.colorSpace = colorSpace;
+  }
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const makeFallbackWoodTexture = (hue, sat, light) => {
+  const color = new THREE.Color();
+  color.setHSL(normalizeHue(hue) / 360, clamp01(sat), clamp01(light));
+  const r = Math.round(color.r * 255);
+  const g = Math.round(color.g * 255);
+  const b = Math.round(color.b * 255);
+  const texture = createSolidDataTexture(r, g, b, { colorSpace: THREE.SRGBColorSpace });
+  texture.anisotropy = 16;
+  return texture;
+};
+
+const makeFallbackRoughnessTexture = (base) => {
+  const grayscale = Math.max(0, Math.min(255, Math.round(clamp01(base) * 255)));
+  return createSolidDataTexture(grayscale, grayscale, grayscale);
+};
+
 const hslString = (h, s, l) => {
   const sat = clamp01(s);
   const light = clamp01(l);
@@ -14,10 +59,14 @@ const hslString = (h, s, l) => {
 };
 
 const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  const canvas = createCanvas2D(width, height);
+  if (!canvas) {
+    return makeFallbackWoodTexture(hue, sat, light);
+  }
+  const ctx = canvas.getContext && canvas.getContext('2d');
+  if (!ctx) {
+    return makeFallbackWoodTexture(hue, sat, light);
+  }
   ctx.fillStyle = hslString(hue, sat, light);
   ctx.fillRect(0, 0, width, height);
 
@@ -57,10 +106,14 @@ const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
 };
 
 const makeRoughnessMap = (width, height, base, variance) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  const canvas = createCanvas2D(width, height);
+  if (!canvas) {
+    return makeFallbackRoughnessTexture(base);
+  }
+  const ctx = canvas.getContext && canvas.getContext('2d');
+  if (!ctx) {
+    return makeFallbackRoughnessTexture(base);
+  }
   const imageData = ctx.createImageData(width, height);
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
