@@ -17,7 +17,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import useOrientationLock from '../../hooks/useOrientationLock.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -4730,7 +4729,6 @@ function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new UnitySnookerRules(), []);
-  useOrientationLock('portrait-primary');
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerTableFinish');
@@ -5725,6 +5723,7 @@ function SnookerGame() {
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
+      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
