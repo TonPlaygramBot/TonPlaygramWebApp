@@ -36,7 +36,7 @@ public class CueCamera : MonoBehaviour
     // Height the cue view should reach when the player lifts the camera.
     public float cueRaisedHeight = 0.82f;
     // Minimum height maintained when the player drops the camera toward the cue.
-    public float cueLoweredHeight = 0.3f;
+    public float cueLoweredHeight = 0.24f;
     // Keep a small safety buffer from the butt of the cue so the camera never
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
@@ -354,14 +354,35 @@ public class CueCamera : MonoBehaviour
         float clothAnchorHeight = minimumCueHeight;
         float heightScale = Mathf.Lerp(1f, Mathf.Clamp(cueHeightClothScale, 0.1f, 1f), blend);
         height = clothAnchorHeight + (height - clothAnchorHeight) * heightScale;
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
-        height = Mathf.Max(height, minRailHeight);
 
-        Vector3 focus = CueBall.position;
-        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
-        Vector3 lookTarget = GetCueAimLookTarget(focus, cueAimForward);
+        // When the cue camera is lowered, blend the height toward the aiming line so the
+        // framing matches a real cue view instead of hovering noticeably above it.
+        if (blend > 0f)
+        {
+            float aimLineHeight = CueBall.position.y + cueBallLookOffset;
+            float desiredAimHeight = Mathf.Max(minimumCueHeight, aimLineHeight);
+            height = Mathf.Lerp(height, desiredAimHeight, blend);
+        }
+        float maxRailClamp = railHeight + Mathf.Max(0f, railClearance);
+        float cueRailClamp = Mathf.Lerp(maxRailClamp, railHeight, blend);
+        cueRailClamp = Mathf.Max(cueRailClamp, railHeight);
+        height = Mathf.Max(height, cueRailClamp);
 
-        ApplyCameraAt(focus, cueAimForward, distance, height, minimumHeightOffset, lookTarget);
+        Vector3 cueFocus = CueBall.position;
+        if (cueSamplePoint.sqrMagnitude > 0.0001f)
+        {
+            // Blend the camera's focal point toward the sampled cue position so the
+            // portrait cue view slides above the stick similar to the snooker setup
+            // while keeping the existing distance and height limits intact.
+            float focusBlend = Mathf.Lerp(0.32f, 0.68f, blend);
+            cueFocus = Vector3.Lerp(CueBall.position, cueSamplePoint, Mathf.Clamp01(focusBlend));
+        }
+
+        float minimumHeightBuffer = Mathf.Lerp(minimumHeightAboveFocus, 0f, blend);
+        float minimumHeightOffset = Mathf.Max(minimumHeightBuffer, height - cueFocus.y);
+        Vector3 lookTarget = GetCueAimLookTarget(CueBall.position, cueAimForward);
+
+        ApplyCameraAt(cueFocus, cueAimForward, distance, height, minimumHeightOffset, lookTarget, cueRailClamp);
 
         Vector3 flatForward = new Vector3(cueAimForward.x, 0f, cueAimForward.z);
         if (flatForward.sqrMagnitude > 0.0001f)
@@ -586,7 +607,7 @@ public class CueCamera : MonoBehaviour
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
 
-        ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
+        ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget, minRailHeight);
     }
 
     private float ComputeBroadcastDistance(Vector3 focus, float height, Vector3 forward, Camera cam)
@@ -680,7 +701,8 @@ public class CueCamera : MonoBehaviour
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
         Vector3 lookTarget = focusPosition + forward * 5f;
-        ApplyShortRailCamera(focusPosition, forward, distance, height, minimumHeightAboveFocus, lookTarget);
+        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        ApplyShortRailCamera(focusPosition, forward, distance, height, minimumHeightAboveFocus, lookTarget, minRailHeight);
     }
 
     private void ApplyShortRailCamera(
@@ -693,7 +715,8 @@ public class CueCamera : MonoBehaviour
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
         Vector3 lookTarget = focusPosition + forward * 5f;
-        ApplyShortRailCamera(focusPosition, forward, distance, height, minimumHeightOffset, lookTarget);
+        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
+        ApplyShortRailCamera(focusPosition, forward, distance, height, minimumHeightOffset, lookTarget, minRailHeight);
     }
 
     private void ApplyShortRailCamera(
@@ -702,10 +725,11 @@ public class CueCamera : MonoBehaviour
         float distance,
         float height,
         float minimumHeightOffset,
-        Vector3 lookTarget
+        Vector3 lookTarget,
+        float minRailHeight
     )
     {
-        ApplyCameraAt(focusPosition, forward, distance, height, minimumHeightOffset, lookTarget);
+        ApplyCameraAt(focusPosition, forward, distance, height, minimumHeightOffset, lookTarget, minRailHeight);
 
         Vector3 pos = transform.position;
         pos.x = 0f;
@@ -718,7 +742,8 @@ public class CueCamera : MonoBehaviour
         float distance,
         float height,
         float minimumHeightOffset,
-        Vector3 lookTarget
+        Vector3 lookTarget,
+        float minRailHeight
     )
     {
         if (forward.sqrMagnitude < 0.0001f)
@@ -730,8 +755,8 @@ public class CueCamera : MonoBehaviour
         Vector3 desiredPosition = focusPosition - forward * distance + Vector3.up * height;
 
         float minimumHeight = focusPosition.y + Mathf.Max(minimumHeightAboveFocus, minimumHeightOffset);
-        float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
-        minimumHeight = Mathf.Max(minimumHeight, minRailHeight);
+        float railClamp = Mathf.Max(minRailHeight, railHeight);
+        minimumHeight = Mathf.Max(minimumHeight, railClamp);
 
         // Prevent the camera from getting stuck behind walls or decorations by
         // nudging it toward the table if something blocks the line of sight.
@@ -754,7 +779,22 @@ public class CueCamera : MonoBehaviour
         }
 
         desiredPosition.y = Mathf.Max(desiredPosition.y, minimumHeight);
-        desiredPosition.y = Mathf.Max(desiredPosition.y, minRailHeight);
+        desiredPosition.y = Mathf.Max(desiredPosition.y, railClamp);
+
+        if (distance > 0f)
+        {
+            Vector3 toFocus = focusPosition - desiredPosition;
+            float forwardDistance = Vector3.Dot(toFocus, forward);
+            float requiredDistance = Mathf.Max(0.01f, distance);
+            if (forwardDistance < requiredDistance)
+            {
+                float adjust = requiredDistance - forwardDistance;
+                desiredPosition -= forward * adjust;
+            }
+        }
+
+        desiredPosition.y = Mathf.Max(desiredPosition.y, minimumHeight);
+        desiredPosition.y = Mathf.Max(desiredPosition.y, railClamp);
         transform.position = desiredPosition;
         transform.LookAt(lookTarget);
     }
@@ -856,13 +896,23 @@ public class CueCamera : MonoBehaviour
         float aimLineWeight = Mathf.Clamp01(cueAimLineFocusWeight);
         Vector3 lookPoint = Vector3.Lerp(extendedAim, aimLockedLook, aimLineWeight);
 
+        // Nudge the focus toward the pure aim direction as the camera lowers so the
+        // viewing axis lines up with the aiming guide.
+        if (lowering > 0f)
+        {
+            Vector3 aimAlignedPoint = focus + aimDirection * Mathf.Max(aimDistance + overshoot, 0.01f);
+            aimAlignedPoint = tableBounds.ClosestPoint(aimAlignedPoint);
+            lookPoint = Vector3.Lerp(lookPoint, aimAlignedPoint, lowering);
+        }
+
         float railTop = railHeight + Mathf.Max(0f, railClearance);
         float minimumLookHeight = focus.y + cueBallLookOffset;
         float railLookHeight = Mathf.Max(railTop, aimEnd.y) + cueBallLookOffset;
         float heightBias = Mathf.Clamp01(cueAimHeightFocus);
         float heightBlend = Mathf.Lerp(heightBias, 0.85f, Mathf.Clamp01(lowering));
         float desiredHeight = Mathf.Lerp(minimumLookHeight, railLookHeight, heightBlend);
-        lookPoint.y = Mathf.Max(desiredHeight, minimumLookHeight);
+        float aimHeight = Mathf.Lerp(desiredHeight, minimumLookHeight, lowering);
+        lookPoint.y = Mathf.Max(aimHeight, minimumLookHeight);
 
         return lookPoint;
     }
