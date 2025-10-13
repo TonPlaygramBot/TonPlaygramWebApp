@@ -5216,6 +5216,58 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
+  const computeRendererQualityPreset = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return { pixelRatio: 1, enableShadows: true };
+    }
+    const width = window.innerWidth || 0;
+    const height = window.innerHeight || width;
+    const shortestEdge = Math.max(1, Math.min(width || 1, height || 1));
+    let pixelCap = 2;
+    if (shortestEdge <= 420) {
+      pixelCap = 1.1;
+    } else if (shortestEdge <= 768) {
+      pixelCap = 1.25;
+    } else if (shortestEdge <= 1024) {
+      pixelCap = 1.5;
+    } else if (width <= 1366) {
+      pixelCap = 1.75;
+    }
+    const deviceRatio = typeof window.devicePixelRatio === 'number'
+      ? window.devicePixelRatio
+      : 1;
+    const pixelRatio = Math.min(deviceRatio, pixelCap);
+    const enableShadows = pixelRatio > 1.3;
+    return { pixelRatio, enableShadows };
+  }, []);
+  const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const loadingClearedRef = useRef(false);
+  useEffect(() => {
+    let raf = null;
+    let active = true;
+    if (!loading) {
+      setLoadingProgress(100);
+      return () => {};
+    }
+    const start = performance.now();
+    const duration = 2200;
+    const tick = (now) => {
+      if (!active) return;
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = Math.min(95, Math.max(0, Math.round(eased * 95)));
+      setLoadingProgress((prev) => (prev >= next ? prev : next));
+      if (loading) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      active = false;
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [loading]);
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -5834,6 +5886,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    let loadTimer = null;
     const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
@@ -5853,11 +5906,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
-      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      const applyRendererQuality = () => {
+        const { pixelRatio, enableShadows } = computeRendererQualityPreset();
+        renderer.setPixelRatio(pixelRatio);
+        renderer.shadowMap.enabled = enableShadows;
+        renderer.shadowMap.type = enableShadows
+          ? THREE.PCFSoftShadowMap
+          : THREE.BasicShadowMap;
+      };
+      applyRendererQuality();
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -11058,12 +11115,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          if (!loadingClearedRef.current) {
+            loadingClearedRef.current = true;
+            loadTimer = window.setTimeout(() => {
+              setLoading(false);
+              setLoadingProgress(100);
+            }, 120);
+          }
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
 
       // Resize
         const onResize = () => {
+          applyRendererQuality();
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
@@ -11140,12 +11205,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
+          if (loadTimer) {
+            clearTimeout(loadTimer);
+          }
         };
       } catch (e) {
         console.error(e);
         setErr(e?.message || String(e));
+        setLoading(false);
+        setLoadingProgress(100);
       }
-  }, []);
+  }, [computeRendererQualityPreset]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -11320,6 +11390,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     };
   }, [updateSpinDotPosition]);
 
+  const displayedProgress = Math.min(
+    100,
+    Math.max(0, Math.round(loadingProgress))
+  );
+  const cueStrikeProgress = Math.min(1, displayedProgress / 12);
+  const cueBaseOffset = 16;
+  const cueDrawBack = 18;
+  const cueTrackWidth = 200;
+  const ballOffsetStart = cueBaseOffset + 28;
+  const cueBallRadius = 12;
+  const ballTravel = Math.max(0, Math.min(1, (displayedProgress - 12) / 88));
+  const cuePosition = cueBaseOffset - cueDrawBack * (1 - cueStrikeProgress);
+  const cueBallPosition = ballOffsetStart + cueTrackWidth * ballTravel;
   const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
@@ -11513,6 +11596,32 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           </div>
         )}
       </div>
+
+      {(loading || displayedProgress < 100) && (
+        <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
+          <div className="relative w-64 h-24">
+            <div className="absolute left-0 top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-white/15" />
+            <div
+              className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-emerald-400/80 transition-all duration-150 ease-out"
+              style={{ width: `${displayedProgress}%` }}
+            />
+            <div
+              className="absolute left-0 top-1/2 h-2 w-28 rounded-r-full bg-amber-300 shadow-lg shadow-amber-500/40 transition-transform duration-150 ease-out"
+              style={{ transform: `translate(${cuePosition}px, -50%)` }}
+            />
+            <div
+              className="absolute left-0 top-1/2 h-6 w-6 rounded-full border border-emerald-200 bg-white shadow-[0_0_16px_rgba(74,222,128,0.5)] transition-transform duration-150 ease-out"
+              style={{
+                transform: `translate(${cueBallPosition - cueBallRadius}px, -50%)`
+              }}
+            />
+          </div>
+          <div className="text-sm tracking-[0.3em] uppercase text-emerald-200">
+            Loading {displayedProgress}%
+          </div>
+        </div>
+      )}
+
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
