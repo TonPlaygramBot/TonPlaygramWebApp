@@ -64,7 +64,7 @@ export default function InvitePopup({
                     alt: 'Goal Rush',
                   },
                   {
-                    id: 'pollroyale',
+                    id: 'poolroyale',
                     src: '/assets/icons/pool-royale.svg',
                     alt: 'Pool Royale',
                   },
