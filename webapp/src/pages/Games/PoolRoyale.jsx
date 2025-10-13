@@ -2279,17 +2279,17 @@ function applySnookerScaling({
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
-// Match the snooker cue shot tilt so the cue camera frames identically while
-// still clearing the cloth when blending between views.
-const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
+// Lower the cue shot tilt so the camera can skim the rail line while staying just
+// above the cloth. Keeping the delta small ensures we don't clip through the
+// table surface when blending between views.
+const CUE_SHOT_PHI = Math.PI / 2 - 0.07;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // align with snooker blend ceiling so cue view transitions match perfectly
-// Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more.
-// We start from the snooker baseline and nudge it ~3% closer for the requested tighter framing.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.082;
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
+// Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
@@ -2309,7 +2309,7 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // match snooker orbit clearance so the cue camera skims the rail identically
+const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.92; // keep standing orbit safely above cushion lip and align with pocket cam height
 const CUE_VIEW_CUSHION_CLEARANCE = CAMERA_CUSHION_CLEARANCE; // match the snooker cue clearance so transitions stay consistent
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -2328,15 +2328,18 @@ const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
 });
-const CAMERA_RAIL_SAFETY = 0.006;
+const CAMERA_RAIL_SAFETY = 0.02;
 const CUE_VIEW_RADIUS_RATIO = 0.085;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.35;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+  STANDING_VIEW_PHI + 0.5
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
-const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
+const CUE_VIEW_TARGET_PHI = Math.min(
+  CAMERA.maxPhi,
+  CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5
+);
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
 // Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
