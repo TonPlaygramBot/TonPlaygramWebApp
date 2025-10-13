@@ -35,6 +35,7 @@ import {
   disposeMaterialWithWood,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
+import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
 
 const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
 
@@ -6802,7 +6803,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         CAMERA.near,
         CAMERA.far
       );
-      mobileCameraRigRef.current = null;
+      const mobileCameraRig = new MobilePortraitCameraRig(camera, {
+        theta: rad(35),
+        phi: Math.PI,
+        radius: fitRadius(camera, 1.6)
+      });
+      mobileCameraRig.setViewport(host.clientWidth, host.clientHeight);
+      mobileCameraRigRef.current = mobileCameraRig;
         const standingPhi = THREE.MathUtils.clamp(
           STANDING_VIEW.phi,
           CAMERA.minPhi,
@@ -7090,6 +7097,30 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const updateCamera = () => {
+          const mobileRig = mobileCameraRigRef.current;
+          if (
+            mobileRig &&
+            !topViewRef.current &&
+            !(cueGalleryStateRef.current?.active ?? false) &&
+            !(activeShotView && activeShotView.mode === 'action') &&
+            !pocketCameraStateRef.current
+          ) {
+            const now = performance.now();
+            lastCameraTickRef.current = now;
+            mobileRig.setViewport(host.clientWidth, host.clientHeight);
+            mobileRig.update(now);
+            const state = mobileRig.getState();
+            const currentSph = sphRef.current;
+            if (currentSph) {
+              currentSph.radius = state.radius;
+              currentSph.theta = state.phi;
+              currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
+            }
+            camera.up.set(0, 1, 0);
+            camera.lookAt(0, 0, 0);
+            activeRenderCameraRef.current = camera;
+            return camera;
+          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -7695,10 +7726,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
             TMP_VEC3_A.setFromSpherical(TMP_SPH);
-            cameraBlendRef.current = 0;
             let finalOffset = TMP_VEC3_A;
-            let cueOffset = null;
+            const cueBlend = THREE.MathUtils.clamp(
+              cameraBlendRef.current ?? 1,
+              0,
+              1
+            );
+            const cueWeight = Math.pow(1 - cueBlend, 0.85);
             if (
+              cueWeight > 1e-4 &&
               cue?.active &&
               !shooting &&
               aimDirRef.current &&
@@ -7708,7 +7744,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               TMP_VEC2_A.copy(aimDirRef.current);
               if (TMP_VEC2_A.lengthSq() > 1e-6) {
                 TMP_VEC2_A.normalize();
-                cueOffset = computeCueAimCameraOffset({
+                const cueOffset = computeCueAimCameraOffset({
                   cueBall: cue,
                   aimDir: TMP_VEC2_A,
                   focusWorld: lookTarget,
@@ -7716,10 +7752,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   cushionHeight: cushionHeightRef.current ?? TABLE.THICK,
                   orbitOffset: TMP_VEC3_A
                 });
+                if (cueOffset) {
+                  TMP_VEC3_B.copy(TMP_VEC3_A).lerp(cueOffset, cueWeight);
+                  finalOffset = TMP_VEC3_B;
+                }
               }
-            }
-            if (cueOffset) {
-              finalOffset = cueOffset;
             }
             TMP_VEC3_CAMERA.copy(lookTarget).add(finalOffset);
             const minCameraHeight = computeCueCameraMinHeight(
