@@ -77,7 +77,7 @@ export class MobilePortraitCameraRig {
   private viewHeight: number;
   private tableWidth: number;
   private tableHeight: number;
-  private lastUpdate = performance.now();
+  private lastUpdate: number;
 
   constructor(camera: THREE.PerspectiveCamera, options: CameraOptions = {}) {
     this.camera = camera;
@@ -97,6 +97,11 @@ export class MobilePortraitCameraRig {
     this.tableHeight = 7.2;
     this.camera.up.copy(sharedUp);
     this.camera.lookAt(this.target);
+    const now =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    this.lastUpdate = now;
   }
 
   setViewport(width: number, height: number) {
@@ -138,8 +143,13 @@ export class MobilePortraitCameraRig {
   }
 
   update(now: number) {
-    const dtMs = Math.min(now - this.lastUpdate, MAX_SMOOTH_STEP * 1000);
-    this.lastUpdate = now;
+    const safeNow = Number.isFinite(now)
+      ? now
+      : typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    const dtMs = Math.min(safeNow - this.lastUpdate, MAX_SMOOTH_STEP * 1000);
+    this.lastUpdate = safeNow;
     const dt = dtMs / 1000;
 
     const fit = computeRFit(
