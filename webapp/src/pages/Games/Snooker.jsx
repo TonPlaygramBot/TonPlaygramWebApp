@@ -1061,8 +1061,23 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_SIZE = 4096;
 const CLOTH_THREAD_PITCH = 12 * 0.8;
+const resolveClothTextureSize = () => {
+  if (typeof window === 'undefined') {
+    return 1024;
+  }
+  const pixelRatio = window.devicePixelRatio || 1;
+  const shortEdge = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+  const deviceMemory =
+    typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number'
+      ? navigator.deviceMemory
+      : undefined;
+  if (pixelRatio >= 2 && shortEdge >= 1280 && (deviceMemory === undefined || deviceMemory >= 6)) {
+    return 2048;
+  }
+  return 1024;
+};
+const CLOTH_TEXTURE_SIZE = resolveClothTextureSize();
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
