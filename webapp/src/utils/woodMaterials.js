@@ -15,17 +15,67 @@ const hslString = (h, s, l) => {
   return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
 };
 
+const MAX_CANVAS_DIMENSION = 3072;
+
+const createFallbackTexture = (hue, sat, light) => {
+  const color = new THREE.Color();
+  color.setHSL(normalizeHue(hue) / 360, clamp01(sat), clamp01(light));
+  const data = new Uint8Array([
+    Math.round(color.r * 255),
+    Math.round(color.g * 255),
+    Math.round(color.b * 255),
+    255
+  ]);
+  const texture = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
+    texture.encoding = LEGACY_SRGB_ENCODING;
+  }
+  return texture;
+};
+
+const getCanvasContext = (width, height) => {
+  if (typeof document === 'undefined') return null;
+  try {
+    const canvas = document.createElement('canvas');
+    const safeWidth = Math.max(
+      1,
+      Math.min(MAX_CANVAS_DIMENSION, Math.floor(width || DEFAULT_WOOD_TEXTURE_SIZE))
+    );
+    const safeHeight = Math.max(
+      1,
+      Math.min(MAX_CANVAS_DIMENSION, Math.floor(height || DEFAULT_WOOD_TEXTURE_SIZE))
+    );
+    canvas.width = safeWidth;
+    canvas.height = safeHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    return { canvas, ctx, width: safeWidth, height: safeHeight };
+  } catch (error) {
+    console.warn('Failed to allocate wood texture canvas', error);
+    return null;
+  }
+};
+
 const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  const context = getCanvasContext(width, height);
+  if (!context) {
+    console.warn('Falling back to solid wood texture');
+    return createFallbackTexture(hue, sat, light);
+  }
+  const { canvas, ctx, width: w, height: h } = context;
   ctx.fillStyle = hslString(hue, sat, light);
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, w, h);
 
   for (let i = 0; i < 3000; i += 1) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
+    const x = Math.random() * w;
+    const y = Math.random() * h;
     const grainLen = 50 + Math.random() * 200;
     const curve = Math.sin(y / 40 + Math.random() * 2) * 10;
     ctx.strokeStyle = hslString(hue, sat * 0.6, light - Math.random() * contrast);
@@ -38,8 +88,8 @@ const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
   }
 
   for (let i = 0; i < 40; i += 1) {
-    const kx = Math.random() * width;
-    const ky = Math.random() * height;
+    const kx = Math.random() * w;
+    const ky = Math.random() * h;
     const r = 8 + Math.random() * 15;
     const grad = ctx.createRadialGradient(kx, ky, 0, kx, ky, r);
     grad.addColorStop(0, hslString(hue, sat * 0.9, light - 0.3));
@@ -63,11 +113,21 @@ const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
 };
 
 const makeRoughnessMap = (width, height, base, variance) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  const imageData = ctx.createImageData(width, height);
+  const context = getCanvasContext(width, height);
+  if (!context) {
+    const clamped = clamp01(base);
+    const value = Math.round(clamped * 255);
+    const data = new Uint8Array([value, value, value, 255]);
+    const texture = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.needsUpdate = true;
+    return texture;
+  }
+  const { canvas, ctx, width: w, height: h } = context;
+  const imageData = ctx.createImageData(w, h);
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
     const value = base + (Math.random() - 0.5) * variance;
