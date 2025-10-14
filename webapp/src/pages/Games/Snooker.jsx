@@ -24,6 +24,15 @@ import {
   CUE_RACK_PALETTE
 } from '../../utils/createCueRackDisplay.js';
 import {
+  adjustCornerNotchDepth,
+  adjustSideNotchDepth,
+  centroidFromRing,
+  multiPolygonToShapes,
+  scaleMultiPolygon,
+  scaleMultiPolygonBy,
+  signedRingArea
+} from '../../components/billiards/geometry.js';
+import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID,
@@ -31,159 +40,9 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures
 } from '../../utils/woodMaterials.js';
+import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
 
 const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
-
-function signedRingArea(ring) {
-  let area = 0;
-  for (let i = 0; i < ring.length - 1; i++) {
-    const [x1, y1] = ring[i];
-    const [x2, y2] = ring[i + 1];
-    area += x1 * y2 - x2 * y1;
-  }
-  return area * 0.5;
-}
-
-function multiPolygonToShapes(mp) {
-  const shapes = [];
-  if (!Array.isArray(mp)) return shapes;
-  mp.forEach((poly) => {
-    if (!Array.isArray(poly) || !poly.length) return;
-    const outerRing = poly[0];
-    if (!Array.isArray(outerRing) || outerRing.length < 4) return;
-    const outerPts = outerRing.slice(0, -1);
-    if (!outerPts.length) return;
-    const outerClockwise = signedRingArea(outerRing) < 0;
-    const orderedOuter = outerClockwise
-      ? outerPts.slice().reverse()
-      : outerPts;
-    const shape = new THREE.Shape();
-    shape.moveTo(orderedOuter[0][0], orderedOuter[0][1]);
-    for (let i = 1; i < orderedOuter.length; i++) {
-      shape.lineTo(orderedOuter[i][0], orderedOuter[i][1]);
-    }
-    shape.closePath();
-
-    for (let ringIndex = 1; ringIndex < poly.length; ringIndex++) {
-      const holeRing = poly[ringIndex];
-      if (!Array.isArray(holeRing) || holeRing.length < 4) continue;
-      const holePts = holeRing.slice(0, -1);
-      if (!holePts.length) continue;
-      const holeClockwise = signedRingArea(holeRing) < 0;
-      const orderedHole = holeClockwise
-        ? holePts
-        : holePts.slice().reverse();
-      const hole = new THREE.Path();
-      hole.moveTo(orderedHole[0][0], orderedHole[0][1]);
-      for (let i = 1; i < orderedHole.length; i++) {
-        hole.lineTo(orderedHole[i][0], orderedHole[i][1]);
-      }
-      hole.closePath();
-      shape.holes.push(hole);
-    }
-
-    shapes.push(shape);
-  });
-  return shapes;
-}
-
-function centroidFromRing(ring) {
-  if (!Array.isArray(ring) || !ring.length) {
-    return { x: 0, y: 0 };
-  }
-  let sumX = 0;
-  let sumY = 0;
-  let count = 0;
-  for (let i = 0; i < ring.length; i++) {
-    const pt = ring[i];
-    if (!Array.isArray(pt) || pt.length < 2) continue;
-    sumX += pt[0];
-    sumY += pt[1];
-    count++;
-  }
-  if (!count) {
-    return { x: 0, y: 0 };
-  }
-  return { x: sumX / count, y: sumY / count };
-}
-
-function scaleMultiPolygon(mp, scale) {
-  if (!Array.isArray(mp) || typeof scale !== 'number') {
-    return [];
-  }
-  const clampedScale = Math.max(0, scale);
-  return mp
-    .map((poly) => {
-      if (!Array.isArray(poly) || !poly.length) return null;
-      const outerRing = poly[0];
-      const centroid = centroidFromRing(outerRing);
-      const scaledPoly = poly
-        .map((ring) => {
-          if (!Array.isArray(ring) || !ring.length) return null;
-          return ring
-            .map((pt) => {
-              if (!Array.isArray(pt) || pt.length < 2) return null;
-              const dx = pt[0] - centroid.x;
-              const dy = pt[1] - centroid.y;
-              return [centroid.x + dx * clampedScale, centroid.y + dy * clampedScale];
-            })
-            .filter(Boolean);
-        })
-        .filter((ring) => Array.isArray(ring) && ring.length > 0);
-      if (!scaledPoly.length) return null;
-      return scaledPoly;
-    })
-    .filter((poly) => Array.isArray(poly) && poly.length > 0);
-}
-
-function scaleMultiPolygonBy(mp, scale) {
-  if (!Array.isArray(mp)) {
-    return [];
-  }
-  if (!Number.isFinite(scale) || Math.abs(scale - 1) < 1e-6) {
-    return mp;
-  }
-  return scaleMultiPolygon(mp, scale);
-}
-
-function adjustCornerNotchDepth(mp, centerZ, sz) {
-  if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
-    return Array.isArray(mp) ? mp : [];
-  }
-  return mp.map((poly) =>
-    Array.isArray(poly)
-      ? poly.map((ring) =>
-          Array.isArray(ring)
-            ? ring.map((pt) => {
-                if (!Array.isArray(pt) || pt.length < 2) return pt;
-                const [x, z] = pt;
-                const deltaZ = z - centerZ;
-                const towardCenter = -sz * deltaZ;
-                if (towardCenter <= 0) return [x, z];
-                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
-              })
-            : ring
-        )
-      : poly
-  );
-}
-
-function adjustSideNotchDepth(mp) {
-  if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
-  return mp.map((poly) =>
-    Array.isArray(poly)
-      ? poly.map((ring) =>
-          Array.isArray(ring)
-            ? ring.map((pt) => {
-                if (!Array.isArray(pt) || pt.length < 2) return pt;
-                const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
-              })
-            : ring
-        )
-      : poly
-  );
-}
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
@@ -3947,7 +3806,12 @@ function Table3D(
       ]);
     }
     const union = polygonClipping.union(...unionParts);
-    const adjusted = adjustCornerNotchDepth(union, cz, sz);
+    const adjusted = adjustCornerNotchDepth(
+      union,
+      cz,
+      sz,
+      CHROME_CORNER_NOTCH_CENTER_SCALE
+    );
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
     }
@@ -3981,7 +3845,7 @@ function Table3D(
     );
 
     const union = polygonClipping.union(circle, throat);
-    return adjustSideNotchDepth(union);
+    return adjustSideNotchDepth(union, CHROME_SIDE_NOTCH_DEPTH_SCALE);
   };
 
   const chromePlates = new THREE.Group();
@@ -5160,6 +5024,7 @@ function SnookerGame() {
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
+  const mobileCameraRigRef = useRef(null);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
@@ -6630,24 +6495,31 @@ function SnookerGame() {
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         aspect,
-          CAMERA.near,
-          CAMERA.far
-        );
-        const standingPhi = THREE.MathUtils.clamp(
-          STANDING_VIEW.phi,
-          CAMERA.minPhi,
-          CAMERA.maxPhi
-        );
-        const standingRadius = clamp(
-          fitRadius(camera, STANDING_VIEW.margin),
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        const sph = new THREE.Spherical(
-          standingRadius,
-          standingPhi,
-          Math.PI
-        );
+        CAMERA.near,
+        CAMERA.far
+      );
+      const mobileCameraRig = new MobilePortraitCameraRig(camera, {
+        theta: rad(35),
+        phi: Math.PI,
+        radius: fitRadius(camera, STANDING_VIEW.margin)
+      });
+      mobileCameraRig.setViewport(host.clientWidth, host.clientHeight);
+      mobileCameraRigRef.current = mobileCameraRig;
+      const standingPhi = THREE.MathUtils.clamp(
+        STANDING_VIEW.phi,
+        CAMERA.minPhi,
+        CAMERA.maxPhi
+      );
+      const standingRadius = clamp(
+        fitRadius(camera, STANDING_VIEW.margin),
+        CAMERA.minR,
+        CAMERA.maxR
+      );
+      const sph = new THREE.Spherical(
+        standingRadius,
+        standingPhi,
+        Math.PI
+      );
         cameraBoundsRef.current = {
           cueShot: { phi: initialCuePhi, radius: initialCueRadius },
           standing: { phi: standingPhi, radius: standingRadius }
@@ -6873,6 +6745,37 @@ function SnookerGame() {
         };
 
         const updateCamera = () => {
+          const mobileRig = mobileCameraRigRef.current;
+          if (
+            mobileRig &&
+            !topViewRef.current &&
+            !(cueGalleryStateRef.current?.active ?? false) &&
+            !(activeShotView && activeShotView.mode === 'action') &&
+            !pocketCameraStateRef.current
+          ) {
+            const now = performance.now();
+            const target = getDefaultOrbitTarget()
+              .clone()
+              .multiplyScalar(worldScaleFactor);
+            mobileRig.setViewport(host.clientWidth, host.clientHeight);
+            mobileRig.setTarget(target);
+            mobileRig.setTableDimensions(
+              PLAY_W * worldScaleFactor,
+              PLAY_H * worldScaleFactor
+            );
+            mobileRig.update(now);
+            const state = mobileRig.getState?.();
+            const currentSph = sphRef.current;
+            if (state && currentSph) {
+              currentSph.radius = state.radius;
+              currentSph.theta = state.phi;
+              currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
+            }
+            camera.up.set(0, 1, 0);
+            camera.lookAt(target);
+            activeRenderCameraRef.current = camera;
+            return camera;
+          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -8244,6 +8147,12 @@ function SnookerGame() {
       sph.radius = clampOrbitRadius(sph.radius);
       worldScaleFactor = WORLD_SCALE;
       world.scale.setScalar(worldScaleFactor);
+      if (mobileCameraRigRef.current) {
+        mobileCameraRigRef.current.setTableDimensions(
+          PLAY_W * worldScaleFactor,
+          PLAY_H * worldScaleFactor
+        );
+      }
       if (broadcastCamerasRef.current) {
         const rig = broadcastCamerasRef.current;
         const focusWorld = rig.defaultFocus
@@ -10620,6 +10529,12 @@ function SnookerGame() {
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
+          if (mobileCameraRigRef.current) {
+            mobileCameraRigRef.current.setViewport(
+              host.clientWidth,
+              host.clientHeight
+            );
+          }
           const margin = Math.max(
             STANDING_VIEW.margin,
             topViewRef.current
@@ -10645,6 +10560,7 @@ function SnookerGame() {
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           activeRenderCameraRef.current = null;
+          mobileCameraRigRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
