@@ -93,9 +93,21 @@ export default function BilliardsLobbyBase({
       try {
         accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
+        const stakeAmount = Number.parseFloat(stake?.amount) || 0;
+        let balance = null;
+        if (balRes && balRes.balance != null) {
+          const rawBalance =
+            typeof balRes.balance === 'string'
+              ? Number.parseFloat(balRes.balance)
+              : balRes.balance;
+          if (Number.isFinite(rawBalance)) balance = rawBalance;
+        }
+        if (balance != null && stakeAmount > 0 && balance < stakeAmount) {
           alert('Insufficient balance');
           return;
+        }
+        if (balance == null && balRes?.error) {
+          console.warn('Failed to read account balance:', balRes.error);
         }
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
