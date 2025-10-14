@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
+
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const normalizeHue = (h) => {
   let hue = h % 360;
@@ -51,7 +53,11 @@ const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
   ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
+  if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
+    texture.encoding = LEGACY_SRGB_ENCODING;
+  }
   texture.anisotropy = 16;
   return texture;
 };
@@ -263,12 +269,33 @@ const ensureSharedWoodTextures = ({
 const cloneWoodTexture = (texture, repeat, rotation) => {
   if (!texture) return null;
   const clone = texture.clone();
+  if ('colorSpace' in clone && 'colorSpace' in texture && texture.colorSpace !== undefined) {
+    clone.colorSpace = texture.colorSpace;
+  } else if ('encoding' in clone && 'encoding' in texture && texture.encoding !== undefined) {
+    clone.encoding = texture.encoding;
+  }
+  if (typeof texture.anisotropy === 'number') {
+    clone.anisotropy = texture.anisotropy;
+  }
+  if (texture.minFilter !== undefined) clone.minFilter = texture.minFilter;
+  if (texture.magFilter !== undefined) clone.magFilter = texture.magFilter;
+  if (texture.generateMipmaps !== undefined) clone.generateMipmaps = texture.generateMipmaps;
+  if (texture.wrapS !== undefined) clone.wrapS = texture.wrapS;
+  if (texture.wrapT !== undefined) clone.wrapT = texture.wrapT;
+  if (texture.center?.isVector2) {
+    clone.center.copy(texture.center);
+  } else {
+    clone.center.set(0.5, 0.5);
+  }
   if (repeat) {
     clone.repeat.set(repeat.x ?? 1, repeat.y ?? 1);
+  } else if (texture.repeat?.isVector2) {
+    clone.repeat.copy(texture.repeat);
   }
-  clone.center.set(0.5, 0.5);
-  if (typeof rotation === 'number' && rotation !== 0) {
+  if (typeof rotation === 'number') {
     clone.rotation = rotation;
+  } else if (typeof texture.rotation === 'number') {
+    clone.rotation = texture.rotation;
   }
   clone.needsUpdate = true;
   return clone;
