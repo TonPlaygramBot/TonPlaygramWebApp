@@ -10640,7 +10640,6 @@ function SnookerGame() {
     const slider = new SnookerPowerSlider({
       mount,
       value: powerRef.current * 100,
-      cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => {
