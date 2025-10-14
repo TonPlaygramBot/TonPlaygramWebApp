@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
@@ -45,19 +45,28 @@ import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
+import lazyWithRetry from './utils/lazyWithRetry.js';
 
-const PoolRoyale = lazy(() => import('./pages/Games/PoolRoyale.jsx'));
-const PoolRoyaleLobby = lazy(() => import('./pages/Games/PoolRoyaleLobby.jsx'));
-const Snooker = lazy(() => import('./pages/Games/Snooker.jsx'));
-const SnookerLobby = lazy(() => import('./pages/Games/SnookerLobby.jsx'));
-const AmericanBilliards = lazy(() => import('./pages/Games/AmericanBilliards.jsx'));
-const AmericanBilliardsLobby = lazy(
+const PoolRoyale = lazyWithRetry(() => import('./pages/Games/PoolRoyale.jsx'));
+const PoolRoyaleLobby = lazyWithRetry(
+  () => import('./pages/Games/PoolRoyaleLobby.jsx')
+);
+const Snooker = lazyWithRetry(() => import('./pages/Games/Snooker.jsx'));
+const SnookerLobby = lazyWithRetry(() => import('./pages/Games/SnookerLobby.jsx'));
+const AmericanBilliards = lazyWithRetry(
+  () => import('./pages/Games/AmericanBilliards.jsx')
+);
+const AmericanBilliardsLobby = lazyWithRetry(
   () => import('./pages/Games/AmericanBilliardsLobby.jsx')
 );
-const NineBall = lazy(() => import('./pages/Games/NineBall.jsx'));
-const NineBallLobby = lazy(() => import('./pages/Games/NineBallLobby.jsx'));
-const UkEightBall = lazy(() => import('./pages/Games/UkEightBall.jsx'));
-const UkEightBallLobby = lazy(() => import('./pages/Games/UkEightBallLobby.jsx'));
+const NineBall = lazyWithRetry(() => import('./pages/Games/NineBall.jsx'));
+const NineBallLobby = lazyWithRetry(
+  () => import('./pages/Games/NineBallLobby.jsx')
+);
+const UkEightBall = lazyWithRetry(() => import('./pages/Games/UkEightBall.jsx'));
+const UkEightBallLobby = lazyWithRetry(
+  () => import('./pages/Games/UkEightBallLobby.jsx')
+);
 
 export default function App() {
   useTelegramAuth();
