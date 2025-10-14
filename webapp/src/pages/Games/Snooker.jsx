@@ -5726,6 +5726,12 @@ function SnookerGame() {
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.display = 'block';
+      renderer.domElement.style.position = 'absolute';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -10864,7 +10870,7 @@ function SnookerGame() {
   const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
-    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div className="relative w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
