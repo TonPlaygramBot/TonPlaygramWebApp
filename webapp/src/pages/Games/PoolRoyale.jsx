@@ -11066,6 +11066,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (loadTimer) {
             clearTimeout(loadTimer);
           }
+          loadingClearedRef.current = false;
         };
       } catch (e) {
         console.error(e);
