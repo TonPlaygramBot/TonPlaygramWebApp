@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
@@ -42,20 +42,22 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
-import PoolRoyale from './pages/Games/PoolRoyale.jsx';
-import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
-import Snooker from './pages/Games/Snooker.jsx';
-import SnookerLobby from './pages/Games/SnookerLobby.jsx';
-import AmericanBilliards from './pages/Games/AmericanBilliards.jsx';
-import AmericanBilliardsLobby from './pages/Games/AmericanBilliardsLobby.jsx';
-import NineBall from './pages/Games/NineBall.jsx';
-import NineBallLobby from './pages/Games/NineBallLobby.jsx';
-import UkEightBall from './pages/Games/UkEightBall.jsx';
-import UkEightBallLobby from './pages/Games/UkEightBallLobby.jsx';
-
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
+
+const PoolRoyale = lazy(() => import('./pages/Games/PoolRoyale.jsx'));
+const PoolRoyaleLobby = lazy(() => import('./pages/Games/PoolRoyaleLobby.jsx'));
+const Snooker = lazy(() => import('./pages/Games/Snooker.jsx'));
+const SnookerLobby = lazy(() => import('./pages/Games/SnookerLobby.jsx'));
+const AmericanBilliards = lazy(() => import('./pages/Games/AmericanBilliards.jsx'));
+const AmericanBilliardsLobby = lazy(
+  () => import('./pages/Games/AmericanBilliardsLobby.jsx')
+);
+const NineBall = lazy(() => import('./pages/Games/NineBall.jsx'));
+const NineBallLobby = lazy(() => import('./pages/Games/NineBallLobby.jsx'));
+const UkEightBall = lazy(() => import('./pages/Games/UkEightBall.jsx'));
+const UkEightBallLobby = lazy(() => import('./pages/Games/UkEightBallLobby.jsx'));
 
 export default function App() {
   useTelegramAuth();
@@ -67,8 +69,15 @@ export default function App() {
     <BrowserRouter>
       <TonConnectUIProvider manifestUrl={manifestUrl}>
         <Layout>
-          <Routes>
-            <Route path="/" element={<Home />} />
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-text">
+                Loading…
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Home />} />
             <Route path="/mining" element={<Mining />} />
             <Route
               path="/mining/transactions"
@@ -156,7 +165,8 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/account" element={<MyAccount />} />
-          </Routes>
+            </Routes>
+          </Suspense>
         </Layout>
       </TonConnectUIProvider>
     </BrowserRouter>

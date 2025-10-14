@@ -23,6 +23,7 @@ import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
 } from '../../utils/createCueRackDisplay.js';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   adjustCornerNotchDepth,
   adjustSideNotchDepth,
@@ -41,6 +42,7 @@ import {
   applyWoodTextures
 } from '../../utils/woodMaterials.js';
 import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
+import { isWebGLAvailable } from '../../utils/webgl.js';
 
 const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
 
@@ -4592,6 +4594,7 @@ function applyTableFinishToTable(table, finish) {
 function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
+  useTelegramBackButton();
   const rules = useMemo(() => new UnitySnookerRules(), []);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -5577,6 +5580,13 @@ function SnookerGame() {
   }, [frameState, hud.turn, hud.over]);
 
   useEffect(() => {
+    if (!isWebGLAvailable()) {
+      const message = 'WebGL is not supported or disabled on this device.';
+      setErr((prev) => prev ?? message);
+      setLoading(false);
+      setLoadingProgress(100);
+      return;
+    }
     const host = mountRef.current;
     if (!host) return;
     let loadTimer = null;
