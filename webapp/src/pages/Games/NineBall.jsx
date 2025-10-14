@@ -1,4 +1,5 @@
-import { useLocation, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PoolRoyaleGame, resolveTableSize } from './PoolRoyale.jsx';
 
 export default function NineBall() {
