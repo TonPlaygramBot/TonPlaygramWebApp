@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { applySRGBColorSpace } from './applySRGBColorSpace.js';
 
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();
@@ -248,7 +247,8 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  applySRGBColorSpace(texture);
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.needsUpdate = true;
 
   BALL_TEXTURE_CACHE.set(key, texture);

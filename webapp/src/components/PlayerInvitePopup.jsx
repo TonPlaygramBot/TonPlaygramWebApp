@@ -10,8 +10,15 @@ import { NFT_GIFTS } from '../utils/nftGifts.js';
 function getGameFromTableId(id) {
   if (!id) return 'snake';
   const prefix = id.split('-')[0];
-  if (prefix === 'pollroyale') return 'poolroyale';
-  if (['snake', 'fallingball', 'goalrush', 'poolroyale'].includes(prefix))
+  if (
+    [
+      'snake',
+      'fallingball',
+      'goalrush',
+      'pollroyale',
+      'poolroyale',
+    ].includes(prefix)
+  )
     return prefix;
   return 'snake';
 }
@@ -173,7 +180,7 @@ export default function PlayerInvitePopup({
                   alt: 'Goal Rush',
                 },
                 {
-                  id: 'poolroyale',
+                  id: 'pollroyale',
                   src: '/assets/icons/pool-royale.svg',
                   alt: 'Pool Royale',
                 },
