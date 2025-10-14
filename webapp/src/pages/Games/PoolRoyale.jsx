@@ -5761,7 +5761,12 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         powerPreference: 'high-performance'
       });
       renderer.useLegacyLights = false;
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      }
+      if ('outputEncoding' in renderer && LEGACY_SRGB_ENCODING !== undefined) {
+        renderer.outputEncoding = LEGACY_SRGB_ENCODING;
+      }
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
