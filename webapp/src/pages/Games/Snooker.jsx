@@ -360,6 +360,11 @@ const CLOTH_LIFT = (() => {
 const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
+const nowMs = () =>
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const POCKET_HOLE_R =
@@ -2910,9 +2915,7 @@ function reflectRails(ball) {
       applySpinImpulse(ball, 0.6);
     }
     const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
+      nowMs();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = 'corner';
     return 'corner';
@@ -2950,9 +2953,7 @@ function reflectRails(ball) {
   }
   if (collided) {
     const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
+      nowMs();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = collided;
   }
@@ -4955,7 +4956,7 @@ function SnookerGame() {
       setLoadingProgress(100);
       return () => {};
     }
-    const start = performance.now();
+    const start = nowMs();
     const duration = 2200;
     const tick = (now) => {
       if (!active) return;
@@ -5473,7 +5474,7 @@ function SnookerGame() {
       theta: next ? sph.theta : last3DRef.current.theta
     };
     const duration = 600;
-    const t0 = performance.now();
+    const t0 = nowMs();
     function anim(t) {
       const k = Math.min(1, (t - t0) / duration);
       const ease = k * (2 - k);
@@ -6768,7 +6769,7 @@ function SnookerGame() {
             !(activeShotView && activeShotView.mode === 'action') &&
             !pocketCameraStateRef.current
           ) {
-            const now = performance.now();
+            const now = nowMs();
             const target = getDefaultOrbitTarget()
               .clone()
               .multiplyScalar(worldScaleFactor);
@@ -6854,7 +6855,7 @@ function SnookerGame() {
             if (!cueBall?.active) {
               activeShotView = null;
             } else {
-              const now = performance.now();
+              const now = nowMs();
               const lastUpdate = activeShotView.lastUpdate ?? now;
               const dt = Math.min(0.25, Math.max(0, (now - lastUpdate) / 1000));
               activeShotView.lastUpdate = now;
@@ -7294,7 +7295,7 @@ function SnookerGame() {
               (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
             desiredPosition.y =
               loweredY < minHeightWorld ? minHeightWorld : loweredY;
-            const now = performance.now();
+            const now = nowMs();
             if (focusBall?.active) {
               activeShotView.completed = false;
               const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
@@ -7415,7 +7416,7 @@ function SnookerGame() {
             phi: sph.phi,
             theta: sph.theta
           };
-          const startTime = performance.now();
+          const startTime = nowMs();
           const ease = (k) => k * k * (3 - 2 * k);
           const step = (now) => {
             const t = Math.min(1, (now - startTime) / duration);
@@ -7554,7 +7555,7 @@ function SnookerGame() {
                     railNormal?.y ??
                     1
                 );
-          const now = performance.now();
+          const now = nowMs();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
@@ -7670,7 +7671,7 @@ function SnookerGame() {
                 theta: followView.orbitSnapshot.theta
               }
             : null;
-          const now = performance.now();
+          const now = nowMs();
           const effectiveDist = forcedEarly
             ? Math.min(best.dist, POCKET_CAM.triggerDist)
             : best.dist;
@@ -7848,9 +7849,9 @@ function SnookerGame() {
           moved: false,
           identifier: null
         };
-        let lastInteraction = performance.now();
+        let lastInteraction = nowMs();
         const registerInteraction = () => {
-          lastInteraction = performance.now();
+          lastInteraction = nowMs();
         };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
@@ -8946,7 +8947,7 @@ function SnookerGame() {
               ? prediction.targetBall.pos.clone()
               : null
           };
-          const intentTimestamp = performance.now();
+          const intentTimestamp = nowMs();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
               shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
@@ -9022,7 +9023,7 @@ function SnookerGame() {
           }
           let pocketViewActivated = false;
           if (earlyPocketView) {
-            const now = performance.now();
+            const now = nowMs();
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
               const cam = cameraRef.current;
@@ -9524,7 +9525,7 @@ function SnookerGame() {
             setAiPlanning(null);
             return;
           }
-          const started = performance.now();
+          const started = nowMs();
           const think = () => {
             if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
@@ -9533,7 +9534,7 @@ function SnookerGame() {
               clearEarlyAiShot();
               return;
             }
-            const now = performance.now();
+            const now = nowMs();
             const elapsed = now - started;
             const remaining = Math.max(0, 15000 - elapsed);
             const options = evaluateShotOptions();
@@ -9739,7 +9740,7 @@ function SnookerGame() {
         }
 
       // Loop
-      let lastStepTime = performance.now();
+      let lastStepTime = nowMs();
       const step = (now) => {
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
@@ -10077,7 +10078,7 @@ function SnookerGame() {
               applySpinImpulse(b, 1);
             }
             if (hitRail) {
-              const nowRail = performance.now();
+              const nowRail = nowMs();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
                 const shotScale = 0.35 + 0.65 * lastShotPower;
@@ -10180,7 +10181,7 @@ function SnookerGame() {
             const travelStart =
               suspendedActionView.startCuePos || cuePos.clone();
             const travel = cuePos.distanceTo(travelStart);
-            const now = performance.now();
+            const now = nowMs();
             const travelReady =
               travel >= (suspendedActionView.activationTravel ?? 0);
             const delayReady =
@@ -10204,7 +10205,7 @@ function SnookerGame() {
           }
         }
         if (activeShotView?.mode === 'action') {
-          const now = performance.now();
+          const now = nowMs();
           const cueBall = balls.find((b) => b.id === activeShotView.cueId);
           if (!cueBall?.active) {
             const restoreView = activeShotView;
@@ -10262,7 +10263,7 @@ function SnookerGame() {
               : suspendedActionView?.mode === 'action'
                 ? suspendedActionView
                 : null;
-          const now = performance.now();
+          const now = nowMs();
           let pocketIntent = pocketSwitchIntentRef.current;
           if (pocketIntent && now - pocketIntent.createdAt > POCKET_INTENT_TIMEOUT_MS) {
             pocketIntent = null;
@@ -10327,7 +10328,7 @@ function SnookerGame() {
               pocketSwitchIntentRef.current = null;
             }
             lastPocketBallRef.current = bestPocketView.ballId;
-            bestPocketView.lastUpdate = performance.now();
+            bestPocketView.lastUpdate = nowMs();
             if (cameraRef.current) {
               const cam = cameraRef.current;
               bestPocketView.smoothedPos = cam.position.clone();
@@ -10366,7 +10367,7 @@ function SnookerGame() {
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              const dropStart = performance.now();
+              const dropStart = nowMs();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const speedFactor = THREE.MathUtils.clamp(
@@ -10409,7 +10410,7 @@ function SnookerGame() {
               ) {
                 const pocketView = activeShotView;
                 pocketView.completed = true;
-                const now = performance.now();
+                const now = nowMs();
                 pocketView.holdUntil = Math.max(
                   pocketView.holdUntil ?? now,
                   now + POCKET_VIEW_POST_POT_HOLD_MS
@@ -10426,7 +10427,7 @@ function SnookerGame() {
         if (activeShotView?.mode === 'pocket') {
           const pocketView = activeShotView;
           const focusBall = balls.find((b) => b.id === pocketView.ballId);
-          const now = performance.now();
+          const now = nowMs();
           if (!focusBall?.active) {
             if (pocketView.holdUntil == null) {
               pocketView.holdUntil = now + POCKET_VIEW_POST_POT_HOLD_MS;
@@ -10537,7 +10538,7 @@ function SnookerGame() {
           }
           rafRef.current = requestAnimationFrame(step);
         };
-        step(performance.now());
+        step(nowMs());
 
       // Resize
         const onResize = () => {
