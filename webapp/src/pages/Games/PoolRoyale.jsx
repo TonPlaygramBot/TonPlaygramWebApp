@@ -857,12 +857,12 @@ const TABLE_SIZE_OPTIONS = Object.freeze({
 });
 const DEFAULT_TABLE_SIZE_ID = '9ft';
 
-function resolvePoolVariant(variantId) {
+export function resolvePoolVariant(variantId) {
   const key = typeof variantId === 'string' ? variantId.toLowerCase() : '';
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
-function resolveTableSize(sizeId) {
+export function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
   return TABLE_SIZE_OPTIONS[key] || TABLE_SIZE_OPTIONS[DEFAULT_TABLE_SIZE_ID];
 }
@@ -4811,7 +4811,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({ variantKey, tableSizeKey }) {
+export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
