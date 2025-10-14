@@ -400,6 +400,46 @@ Run `npm run reset-db` to drop the existing MongoDB database and start with a cl
 4. **Verify the deployment** on TonScan or with `tonos-cli account <address>` to confirm the contract state is active. Test a small claim using `npm run claim-test` and check that the wallet emits a `send_jettons` transfer.
 
 
+## 3D Billiards Games
+
+Snooker, Nine Ball, UK Eight Ball, and American Billiards now share the same
+underlying Three.js helpers and camera rig. This keeps table geometry,
+materials, and cue handling consistent across all four experiences.
+
+### Shared geometry helpers
+
+* Geometry helpers that clip chrome plates, generate pocket cuts, and scale
+  notch meshes live in `webapp/src/components/billiards/geometry.js`.
+* Both `PoolRoyale.jsx` (all pool variants) and `Snooker.jsx` import these
+  helpers instead of duplicating the math. Update this module when adjusting
+  pocket outlines or rail trims so every game stays in sync.
+
+### Cue camera rig
+
+* `MobilePortraitCameraRig` from `webapp/src/pages/Games/simpleOrbitCamera.ts`
+  is now instantiated in Snooker as well as the pool variants. The rig always
+  frames the cloth on portrait mobile screens, performs smooth auto-zoom, and
+  keeps the cue view within the configured safety margins.
+* When you tweak table scale, remember to call
+  `mobileCameraRigRef.current.setTableDimensions(width, height)` so the rig can
+  recompute its fit.
+* Drag and pinch gestures continue to work through the existing handlers; the
+  rig simply updates the camera position each frame.
+
+### Texture and asset checklist
+
+* Wood grains and cloth textures are procedurally generated at runtime.
+  Confirm they appear by running `npm --prefix webapp run dev` and loading a
+  billiards game – there should be no console warnings about missing canvas
+  contexts or texture uploads.
+* The wood presets and cloth overlays are applied via
+  `applyWoodTextures` inside each scene setup. If a finish looks incorrect,
+  validate that the material receives the texture returned from
+  `geometry.js` helpers before the table is added to the world.
+* Portrait mode is the default. Test on a narrow viewport (≤ 430px wide) to
+  verify that the table, cue, wood rails, and hospitality props are all fully
+  visible and interactable.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
