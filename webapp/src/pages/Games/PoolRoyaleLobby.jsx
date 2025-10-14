@@ -77,7 +77,7 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    navigate(`/games/pollroyale?${params.toString()}`);
+    navigate(`/games/poolroyale?${params.toString()}`);
   };
 
   const winnerParam = new URLSearchParams(search).get('winner');
