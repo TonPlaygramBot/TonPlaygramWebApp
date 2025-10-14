@@ -42,19 +42,13 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
-import Layout from './components/Layout.jsx';
-import useTelegramAuth from './hooks/useTelegramAuth.js';
-import useReferralClaim from './hooks/useReferralClaim.js';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import Snooker from './pages/Games/Snooker.jsx';
-import SnookerLobby from './pages/Games/SnookerLobby.jsx';
-import AmericanBilliards from './pages/Games/AmericanBilliards.jsx';
-import AmericanBilliardsLobby from './pages/Games/AmericanBilliardsLobby.jsx';
-import NineBall from './pages/Games/NineBall.jsx';
-import NineBallLobby from './pages/Games/NineBallLobby.jsx';
-import UkEightBall from './pages/Games/UkEightBall.jsx';
-import UkEightBallLobby from './pages/Games/UkEightBallLobby.jsx';
+
+import Layout from './components/Layout.jsx';
+import useTelegramAuth from './hooks/useTelegramAuth.js';
+import useReferralClaim from './hooks/useReferralClaim.js';
 
 export default function App() {
   useTelegramAuth();
@@ -125,25 +119,6 @@ export default function App() {
               element={<PoolRoyaleLobby />}
             />
             <Route path="/games/pollroyale" element={<PoolRoyale />} />
-            <Route
-              path="/games/american-billiards/lobby"
-              element={<AmericanBilliardsLobby />}
-            />
-            <Route
-              path="/games/american-billiards"
-              element={<AmericanBilliards />}
-            />
-            <Route
-              path="/games/nine-ball/lobby"
-              element={<NineBallLobby />}
-            />
-            <Route path="/games/nine-ball" element={<NineBall />} />
-            <Route
-              path="/games/uk-eight-ball/lobby"
-              element={<UkEightBallLobby />}
-            />
-            <Route path="/games/uk-eight-ball" element={<UkEightBall />} />
-            <Route path="/games/snooker/lobby" element={<SnookerLobby />} />
             <Route path="/games/snooker" element={<Snooker />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
