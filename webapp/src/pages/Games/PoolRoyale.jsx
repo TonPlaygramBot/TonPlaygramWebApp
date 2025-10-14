@@ -47,6 +47,11 @@ import {
 import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
 import { isWebGLAvailable } from '../../utils/webgl.js';
 
+const nowMs = () =>
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+
 const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
 
 const POCKET_VISUAL_EXPANSION = 1.05;
@@ -3012,9 +3017,7 @@ function reflectRails(ball) {
       applySpinImpulse(ball, 0.6);
     }
     const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
+      nowMs();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = 'corner';
     return 'corner';
@@ -3052,9 +3055,7 @@ function reflectRails(ball) {
   }
   if (collided) {
     const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
+      nowMs();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = collided;
   }
@@ -5101,7 +5102,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       setLoadingProgress(100);
       return () => {};
     }
-    const start = performance.now();
+    const start = nowMs();
     const duration = 2200;
     const tick = (now) => {
       if (!active) return;
@@ -5175,7 +5176,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const cameraRef = useRef(null);
   const mobileCameraRigRef = useRef(null);
   const lastCameraTickRef = useRef(
-    typeof performance !== 'undefined' ? performance.now() : 0
+    nowMs()
   );
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
@@ -5628,7 +5629,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       theta: next ? sph.theta : last3DRef.current.theta
     };
     const duration = 600;
-    const t0 = performance.now();
+    const t0 = nowMs();
     function anim(t) {
       const k = Math.min(1, (t - t0) / duration);
       const ease = k * (2 - k);
@@ -6798,7 +6799,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const travelSign = forward > 0 ? 1 : -1;
           const railSign = posY > 0 ? 1 : posY < 0 ? -1 : travelSign;
           if (travelSign !== railSign) return;
-          const now = performance.now();
+          const now = nowMs();
           const currentIntent = pocketSwitchIntentRef.current;
           if (currentIntent?.ballId === ball.id && currentIntent.forced) {
             if (
@@ -6992,7 +6993,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             !(activeShotView && activeShotView.mode === 'action') &&
             !pocketCameraStateRef.current
           ) {
-            const now = performance.now();
+            const now = nowMs();
             lastCameraTickRef.current = now;
             mobileRig.setViewport(host.clientWidth, host.clientHeight);
             mobileRig.update(now);
@@ -7071,7 +7072,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             if (!cueBall?.active) {
               activeShotView = null;
             } else {
-              const now = performance.now();
+              const now = nowMs();
               const lastUpdate = activeShotView.lastUpdate ?? now;
               const dt = Math.min(0.25, Math.max(0, (now - lastUpdate) / 1000));
               activeShotView.lastUpdate = now;
@@ -7537,7 +7538,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
             desiredPosition.y =
               loweredY < minHeightWorld ? minHeightWorld : loweredY;
-            const now = performance.now();
+            const now = nowMs();
             if (focusBall?.active) {
               activeShotView.completed = false;
               const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
@@ -7707,7 +7708,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             phi: sph.phi,
             theta: sph.theta
           };
-          const startTime = performance.now();
+          const startTime = nowMs();
           const ease = (k) => k * k * (3 - 2 * k);
           const step = (now) => {
             const t = Math.min(1, (now - startTime) / duration);
@@ -7861,7 +7862,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   railNormal?.x ?? cueBall.pos.x ?? cueBall.launchDir?.x ?? 1
                 )
               : impactRailDir;
-          const now = performance.now();
+          const now = nowMs();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
@@ -7978,7 +7979,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 theta: followView.orbitSnapshot.theta
               }
             : null;
-          const now = performance.now();
+          const now = nowMs();
           const effectiveDist = forcedEarly
             ? Math.min(best.dist, POCKET_CAM.triggerDist)
             : best.dist;
@@ -8157,9 +8158,9 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           moved: false,
           identifier: null
         };
-        let lastInteraction = performance.now();
+        let lastInteraction = nowMs();
         const registerInteraction = () => {
-          lastInteraction = performance.now();
+          lastInteraction = nowMs();
         };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
@@ -9384,7 +9385,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ? prediction.targetBall.pos.clone()
               : null
           };
-          const intentTimestamp = performance.now();
+          const intentTimestamp = nowMs();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
               shotPrediction.railNormal === null || shotPrediction.railNormal === undefined;
@@ -9461,7 +9462,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           let pocketViewActivated = false;
           if (earlyPocketView) {
-            const now = performance.now();
+            const now = nowMs();
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
               const cam = cameraRef.current;
@@ -9863,7 +9864,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             setAiPlanning(null);
             return;
           }
-          const started = performance.now();
+          const started = nowMs();
           const think = () => {
             if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
@@ -9872,7 +9873,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               clearEarlyAiShot();
               return;
             }
-            const now = performance.now();
+            const now = nowMs();
             const elapsed = now - started;
             const remaining = Math.max(0, 15000 - elapsed);
             const options = evaluateShotOptions();
@@ -10116,7 +10117,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
 
       // Loop
-      let lastStepTime = performance.now();
+      let lastStepTime = nowMs();
       const step = (now) => {
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
@@ -10513,7 +10514,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               applySpinImpulse(b, 1);
             }
             if (hitRail) {
-              const nowRail = performance.now();
+              const nowRail = nowMs();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
                 const shotScale = 0.35 + 0.65 * lastShotPower;
@@ -10622,7 +10623,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const travelStart =
               suspendedActionView.startCuePos || cuePos.clone();
             const travel = cuePos.distanceTo(travelStart);
-            const now = performance.now();
+            const now = nowMs();
             const travelReady =
               travel >= (suspendedActionView.activationTravel ?? 0);
             const delayReady =
@@ -10646,7 +10647,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
         }
         if (activeShotView?.mode === 'action') {
-          const now = performance.now();
+          const now = nowMs();
           const cueBall = balls.find((b) => b.id === activeShotView.cueId);
           if (!cueBall?.active) {
             const restoreView = activeShotView;
@@ -10710,7 +10711,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               : suspendedActionView?.mode === 'action'
                 ? suspendedActionView
                 : null;
-          const now = performance.now();
+          const now = nowMs();
           let pocketIntent = pocketSwitchIntentRef.current;
           if (pocketIntent && now - pocketIntent.createdAt > POCKET_INTENT_TIMEOUT_MS) {
             pocketIntent = null;
@@ -10775,7 +10776,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               pocketSwitchIntentRef.current = null;
             }
             lastPocketBallRef.current = bestPocketView.ballId;
-            bestPocketView.lastUpdate = performance.now();
+            bestPocketView.lastUpdate = nowMs();
             if (cameraRef.current) {
               const cam = cameraRef.current;
               bestPocketView.smoothedPos = cam.position.clone();
@@ -10814,7 +10815,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              const dropStart = performance.now();
+              const dropStart = nowMs();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const speedFactor = THREE.MathUtils.clamp(
@@ -10855,7 +10856,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ) {
                 const pocketView = activeShotView;
                 pocketView.completed = true;
-                const now = performance.now();
+                const now = nowMs();
                 pocketView.holdUntil = Math.max(
                   pocketView.holdUntil ?? now,
                   now + POCKET_VIEW_POST_POT_HOLD_MS
@@ -10872,7 +10873,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (activeShotView?.mode === 'pocket') {
           const pocketView = activeShotView;
           const focusBall = balls.find((b) => b.id === pocketView.ballId);
-          const now = performance.now();
+          const now = nowMs();
           if (!focusBall?.active) {
             if (pocketView.holdUntil == null) {
               pocketView.holdUntil = now + POCKET_VIEW_POST_POT_HOLD_MS;
@@ -10983,7 +10984,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           rafRef.current = requestAnimationFrame(step);
         };
-        step(performance.now());
+        step(nowMs());
 
       // Resize
         const onResize = () => {
