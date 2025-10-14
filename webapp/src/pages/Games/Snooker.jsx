@@ -2338,20 +2338,20 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0035;
+const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.26);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.01; // allow the cue view to settle right on the aiming line while keeping a safety margin
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.15;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.48;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.02;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0;
-const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.04;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
+const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -2380,14 +2380,14 @@ const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
 });
-const CAMERA_RAIL_SAFETY = 0.0075;
-const CUE_VIEW_RADIUS_RATIO = 0.28; // keep the lowered camera nearer the cue ball so we only travel halfway down the stick
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.74; // allow a closer orbit while still revealing the cue midpoint
+const CAMERA_RAIL_SAFETY = 0.006;
+const CUE_VIEW_RADIUS_RATIO = 0.085;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.35;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.28
+  STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.035; // hover a touch higher so the camera remains above the cue stick
+const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -2396,8 +2396,8 @@ const CAMERA_RAIL_APPROACH_PHI = Math.min(
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 1.6;
-const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.34;
+const CAMERA_DOWNWARD_PULL = 1.9;
+const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -6819,15 +6819,6 @@ function SnookerGame() {
           }
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
-          if (cue?.active && !shooting) {
-            const aimFocus =
-              blend < 0.999
-                ? computeAimFocusTarget(cue, aimDirRef.current)
-                : null;
-            aimFocusRef.current = aimFocus ? aimFocus.clone() : null;
-          } else {
-            aimFocusRef.current = null;
-          }
           syncBlendToSpherical();
         };
 
@@ -6879,27 +6870,6 @@ function SnookerGame() {
           idleUnits.forEach((unit) =>
             applyFocus(unit, 0, Math.min(1, lerpFactor * 0.6), idleFocus)
           );
-        };
-
-        const clampCameraAboveRails = (focusTarget, spherical) => {
-          if (!focusTarget) return false;
-          const minRailWorldY = (TABLE_Y + TABLE_RAIL_TOP_Y) * worldScaleFactor;
-          const minOffsetY = minRailWorldY - focusTarget.y;
-          if (!Number.isFinite(minOffsetY)) return false;
-          TMP_VEC3_A.copy(camera.position).sub(focusTarget);
-          if (TMP_VEC3_A.y >= minOffsetY - 1e-4) return false;
-          TMP_VEC3_A.y = minOffsetY;
-          const horizontalSq = TMP_VEC3_A.x * TMP_VEC3_A.x + TMP_VEC3_A.z * TMP_VEC3_A.z;
-          const newRadius = Math.sqrt(horizontalSq + TMP_VEC3_A.y * TMP_VEC3_A.y);
-          const newPhi = Math.acos(
-            THREE.MathUtils.clamp(TMP_VEC3_A.y / Math.max(newRadius, 1e-6), -1, 1)
-          );
-          camera.position.copy(focusTarget).add(TMP_VEC3_A);
-          if (spherical) {
-            spherical.radius = newRadius;
-            spherical.phi = THREE.MathUtils.clamp(newPhi, CAMERA.minPhi, CAMERA.maxPhi);
-          }
-          return true;
         };
 
         const updateCamera = () => {
@@ -6955,9 +6925,6 @@ function SnookerGame() {
               worldScaleFactor
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
-            if (clampCameraAboveRails(lookTarget, sph)) {
-              syncBlendToSpherical();
-            }
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
@@ -7477,10 +7444,6 @@ function SnookerGame() {
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-            if (clampCameraAboveRails(lookTarget, sph)) {
-              TMP_SPH.copy(sph);
-              syncBlendToSpherical();
-            }
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
@@ -8969,30 +8932,6 @@ function SnookerGame() {
       let potted = [];
       let firstHit = null;
 
-      const computeAimFocusTarget = (cueBall, aimDir) => {
-        if (!cueBall || !aimDir) return null;
-        const dir = aimDir.clone();
-        if (dir.lengthSq() < 1e-6) return null;
-        dir.normalize();
-        const focusDistance = Math.max(
-          BALL_R * 32,
-          Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.55)
-        );
-        return new THREE.Vector3(
-          THREE.MathUtils.clamp(
-            cueBall.pos.x + dir.x * focusDistance,
-            -PLAY_W / 2,
-            PLAY_W / 2
-          ),
-          BALL_CENTER_Y,
-          THREE.MathUtils.clamp(
-            cueBall.pos.y + dir.y * focusDistance,
-            -PLAY_H / 2,
-            PLAY_H / 2
-          )
-        );
-      };
-
       const alignStandingCameraToAim = (cueBall, aimDir) => {
         if (!cueBall || !aimDir) return;
         const dir = aimDir.clone();
@@ -9013,9 +8952,23 @@ function SnookerGame() {
         sph.theta = aimTheta;
         syncBlendToSpherical();
         const focusStore = ensureOrbitFocus();
-        const focusTarget = computeAimFocusTarget(cueBall, dir);
-        if (!focusTarget) return;
-        aimFocusRef.current = focusTarget.clone();
+        const focusDistance = Math.max(
+          BALL_R * 28,
+          Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.5)
+        );
+        const focusTarget = new THREE.Vector3(
+          THREE.MathUtils.clamp(
+            cueBall.pos.x + dir.x * focusDistance,
+            -PLAY_W / 2,
+            PLAY_W / 2
+          ),
+          BALL_CENTER_Y,
+          THREE.MathUtils.clamp(
+            cueBall.pos.y + dir.y * focusDistance,
+            -PLAY_H / 2,
+            PLAY_H / 2
+          )
+        );
         focusStore.ballId = cueBall.id ?? null;
         focusStore.target.copy(focusTarget);
         lastCameraTargetRef.current.copy(
