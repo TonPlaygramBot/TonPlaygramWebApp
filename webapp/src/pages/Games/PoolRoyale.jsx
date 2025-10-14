@@ -5744,7 +5744,6 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     const host = mountRef.current;
     if (!host) return;
-    let loadTimer = null;
     const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
@@ -10976,10 +10975,8 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           renderer.render(scene, frameCamera ?? camera);
           if (!loadingClearedRef.current) {
             loadingClearedRef.current = true;
-            loadTimer = window.setTimeout(() => {
-              setLoading(false);
-              setLoadingProgress(100);
-            }, 120);
+            setLoading(false);
+            setLoadingProgress(100);
           }
           rafRef.current = requestAnimationFrame(step);
         };
@@ -11063,9 +11060,6 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
-          if (loadTimer) {
-            clearTimeout(loadTimer);
-          }
           loadingClearedRef.current = false;
         };
       } catch (e) {
@@ -11455,7 +11449,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         )}
       </div>
 
-      {(loading || displayedProgress < 100) && (
+      {loading && (
         <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
           <div className="relative w-64 h-24">
             <div className="absolute left-0 top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-white/15" />
