@@ -20,7 +20,6 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
-import { safeGetItem, safeSetItem } from '../../utils/safeStorage.js';
 import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
@@ -4700,30 +4699,38 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     [tableSizeKey]
   );
   const [tableFinishId, setTableFinishId] = useState(() => {
-    const stored = safeGetItem('snookerTableFinish');
-    if (stored && TABLE_FINISHES[stored]) {
-      return stored;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerTableFinish');
+      if (stored && TABLE_FINISHES[stored]) {
+        return stored;
+      }
     }
     return DEFAULT_TABLE_FINISH_ID;
   });
   const [woodTextureId, setWoodTextureId] = useState(() => {
-    const stored = safeGetItem('snookerWoodTexture');
-    if (stored && WOOD_GRAIN_OPTIONS_BY_ID[stored]) {
-      return stored;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerWoodTexture');
+      if (stored && WOOD_GRAIN_OPTIONS_BY_ID[stored]) {
+        return stored;
+      }
     }
     return DEFAULT_WOOD_GRAIN_ID;
   });
   const [chromeColorId, setChromeColorId] = useState(() => {
-    const stored = safeGetItem('snookerChromeColor');
-    if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-      return stored;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerChromeColor');
+      if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
     }
     return DEFAULT_CHROME_COLOR_ID;
   });
   const [clothColorId, setClothColorId] = useState(() => {
-    const stored = safeGetItem('snookerClothColor');
-    if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-      return stored;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerClothColor');
+      if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
@@ -4753,11 +4760,13 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
   const [cueStyleIndex, setCueStyleIndex] = useState(() => {
-    const stored = safeGetItem(CUE_STYLE_STORAGE_KEY);
-    if (stored != null) {
-      const parsed = Number.parseInt(stored, 10);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        return parsed % CUE_RACK_PALETTE.length;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
+      if (stored != null) {
+        const parsed = Number.parseInt(stored, 10);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          return parsed % CUE_RACK_PALETTE.length;
+        }
       }
     }
     return 0;
@@ -4863,7 +4872,12 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
   useEffect(() => {
     cueStyleIndexRef.current = cueStyleIndex;
-    safeSetItem(CUE_STYLE_STORAGE_KEY, String(cueStyleIndex));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        CUE_STYLE_STORAGE_KEY,
+        String(cueStyleIndex)
+      );
+    }
     applySelectedCueStyle(cueStyleIndex);
   }, [cueStyleIndex, applySelectedCueStyle]);
 
@@ -5007,16 +5021,24 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     activeVariantRef.current = activeVariant;
   }, [activeVariant]);
   useEffect(() => {
-    safeSetItem('snookerTableFinish', tableFinishId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerTableFinish', tableFinishId);
+    }
   }, [tableFinishId]);
   useEffect(() => {
-    safeSetItem('snookerChromeColor', chromeColorId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerChromeColor', chromeColorId);
+    }
   }, [chromeColorId]);
   useEffect(() => {
-    safeSetItem('snookerClothColor', clothColorId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerClothColor', clothColorId);
+    }
   }, [clothColorId]);
   useEffect(() => {
-    safeSetItem('snookerWoodTexture', woodTextureId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerWoodTexture', woodTextureId);
+    }
   }, [woodTextureId]);
   useEffect(() => {
     if (!configOpen) return undefined;
