@@ -25,7 +25,6 @@ import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
 } from '../../utils/createCueRackDisplay.js';
-import { applySRGBColorSpace } from '../../utils/applySRGBColorSpace.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -37,7 +36,6 @@ import {
   disposeMaterialWithWood,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
-import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -1332,7 +1330,8 @@ const createClothTextures = (() => {
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
-    applySRGBColorSpace(colorMap);
+    if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
+    else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
     const bumpCanvas = document.createElement('canvas');
@@ -1755,7 +1754,8 @@ const createCarpetTextures = (() => {
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
-    applySRGBColorSpace(texture);
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
 
     // bump map: derive from red base with extra fiber noise
     const bumpCanvas = document.createElement('canvas');
@@ -2272,15 +2272,12 @@ function applySnookerScaling({
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
-// Lower the cue shot tilt so the camera can skim the rail line while staying just
-// above the cloth. Keeping the delta small ensures we don't clip through the
-// table surface when blending between views.
-const CUE_SHOT_PHI = Math.PI / 2 - 0.12;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // keep orbit camera from dipping below the table surface
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2322,11 +2319,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.02;
-const CUE_VIEW_RADIUS_RATIO = 0.085;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
+const CUE_VIEW_RADIUS_RATIO = 0.095;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.45;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.38
+  STANDING_VIEW_PHI + 0.22
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
@@ -2977,7 +2974,8 @@ function makeClothTexture(
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 48;
-  applySRGBColorSpace(texture);
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -3068,7 +3066,8 @@ function makeWoodTexture({
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 8;
-  applySRGBColorSpace(texture);
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.needsUpdate = true;
   return texture;
 }
@@ -5263,10 +5262,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
-  const mobileCameraRigRef = useRef(null);
-  const lastCameraTickRef = useRef(
-    typeof performance !== 'undefined' ? performance.now() : 0
-  );
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
@@ -5852,12 +5847,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
-      renderer.domElement.style.display = 'block';
-      renderer.domElement.style.position = 'absolute';
-      renderer.domElement.style.top = '0';
-      renderer.domElement.style.left = '0';
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -5953,7 +5942,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 4;
-        applySRGBColorSpace(texture);
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
         let offset = 0;
         return {
           texture,
@@ -5991,7 +5981,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 8;
-        applySRGBColorSpace(texture);
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
         const createAvatarStore = () => ({
           image: null,
@@ -6763,16 +6754,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         aspect,
-        CAMERA.near,
-        CAMERA.far
-      );
-      const mobileCameraRig = new MobilePortraitCameraRig(camera, {
-        theta: rad(35),
-        phi: Math.PI,
-        radius: fitRadius(camera, 1.6)
-      });
-      mobileCameraRig.setViewport(host.clientWidth, host.clientHeight);
-      mobileCameraRigRef.current = mobileCameraRig;
+          CAMERA.near,
+          CAMERA.far
+        );
         const standingPhi = THREE.MathUtils.clamp(
           STANDING_VIEW.phi,
           CAMERA.minPhi,
@@ -7060,30 +7044,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const updateCamera = () => {
-          const mobileRig = mobileCameraRigRef.current;
-          if (
-            mobileRig &&
-            !topViewRef.current &&
-            !(cueGalleryStateRef.current?.active ?? false) &&
-            !(activeShotView && activeShotView.mode === 'action') &&
-            !pocketCameraStateRef.current
-          ) {
-            const now = performance.now();
-            lastCameraTickRef.current = now;
-            mobileRig.setViewport(host.clientWidth, host.clientHeight);
-            mobileRig.update(now);
-            const state = mobileRig.getState();
-            const currentSph = sphRef.current;
-            if (currentSph) {
-              currentSph.radius = state.radius;
-              currentSph.theta = state.phi;
-              currentSph.phi = Math.max(1e-3, Math.PI / 2 - state.theta);
-            }
-            camera.up.set(0, 1, 0);
-            camera.lookAt(0, 0, 0);
-            activeRenderCameraRef.current = camera;
-            return camera;
-          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -8203,7 +8163,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
-        const pinch = { active: false, distance: 0 };
         const galleryDrag = {
           active: false,
           startX: 0,
@@ -8263,17 +8222,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          if (e.touches?.length === 2) {
-            const t0 = e.touches[0];
-            const t1 = e.touches[1];
-            if (t0 && t1) {
-              const dx = t0.clientX - t1.clientX;
-              const dy = t0.clientY - t1.clientY;
-              pinch.active = true;
-              pinch.distance = Math.hypot(dx, dy);
-            }
-            return;
-          }
+          if (e.touches?.length === 2) return;
           if (topViewRef.current) return;
           drag.on = true;
           drag.moved = false;
@@ -8333,24 +8282,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             registerInteraction();
             return;
           }
-          if (pinch.active && e.touches?.length === 2) {
-            const t0 = e.touches[0];
-            const t1 = e.touches[1];
-            if (t0 && t1) {
-              const dx = t0.clientX - t1.clientX;
-              const dy = t0.clientY - t1.clientY;
-              const dist = Math.hypot(dx, dy);
-              if (dist > 0 && pinch.distance > 0 && mobileCameraRigRef.current) {
-                const scale = dist / pinch.distance;
-                if (Math.abs(scale - 1) > 1e-3) {
-                  mobileCameraRigRef.current.zoomBy(scale);
-                }
-              }
-              pinch.distance = dist;
-            }
-            registerInteraction();
-            return;
-          }
           if (topViewRef.current || !drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
@@ -8379,11 +8310,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 ? CHALK_PRECISION_SLOW_MULTIPLIER
                 : 1;
             const precisionScale = basePrecisionScale * slowScale;
-            if (mobileCameraRigRef.current) {
-              const yawDelta = -dx * 0.005 * precisionScale;
-              const pitchDelta = -dy * 0.003 * precisionScale;
-              mobileCameraRigRef.current.orbit(yawDelta, pitchDelta);
-            }
             sph.theta -= dx * 0.0035 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const phiDelta = dy * 0.0025 * precisionScale;
@@ -8411,8 +8337,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
-          pinch.active = false;
-          pinch.distance = 0;
           if (
             !moved &&
             !topViewRef.current &&
@@ -8441,17 +8365,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const step = baseStep * slowScale;
           if (e.code === 'ArrowLeft') {
             sph.theta += step;
-            mobileCameraRigRef.current?.orbit(step, 0);
           } else if (e.code === 'ArrowRight') {
             sph.theta -= step;
-            mobileCameraRigRef.current?.orbit(-step, 0);
           } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const dir = e.code === 'ArrowUp' ? -1 : 1;
             const blendDelta =
               phiRange > 1e-5 ? (step * dir) / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
-            mobileCameraRigRef.current?.orbit(0, step * dir * 0.6);
           } else return;
           registerInteraction();
           updateCamera();
@@ -8563,12 +8484,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       sph.radius = clampOrbitRadius(sph.radius);
       const tableScale = tableSizeRef.current?.scale ?? 1;
       worldScaleFactor = WORLD_SCALE * tableScale;
-      if (mobileCameraRigRef.current) {
-        mobileCameraRigRef.current.setTableDimensions(
-          PLAY_W * worldScaleFactor,
-          PLAY_H * worldScaleFactor
-        );
-      }
       world.scale.setScalar(worldScaleFactor);
       const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * worldScaleFactor;
       world.position.y = surfaceOffset;
@@ -11017,12 +10932,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
-          if (mobileCameraRigRef.current) {
-            mobileCameraRigRef.current.setViewport(
-              host.clientWidth,
-              host.clientHeight
-            );
-          }
           const margin = Math.max(
             STANDING_VIEW.margin,
             topViewRef.current
@@ -11048,7 +10957,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           activeRenderCameraRef.current = null;
-          mobileCameraRigRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
@@ -11291,7 +11199,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
-    <div className="relative w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 

@@ -32,7 +32,6 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures
 } from '../../utils/woodMaterials.js';
-import { applySRGBColorSpace } from '../../utils/applySRGBColorSpace.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -1352,7 +1351,8 @@ const createClothTextures = (() => {
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
-    applySRGBColorSpace(colorMap);
+    if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
+    else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
     const bumpCanvas = document.createElement('canvas');
@@ -1790,7 +1790,8 @@ const createCarpetTextures = (() => {
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
-    applySRGBColorSpace(texture);
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
 
     // bump map: derive from red base with extra fiber noise
     const bumpCanvas = document.createElement('canvas');
@@ -2908,7 +2909,8 @@ function makeClothTexture(
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 48;
-  applySRGBColorSpace(texture);
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -2999,7 +3001,8 @@ function makeWoodTexture({
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 8;
-  applySRGBColorSpace(texture);
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.needsUpdate = true;
   return texture;
 }
@@ -5723,12 +5726,6 @@ function SnookerGame() {
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
-      renderer.domElement.style.display = 'block';
-      renderer.domElement.style.position = 'absolute';
-      renderer.domElement.style.top = '0';
-      renderer.domElement.style.left = '0';
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -5823,7 +5820,8 @@ function SnookerGame() {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 4;
-        applySRGBColorSpace(texture);
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
         let offset = 0;
         return {
           texture,
@@ -5861,7 +5859,8 @@ function SnookerGame() {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 8;
-        applySRGBColorSpace(texture);
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
         const createAvatarStore = () => ({
           image: null,
@@ -10865,7 +10864,7 @@ function SnookerGame() {
   const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
 
   return (
-    <div className="relative w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
