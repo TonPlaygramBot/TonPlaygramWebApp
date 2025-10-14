@@ -99,22 +99,6 @@ export class MobilePortraitCameraRig {
     this.camera.lookAt(this.target);
   }
 
-  setTarget(nextTarget: THREE.Vector3 | { x: number; y: number; z: number } | null) {
-    if (!nextTarget) return;
-    if (nextTarget instanceof THREE.Vector3) {
-      this.target.copy(nextTarget);
-      return;
-    }
-    const { x, y, z } = nextTarget;
-    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
-      this.target.set(x, y, z);
-    }
-  }
-
-  getTarget() {
-    return this.target.clone();
-  }
-
   setViewport(width: number, height: number) {
     if (!Number.isFinite(width) || !Number.isFinite(height)) return;
     if (width <= 1e-3 || height <= 1e-3) return;

@@ -18,21 +18,13 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
+import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
 } from '../../utils/createCueRackDisplay.js';
-import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import {
-  adjustCornerNotchDepth,
-  adjustSideNotchDepth,
-  centroidFromRing,
-  multiPolygonToShapes,
-  scaleMultiPolygon,
-  signedRingArea
-} from '../../components/billiards/geometry.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -45,9 +37,147 @@ import {
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
 import { MobilePortraitCameraRig, rad } from './simpleOrbitCamera';
-import { isWebGLAvailable } from '../../utils/webgl.js';
 
-const LEGACY_SRGB_ENCODING = Reflect.get(THREE, 'sRGBEncoding');
+function signedRingArea(ring) {
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[i + 1];
+    area += x1 * y2 - x2 * y1;
+  }
+  return area * 0.5;
+}
+
+function multiPolygonToShapes(mp) {
+  const shapes = [];
+  if (!Array.isArray(mp)) return shapes;
+  mp.forEach((poly) => {
+    if (!Array.isArray(poly) || !poly.length) return;
+    const outerRing = poly[0];
+    if (!Array.isArray(outerRing) || outerRing.length < 4) return;
+    const outerPts = outerRing.slice(0, -1);
+    if (!outerPts.length) return;
+    const outerClockwise = signedRingArea(outerRing) < 0;
+    const orderedOuter = outerClockwise
+      ? outerPts.slice().reverse()
+      : outerPts;
+    const shape = new THREE.Shape();
+    shape.moveTo(orderedOuter[0][0], orderedOuter[0][1]);
+    for (let i = 1; i < orderedOuter.length; i++) {
+      shape.lineTo(orderedOuter[i][0], orderedOuter[i][1]);
+    }
+    shape.closePath();
+
+    for (let ringIndex = 1; ringIndex < poly.length; ringIndex++) {
+      const holeRing = poly[ringIndex];
+      if (!Array.isArray(holeRing) || holeRing.length < 4) continue;
+      const holePts = holeRing.slice(0, -1);
+      if (!holePts.length) continue;
+      const holeClockwise = signedRingArea(holeRing) < 0;
+      const orderedHole = holeClockwise
+        ? holePts
+        : holePts.slice().reverse();
+      const hole = new THREE.Path();
+      hole.moveTo(orderedHole[0][0], orderedHole[0][1]);
+      for (let i = 1; i < orderedHole.length; i++) {
+        hole.lineTo(orderedHole[i][0], orderedHole[i][1]);
+      }
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+
+    shapes.push(shape);
+  });
+  return shapes;
+}
+
+function centroidFromRing(ring) {
+  if (!Array.isArray(ring) || !ring.length) {
+    return { x: 0, y: 0 };
+  }
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const pt = ring[i];
+    if (!Array.isArray(pt) || pt.length < 2) continue;
+    sumX += pt[0];
+    sumY += pt[1];
+    count++;
+  }
+  if (!count) {
+    return { x: 0, y: 0 };
+  }
+  return { x: sumX / count, y: sumY / count };
+}
+
+function scaleMultiPolygon(mp, scale) {
+  if (!Array.isArray(mp) || typeof scale !== 'number') {
+    return [];
+  }
+  const clampedScale = Math.max(0, scale);
+  return mp
+    .map((poly) => {
+      if (!Array.isArray(poly) || !poly.length) return null;
+      const outerRing = poly[0];
+      const centroid = centroidFromRing(outerRing);
+      const scaledPoly = poly
+        .map((ring) => {
+          if (!Array.isArray(ring) || !ring.length) return null;
+          return ring
+            .map((pt) => {
+              if (!Array.isArray(pt) || pt.length < 2) return null;
+              const dx = pt[0] - centroid.x;
+              const dy = pt[1] - centroid.y;
+              return [centroid.x + dx * clampedScale, centroid.y + dy * clampedScale];
+            })
+            .filter(Boolean);
+        })
+        .filter((ring) => Array.isArray(ring) && ring.length > 0);
+      if (!scaledPoly.length) return null;
+      return scaledPoly;
+    })
+    .filter((poly) => Array.isArray(poly) && poly.length > 0);
+}
+
+function adjustCornerNotchDepth(mp, centerZ, sz) {
+  if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
+    return Array.isArray(mp) ? mp : [];
+  }
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                const [x, z] = pt;
+                const deltaZ = z - centerZ;
+                const towardCenter = -sz * deltaZ;
+                if (towardCenter <= 0) return [x, z];
+                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
+              })
+            : ring
+        )
+      : poly
+  );
+}
+
+function adjustSideNotchDepth(mp) {
+  if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                const [x, z] = pt;
+                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+              })
+            : ring
+        )
+      : poly
+  );
+}
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
@@ -445,11 +575,11 @@ const ACTION_CAM = Object.freeze({
   forwardBias: 0.1,
   shortRailBias: 0.52,
   followShortRailBias: 0.42,
-  heightOffset: 0,
+  heightOffset: BALL_R * 9.2,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
   followDistance: BALL_R * 54,
-  followHeightOffset: 0,
+  followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
 });
 /**
@@ -726,12 +856,12 @@ const TABLE_SIZE_OPTIONS = Object.freeze({
 });
 const DEFAULT_TABLE_SIZE_ID = '9ft';
 
-export function resolvePoolVariant(variantId) {
+function resolvePoolVariant(variantId) {
   const key = typeof variantId === 'string' ? variantId.toLowerCase() : '';
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
-export function resolveTableSize(sizeId) {
+function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
   return TABLE_SIZE_OPTIONS[key] || TABLE_SIZE_OPTIONS[DEFAULT_TABLE_SIZE_ID];
 }
@@ -1201,11 +1331,8 @@ const createClothTextures = (() => {
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in colorMap && THREE.SRGBColorSpace) {
-      colorMap.colorSpace = THREE.SRGBColorSpace;
-    } else if ('encoding' in colorMap && LEGACY_SRGB_ENCODING !== undefined) {
-      colorMap.encoding = LEGACY_SRGB_ENCODING;
-    }
+    if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
+    else colorMap.encoding = THREE.sRGBEncoding;
     colorMap.needsUpdate = true;
 
     const bumpCanvas = document.createElement('canvas');
@@ -1628,11 +1755,8 @@ const createCarpetTextures = (() => {
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
-    if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-      texture.colorSpace = THREE.SRGBColorSpace;
-    } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
-      texture.encoding = LEGACY_SRGB_ENCODING;
-    }
+    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+    else texture.encoding = THREE.sRGBEncoding;
 
     // bump map: derive from red base with extra fiber noise
     const bumpCanvas = document.createElement('canvas');
@@ -2152,12 +2276,12 @@ const STANDING_VIEW_PHI = 0.92;
 // Lower the cue shot tilt so the camera can skim the rail line while staying just
 // above the cloth. Keeping the delta small ensures we don't clip through the
 // table surface when blending between views.
-const CUE_SHOT_PHI = Math.PI / 2 - 0.07;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.12;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.02; // keep orbit camera from dipping below the table surface while allowing a lower tilt
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // keep orbit camera from dipping below the table surface
 // Pull the baseline player orbit in so the cue perspective hugs the cloth a bit more, especially on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.135;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2203,18 +2327,15 @@ const CUE_VIEW_RADIUS_RATIO = 0.085;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.34;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.5
+  STANDING_VIEW_PHI + 0.38
 );
 const CUE_VIEW_PHI_LIFT = 0.08;
-const CUE_VIEW_TARGET_PHI = Math.min(
-  CAMERA.maxPhi,
-  CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5
-);
+const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 // Mirror the snooker cue framing so both games share the same up-close feel around the cloth.
 const CUE_VIEW_RAIL_CLEARANCE = BALL_R * 0.1;
 // Lift the cue-view camera so the cue stick and cue ball stay framed together while aiming.
-const CUE_VIEW_ABOVE_CUE = BALL_R * 0.72;
-const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.24;
+const CUE_VIEW_ABOVE_CUE = BALL_R * 1.08;
+const CUE_VIEW_EXTRA_HEIGHT = BALL_R * 0.42;
 const CUE_VIEW_BACK_MIN_RATIO = 0.26;
 const CUE_VIEW_BACK_RATIO = 0.34;
 const CUE_VIEW_BASE_CUE_LENGTH = (BALL_R / 0.0525) * 1.5 * CUE_LENGTH_MULTIPLIER;
@@ -2228,7 +2349,6 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
-const AIM_CAMERA_LOCK_FACTOR = 1; // keep the aim direction locked to the active camera heading
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -2378,21 +2498,6 @@ const computeCueCameraMinHeight = (worldScaleFactor, cushionHeight = TABLE.THICK
   const railClearanceWorld = CUE_VIEW_RAIL_CLEARANCE * worldScaleFactor;
   const aboveCueWorld = CUE_VIEW_ABOVE_CUE * worldScaleFactor;
   return Math.max(railHeightWorld + railClearanceWorld, cueHeightWorld + aboveCueWorld);
-};
-
-const computeActionCameraMidHeight = (
-  worldScaleFactor,
-  heightBaseLocal = TABLE_Y + TABLE.THICK,
-  cushionHeight = TABLE.THICK
-) => {
-  const scale = Number.isFinite(worldScaleFactor) && worldScaleFactor > 0 ? worldScaleFactor : 1;
-  const tableTopWorld = heightBaseLocal * scale;
-  const highestWorld = Math.max(
-    computeCueCameraMinHeight(scale, cushionHeight),
-    tableTopWorld
-  );
-  const midpointWorld = (tableTopWorld + highestWorld) * 0.5;
-  return midpointWorld / scale;
 };
 
 const computeAimFocusTarget = (cueBall, aimDir) => {
@@ -2873,11 +2978,8 @@ function makeClothTexture(
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 48;
-  if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
-    texture.encoding = LEGACY_SRGB_ENCODING;
-  }
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -2968,11 +3070,8 @@ function makeWoodTexture({
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 8;
-  if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
-    texture.encoding = LEGACY_SRGB_ENCODING;
-  }
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  else texture.encoding = THREE.sRGBEncoding;
   texture.needsUpdate = true;
   return texture;
 }
@@ -3902,12 +4001,7 @@ function Table3D(
       ]]];
       union = polygonClipping.union(union, fieldClip);
     }
-    const adjusted = adjustCornerNotchDepth(
-      union,
-      cz,
-      sz,
-      CHROME_CORNER_NOTCH_CENTER_SCALE
-    );
+    const adjusted = adjustCornerNotchDepth(union, cz, sz);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
     }
@@ -3941,7 +4035,7 @@ function Table3D(
     );
 
     const union = polygonClipping.union(circle, throat);
-    return adjustSideNotchDepth(union, CHROME_SIDE_NOTCH_DEPTH_SCALE);
+    return adjustSideNotchDepth(union);
   };
 
   const chromePlates = new THREE.Group();
@@ -4685,10 +4779,9 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
+function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
-  useTelegramBackButton();
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
@@ -5735,15 +5828,9 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [frameState, hud.turn, hud.over]);
 
   useEffect(() => {
-    if (!isWebGLAvailable()) {
-      const message = 'WebGL is not supported or disabled on this device.';
-      setErr((prev) => prev ?? message);
-      setLoading(false);
-      setLoadingProgress(100);
-      return;
-    }
     const host = mountRef.current;
     if (!host) return;
+    let loadTimer = null;
     const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
@@ -5760,12 +5847,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         powerPreference: 'high-performance'
       });
       renderer.useLegacyLights = false;
-      if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-      }
-      if ('outputEncoding' in renderer && LEGACY_SRGB_ENCODING !== undefined) {
-        renderer.outputEncoding = LEGACY_SRGB_ENCODING;
-      }
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
@@ -5868,11 +5950,8 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 4;
-        if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-          texture.colorSpace = THREE.SRGBColorSpace;
-        } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
-          texture.encoding = LEGACY_SRGB_ENCODING;
-        }
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
         let offset = 0;
         return {
           texture,
@@ -5910,11 +5989,8 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 8;
-        if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-          texture.colorSpace = THREE.SRGBColorSpace;
-        } else if ('encoding' in texture && LEGACY_SRGB_ENCODING !== undefined) {
-          texture.encoding = LEGACY_SRGB_ENCODING;
-        }
+        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+        else texture.encoding = THREE.sRGBEncoding;
         let pulse = 0;
         const createAvatarStore = () => ({
           image: null,
@@ -7130,12 +7206,6 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
-              const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
-              const actionBaseHeight = computeActionCameraMidHeight(
-                worldScaleFactor,
-                heightBase,
-                cushionHeight
-              );
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -7185,7 +7255,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
                     0,
-                    actionBaseHeight + ACTION_CAM.heightOffset + heightLift,
+                    heightBase + ACTION_CAM.heightOffset + heightLift,
                     railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
@@ -7220,7 +7290,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   const desired = new THREE.Vector3(
                     railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    actionBaseHeight + ACTION_CAM.heightOffset,
+                    heightBase + ACTION_CAM.heightOffset,
                     baseZ
                   );
                   const lookAnchor = anchor.clone();
@@ -7273,7 +7343,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
                     0,
-                    actionBaseHeight + ACTION_CAM.followHeightOffset + heightLift,
+                    heightBase + ACTION_CAM.followHeightOffset + heightLift,
                     railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
@@ -7308,7 +7378,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   const desired = new THREE.Vector3(
                     railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    actionBaseHeight + ACTION_CAM.followHeightOffset,
+                    heightBase + ACTION_CAM.followHeightOffset,
                     baseZ
                   );
                   const lookAnchor = anchor.clone();
@@ -7809,7 +7879,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0, impactPoint = null } = {}
+          { longShot = false, travelDistance = 0 } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -7817,7 +7887,6 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             targetId != null
               ? ballsList.find((b) => b.id === targetId) || null
               : null;
-          const cuePos2 = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
           const orbitSnapshot = followView?.orbitSnapshot
             ? {
                 radius: followView.orbitSnapshot.radius,
@@ -7835,31 +7904,17 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               Math.abs(targetBall.pos.y) > nearRailThresholdY
             : false;
           const axis = 'short'; // force short-rail broadcast framing
-          const impactPos = impactPoint
-            ? new THREE.Vector2(impactPoint.x, impactPoint.y)
-            : targetBall
-              ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
-              : cuePos2.clone();
-          const halfLength = PLAY_H / 2;
-          const frontRail = -halfLength;
-          const backRail = halfLength;
-          const distToFront = Math.abs(impactPos.y - frontRail);
-          const distToBack = Math.abs(impactPos.y - backRail);
-          let impactRailDir = distToBack <= distToFront ? 1 : -1;
-          if (Math.abs(distToBack - distToFront) < BALL_R * 0.25) {
-            const fallbackDir =
-              railNormal?.y ??
-              cueBall.launchDir?.y ??
-              (targetBall ? targetBall.pos.y - cueBall.pos.y : cueBall.pos.y);
-            impactRailDir = signed(fallbackDir, impactRailDir);
-          }
-          impactRailDir = signed(impactRailDir, 1);
           const initialRailDir =
             axis === 'side'
               ? signed(
                   railNormal?.x ?? cueBall.pos.x ?? cueBall.launchDir?.x ?? 1
                 )
-              : impactRailDir;
+              : signed(
+                  cueBall.pos.y ??
+                    cueBall.launchDir?.y ??
+                    railNormal?.y ??
+                    1
+                );
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -7897,7 +7952,6 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             activationTravel,
             pendingActivation: longShot,
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
-            impactPos,
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
               : null
@@ -9274,44 +9328,18 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           BALL_R * 28,
           Math.min(LONG_SHOT_DISTANCE, PLAY_H * 0.5)
         );
-        const tableHalfWidth = PLAY_W / 2;
-        const tableHalfLength = PLAY_H / 2;
-        const focusMargin = Math.max(BALL_R * 0.5, 0.01);
-        const safeXMin = -tableHalfWidth + focusMargin;
-        const safeXMax = tableHalfWidth - focusMargin;
-        const safeZMin = -tableHalfLength + focusMargin;
-        const safeZMax = tableHalfLength - focusMargin;
-        let maxDistance = focusDistance;
-        const originX = cueBall.pos.x;
-        const originZ = cueBall.pos.y;
-        const applyAxisLimit = (dirComponent, originComponent, minLimit, maxLimit) => {
-          if (Math.abs(dirComponent) < 1e-6) return;
-          const limitValue = dirComponent > 0 ? maxLimit : minLimit;
-          const travel = (limitValue - originComponent) / dirComponent;
-          if (travel > 0) {
-            maxDistance = Math.min(maxDistance, travel);
-          }
-        };
-        applyAxisLimit(dir.x, originX, safeXMin, safeXMax);
-        applyAxisLimit(dir.y, originZ, safeZMin, safeZMax);
-        if (!Number.isFinite(maxDistance) || maxDistance <= 0) {
-          maxDistance = focusDistance;
-        }
-        let limitedDistance = Math.min(focusDistance, maxDistance);
-        if (!Number.isFinite(limitedDistance) || limitedDistance <= 0) {
-          limitedDistance = Math.max(
-            BALL_R * 3,
-            Math.min(focusDistance, LONG_SHOT_DISTANCE)
-          );
-        } else {
-          const minimum = Math.min(BALL_R * 3, focusDistance);
-          limitedDistance = Math.max(limitedDistance, minimum);
-          limitedDistance = Math.min(limitedDistance, maxDistance);
-        }
         const focusTarget = new THREE.Vector3(
-          originX + dir.x * limitedDistance,
+          THREE.MathUtils.clamp(
+            cueBall.pos.x + dir.x * focusDistance,
+            -PLAY_W / 2,
+            PLAY_W / 2
+          ),
           BALL_CENTER_Y,
-          originZ + dir.y * limitedDistance
+          THREE.MathUtils.clamp(
+            cueBall.pos.y + dir.y * focusDistance,
+            -PLAY_H / 2,
+            PLAY_H / 2
+          )
         );
         focusStore.ballId = cueBall.id ?? null;
         focusStore.target.copy(focusTarget);
@@ -9442,8 +9470,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 shotPrediction.railNormal,
                 {
                   longShot: isLongShot,
-                  travelDistance: predictedTravel,
-                  impactPoint: shotPrediction.impact
+                  travelDistance: predictedTravel
                 }
               )
             : null;
@@ -10134,7 +10161,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         tmpAim.set(camFwd.x, camFwd.z).normalize();
         const aimLerpFactor = chalkAssistTargetRef.current
           ? CHALK_AIM_LERP_SLOW
-          : AIM_CAMERA_LOCK_FACTOR;
+          : 0.2;
         aimDir.lerp(tmpAim, aimLerpFactor);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
@@ -10975,8 +11002,10 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           renderer.render(scene, frameCamera ?? camera);
           if (!loadingClearedRef.current) {
             loadingClearedRef.current = true;
-            setLoading(false);
-            setLoadingProgress(100);
+            loadTimer = window.setTimeout(() => {
+              setLoading(false);
+              setLoadingProgress(100);
+            }, 120);
           }
           rafRef.current = requestAnimationFrame(step);
         };
@@ -11060,7 +11089,9 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
-          loadingClearedRef.current = false;
+          if (loadTimer) {
+            clearTimeout(loadTimer);
+          }
         };
       } catch (e) {
         console.error(e);
@@ -11084,6 +11115,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const slider = new SnookerPowerSlider({
       mount,
       value: powerRef.current * 100,
+      cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => {
@@ -11449,7 +11481,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         )}
       </div>
 
-      {loading && (
+      {(loading || displayedProgress < 100) && (
         <div className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-black via-black/95 to-black text-white">
           <div className="relative w-64 h-24">
             <div className="absolute left-0 top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-white/15" />
@@ -11557,6 +11589,7 @@ export function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 }
 
 export default function PoolRoyale() {
+  const isMobileOrTablet = useIsMobile(1366);
   const location = useLocation();
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -11568,6 +11601,14 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
+
+  if (!isMobileOrTablet) {
+    return (
+      <div className="flex items-center justify-center w-full h-full p-4 text-center">
+        <p>This game is available on mobile phones and tablets only.</p>
+      </div>
+    );
+  }
 
   return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
 }

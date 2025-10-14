@@ -45,7 +45,7 @@ export default function Games() {
               </h3>
             </Link>
             <Link
-              to="/games/american-billiards/lobby"
+              to="/games/pollroyale/lobby"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
             >
               <img
@@ -57,43 +57,11 @@ export default function Games() {
                 className="text-sm font-semibold text-center text-yellow-400"
                 style={{ WebkitTextStroke: '1px black' }}
               >
-                American Billiards
+                Pool Royale
               </h3>
             </Link>
             <Link
-              to="/games/nine-ball/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/pool-royale.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                9-Ball
-              </h3>
-            </Link>
-            <Link
-              to="/games/uk-eight-ball/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/pool-royale.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                8 Pool UK
-              </h3>
-            </Link>
-            <Link
-              to="/games/snooker/lobby"
+              to="/games/snooker"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
             >
               <img
