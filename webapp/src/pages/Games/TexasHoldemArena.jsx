@@ -19,20 +19,36 @@ import {
 } from '../../../../lib/texasHoldem.js';
 
 const MODEL_SCALE = 0.75;
+const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const ARENA_GROWTH = 1.45;
+const ARENA_SCALE = 1.3 * ARENA_GROWTH;
+const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
+const STOOL_SCALE = 1.5 * 1.3;
+const CARD_SCALE = 0.95;
+const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
+const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
+const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const PLAYER_COUNT = 6;
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
-const CARD_W = 0.4 * MODEL_SCALE;
-const CARD_H = 0.56 * MODEL_SCALE;
-const CARD_D = 0.02 * MODEL_SCALE;
 const COMMUNITY_SPACING = CARD_W * 0.85;
 const HOLE_SPACING = CARD_W * 0.7;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_D * 6, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_D * 6, TABLE_RADIUS * 0.55);
-const CAMERA_SETTINGS = buildArenaCameraConfig(TABLE_RADIUS * ARENA_GROWTH);
+const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -86,20 +102,22 @@ function buildPlayers(search) {
 }
 
 function createSeatLayout(count) {
-  const radius = TABLE_RADIUS * ARENA_GROWTH * 1.05;
+  const radius = CHAIR_RADIUS;
   const layout = [];
   for (let i = 0; i < count; i += 1) {
     const angle = Math.PI / 2 + (i / count) * Math.PI * 2;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const seatPos = forward.clone().multiplyScalar(radius);
-    seatPos.y = TABLE_HEIGHT * 0.3;
+    seatPos.y = CHAIR_BASE_HEIGHT;
     const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.72);
     cardAnchor.y = TABLE_HEIGHT + CARD_D * 6;
     const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6);
     chipAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-    const labelAnchor = forward.clone().multiplyScalar(radius + 0.3 * MODEL_SCALE);
-    labelAnchor.y = TABLE_HEIGHT + 0.65 * MODEL_SCALE;
+    const labelAnchor = forward.clone().multiplyScalar(radius + 0.32 * MODEL_SCALE);
+    labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
+    const stoolAnchor = forward.clone().multiplyScalar(radius);
+    stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
     layout.push({
       angle,
       forward,
@@ -107,7 +125,10 @@ function createSeatLayout(count) {
       seatPos,
       cardAnchor,
       chipAnchor,
-      labelAnchor
+      labelAnchor,
+      stoolAnchor,
+      stoolHeight: STOOL_HEIGHT,
+      isHuman: i === 0
     });
   }
   return layout;
@@ -633,25 +654,65 @@ function TexasHoldemArena({ search }) {
     const seatGroups = [];
     const deckAnchor = DECK_POSITION.clone();
 
-    seatLayout.forEach((seat, index) => {
+    const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
+    const isPortrait = mount.clientHeight > mount.clientWidth;
+    const targetHeightOffset = 0.08 * MODEL_SCALE;
+    const lateralOffset = isPortrait ? 0.55 : 0.42;
+    const retreatOffset = isPortrait ? 1.85 : 1.35;
+    const elevation = isPortrait ? 1.95 : 1.58;
+    const initialCameraPosition = humanSeat.stoolAnchor
+      .clone()
+      .addScaledVector(humanSeat.forward, -retreatOffset)
+      .addScaledVector(humanSeat.right, lateralOffset);
+    initialCameraPosition.y = humanSeat.stoolHeight + elevation;
+    camera.position.copy(initialCameraPosition);
+    const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
+    controls.target.copy(cameraTarget);
+    controls.update();
+
+    const seatMaterials = {
+      human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
+      ai: new THREE.MeshPhysicalMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.5, clearcoat: 1 })
+    };
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x111827 });
+
+    seatLayout.forEach((seat) => {
       const group = new THREE.Group();
       group.position.copy(seat.seatPos);
       group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
-      const seatBase = new THREE.Mesh(new THREE.CylinderGeometry(0.32 * MODEL_SCALE, 0.36 * MODEL_SCALE, 0.24 * MODEL_SCALE, 24), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
-      seatBase.castShadow = true;
-      seatBase.receiveShadow = true;
-      group.add(seatBase);
-      const cushion = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * MODEL_SCALE, 0.42 * MODEL_SCALE, 0.08 * MODEL_SCALE, 24), new THREE.MeshPhysicalMaterial({ color: index === 0 ? 0x2563eb : 0x334155, roughness: 0.35, metalness: 0.3, clearcoat: 1 }));
-      cushion.position.y = 0.16 * MODEL_SCALE;
-      cushion.castShadow = true;
-      group.add(cushion);
-      const back = new THREE.Mesh(
-        new THREE.BoxGeometry(0.48 * MODEL_SCALE, 0.46 * MODEL_SCALE, 0.08 * MODEL_SCALE),
-        new THREE.MeshStandardMaterial({ color: 0x1f2937 })
+
+      const seatMaterial = seat.isHuman ? seatMaterials.human : seatMaterials.ai;
+      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+      seatMesh.position.y = SEAT_THICKNESS / 2;
+      seatMesh.castShadow = true;
+      seatMesh.receiveShadow = true;
+      group.add(seatMesh);
+
+      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), seatMaterial);
+      backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+      backMesh.castShadow = true;
+      backMesh.receiveShadow = true;
+      group.add(backMesh);
+
+      const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+      const armLeft = new THREE.Mesh(armGeometry, seatMaterial);
+      armLeft.position.set(-(SEAT_WIDTH / 2 + ARM_THICKNESS / 2), SEAT_THICKNESS / 2 + ARM_HEIGHT / 2, -SEAT_DEPTH * 0.05);
+      armLeft.castShadow = true;
+      armLeft.receiveShadow = true;
+      group.add(armLeft);
+      const armRight = armLeft.clone();
+      armRight.position.x = -armLeft.position.x;
+      group.add(armRight);
+
+      const legBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
+        legMaterial
       );
-      back.position.set(0, 0.42 * MODEL_SCALE, -0.18 * MODEL_SCALE);
-      back.castShadow = true;
-      group.add(back);
+      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+      legBase.castShadow = true;
+      legBase.receiveShadow = true;
+      group.add(legBase);
+
       arenaGroup.add(group);
 
       const cardMeshes = [0, 1].map(() => {
@@ -679,7 +740,10 @@ function TexasHoldemArena({ search }) {
         right: seat.right.clone(),
         cardAnchor: seat.cardAnchor.clone(),
         chipAnchor: seat.chipAnchor.clone(),
-        labelAnchor: seat.labelAnchor.clone()
+        labelAnchor: seat.labelAnchor.clone(),
+        stoolAnchor: seat.stoolAnchor.clone(),
+        stoolHeight: seat.stoolHeight,
+        isHuman: seat.isHuman
       });
     });
 
