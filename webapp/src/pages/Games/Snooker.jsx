@@ -1833,7 +1833,6 @@ function createBroadcastCameras({
   cameraHeight,
   shortRailZ,
   slideLimit,
-  arenaHalfWidth = null,
   arenaHalfDepth = null
 }) {
   const group = new THREE.Group();
@@ -1889,41 +1888,20 @@ function createBroadcastCameras({
     0
   );
 
-  const fallbackCornerX = TABLE.W / 2 + BALL_R * 14;
-  const fallbackCornerZ = Math.max(
-    shortRailZ + BALL_R * 10,
+  const fallbackDepth = Math.max(
+    shortRailZ + BALL_R * 12,
     PLAY_H / 2 + BALL_R * 14
   );
-  const cameraCornerExtra = BALL_R * 9;
-  const cameraSideBoost = BALL_R * 16;
-  const cameraDepthBoost = BALL_R * 3;
-  const cameraWallSlide = BALL_R * 6;
-  const baseCornerX =
-    typeof arenaHalfWidth === 'number'
-      ? Math.max(TABLE.W / 2 + BALL_R * 8, arenaHalfWidth)
-      : fallbackCornerX;
-  const baseCornerZ =
-    typeof arenaHalfDepth === 'number'
-      ? Math.max(shortRailZ + BALL_R * 6, arenaHalfDepth)
-      : fallbackCornerZ;
-  const cameraAdditionalSideOffset = BALL_R * 6;
-  const cameraAdditionalDepthOffset = BALL_R * 4;
-  const cameraCornerXOffset =
-    baseCornerX + cameraCornerExtra + cameraSideBoost + cameraWallSlide +
-    cameraAdditionalSideOffset;
-  const cameraCornerZOffset =
-    baseCornerZ + cameraCornerExtra + cameraDepthBoost + cameraAdditionalDepthOffset;
+  const maxDepth = typeof arenaHalfDepth === 'number'
+    ? Math.max(shortRailZ + BALL_R * 8, arenaHalfDepth)
+    : fallbackDepth;
+  const cameraCenterZOffset = Math.min(maxDepth, fallbackDepth + BALL_R * 8);
   const cameraScale = 1.2;
 
-  const createUnit = (xSign, zSign) => {
+  const createShortRailUnit = (zSign) => {
+    const direction = Math.sign(zSign) || 1;
     const base = new THREE.Group();
-    const xDirection = Math.sign(xSign) || 1;
-    const zDirection = Math.sign(zSign) || 1;
-    base.position.set(
-      xDirection * cameraCornerXOffset,
-      floorY,
-      zDirection * cameraCornerZOffset
-    );
+    base.position.set(0, floorY, direction * cameraCenterZOffset);
     const horizontalFocus = defaultFocus.clone();
     horizontalFocus.y = base.position.y;
     base.lookAt(horizontalFocus);
@@ -1932,6 +1910,7 @@ function createBroadcastCameras({
     group.add(base);
 
     const slider = new THREE.Group();
+    slider.userData.slideLimit = Math.max(slideLimit ?? 0, 0);
     base.add(slider);
     slider.scale.setScalar(cameraScale);
 
@@ -2045,16 +2024,13 @@ function createBroadcastCameras({
       slider,
       head: headPivot,
       assembly: cameraAssembly,
-      direction: zDirection,
-      xDirection,
-      rail: zDirection >= 0 ? 'back' : 'front'
+      direction,
+      rail: direction >= 0 ? 'back' : 'front'
     };
   };
 
-  cameras.frontLeft = createUnit(-1, -1);
-  cameras.frontRight = createUnit(1, -1);
-  cameras.backLeft = createUnit(-1, 1);
-  cameras.backRight = createUnit(1, 1);
+  cameras.front = createShortRailUnit(-1);
+  cameras.back = createShortRailUnit(1);
 
   return { group, cameras, slideLimit, cameraHeight, defaultFocus };
 }
@@ -2394,6 +2370,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
+const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -2769,6 +2746,21 @@ const POCKET_CAMERA_OUTWARD = Object.freeze({
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
+const SIDE_POCKET_SWITCH_THRESHOLD = BALL_R * 12;
+const oppositeShortRailAnchor = (id) => {
+  switch (id) {
+    case 'TL':
+      return 'BL';
+    case 'BL':
+      return 'TL';
+    case 'TR':
+      return 'BR';
+    case 'BR':
+      return 'TR';
+    default:
+      return id;
+  }
+};
 const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
   if (!pocketId) return null;
   switch (pocketId) {
@@ -6801,6 +6793,17 @@ function SnookerGame() {
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
           }
+          const tiltZoom = CAMERA_TILT_ZOOM * (1 - phiProgress);
+          if (tiltZoom > 1e-5) {
+            const zoomed = clampOrbitRadius(
+              finalRadius - tiltZoom,
+              cueMinRadius
+            );
+            finalRadius =
+              minRadiusForRails != null
+                ? Math.max(zoomed, minRadiusForRails)
+                : zoomed;
+          }
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
           syncBlendToSpherical();
@@ -6815,44 +6818,49 @@ function SnookerGame() {
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const limit = rig.slideLimit ?? CAMERA_LATERAL_CLAMP.short;
           const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
           const focusTarget =
-            focusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
-          const clampX = (value) =>
-            THREE.MathUtils.clamp(value, -limit, limit);
-          const scale = Math.max(worldScaleFactor ?? 1, 1e-6);
-          const nextX =
-            targetWorld && Number.isFinite(targetWorld.x)
-              ? clampX(targetWorld.x / scale)
-              : 0;
-          const applyFocus = (unit, target, t, lookAt) => {
+            focusWorld ??
+            targetWorld ??
+            rig.defaultFocusWorld ??
+            rig.defaultFocus ??
+            null;
+          const applyFocus = (unit, lookAt, t) => {
             if (!unit) return;
             if (unit.slider) {
+              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
+              const limit = Math.max(
+                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
+                0
+              );
+              const targetX = lookAt
+                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
+                : 0;
               unit.slider.position.x = THREE.MathUtils.lerp(
                 unit.slider.position.x,
-                target,
-                t
+                targetX,
+                settle
+              );
+              unit.slider.position.z = THREE.MathUtils.lerp(
+                unit.slider.position.z,
+                0,
+                settle
               );
             }
             if (lookAt && unit.head) {
               unit.head.lookAt(lookAt);
             }
           };
-          const frontUnits = [
-            rig.cameras.frontLeft,
-            rig.cameras.frontRight
-          ].filter(Boolean);
-          const backUnits = [
-            rig.cameras.backLeft,
-            rig.cameras.backRight
-          ].filter(Boolean);
+          const frontUnits = [rig.cameras.front].filter(Boolean);
+          const backUnits = [rig.cameras.back].filter(Boolean);
           const activeUnits = railDir >= 0 ? backUnits : frontUnits;
           const idleUnits = railDir >= 0 ? frontUnits : backUnits;
-          activeUnits.forEach((unit) => applyFocus(unit, nextX, lerpFactor, focusTarget));
+          activeUnits.forEach((unit) =>
+            applyFocus(unit, focusTarget, lerpFactor)
+          );
           const idleFocus = rig.defaultFocusWorld ?? focusTarget;
           idleUnits.forEach((unit) =>
-            applyFocus(unit, 0, Math.min(1, lerpFactor * 0.6), idleFocus)
+            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
           );
         };
 
@@ -7180,8 +7188,7 @@ function SnookerGame() {
             }
             const pocketCenter = activeShotView.pocketCenter;
             const anchorType =
-              activeShotView.anchorType ??
-              (activeShotView.isSidePocket ? 'side' : 'short');
+              activeShotView.anchorType ?? 'short';
             let railDir =
               activeShotView.railDir ??
               (anchorType === 'side'
@@ -7704,14 +7711,31 @@ function SnookerGame() {
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
           const approachDir = best.pocketDir.clone();
-          const anchorId = resolvePocketCameraAnchor(
-            anchorPocketId,
-            best.center,
-            approachDir,
-            pos
-          );
-          const anchorOutward = getPocketCameraOutward(anchorId);
+          let anchorId =
+            resolvePocketCameraAnchor(
+              anchorPocketId,
+              best.center,
+              approachDir,
+              pos
+            ) ?? anchorPocketId;
+          let anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          let anchorSwapped = false;
+          if (isSidePocket) {
+            const anchorCenter = getPocketCenterById(anchorId);
+            if (anchorCenter) {
+              const distanceToAnchor = Math.abs(pos.y - anchorCenter.y);
+              if (distanceToAnchor < SIDE_POCKET_SWITCH_THRESHOLD) {
+                const opposite = oppositeShortRailAnchor(anchorId);
+                if (opposite && opposite !== anchorId) {
+                  anchorId = opposite;
+                  anchorOutward =
+                    getPocketCameraOutward(opposite) ?? anchorOutward;
+                  anchorSwapped = true;
+                }
+              }
+            }
+          }
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
@@ -7720,14 +7744,10 @@ function SnookerGame() {
           const heightOffset = isSidePocket
             ? baseHeightOffset * 0.92
             : baseHeightOffset * shortPocketHeightMultiplier;
-          const railDir = isSidePocket
-            ? signed(best.center.x, 1)
-            : signed(best.center.y, 1);
-          const lateralSign = isSidePocket
-            ? signed(best.center.y, 1)
-            : signed(best.center.x, 1);
+          const railDir = signed(best.center.y, 1);
+          const lateralSign = signed(best.center.x, 1);
           const fallbackOutward = isSidePocket
-            ? new THREE.Vector2(-railDir, -lateralSign * 0.45).normalize()
+            ? new THREE.Vector2(-lateralSign * 0.35, -railDir).normalize()
             : new THREE.Vector2(-lateralSign * 0.45, -railDir).normalize();
           const resumeOrbit = followView?.orbitSnapshot
             ? {
@@ -7747,11 +7767,15 @@ function SnookerGame() {
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const cameraDistance = THREE.MathUtils.clamp(
+          let cameraDistance = THREE.MathUtils.clamp(
             effectiveDist * POCKET_CAM.distanceScale,
             minOutside,
             POCKET_CAM.maxOutside
           );
+          if (isSidePocket) {
+            const zoomFactor = anchorSwapped ? 0.85 : 0.9;
+            cameraDistance = Math.max(minOutside, cameraDistance * zoomFactor);
+          }
           return {
             mode: 'pocket',
             ballId,
@@ -7768,9 +7792,9 @@ function SnookerGame() {
             holdUntil: now + POCKET_VIEW_MIN_DURATION_MS,
             completed: false,
             isSidePocket,
-            anchorType: isSidePocket ? 'side' : 'short',
+            anchorType: 'short',
             railDir,
-            anchorId: anchorId ?? anchorPocketId,
+            anchorId,
             anchorOutward:
               anchorOutward?.normalize() ?? fallbackOutward,
             cameraDistance,
@@ -10839,7 +10863,9 @@ function SnookerGame() {
     };
   }, [updateSpinDotPosition]);
 
-  const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const isPlayerTurn = hud.turn === 0;
+  const isOpponentTurn = hud.turn === 1;
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -11043,34 +11069,49 @@ function SnookerGame() {
           }}
         >
           <div
-            className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex h-12 max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${UI_SCALE})`,
               transformOrigin: 'bottom center',
               maxWidth: 'min(26rem, 100%)'
             }}
           >
-            <div className="flex items-center gap-3">
+            <div
+              className={`flex h-full min-w-0 items-center gap-3 rounded-full px-3 transition-all ${
+                isPlayerTurn
+                  ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
+                  : 'text-white/80'
+              }`}
+            >
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className="h-12 w-12 rounded-full border-2 border-emerald-300/70 object-cover"
+                className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                  isPlayerTurn
+                    ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
+                    : 'border-white/40'
+                }`}
               />
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] uppercase tracking-[0.35em] text-emerald-200/80">
-                  Your turn
-                </span>
-                <span className="text-base font-semibold text-white">{player.name}</span>
-              </div>
+              <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                {player.name}
+              </span>
             </div>
-            <div className="flex items-center gap-3 text-lg font-semibold">
+            <div className="flex h-full items-center gap-2 text-base font-semibold">
               <span className="text-amber-300">{hud.A}</span>
-              <span className="text-white/60">-</span>
+              <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-white/80">
-              <span className="text-2xl leading-none">{aiFlag}</span>
-              <span>AI</span>
+            <div
+              className={`flex h-full items-center gap-2 rounded-full px-3 text-sm transition-all ${
+                isOpponentTurn
+                  ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
+                  : 'text-white/80'
+              }`}
+            >
+              <span className="text-xl leading-none">{aiFlag}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                AI
+              </span>
             </div>
           </div>
         </div>
