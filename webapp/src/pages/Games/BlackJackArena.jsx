@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -22,7 +21,7 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.85 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.24 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.36 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -47,7 +46,7 @@ const DEALER_INDEX = 4;
 const PLAYER_COUNT = 5; // 4 seats + dealer
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(32);
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
@@ -416,15 +415,41 @@ function BlackJackArena({ search }) {
     );
     camera.position.set(0, TABLE_HEIGHT * 3.4, TABLE_RADIUS * 3.1);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.minDistance = CAMERA_SETTINGS.minRadius;
-    controls.maxDistance = CAMERA_SETTINGS.maxRadius;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    const controlState = {
+      yaw: 0,
+      pitch: (ARENA_CAMERA_DEFAULTS.phiMin + ARENA_CAMERA_DEFAULTS.phiMax) / 2,
+      radius: 1,
+      minYaw: 0,
+      maxYaw: 0,
+      minPitch: ARENA_CAMERA_DEFAULTS.phiMin,
+      maxPitch: ARENA_CAMERA_DEFAULTS.phiMax,
+      pointerId: null,
+      pointerDown: false,
+      dragging: false,
+      startX: 0,
+      startY: 0,
+      startYaw: 0,
+      startPitch: 0,
+      lookTarget: new THREE.Vector3()
+    };
+
+    const updateCameraLook = () => {
+      const spherical = new THREE.Spherical(controlState.radius, controlState.pitch, controlState.yaw);
+      const direction = new THREE.Vector3().setFromSpherical(spherical);
+      controlState.lookTarget.copy(camera.position).add(direction);
+      camera.lookAt(controlState.lookTarget);
+    };
+
+    const configureHeadTurn = (target) => {
+      const offset = target.clone().sub(camera.position);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      controlState.radius = Math.max(0.001, offset.length());
+      controlState.yaw = spherical.theta;
+      controlState.pitch = THREE.MathUtils.clamp(spherical.phi, controlState.minPitch, controlState.maxPitch);
+      controlState.minYaw = controlState.yaw - CAMERA_HEAD_TURN_LIMIT;
+      controlState.maxYaw = controlState.yaw + CAMERA_HEAD_TURN_LIMIT;
+      updateCameraLook();
+    };
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.55);
     scene.add(ambient);
@@ -485,18 +510,79 @@ function BlackJackArena({ search }) {
         .addScaledVector(humanSeat.right, lateralOffset);
       position.y = humanSeat.stoolHeight + elevation;
       camera.position.copy(position);
-      controls.target.copy(cameraTarget);
-      const offset = position.clone().sub(cameraTarget);
-      const radius = offset.length();
-      controls.minDistance = radius;
-      controls.maxDistance = radius;
-      const azimuth = Math.atan2(offset.x, offset.z);
-      controls.minAzimuthAngle = azimuth - CAMERA_HEAD_TURN_LIMIT;
-      controls.maxAzimuthAngle = azimuth + CAMERA_HEAD_TURN_LIMIT;
-      controls.update();
+      configureHeadTurn(cameraTarget);
     };
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
+
+    const domElement = renderer.domElement;
+    domElement.style.touchAction = 'none';
+
+    const pointerYawSpeed = 0.0045;
+    const pointerPitchSpeed = 0.0035;
+
+    const applyPointerDelta = (deltaX, deltaY) => {
+      const nextYaw = controlState.startYaw - deltaX * pointerYawSpeed;
+      const nextPitch = controlState.startPitch - deltaY * pointerPitchSpeed;
+      controlState.yaw = THREE.MathUtils.clamp(nextYaw, controlState.minYaw, controlState.maxYaw);
+      controlState.pitch = THREE.MathUtils.clamp(nextPitch, controlState.minPitch, controlState.maxPitch);
+      updateCameraLook();
+    };
+
+    const handlePointerDown = (event) => {
+      if (controlState.pointerDown) return;
+      controlState.pointerDown = true;
+      controlState.pointerId = event.pointerId;
+      controlState.dragging = false;
+      controlState.startX = event.clientX;
+      controlState.startY = event.clientY;
+      controlState.startYaw = controlState.yaw;
+      controlState.startPitch = controlState.pitch;
+      domElement.setPointerCapture(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+      if (!controlState.pointerDown || controlState.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - controlState.startX;
+      const deltaY = event.clientY - controlState.startY;
+      if (!controlState.dragging) {
+        if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+          controlState.dragging = true;
+        }
+      }
+      if (!controlState.dragging) return;
+      applyPointerDelta(deltaX, deltaY);
+    };
+
+    const clearPointerState = () => {
+      controlState.pointerDown = false;
+      controlState.pointerId = null;
+      controlState.dragging = false;
+    };
+
+    const handlePointerUp = (event) => {
+      if (controlState.pointerId !== event.pointerId) return;
+      domElement.releasePointerCapture(event.pointerId);
+      clearPointerState();
+    };
+
+    const handlePointerCancel = (event) => {
+      if (controlState.pointerId !== event.pointerId) return;
+      domElement.releasePointerCapture(event.pointerId);
+      clearPointerState();
+    };
+
+    const handlePointerLeave = (event) => {
+      if (controlState.pointerId !== event.pointerId) return;
+      domElement.releasePointerCapture(event.pointerId);
+      clearPointerState();
+    };
+
+    domElement.addEventListener('pointerdown', handlePointerDown);
+    domElement.addEventListener('pointermove', handlePointerMove);
+    domElement.addEventListener('pointerup', handlePointerUp);
+    domElement.addEventListener('pointercancel', handlePointerCancel);
+    domElement.addEventListener('pointerleave', handlePointerLeave);
 
     const seatMaterials = {
       human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
@@ -595,7 +681,7 @@ function BlackJackArena({ search }) {
       renderer,
       scene,
       camera,
-      controls,
+      controlState,
       arena,
       tableInfo,
       cardGeometry,
@@ -619,7 +705,6 @@ function BlackJackArena({ search }) {
     const animate = () => {
       const three = threeRef.current;
       if (!three) return;
-      three.controls.update();
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -627,6 +712,12 @@ function BlackJackArena({ search }) {
 
     return () => {
       window.removeEventListener('resize', onResize);
+      clearPointerState();
+      domElement.removeEventListener('pointerdown', handlePointerDown);
+      domElement.removeEventListener('pointermove', handlePointerMove);
+      domElement.removeEventListener('pointerup', handlePointerUp);
+      domElement.removeEventListener('pointercancel', handlePointerCancel);
+      domElement.removeEventListener('pointerleave', handlePointerLeave);
       cancelAnimationFrame(animationRef.current);
       if (threeRef.current) {
         const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, potStack: pot, tableInfo: info } = threeRef.current;
@@ -653,7 +744,9 @@ function BlackJackArena({ search }) {
         info?.dispose?.();
         r.dispose();
       }
-      mount.removeChild(renderer.domElement);
+      if (mount.contains(domElement)) {
+        mount.removeChild(domElement);
+      }
       threeRef.current = null;
     };
   }, []);
