@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applySRGBColorSpace } from './colorSpace.js';
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
@@ -96,7 +97,7 @@ function ensureCarpetTextures() {
   map.minFilter = THREE.LinearMipMapLinearFilter;
   map.magFilter = THREE.LinearFilter;
   map.generateMipmaps = true;
-  if ('colorSpace' in map) map.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(map);
 
   const bumpCanvas = document.createElement('canvas');
   bumpCanvas.width = bumpCanvas.height = size;

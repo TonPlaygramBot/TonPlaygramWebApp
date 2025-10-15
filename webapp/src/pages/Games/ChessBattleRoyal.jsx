@@ -5,6 +5,7 @@ import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
+import { applyRendererSRGB } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
@@ -523,7 +524,7 @@ function Chess3D({ avatar, username }) {
       alpha: false,
       powerPreference: 'high-performance'
     });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     // Ensure the canvas covers the entire host element so the board is centered

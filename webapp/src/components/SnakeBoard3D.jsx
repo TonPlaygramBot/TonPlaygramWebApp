@@ -5,6 +5,7 @@ import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../utils/arenaDecor.js';
+import { applyRendererSRGB } from '../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../utils/arenaCameraConfig.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -996,7 +997,7 @@ export default function SnakeBoard3D({
     if (!mount) return;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.domElement.style.width = '100%';

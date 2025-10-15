@@ -36,6 +36,7 @@ import {
   disposeMaterialWithWood,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -1330,8 +1331,7 @@ const createClothTextures = (() => {
     colorMap.generateMipmaps = true;
     colorMap.minFilter = THREE.LinearMipmapLinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
-    if ('colorSpace' in colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
-    else colorMap.encoding = THREE.sRGBEncoding;
+    applySRGBColorSpace(colorMap);
     colorMap.needsUpdate = true;
 
     const bumpCanvas = document.createElement('canvas');
@@ -1754,8 +1754,7 @@ const createCarpetTextures = (() => {
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
-    if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-    else texture.encoding = THREE.sRGBEncoding;
+    applySRGBColorSpace(texture);
 
     // bump map: derive from red base with extra fiber noise
     const bumpCanvas = document.createElement('canvas');
@@ -2974,8 +2973,7 @@ function makeClothTexture(
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 48;
-  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-  else texture.encoding = THREE.sRGBEncoding;
+  applySRGBColorSpace(texture);
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -3066,8 +3064,7 @@ function makeWoodTexture({
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
   texture.anisotropy = 8;
-  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-  else texture.encoding = THREE.sRGBEncoding;
+  applySRGBColorSpace(texture);
   texture.needsUpdate = true;
   return texture;
 }
@@ -5839,7 +5836,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         powerPreference: 'high-performance'
       });
       renderer.useLegacyLights = false;
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
@@ -5942,8 +5939,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 4;
-        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-        else texture.encoding = THREE.sRGBEncoding;
+        applySRGBColorSpace(texture);
         let offset = 0;
         return {
           texture,
@@ -5981,8 +5977,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = 8;
-        if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-        else texture.encoding = THREE.sRGBEncoding;
+        applySRGBColorSpace(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
           image: null,
