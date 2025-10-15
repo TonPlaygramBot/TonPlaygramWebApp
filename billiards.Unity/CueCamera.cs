@@ -37,6 +37,9 @@ public class CueCamera : MonoBehaviour
     public float cueRaisedHeight = 0.92f;
     // Minimum height maintained when the player drops the camera toward the cue.
     public float cueLoweredHeight = 0.3f;
+    // Extra forward push applied as the player lowers the camera so the framing
+    // stays tight on the cue ball and shaft instead of drifting backward.
+    public float cueLoweredForwardPush = 0.08f;
     // Keep a small safety buffer from the butt of the cue so the camera never
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
@@ -60,6 +63,12 @@ public class CueCamera : MonoBehaviour
     public float cueBallLookOffset = 0.02f;
     // How quickly the aiming axis aligns to the current cue direction.
     public float cueAxisSmoothSpeed = 6f;
+    // Field of view used when the camera is fully raised above the cue.
+    public float cueRaisedFieldOfView = 60f;
+    // Field of view target when the camera is fully lowered toward the cue.
+    public float cueLoweredFieldOfView = 52f;
+    // Speed applied when easing the cue zoom toward the desired field of view.
+    public float cueAimZoomSmoothSpeed = 8f;
     // Default blend used when the camera is first enabled. 0 keeps the camera
     // high above the cue, 1 drops it to the closest permitted view.
     [Range(0f, 1f)]
@@ -318,31 +327,15 @@ public class CueCamera : MonoBehaviour
         float distanceScale = Mathf.Lerp(raisedScale, loweredScale, blend);
         distance = Mathf.Max(distance * distanceScale, minimumDistanceLimit);
 
+        float forwardPush = Mathf.Lerp(0f, Mathf.Max(0f, cueLoweredForwardPush), blend);
+        distance = Mathf.Max(distance - forwardPush, minimumDistanceLimit);
+
+        cueSamplePoint = ComputeCueSamplePoint(distance, cueAimForward, cueSamplePoint);
+
         if (CueBall != null)
         {
-            if (CueButtReference != null)
-            {
-                Vector3 buttToBall = CueBall.position - CueButtReference.position;
-                float projectedLength = Mathf.Abs(Vector3.Dot(buttToBall, cueAimForward));
-                if (projectedLength > 0.0001f)
-                {
-                    float along = Mathf.Clamp01(distance / projectedLength);
-                    Vector3 desiredCuePoint = Vector3.Lerp(CueBall.position, CueButtReference.position, along);
-                    cueSamplePoint = desiredCuePoint;
-                }
-                else
-                {
-                    Vector3 adjustedCuePoint = CueBall.position - cueAimForward * Mathf.Max(distance, 0f);
-                    adjustedCuePoint.y = CueBall.position.y;
-                    cueSamplePoint = adjustedCuePoint;
-                }
-            }
-            else
-            {
-                Vector3 adjustedCuePoint = CueBall.position - cueAimForward * Mathf.Max(distance, 0f);
-                adjustedCuePoint.y = CueBall.position.y;
-                cueSamplePoint = adjustedCuePoint;
-            }
+            float aimLineHeight = CueBall.position.y + cueBallRadius;
+            cueSamplePoint.y = Mathf.Max(cueSamplePoint.y, aimLineHeight);
         }
 
         float minimumCueHeight = CueBall.position.y + cueBallRadius + Mathf.Max(0f, cueHeightClearance);
@@ -356,11 +349,13 @@ public class CueCamera : MonoBehaviour
         height = clothAnchorHeight + (height - clothAnchorHeight) * heightScale;
         float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
         height = Mathf.Max(height, minRailHeight);
+        height = Mathf.Max(height, CueBall.position.y + cueBallRadius);
 
         Vector3 focus = CueBall.position;
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = GetCueAimLookTarget(focus, cueAimForward);
 
+        ApplyCueAimZoom(blend, deltaTime);
         ApplyCameraAt(focus, cueAimForward, distance, height, minimumHeightOffset, lookTarget);
 
         Vector3 flatForward = new Vector3(cueAimForward.x, 0f, cueAimForward.z);
@@ -480,6 +475,68 @@ public class CueCamera : MonoBehaviour
         cueSamplePoint = cuePoint;
 
         return Mathf.Max(distance, 0f);
+    }
+
+    private Vector3 ComputeCueSamplePoint(float distance, Vector3 forward, Vector3 fallback)
+    {
+        if (CueBall == null)
+        {
+            return fallback;
+        }
+
+        Vector3 sample = fallback;
+        Vector3 cuePosition = CueBall.position;
+
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = Vector3.forward;
+        }
+        forward = forward.normalized;
+
+        if (CueButtReference != null)
+        {
+            Vector3 buttToBall = cuePosition - CueButtReference.position;
+            float projectedLength = Mathf.Abs(Vector3.Dot(buttToBall, forward));
+            if (projectedLength > 0.0001f)
+            {
+                float along = Mathf.Clamp01(distance / projectedLength);
+                sample = Vector3.Lerp(cuePosition, CueButtReference.position, along);
+                sample.y = cuePosition.y;
+                return sample;
+            }
+        }
+
+        sample = cuePosition - forward * Mathf.Max(distance, 0f);
+        sample.y = cuePosition.y;
+        return sample;
+    }
+
+    private void ApplyCueAimZoom(float loweringBlend, float deltaTime)
+    {
+        if (cachedCamera == null)
+        {
+            cachedCamera = GetComponent<Camera>();
+        }
+
+        Camera cam = cachedCamera != null ? cachedCamera : Camera.main;
+        if (cam == null)
+        {
+            return;
+        }
+
+        float raisedFov = Mathf.Clamp(cueRaisedFieldOfView, 10f, 120f);
+        float loweredFov = Mathf.Clamp(cueLoweredFieldOfView, 10f, 120f);
+        float targetFov = Mathf.Lerp(raisedFov, loweredFov, Mathf.Clamp01(loweringBlend));
+
+        float smoothSpeed = Mathf.Max(0f, cueAimZoomSmoothSpeed);
+        if (deltaTime <= 0f || smoothSpeed <= 0f)
+        {
+            cam.fieldOfView = targetFov;
+            return;
+        }
+
+        float t = 1f - Mathf.Exp(-smoothSpeed * deltaTime);
+        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFov, t);
     }
 
     private void UpdateBroadcastCamera()
