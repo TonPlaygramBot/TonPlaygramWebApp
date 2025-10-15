@@ -524,6 +524,10 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to catch shadows before they reach the carpet
+const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // leave a thin air gap between the cloth and plywood
+const CLOTH_UNDERLAY_EDGE_INSET = TABLE.THICK * 0.015; // tuck the underlay slightly inside so it never peeks past the cushions
+const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // open pocket holes wider on the underlay to avoid clipping pocket interiors
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -2377,9 +2381,9 @@ const CUE_VIEW_RADIUS_RATIO = 0.085;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.35;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+  STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.08;
+const CUE_VIEW_PHI_LIFT = 0.06;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3537,20 +3541,27 @@ function Table3D(
   const clothExtend =
     clothExtendBase +
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
-  const clothShape = new THREE.Shape();
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
-  clothShape.moveTo(-halfWext, -halfHext);
-  clothShape.lineTo(halfWext, -halfHext);
-  clothShape.lineTo(halfWext, halfHext);
-  clothShape.lineTo(-halfWext, halfHext);
-  clothShape.lineTo(-halfWext, -halfHext);
-  const clothHoleRadius = POCKET_HOLE_R;
-  pocketCenters().forEach((p) => {
-    const hole = new THREE.Path();
-    hole.absellipse(p.x, p.y, clothHoleRadius, clothHoleRadius, 0, Math.PI * 2);
-    clothShape.holes.push(hole);
-  });
+  const pocketPositions = pocketCenters();
+  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
+    const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
+    const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
+    const shape = new THREE.Shape();
+    shape.moveTo(-insetHalfW, -insetHalfH);
+    shape.lineTo(insetHalfW, -insetHalfH);
+    shape.lineTo(insetHalfW, insetHalfH);
+    shape.lineTo(-insetHalfW, insetHalfH);
+    shape.lineTo(-insetHalfW, -insetHalfH);
+    pocketPositions.forEach((p) => {
+      const hole = new THREE.Path();
+      hole.absellipse(p.x, p.y, holeRadius, holeRadius, 0, Math.PI * 2);
+      shape.holes.push(hole);
+    });
+    return shape;
+  };
+
+  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
     bevelEnabled: false,
@@ -3564,6 +3575,32 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+
+  const underlayShape = buildSurfaceShape(
+    POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE,
+    CLOTH_UNDERLAY_EDGE_INSET
+  );
+  const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
+    depth: CLOTH_UNDERLAY_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 48,
+    steps: 1
+  });
+  underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
+  const underlayMat = new THREE.MeshStandardMaterial({
+    color: 0x8b6f4a,
+    roughness: 0.68,
+    metalness: 0.05,
+    side: THREE.DoubleSide
+  });
+  const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
+  clothUnderlay.rotation.x = -Math.PI / 2;
+  clothUnderlay.position.y =
+    cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
+  clothUnderlay.castShadow = false;
+  clothUnderlay.receiveShadow = true;
+  clothUnderlay.renderOrder = cloth.renderOrder - 1;
+  table.add(clothUnderlay);
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
@@ -6527,7 +6564,7 @@ function SnookerGame() {
 
         const chair = createChair();
         chair.scale.setScalar(scaledFurniture);
-        const chairClearanceMultiplier = 1.08;
+        const chairClearanceMultiplier = 1.1;
         const chairPlacement = chairVector
           .clone()
           .multiplyScalar(chairClearanceMultiplier);
@@ -8108,18 +8145,18 @@ function SnookerGame() {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.85);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.8925);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 0.98;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.48);
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.504);
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.12);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
         dirLight.position.set(
           -triangleRadius * LIGHT_LATERAL_SCALE,
           triangleHeight,
@@ -8131,7 +8168,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          18,
+          18.9,
           0,
           Math.PI * 0.36,
           0.42,
@@ -8151,7 +8188,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.025);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.02625);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
