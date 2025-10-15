@@ -221,7 +221,6 @@ const CARD_THEMES = [
 const DEFAULT_APPEARANCE = { outfit: 0, tableWood: 0, tableCloth: 0, tableBase: 0, cards: 0, stools: 0 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'outfit', label: 'Rroba', options: OUTFIT_THEMES },
   { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
@@ -1757,7 +1756,7 @@ export default function MurlanRoyaleArena({ search }) {
                 </button>
               </div>
               <p className="mt-1 text-[0.65rem] text-gray-400">
-                Zgjidh kombinimet e preferuara të rrobave, drurit, rrobës së fushës, bazës dhe letrave për përvojën tënde.
+                Zgjidh kombinimet e preferuara të drurit, rrobës së fushës, bazës dhe letrave për përvojën tënde.
               </p>
               {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                 <div key={key} className="mt-4 space-y-2">
@@ -2426,32 +2425,27 @@ function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
-  const highlight = adjustHexColor(topHex, 0.2);
-  const shadow = adjustHexColor(bottomHex ?? topHex, -0.18);
+  const highlight = adjustHexColor(topHex, 0.12);
+  const shadow = adjustHexColor(bottomHex ?? topHex, -0.12);
 
-  for (let y = 0; y < size; y += 4) {
-    for (let x = 0; x < size; x += 4) {
-      ctx.globalAlpha = 0.08 + Math.random() * 0.12;
+  for (let y = 0; y < size; y += 2) {
+    for (let x = 0; x < size; x += 2) {
+      ctx.globalAlpha = 0.04 + Math.random() * 0.04;
       ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
-      ctx.fillRect(x, y, 2, 2);
+      ctx.fillRect(x, y, 1, 1);
     }
   }
 
-  ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = adjustHexColor(topHex, -0.25);
-  ctx.lineWidth = 1;
-  for (let i = 0; i < size / 4; i++) {
-    const y = (i * 4 + Math.random() * 2) % size;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(size, y + Math.random() * 2 - 1);
-    ctx.stroke();
-  }
+  const centerGradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.6);
+  centerGradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+  centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.globalAlpha = 1;
+  ctx.fillStyle = centerGradient;
+  ctx.fillRect(0, 0, size, size);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 4);
+  texture.repeat.set(12, 12);
   texture.anisotropy = anisotropy;
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
