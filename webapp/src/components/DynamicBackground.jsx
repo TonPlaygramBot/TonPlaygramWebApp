@@ -1,9 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getWeather } from '../services/WeatherService.js';
+import {
+  isLocalStorageAvailable,
+  safeGetItem,
+  safeRemoveItem,
+  safeSetItem
+} from '../utils/storage.js';
 
 export default function DynamicBackground() {
   const [info, setInfo] = useState({ condition: 'clear', isDay: true });
-  const [enabled, setEnabled] = useState(() => localStorage.getItem('weatherBgDisabled') !== '1');
+  const canPersistPreference = useMemo(() => isLocalStorageAvailable(), []);
+  const [enabled, setEnabled] = useState(() => safeGetItem('weatherBgDisabled') !== '1');
 
   useEffect(() => {
     if (!enabled) return;
@@ -23,8 +30,9 @@ export default function DynamicBackground() {
   const toggle = () => {
     const nv = !enabled;
     setEnabled(nv);
-    if (nv) localStorage.removeItem('weatherBgDisabled');
-    else localStorage.setItem('weatherBgDisabled', '1');
+    if (!canPersistPreference) return;
+    if (nv) safeRemoveItem('weatherBgDisabled');
+    else safeSetItem('weatherBgDisabled', '1');
   };
 
   if (!enabled) {

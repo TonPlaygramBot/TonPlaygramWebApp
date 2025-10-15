@@ -1,5 +1,9 @@
+import { safeGetItem, safeSetItem } from '../utils/storage.js';
+
 const CACHE_KEY = 'weather_cache_v1';
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+
+let memoryCache = null;
 
 function mapCode(code) {
   // open-meteo weather codes -> condition
@@ -51,14 +55,17 @@ async function fetchWeather(lat, lon) {
 }
 
 export async function getWeather() {
-  const cachedRaw = localStorage.getItem(CACHE_KEY);
+  const cachedRaw = safeGetItem(CACHE_KEY);
   if (cachedRaw) {
     try {
       const cached = JSON.parse(cachedRaw);
       if (Date.now() - cached.timestamp < CACHE_DURATION) {
+        memoryCache = cached;
         return cached;
       }
     } catch {}
+  } else if (memoryCache && Date.now() - memoryCache.timestamp < CACHE_DURATION) {
+    return memoryCache;
   }
   try {
     const loc = await fetchLocation();
@@ -70,9 +77,13 @@ export async function getWeather() {
       condition,
       timestamp: Date.now(),
     };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(result));
+    memoryCache = result;
+    safeSetItem(CACHE_KEY, JSON.stringify(result));
     return result;
   } catch {
+    if (memoryCache) {
+      return memoryCache;
+    }
     return { condition: 'clear', isDay: true };
   }
 }
