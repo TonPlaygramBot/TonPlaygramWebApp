@@ -681,6 +681,8 @@ const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads mu
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
+const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.05; // keep orbit height just above the cue stick
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
@@ -5175,7 +5177,7 @@ function SnookerGame() {
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
-    target: new THREE.Vector3(0, TABLE_Y + 0.05, 0),
+    target: new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0),
     ballId: null
   });
   const orbitRadiusLimitRef = useRef(null);
@@ -5201,7 +5203,7 @@ function SnookerGame() {
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
-  const lastCameraTargetRef = useRef(new THREE.Vector3(0, TABLE_Y + 0.05, 0));
+  const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -5599,7 +5601,7 @@ function SnookerGame() {
       sph.theta = start.theta + (target.theta - start.theta) * ease;
       const targetPos = new THREE.Vector3(
         playerOffsetRef.current,
-        TABLE_Y + 0.05,
+        ORBIT_FOCUS_BASE_Y,
         0
       ).multiplyScalar(worldScaleFactor);
       const tmpSphAnim = sph.clone
@@ -6667,7 +6669,7 @@ function SnookerGame() {
         };
 
         const getDefaultOrbitTarget = () =>
-          new THREE.Vector3(playerOffsetRef.current, TABLE_Y + 0.05, 0);
+          new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0);
 
         activeRenderCameraRef.current = camera;
 
@@ -6752,9 +6754,16 @@ function SnookerGame() {
             }
           }
           const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
+          const orbitTargetY =
+            orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
+          const cueClearance = Math.max(
+            0,
+            CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
+          );
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
-            cushionHeight + CAMERA_CUSHION_CLEARANCE
+            cushionHeight + CAMERA_CUSHION_CLEARANCE,
+            cueClearance
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -7534,9 +7543,16 @@ function SnookerGame() {
             CAMERA.maxPhi
           );
           const theta = orbit.theta ?? sph.theta;
+          const orbitTargetY =
+            orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
+          const cueClearance = Math.max(
+            0,
+            CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
+          );
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
+            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE,
+            cueClearance
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
@@ -7847,9 +7863,16 @@ function SnookerGame() {
           };
           applyCameraBlend();
           orbitRadiusLimitRef.current = standingRadius;
+          const orbitTargetY =
+            orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
+          const cueClearance = Math.max(
+            0,
+            CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
+          );
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE
+            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE,
+            cueClearance
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
