@@ -543,7 +543,8 @@ function Ludo3D({ avatar, username }) {
     const chairA = makeChair();
     const seatHalfDepth = 0.25 * CHAIR_SCALE;
     const chairDistance = TABLE_TOP_SIZE / 2 + seatHalfDepth + CHAIR_CLEARANCE;
-    chairA.position.set(0, 0, -chairDistance);
+    const userChairOffset = 0.18;
+    chairA.position.set(0, 0, -(chairDistance + userChairOffset));
     arena.add(chairA);
     const chairB = makeChair();
     chairB.position.set(0, 0, chairDistance);
@@ -1160,13 +1161,13 @@ function buildLudoBoard(boardGroup) {
   dice.position.set(0, DICE_BASE_HEIGHT, 0);
   scene.add(dice);
 
-  const diceAccent = new THREE.SpotLight(0xffffff, 1.6, 3.2, Math.PI / 5, 0.45, 1.25);
-  diceAccent.position.set(0.6, 1.35, 0.7);
+  const diceAccent = new THREE.SpotLight(0xffffff, 2.1, 3.4, Math.PI / 5, 0.42, 1.25);
+  diceAccent.position.set(0.45, 1.55, 1.05);
   diceAccent.target = dice;
   scene.add(diceAccent);
 
-  const diceFill = new THREE.PointLight(0xfff3d1, 0.65, 2.2, 2.0);
-  diceFill.position.set(-0.7, 1.1, -0.5);
+  const diceFill = new THREE.PointLight(0xfff8e1, 1.05, 2.6, 2.2);
+  diceFill.position.set(-0.65, 1.25, -0.75);
   scene.add(diceFill);
 
   const indicatorMat = new THREE.MeshStandardMaterial({
