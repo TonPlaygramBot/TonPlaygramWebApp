@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -74,132 +75,104 @@ const PLAYER_START_INDEX = [0, 13, 26, 39];
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
 const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
 
-function makeRoundedBoxGeometry(w, h, d, r, seg = 4) {
-  const geo = new THREE.BoxGeometry(w, h, d, seg, seg, seg);
-  const pos = geo.attributes.position;
-  const v = new THREE.Vector3();
-  const hw = w / 2;
-  const hh = h / 2;
-  const hd = d / 2;
-  const irx = hw - r;
-  const iry = hh - r;
-  const irz = hd - r;
-  for (let i = 0; i < pos.count; i++) {
-    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
-    const cx = THREE.MathUtils.clamp(v.x, -irx, irx);
-    const cy = THREE.MathUtils.clamp(v.y, -iry, iry);
-    const cz = THREE.MathUtils.clamp(v.z, -irz, irz);
-    const delta = new THREE.Vector3(v.x - cx, v.y - cy, v.z - cz);
-    const l = delta.length();
-    if (l > 0) {
-      delta.normalize().multiplyScalar(r);
-      v.set(cx + delta.x, cy + delta.y, cz + delta.z);
-      pos.setXYZ(i, v.x, v.y, v.z);
-    }
-  }
-  pos.needsUpdate = true;
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function makeDice(matWhite, matPip) {
+function makeDice() {
   const dice = new THREE.Group();
-  const box = new THREE.Mesh(
-    makeRoundedBoxGeometry(0.07, 0.07, 0.07, 0.012, 4),
-    matWhite
+
+  const dieMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    metalness: 1,
+    roughness: 0.05,
+    clearcoat: 1,
+    clearcoatRoughness: 0.1,
+    reflectivity: 1,
+    envMapIntensity: 2
+  });
+
+  const pipMaterial = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    metalness: 0.5,
+    roughness: 0.8,
+    envMapIntensity: 0.4
+  });
+
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(0.07, 0.07, 0.07, 6, 0.012),
+    dieMaterial
   );
-  dice.add(box);
+  body.castShadow = true;
+  dice.add(body);
 
-  const pipRadius = 0.0062;
-  const pipDepth = 0.0065;
+  const pipRadius = 0.0065;
+  const pipDepth = 0.0055;
+  const pipGeo = new THREE.CylinderGeometry(pipRadius, pipRadius, pipDepth, 24, 1);
   const halfSize = 0.07 / 2;
-  const faceInset = 0.0045;
-  const faceOffset = halfSize - faceInset;
-  const pipSpread = 0.0165;
-
+  const inset = halfSize - 0.0045;
+  const spread = 0.0165;
   const faces = [
+    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
       normal: new THREE.Vector3(0, 0, 1),
-      u: new THREE.Vector3(1, 0, 0),
-      v: new THREE.Vector3(0, 1, 0),
-      coords: [[0, 0]]
-    },
-    {
-      normal: new THREE.Vector3(0, 0, -1),
-      u: new THREE.Vector3(-1, 0, 0),
-      v: new THREE.Vector3(0, 1, 0),
-      coords: [
-        [-pipSpread, -pipSpread],
-        [pipSpread, -pipSpread],
-        [-pipSpread, 0],
-        [pipSpread, 0],
-        [-pipSpread, pipSpread],
-        [pipSpread, pipSpread]
+      points: [
+        [-spread, -spread],
+        [spread, spread]
       ]
     },
     {
       normal: new THREE.Vector3(1, 0, 0),
-      u: new THREE.Vector3(0, 0, -1),
-      v: new THREE.Vector3(0, 1, 0),
-      coords: [
-        [-pipSpread, pipSpread],
+      points: [
+        [-spread, -spread],
         [0, 0],
-        [pipSpread, -pipSpread]
+        [spread, spread]
       ]
     },
     {
       normal: new THREE.Vector3(-1, 0, 0),
-      u: new THREE.Vector3(0, 0, 1),
-      v: new THREE.Vector3(0, 1, 0),
-      coords: [
-        [-pipSpread, pipSpread],
-        [-pipSpread, -pipSpread],
-        [pipSpread, pipSpread],
-        [pipSpread, -pipSpread]
+      points: [
+        [-spread, -spread],
+        [-spread, spread],
+        [spread, -spread],
+        [spread, spread]
       ]
     },
     {
-      normal: new THREE.Vector3(0, 1, 0),
-      u: new THREE.Vector3(1, 0, 0),
-      v: new THREE.Vector3(0, 0, -1),
-      coords: [
-        [-pipSpread, pipSpread],
-        [-pipSpread, -pipSpread],
+      normal: new THREE.Vector3(0, 0, -1),
+      points: [
+        [-spread, -spread],
+        [-spread, spread],
         [0, 0],
-        [pipSpread, pipSpread],
-        [pipSpread, -pipSpread]
+        [spread, -spread],
+        [spread, spread]
       ]
     },
     {
       normal: new THREE.Vector3(0, -1, 0),
-      u: new THREE.Vector3(1, 0, 0),
-      v: new THREE.Vector3(0, 0, 1),
-      coords: [
-        [-pipSpread, -pipSpread],
-        [pipSpread, pipSpread]
+      points: [
+        [-spread, -spread],
+        [-spread, 0],
+        [-spread, spread],
+        [spread, -spread],
+        [spread, 0],
+        [spread, spread]
       ]
     }
   ];
 
-  const baseSphere = new THREE.SphereGeometry(pipRadius, 24, 18);
-  const up = new THREE.Vector3(0, 0, 1);
-
-  faces.forEach(({ normal, u, v, coords }) => {
+  const referenceUp = new THREE.Vector3(0, 1, 0);
+  faces.forEach(({ normal, points }) => {
     const n = normal.clone().normalize();
-    const planeConstant = -(faceOffset - pipDepth);
-    coords.forEach(([cx, cy]) => {
-      const pos = n
-        .clone()
-        .multiplyScalar(faceOffset)
-        .add(u.clone().multiplyScalar(cx))
-        .add(v.clone().multiplyScalar(cy));
-      const pipMaterial = matPip.clone();
-      pipMaterial.side = THREE.BackSide;
-      pipMaterial.clippingPlanes = [new THREE.Plane(n.clone(), planeConstant)];
-      const pip = new THREE.Mesh(baseSphere, pipMaterial);
-      pip.position.copy(pos.clone().addScaledVector(n, -pipDepth));
-      const quat = new THREE.Quaternion().setFromUnitVectors(up, n);
-      pip.quaternion.copy(quat);
+    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
+    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
+    const pipOrientation = new THREE.Quaternion().setFromUnitVectors(referenceUp, n);
+
+    points.forEach(([gx, gy]) => {
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      const pos = new THREE.Vector3()
+        .addScaledVector(xAxis, gx)
+        .addScaledVector(yAxis, gy)
+        .addScaledVector(n, inset - pipDepth / 2);
+      pip.position.copy(pos);
+      pip.quaternion.copy(pipOrientation);
       dice.add(pip);
     });
   });
@@ -214,11 +187,11 @@ function setDiceOrientation(dice, val) {
   const q = new THREE.Quaternion();
   const eulers = {
     1: new THREE.Euler(0, 0, 0),
-    2: new THREE.Euler(Math.PI / 2, 0, 0),
-    3: new THREE.Euler(0, -Math.PI / 2, 0),
-    4: new THREE.Euler(0, Math.PI / 2, 0),
-    5: new THREE.Euler(0, 0, 0),
-    6: new THREE.Euler(-Math.PI / 2, 0, 0)
+    2: new THREE.Euler(-Math.PI / 2, 0, 0),
+    3: new THREE.Euler(0, 0, -Math.PI / 2),
+    4: new THREE.Euler(0, 0, Math.PI / 2),
+    5: new THREE.Euler(Math.PI / 2, 0, 0),
+    6: new THREE.Euler(Math.PI, 0, 0)
   };
   const e = eulers[val] || eulers[1];
   q.setFromEuler(e);
@@ -1131,10 +1104,7 @@ function buildLudoBoard(boardGroup) {
     });
   });
 
-  const dice = makeDice(
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38 }),
-    new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.95 })
-  );
+  const dice = makeDice();
   dice.position.set(0, 0.082, 0);
   scene.add(dice);
 
