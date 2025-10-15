@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -47,10 +46,15 @@ const DEALER_INDEX = 4;
 const PLAYER_COUNT = 5; // 4 seats + dealer
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(28);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(14);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
+const HEAD_YAW_SENSITIVITY = 0.0042;
+const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
 
@@ -383,6 +387,21 @@ function BlackJackArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
+  const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
+  const cameraBasisRef = useRef({
+    position: new THREE.Vector3(),
+    baseForward: new THREE.Vector3(0, 0, -1),
+    baseUp: new THREE.Vector3(0, 1, 0),
+    baseRight: new THREE.Vector3(1, 0, 0)
+  });
+  const pointerStateRef = useRef({
+    active: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    startYaw: 0,
+    startPitch: 0
+  });
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
@@ -394,6 +413,26 @@ function BlackJackArena({ search }) {
   });
   const [uiState, setUiState] = useState({ actions: [] });
   const timerRef = useRef(null);
+
+  const applyHeadOrientation = useCallback(() => {
+    const three = threeRef.current;
+    if (!three) return;
+    const { camera } = three;
+    const basis = cameraBasisRef.current;
+    const { yaw, pitch } = headAnglesRef.current;
+
+    const yawQuat = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
+    const rotatedForward = basis.baseForward.clone().applyQuaternion(yawQuat);
+    const rotatedUp = basis.baseUp.clone().applyQuaternion(yawQuat);
+    const rightAxis = basis.baseRight.clone().applyQuaternion(yawQuat);
+    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightAxis, pitch);
+    const finalForward = rotatedForward.applyQuaternion(pitchQuat).normalize();
+    const finalUp = rotatedUp.applyQuaternion(pitchQuat).normalize();
+
+    camera.position.copy(basis.position);
+    camera.up.copy(finalUp);
+    camera.lookAt(basis.position.clone().add(finalForward));
+  }, []);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -415,16 +454,8 @@ function BlackJackArena({ search }) {
       CAMERA_SETTINGS.far
     );
     camera.position.set(0, TABLE_HEIGHT * 3.4, TABLE_RADIUS * 3.1);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.minDistance = CAMERA_SETTINGS.minRadius;
-    controls.maxDistance = CAMERA_SETTINGS.maxRadius;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.cursor = 'grab';
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.55);
     scene.add(ambient);
@@ -485,15 +516,28 @@ function BlackJackArena({ search }) {
         .addScaledVector(humanSeat.right, lateralOffset);
       position.y = humanSeat.stoolHeight + elevation;
       camera.position.copy(position);
-      controls.target.copy(cameraTarget);
-      const offset = position.clone().sub(cameraTarget);
-      const radius = offset.length();
-      controls.minDistance = radius;
-      controls.maxDistance = radius;
-      const azimuth = Math.atan2(offset.x, offset.z);
-      controls.minAzimuthAngle = azimuth - CAMERA_HEAD_TURN_LIMIT;
-      controls.maxAzimuthAngle = azimuth + CAMERA_HEAD_TURN_LIMIT;
-      controls.update();
+      camera.lookAt(cameraTarget);
+      camera.updateMatrixWorld();
+      const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+      const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
+      cameraBasisRef.current = {
+        position: position.clone(),
+        baseForward,
+        baseUp,
+        baseRight
+      };
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+        headAnglesRef.current.yaw,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
+      );
+      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+        headAnglesRef.current.pitch,
+        -CAMERA_HEAD_PITCH_UP,
+        CAMERA_HEAD_PITCH_DOWN
+      );
+      applyHeadOrientation();
     };
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
@@ -595,7 +639,6 @@ function BlackJackArena({ search }) {
       renderer,
       scene,
       camera,
-      controls,
       arena,
       tableInfo,
       cardGeometry,
@@ -604,6 +647,59 @@ function BlackJackArena({ search }) {
       seatGroups,
       potStack
     };
+
+    const element = renderer.domElement;
+    const handlePointerDown = (event) => {
+      event.preventDefault();
+      pointerStateRef.current = {
+        active: true,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startYaw: headAnglesRef.current.yaw,
+        startPitch: headAnglesRef.current.pitch
+      };
+      element.setPointerCapture(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+      const state = pointerStateRef.current;
+      if (!state.active || state.pointerId !== event.pointerId) return;
+      const dx = event.clientX - state.startX;
+      const dy = event.clientY - state.startY;
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+        state.startYaw - dx * HEAD_YAW_SENSITIVITY,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
+      );
+      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+        state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
+        -CAMERA_HEAD_PITCH_UP,
+        CAMERA_HEAD_PITCH_DOWN
+      );
+      applyHeadOrientation();
+    };
+
+    const handlePointerUp = (event) => {
+      const state = pointerStateRef.current;
+      if (state.pointerId === event.pointerId) {
+        element.releasePointerCapture(event.pointerId);
+        pointerStateRef.current = {
+          active: false,
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          startYaw: 0,
+          startPitch: 0
+        };
+      }
+    };
+
+    element.addEventListener('pointerdown', handlePointerDown);
+    element.addEventListener('pointermove', handlePointerMove);
+    element.addEventListener('pointerup', handlePointerUp);
+    element.addEventListener('pointercancel', handlePointerUp);
+    element.addEventListener('pointerleave', handlePointerUp);
 
     const onResize = () => {
       if (!threeRef.current) return;
@@ -619,7 +715,7 @@ function BlackJackArena({ search }) {
     const animate = () => {
       const three = threeRef.current;
       if (!three) return;
-      three.controls.update();
+      applyHeadOrientation();
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -628,6 +724,11 @@ function BlackJackArena({ search }) {
     return () => {
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(animationRef.current);
+      element.removeEventListener('pointerdown', handlePointerDown);
+      element.removeEventListener('pointermove', handlePointerMove);
+      element.removeEventListener('pointerup', handlePointerUp);
+      element.removeEventListener('pointercancel', handlePointerUp);
+      element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
         const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, potStack: pot, tableInfo: info } = threeRef.current;
         seats.forEach((seat) => {
