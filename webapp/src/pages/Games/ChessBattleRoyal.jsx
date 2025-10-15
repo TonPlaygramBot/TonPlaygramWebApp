@@ -54,8 +54,8 @@ const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_DISPLAY_SIZE = 3.4;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
-const TABLE_RADIUS = 2.55; // Matches the octagonal table footprint from Murlan Royale
-const TABLE_HEIGHT = 0.81; // Same tabletop elevation as Murlan Royale
+const TABLE_RADIUS = 3.315; // 30% wider footprint to better fill the arena
+const TABLE_HEIGHT = 2.05; // Raised so the surface aligns with the oversized chairs
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height

@@ -24,8 +24,8 @@ import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const TABLE_RADIUS = 2.55;
-const TABLE_HEIGHT = 0.81;
+const TABLE_RADIUS = 3.315; // 30% wider to mirror the Chess Battle Royal arena scale
+const TABLE_HEIGHT = 2.05; // Raised so the surface meets the chair seating height
 
 const WALL_PROXIMITY_FACTOR = 0.5;
 const WALL_HEIGHT_MULTIPLIER = 2;
