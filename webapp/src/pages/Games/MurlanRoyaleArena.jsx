@@ -2445,7 +2445,9 @@ function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(12, 12);
+  const baseRepeat = 12;
+  const scaledRepeat = baseRepeat * 10; // shrink the cloth weave by repeating the texture 10x more densely
+  texture.repeat.set(scaledRepeat, scaledRepeat);
   texture.anisotropy = anisotropy;
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
