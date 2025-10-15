@@ -711,13 +711,13 @@ const UI_SCALE = SIZE_REDUCTION;
 // Updated colors for dark cloth and standard balls
 const BASE_BALL_COLORS = Object.freeze({
   cue: 0xffffff,
-  red: 0xd12c2c,
+  red: 0xc41e3a,
   yellow: 0xffd700,
-  green: 0x0fa35a,
-  brown: 0x8b4513,
-  blue: 0x1e50ff,
-  pink: 0xff69b4,
-  black: 0x000000
+  green: 0x1b5e20,
+  brown: 0x6d4c41,
+  blue: 0x1e88e5,
+  pink: 0xec407a,
+  black: 0x111111
 });
 const CLOTH_TEXTURE_INTENSITY = 0.48;
 const CLOTH_HAIR_INTENSITY = 0.26;
@@ -6624,15 +6624,18 @@ function SnookerGame() {
           CAMERA.minR,
           CAMERA.maxR
         );
-        const sph = new THREE.Spherical(
-          standingRadius,
-          standingPhi,
-          Math.PI
+        const cuePhi = THREE.MathUtils.clamp(
+          initialCuePhi,
+          CAMERA.minPhi,
+          CAMERA.maxPhi
         );
+        const cueRadius = Math.max(initialCueRadius, CUE_VIEW_MIN_RADIUS);
+        const sph = new THREE.Spherical(cueRadius, cuePhi, Math.PI);
         cameraBoundsRef.current = {
-          cueShot: { phi: initialCuePhi, radius: initialCueRadius },
+          cueShot: { phi: cuePhi, radius: cueRadius },
           standing: { phi: standingPhi, radius: standingRadius }
         };
+        cameraBlendRef.current = 0;
 
         const ensurePocketCamera = (id, center) => {
           if (!id) return null;
@@ -6712,94 +6715,31 @@ function SnookerGame() {
         };
 
         const syncBlendToSpherical = () => {
-          const bounds = cameraBoundsRef.current;
-          if (!bounds) return;
-          const { standing, cueShot } = bounds;
-          const phiRange = standing.phi - cueShot.phi;
-          if (Math.abs(phiRange) > 1e-5) {
-            const normalized = (sph.phi - cueShot.phi) / phiRange;
-            cameraBlendRef.current = THREE.MathUtils.clamp(
-              normalized,
-              0,
-              1
-            );
-          } else {
-            cameraBlendRef.current = 0;
-          }
+          cameraBlendRef.current = 0;
         };
 
-        const applyCameraBlend = (nextBlend) => {
+        const applyCameraBlend = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
-          const { standing, cueShot } = bounds;
-          const blend = THREE.MathUtils.clamp(
-            nextBlend ?? cameraBlendRef.current,
-            0,
-            1
+          const cueShot = bounds.cueShot ?? {
+            phi: initialCuePhi,
+            radius: initialCueRadius
+          };
+          cameraBlendRef.current = 0;
+          const cueMinRadius = CUE_VIEW_MIN_RADIUS;
+          const clampedPhi = clamp(
+            cueShot.phi,
+            CAMERA.minPhi,
+            CAMERA.maxPhi
           );
-          cameraBlendRef.current = blend;
-          const cueMinRadius = THREE.MathUtils.lerp(
-            CUE_VIEW_MIN_RADIUS,
-            CAMERA.minR,
-            blend
+          const desiredRadius = Math.max(cueShot.radius ?? cueMinRadius, cueMinRadius);
+          const radius = clamp(
+            desiredRadius,
+            cueMinRadius,
+            CAMERA.maxR
           );
-          const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
-          const baseRadius = THREE.MathUtils.lerp(
-            cueShot.radius,
-            standing.radius,
-            blend
-          );
-          let radius = clampOrbitRadius(baseRadius, cueMinRadius);
-          if (CAMERA_DOWNWARD_PULL > 0) {
-            const pull = CAMERA_DOWNWARD_PULL * (1 - blend);
-            if (pull > 0) {
-              radius = clampOrbitRadius(radius - pull, cueMinRadius);
-            }
-          }
-          const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
-          const minHeightFromTarget = Math.max(
-            TABLE.THICK,
-            cushionHeight + CAMERA_CUSHION_CLEARANCE
-          );
-          const phiRailLimit = Math.acos(
-            THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
-          );
-          const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
-          const clampedPhi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
-          let finalRadius = radius;
-          let minRadiusForRails = null;
-          if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
-            const sinPhi = Math.sin(clampedPhi);
-            if (sinPhi > 1e-4) {
-              minRadiusForRails = clampOrbitRadius(
-                CAMERA_MIN_HORIZONTAL / sinPhi,
-                cueMinRadius
-              );
-              finalRadius = Math.max(finalRadius, minRadiusForRails);
-            }
-          }
-          const phiSpan = standing.phi - cueShot.phi;
-          let phiProgress = 0;
-          if (Math.abs(phiSpan) > 1e-5) {
-            phiProgress = THREE.MathUtils.clamp(
-              (clampedPhi - cueShot.phi) / phiSpan,
-              0,
-              1
-            );
-          }
-          const dynamicPull = CAMERA_DYNAMIC_PULL_RANGE * (1 - phiProgress);
-          if (dynamicPull > 1e-5) {
-            const adjusted = clampOrbitRadius(
-              finalRadius - dynamicPull,
-              cueMinRadius
-            );
-            finalRadius =
-              minRadiusForRails != null
-                ? Math.max(adjusted, minRadiusForRails)
-                : adjusted;
-          }
           sph.phi = clampedPhi;
-          sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
+          sph.radius = radius;
           syncBlendToSpherical();
         };
 
@@ -8036,27 +7976,7 @@ function SnookerGame() {
             drag.y = y;
             autoAimRequestRef.current = false;
             suggestionAimKeyRef.current = null;
-            const blend = THREE.MathUtils.clamp(
-              cameraBlendRef.current ?? 1,
-              0,
-              1
-            );
-            const basePrecisionScale = THREE.MathUtils.lerp(
-              CUE_VIEW_AIM_SLOW_FACTOR,
-              1,
-              blend
-            );
-            const slowScale =
-              chalkAssistEnabledRef.current && chalkAssistTargetRef.current
-                ? CHALK_PRECISION_SLOW_MULTIPLIER
-                : 1;
-            const precisionScale = basePrecisionScale * slowScale;
-            sph.theta -= dx * 0.0035 * precisionScale;
-            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const phiDelta = dy * 0.0025 * precisionScale;
-            const blendDelta =
-              phiRange > 1e-5 ? phiDelta / phiRange : 0;
-            applyCameraBlend(cameraBlendRef.current - blendDelta);
+            applyCameraBlend();
             updateCamera();
             registerInteraction();
           }
@@ -8095,28 +8015,16 @@ function SnookerGame() {
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
         const keyRot = (e) => {
-          if (topViewRef.current) return;
-          const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          const baseStep = e.shiftKey ? 0.08 : 0.035;
-          const slowScale =
-            chalkAssistEnabledRef.current && chalkAssistTargetRef.current
-              ? CHALK_PRECISION_SLOW_MULTIPLIER
-              : 1;
-          const step = baseStep * slowScale;
-          if (e.code === 'ArrowLeft') {
-            sph.theta += step;
-          } else if (e.code === 'ArrowRight') {
-            sph.theta -= step;
-          } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
-            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const dir = e.code === 'ArrowUp' ? -1 : 1;
-            const blendDelta =
-              phiRange > 1e-5 ? (step * dir) / phiRange : 0;
-            applyCameraBlend(cameraBlendRef.current - blendDelta);
-          } else return;
-          registerInteraction();
-          updateCamera();
+          if (
+            e.code === 'ArrowLeft' ||
+            e.code === 'ArrowRight' ||
+            e.code === 'ArrowUp' ||
+            e.code === 'ArrowDown'
+          ) {
+            registerInteraction();
+            applyCameraBlend();
+            updateCamera();
+          }
         };
         window.addEventListener('keydown', keyRot);
 
@@ -8544,7 +8452,7 @@ function SnookerGame() {
             sph.phi = prev.spherical.phi ?? sph.phi;
             sph.theta = prev.spherical.theta ?? sph.theta;
           }
-          applyCameraBlend(prev.blend ?? cameraBlendRef.current);
+          applyCameraBlend();
         }
         updateCamera();
       };
@@ -8615,7 +8523,7 @@ function SnookerGame() {
         state.lateralOffset = 0;
         state.lateralFocusScale = 0.5;
         topViewRef.current = false;
-        applyCameraBlend(cameraBlendRef.current);
+        applyCameraBlend();
         updateCamera();
         setCueGalleryActive(true);
       };
@@ -8968,7 +8876,7 @@ function SnookerGame() {
         )
           return;
         alignStandingCameraToAim(cue, aimDirRef.current);
-        applyCameraBlend(1);
+        applyCameraBlend();
         updateCamera();
         setShootingState(true);
           activeShotView = null;
@@ -9782,7 +9690,7 @@ function SnookerGame() {
             const behindRadius = clampOrbitRadius(
               standingView?.radius ?? BREAK_VIEW.radius
             );
-            applyCameraBlend(1);
+            applyCameraBlend();
             animateCamera({
               radius: behindRadius,
               phi: behindPhi,
