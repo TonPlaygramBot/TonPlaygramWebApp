@@ -6,6 +6,7 @@ import {
   shiftLightness,
   shiftSaturation
 } from './woodMaterials.js';
+import { applySRGBColorSpace } from './colorSpace.js';
 
 export const CUE_RACK_PALETTE = WOOD_FINISH_PRESETS.map((preset) =>
   hslToHexNumber(preset.hue, preset.sat, preset.light)
@@ -140,7 +141,7 @@ export function createCueRackDisplay({
     ctx.globalAlpha = 1;
   }
   const clothTexture = new THREE.CanvasTexture(clothCanvas);
-  clothTexture.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(clothTexture);
   clothTexture.wrapS = THREE.RepeatWrapping;
   clothTexture.wrapT = THREE.RepeatWrapping;
   clothTexture.anisotropy = 8;

@@ -11,6 +11,7 @@ import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import {
   ComboType,
@@ -821,7 +822,7 @@ export default function MurlanRoyaleArena({ search }) {
     if (!mount) return undefined;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.domElement.style.width = '100%';
@@ -946,7 +947,7 @@ export default function MurlanRoyaleArena({ search }) {
     const scoreboardContext = scoreboardCanvas.getContext('2d');
     if (scoreboardContext) {
       const scoreboardTexture = new THREE.CanvasTexture(scoreboardCanvas);
-      scoreboardTexture.colorSpace = THREE.SRGBColorSpace;
+      applySRGBColorSpace(scoreboardTexture);
       scoreboardTexture.anisotropy = 8;
       const scoreboardMaterial = new THREE.MeshBasicMaterial({
         map: scoreboardTexture,
@@ -1000,7 +1001,7 @@ export default function MurlanRoyaleArena({ search }) {
     arena.add(frame);
 
     const velvetTex = makeVelvetTexture(1024, 1024, tableTheme.feltTop, tableTheme.feltBottom);
-    velvetTex.colorSpace = THREE.SRGBColorSpace;
+    applySRGBColorSpace(velvetTex);
     velvetTex.anisotropy = 8;
     const velvetMat = new THREE.MeshStandardMaterial({ map: velvetTex, roughness: 0.7, metalness: 0.15 });
     const surface = new THREE.Mesh(
@@ -1931,7 +1932,7 @@ function makeLabelTexture(name, avatar) {
   const display = avatar && avatar.startsWith('http') ? '' : avatar || '🂠';
   g.fillText(display, 48, 172);
   const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(texture);
   texture.anisotropy = 8;
   if (avatar && avatar.startsWith('http')) {
     const img = new Image();
@@ -2185,7 +2186,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   g.textAlign = 'center';
   g.fillText(suit, w / 2, h / 2 + 56);
   const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(tex);
   tex.anisotropy = 8;
   return tex;
 }
@@ -2215,7 +2216,7 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
     }
   }
   const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(texture);
   texture.anisotropy = 8;
   return texture;
 }
@@ -2236,7 +2237,9 @@ function makeVelvetTexture(w, h, c1, c2) {
     ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.03})`;
     ctx.fillRect(px, py, 1, 1);
   }
-  return new THREE.CanvasTexture(canvas);
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  return texture;
 }
 
 function applyTableThemeMaterials(three, theme) {
@@ -2248,7 +2251,7 @@ function applyTableThemeMaterials(three, theme) {
   if (parts.surfaceMat) {
     parts.velvetTexture?.dispose?.();
     const tex = makeVelvetTexture(1024, 1024, theme.feltTop, theme.feltBottom);
-    tex.colorSpace = THREE.SRGBColorSpace;
+    applySRGBColorSpace(tex);
     tex.anisotropy = 8;
     parts.surfaceMat.map = tex;
     parts.surfaceMat.needsUpdate = true;

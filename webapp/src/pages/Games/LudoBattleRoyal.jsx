@@ -5,6 +5,7 @@ import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
+import { applyRendererSRGB } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
@@ -337,7 +338,7 @@ function Ludo3D({ avatar, username }) {
       powerPreference: 'high-performance'
     });
     renderer.localClippingEnabled = true;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.domElement.style.position = 'absolute';

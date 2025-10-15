@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { createArenaCarpetMaterial, createArenaWallMaterial } from "../utils/arenaDecor.js";
+import { applySRGBColorSpace } from "../utils/colorSpace.js";
 
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
@@ -118,7 +119,7 @@ export default function TableTennis3D({ player, ai }){
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
     const paddleWoodTex = makePaddleWoodTexture();
     paddleWoodTex.anisotropy = 8;
-    paddleWoodTex.colorSpace = THREE.SRGBColorSpace;
+    applySRGBColorSpace(paddleWoodTex);
     const paddleWoodMat = new THREE.MeshPhysicalMaterial({
       map: paddleWoodTex,
       color: 0xffffff,

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applySRGBColorSpace } from './colorSpace.js';
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const normalizeHue = (h) => {
@@ -51,7 +52,7 @@ const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
   ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(texture);
   texture.anisotropy = 16;
   return texture;
 };
