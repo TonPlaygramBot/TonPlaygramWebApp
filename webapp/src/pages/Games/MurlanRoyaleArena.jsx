@@ -14,6 +14,14 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import {
+  DEFAULT_WOOD_GRAIN_ID,
+  WOOD_FINISH_PRESETS,
+  WOOD_GRAIN_OPTIONS,
+  WOOD_GRAIN_OPTIONS_BY_ID,
+  applyWoodTextures,
+  hslToHexNumber
+} from '../../utils/woodMaterials.js';
+import {
   ComboType,
   DEFAULT_CONFIG as BASE_CONFIG,
   aiChooseAction,
@@ -50,60 +58,85 @@ const OUTFIT_THEMES = [
   { id: 'onyx', label: 'Oniks', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
 ];
 
-const TABLE_THEMES = [
+const WOOD_PRESETS_BY_ID = Object.freeze(
+  WOOD_FINISH_PRESETS.reduce((acc, preset) => {
+    acc[preset.id] = preset;
+    return acc;
+  }, {})
+);
+
+const TABLE_WOOD_OPTIONS = [
+  { id: 'walnutHeritage', label: 'Arre Heritage', presetId: 'walnut', grainId: 'heritagePlanks' },
+  { id: 'mapleChevron', label: 'Panjo Chevron', presetId: 'maple', grainId: 'atelierChevron' },
+  { id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' },
+  { id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' },
+  { id: 'wengeShadow', label: 'Wenge Hije', presetId: 'wenge', grainId: 'atelierChevron' },
+  { id: 'ebonyClassic', label: 'Eben Klasik', presetId: 'ebony', grainId: 'heritagePlanks' }
+];
+
+const TABLE_CLOTH_OPTIONS = [
+  { id: 'crimson', label: 'Rrobë e Kuqe', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
+  { id: 'emerald', label: 'Rrobë Smerald', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
+  { id: 'arctic', label: 'Rrobë Akull', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
+  { id: 'sunset', label: 'Rrobë Perëndim', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
+  { id: 'violet', label: 'Rrobë Vjollcë', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
+  { id: 'amber', label: 'Rrobë Qelibari', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' }
+];
+
+const TABLE_BASE_OPTIONS = [
   {
-    id: 'crimson',
-    label: 'E Kuqe Mbretërore',
+    id: 'obsidian',
+    label: 'Bazë Obsidian',
     baseColor: '#141414',
-    frameColor: '#5c2613',
     columnColor: '#0b0d10',
-    feltTop: '#960019',
-    feltBottom: '#4a0012'
+    trimColor: '#1f232a',
+    metalness: 0.75,
+    roughness: 0.35
   },
   {
-    id: 'emerald',
-    label: 'Smerald',
+    id: 'forestBronze',
+    label: 'Bazë Pylli',
     baseColor: '#101714',
-    frameColor: '#1f3d29',
     columnColor: '#0a0f0c',
-    feltTop: '#0f6a2f',
-    feltBottom: '#054d24'
+    trimColor: '#1f2d24',
+    metalness: 0.7,
+    roughness: 0.38
   },
   {
-    id: 'arctic',
-    label: 'Arktik',
+    id: 'midnightChrome',
+    label: 'Bazë Mesnate',
     baseColor: '#0f172a',
-    frameColor: '#1e293b',
     columnColor: '#0a1020',
-    feltTop: '#2563eb',
-    feltBottom: '#1d4ed8'
+    trimColor: '#1e2f4a',
+    metalness: 0.78,
+    roughness: 0.32
   },
   {
-    id: 'sunset',
-    label: 'Perëndim',
+    id: 'emberCopper',
+    label: 'Bazë Bakri',
     baseColor: '#231312',
-    frameColor: '#7c2d12',
     columnColor: '#140707',
-    feltTop: '#ea580c',
-    feltBottom: '#c2410c'
+    trimColor: '#5c2d1b',
+    metalness: 0.68,
+    roughness: 0.4
   },
   {
-    id: 'violet',
-    label: 'Vjollcë',
+    id: 'violetShadow',
+    label: 'Bazë Hije Vjollcë',
     baseColor: '#1f1130',
-    frameColor: '#4c1d95',
     columnColor: '#130622',
-    feltTop: '#7c3aed',
-    feltBottom: '#5b21b6'
+    trimColor: '#3f1b5b',
+    metalness: 0.74,
+    roughness: 0.36
   },
   {
-    id: 'desert',
-    label: 'Shkretëtirë',
+    id: 'desertGold',
+    label: 'Bazë Shkretëtirë',
     baseColor: '#1c1a12',
-    frameColor: '#8b5a2b',
     columnColor: '#0f0d06',
-    feltTop: '#b7791f',
-    feltBottom: '#92571a'
+    trimColor: '#5a4524',
+    metalness: 0.72,
+    roughness: 0.39
   }
 ];
 
@@ -185,11 +218,13 @@ const CARD_THEMES = [
   }
 ];
 
-const DEFAULT_APPEARANCE = { outfit: 0, table: 0, cards: 0, stools: 0 };
+const DEFAULT_APPEARANCE = { outfit: 0, tableWood: 0, tableCloth: 0, tableBase: 0, cards: 0, stools: 0 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'outfit', label: 'Rroba', options: OUTFIT_THEMES },
-  { key: 'table', label: 'Tavolinë', options: TABLE_THEMES },
+  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
+  { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
   { key: 'cards', label: 'Letrat', options: CARD_THEMES },
   { key: 'stools', label: 'Stola', options: STOOL_THEMES }
 ];
@@ -211,7 +246,9 @@ function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
     ['outfit', OUTFIT_THEMES.length],
-    ['table', TABLE_THEMES.length],
+    ['tableWood', TABLE_WOOD_OPTIONS.length],
+    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
+    ['tableBase', TABLE_BASE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
     ['stools', STOOL_THEMES.length]
   ];
@@ -222,6 +259,22 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
+  const legacyTable = Number(value?.table);
+  if (Number.isFinite(legacyTable)) {
+    const legacyIndex = Math.min(
+      Math.max(0, Math.round(legacyTable)),
+      Math.min(TABLE_CLOTH_OPTIONS.length, TABLE_BASE_OPTIONS.length) - 1
+    );
+    if (!Number.isFinite(Number(value?.tableWood))) {
+      normalized.tableWood = Math.min(legacyIndex, TABLE_WOOD_OPTIONS.length - 1);
+    }
+    if (!Number.isFinite(Number(value?.tableCloth))) {
+      normalized.tableCloth = Math.min(legacyIndex, TABLE_CLOTH_OPTIONS.length - 1);
+    }
+    if (!Number.isFinite(Number(value?.tableBase))) {
+      normalized.tableBase = Math.min(legacyIndex, TABLE_BASE_OPTIONS.length - 1);
+    }
+  }
   return normalized;
 }
 
@@ -630,12 +683,14 @@ export default function MurlanRoyaleArena({ search }) {
       const three = threeStateRef.current;
       if (!three.scene) return;
       const safe = normalizeAppearance(nextAppearance);
-      const tableTheme = TABLE_THEMES[safe.table] ?? TABLE_THEMES[0];
+      const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
 
-      applyTableThemeMaterials(three, tableTheme);
+      applyTableMaterials(three, { woodOption, clothOption, baseOption });
       applyChairThemeMaterials(three, stoolTheme);
       applyOutfitThemeMaterials(three, outfitTheme);
 
@@ -652,41 +707,58 @@ export default function MurlanRoyaleArena({ search }) {
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
-      case 'table':
+      case 'tableWood': {
+        const presetId = option?.presetId;
+        const grainId = option?.grainId;
+        const preset = (presetId && WOOD_PRESETS_BY_ID[presetId]) || WOOD_FINISH_PRESETS[0];
+        const grain = (grainId && WOOD_GRAIN_OPTIONS_BY_ID[grainId]) || WOOD_GRAIN_OPTIONS[0];
+        const baseHex = `#${hslToHexNumber(preset.hue, preset.sat, preset.light)
+          .toString(16)
+          .padStart(6, '0')}`;
+        const accentHex = `#${hslToHexNumber(preset.hue, Math.min(1, preset.sat + 0.12), Math.max(0, preset.light - 0.18))
+          .toString(16)
+          .padStart(6, '0')}`;
+        const grainLabel = grain?.label ?? '';
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
+            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
+              {grainLabel.slice(0, 10)}
+            </div>
+          </div>
+        );
+      }
+      case 'tableCloth':
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative h-14 w-14">
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: option.baseColor,
-                    clipPath:
-                      'polygon(32% 0%, 68% 0%, 100% 32%, 100% 68%, 68% 100%, 32% 100%, 0% 68%, 0% 32%)'
-                  }}
-                />
-                <div
-                  className="absolute inset-[14%]"
-                  style={{
-                    background: option.frameColor,
-                    clipPath:
-                      'polygon(32% 0%, 68% 0%, 100% 32%, 100% 68%, 68% 100%, 32% 100%, 0% 68%, 0% 32%)'
-                  }}
-                />
-                <div
-                  className="absolute inset-[22%]"
-                  style={{
-                    background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})`,
-                    clipPath:
-                      'polygon(32% 0%, 68% 0%, 100% 32%, 100% 68%, 68% 100%, 32% 100%, 0% 68%, 0% 32%)'
-                  }}
-                />
-              </div>
+              <div
+                className="h-12 w-20 rounded-[999px] border border-white/10"
+                style={{
+                  background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})`
+                }}
+              />
             </div>
-            <div
-              className="absolute bottom-1 left-1/2 h-2 w-16 -translate-x-1/2 rounded-full opacity-80"
-              style={{ background: option.columnColor }}
-            />
+            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
+          </div>
+        );
+      case 'tableBase':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <div className="h-3 w-16 rounded-full" style={{ background: option.trimColor }} />
+              <div className="h-4 w-20 rounded-full" style={{ background: option.baseColor }} />
+              <div
+                className="absolute bottom-2 h-3 w-14 rounded-full opacity-80"
+                style={{ background: option.columnColor }}
+              />
+            </div>
           </div>
         );
       case 'cards':
@@ -881,7 +953,12 @@ export default function MurlanRoyaleArena({ search }) {
     scene.add(arena);
 
     const currentAppearance = normalizeAppearance(appearanceRef.current);
-    const tableTheme = TABLE_THEMES[currentAppearance.table] ?? TABLE_THEMES[0];
+    const woodOption =
+      TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const clothOption =
+      TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const baseOption =
+      TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
     const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
 
@@ -1016,27 +1093,51 @@ export default function MurlanRoyaleArena({ search }) {
     const tableY = TABLE_HEIGHT - (feltOffset + feltDepth);
 
     const baseMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(tableTheme.baseColor),
-      metalness: 0.75,
-      roughness: 0.35,
-      clearcoat: 0.6
-    });
-    const frameMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(tableTheme.frameColor),
-      roughness: 0.4,
-      metalness: 0.35,
-      clearcoat: 0.7
+      color: new THREE.Color(baseOption.baseColor),
+      metalness: baseOption.metalness ?? 0.74,
+      roughness: baseOption.roughness ?? 0.34,
+      clearcoat: 0.62,
+      clearcoatRoughness: 0.22
     });
     const columnMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(tableTheme.columnColor || '#111111'),
+      color: new THREE.Color(baseOption.columnColor || '#111111'),
       roughness: 0.65,
-      metalness: 0.2
+      metalness: 0.22
+    });
+    const trimMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(baseOption.trimColor ?? baseOption.baseColor),
+      metalness: Math.min(1, (baseOption.metalness ?? 0.74) + 0.08),
+      roughness: Math.max(0.2, (baseOption.roughness ?? 0.34) - 0.1),
+      clearcoat: 0.58,
+      clearcoatRoughness: 0.18
     });
 
-    const velvetTex = makeVelvetTexture(1024, 1024, tableTheme.feltTop, tableTheme.feltBottom);
-    applySRGBColorSpace(velvetTex);
-    velvetTex.anisotropy = 8;
-    const surfaceMat = new THREE.MeshStandardMaterial({ map: velvetTex, roughness: 0.85, metalness: 0.05 });
+    const topWoodMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.42,
+      metalness: 0.32,
+      clearcoat: 0.68,
+      clearcoatRoughness: 0.22,
+      sheen: 0.18,
+      sheenRoughness: 0.48
+    });
+    const rimWoodMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.45,
+      metalness: 0.28,
+      clearcoat: 0.64,
+      clearcoatRoughness: 0.24,
+      sheen: 0.16,
+      sheenRoughness: 0.5
+    });
+
+    const surfaceMat = new THREE.MeshStandardMaterial({
+      roughness: 0.82,
+      metalness: 0.04,
+      color: '#ffffff',
+      emissive: '#000000',
+      emissiveIntensity: 0.08
+    });
 
     const tableGroup = new THREE.Group();
 
@@ -1049,7 +1150,7 @@ export default function MurlanRoyaleArena({ search }) {
       curveSegments: 1
     });
     topGeometry.rotateX(-Math.PI / 2);
-    const topMesh = new THREE.Mesh(topGeometry, frameMat);
+    const topMesh = new THREE.Mesh(topGeometry, topWoodMat);
     topMesh.position.y = tableY;
     topMesh.castShadow = true;
     topMesh.receiveShadow = true;
@@ -1078,7 +1179,7 @@ export default function MurlanRoyaleArena({ search }) {
       curveSegments: 1
     });
     rimGeometry.rotateX(-Math.PI / 2);
-    const rimMesh = new THREE.Mesh(rimGeometry, frameMat);
+    const rimMesh = new THREE.Mesh(rimGeometry, rimWoodMat);
     rimMesh.position.y = tableY + woodDepth;
     rimMesh.castShadow = true;
     rimMesh.receiveShadow = true;
@@ -1092,7 +1193,7 @@ export default function MurlanRoyaleArena({ search }) {
     tableGroup.add(baseMesh);
 
     const trimGeometry = new THREE.CylinderGeometry(TABLE_RADIUS * 0.985, TABLE_RADIUS, trimHeight, 8, 1, false);
-    const trimMesh = new THREE.Mesh(trimGeometry, frameMat);
+    const trimMesh = new THREE.Mesh(trimGeometry, trimMat);
     trimMesh.position.y = tableY - trimOffset;
     trimMesh.castShadow = true;
     trimMesh.receiveShadow = true;
@@ -1111,12 +1212,16 @@ export default function MurlanRoyaleArena({ search }) {
 
     threeStateRef.current.tableParts = {
       baseMat,
-      frameMat,
-      surfaceMat,
-      velvetTexture: velvetTex,
       columnMat,
+      trimMat,
+      surfaceMat,
+      velvetTexture: null,
+      topWoodMat,
+      rimWoodMat,
       group: tableGroup
     };
+
+    applyTableMaterials(threeStateRef.current, { woodOption, clothOption, baseOption });
 
 
     const chairMat = new THREE.MeshPhysicalMaterial({
@@ -1496,9 +1601,11 @@ export default function MurlanRoyaleArena({ search }) {
         store.tableParts.velvetTexture?.dispose?.();
         [
           store.tableParts.baseMat,
-          store.tableParts.frameMat,
+          store.tableParts.columnMat,
+          store.tableParts.trimMat,
           store.tableParts.surfaceMat,
-          store.tableParts.columnMat
+          store.tableParts.topWoodMat,
+          store.tableParts.rimWoodMat
         ].forEach((mat) => {
           if (mat && typeof mat.dispose === 'function') mat.dispose();
         });
@@ -1667,7 +1774,7 @@ export default function MurlanRoyaleArena({ search }) {
                 </button>
               </div>
               <p className="mt-1 text-[0.65rem] text-gray-400">
-                Zgjidh kombinimet e preferuara të rrobave, tavolinës dhe letrave për përvojën tënde.
+                Zgjidh kombinimet e preferuara të rrobave, drurit, rrobës së fushës, bazës dhe letrave për përvojën tënde.
               </p>
               {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                 <div key={key} className="mt-4 space-y-2">
@@ -2339,18 +2446,109 @@ function makeVelvetTexture(w, h, c1, c2) {
   return texture;
 }
 
-function applyTableThemeMaterials(three, theme) {
+function resolveWoodComponents(option) {
+  const fallbackPreset = WOOD_PRESETS_BY_ID.walnut || WOOD_FINISH_PRESETS[0];
+  const preset = (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
+  const fallbackGrain =
+    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] || WOOD_GRAIN_OPTIONS[0];
+  const grain =
+    (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || fallbackGrain;
+  return { preset, grain };
+}
+
+function applyWoodSelectionToMaterials(topMat, rimMat, option) {
+  const { preset, grain } = resolveWoodComponents(option);
+  const sharedOptions = {
+    hue: preset.hue,
+    sat: preset.sat,
+    light: preset.light,
+    contrast: preset.contrast,
+    roughnessBase: 0.16,
+    roughnessVariance: 0.28
+  };
+  const sharedKey = `murlan-wood-${option?.id ?? preset.id}`;
+  if (topMat) {
+    applyWoodTextures(topMat, {
+      ...sharedOptions,
+      repeat: grain.frame?.repeat ?? grain.rail?.repeat ?? { x: 0.24, y: 0.38 },
+      rotation: grain.frame?.rotation ?? 0,
+      textureSize: grain.frame?.textureSize,
+      sharedKey
+    });
+  }
+  if (rimMat) {
+    applyWoodTextures(rimMat, {
+      ...sharedOptions,
+      repeat: grain.rail?.repeat ?? grain.frame?.repeat ?? { x: 0.12, y: 0.62 },
+      rotation: grain.rail?.rotation ?? 0,
+      textureSize: grain.rail?.textureSize,
+      sharedKey
+    });
+  }
+}
+
+function applyTableMaterials(three, { woodOption, clothOption, baseOption }) {
   const parts = three?.tableParts;
   if (!parts) return;
-  if (parts.baseMat?.color) parts.baseMat.color.set(theme.baseColor);
-  if (parts.frameMat?.color) parts.frameMat.color.set(theme.frameColor);
-  if (parts.columnMat?.color) parts.columnMat.color.set(theme.columnColor || '#111111');
-  if (parts.surfaceMat) {
+
+  if (baseOption) {
+    if (parts.baseMat?.color) {
+      parts.baseMat.color.set(baseOption.baseColor);
+      if ('metalness' in parts.baseMat && Number.isFinite(baseOption.metalness)) {
+        parts.baseMat.metalness = baseOption.metalness;
+      }
+      if ('roughness' in parts.baseMat && Number.isFinite(baseOption.roughness)) {
+        parts.baseMat.roughness = baseOption.roughness;
+      }
+      parts.baseMat.needsUpdate = true;
+    }
+    if (parts.columnMat?.color) {
+      parts.columnMat.color.set(baseOption.columnColor || '#111111');
+      parts.columnMat.needsUpdate = true;
+    }
+    if (parts.trimMat?.color) {
+      parts.trimMat.color.set(baseOption.trimColor ?? baseOption.baseColor);
+      if ('metalness' in parts.trimMat && Number.isFinite(baseOption.metalness)) {
+        parts.trimMat.metalness = Math.min(1, (baseOption.metalness ?? 0.74) + 0.08);
+      }
+      if ('roughness' in parts.trimMat && Number.isFinite(baseOption.roughness)) {
+        parts.trimMat.roughness = Math.max(0.2, (baseOption.roughness ?? 0.34) - 0.1);
+      }
+      if ('clearcoat' in parts.trimMat) {
+        parts.trimMat.clearcoat = 0.58;
+      }
+      if ('clearcoatRoughness' in parts.trimMat) {
+        parts.trimMat.clearcoatRoughness = 0.18;
+      }
+      parts.trimMat.needsUpdate = true;
+    }
+  }
+
+  applyWoodSelectionToMaterials(parts.topWoodMat, parts.rimWoodMat, woodOption);
+
+  if (parts.surfaceMat && clothOption) {
     parts.velvetTexture?.dispose?.();
-    const tex = makeVelvetTexture(1024, 1024, theme.feltTop, theme.feltBottom);
+    const tex = makeVelvetTexture(1024, 1024, clothOption.feltTop, clothOption.feltBottom);
     applySRGBColorSpace(tex);
     tex.anisotropy = 8;
     parts.surfaceMat.map = tex;
+    parts.surfaceMat.color?.set?.('#ffffff');
+    if (typeof clothOption.roughness === 'number') {
+      parts.surfaceMat.roughness = clothOption.roughness;
+    }
+    if (typeof clothOption.metalness === 'number') {
+      parts.surfaceMat.metalness = clothOption.metalness;
+    }
+    if ('emissive' in parts.surfaceMat) {
+      const emissive = clothOption.emissive ?? '#000000';
+      parts.surfaceMat.emissive?.set?.(emissive);
+    }
+    if ('emissiveIntensity' in parts.surfaceMat) {
+      const intensity = Number.isFinite(clothOption.emissiveIntensity)
+        ? clothOption.emissiveIntensity
+        : 0.08;
+      parts.surfaceMat.emissiveIntensity = intensity;
+    }
     parts.surfaceMat.needsUpdate = true;
     parts.velvetTexture = tex;
   }
