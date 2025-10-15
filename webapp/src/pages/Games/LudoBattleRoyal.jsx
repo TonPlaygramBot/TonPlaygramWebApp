@@ -75,6 +75,14 @@ const PLAYER_START_INDEX = [0, 13, 26, 39];
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
 const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
 
+const DICE_SIZE = 0.09;
+const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
+const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
+const DICE_PIP_DEPTH = DICE_SIZE * 0.079;
+const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
+const DICE_FACE_INSET = DICE_SIZE * 0.064;
+const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
+
 function makeDice() {
   const dice = new THREE.Group();
 
@@ -96,18 +104,29 @@ function makeDice() {
   });
 
   const body = new THREE.Mesh(
-    new RoundedBoxGeometry(0.07, 0.07, 0.07, 6, 0.012),
+    new RoundedBoxGeometry(
+      DICE_SIZE,
+      DICE_SIZE,
+      DICE_SIZE,
+      6,
+      DICE_CORNER_RADIUS
+    ),
     dieMaterial
   );
   body.castShadow = true;
+  body.receiveShadow = true;
   dice.add(body);
 
-  const pipRadius = 0.0065;
-  const pipDepth = 0.0055;
-  const pipGeo = new THREE.CylinderGeometry(pipRadius, pipRadius, pipDepth, 24, 1);
-  const halfSize = 0.07 / 2;
-  const inset = halfSize - 0.0045;
-  const spread = 0.0165;
+  const pipGeo = new THREE.CylinderGeometry(
+    DICE_PIP_RADIUS,
+    DICE_PIP_RADIUS,
+    DICE_PIP_DEPTH,
+    28,
+    1
+  );
+  const halfSize = DICE_SIZE / 2;
+  const inset = halfSize - DICE_FACE_INSET;
+  const spread = DICE_PIP_SPREAD;
   const faces = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
@@ -170,9 +189,11 @@ function makeDice() {
       const pos = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
-        .addScaledVector(n, inset - pipDepth / 2);
+        .addScaledVector(n, inset - DICE_PIP_DEPTH / 2);
       pip.position.copy(pos);
       pip.quaternion.copy(pipOrientation);
+      pip.castShadow = true;
+      pip.receiveShadow = true;
       dice.add(pip);
     });
   });
@@ -328,19 +349,19 @@ function Ludo3D({ avatar, username }) {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1020);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 1.1);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(1.8, 2.6, 1.6);
+    const key = new THREE.DirectionalLight(0xffffff, 1.35);
+    key.position.set(1.6, 2.8, 1.8);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.55);
-    fill.position.set(-1.4, 2.2, -2.0);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.8);
+    fill.position.set(-1.6, 2.4, -1.8);
     scene.add(fill);
-    const rim = new THREE.PointLight(0xff7373, 0.4, 12, 2.0);
-    rim.position.set(0, 2.1, 0);
+    const rim = new THREE.PointLight(0xff7373, 0.6, 12, 2.0);
+    rim.position.set(0, 2.3, 0);
     scene.add(rim);
-    const spot = new THREE.SpotLight(0xffffff, 1.05, 0, Math.PI / 4, 0.35, 1.1);
-    spot.position.set(0, 4.2, 4.6);
+    const spot = new THREE.SpotLight(0xffffff, 1.4, 0, Math.PI / 4.5, 0.32, 1.2);
+    spot.position.set(0.4, 4.4, 4.4);
     scene.add(spot);
     const spotTarget = new THREE.Object3D();
     scene.add(spotTarget);
@@ -1136,8 +1157,17 @@ function buildLudoBoard(boardGroup) {
   });
 
   const dice = makeDice();
-  dice.position.set(0, 0.082, 0);
+  dice.position.set(0, DICE_BASE_HEIGHT, 0);
   scene.add(dice);
+
+  const diceAccent = new THREE.SpotLight(0xffffff, 1.6, 3.2, Math.PI / 5, 0.45, 1.25);
+  diceAccent.position.set(0.6, 1.35, 0.7);
+  diceAccent.target = dice;
+  scene.add(diceAccent);
+
+  const diceFill = new THREE.PointLight(0xfff3d1, 0.65, 2.2, 2.0);
+  diceFill.position.set(-0.7, 1.1, -0.5);
+  scene.add(diceFill);
 
   const indicatorMat = new THREE.MeshStandardMaterial({
     color: PLAYER_COLORS[0],
