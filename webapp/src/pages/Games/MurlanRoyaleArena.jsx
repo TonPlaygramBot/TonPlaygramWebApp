@@ -1083,14 +1083,13 @@ export default function MurlanRoyaleArena({ search }) {
     updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
     const scaleFactor = TABLE_RADIUS / 0.9;
-    const feltDepth = 0.008 * scaleFactor;
-    const feltOffset = 0.012 * scaleFactor;
-    const woodDepth = 0.02 * scaleFactor;
+    const woodDepth = 0.04 * scaleFactor;
     const rimDepth = 0.06 * scaleFactor;
     const trimHeight = 0.08 * scaleFactor;
     const trimOffset = 0.06 * scaleFactor;
+    const clothRise = 0.07 * scaleFactor;
     const baseHeight = 0.62 * scaleFactor;
-    const tableY = TABLE_HEIGHT - (feltOffset + feltDepth);
+    const tableY = TABLE_HEIGHT - clothRise;
 
     const baseMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(baseOption.baseColor),
@@ -1099,11 +1098,7 @@ export default function MurlanRoyaleArena({ search }) {
       clearcoat: 0.62,
       clearcoatRoughness: 0.22
     });
-    const columnMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(baseOption.columnColor || '#111111'),
-      roughness: 0.65,
-      metalness: 0.22
-    });
+    const columnMat = null;
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(baseOption.trimColor ?? baseOption.baseColor),
       metalness: Math.min(1, (baseOption.metalness ?? 0.74) + 0.08),
@@ -1144,7 +1139,7 @@ export default function MurlanRoyaleArena({ search }) {
     const topGeometry = new THREE.ExtrudeGeometry(createRegularPolygonShape(8, TABLE_RADIUS), {
       depth: woodDepth,
       bevelEnabled: true,
-      bevelThickness: woodDepth * 0.5,
+      bevelThickness: woodDepth * 0.45,
       bevelSize: woodDepth * 0.45,
       bevelSegments: 2,
       curveSegments: 1
@@ -1156,14 +1151,10 @@ export default function MurlanRoyaleArena({ search }) {
     topMesh.receiveShadow = true;
     tableGroup.add(topMesh);
 
-    const feltGeometry = new THREE.ExtrudeGeometry(createRegularPolygonShape(8, TABLE_RADIUS * (0.72 / 0.9)), {
-      depth: feltDepth,
-      bevelEnabled: false,
-      curveSegments: 1
-    });
+    const feltGeometry = new THREE.CircleGeometry(TABLE_RADIUS * (0.72 / 0.9), 64);
     feltGeometry.rotateX(-Math.PI / 2);
     const feltMesh = new THREE.Mesh(feltGeometry, surfaceMat);
-    feltMesh.position.y = tableY + feltOffset;
+    feltMesh.position.y = tableY + clothRise;
     feltMesh.receiveShadow = true;
     tableGroup.add(feltMesh);
 
@@ -1173,14 +1164,14 @@ export default function MurlanRoyaleArena({ search }) {
     const rimGeometry = new THREE.ExtrudeGeometry(rimOuter, {
       depth: rimDepth,
       bevelEnabled: true,
-      bevelThickness: rimDepth * 0.35,
-      bevelSize: rimDepth * 0.35,
+      bevelThickness: rimDepth * 0.32,
+      bevelSize: rimDepth * 0.32,
       bevelSegments: 2,
       curveSegments: 1
     });
     rimGeometry.rotateX(-Math.PI / 2);
     const rimMesh = new THREE.Mesh(rimGeometry, rimWoodMat);
-    rimMesh.position.y = tableY + woodDepth;
+    rimMesh.position.y = tableY + clothRise * 0.36;
     rimMesh.castShadow = true;
     rimMesh.receiveShadow = true;
     tableGroup.add(rimMesh);
@@ -1198,14 +1189,6 @@ export default function MurlanRoyaleArena({ search }) {
     trimMesh.castShadow = true;
     trimMesh.receiveShadow = true;
     tableGroup.add(trimMesh);
-
-    const columnHeight = 0.28 * scaleFactor;
-    const columnGeometry = new THREE.CylinderGeometry(TABLE_RADIUS * 0.32, TABLE_RADIUS * 0.4, columnHeight, 24, 1, false);
-    const columnMesh = new THREE.Mesh(columnGeometry, columnMat);
-    columnMesh.position.y = tableY - columnHeight / 2 - feltOffset * 0.1;
-    columnMesh.castShadow = true;
-    columnMesh.receiveShadow = true;
-    tableGroup.add(columnMesh);
 
     tableGroup.position.y = 0;
     arena.add(tableGroup);
@@ -2425,24 +2408,53 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   return texture;
 }
 
-function makeVelvetTexture(w, h, c1, c2) {
+function adjustHexColor(hex, amount) {
+  const base = new THREE.Color(hex);
+  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
+  base.lerp(target, Math.min(Math.abs(amount), 1));
+  return `#${base.getHexString()}`;
+}
+
+function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, w, h);
-  gradient.addColorStop(0, c1);
-  gradient.addColorStop(1, c2);
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, size);
+  gradient.addColorStop(0, topHex);
+  gradient.addColorStop(1, bottomHex ?? topHex);
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 7000; i++) {
-    const px = Math.random() * w;
-    const py = Math.random() * h;
-    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.03})`;
-    ctx.fillRect(px, py, 1, 1);
+  ctx.fillRect(0, 0, size, size);
+
+  const highlight = adjustHexColor(topHex, 0.2);
+  const shadow = adjustHexColor(bottomHex ?? topHex, -0.18);
+
+  for (let y = 0; y < size; y += 4) {
+    for (let x = 0; x < size; x += 4) {
+      ctx.globalAlpha = 0.08 + Math.random() * 0.12;
+      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
+      ctx.fillRect(x, y, 2, 2);
+    }
   }
+
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = adjustHexColor(topHex, -0.25);
+  ctx.lineWidth = 1;
+  for (let i = 0; i < size / 4; i++) {
+    const y = (i * 4 + Math.random() * 2) % size;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(size, y + Math.random() * 2 - 1);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
   const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 4);
+  texture.anisotropy = anisotropy;
   applySRGBColorSpace(texture);
+  texture.needsUpdate = true;
   return texture;
 }
 
@@ -2528,9 +2540,12 @@ function applyTableMaterials(three, { woodOption, clothOption, baseOption }) {
 
   if (parts.surfaceMat && clothOption) {
     parts.velvetTexture?.dispose?.();
-    const tex = makeVelvetTexture(1024, 1024, clothOption.feltTop, clothOption.feltBottom);
-    applySRGBColorSpace(tex);
-    tex.anisotropy = 8;
+    const tex = makeRoughClothTexture(
+      1024,
+      clothOption.feltTop,
+      clothOption.feltBottom,
+      three?.renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
+    );
     parts.surfaceMat.map = tex;
     parts.surfaceMat.color?.set?.('#ffffff');
     if (typeof clothOption.roughness === 'number') {
