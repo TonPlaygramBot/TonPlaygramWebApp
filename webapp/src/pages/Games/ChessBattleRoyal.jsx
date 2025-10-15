@@ -6,6 +6,7 @@ import {
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
+import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
@@ -53,10 +54,8 @@ const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_DISPLAY_SIZE = 3.4;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
-const TABLE_TOP_SIZE = BOARD_DISPLAY_SIZE + 0.6;
-const TABLE_TOP_THICKNESS = 0.18;
-const TABLE_LEG_HEIGHT = 0.85 * 2; // Twice the original height
-const TABLE_LEG_INSET = 0.45;
+const TABLE_RADIUS = 2.55; // Matches the octagonal table footprint from Murlan Royale
+const TABLE_HEIGHT = 0.81; // Same tabletop elevation as Murlan Royale
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
@@ -492,8 +491,12 @@ function Chess3D({ avatar, username }) {
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
   const zoomRef = useRef({});
+  const clearHighlightsRef = useRef(() => {});
+  const settingsRef = useRef({ showHighlights: true });
   const [whiteTime, setWhiteTime] = useState(60);
   const [blackTime, setBlackTime] = useState(5);
+  const [showConfig, setShowConfig] = useState(false);
+  const [showHighlights, setShowHighlights] = useState(true);
 
   const [ui, setUi] = useState({
     turnWhite: true,
@@ -507,6 +510,13 @@ function Chess3D({ avatar, username }) {
   }, [ui]);
 
   useEffect(() => {
+    settingsRef.current.showHighlights = showHighlights;
+    if (!showHighlights && typeof clearHighlightsRef.current === 'function') {
+      clearHighlightsRef.current();
+    }
+  }, [showHighlights]);
+
+  useEffect(() => {
     const host = wrapRef.current;
     if (!host) return;
     let scene, camera, renderer, ray, sph;
@@ -515,6 +525,7 @@ function Chess3D({ avatar, username }) {
     const capturedByBlack = [];
 
     const vol = getGameVolume();
+    const disposers = [];
     bombSoundRef.current = new Audio(bombSound);
     bombSoundRef.current.volume = vol;
 
@@ -654,40 +665,22 @@ function Chess3D({ avatar, username }) {
     stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
     arena.add(stripRight);
 
-    const table = new THREE.Group();
-    const tableTop = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        TABLE_TOP_SIZE,
-        TABLE_TOP_THICKNESS,
-        TABLE_TOP_SIZE
-      ),
-      new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        roughness: 0.6,
-        metalness: 0.1
-      })
-    );
-    const tableTopY = TABLE_LEG_HEIGHT + TABLE_TOP_THICKNESS / 2;
-    tableTop.position.y = tableTopY;
-    table.add(tableTop);
-    const legGeo = new THREE.BoxGeometry(0.12, TABLE_LEG_HEIGHT, 0.12);
-    const legMat = new THREE.MeshStandardMaterial({
-      color: 0x3a3a3a,
-      roughness: 0.7
+    const tableInfo = createMurlanStyleTable({
+      THREE,
+      arena,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT
     });
-    const legOffsetX = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
-    const legOffsetZ = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
-    [
-      [-legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
-      [legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
-      [-legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ],
-      [legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ]
-    ].forEach(([x, y, z]) => {
-      const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(x, y, z);
-      table.add(leg);
-    });
-    arena.add(table);
+    if (tableInfo?.dispose) {
+      disposers.push(() => {
+        try {
+          tableInfo.dispose();
+        } catch (error) {
+          console.warn('Failed to dispose chess table', error);
+        }
+      });
+    }
 
     function makeChair() {
       const g = new THREE.Group();
@@ -731,7 +724,7 @@ function Chess3D({ avatar, username }) {
 
     const chairA = makeChair();
     const seatHalfDepth = 0.25 * CHAIR_SCALE;
-    const chairDistance = TABLE_TOP_SIZE / 2 + seatHalfDepth + CHAIR_CLEARANCE;
+    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
     chairA.position.set(0, 0, -chairDistance);
     arena.add(chairA);
     const chairB = makeChair();
@@ -801,8 +794,8 @@ function Chess3D({ avatar, username }) {
       return cam;
     }
 
-    const cameraRigOffsetX = TABLE_TOP_SIZE / 2 + 1.4;
-    const cameraRigOffsetZ = TABLE_TOP_SIZE / 2 + 1.2;
+    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
+    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
     const studioCamA = makeStudioCamera();
     studioCamA.position.set(-cameraRigOffsetX, 0, -cameraRigOffsetZ);
     arena.add(studioCamA);
@@ -810,7 +803,7 @@ function Chess3D({ avatar, username }) {
     studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
     arena.add(studioCamB);
 
-    const tableSurfaceY = tableTopY + TABLE_TOP_THICKNESS / 2;
+    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
     boardGroup.position.y = tableSurfaceY + 0.01;
     boardGroup.scale.setScalar(BOARD_SCALE);
@@ -1034,6 +1027,7 @@ function Chess3D({ avatar, username }) {
     }
 
     function highlightMoves(list, color = COLORS.highlight) {
+      if (!settingsRef.current.showHighlights) return;
       list.forEach(([rr, cc]) => {
         const mesh = tiles.find(
           (t) => t.userData.r === rr && t.userData.c === cc
@@ -1060,6 +1054,7 @@ function Chess3D({ avatar, username }) {
       });
       toKill.forEach((o) => boardGroup.remove(o));
     }
+    clearHighlightsRef.current = clearHighlights;
 
     function selectAt(r, c) {
       const p = board[r][c];
@@ -1240,6 +1235,13 @@ function Chess3D({ avatar, username }) {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', onResize);
       clearInterval(timerRef.current);
+      disposers.forEach((fn) => {
+        try {
+          fn();
+        } catch (error) {
+          console.warn('Failed during chess cleanup', error);
+        }
+      });
       try {
         host.removeChild(renderer.domElement);
       } catch {}
@@ -1254,20 +1256,64 @@ function Chess3D({ avatar, username }) {
       ref={wrapRef}
       className="w-screen h-dvh bg-black text-white overflow-hidden select-none relative"
     >
-      {(avatar || username) && (
-        <div className="absolute top-2 right-2 flex items-center space-x-2 z-10 pointer-events-none">
-          {avatar && (
-            <img
-              src={avatar}
-              alt="avatar"
-              className="w-8 h-8 rounded-full border border-white/20"
-            />
-          )}
-          {username && (
-            <span className="text-sm font-semibold">{username}</span>
+      <div className="absolute top-2 right-2 flex items-center space-x-2 z-20">
+        {avatar && (
+          <img
+            src={avatar}
+            alt="Avatar"
+            className="w-10 h-10 rounded-full border border-white/20 pointer-events-none"
+          />
+        )}
+        {username && (
+          <div className="text-right leading-tight pointer-events-none">
+            <p className="text-sm font-semibold">{username}</p>
+            <p className="text-xs text-white/70">Grandmaster</p>
+          </div>
+        )}
+        <div className="relative pointer-events-auto">
+          <button
+            type="button"
+            aria-label={showConfig ? 'Mbyll konfigurimet e lojës' : 'Hap konfigurimet e lojës'}
+            onClick={() => setShowConfig((prev) => !prev)}
+            className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur transition hover:bg-black/60"
+          >
+            ⚙️
+          </button>
+          {showConfig && (
+            <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-black/80 p-3 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-300">
+                  Konfigurime
+                </span>
+                <button
+                  type="button"
+                  aria-label="Mbyll konfigurimet"
+                  onClick={() => setShowConfig(false)}
+                  className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                >
+                  ✕
+                </button>
+              </div>
+              <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
+                <span>Shfaq lëvizjet e lejueshme</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                  checked={showHighlights}
+                  onChange={(event) => setShowHighlights(event.target.checked)}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-3 w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+              >
+                Rifillo ndeshjen
+              </button>
+            </div>
           )}
         </div>
-      )}
+      </div>
       {/* player turn indicators */}
       <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
         <div

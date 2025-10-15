@@ -20,13 +20,12 @@ import {
   cheerSound
 } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
+import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const TABLE_TOP_SIZE = 3.4 + 0.6;
-const TABLE_TOP_THICKNESS = 0.18;
-const TABLE_LEG_HEIGHT = 0.85 * 2;
-const TABLE_LEG_INSET = 0.45;
+const TABLE_RADIUS = 2.55;
+const TABLE_HEIGHT = 0.81;
 
 const WALL_PROXIMITY_FACTOR = 0.5;
 const WALL_HEIGHT_MULTIPLIER = 2;
@@ -279,6 +278,10 @@ function Ludo3D({ avatar, username }) {
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
+  const fitRef = useRef(() => {});
+  const [showConfig, setShowConfig] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const settingsRef = useRef({ soundEnabled: true });
   const [ui, setUi] = useState({
     turn: 0,
     status: 'Red to roll',
@@ -301,24 +304,50 @@ function Ludo3D({ avatar, username }) {
   };
 
   useEffect(() => {
+    const applyVolume = (baseVolume) => {
+      const level = settingsRef.current.soundEnabled ? baseVolume : 0;
+      [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
+        if (ref.current) {
+          ref.current.volume = level;
+          if (!settingsRef.current.soundEnabled) {
+            try {
+              ref.current.pause();
+              ref.current.currentTime = 0;
+            } catch {}
+          }
+        }
+      });
+    };
     const vol = getGameVolume();
     moveSoundRef.current = new Audio(dropSound);
     captureSoundRef.current = new Audio(snakeSound);
     cheerSoundRef.current = new Audio(cheerSound);
-    [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
-      if (ref.current) ref.current.volume = vol;
-    });
+    applyVolume(vol);
     const onVolChange = () => {
-      const next = getGameVolume();
-      [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
-        if (ref.current) ref.current.volume = next;
-      });
+      applyVolume(getGameVolume());
     };
     window.addEventListener('gameVolumeChanged', onVolChange);
     return () => {
       window.removeEventListener('gameVolumeChanged', onVolChange);
     };
   }, []);
+
+  useEffect(() => {
+    settingsRef.current.soundEnabled = soundEnabled;
+    const baseVolume = getGameVolume();
+    const level = soundEnabled ? baseVolume : 0;
+    [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
+      if (ref.current) {
+        ref.current.volume = level;
+        if (!soundEnabled) {
+          try {
+            ref.current.pause();
+            ref.current.currentTime = 0;
+          } catch {}
+        }
+      }
+    });
+  }, [soundEnabled]);
 
   useEffect(() => {
     const host = wrapRef.current;
@@ -329,7 +358,8 @@ function Ludo3D({ avatar, username }) {
     const pointer = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
 
-    const vol = getGameVolume();
+    const vol = settingsRef.current.soundEnabled ? getGameVolume() : 0;
+    const disposers = [];
     moveSoundRef.current?.pause();
     captureSoundRef.current?.pause();
     cheerSoundRef.current?.pause();
@@ -473,40 +503,22 @@ function Ludo3D({ avatar, username }) {
     stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
     arena.add(stripRight);
 
-    const table = new THREE.Group();
-    const tableTop = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        TABLE_TOP_SIZE,
-        TABLE_TOP_THICKNESS,
-        TABLE_TOP_SIZE
-      ),
-      new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        roughness: 0.6,
-        metalness: 0.1
-      })
-    );
-    const tableTopY = TABLE_LEG_HEIGHT + TABLE_TOP_THICKNESS / 2;
-    tableTop.position.y = tableTopY;
-    table.add(tableTop);
-    const legGeo = new THREE.BoxGeometry(0.12, TABLE_LEG_HEIGHT, 0.12);
-    const legMat = new THREE.MeshStandardMaterial({
-      color: 0x3a3a3a,
-      roughness: 0.7
+    const tableInfo = createMurlanStyleTable({
+      THREE,
+      arena,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT
     });
-    const legOffsetX = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
-    const legOffsetZ = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
-    [
-      [-legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
-      [legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
-      [-legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ],
-      [legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ]
-    ].forEach(([x, y, z]) => {
-      const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(x, y, z);
-      table.add(leg);
-    });
-    arena.add(table);
+    if (tableInfo?.dispose) {
+      disposers.push(() => {
+        try {
+          tableInfo.dispose();
+        } catch (error) {
+          console.warn('Failed to dispose Ludo table', error);
+        }
+      });
+    }
 
     function makeChair() {
       const g = new THREE.Group();
@@ -550,7 +562,7 @@ function Ludo3D({ avatar, username }) {
 
     const chairA = makeChair();
     const seatHalfDepth = 0.25 * CHAIR_SCALE;
-    const chairDistance = TABLE_TOP_SIZE / 2 + seatHalfDepth + CHAIR_CLEARANCE;
+    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
     const userChairOffset = 0.18;
     chairA.position.set(0, 0, -(chairDistance + userChairOffset));
     arena.add(chairA);
@@ -621,8 +633,8 @@ function Ludo3D({ avatar, username }) {
       return cam;
     }
 
-    const cameraRigOffsetX = TABLE_TOP_SIZE / 2 + 1.4;
-    const cameraRigOffsetZ = TABLE_TOP_SIZE / 2 + 1.2;
+    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
+    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
     const studioCamA = makeStudioCamera();
     studioCamA.position.set(-cameraRigOffsetX, 0, -cameraRigOffsetZ);
     arena.add(studioCamA);
@@ -630,7 +642,7 @@ function Ludo3D({ avatar, username }) {
     studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
     arena.add(studioCamB);
 
-    const tableSurfaceY = tableTopY + TABLE_TOP_THICKNESS / 2;
+    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
     boardGroup.position.y = tableSurfaceY + 0.01;
     boardGroup.scale.setScalar(BOARD_SCALE);
@@ -671,6 +683,7 @@ function Ludo3D({ avatar, username }) {
       camera.position.copy(boardLookTarget).add(offset);
       camera.lookAt(boardLookTarget);
     };
+    fitRef.current = fit;
     fit();
 
     zoomRef.current = {
@@ -817,6 +830,13 @@ function Ludo3D({ avatar, username }) {
       renderer.domElement.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onUp);
       renderer.domElement.removeEventListener('wheel', onWheel);
+      disposers.forEach((fn) => {
+        try {
+          fn();
+        } catch (error) {
+          console.warn('Failed during Ludo cleanup', error);
+        }
+      });
       renderer.dispose();
       if (renderer.domElement.parentElement === host) {
         host.removeChild(renderer.domElement);
@@ -825,6 +845,7 @@ function Ludo3D({ avatar, username }) {
   }, []);
 
   const playMove = () => {
+    if (!settingsRef.current.soundEnabled) return;
     if (moveSoundRef.current) {
       moveSoundRef.current.currentTime = 0;
       moveSoundRef.current.play().catch(() => {});
@@ -832,6 +853,7 @@ function Ludo3D({ avatar, username }) {
   };
 
   const playCapture = () => {
+    if (!settingsRef.current.soundEnabled) return;
     if (captureSoundRef.current) {
       captureSoundRef.current.currentTime = 0;
       captureSoundRef.current.play().catch(() => {});
@@ -839,6 +861,7 @@ function Ludo3D({ avatar, username }) {
   };
 
   const playCheer = () => {
+    if (!settingsRef.current.soundEnabled) return;
     if (cheerSoundRef.current) {
       cheerSoundRef.current.currentTime = 0;
       cheerSoundRef.current.play().catch(() => {});
@@ -1026,15 +1049,70 @@ function Ludo3D({ avatar, username }) {
             <div className="text-[10px] mt-1">Rolled: {ui.dice}</div>
           )}
         </div>
-        <div className="absolute top-3 right-3 flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1 text-xs">
-          {avatar && (
-            <img
-              src={avatar}
-              alt="avatar"
-              className="h-7 w-7 rounded-full object-cover"
-            />
-          )}
-          <span>{username || 'Guest'}</span>
+        <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
+          <div className="flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1 text-xs pointer-events-none">
+            {avatar && (
+              <img
+                src={avatar}
+                alt="avatar"
+                className="h-7 w-7 rounded-full object-cover"
+              />
+            )}
+            <span>{username || 'Guest'}</span>
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              aria-label={showConfig ? 'Mbyll konfigurimet e lojës' : 'Hap konfigurimet e lojës'}
+              onClick={() => setShowConfig((prev) => !prev)}
+              className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur transition hover:bg-black/60"
+            >
+              ⚙️
+            </button>
+            {showConfig && (
+              <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-black/80 p-3 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-300">
+                    Konfigurime
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Mbyll konfigurimet"
+                    onClick={() => setShowConfig(false)}
+                    className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
+                  <span>Efekte zanore</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                    checked={soundEnabled}
+                    onChange={(event) => setSoundEnabled(event.target.checked)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    fitRef.current?.();
+                    setShowConfig(false);
+                  }}
+                  className="mt-3 w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
+                >
+                  Centro kamerën
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="mt-2 w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                >
+                  Rifillo lojën
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">

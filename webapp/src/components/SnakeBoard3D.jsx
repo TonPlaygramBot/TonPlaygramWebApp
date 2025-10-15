@@ -7,13 +7,12 @@ import {
 } from '../utils/arenaDecor.js';
 import { applyRendererSRGB } from '../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../utils/arenaCameraConfig.js';
+import { createMurlanStyleTable } from '../utils/murlanTable.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const TABLE_TOP_SIZE = 3.4 + 0.6; // Matches chess arena table top size
-const TABLE_TOP_THICKNESS = 0.18;
-const TABLE_LEG_HEIGHT = 0.85 * 2;
-const TABLE_LEG_INSET = 0.45;
+const TABLE_RADIUS = 2.55; // Matches the Murlan Royale octagonal table footprint
+const TABLE_HEIGHT = 0.81;
 const WALL_PROXIMITY_FACTOR = 0.5;
 const WALL_HEIGHT_MULTIPLIER = 2;
 const CHAIR_SCALE = 4;
@@ -284,36 +283,22 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
   arena.add(stripRight);
 
-  const table = new THREE.Group();
-  const tableTop = new THREE.Mesh(
-    new THREE.BoxGeometry(TABLE_TOP_SIZE, TABLE_TOP_THICKNESS, TABLE_TOP_SIZE),
-    new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.6,
-      metalness: 0.1
-    })
-  );
-  const tableTopY = TABLE_LEG_HEIGHT + TABLE_TOP_THICKNESS / 2;
-  tableTop.position.y = tableTopY;
-  table.add(tableTop);
-  const legGeo = new THREE.BoxGeometry(0.12, TABLE_LEG_HEIGHT, 0.12);
-  const legMat = new THREE.MeshStandardMaterial({
-    color: 0x3a3a3a,
-    roughness: 0.7
+  const tableInfo = createMurlanStyleTable({
+    THREE,
+    arena,
+    renderer,
+    tableRadius: TABLE_RADIUS,
+    tableHeight: TABLE_HEIGHT
   });
-  const legOffsetX = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
-  const legOffsetZ = TABLE_TOP_SIZE / 2 - TABLE_LEG_INSET;
-  [
-    [-legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
-    [legOffsetX, TABLE_LEG_HEIGHT / 2, -legOffsetZ],
-    [-legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ],
-    [legOffsetX, TABLE_LEG_HEIGHT / 2, legOffsetZ]
-  ].forEach(([x, y, z]) => {
-    const leg = new THREE.Mesh(legGeo, legMat);
-    leg.position.set(x, y, z);
-    table.add(leg);
-  });
-  arena.add(table);
+  if (tableInfo?.dispose && disposeHandlers) {
+    disposeHandlers.push(() => {
+      try {
+        tableInfo.dispose();
+      } catch (error) {
+        console.warn('Failed to dispose Snake table', error);
+      }
+    });
+  }
 
   function makeChair() {
     const g = new THREE.Group();
@@ -357,7 +342,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
 
   const chairA = makeChair();
   const seatHalfDepth = 0.25 * CHAIR_SCALE;
-  const chairDistance = TABLE_TOP_SIZE / 2 + seatHalfDepth + CHAIR_CLEARANCE;
+  const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
   chairA.position.set(0, 0, -chairDistance);
   arena.add(chairA);
   const chairB = makeChair();
@@ -427,8 +412,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     return cam;
   }
 
-  const cameraRigOffsetX = TABLE_TOP_SIZE / 2 + 1.4;
-  const cameraRigOffsetZ = TABLE_TOP_SIZE / 2 + 1.2;
+  const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
+  const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
   const studioCamA = makeStudioCamera();
   studioCamA.position.set(-cameraRigOffsetX, 0, -cameraRigOffsetZ);
   arena.add(studioCamA);
@@ -436,7 +421,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
   arena.add(studioCamB);
 
-  const tableSurfaceY = tableTopY + TABLE_TOP_THICKNESS / 2;
+  const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
   const boardGroup = new THREE.Group();
   boardGroup.position.y = tableSurfaceY + 0.01;
   arena.add(boardGroup);
