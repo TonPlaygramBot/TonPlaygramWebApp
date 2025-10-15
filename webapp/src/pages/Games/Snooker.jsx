@@ -646,7 +646,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 1.8; // boost strike strength by 50%
+const SHOT_FORCE_BOOST = 2.7; // boost strike strength by an additional 50%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -707,6 +707,9 @@ const SPIN_BOX_FILL_RATIO =
     : 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
+const SIDE_SPIN_MULTIPLIER = 1.25;
+const BACKSPIN_MULTIPLIER = 1.7;
+const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -3194,18 +3197,27 @@ function Guret(parent, id, color, x, y) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   if (id === 'cue') {
-    const markerGeom = new THREE.CircleGeometry(CUE_MARKER_RADIUS, 48);
+    const markerGeom = new THREE.CylinderGeometry(
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_DEPTH,
+      48
+    );
     const markerMat = new THREE.MeshStandardMaterial({
       color: 0xff2f2f,
       emissive: 0x550000,
-      roughness: 0.28,
-      metalness: 0.05,
-      side: THREE.DoubleSide
+      emissiveIntensity: 0.4,
+      roughness: 0.25,
+      metalness: 0.08
     });
     markerMat.depthWrite = false;
     markerMat.needsUpdate = true;
-    const markerOffset = BALL_R - CUE_MARKER_DEPTH * 0.5;
-    const localForward = new THREE.Vector3(0, 0, 1);
+    markerMat.toneMapped = false;
+    markerMat.polygonOffset = true;
+    markerMat.polygonOffsetFactor = -0.5;
+    markerMat.polygonOffsetUnits = -0.5;
+    const markerOffset = BALL_R - CUE_MARKER_DEPTH * 0.5 + 0.001;
+    const localUp = new THREE.Vector3(0, 1, 0);
     [
       new THREE.Vector3(1, 0, 0),
       new THREE.Vector3(-1, 0, 0),
@@ -3216,7 +3228,7 @@ function Guret(parent, id, color, x, y) {
     ].forEach((normal) => {
       const marker = new THREE.Mesh(markerGeom, markerMat);
       marker.position.copy(normal).multiplyScalar(markerOffset);
-      marker.quaternion.setFromUnitVectors(localForward, normal);
+      marker.quaternion.setFromUnitVectors(localUp, normal);
       marker.castShadow = false;
       marker.receiveShadow = false;
       marker.renderOrder = 2;
@@ -9160,8 +9172,14 @@ function SnookerGame() {
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const ranges = spinRangeRef.current || {};
-          const spinSide = appliedSpin.x * (ranges.side ?? 0);
-          const spinTop = -appliedSpin.y * (ranges.forward ?? 0);
+          const baseSide = appliedSpin.x * (ranges.side ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER;
+          let spinTop = -appliedSpin.y * (ranges.forward ?? 0);
+          if (appliedSpin.y > 0) {
+            spinTop *= BACKSPIN_MULTIPLIER;
+          } else if (appliedSpin.y < 0) {
+            spinTop *= TOPSPIN_MULTIPLIER;
+          }
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
           cue.vel.copy(base);
           if (cue.spin) {
