@@ -87,20 +87,29 @@ function makeDice() {
   const dice = new THREE.Group();
 
   const dieMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffd700,
-    metalness: 1,
-    roughness: 0.05,
+    color: 0xffffff,
+    metalness: 0.25,
+    roughness: 0.35,
     clearcoat: 1,
-    clearcoatRoughness: 0.1,
-    reflectivity: 1,
-    envMapIntensity: 2
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.75,
+    envMapIntensity: 1.4
   });
 
   const pipMaterial = new THREE.MeshStandardMaterial({
     color: 0x000000,
-    metalness: 0.5,
-    roughness: 0.8,
-    envMapIntensity: 0.4
+    metalness: 0.4,
+    roughness: 0.85,
+    envMapIntensity: 0.35
+  });
+
+  const pipRingMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    metalness: 1,
+    roughness: 0.25,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 1.1
   });
 
   const body = new THREE.Mesh(
@@ -123,6 +132,14 @@ function makeDice() {
     DICE_PIP_DEPTH,
     28,
     1
+  );
+  const pipRingRadius = DICE_PIP_RADIUS * 1.45;
+  const pipRingTube = DICE_PIP_RADIUS * 0.3;
+  const pipRingGeo = new THREE.TorusGeometry(
+    pipRingRadius,
+    pipRingTube,
+    16,
+    32
   );
   const halfSize = DICE_SIZE / 2;
   const inset = halfSize - DICE_FACE_INSET;
@@ -185,16 +202,23 @@ function makeDice() {
     const pipOrientation = new THREE.Quaternion().setFromUnitVectors(referenceUp, n);
 
     points.forEach(([gx, gy]) => {
+      const pipGroup = new THREE.Group();
       const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      const ring = new THREE.Mesh(pipRingGeo, pipRingMaterial);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = DICE_PIP_DEPTH / 2 - pipRingTube * 0.3;
+      pip.castShadow = true;
+      pip.receiveShadow = true;
+      ring.receiveShadow = true;
+      pipGroup.add(pip, ring);
+
       const pos = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
         .addScaledVector(n, inset - DICE_PIP_DEPTH / 2);
-      pip.position.copy(pos);
-      pip.quaternion.copy(pipOrientation);
-      pip.castShadow = true;
-      pip.receiveShadow = true;
-      dice.add(pip);
+      pipGroup.position.copy(pos);
+      pipGroup.quaternion.copy(pipOrientation);
+      dice.add(pipGroup);
     });
   });
 
