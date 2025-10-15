@@ -441,7 +441,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   boardGroup.position.y = tableSurfaceY + 0.01;
   arena.add(boardGroup);
 
-  const boardLookTarget = new THREE.Vector3(0, boardGroup.position.y + 0.45, 0);
+  const boardLookTarget = new THREE.Vector3(
+    0,
+    boardGroup.position.y + BOARD_BASE_HEIGHT / 2 + 0.12,
+    0
+  );
   spotTarget.position.copy(boardLookTarget);
   spot.target.updateMatrixWorld();
   studioCamA.lookAt(boardLookTarget);
@@ -464,6 +468,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    spotTarget.position.copy(boardLookTarget);
+    spot.target.updateMatrixWorld();
+    studioCamA.lookAt(boardLookTarget);
+    studioCamB.lookAt(boardLookTarget);
     const needed =
       SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
     sph.radius = clamp(Math.max(needed, sph.radius), CAM.minR, CAM.maxR);
@@ -526,7 +534,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   return { arena, boardGroup, boardLookTarget, fit };
 }
 
-function buildSnakeBoard(boardGroup, disposeHandlers = []) {
+function buildSnakeBoard(boardGroup, boardLookTarget, disposeHandlers = []) {
   const boardRoot = new THREE.Group();
   boardGroup.add(boardRoot);
 
@@ -647,6 +655,15 @@ function buildSnakeBoard(boardGroup, disposeHandlers = []) {
       sprite.material?.dispose?.();
     });
   });
+
+  if (boardLookTarget) {
+    boardGroup.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(boardRoot);
+    const center = new THREE.Vector3();
+    bounds.getCenter(center);
+    center.y = bounds.max.y + 0.12;
+    boardLookTarget.copy(center);
+  }
 
   return {
     root: boardRoot,
@@ -1000,9 +1017,12 @@ export default function SnakeBoard3D({
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.zIndex = '0';
     renderer.domElement.style.touchAction = 'none';
     mount.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
@@ -1012,13 +1032,14 @@ export default function SnakeBoard3D({
     handlers.length = 0;
 
     const arena = buildArena(scene, renderer, mount, cameraRef, handlers);
-    const board = buildSnakeBoard(arena.boardGroup, handlers);
+    const board = buildSnakeBoard(arena.boardGroup, arena.boardLookTarget, handlers);
     boardRef.current = { ...board, boardLookTarget: arena.boardLookTarget };
 
     railTextureRef.current = makeRailTexture();
     snakeTextureRef.current = makeSnakeTexture();
 
     fitRef.current = arena.fit;
+    arena.fit();
 
     renderer.setAnimationLoop(() => {
       if (cameraRef.current) {

@@ -23,10 +23,12 @@ const orientationMap = (() => {
 })();
 
 function placePips(group, pipMaterial, geometrySet) {
-  const pipRadius = 0.085;
-  const pipDepth = 0.05;
+  const pipRadius = 0.09;
+  const pipDepth = 0.08;
   const pipGeo = new THREE.CylinderGeometry(pipRadius, pipRadius, pipDepth, 28, 1);
-  const inset = DIE_SIZE / 2 - 0.02;
+  const surface = DIE_SIZE / 2;
+  const embedOffset = 0.0025;
+  const centerOffset = surface - pipDepth / 2 + embedOffset;
   const faceDefinitions = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
@@ -88,8 +90,10 @@ function placePips(group, pipMaterial, geometrySet) {
         .copy(new THREE.Vector3())
         .addScaledVector(x, gx)
         .addScaledVector(y, gy)
-        .addScaledVector(n, inset - pipDepth / 2);
+        .addScaledVector(n, centerOffset);
       mesh.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(up, n));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       group.add(mesh);
       geometrySet?.add(mesh.geometry);
     });
