@@ -77,7 +77,10 @@ const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
-const DICE_PIP_SINK = DICE_PIP_RADIUS * 0.8;
+const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
+const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
+const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
+const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
@@ -95,14 +98,24 @@ function makeDice() {
     envMapIntensity: 1.4
   });
 
-  const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x000000,
-    metalness: 0.35,
-    roughness: 0.55,
-    clearcoat: 0.1,
-    clearcoatRoughness: 0.45,
-    envMapIntensity: 0.35,
-    side: THREE.BackSide
+  const pipMaterial = new THREE.MeshStandardMaterial({
+    color: 0x050505,
+    metalness: 0.18,
+    roughness: 0.62,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -0.5
+  });
+
+  const pipRimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1a1a,
+    metalness: 0.12,
+    roughness: 0.48,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -0.5,
+    polygonOffsetUnits: -0.25
   });
 
   const body = new THREE.Mesh(
@@ -119,17 +132,10 @@ function makeDice() {
   body.receiveShadow = true;
   dice.add(body);
 
-  const pipGeo = new THREE.SphereGeometry(
-    DICE_PIP_RADIUS,
-    28,
-    18,
-    0,
-    Math.PI * 2,
-    0,
-    Math.PI / 2
-  );
+  const pipGeo = new THREE.CircleGeometry(DICE_PIP_RADIUS, 48);
+  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 48);
   const halfSize = DICE_SIZE / 2;
-  const inset = halfSize - DICE_FACE_INSET;
+  const faceDepth = halfSize - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
   const faces = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
@@ -180,28 +186,29 @@ function makeDice() {
     }
   ];
 
-  const referenceUp = new THREE.Vector3(0, 1, 0);
   faces.forEach(({ normal, points }) => {
     const n = normal.clone().normalize();
     const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
     const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
     const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
-    const inwardNormal = n.clone().negate();
-    const pipOrientation = new THREE.Quaternion().setFromUnitVectors(referenceUp, inwardNormal);
 
     points.forEach(([gx, gy]) => {
-      const pipGroup = new THREE.Group();
-      const pip = new THREE.Mesh(pipGeo, pipMaterial);
-      pip.receiveShadow = true;
-      pipGroup.add(pip);
-
-      const pos = new THREE.Vector3()
+      const base = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
-        .addScaledVector(n, inset - DICE_PIP_SINK);
-      pipGroup.position.copy(pos);
-      pipGroup.quaternion.copy(pipOrientation);
-      dice.add(pipGroup);
+        .addScaledVector(n, faceDepth);
+
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.receiveShadow = true;
+      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH * 0.35);
+      pip.lookAt(pip.position.clone().add(n));
+      dice.add(pip);
+
+      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
+      rim.receiveShadow = true;
+      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.lookAt(rim.position.clone().add(n));
+      dice.add(rim);
     });
   });
 
