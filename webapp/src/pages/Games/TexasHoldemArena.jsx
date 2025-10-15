@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -21,7 +20,7 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.85 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.24 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.36 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -50,10 +49,12 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_D * 6, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_D * 6, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(32);
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
+
+const RAISE_DENOMINATIONS = Object.freeze([1, 5, 10, 20, 50, 100, 500, 1000]);
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -579,7 +580,14 @@ function TexasHoldemArena({ search }) {
     const baseState = buildInitialState(players, token, stake);
     return resetForNextHand(baseState);
   });
-  const [uiState, setUiState] = useState({ availableActions: [], toCall: 0 });
+  const [uiState, setUiState] = useState({
+    availableActions: [],
+    toCall: 0,
+    canRaise: false,
+    minRaise: BIG_BLIND,
+    maxRaise: BIG_BLIND,
+    raiseAmount: BIG_BLIND
+  });
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -603,15 +611,43 @@ function TexasHoldemArena({ search }) {
     );
     camera.position.set(0, TABLE_HEIGHT * 3.5, TABLE_RADIUS * 3.4);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.minDistance = CAMERA_SETTINGS.minRadius;
-    controls.maxDistance = CAMERA_SETTINGS.maxRadius;
-    controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    const controlState = {
+      yaw: 0,
+      pitch: (ARENA_CAMERA_DEFAULTS.phiMin + ARENA_CAMERA_DEFAULTS.phiMax) / 2,
+      radius: 1,
+      minYaw: 0,
+      maxYaw: 0,
+      minPitch: ARENA_CAMERA_DEFAULTS.phiMin,
+      maxPitch: ARENA_CAMERA_DEFAULTS.phiMax,
+      pointerId: null,
+      pointerDown: false,
+      dragging: false,
+      startX: 0,
+      startY: 0,
+      startYaw: 0,
+      startPitch: 0,
+      lookTarget: new THREE.Vector3()
+    };
+
+    const raycaster = new THREE.Raycaster();
+
+    const updateCameraLook = () => {
+      const spherical = new THREE.Spherical(controlState.radius, controlState.pitch, controlState.yaw);
+      const direction = new THREE.Vector3().setFromSpherical(spherical);
+      controlState.lookTarget.copy(camera.position).add(direction);
+      camera.lookAt(controlState.lookTarget);
+    };
+
+    const configureHeadTurn = (target) => {
+      const offset = target.clone().sub(camera.position);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      controlState.radius = Math.max(0.001, offset.length());
+      controlState.yaw = spherical.theta;
+      controlState.pitch = THREE.MathUtils.clamp(spherical.phi, controlState.minPitch, controlState.maxPitch);
+      controlState.minYaw = controlState.yaw - CAMERA_HEAD_TURN_LIMIT;
+      controlState.maxYaw = controlState.yaw + CAMERA_HEAD_TURN_LIMIT;
+      updateCameraLook();
+    };
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambient);
@@ -658,6 +694,7 @@ function TexasHoldemArena({ search }) {
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
     const seatLayout = createSeatLayout(PLAYER_COUNT);
     const seatGroups = [];
+    const raiseChips = [];
     const deckAnchor = DECK_POSITION.clone();
 
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
@@ -674,18 +711,113 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(humanSeat.right, lateralOffset);
       position.y = humanSeat.stoolHeight + elevation;
       camera.position.copy(position);
-      controls.target.copy(cameraTarget);
-      const offset = position.clone().sub(cameraTarget);
-      const radius = offset.length();
-      controls.minDistance = radius;
-      controls.maxDistance = radius;
-      const azimuth = Math.atan2(offset.x, offset.z);
-      controls.minAzimuthAngle = azimuth - CAMERA_HEAD_TURN_LIMIT;
-      controls.maxAzimuthAngle = azimuth + CAMERA_HEAD_TURN_LIMIT;
-      controls.update();
+      configureHeadTurn(cameraTarget);
     };
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
+
+    const domElement = renderer.domElement;
+    domElement.style.touchAction = 'none';
+
+    const pointerYawSpeed = 0.0045;
+    const pointerPitchSpeed = 0.0035;
+
+    const applyPointerDelta = (deltaX, deltaY) => {
+      const nextYaw = controlState.startYaw - deltaX * pointerYawSpeed;
+      const nextPitch = controlState.startPitch - deltaY * pointerPitchSpeed;
+      controlState.yaw = THREE.MathUtils.clamp(nextYaw, controlState.minYaw, controlState.maxYaw);
+      controlState.pitch = THREE.MathUtils.clamp(nextPitch, controlState.minPitch, controlState.maxPitch);
+      updateCameraLook();
+    };
+
+    const handlePointerDown = (event) => {
+      if (controlState.pointerDown) return;
+      controlState.pointerDown = true;
+      controlState.pointerId = event.pointerId;
+      controlState.dragging = false;
+      controlState.startX = event.clientX;
+      controlState.startY = event.clientY;
+      controlState.startYaw = controlState.yaw;
+      controlState.startPitch = controlState.pitch;
+      domElement.setPointerCapture(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+      if (!controlState.pointerDown || controlState.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - controlState.startX;
+      const deltaY = event.clientY - controlState.startY;
+      if (!controlState.dragging) {
+        if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+          controlState.dragging = true;
+        }
+      }
+      if (!controlState.dragging) return;
+      applyPointerDelta(deltaX, deltaY);
+    };
+
+    const trySelectRaiseChip = (event) => {
+      const store = threeRef.current;
+      if (!store || !store.raiseChips?.length) return false;
+      const rect = domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(pointer, camera);
+      const intersections = raycaster.intersectObjects(store.raiseChips.map((entry) => entry.group), true);
+      if (!intersections.length) return false;
+      const picked = intersections.find((hit) => hit.object?.userData?.isRaiseChip);
+      if (!picked) return false;
+      const value = picked.object.userData.raiseValue;
+      if (typeof value !== 'number') return false;
+      setUiState((prev) => {
+        if (!prev.canRaise || prev.maxRaise <= 0) return prev;
+        const base = prev.raiseAmount >= prev.minRaise ? prev.raiseAmount : prev.minRaise;
+        let next = base + value;
+        if (base === prev.minRaise && prev.raiseAmount < prev.minRaise) {
+          next = prev.minRaise;
+        }
+        next = Math.min(prev.maxRaise, next);
+        next = Math.max(prev.minRaise, next);
+        if (next === prev.raiseAmount) return prev;
+        return { ...prev, raiseAmount: next };
+      });
+      return true;
+    };
+
+    const clearPointerState = () => {
+      controlState.pointerDown = false;
+      controlState.pointerId = null;
+      controlState.dragging = false;
+    };
+
+    const handlePointerUp = (event) => {
+      if (controlState.pointerId !== event.pointerId) return;
+      domElement.releasePointerCapture(event.pointerId);
+      const wasDragging = controlState.dragging;
+      clearPointerState();
+      if (!wasDragging) {
+        trySelectRaiseChip(event);
+      }
+    };
+
+    const handlePointerCancel = (event) => {
+      if (controlState.pointerId !== event.pointerId) return;
+      domElement.releasePointerCapture(event.pointerId);
+      clearPointerState();
+    };
+
+    const handlePointerLeave = (event) => {
+      if (controlState.pointerId !== event.pointerId) return;
+      domElement.releasePointerCapture(event.pointerId);
+      clearPointerState();
+    };
+
+    domElement.addEventListener('pointerdown', handlePointerDown);
+    domElement.addEventListener('pointermove', handlePointerMove);
+    domElement.addEventListener('pointerup', handlePointerUp);
+    domElement.addEventListener('pointercancel', handlePointerCancel);
+    domElement.addEventListener('pointerleave', handlePointerLeave);
 
     const seatMaterials = {
       human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
@@ -762,6 +894,27 @@ function TexasHoldemArena({ search }) {
         stoolHeight: seat.stoolHeight,
         isHuman: seat.isHuman
       });
+
+      if (seat.isHuman) {
+        const spacing = chipFactory.chipHeight * 5.2;
+        const baseAnchor = seat.chipAnchor.clone();
+        baseAnchor.addScaledVector(seat.forward, -chipFactory.chipHeight * 3);
+        baseAnchor.y = TABLE_HEIGHT + chipFactory.chipHeight / 2;
+        RAISE_DENOMINATIONS.forEach((value, idx) => {
+          const stack = chipFactory.createStack(value);
+          const offset = (idx - (RAISE_DENOMINATIONS.length - 1) / 2) * spacing;
+          const position = baseAnchor.clone().addScaledVector(seat.right, offset);
+          stack.position.copy(position);
+          stack.userData.isRaiseChip = true;
+          stack.userData.raiseValue = value;
+          stack.children.forEach((child) => {
+            child.userData.isRaiseChip = true;
+            child.userData.raiseValue = value;
+          });
+          arenaGroup.add(stack);
+          raiseChips.push({ group: stack, value, baseY: position.y });
+        });
+      }
     });
 
     const communityMeshes = Array.from({ length: 5 }, () => {
@@ -780,7 +933,7 @@ function TexasHoldemArena({ search }) {
       renderer,
       scene,
       camera,
-      controls,
+      controlState,
       chipFactory,
       cardGeometry,
       faceCache,
@@ -788,6 +941,8 @@ function TexasHoldemArena({ search }) {
       communityMeshes,
       potStack,
       deckAnchor,
+      raiseChips,
+      raycaster,
       frameId: null
     };
 
@@ -806,7 +961,6 @@ function TexasHoldemArena({ search }) {
     const animate = () => {
       const three = threeRef.current;
       if (!three) return;
-      three.controls.update();
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -814,9 +968,22 @@ function TexasHoldemArena({ search }) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      clearPointerState();
+      domElement.removeEventListener('pointerdown', handlePointerDown);
+      domElement.removeEventListener('pointermove', handlePointerMove);
+      domElement.removeEventListener('pointerup', handlePointerUp);
+      domElement.removeEventListener('pointercancel', handlePointerCancel);
+      domElement.removeEventListener('pointerleave', handlePointerLeave);
       cancelAnimationFrame(animationRef.current);
       if (threeRef.current) {
-        const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, communityMeshes: community } = threeRef.current;
+        const {
+          renderer: r,
+          scene: s,
+          chipFactory: factory,
+          seatGroups: seats,
+          communityMeshes: community,
+          raiseChips: raiseOptions
+        } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
@@ -843,12 +1010,20 @@ function TexasHoldemArena({ search }) {
           }
           s.remove(mesh);
         });
+        raiseOptions?.forEach(({ group }) => {
+          factory.disposeStack(group);
+          if (group.parent) {
+            group.parent.remove(group);
+          }
+        });
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
         tableInfo?.dispose?.();
         r.dispose();
       }
-      mount.removeChild(renderer.domElement);
+      if (mount.contains(domElement)) {
+        mount.removeChild(domElement);
+      }
       threeRef.current = null;
     };
   }, []);
@@ -912,6 +1087,29 @@ function TexasHoldemArena({ search }) {
   }, [gameState]);
 
   useEffect(() => {
+    const store = threeRef.current;
+    if (!store?.raiseChips?.length) return;
+    const { raiseChips: options, chipFactory } = store;
+    let remaining = Math.max(0, Math.round(uiState.raiseAmount));
+    const highlight = new Set();
+    if (remaining >= Math.round(uiState.minRaise)) {
+      for (let i = RAISE_DENOMINATIONS.length - 1; i >= 0; i -= 1) {
+        const denom = RAISE_DENOMINATIONS[i];
+        const count = Math.floor(remaining / denom);
+        if (count > 0) {
+          highlight.add(denom);
+          remaining -= count * denom;
+        }
+      }
+    }
+    options.forEach((entry) => {
+      const active = highlight.has(entry.value);
+      const targetY = entry.baseY + (active ? chipFactory.chipHeight * 2.1 : 0);
+      entry.group.position.y = targetY;
+    });
+  }, [uiState.raiseAmount, uiState.minRaise]);
+
+  useEffect(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -933,7 +1131,11 @@ function TexasHoldemArena({ search }) {
     if (actor.isHuman) {
       const toCall = Math.max(0, gameState.currentBet - actor.bet);
       const canCheck = toCall === 0;
-      const canRaise = actor.chips > toCall;
+      const maxRaise = Math.max(0, actor.chips - toCall);
+      const rawMin = Math.min(gameState.minRaise, actor.chips);
+      const sliderMin = maxRaise > 0 ? Math.min(rawMin, maxRaise) : rawMin;
+      const sliderMax = Math.max(sliderMin, maxRaise);
+      const canRaise = actor.chips > toCall && sliderMax > 0;
       const actions = [];
       actions.push({ id: 'fold', label: 'Fold' });
       if (canCheck) {
@@ -947,9 +1149,22 @@ function TexasHoldemArena({ search }) {
           actions.push({ id: 'raise', label: 'Raise' });
         }
       }
-      setUiState({ availableActions: actions, toCall });
+      setUiState((prev) => {
+        const previous = prev.raiseAmount ?? sliderMin;
+        const nextRaise = canRaise
+          ? THREE.MathUtils.clamp(previous >= sliderMin ? previous : sliderMin, sliderMin, sliderMax)
+          : 0;
+        return {
+          availableActions: actions,
+          toCall,
+          canRaise,
+          minRaise: sliderMin,
+          maxRaise: sliderMax,
+          raiseAmount: nextRaise
+        };
+      });
     } else {
-      setUiState({ availableActions: [], toCall: 0 });
+      setUiState({ availableActions: [], toCall: 0, canRaise: false, minRaise: 0, maxRaise: 0, raiseAmount: 0 });
       timerRef.current = setTimeout(() => {
         setGameState((prev) => {
           const next = cloneState(prev);
@@ -970,7 +1185,20 @@ function TexasHoldemArena({ search }) {
     setGameState((prev) => {
       const next = cloneState(prev);
       if (next.stage === 'showdown') return next;
-      performPlayerAction(next, id, next.minRaise);
+      let raiseSize = next.minRaise;
+      if (id === 'bet' || id === 'raise') {
+        const player = next.players[next.actionIndex];
+        if (player) {
+          const toCall = Math.max(0, next.currentBet - player.bet);
+          const maxRaise = Math.max(0, player.chips - toCall);
+          const rawMin = Math.min(next.minRaise, player.chips);
+          const sliderMin = maxRaise > 0 ? Math.min(rawMin, maxRaise) : rawMin;
+          const sliderMax = Math.max(sliderMin, maxRaise);
+          const desired = Math.round(uiState.raiseAmount ?? sliderMin);
+          raiseSize = THREE.MathUtils.clamp(desired, sliderMin, sliderMax);
+        }
+      }
+      performPlayerAction(next, id, raiseSize);
       return next;
     });
   };
@@ -1004,15 +1232,56 @@ function TexasHoldemArena({ search }) {
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
-          {uiState.availableActions.map((action) => (
+          {uiState.availableActions
+            .filter((action) => action.id !== 'bet' && action.id !== 'raise')
+            .map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleAction(action.id)}
+                className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+              >
+                {action.label}
+              </button>
+            ))}
+        </div>
+      )}
+      {actor?.isHuman && uiState.canRaise && gameState.stage !== 'showdown' && (
+        <div className="pointer-events-none absolute inset-y-0 right-4 flex flex-col items-end justify-center">
+          <div className="pointer-events-auto flex flex-col items-center gap-3 rounded-2xl bg-slate-900/80 px-4 py-4 text-white shadow-xl backdrop-blur">
+            <div className="text-xs uppercase tracking-wide text-slate-200/80">Raise amount</div>
+            <div className="text-lg font-semibold">
+              {Math.round(uiState.raiseAmount)} {gameState.token}
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <input
+                type="range"
+                min={Math.max(1, Math.round(uiState.minRaise))}
+                max={Math.max(Math.round(uiState.minRaise), Math.round(uiState.maxRaise))}
+                value={Math.round(uiState.raiseAmount)}
+                step={1}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setUiState((prev) => {
+                    const clamped = THREE.MathUtils.clamp(value, prev.minRaise, prev.maxRaise);
+                    if (clamped === prev.raiseAmount) return prev;
+                    return { ...prev, raiseAmount: clamped };
+                  });
+                }}
+                className="h-32 w-12 cursor-pointer [appearance:none] [writing-mode:bt-lr] bg-transparent"
+              />
+              <div className="flex w-full justify-between text-[0.65rem] uppercase tracking-wide text-slate-300/70">
+                <span>Min {Math.round(uiState.minRaise)}</span>
+                <span>Max {Math.round(uiState.maxRaise)}</span>
+              </div>
+            </div>
             <button
-              key={action.id}
-              onClick={() => handleAction(action.id)}
-              className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+              onClick={() => handleAction(uiState.toCall > 0 ? 'raise' : 'bet')}
+              disabled={uiState.raiseAmount < uiState.minRaise}
+              className="w-full rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-slate-900 shadow-lg transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-500/60 disabled:text-slate-300"
             >
-              {action.label}
+              {uiState.toCall > 0 ? 'Raise' : 'Bet'} {Math.round(uiState.raiseAmount)}
             </button>
-          ))}
+          </div>
         </div>
       )}
     </div>
