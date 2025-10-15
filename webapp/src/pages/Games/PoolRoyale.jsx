@@ -2339,6 +2339,10 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
+// When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36;
+const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
+const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -5185,6 +5189,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
+  const lowViewSlideRef = useRef(0);
   const initialCuePhi = THREE.MathUtils.clamp(
     CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
     CAMERA.minPhi,
@@ -6817,12 +6822,36 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
           const { standing, cueShot } = bounds;
-          const blend = THREE.MathUtils.clamp(
-            nextBlend ?? cameraBlendRef.current,
-            0,
-            1
-          );
+          const requestedBlend =
+            nextBlend ?? cameraBlendRef.current ?? ACTION_CAMERA_START_BLEND;
+          const blend = THREE.MathUtils.clamp(requestedBlend, 0, 1);
+          const overshoot = Math.max(0, blend - requestedBlend);
           cameraBlendRef.current = blend;
+          if (overshoot > 1e-6 && CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
+            const slideStore = lowViewSlideRef.current ?? 0;
+            const increment = overshoot * CUE_VIEW_FORWARD_SLIDE_MAX;
+            lowViewSlideRef.current = THREE.MathUtils.clamp(
+              slideStore + increment,
+              0,
+              CUE_VIEW_FORWARD_SLIDE_MAX
+            );
+          } else if (blend >= CUE_VIEW_FORWARD_SLIDE_RESET_BLEND) {
+            if (blend >= 0.95) {
+              lowViewSlideRef.current = 0;
+            } else if (lowViewSlideRef.current > 1e-6) {
+              const decayBlend = Math.max(
+                0,
+                blend - CUE_VIEW_FORWARD_SLIDE_RESET_BLEND
+              );
+              if (decayBlend > 0 && CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
+                const decay = decayBlend * CUE_VIEW_FORWARD_SLIDE_MAX;
+                lowViewSlideRef.current = Math.max(
+                  0,
+                  lowViewSlideRef.current - decay
+                );
+              }
+            }
+          }
           const cueMinRadius = THREE.MathUtils.lerp(
             CUE_VIEW_MIN_RADIUS,
             CAMERA.minR,
@@ -6893,6 +6922,31 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               minRadiusForRails != null
                 ? Math.max(zoomed, minRadiusForRails)
                 : zoomed;
+          }
+          if (CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
+            const storedSlide = lowViewSlideRef.current ?? 0;
+            if (storedSlide > 1e-6) {
+              const fade =
+                CUE_VIEW_FORWARD_SLIDE_BLEND_FADE > 1e-6
+                  ? 1 -
+                    THREE.MathUtils.clamp(
+                      blend / CUE_VIEW_FORWARD_SLIDE_BLEND_FADE,
+                      0,
+                      1
+                    )
+                  : 1;
+              const slideAmount = storedSlide * fade;
+              if (slideAmount > 1e-6) {
+                const slid = clampOrbitRadius(
+                  finalRadius - slideAmount,
+                  cueMinRadius
+                );
+                finalRadius =
+                  minRadiusForRails != null
+                    ? Math.max(slid, minRadiusForRails)
+                    : slid;
+              }
+            }
           }
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
@@ -7660,6 +7714,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
           );
           const safePhi = Math.min(phi, phiCap);
+          lowViewSlideRef.current = 0;
           if (immediate) {
             sph.radius = radius;
             sph.phi = Math.max(CAMERA.minPhi, safePhi);
