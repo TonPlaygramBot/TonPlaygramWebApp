@@ -520,10 +520,10 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
-const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
-const CLOTH_UNDERLAY_EDGE_INSET = TABLE.THICK * 0.015; // pull the underlay inwards to stay invisible beneath the cushions
-const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the underlay to avoid clipping
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.14; // hidden plywood deck to intercept shadows before they reach the carpet
+const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.012; // keep a slim separation between the cloth and the plywood underlay
+const CLOTH_UNDERLAY_EDGE_INSET = TABLE.THICK * 0.006; // pull the underlay inwards to stay invisible beneath the cushions
+const CLOTH_UNDERLAY_HOLE_SCALE = 1.03; // widen the pocket apertures on the underlay to avoid clipping
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -542,14 +542,15 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
+const POCKET_CAM_DISTANCE_TWEAK = 0.96;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.85 +
-  POCKET_VIS_R * 4.7 +
-  BALL_R * 4.1;
+  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.85 +
+    POCKET_VIS_R * 4.7 +
+    BALL_R * 4.1) * POCKET_CAM_DISTANCE_TWEAK;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
-  POCKET_VIS_R * 5.2 +
-  BALL_R * 3.7;
+  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
+    POCKET_VIS_R * 5.2 +
+    BALL_R * 3.7) * POCKET_CAM_DISTANCE_TWEAK;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
@@ -2275,17 +2276,17 @@ function applySnookerScaling({
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.92;
-const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
+const CUE_SHOT_PHI = Math.PI / 2 - 0.2;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.24);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // allow a flatter cue view while keeping the lens clear of the rails
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.04; // allow a flatter cue view while keeping the lens clear of the rails
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.078;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.074;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.295;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
@@ -2321,13 +2322,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.072;
+const CUE_VIEW_RADIUS_RATIO = 0.068;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.3;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.18
+  STANDING_VIEW_PHI + 0.24
 );
-const CUE_VIEW_PHI_LIFT = 0.06;
+const CUE_VIEW_PHI_LIFT = 0.085;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
