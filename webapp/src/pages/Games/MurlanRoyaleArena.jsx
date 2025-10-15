@@ -12,7 +12,6 @@ import {
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
-import { getMurlanClothTextures } from '../../utils/clothTextures.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import {
   DEFAULT_WOOD_GRAIN_ID,
@@ -1216,7 +1215,7 @@ export default function MurlanRoyaleArena({ search }) {
       columnMat,
       trimMat,
       surfaceMat,
-      clothTextureKey: null,
+      velvetTexture: null,
       topWoodMat,
       rimWoodMat,
       group: tableGroup
@@ -1599,6 +1598,7 @@ export default function MurlanRoyaleArena({ search }) {
         store.scoreboard = null;
       }
       if (store.tableParts) {
+        store.tableParts.velvetTexture?.dispose?.();
         [
           store.tableParts.baseMat,
           store.tableParts.columnMat,
@@ -2425,6 +2425,27 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   return texture;
 }
 
+function makeVelvetTexture(w, h, c1, c2) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, w, h);
+  gradient.addColorStop(0, c1);
+  gradient.addColorStop(1, c2);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 7000; i++) {
+    const px = Math.random() * w;
+    const py = Math.random() * h;
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.03})`;
+    ctx.fillRect(px, py, 1, 1);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  return texture;
+}
+
 function resolveWoodComponents(option) {
   const fallbackPreset = WOOD_PRESETS_BY_ID.walnut || WOOD_FINISH_PRESETS[0];
   const preset = (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
@@ -2506,33 +2527,17 @@ function applyTableMaterials(three, { woodOption, clothOption, baseOption }) {
   applyWoodSelectionToMaterials(parts.topWoodMat, parts.rimWoodMat, woodOption);
 
   if (parts.surfaceMat && clothOption) {
-    const clothKey = `${clothOption.feltTop}|${clothOption.feltBottom}`;
-    if (parts.clothTextureKey !== clothKey) {
-      const { map, bump } = getMurlanClothTextures(clothOption.feltTop, clothOption.feltBottom);
-      parts.surfaceMat.map = map || null;
-      parts.surfaceMat.bumpMap = bump || null;
-      if (map) {
-        map.needsUpdate = true;
-      }
-      if (bump) {
-        bump.needsUpdate = true;
-      }
-      parts.clothTextureKey = clothKey;
-    }
+    parts.velvetTexture?.dispose?.();
+    const tex = makeVelvetTexture(1024, 1024, clothOption.feltTop, clothOption.feltBottom);
+    applySRGBColorSpace(tex);
+    tex.anisotropy = 8;
+    parts.surfaceMat.map = tex;
     parts.surfaceMat.color?.set?.('#ffffff');
     if (typeof clothOption.roughness === 'number') {
       parts.surfaceMat.roughness = clothOption.roughness;
     }
     if (typeof clothOption.metalness === 'number') {
       parts.surfaceMat.metalness = clothOption.metalness;
-    }
-    if (parts.surfaceMat.bumpMap) {
-      const bumpScale = Number.isFinite(clothOption.bumpScale)
-        ? clothOption.bumpScale
-        : 0.22;
-      parts.surfaceMat.bumpScale = bumpScale;
-    } else if (Number.isFinite(clothOption.bumpScale)) {
-      parts.surfaceMat.bumpScale = clothOption.bumpScale;
     }
     if ('emissive' in parts.surfaceMat) {
       const emissive = clothOption.emissive ?? '#000000';
@@ -2545,6 +2550,7 @@ function applyTableMaterials(three, { woodOption, clothOption, baseOption }) {
       parts.surfaceMat.emissiveIntensity = intensity;
     }
     parts.surfaceMat.needsUpdate = true;
+    parts.velvetTexture = tex;
   }
 }
 
