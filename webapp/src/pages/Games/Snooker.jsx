@@ -2337,13 +2337,13 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.16; // keep orbit camera from dipping below the table surface while allowing more lift
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.24);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // allow a flatter cue view while keeping the lens clear of the rails
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.078;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant
-const BROADCAST_DISTANCE_MULTIPLIER = 0.36;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
@@ -2377,13 +2377,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.078;
+const CUE_VIEW_RADIUS_RATIO = 0.072;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.3;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.08;
+const CUE_VIEW_PHI_LIFT = 0.06;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -11035,14 +11035,19 @@ function SnookerGame() {
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
+          style={{
+            left: 'max(4.5rem, 11vw)',
+            right: 'max(8.5rem, 18vw)'
+          }}
         >
           <div
-            className="pointer-events-auto flex items-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${UI_SCALE})`,
-              transformOrigin: 'bottom center'
+              transformOrigin: 'bottom center',
+              maxWidth: 'min(26rem, 100%)'
             }}
           >
             <div className="flex items-center gap-3">
