@@ -194,6 +194,19 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'stools', label: 'Stola', options: STOOL_THEMES }
 ];
 
+function createRegularPolygonShape(sides = 8, radius = 1) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < sides; i++) {
+    const a = (i / sides) * Math.PI * 2;
+    const x = Math.cos(a) * radius;
+    const y = Math.sin(a) * radius;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return shape;
+}
+
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
@@ -641,22 +654,37 @@ export default function MurlanRoyaleArena({ search }) {
     switch (type) {
       case 'table':
         return (
-          <div className="relative h-12 w-full overflow-hidden rounded-xl border border-white/10">
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative h-14 w-14">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: option.baseColor,
+                    clipPath:
+                      'polygon(32% 0%, 68% 0%, 100% 32%, 100% 68%, 68% 100%, 32% 100%, 0% 68%, 0% 32%)'
+                  }}
+                />
+                <div
+                  className="absolute inset-[14%]"
+                  style={{
+                    background: option.frameColor,
+                    clipPath:
+                      'polygon(32% 0%, 68% 0%, 100% 32%, 100% 68%, 68% 100%, 32% 100%, 0% 68%, 0% 32%)'
+                  }}
+                />
+                <div
+                  className="absolute inset-[22%]"
+                  style={{
+                    background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})`,
+                    clipPath:
+                      'polygon(32% 0%, 68% 0%, 100% 32%, 100% 68%, 68% 100%, 32% 100%, 0% 68%, 0% 32%)'
+                  }}
+                />
+              </div>
+            </div>
             <div
-              className="absolute inset-0"
-              style={{
-                background: `radial-gradient(circle at 25% 25%, ${option.feltTop}, ${option.feltBottom})`
-              }}
-            />
-            <div
-              className="absolute inset-1 rounded-lg"
-              style={{
-                boxShadow: `0 0 0 999px ${option.baseColor} inset`,
-                border: `3px solid ${option.frameColor}`
-              }}
-            />
-            <div
-              className="absolute bottom-1 right-2 h-2 w-10 rounded-full opacity-80"
+              className="absolute bottom-1 left-1/2 h-2 w-16 -translate-x-1/2 rounded-full opacity-80"
               style={{ background: option.columnColor }}
             />
           </div>
@@ -977,54 +1005,119 @@ export default function MurlanRoyaleArena({ search }) {
 
     updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
+    const scaleFactor = TABLE_RADIUS / 0.9;
+    const feltDepth = 0.008 * scaleFactor;
+    const feltOffset = 0.012 * scaleFactor;
+    const woodDepth = 0.02 * scaleFactor;
+    const rimDepth = 0.06 * scaleFactor;
+    const trimHeight = 0.08 * scaleFactor;
+    const trimOffset = 0.06 * scaleFactor;
+    const baseHeight = 0.62 * scaleFactor;
+    const tableY = TABLE_HEIGHT - (feltOffset + feltDepth);
+
     const baseMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(tableTheme.baseColor),
-      metalness: 0.85,
-      roughness: 0.2,
-      clearcoat: 0.9
+      metalness: 0.75,
+      roughness: 0.35,
+      clearcoat: 0.6
     });
-    const tableBase = new THREE.Mesh(
-      new THREE.CylinderGeometry(3.8 * MODEL_SCALE, 3.8 * MODEL_SCALE, 0.25 * MODEL_SCALE, 64),
-      baseMat
-    );
-    tableBase.position.y = TABLE_HEIGHT - 0.2 * MODEL_SCALE;
-    arena.add(tableBase);
-
     const frameMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(tableTheme.frameColor),
-      roughness: 0.35,
-      metalness: 0.45
+      roughness: 0.4,
+      metalness: 0.35,
+      clearcoat: 0.7
     });
-    const frame = new THREE.Mesh(new THREE.TorusGeometry(TABLE_RADIUS, 0.15 * MODEL_SCALE, 32, 64), frameMat);
-    frame.rotation.x = Math.PI / 2;
-    frame.position.y = TABLE_HEIGHT - 0.1 * MODEL_SCALE;
-    arena.add(frame);
+    const columnMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(tableTheme.columnColor || '#111111'),
+      roughness: 0.65,
+      metalness: 0.2
+    });
 
     const velvetTex = makeVelvetTexture(1024, 1024, tableTheme.feltTop, tableTheme.feltBottom);
     applySRGBColorSpace(velvetTex);
     velvetTex.anisotropy = 8;
-    const velvetMat = new THREE.MeshStandardMaterial({ map: velvetTex, roughness: 0.7, metalness: 0.15 });
-    const surface = new THREE.Mesh(
-      new THREE.CylinderGeometry(3.25 * MODEL_SCALE, 3.25 * MODEL_SCALE, 0.05 * MODEL_SCALE, 64),
-      velvetMat
-    );
-    surface.position.y = TABLE_HEIGHT;
-    arena.add(surface);
+    const surfaceMat = new THREE.MeshStandardMaterial({ map: velvetTex, roughness: 0.85, metalness: 0.05 });
 
-    const baseColumn = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.6 * MODEL_SCALE, 0.8 * MODEL_SCALE, 1.2 * MODEL_SCALE, 32),
-      new THREE.MeshStandardMaterial({ color: new THREE.Color(tableTheme.columnColor || '#111111') })
-    );
-    baseColumn.position.y = TABLE_HEIGHT - 0.8 * MODEL_SCALE;
-    arena.add(baseColumn);
+    const tableGroup = new THREE.Group();
+
+    const topGeometry = new THREE.ExtrudeGeometry(createRegularPolygonShape(8, TABLE_RADIUS), {
+      depth: woodDepth,
+      bevelEnabled: true,
+      bevelThickness: woodDepth * 0.5,
+      bevelSize: woodDepth * 0.45,
+      bevelSegments: 2,
+      curveSegments: 1
+    });
+    topGeometry.rotateX(-Math.PI / 2);
+    const topMesh = new THREE.Mesh(topGeometry, frameMat);
+    topMesh.position.y = tableY;
+    topMesh.castShadow = true;
+    topMesh.receiveShadow = true;
+    tableGroup.add(topMesh);
+
+    const feltGeometry = new THREE.ExtrudeGeometry(createRegularPolygonShape(8, TABLE_RADIUS * (0.72 / 0.9)), {
+      depth: feltDepth,
+      bevelEnabled: false,
+      curveSegments: 1
+    });
+    feltGeometry.rotateX(-Math.PI / 2);
+    const feltMesh = new THREE.Mesh(feltGeometry, surfaceMat);
+    feltMesh.position.y = tableY + feltOffset;
+    feltMesh.receiveShadow = true;
+    tableGroup.add(feltMesh);
+
+    const rimOuter = createRegularPolygonShape(8, TABLE_RADIUS);
+    const rimInner = createRegularPolygonShape(8, TABLE_RADIUS * (0.72 / 0.9) * 0.97);
+    rimOuter.holes.push(rimInner);
+    const rimGeometry = new THREE.ExtrudeGeometry(rimOuter, {
+      depth: rimDepth,
+      bevelEnabled: true,
+      bevelThickness: rimDepth * 0.35,
+      bevelSize: rimDepth * 0.35,
+      bevelSegments: 2,
+      curveSegments: 1
+    });
+    rimGeometry.rotateX(-Math.PI / 2);
+    const rimMesh = new THREE.Mesh(rimGeometry, frameMat);
+    rimMesh.position.y = tableY + woodDepth;
+    rimMesh.castShadow = true;
+    rimMesh.receiveShadow = true;
+    tableGroup.add(rimMesh);
+
+    const baseGeometry = new THREE.CylinderGeometry(0.68 * scaleFactor, 0.95 * scaleFactor, baseHeight, 8, 1, false);
+    const baseMesh = new THREE.Mesh(baseGeometry, baseMat);
+    baseMesh.position.y = tableY - baseHeight / 2;
+    baseMesh.castShadow = true;
+    baseMesh.receiveShadow = true;
+    tableGroup.add(baseMesh);
+
+    const trimGeometry = new THREE.CylinderGeometry(TABLE_RADIUS * 0.985, TABLE_RADIUS, trimHeight, 8, 1, false);
+    const trimMesh = new THREE.Mesh(trimGeometry, frameMat);
+    trimMesh.position.y = tableY - trimOffset;
+    trimMesh.castShadow = true;
+    trimMesh.receiveShadow = true;
+    tableGroup.add(trimMesh);
+
+    const columnHeight = 0.28 * scaleFactor;
+    const columnGeometry = new THREE.CylinderGeometry(TABLE_RADIUS * 0.32, TABLE_RADIUS * 0.4, columnHeight, 24, 1, false);
+    const columnMesh = new THREE.Mesh(columnGeometry, columnMat);
+    columnMesh.position.y = tableY - columnHeight / 2 - feltOffset * 0.1;
+    columnMesh.castShadow = true;
+    columnMesh.receiveShadow = true;
+    tableGroup.add(columnMesh);
+
+    tableGroup.position.y = 0;
+    arena.add(tableGroup);
 
     threeStateRef.current.tableParts = {
       baseMat,
       frameMat,
-      surfaceMat: velvetMat,
+      surfaceMat,
       velvetTexture: velvetTex,
-      columnMat: baseColumn.material
+      columnMat,
+      group: tableGroup
     };
+
 
     const chairMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(stoolTheme.seatColor),
@@ -1409,6 +1502,10 @@ export default function MurlanRoyaleArena({ search }) {
         ].forEach((mat) => {
           if (mat && typeof mat.dispose === 'function') mat.dispose();
         });
+        if (store.tableParts.group?.parent) {
+          store.tableParts.group.parent.remove(store.tableParts.group);
+        }
+        store.tableParts = null;
       }
       if (store.chairMaterials) {
         [store.chairMaterials.seat, store.chairMaterials.leg].forEach((mat) => {
