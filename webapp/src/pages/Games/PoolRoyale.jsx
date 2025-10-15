@@ -2297,6 +2297,27 @@ const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
+const CAMERA_ZOOM_PROFILES = Object.freeze({
+  default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
+  nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
+  portrait: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.98 }),
+  ultraPortrait: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 })
+});
+const resolveCameraZoomProfile = (aspect) => {
+  if (!Number.isFinite(aspect)) {
+    return CAMERA_ZOOM_PROFILES.default;
+  }
+  if (aspect <= 0.7) {
+    return CAMERA_ZOOM_PROFILES.ultraPortrait;
+  }
+  if (aspect <= 0.85) {
+    return CAMERA_ZOOM_PROFILES.portrait;
+  }
+  if (aspect < 1.1) {
+    return CAMERA_ZOOM_PROFILES.nearLandscape;
+  }
+  return CAMERA_ZOOM_PROFILES.default;
+};
 const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
@@ -6685,28 +6706,33 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const camera = new THREE.PerspectiveCamera(
         CAMERA.fov,
         aspect,
-          CAMERA.near,
-          CAMERA.far
-        );
-        const standingPhi = THREE.MathUtils.clamp(
-          STANDING_VIEW.phi,
-          CAMERA.minPhi,
-          CAMERA.maxPhi
-        );
-        const standingRadius = clamp(
-          fitRadius(camera, STANDING_VIEW.margin),
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        const sph = new THREE.Spherical(
-          standingRadius,
-          standingPhi,
-          Math.PI
-        );
-        cameraBoundsRef.current = {
-          cueShot: { phi: initialCuePhi, radius: initialCueRadius },
-          standing: { phi: standingPhi, radius: standingRadius }
-        };
+        CAMERA.near,
+        CAMERA.far
+      );
+      const zoomProfile = resolveCameraZoomProfile(aspect);
+      const standingPhi = THREE.MathUtils.clamp(
+        STANDING_VIEW.phi,
+        CAMERA.minPhi,
+        CAMERA.maxPhi
+      );
+      const standingRadius = clamp(
+        fitRadius(camera, STANDING_VIEW.margin * zoomProfile.margin),
+        CAMERA.minR,
+        CAMERA.maxR
+      );
+      const initialCueBoundsRadius = Math.max(
+        CUE_VIEW_MIN_RADIUS,
+        initialCueRadius * zoomProfile.cue
+      );
+      const sph = new THREE.Spherical(
+        standingRadius,
+        standingPhi,
+        Math.PI
+      );
+      cameraBoundsRef.current = {
+        cueShot: { phi: initialCuePhi, radius: initialCueBoundsRadius },
+        standing: { phi: standingPhi, radius: standingRadius }
+      };
 
         const ensurePocketCamera = (id, center) => {
           if (!id) return null;
@@ -7994,7 +8020,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const fit = (m = STANDING_VIEW.margin) => {
           camera.aspect = host.clientWidth / host.clientHeight;
           const aspect = camera.aspect;
-          const standingRadiusRaw = fitRadius(camera, m);
+          const zoomProfile = resolveCameraZoomProfile(aspect);
+          const standingRadiusRaw = fitRadius(
+            camera,
+            Math.max(m * zoomProfile.margin, 1e-4)
+          );
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
           const shouldApplyBroadcastPullIn = aspect >= 1;
@@ -8004,10 +8034,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER
               )
             : playerRadiusBase;
-          const broadcastRadius =
+          const baseBroadcastRadius =
             broadcastBaseRadius + BROADCAST_RADIUS_PADDING;
+          const baseStandingRadius = Math.max(
+            standingRadiusRaw,
+            baseBroadcastRadius
+          );
           const standingRadius = clamp(
-            broadcastRadius,
+            Math.max(
+              standingRadiusRaw,
+              baseStandingRadius * zoomProfile.broadcast
+            ),
             CAMERA.minR,
             CAMERA.maxR
           );
@@ -8016,11 +8053,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             CAMERA.minPhi,
             CAMERA.maxPhi - CAMERA_RAIL_SAFETY
           );
+          const cueRadiusBase = Math.max(
+            playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
+            CUE_VIEW_MIN_RADIUS
+          );
           const cueRadius = clampOrbitRadius(
-            Math.max(
-              playerRadiusBase * CUE_VIEW_RADIUS_RATIO,
-              CUE_VIEW_MIN_RADIUS
-            ),
+            Math.max(CUE_VIEW_MIN_RADIUS, cueRadiusBase * zoomProfile.cue),
             CUE_VIEW_MIN_RADIUS
           );
           const cuePhi = THREE.MathUtils.clamp(
