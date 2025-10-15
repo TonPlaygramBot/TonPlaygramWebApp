@@ -10409,8 +10409,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
                 const railVolume = clamp(baseVol * shotScale, 0, 1);
                 if (railVolume > 0) {
-                  const railMultiplier = hitRail === 'corner' ? 1.1 : 0.9;
-                  playBallHit(railVolume * railMultiplier);
+                  // Cushion contacts should remain silent so only ball collisions
+                  // trigger impact audio cues. Leave the cooldown updates intact.
                 }
                 railSoundTimeRef.current.set(b.id, nowRail);
               }

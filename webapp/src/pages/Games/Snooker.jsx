@@ -10191,8 +10191,10 @@ function SnookerGame() {
                 const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
                 const railVolume = clamp(baseVol * shotScale, 0, 1);
                 if (railVolume > 0) {
-                  const railMultiplier = hitRail === 'corner' ? 1.1 : 0.9;
-                  playBallHit(railVolume * railMultiplier);
+                  // Previously cushion contacts reused the ball impact sound which
+                  // made every rail touch sound like a ball collision. The sound
+                  // should only play for ball-on-ball impacts, so we avoid playing
+                  // audio here while keeping the cooldown bookkeeping intact.
                 }
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
