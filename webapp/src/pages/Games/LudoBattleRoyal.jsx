@@ -78,7 +78,7 @@ const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
-const DICE_PIP_DEPTH = DICE_SIZE * 0.079;
+const DICE_PIP_SINK = DICE_PIP_RADIUS * 0.8;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
@@ -96,20 +96,14 @@ function makeDice() {
     envMapIntensity: 1.4
   });
 
-  const pipMaterial = new THREE.MeshStandardMaterial({
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x000000,
-    metalness: 0.4,
-    roughness: 0.85,
-    envMapIntensity: 0.35
-  });
-
-  const pipRingMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffd700,
-    metalness: 1,
-    roughness: 0.25,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 1.1
+    metalness: 0.35,
+    roughness: 0.55,
+    clearcoat: 0.1,
+    clearcoatRoughness: 0.45,
+    envMapIntensity: 0.35,
+    side: THREE.BackSide
   });
 
   const body = new THREE.Mesh(
@@ -126,20 +120,14 @@ function makeDice() {
   body.receiveShadow = true;
   dice.add(body);
 
-  const pipGeo = new THREE.CylinderGeometry(
+  const pipGeo = new THREE.SphereGeometry(
     DICE_PIP_RADIUS,
-    DICE_PIP_RADIUS,
-    DICE_PIP_DEPTH,
     28,
-    1
-  );
-  const pipRingRadius = DICE_PIP_RADIUS * 1.45;
-  const pipRingTube = DICE_PIP_RADIUS * 0.3;
-  const pipRingGeo = new THREE.TorusGeometry(
-    pipRingRadius,
-    pipRingTube,
-    16,
-    32
+    18,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2
   );
   const halfSize = DICE_SIZE / 2;
   const inset = halfSize - DICE_FACE_INSET;
@@ -199,23 +187,19 @@ function makeDice() {
     const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
     const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
     const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
-    const pipOrientation = new THREE.Quaternion().setFromUnitVectors(referenceUp, n);
+    const inwardNormal = n.clone().negate();
+    const pipOrientation = new THREE.Quaternion().setFromUnitVectors(referenceUp, inwardNormal);
 
     points.forEach(([gx, gy]) => {
       const pipGroup = new THREE.Group();
       const pip = new THREE.Mesh(pipGeo, pipMaterial);
-      const ring = new THREE.Mesh(pipRingGeo, pipRingMaterial);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = DICE_PIP_DEPTH / 2 - pipRingTube * 0.3;
-      pip.castShadow = true;
       pip.receiveShadow = true;
-      ring.receiveShadow = true;
-      pipGroup.add(pip, ring);
+      pipGroup.add(pip);
 
       const pos = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
-        .addScaledVector(n, inset - DICE_PIP_DEPTH / 2);
+        .addScaledVector(n, inset - DICE_PIP_SINK);
       pipGroup.position.copy(pos);
       pipGroup.quaternion.copy(pipOrientation);
       dice.add(pipGroup);
