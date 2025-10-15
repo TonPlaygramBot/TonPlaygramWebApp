@@ -2280,7 +2280,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.16; // keep orbit camera from dipping below the table surface while allowing more lift
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2321,13 +2321,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.085;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.35;
+const CUE_VIEW_RADIUS_RATIO = 0.078;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.3;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.06;
+const CUE_VIEW_PHI_LIFT = 0.08;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
