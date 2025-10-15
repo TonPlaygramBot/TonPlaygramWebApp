@@ -945,12 +945,12 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
 // Updated colors for dark cloth (ball colors overridden per variant at runtime)
 const BASE_BALL_COLORS = Object.freeze({
   cue: 0xffffff,
-  red: 0xc41e3a,
-  yellow: 0xffd700,
-  green: 0x1b5e20,
-  brown: 0x6d4c41,
-  blue: 0x1e88e5,
-  pink: 0xec407a,
+  red: 0xd32232,
+  yellow: 0xffc52c,
+  green: 0x0a8f4b,
+  brown: 0x7b451b,
+  blue: 0x0a58ff,
+  pink: 0xff7fc3,
   black: 0x111111
 });
 const CLOTH_TEXTURE_INTENSITY = 0.48;
@@ -6767,18 +6767,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           CAMERA.minR,
           CAMERA.maxR
         );
-        const cuePhi = THREE.MathUtils.clamp(
-          initialCuePhi,
-          CAMERA.minPhi,
-          CAMERA.maxPhi
+        const sph = new THREE.Spherical(
+          standingRadius,
+          standingPhi,
+          Math.PI
         );
-        const cueRadius = Math.max(initialCueRadius, CUE_VIEW_MIN_RADIUS);
-        const sph = new THREE.Spherical(cueRadius, cuePhi, Math.PI);
         cameraBoundsRef.current = {
-          cueShot: { phi: cuePhi, radius: cueRadius },
+          cueShot: { phi: initialCuePhi, radius: initialCueRadius },
           standing: { phi: standingPhi, radius: standingRadius }
         };
-        cameraBlendRef.current = 0;
 
         const ensurePocketCamera = (id, center) => {
           if (!id) return null;
@@ -6900,31 +6897,94 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const syncBlendToSpherical = () => {
-          cameraBlendRef.current = 0;
-        };
-
-        const applyCameraBlend = () => {
           const bounds = cameraBoundsRef.current;
           if (!bounds) return;
-          const cueShot = bounds.cueShot ?? {
-            phi: initialCuePhi,
-            radius: initialCueRadius
-          };
-          cameraBlendRef.current = 0;
-          const cueMinRadius = CUE_VIEW_MIN_RADIUS;
-          const clampedPhi = clamp(
-            cueShot.phi,
-            CAMERA.minPhi,
-            CAMERA.maxPhi
+          const { standing, cueShot } = bounds;
+          const phiRange = standing.phi - cueShot.phi;
+          if (Math.abs(phiRange) > 1e-5) {
+            const normalized = (sph.phi - cueShot.phi) / phiRange;
+            cameraBlendRef.current = THREE.MathUtils.clamp(
+              normalized,
+              0,
+              1
+            );
+          } else {
+            cameraBlendRef.current = 0;
+          }
+        };
+
+        const applyCameraBlend = (nextBlend) => {
+          const bounds = cameraBoundsRef.current;
+          if (!bounds) return;
+          const { standing, cueShot } = bounds;
+          const blend = THREE.MathUtils.clamp(
+            nextBlend ?? cameraBlendRef.current,
+            0,
+            1
           );
-          const desiredRadius = Math.max(cueShot.radius ?? cueMinRadius, cueMinRadius);
-          const radius = clamp(
-            desiredRadius,
-            cueMinRadius,
-            CAMERA.maxR
+          cameraBlendRef.current = blend;
+          const cueMinRadius = THREE.MathUtils.lerp(
+            CUE_VIEW_MIN_RADIUS,
+            CAMERA.minR,
+            blend
           );
+          const rawPhi = THREE.MathUtils.lerp(cueShot.phi, standing.phi, blend);
+          const baseRadius = THREE.MathUtils.lerp(
+            cueShot.radius,
+            standing.radius,
+            blend
+          );
+          let radius = clampOrbitRadius(baseRadius, cueMinRadius);
+          if (CAMERA_DOWNWARD_PULL > 0) {
+            const pull = CAMERA_DOWNWARD_PULL * (1 - blend);
+            if (pull > 0) {
+              radius = clampOrbitRadius(radius - pull, cueMinRadius);
+            }
+          }
+          const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
+          const minHeightFromTarget = Math.max(
+            TABLE.THICK,
+            cushionHeight + getCameraClearance(blend)
+          );
+          const phiRailLimit = Math.acos(
+            THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
+          );
+          const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
+          const clampedPhi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
+          let finalRadius = radius;
+          let minRadiusForRails = null;
+          if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
+            const sinPhi = Math.sin(clampedPhi);
+            if (sinPhi > 1e-4) {
+              minRadiusForRails = clampOrbitRadius(
+                CAMERA_MIN_HORIZONTAL / sinPhi,
+                cueMinRadius
+              );
+              finalRadius = Math.max(finalRadius, minRadiusForRails);
+            }
+          }
+          const phiSpan = standing.phi - cueShot.phi;
+          let phiProgress = 0;
+          if (Math.abs(phiSpan) > 1e-5) {
+            phiProgress = THREE.MathUtils.clamp(
+              (clampedPhi - cueShot.phi) / phiSpan,
+              0,
+              1
+            );
+          }
+          const dynamicPull = CAMERA_DYNAMIC_PULL_RANGE * (1 - phiProgress);
+          if (dynamicPull > 1e-5) {
+            const adjusted = clampOrbitRadius(
+              finalRadius - dynamicPull,
+              cueMinRadius
+            );
+            finalRadius =
+              minRadiusForRails != null
+                ? Math.max(adjusted, minRadiusForRails)
+                : adjusted;
+          }
           sph.phi = clampedPhi;
-          sph.radius = radius;
+          sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
           syncBlendToSpherical();
         };
 
@@ -8235,7 +8295,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             drag.y = y;
             autoAimRequestRef.current = false;
             suggestionAimKeyRef.current = null;
-            applyCameraBlend();
+            const blend = THREE.MathUtils.clamp(
+              cameraBlendRef.current ?? 1,
+              0,
+              1
+            );
+            const basePrecisionScale = THREE.MathUtils.lerp(
+              CUE_VIEW_AIM_SLOW_FACTOR,
+              1,
+              blend
+            );
+            const slowScale =
+              chalkAssistEnabledRef.current && chalkAssistTargetRef.current
+                ? CHALK_PRECISION_SLOW_MULTIPLIER
+                : 1;
+            const precisionScale = basePrecisionScale * slowScale;
+            sph.theta -= dx * 0.0035 * precisionScale;
+            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
+            const phiDelta = dy * 0.0025 * precisionScale;
+            const blendDelta =
+              phiRange > 1e-5 ? phiDelta / phiRange : 0;
+            applyCameraBlend(cameraBlendRef.current - blendDelta);
             updateCamera();
             registerInteraction();
           }
@@ -8274,16 +8354,28 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
         const keyRot = (e) => {
-          if (
-            e.code === 'ArrowLeft' ||
-            e.code === 'ArrowRight' ||
-            e.code === 'ArrowUp' ||
-            e.code === 'ArrowDown'
-          ) {
-            registerInteraction();
-            applyCameraBlend();
-            updateCamera();
-          }
+          if (topViewRef.current) return;
+          const currentHud = hudRef.current;
+          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          const baseStep = e.shiftKey ? 0.08 : 0.035;
+          const slowScale =
+            chalkAssistEnabledRef.current && chalkAssistTargetRef.current
+              ? CHALK_PRECISION_SLOW_MULTIPLIER
+              : 1;
+          const step = baseStep * slowScale;
+          if (e.code === 'ArrowLeft') {
+            sph.theta += step;
+          } else if (e.code === 'ArrowRight') {
+            sph.theta -= step;
+          } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
+            const dir = e.code === 'ArrowUp' ? -1 : 1;
+            const blendDelta =
+              phiRange > 1e-5 ? (step * dir) / phiRange : 0;
+            applyCameraBlend(cameraBlendRef.current - blendDelta);
+          } else return;
+          registerInteraction();
+          updateCamera();
         };
         window.addEventListener('keydown', keyRot);
 
@@ -8759,7 +8851,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             sph.phi = prev.spherical.phi ?? sph.phi;
             sph.theta = prev.spherical.theta ?? sph.theta;
           }
-          applyCameraBlend();
+          applyCameraBlend(prev.blend ?? cameraBlendRef.current);
         }
         updateCamera();
       };
@@ -8830,7 +8922,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         state.lateralOffset = 0;
         state.lateralFocusScale = 0.5;
         topViewRef.current = false;
-        applyCameraBlend();
+        applyCameraBlend(cameraBlendRef.current);
         updateCamera();
         setCueGalleryActive(true);
       };
@@ -9183,7 +9275,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         )
           return;
         alignStandingCameraToAim(cue, aimDirRef.current);
-        applyCameraBlend();
+        applyCameraBlend(1);
         updateCamera();
         const frameSnapshot = frameRef.current ?? frameState;
         let placedFromHand = false;
@@ -9952,7 +10044,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const behindRadius = clampOrbitRadius(
               standingView?.radius ?? BREAK_VIEW.radius
             );
-            applyCameraBlend();
+            applyCameraBlend(1);
             animateCamera({
               radius: behindRadius,
               phi: behindPhi,
