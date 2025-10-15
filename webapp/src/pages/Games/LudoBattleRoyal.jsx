@@ -99,9 +99,9 @@ function makeDice() {
   });
 
   const pipMaterial = new THREE.MeshStandardMaterial({
-    color: 0x050505,
-    metalness: 0.18,
-    roughness: 0.62,
+    color: 0x000000,
+    metalness: 0,
+    roughness: 0.85,
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -1,
@@ -109,9 +109,9 @@ function makeDice() {
   });
 
   const pipRimMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1a1a1a,
-    metalness: 0.12,
-    roughness: 0.48,
+    color: 0x000000,
+    metalness: 0,
+    roughness: 0.75,
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -0.5,
