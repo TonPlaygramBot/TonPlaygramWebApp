@@ -15,6 +15,7 @@ export default function DiceRoller({
   emitRollEvent = false,
   divRef,
   className = '',
+  diceTransparent = false,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -102,7 +103,12 @@ export default function DiceRoller({
         onClick={clickable ? rollDice : undefined}
         ref={divRef}
       >
-        <Dice values={values} rolling={rolling} startValues={startValuesRef.current} />
+        <Dice
+          values={values}
+          rolling={rolling}
+          startValues={startValuesRef.current}
+          transparent={diceTransparent}
+        />
       </div>
       {!clickable && showButton && (
         <button

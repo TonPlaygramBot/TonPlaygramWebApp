@@ -244,6 +244,7 @@ function Ludo3D({ avatar, username }) {
   const rafRef = useRef(0);
   const zoomRef = useRef({});
   const diceRef = useRef(null);
+  const rollDiceRef = useRef(() => {});
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
   const moveSoundRef = useRef(null);
@@ -296,6 +297,8 @@ function Ludo3D({ avatar, username }) {
     let scene, camera, renderer;
     let sph;
     const orbit = { drag: false, x: 0, y: 0 };
+    const pointer = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
 
     const vol = getGameVolume();
     moveSoundRef.current?.pause();
@@ -671,10 +674,36 @@ function Ludo3D({ avatar, username }) {
       animation: null
     };
 
+    const attemptDiceRoll = (clientX, clientY) => {
+      const dice = diceRef.current;
+      const rollFn = rollDiceRef.current;
+      const state = stateRef.current;
+      if (!dice || !rollFn || !state || state.winner || state.animation) {
+        return false;
+      }
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.set(x, y);
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObject(dice, true);
+      if (hit.length) {
+        rollFn();
+        return true;
+      }
+      return false;
+    };
+
     const onDown = (e) => {
+      const clientX = e.clientX || e.touches?.[0]?.clientX;
+      const clientY = e.clientY || e.touches?.[0]?.clientY;
+      if (clientX != null && clientY != null) {
+        const handled = attemptDiceRoll(clientX, clientY);
+        if (handled) return;
+      }
       orbit.drag = true;
-      orbit.x = e.clientX || e.touches?.[0]?.clientX || 0;
-      orbit.y = e.clientY || e.touches?.[0]?.clientY || 0;
+      orbit.x = clientX || 0;
+      orbit.y = clientY || 0;
     };
     const onMove = (e) => {
       if (!orbit.drag) return;
@@ -953,6 +982,8 @@ function Ludo3D({ avatar, username }) {
     moveToken(player, choice.token, value);
   };
 
+  rollDiceRef.current = rollDice;
+
   return (
     <div
       ref={wrapRef}
@@ -975,14 +1006,14 @@ function Ludo3D({ avatar, username }) {
           )}
           <span>{username || 'Guest'}</span>
         </div>
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
-          <button
-            onClick={rollDice}
-            className="px-6 py-3 bg-primary hover:bg-primary-hover rounded-xl text-sm font-semibold shadow-lg"
-            disabled={!!ui.winner}
-          >
-            {ui.winner ? `${ui.winner} Wins` : 'ROLL'}
-          </button>
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
+            {ui.winner
+              ? `${ui.winner} Wins`
+              : ui.turn === 0
+              ? 'Your turn — tap the dice to roll'
+              : ui.status}
+          </div>
         </div>
         <div className="absolute right-3 bottom-3 flex flex-col space-y-2">
           <button
