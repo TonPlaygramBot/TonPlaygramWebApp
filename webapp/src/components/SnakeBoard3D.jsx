@@ -11,8 +11,8 @@ import { createMurlanStyleTable } from '../utils/murlanTable.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const TABLE_RADIUS = 2.55; // Matches the Murlan Royale octagonal table footprint
-const TABLE_HEIGHT = 0.81;
+const TABLE_RADIUS = 3.315; // 30% wider footprint so the board matches other royale arenas
+const TABLE_HEIGHT = 2.05; // Raised to line up with the oversized chair seats
 const WALL_PROXIMITY_FACTOR = 0.5;
 const WALL_HEIGHT_MULTIPLIER = 2;
 const CHAIR_SCALE = 4;

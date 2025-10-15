@@ -220,8 +220,13 @@ export function createMurlanStyleTable({
   const trimHeight = 0.08 * scaleFactor;
   const trimOffset = 0.06 * scaleFactor;
   const clothRise = 0.07 * scaleFactor;
-  const baseHeight = 0.62 * scaleFactor;
+  let baseHeight = 0.62 * scaleFactor;
   const tableY = tableHeight - clothRise;
+
+  const minBaseHeight = tableY > 0 ? tableY * 2 : 0;
+  if (baseHeight < minBaseHeight) {
+    baseHeight = minBaseHeight;
+  }
 
   const baseMat = new ThreeNamespace.MeshPhysicalMaterial({
     color: new ThreeNamespace.Color(baseOption.baseColor),
