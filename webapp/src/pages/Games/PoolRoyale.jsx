@@ -2279,8 +2279,13 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.18);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // keep orbit camera from dipping below the table surface
+const CAMERA_ORBIT_LIFT = 0.26; // allow a higher overhead orbit before hitting the minimum tilt limit
+const CAMERA_CUE_CLEARANCE = 0.32; // keep the lowest tilt just above the cue stick profile
+const CAMERA_MIN_PHI = Math.max(
+  CAMERA_ABS_MIN_PHI,
+  STANDING_VIEW_PHI - CAMERA_ORBIT_LIFT
+);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - CAMERA_CUE_CLEARANCE; // stop the orbit camera just above the cue stick
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.085;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
