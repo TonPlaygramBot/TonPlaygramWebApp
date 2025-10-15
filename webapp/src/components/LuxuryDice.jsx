@@ -23,12 +23,21 @@ const orientationMap = (() => {
 })();
 
 function placePips(group, pipMaterial, geometrySet) {
-  const pipRadius = 0.09;
-  const pipDepth = 0.08;
-  const pipGeo = new THREE.CylinderGeometry(pipRadius, pipRadius, pipDepth, 28, 1);
+  const pipRadius = 0.1;
+  const pipGeo = new THREE.SphereGeometry(
+    pipRadius,
+    36,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2
+  );
+  pipGeo.rotateX(Math.PI);
+  pipGeo.computeVertexNormals();
   const surface = DIE_SIZE / 2;
-  const embedOffset = 0.0025;
-  const centerOffset = surface - pipDepth / 2 + embedOffset;
+  const embedOffset = 0.01;
+  const rimOffset = surface - embedOffset;
   const faceDefinitions = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
@@ -90,7 +99,7 @@ function placePips(group, pipMaterial, geometrySet) {
         .copy(new THREE.Vector3())
         .addScaledVector(x, gx)
         .addScaledVector(y, gy)
-        .addScaledVector(n, centerOffset);
+        .addScaledVector(n, rimOffset);
       mesh.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(up, n));
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -206,10 +215,11 @@ export default function LuxuryDice({
       envMapIntensity: 2.0
     });
     const pipMaterial = new THREE.MeshStandardMaterial({
-      color: 0x000000,
-      metalness: 0.5,
-      roughness: 0.8,
-      envMapIntensity: 0.4
+      color: 0x030303,
+      metalness: 0.2,
+      roughness: 0.4,
+      envMapIntensity: 0.2,
+      side: THREE.BackSide
     });
 
     const dieGroup = new THREE.Group();
