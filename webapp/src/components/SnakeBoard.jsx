@@ -4,10 +4,6 @@ import PlayerToken from "./PlayerToken.jsx";
 // Board dimensions
 const ROWS = 20;
 const COLS = 5;
-const CHESS_TILE_LIGHT = "#e7e2d3";
-const CHESS_TILE_DARK = "#776a5a";
-const LIGHT_NUMBER_COLOR = "#1f2937";
-const DARK_NUMBER_COLOR = "#f9fafb";
 export const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function CoinBurst({ token }) {
@@ -82,12 +78,11 @@ export default function SnakeBoard({
     const scaleX = scale * (1 + rowPos * widenStep);
     const offsetX = (scaleX - 1) * cellWidth;
     const reversed = r % 2 === 1;
+    const rowColor = "#6db0ad";
+
     for (let c = 0; c < COLS; c++) {
       const col = c;
       const num = reversed ? (r + 1) * COLS - c : r * COLS + c + 1;
-      const isLightTile = (r + c) % 2 === 0;
-      const tileColor = isLightTile ? CHESS_TILE_LIGHT : CHESS_TILE_DARK;
-      const numberColor = isLightTile ? LIGHT_NUMBER_COLOR : DARK_NUMBER_COLOR;
       const translateX = (col - centerCol) * offsetX;
       const translateY = -rowOffsets[r];
       const isHighlight = highlight && highlight.cell === num;
@@ -123,10 +118,8 @@ export default function SnakeBoard({
         gridColumnStart: col + 1,
         transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
         transformOrigin: "bottom center",
-        "--tile-bg": tileColor,
-        "--number-color": numberColor,
       };
-      if (!highlightClass) style.backgroundColor = tileColor;
+      if (!highlightClass) style.backgroundColor = rowColor;
 
       tiles.push(
         <div
@@ -215,7 +208,6 @@ export default function SnakeBoard({
   const boardYOffset = 60;
   const boardZOffset = -50;
   const CAMERA_OFFSET_ROWS = 0;
-  const boardScale = 0.8;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -267,7 +259,7 @@ export default function SnakeBoard({
               '--board-height': `${cellHeight * ROWS + offsetYMax}px`,
               '--board-angle': `${angle}deg`,
               '--final-scale': finalScale,
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(${boardScale})`,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
             }}
           >
             {tiles}

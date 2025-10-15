@@ -1079,17 +1079,14 @@ input:focus {
 }
 
 .cell-number {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+  position: relative;
   z-index: 1;
-  color: var(--number-color, #ffffff);
+  color: #ffffff;
   font-family: 'Comic Sans MS', 'Comic Sans', cursive;
   font-weight: bold;
   font-size: 1.3rem; /* slightly bigger numbers */
   line-height: 1;
-  transform: translate(-50%, -50%) translateZ(2px);
-  transform-style: preserve-3d;
+  transform: translateY(-10%);
 }
 
 /* Small hexagonal frame for the starting cell number */
