@@ -312,7 +312,12 @@ public class CueCamera : MonoBehaviour
 
         float blend = Mathf.Clamp01(cueAimLowering);
         float minimumDistanceLimit = Mathf.Max(0.0001f, cueMinimumDistance);
+        float tipStopDistance = Mathf.Max(minimumDistanceLimit, cueBallRadius + cueMinimumDistance);
         float minDistance = Mathf.Max(minimumDistanceLimit, cueLoweredDistanceFromBall);
+        if (blend > 0f)
+        {
+            minDistance = Mathf.Min(minDistance, tipStopDistance);
+        }
         float maxDistance = Mathf.Max(minDistance, cueRaisedDistanceFromBall);
 
         Vector3 cueSamplePoint;
@@ -321,6 +326,12 @@ public class CueCamera : MonoBehaviour
         float pullIn = Mathf.Max(0f, cueDistancePullIn);
         float minPulledDistance = Mathf.Max(minimumDistanceLimit, minDistance - pullIn);
         float distance = Mathf.Max(baseDistance - pullIn, minPulledDistance);
+
+        if (blend > 0f)
+        {
+            distance = Mathf.Lerp(distance, tipStopDistance, blend);
+            distance = Mathf.Max(distance, minPulledDistance);
+        }
 
         float raisedScale = Mathf.Clamp(cueRaisedDistanceScale, 0.1f, 1f);
         float loweredScale = Mathf.Clamp(cueLoweredDistanceScale, 0.1f, raisedScale);
@@ -331,6 +342,13 @@ public class CueCamera : MonoBehaviour
         distance = Mathf.Max(distance - forwardPush, minimumDistanceLimit);
 
         cueSamplePoint = ComputeCueSamplePoint(distance, cueAimForward, cueSamplePoint);
+
+        if (CueBall != null)
+        {
+            Vector3 tipAnchor = CueBall.position - cueAimForward * tipStopDistance;
+            tipAnchor.y = cueSamplePoint.y;
+            cueSamplePoint = Vector3.Lerp(cueSamplePoint, tipAnchor, blend);
+        }
 
         if (CueBall != null)
         {
