@@ -2338,6 +2338,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
+const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -6882,6 +6883,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
           }
+          const tiltZoom = CAMERA_TILT_ZOOM * (1 - phiProgress);
+          if (tiltZoom > 1e-5) {
+            const zoomed = clampOrbitRadius(
+              finalRadius - tiltZoom,
+              cueMinRadius
+            );
+            finalRadius =
+              minRadiusForRails != null
+                ? Math.max(zoomed, minRadiusForRails)
+                : zoomed;
+          }
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
           syncBlendToSpherical();
@@ -11028,7 +11040,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     };
   }, [updateSpinDotPosition]);
 
-  const bottomHudVisible = hud.turn === 0 && !hud.over && !shotActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const isPlayerTurn = hud.turn === 0;
+  const isOpponentTurn = hud.turn === 1;
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -11232,34 +11246,49 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }}
         >
           <div
-            className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-3 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex h-12 max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${UI_SCALE})`,
               transformOrigin: 'bottom center',
               maxWidth: 'min(26rem, 100%)'
             }}
           >
-            <div className="flex items-center gap-3">
+            <div
+              className={`flex h-full min-w-0 items-center gap-3 rounded-full px-3 transition-all ${
+                isPlayerTurn
+                  ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
+                  : 'text-white/80'
+              }`}
+            >
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className="h-12 w-12 rounded-full border-2 border-emerald-300/70 object-cover"
+                className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                  isPlayerTurn
+                    ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
+                    : 'border-white/40'
+                }`}
               />
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] uppercase tracking-[0.35em] text-emerald-200/80">
-                  Your turn
-                </span>
-                <span className="text-base font-semibold text-white">{player.name}</span>
-              </div>
+              <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                {player.name}
+              </span>
             </div>
-            <div className="flex items-center gap-3 text-lg font-semibold">
+            <div className="flex h-full items-center gap-2 text-base font-semibold">
               <span className="text-amber-300">{hud.A}</span>
-              <span className="text-white/60">-</span>
+              <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-white/80">
-              <span className="text-2xl leading-none">{aiFlag}</span>
-              <span>AI</span>
+            <div
+              className={`flex h-full items-center gap-2 rounded-full px-3 text-sm transition-all ${
+                isOpponentTurn
+                  ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
+                  : 'text-white/80'
+              }`}
+            >
+              <span className="text-xl leading-none">{aiFlag}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                AI
+              </span>
             </div>
           </div>
         </div>
