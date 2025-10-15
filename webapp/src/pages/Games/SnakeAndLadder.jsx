@@ -23,7 +23,7 @@ import {
   AiOutlineReload,
 } from "react-icons/ai";
 import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
-import { isGameMuted, getGameVolume } from "../../utils/sound.js";
+import { isGameMuted, getGameVolume, setGameMuted } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
@@ -231,6 +231,8 @@ export default function SnakeAndLadder() {
   const [showInfo, setShowInfo] = useState(false);
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
+  const [showConfig, setShowConfig] = useState(false);
+  const [showTrailEnabled, setShowTrailEnabled] = useState(true);
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
   const [snakeOffsets, setSnakeOffsets] = useState({});
@@ -1803,7 +1805,7 @@ export default function SnakeAndLadder() {
         <SnakeBoard3D
           players={players}
           highlight={highlight}
-          trail={trail}
+          trail={showTrailEnabled ? trail : []}
           pot={pot}
           snakes={snakes}
           ladders={ladders}
@@ -1816,6 +1818,64 @@ export default function SnakeAndLadder() {
           currentTurn={currentTurn}
           burning={burning}
         />
+      </div>
+      <div className="absolute top-3 right-3 z-30 pointer-events-auto">
+        <div className="relative">
+          <button
+            type="button"
+            aria-label={showConfig ? 'Mbyll konfigurimet e lojës' : 'Hap konfigurimet e lojës'}
+            onClick={() => setShowConfig((prev) => !prev)}
+            className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur transition hover:bg-black/60"
+          >
+            ⚙️
+          </button>
+          {showConfig && (
+            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-black/85 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-300">
+                  Konfigurime
+                </span>
+                <button
+                  type="button"
+                  aria-label="Mbyll konfigurimet"
+                  onClick={() => setShowConfig(false)}
+                  className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                >
+                  ✕
+                </button>
+              </div>
+              <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
+                <span>Ndalo tingujt</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                  checked={muted}
+                  onChange={(event) => {
+                    const next = event.target.checked;
+                    setMuted(next);
+                    setGameMuted(next);
+                  }}
+                />
+              </label>
+              <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
+                <span>Shfaq gjurmën e lëvizjes</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                  checked={showTrailEnabled}
+                  onChange={(event) => setShowTrailEnabled(event.target.checked)}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-3 w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+              >
+                Rifillo lojën
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4 pointer-events-none">
         {/* Bottom left controls */}
