@@ -50,12 +50,12 @@ const SUIT_COLORS = {
 };
 
 const OUTFIT_THEMES = [
-  { id: 'midnight', label: 'Blu Mbretëror', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
-  { id: 'ember', label: 'E Kuqe Neon', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
-  { id: 'glacier', label: 'Akull', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
-  { id: 'forest', label: 'Pyje', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
-  { id: 'royal', label: 'Vjollcë', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
-  { id: 'onyx', label: 'Oniks', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
+  { id: 'midnight', label: 'Royal Blue', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
+  { id: 'ember', label: 'Neon Red', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
+  { id: 'glacier', label: 'Glacier', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
+  { id: 'forest', label: 'Forest', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
+  { id: 'royal', label: 'Violet', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
+  { id: 'onyx', label: 'Onyx', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
 ];
 
 const WOOD_PRESETS_BY_ID = Object.freeze(
@@ -66,27 +66,27 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 
 const TABLE_WOOD_OPTIONS = [
-  { id: 'walnutHeritage', label: 'Arre Heritage', presetId: 'walnut', grainId: 'heritagePlanks' },
-  { id: 'mapleChevron', label: 'Panjo Chevron', presetId: 'maple', grainId: 'atelierChevron' },
-  { id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' },
-  { id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' },
-  { id: 'wengeShadow', label: 'Wenge Hije', presetId: 'wenge', grainId: 'atelierChevron' },
-  { id: 'ebonyClassic', label: 'Eben Klasik', presetId: 'ebony', grainId: 'heritagePlanks' }
+  { id: 'walnutHeritage', label: 'Heritage Walnut', presetId: 'walnut', grainId: 'heritagePlanks' },
+  { id: 'mapleChevron', label: 'Maple Chevron', presetId: 'maple', grainId: 'atelierChevron' },
+  { id: 'oakEstate', label: 'Estate Oak', presetId: 'oak', grainId: 'estateBands' },
+  { id: 'teakStudio', label: 'Studio Teak', presetId: 'teak', grainId: 'studioVeins' },
+  { id: 'wengeShadow', label: 'Shadow Wenge', presetId: 'wenge', grainId: 'atelierChevron' },
+  { id: 'ebonyClassic', label: 'Classic Ebony', presetId: 'ebony', grainId: 'heritagePlanks' }
 ];
 
 const TABLE_CLOTH_OPTIONS = [
-  { id: 'crimson', label: 'Rrobë e Kuqe', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
-  { id: 'emerald', label: 'Rrobë Smerald', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
-  { id: 'arctic', label: 'Rrobë Akull', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
-  { id: 'sunset', label: 'Rrobë Perëndim', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
-  { id: 'violet', label: 'Rrobë Vjollcë', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
-  { id: 'amber', label: 'Rrobë Qelibari', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' }
+  { id: 'crimson', label: 'Crimson Cloth', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
+  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
+  { id: 'arctic', label: 'Arctic Cloth', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
+  { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
+  { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
+  { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' }
 ];
 
 const TABLE_BASE_OPTIONS = [
   {
     id: 'obsidian',
-    label: 'Bazë Obsidian',
+    label: 'Obsidian Base',
     baseColor: '#141414',
     columnColor: '#0b0d10',
     trimColor: '#1f232a',
@@ -95,7 +95,7 @@ const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'forestBronze',
-    label: 'Bazë Pylli',
+    label: 'Forest Base',
     baseColor: '#101714',
     columnColor: '#0a0f0c',
     trimColor: '#1f2d24',
@@ -104,7 +104,7 @@ const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'midnightChrome',
-    label: 'Bazë Mesnate',
+    label: 'Midnight Base',
     baseColor: '#0f172a',
     columnColor: '#0a1020',
     trimColor: '#1e2f4a',
@@ -113,7 +113,7 @@ const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'emberCopper',
-    label: 'Bazë Bakri',
+    label: 'Copper Base',
     baseColor: '#231312',
     columnColor: '#140707',
     trimColor: '#5c2d1b',
@@ -122,7 +122,7 @@ const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'violetShadow',
-    label: 'Bazë Hije Vjollcë',
+    label: 'Violet Shadow Base',
     baseColor: '#1f1130',
     columnColor: '#130622',
     trimColor: '#3f1b5b',
@@ -131,7 +131,7 @@ const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'desertGold',
-    label: 'Bazë Shkretëtirë',
+    label: 'Desert Gold Base',
     baseColor: '#1c1a12',
     columnColor: '#0f0d06',
     trimColor: '#5a4524',
@@ -141,12 +141,12 @@ const TABLE_BASE_OPTIONS = [
 ];
 
 const STOOL_THEMES = [
-  { id: 'ruby', label: 'Rubi', seatColor: '#8b0000', legColor: '#1f1f1f' },
-  { id: 'slate', label: 'Guri', seatColor: '#374151', legColor: '#0f172a' },
-  { id: 'teal', label: 'Bruz', seatColor: '#0f766e', legColor: '#082f2a' },
-  { id: 'amber', label: 'Qelibari', seatColor: '#b45309', legColor: '#2f2410' },
-  { id: 'violet', label: 'Vjollcë', seatColor: '#7c3aed', legColor: '#2b1059' },
-  { id: 'frost', label: 'Akull', seatColor: '#1f2937', legColor: '#0f172a' }
+  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f' },
+  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a' },
+  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a' },
+  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
+  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
+  { id: 'frost', label: 'Frost', seatColor: '#1f2937', legColor: '#0f172a' }
 ];
 
 const CARD_THEMES = [
@@ -163,7 +163,7 @@ const CARD_THEMES = [
   },
   {
     id: 'solstice',
-    label: 'Solstic',
+    label: 'Solstice',
     frontBackground: '#fffaf0',
     frontBorder: '#facc15',
     edgeColor: '#fef3c7',
@@ -174,7 +174,7 @@ const CARD_THEMES = [
   },
   {
     id: 'nebula',
-    label: 'Nebulë',
+    label: 'Nebula',
     frontBackground: '#f8fafc',
     frontBorder: '#a855f7',
     edgeColor: '#e9d5ff',
@@ -185,7 +185,7 @@ const CARD_THEMES = [
   },
   {
     id: 'jade',
-    label: 'Xhade',
+    label: 'Jade',
     frontBackground: '#f0fdf4',
     frontBorder: '#22c55e',
     edgeColor: '#dcfce7',
@@ -196,7 +196,7 @@ const CARD_THEMES = [
   },
   {
     id: 'ember',
-    label: 'Gaca',
+    label: 'Ember',
     frontBackground: '#fff7ed',
     frontBorder: '#f97316',
     edgeColor: '#fed7aa',
@@ -207,7 +207,7 @@ const CARD_THEMES = [
   },
   {
     id: 'onyx',
-    label: 'Oniks',
+    label: 'Onyx',
     frontBackground: '#f4f4f5',
     frontBorder: '#9ca3af',
     edgeColor: '#e4e4e7',
@@ -221,12 +221,12 @@ const CARD_THEMES = [
 const DEFAULT_APPEARANCE = { outfit: 0, tableWood: 0, tableCloth: 0, tableBase: 0, cards: 0, stools: 0 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'outfit', label: 'Rroba', options: OUTFIT_THEMES },
-  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
-  { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
-  { key: 'cards', label: 'Letrat', options: CARD_THEMES },
-  { key: 'stools', label: 'Stola', options: STOOL_THEMES }
+  { key: 'outfit', label: 'Outfit', options: OUTFIT_THEMES },
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
+  { key: 'cards', label: 'Cards', options: CARD_THEMES },
+  { key: 'stools', label: 'Stools', options: STOOL_THEMES }
 ];
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
@@ -406,10 +406,10 @@ export default function MurlanRoyaleArena({ search }) {
     context.textBaseline = 'alphabetic';
     context.fillStyle = 'rgba(226, 232, 240, 0.82)';
     context.font = '700 64px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-    context.fillText('Rezultati', padding + 24, 120);
+    context.fillText('Scoreboard', padding + 24, 120);
     context.font = '500 28px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
     context.fillStyle = 'rgba(148, 163, 184, 0.8)';
-    context.fillText('Kartat e mbetura', padding + 24, 160);
+    context.fillText('Cards remaining', padding + 24, 160);
 
     const rowHeight = 76;
     const rowGap = 12;
@@ -422,7 +422,7 @@ export default function MurlanRoyaleArena({ search }) {
       const rowY = 168 + i * (rowHeight + rowGap);
       const isActive = Boolean(entry?.isActive);
       const finished = Boolean(entry?.finished);
-      const displayName = typeof entry?.name === 'string' ? entry.name : 'Lojtar';
+      const displayName = typeof entry?.name === 'string' ? entry.name : 'Player';
       const trimmedName = displayName.trim();
       const fallbackInitial = trimmedName ? trimmedName.charAt(0).toUpperCase() : '🂠';
       const avatar = entry?.avatar && !entry.avatar.startsWith('http') ? entry.avatar : fallbackInitial;
@@ -1156,14 +1156,11 @@ export default function MurlanRoyaleArena({ search }) {
     topMesh.receiveShadow = true;
     tableGroup.add(topMesh);
 
-    const feltGeometry = new THREE.ExtrudeGeometry(createRegularPolygonShape(8, TABLE_RADIUS * (0.72 / 0.9)), {
-      depth: feltDepth,
-      bevelEnabled: false,
-      curveSegments: 1
-    });
+    const feltShape = createRegularPolygonShape(8, TABLE_RADIUS * (0.72 / 0.9));
+    const feltGeometry = new THREE.ShapeGeometry(feltShape);
     feltGeometry.rotateX(-Math.PI / 2);
     const feltMesh = new THREE.Mesh(feltGeometry, surfaceMat);
-    feltMesh.position.y = tableY + feltOffset;
+    feltMesh.position.y = tableY + feltOffset + feltDepth * 0.5;
     feltMesh.receiveShadow = true;
     tableGroup.add(feltMesh);
 
@@ -1690,23 +1687,23 @@ export default function MurlanRoyaleArena({ search }) {
     if (!active || !active.isHuman) return;
     const selectedCards = extractSelectedCards(active.hand, selectedRef.current);
     if (!selectedCards.length) {
-      setActionError('Zgjidh të paktën një letër.');
+      setActionError('Select at least one card.');
       return;
     }
     const combo = detectCombo(selectedCards, GAME_CONFIG);
     if (!combo) {
-      setActionError('Kombinimi nuk është i vlefshëm.');
+      setActionError("That combination isn't valid.");
       return;
     }
     const includesStart = selectedCards.some(
       (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
     );
     if (state.firstMove && !includesStart) {
-      setActionError('Lëvizja e parë duhet të përfshijë 3♠.');
+      setActionError('The first move must include 3♠.');
       return;
     }
     if (!canBeat(combo, state.tableCombo, GAME_CONFIG)) {
-      setActionError('Ky kombin nuk e mund atë në tavolinë.');
+      setActionError("That combo can't beat the one on the table.");
       return;
     }
     setActionError('');
@@ -1720,7 +1717,7 @@ export default function MurlanRoyaleArena({ search }) {
     const active = state.players[state.activePlayer];
     if (!active || !active.isHuman) return;
     if (!state.tableCombo) {
-      setActionError('Nuk mund të pasosh pa një kombin në tavolinë.');
+      setActionError("You can't pass without a combo on the table.");
       return;
     }
     setActionError('');
@@ -1740,13 +1737,13 @@ export default function MurlanRoyaleArena({ search }) {
         <div className="pointer-events-none relative flex items-start justify-end p-4">
           {uiState.scoreboard?.length ? (
             <div className="sr-only" aria-live="polite">
-              <p>Rezultati aktual:</p>
+              <p>Current score:</p>
               <ul>
                 {uiState.scoreboard.map((entry) => (
                   <li key={entry.id}>
                     {entry.name}
-                    {entry.isActive ? ' (radha)' : ''}
-                    {entry.finished ? ' - e përfundoi lojën' : ` - ${entry.cardsLeft} letra`}
+                    {entry.isActive ? ' (current turn)' : ''}
+                    {entry.finished ? ' - finished the game' : ` - ${entry.cardsLeft} cards`}
                   </li>
                 ))}
               </ul>
@@ -1754,7 +1751,7 @@ export default function MurlanRoyaleArena({ search }) {
           ) : null}
           <button
             type="button"
-            aria-label="Hap personalizimin"
+            aria-label="Toggle customization panel"
             onClick={() => setShowCustomizer((prev) => !prev)}
             className="pointer-events-auto absolute right-4 top-4 rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur-md transition hover:bg-black/60"
           >
@@ -1763,18 +1760,18 @@ export default function MurlanRoyaleArena({ search }) {
           {showCustomizer && (
             <div className="pointer-events-auto absolute right-4 top-16 z-20 w-[min(18rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-black/80 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-100">Personalizo arenën</h3>
+                <h3 className="text-sm font-semibold text-gray-100">Customize arena</h3>
                 <button
                   type="button"
                   onClick={() => setShowCustomizer(false)}
                   className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
-                  aria-label="Mbyll personalizimin"
+                  aria-label="Close customization"
                 >
                   ✕
                 </button>
               </div>
               <p className="mt-1 text-[0.65rem] text-gray-400">
-                Zgjidh kombinimet e preferuara të rrobave, drurit, rrobës së fushës, bazës dhe letrave për përvojën tënde.
+                Pick your favorite outfit, wood, playfield cloth, base, and card combinations for your experience.
               </p>
               {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                 <div key={key} className="mt-4 space-y-2">
@@ -1818,7 +1815,7 @@ export default function MurlanRoyaleArena({ search }) {
                 className="rounded-lg border border-white/25 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent"
                 disabled={!uiState.humanTurn || !gameState.tableCombo}
               >
-                Paso
+                Pass
               </button>
               <button
                 type="button"
@@ -1826,7 +1823,7 @@ export default function MurlanRoyaleArena({ search }) {
                 className="rounded-lg border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent"
                 disabled={!selectedIds.length}
               >
-                Hiq zgjedhjet
+                Clear selection
               </button>
               <button
                 type="button"
@@ -1834,7 +1831,7 @@ export default function MurlanRoyaleArena({ search }) {
                 className="rounded-lg bg-gradient-to-r from-[#ff0050] to-[#f97316] px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={!uiState.humanTurn || !selectedIds.length}
               >
-                Luaj
+                Play
               </button>
             </div>
           </div>
@@ -2032,19 +2029,19 @@ function computeUiState(state) {
 
   if (state.status === 'ENDED') {
     const winners = scoreboard.filter((entry) => entry.finished).map((entry) => entry.name);
-    message = winners.length === 1 ? `${winners[0]} doli fitues!` : `Fitues: ${winners.join(', ')}`;
+    message = winners.length === 1 ? `${winners[0]} won the game!` : `Winners: ${winners.join(', ')}`;
   } else {
     const active = state.players[state.activePlayer];
     if (active) {
       humanTurn = !!active.isHuman;
       if (humanTurn) {
         message = state.firstMove
-          ? 'Zgjidh kartat (përfshi 3♠) dhe shtyp "Luaj".'
+          ? 'Select cards (including 3♠) and press "Play".'
           : state.tableCombo
-            ? 'Gjej një kombin që e mund tavolinën ose shtyp "Paso".'
-            : 'Zgjidh kartat dhe shtyp "Luaj" për të nisur hedhjen.';
+            ? 'Find a combo that beats the table or press "Pass".'
+            : 'Select cards and press "Play" to lead the trick.';
       } else {
-        message = `Duke pritur ${active.name}...`;
+        message = `Waiting for ${active.name}...`;
       }
     }
   }
@@ -2053,7 +2050,7 @@ function computeUiState(state) {
     const description = describeCombo(state.tableCombo, state.tableCards);
     if (description) {
       const owner = state.lastWinner != null ? state.players[state.lastWinner]?.name : null;
-      tableSummary = owner ? `${owner} hodhi ${description}` : description;
+      tableSummary = owner ? `${owner} played ${description}` : description;
     }
   }
 
@@ -2067,17 +2064,17 @@ function describeCombo(combo, cards) {
   }
   switch (combo.type) {
     case ComboType.SINGLE:
-      return `një ${cardLabel(cards[0])}`;
+      return `single ${cardLabel(cards[0])}`;
     case ComboType.PAIR:
-      return `çift ${combo.keyRank}`;
+      return `pair of ${combo.keyRank}`;
     case ComboType.TRIPS:
-      return `treshe ${combo.keyRank}`;
+      return `triple ${combo.keyRank}`;
     case ComboType.BOMB_4K:
-      return `bombë ${combo.keyRank}`;
+      return `four-of-a-kind bomb ${combo.keyRank}`;
     case ComboType.STRAIGHT:
-      return `shteg ${cardLabel(cards[0])} - ${cardLabel(cards[cards.length - 1])}`;
+      return `straight ${cardLabel(cards[0])} - ${cardLabel(cards[cards.length - 1])}`;
     case ComboType.FLUSH:
-      return `flush me ${cards.length} letra`;
+      return `flush with ${cards.length} cards`;
     case ComboType.FULL_HOUSE:
       return 'full house';
     case ComboType.STRAIGHT_FLUSH:
@@ -2089,14 +2086,14 @@ function describeCombo(combo, cards) {
 
 function cardLabel(card) {
   if (!card) return '';
-  if (card.rank === 'JR') return 'Joker i kuq';
-  if (card.rank === 'JB') return 'Joker i zi';
+  if (card.rank === 'JR') return 'Red Joker';
+  if (card.rank === 'JB') return 'Black Joker';
   return `${card.rank}${card.suit}`;
 }
 
 function buildPlayers(search) {
   const params = new URLSearchParams(search);
-  const username = params.get('username') || 'Ti';
+  const username = params.get('username') || 'You';
   const avatar = params.get('avatar') || '';
   const seedFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
   return [
