@@ -29,7 +29,7 @@ public class CueCamera : MonoBehaviour
     public float cueLoweredDistanceFromBall = 0.06f;
     // Additional pull-in applied to the cue camera so the portrait framing hugs
     // the cloth like a player leaning over the shot.
-    public float cueDistancePullIn = 0.36f;
+    public float cueDistancePullIn = 0.48f;
     // Minimum separation we allow once the pull-in is applied. Prevents the
     // camera from intersecting the cue or cloth when the player drops in tight.
     public float cueMinimumDistance = 0.02f;
