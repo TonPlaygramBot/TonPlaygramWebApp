@@ -641,8 +641,8 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while adding a 50% boost for livelier strikes.
-const SHOT_FORCE_BOOST = 1.5;
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
+const SHOT_FORCE_BOOST = 1.5 * 0.75;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -686,8 +686,8 @@ const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2; // slightly larger than the cue tip to stand out on the ball
-const CUE_MARKER_DEPTH = CUE_TIP_RADIUS * 0.25;
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
+const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * (0.25 / 1.2);
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -708,7 +708,7 @@ const SPIN_BOX_FILL_RATIO =
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
-const BACKSPIN_MULTIPLIER = 1.7;
+const BACKSPIN_MULTIPLIER = 1.7 * 1.25;
 const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 32;
