@@ -96,7 +96,12 @@ function placePips(group, pipMaterial, geometrySet) {
   });
 }
 
-export default function LuxuryDice({ value = 1, rolling = false, size = 120 }) {
+export default function LuxuryDice({
+  value = 1,
+  rolling = false,
+  size = 120,
+  transparent = false
+}) {
   const containerRef = useRef(null);
   const rendererRef = useRef(null);
   const diceGroupRef = useRef(null);
@@ -118,7 +123,10 @@ export default function LuxuryDice({ value = 1, rolling = false, size = 120 }) {
     const width = container.clientWidth || size;
     const height = container.clientHeight || size;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: transparent
+    });
     renderer.setPixelRatio(Math.min(DPR_CAP, window.devicePixelRatio || 1));
     renderer.setSize(width, height);
     renderer.domElement.style.width = '100%';
@@ -128,11 +136,14 @@ export default function LuxuryDice({ value = 1, rolling = false, size = 120 }) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.6;
+    if (transparent) {
+      renderer.setClearColor(0x000000, 0);
+    }
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(BACKGROUND_COLOR);
+    scene.background = transparent ? null : new THREE.Color(BACKGROUND_COLOR);
 
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
@@ -154,14 +165,21 @@ export default function LuxuryDice({ value = 1, rolling = false, size = 120 }) {
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(10, 10),
-      new THREE.MeshStandardMaterial({ color: BACKGROUND_COLOR, metalness: 0.3, roughness: 0.9 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.55;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    let ground = null;
+    if (!transparent) {
+      ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(10, 10),
+        new THREE.MeshStandardMaterial({
+          color: BACKGROUND_COLOR,
+          metalness: 0.3,
+          roughness: 0.9
+        })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -0.55;
+      ground.receiveShadow = true;
+      scene.add(ground);
+    }
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x101318, 0.7);
     scene.add(hemi);
@@ -256,8 +274,10 @@ export default function LuxuryDice({ value = 1, rolling = false, size = 120 }) {
       cancelAnimationFrame(animationRef.current);
       resizeCleanup();
       controls.dispose();
-      ground.geometry.dispose();
-      ground.material.dispose();
+      if (ground) {
+        ground.geometry.dispose();
+        ground.material.dispose();
+      }
       dieMesh.geometry.dispose();
       dieMaterial.dispose();
       pipMaterial.dispose();

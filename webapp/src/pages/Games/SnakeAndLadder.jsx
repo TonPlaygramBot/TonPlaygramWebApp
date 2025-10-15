@@ -1761,6 +1761,34 @@ export default function SnakeAndLadder() {
         }))
       ];
 
+  const computedIndex = isMultiplayer
+    ? mpPlayers.findIndex((p) => p.id === getPlayerId())
+    : 0;
+  const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
+  const canRoll =
+    myPlayerIndex !== null &&
+    currentTurn === myPlayerIndex &&
+    !moving &&
+    rollCooldown === 0 &&
+    !gameOver &&
+    !waitingForPlayers &&
+    !playerAutoRolling &&
+    aiRollingIndex == null &&
+    !watchOnly;
+  const hasTurnMessage =
+    turnMessage !== null &&
+    turnMessage !== '' &&
+    turnMessage !== false;
+  const displayedTurnMessage = hasTurnMessage
+    ? turnMessage
+    : canRoll
+    ? 'Your turn'
+    : null;
+
+  const handleRollButtonClick = () => {
+    diceRollerDivRef.current?.click();
+  };
+
   // determine ranking numbers based on board positions
   const rankMap = {};
   players
@@ -2040,6 +2068,7 @@ export default function SnakeAndLadder() {
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted={muted}
+            diceTransparent
           />
           </div>
         </div>
@@ -2052,9 +2081,8 @@ export default function SnakeAndLadder() {
         >
           <div className="scale-90">
           {(() => {
-            const myId = getPlayerId();
-            const myIndex = mpPlayers.findIndex(p => p.id === myId);
-            if (currentTurn === myIndex && !moving) {
+            if (myPlayerIndex === null) return null;
+            if (currentTurn === myPlayerIndex && !moving) {
               return (
                 <DiceRoller
                   clickable
@@ -2062,12 +2090,31 @@ export default function SnakeAndLadder() {
                   muted={muted}
                   emitRollEvent
                   divRef={diceRollerDivRef}
+                  diceTransparent
                 />
               );
             }
             return null;
           })()}
           </div>
+        </div>
+      )}
+      {!watchOnly && (
+        <div className="fixed bottom-6 inset-x-0 flex flex-col items-center z-30 pointer-events-none space-y-3">
+          {displayedTurnMessage && (
+            <div className="px-4 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-white text-sm font-semibold backdrop-blur">
+              {displayedTurnMessage}
+            </div>
+          )}
+          {canRoll && (
+            <button
+              type="button"
+              onClick={handleRollButtonClick}
+              className="pointer-events-auto px-6 py-3 rounded-full font-semibold text-sm text-[#f7e7a4] shadow-lg bg-gradient-to-b from-[#2b2b2b] to-[#121212] border border-[rgba(255,215,0,0.45)]"
+            >
+              ROLL
+            </button>
+          )}
         </div>
       )}
       {!watchOnly && (
