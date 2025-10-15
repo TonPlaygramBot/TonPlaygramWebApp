@@ -22,26 +22,26 @@ public class CueCamera : MonoBehaviour
 
     [Header("Cue aim view")]
     // Distance from the cue ball when the camera is fully raised above the cue.
-    public float cueRaisedDistanceFromBall = 0.82f;
+    public float cueRaisedDistanceFromBall = 0.74f;
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
     public float cueLoweredDistanceFromBall = 0.06f;
     // Additional pull-in applied to the cue camera so the portrait framing hugs
     // the cloth like a player leaning over the shot.
-    public float cueDistancePullIn = 0.32f;
+    public float cueDistancePullIn = 0.36f;
     // Minimum separation we allow once the pull-in is applied. Prevents the
     // camera from intersecting the cue or cloth when the player drops in tight.
     public float cueMinimumDistance = 0.02f;
     // Height the cue view should reach when the player lifts the camera.
-    public float cueRaisedHeight = 0.82f;
+    public float cueRaisedHeight = 0.92f;
     // Minimum height maintained when the player drops the camera toward the cue.
     public float cueLoweredHeight = 0.3f;
     // Keep a small safety buffer from the butt of the cue so the camera never
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
     // Extra clearance to ensure the camera stays above the cue stick.
-    public float cueHeightClearance = 0.04f;
+    public float cueHeightClearance = 0.05f;
     // Limit how far toward the butt end the camera can travel as it lowers.
     // Keeps the framing over the upper half of the cue rather than drifting to
     // the plastic cap.
@@ -69,11 +69,11 @@ public class CueCamera : MonoBehaviour
     // Scale applied to the cue distance when the camera is raised. Values below
     // 1 slide the camera closer to the cloth even before the player lowers it.
     [Range(0.1f, 1f)]
-    public float cueRaisedDistanceScale = 0.9f;
+    public float cueRaisedDistanceScale = 0.85f;
     // Scale applied once the camera is fully lowered toward the cue. Lower
     // values bring the framing tighter to the cue ball and aiming line.
     [Range(0.1f, 1f)]
-    public float cueLoweredDistanceScale = 0.55f;
+    public float cueLoweredDistanceScale = 0.5f;
     // Bias used when lowering the camera to keep it hovering just above the cue
     // instead of drifting upward toward the player's face.
     [Range(0.1f, 1f)]
