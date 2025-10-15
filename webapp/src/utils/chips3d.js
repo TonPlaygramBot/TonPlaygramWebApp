@@ -3,11 +3,12 @@ import { applySRGBColorSpace } from './colorSpace.js';
 
 const DENOMINATIONS = [
   { value: 1, color: '#f2b21a' },
+  { value: 2, color: '#f97316' },
   { value: 5, color: '#d54a3a' },
   { value: 10, color: '#2196f3' },
   { value: 20, color: '#4caf50' },
   { value: 50, color: '#3a3331' },
-  { value: 100, color: '#7b4abd' },
+  { value: 200, color: '#7b4abd' },
   { value: 500, color: '#a3362e' },
   { value: 1000, color: '#1fb3d6' }
 ];

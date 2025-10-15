@@ -832,7 +832,7 @@ function showControls() {
 
     const sliderRaise = document.createElement('button');
     sliderRaise.id = 'sliderRaise';
-    sliderRaise.textContent = 'raise';
+    sliderRaise.textContent = 'Raise';
     sliderRaise.className = 'raise-btn';
     sliderRaise.addEventListener('click', () => {
       const sliderVal = parseInt(slider.value, 10);

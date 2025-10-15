@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -50,10 +49,17 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_D * 6, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_D * 6, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(28);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(14);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
+const HEAD_YAW_SENSITIVITY = 0.0042;
+const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
+
+const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -573,14 +579,57 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
+  const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
+  const cameraBasisRef = useRef({
+    position: new THREE.Vector3(),
+    baseForward: new THREE.Vector3(0, 0, -1),
+    baseUp: new THREE.Vector3(0, 1, 0),
+    baseRight: new THREE.Vector3(1, 0, 0)
+  });
+  const pointerStateRef = useRef({
+    active: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    startYaw: 0,
+    startPitch: 0
+  });
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
     const baseState = buildInitialState(players, token, stake);
     return resetForNextHand(baseState);
   });
-  const [uiState, setUiState] = useState({ availableActions: [], toCall: 0 });
+  const [uiState, setUiState] = useState({
+    availableActions: [],
+    toCall: 0,
+    canRaise: false,
+    maxRaise: 0,
+    minRaise: 0
+  });
+  const [chipSelection, setChipSelection] = useState([]);
+  const [sliderValue, setSliderValue] = useState(0);
   const timerRef = useRef(null);
+
+  const applyHeadOrientation = useCallback(() => {
+    const three = threeRef.current;
+    if (!three) return;
+    const { camera } = three;
+    const basis = cameraBasisRef.current;
+    const { yaw, pitch } = headAnglesRef.current;
+
+    const yawQuat = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
+    const rotatedForward = basis.baseForward.clone().applyQuaternion(yawQuat);
+    const rotatedUp = basis.baseUp.clone().applyQuaternion(yawQuat);
+    const rightAxis = basis.baseRight.clone().applyQuaternion(yawQuat);
+    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightAxis, pitch);
+    const finalForward = rotatedForward.applyQuaternion(pitchQuat).normalize();
+    const finalUp = rotatedUp.applyQuaternion(pitchQuat).normalize();
+
+    camera.position.copy(basis.position);
+    camera.up.copy(finalUp);
+    camera.lookAt(basis.position.clone().add(finalForward));
+  }, []);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -602,16 +651,8 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.far
     );
     camera.position.set(0, TABLE_HEIGHT * 3.5, TABLE_RADIUS * 3.4);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.minDistance = CAMERA_SETTINGS.minRadius;
-    controls.maxDistance = CAMERA_SETTINGS.maxRadius;
-    controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.cursor = 'grab';
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambient);
@@ -674,15 +715,28 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(humanSeat.right, lateralOffset);
       position.y = humanSeat.stoolHeight + elevation;
       camera.position.copy(position);
-      controls.target.copy(cameraTarget);
-      const offset = position.clone().sub(cameraTarget);
-      const radius = offset.length();
-      controls.minDistance = radius;
-      controls.maxDistance = radius;
-      const azimuth = Math.atan2(offset.x, offset.z);
-      controls.minAzimuthAngle = azimuth - CAMERA_HEAD_TURN_LIMIT;
-      controls.maxAzimuthAngle = azimuth + CAMERA_HEAD_TURN_LIMIT;
-      controls.update();
+      camera.lookAt(cameraTarget);
+      camera.updateMatrixWorld();
+      const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+      const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
+      cameraBasisRef.current = {
+        position: position.clone(),
+        baseForward,
+        baseUp,
+        baseRight
+      };
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+        headAnglesRef.current.yaw,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
+      );
+      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+        headAnglesRef.current.pitch,
+        -CAMERA_HEAD_PITCH_UP,
+        CAMERA_HEAD_PITCH_DOWN
+      );
+      applyHeadOrientation();
     };
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
@@ -780,7 +834,6 @@ function TexasHoldemArena({ search }) {
       renderer,
       scene,
       camera,
-      controls,
       chipFactory,
       cardGeometry,
       faceCache,
@@ -790,6 +843,59 @@ function TexasHoldemArena({ search }) {
       deckAnchor,
       frameId: null
     };
+
+    const element = renderer.domElement;
+    const handlePointerDown = (event) => {
+      event.preventDefault();
+      pointerStateRef.current = {
+        active: true,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startYaw: headAnglesRef.current.yaw,
+        startPitch: headAnglesRef.current.pitch
+      };
+      element.setPointerCapture(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+      const state = pointerStateRef.current;
+      if (!state.active || state.pointerId !== event.pointerId) return;
+      const dx = event.clientX - state.startX;
+      const dy = event.clientY - state.startY;
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+        state.startYaw - dx * HEAD_YAW_SENSITIVITY,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
+      );
+      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+        state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
+        -CAMERA_HEAD_PITCH_UP,
+        CAMERA_HEAD_PITCH_DOWN
+      );
+      applyHeadOrientation();
+    };
+
+    const handlePointerUp = (event) => {
+      const state = pointerStateRef.current;
+      if (state.pointerId === event.pointerId) {
+        element.releasePointerCapture(event.pointerId);
+        pointerStateRef.current = {
+          active: false,
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          startYaw: 0,
+          startPitch: 0
+        };
+      }
+    };
+
+    element.addEventListener('pointerdown', handlePointerDown);
+    element.addEventListener('pointermove', handlePointerMove);
+    element.addEventListener('pointerup', handlePointerUp);
+    element.addEventListener('pointercancel', handlePointerUp);
+    element.addEventListener('pointerleave', handlePointerUp);
 
     const handleResize = () => {
       if (!mount || !threeRef.current) return;
@@ -806,7 +912,7 @@ function TexasHoldemArena({ search }) {
     const animate = () => {
       const three = threeRef.current;
       if (!three) return;
-      three.controls.update();
+      applyHeadOrientation();
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -815,6 +921,11 @@ function TexasHoldemArena({ search }) {
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationRef.current);
+      element.removeEventListener('pointerdown', handlePointerDown);
+      element.removeEventListener('pointermove', handlePointerMove);
+      element.removeEventListener('pointerup', handlePointerUp);
+      element.removeEventListener('pointercancel', handlePointerUp);
+      element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
         const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, communityMeshes: community } = threeRef.current;
         seats.forEach((seat) => {
@@ -933,23 +1044,19 @@ function TexasHoldemArena({ search }) {
     if (actor.isHuman) {
       const toCall = Math.max(0, gameState.currentBet - actor.bet);
       const canCheck = toCall === 0;
-      const canRaise = actor.chips > toCall;
+      const maxRaise = Math.max(0, actor.chips - toCall);
+      const minRaise = Math.min(maxRaise, gameState.minRaise);
+      const canRaise = maxRaise > 0;
       const actions = [];
       actions.push({ id: 'fold', label: 'Fold' });
       if (canCheck) {
         actions.push({ id: 'check', label: 'Check' });
-        if (canRaise) {
-          actions.push({ id: 'bet', label: 'Bet' });
-        }
       } else {
-        actions.push({ id: 'call', label: `Call ${toCall}` });
-        if (canRaise) {
-          actions.push({ id: 'raise', label: 'Raise' });
-        }
+        actions.push({ id: 'call', label: `Call ${Math.round(toCall)} ${gameState.token}` });
       }
-      setUiState({ availableActions: actions, toCall });
+      setUiState({ availableActions: actions, toCall, canRaise, maxRaise, minRaise });
     } else {
-      setUiState({ availableActions: [], toCall: 0 });
+      setUiState({ availableActions: [], toCall: 0, canRaise: false, maxRaise: 0, minRaise: 0 });
       timerRef.current = setTimeout(() => {
         setGameState((prev) => {
           const next = cloneState(prev);
@@ -966,16 +1073,89 @@ function TexasHoldemArena({ search }) {
     };
   }, [gameState]);
 
-  const handleAction = (id) => {
+  const handleAction = (id, raiseAmount) => {
     setGameState((prev) => {
       const next = cloneState(prev);
       if (next.stage === 'showdown') return next;
-      performPlayerAction(next, id, next.minRaise);
+      const amount = raiseAmount ?? next.minRaise;
+      performPlayerAction(next, id, amount);
       return next;
     });
   };
 
   const actor = gameState.players[gameState.actionIndex];
+  const toCall = actor ? Math.max(0, gameState.currentBet - actor.bet) : 0;
+  const sliderMax = actor ? Math.max(0, actor.chips - toCall) : 0;
+  const minRaiseAmount = actor ? Math.min(sliderMax, gameState.minRaise) : 0;
+  const defaultRaise = sliderMax <= 0 ? 0 : minRaiseAmount > 0 ? Math.min(sliderMax, minRaiseAmount) : sliderMax;
+  const chipTotal = useMemo(
+    () => chipSelection.reduce((sum, chip) => sum + chip, 0),
+    [chipSelection]
+  );
+  const effectiveRaise = chipTotal > 0 ? chipTotal : sliderValue;
+  const finalRaise = sliderMax > 0 ? Math.min(sliderMax, Math.max(effectiveRaise, defaultRaise)) : 0;
+  const totalSpend = toCall + finalRaise;
+  const sliderEnabled = Boolean(actor?.isHuman && uiState.canRaise && sliderMax > 0);
+  const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
+  const raisePreview = sliderEnabled ? Math.min(sliderMax, effectiveRaise) : 0;
+
+  useEffect(() => {
+    if (!actor?.isHuman || gameState.stage === 'showdown') {
+      setChipSelection([]);
+      setSliderValue(0);
+      return;
+    }
+    if (sliderMax <= 0) {
+      setChipSelection([]);
+      setSliderValue(0);
+      return;
+    }
+    setChipSelection([]);
+    setSliderValue(defaultRaise);
+  }, [actor?.id, sliderMax, minRaiseAmount, gameState.stage, defaultRaise]);
+
+  useEffect(() => {
+    if (sliderMax <= 0) return;
+    setSliderValue((prev) => Math.min(prev, sliderMax));
+  }, [sliderMax]);
+
+  const handleChipClick = (value) => {
+    if (!sliderEnabled) return;
+    setChipSelection((prev) => {
+      const currentTotal = prev.reduce((sum, chip) => sum + chip, 0);
+      const nextTotal = currentTotal + value;
+      if (nextTotal > sliderMax) return prev;
+      setSliderValue(nextTotal);
+      return [...prev, value];
+    });
+  };
+
+  const handleUndoChip = () => {
+    setChipSelection((prev) => {
+      if (!prev.length) return prev;
+      const updated = prev.slice(0, -1);
+      const nextTotal = updated.reduce((sum, chip) => sum + chip, 0);
+      setSliderValue(nextTotal > 0 ? nextTotal : defaultRaise);
+      return updated;
+    });
+  };
+
+  const handleSliderChange = (event) => {
+    const value = Number(event.target.value);
+    setSliderValue(value);
+  };
+
+  const handleRaiseConfirm = () => {
+    if (!sliderEnabled) return;
+    const action = toCall > 0 ? 'raise' : 'bet';
+    handleAction(action, finalRaise);
+  };
+
+  const handleAllIn = () => {
+    if (!sliderEnabled) return;
+    const action = toCall > 0 ? 'raise' : 'bet';
+    handleAction(action, sliderMax);
+  };
 
   return (
     <div className="relative w-full h-full">
@@ -1003,17 +1183,80 @@ function TexasHoldemArena({ search }) {
         )}
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
-          {uiState.availableActions.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => handleAction(action.id)}
-              className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+        <>
+          {sliderEnabled && (
+            <>
+              <div className="absolute bottom-28 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 z-20">
+                <div className="grid grid-cols-3 gap-2">
+                  {CHIP_VALUES.map((value) => (
+                    <button
+                      key={value}
+                      onClick={() => handleChipClick(value)}
+                      className="w-12 h-12 rounded-full border-2 border-sky-300 bg-gradient-to-b from-white to-slate-200 text-black font-bold shadow-lg flex items-center justify-center"
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-white/90">
+                  <button
+                    onClick={handleUndoChip}
+                    disabled={!chipSelection.length}
+                    className="px-3 py-1 rounded-md bg-amber-400/90 text-black font-semibold shadow disabled:opacity-40"
+                  >
+                    Undo
+                  </button>
+                  <span>
+                    Selected raise: {Math.round(raisePreview)} {gameState.token}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute bottom-6 right-4 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 shadow-2xl z-20">
+                <button
+                  onClick={handleAllIn}
+                  disabled={!sliderEnabled}
+                  className="px-4 py-1 rounded-lg border border-red-300 bg-red-600/80 text-white font-semibold shadow disabled:opacity-40"
+                >
+                  All-in
+                </button>
+                <div className="flex flex-col items-center gap-2 w-44">
+                  <input
+                    type="range"
+                    min={0}
+                    max={sliderMax}
+                    step={1}
+                    value={Math.min(sliderMax, sliderValue)}
+                    onChange={handleSliderChange}
+                    disabled={!sliderEnabled}
+                    className="w-full accent-sky-400"
+                  />
+                  <div className="text-xs text-white/80 text-center space-y-1">
+                    <div>Raise amount: {Math.round(finalRaise)} {gameState.token}</div>
+                    <div>Total commitment: {Math.round(totalSpend)} {gameState.token}</div>
+                  </div>
+                  <button
+                    onClick={handleRaiseConfirm}
+                    disabled={!sliderEnabled}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow disabled:opacity-40 disabled:bg-blue-600/40"
+                  >
+                    {sliderLabel} {Math.round(totalSpend)} {gameState.token}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+            {uiState.availableActions.map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleAction(action.id)}
+                className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
