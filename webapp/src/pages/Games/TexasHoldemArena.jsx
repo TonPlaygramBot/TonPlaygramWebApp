@@ -20,8 +20,8 @@ import {
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const TABLE_RADIUS = 3.85 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.24 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -38,7 +38,7 @@ const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const CHAIR_RADIUS = 5.95 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const PLAYER_COUNT = 6;
@@ -49,6 +49,11 @@ const HOLE_SPACING = CARD_W * 0.7;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_D * 6, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_D * 6, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
+const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(18);
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -601,6 +606,7 @@ function TexasHoldemArena({ search }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enablePan = false;
+    controls.enableZoom = false;
     controls.minDistance = CAMERA_SETTINGS.minRadius;
     controls.maxDistance = CAMERA_SETTINGS.maxRadius;
     controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
@@ -655,20 +661,31 @@ function TexasHoldemArena({ search }) {
     const deckAnchor = DECK_POSITION.clone();
 
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
-    const isPortrait = mount.clientHeight > mount.clientWidth;
-    const targetHeightOffset = 0.08 * MODEL_SCALE;
-    const lateralOffset = isPortrait ? 0.55 : 0.42;
-    const retreatOffset = isPortrait ? 1.85 : 1.35;
-    const elevation = isPortrait ? 1.95 : 1.58;
-    const initialCameraPosition = humanSeat.stoolAnchor
-      .clone()
-      .addScaledVector(humanSeat.forward, -retreatOffset)
-      .addScaledVector(humanSeat.right, lateralOffset);
-    initialCameraPosition.y = humanSeat.stoolHeight + elevation;
-    camera.position.copy(initialCameraPosition);
-    const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
-    controls.target.copy(cameraTarget);
-    controls.update();
+    const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
+    const applySeatedCamera = (width, height) => {
+      if (!humanSeat) return;
+      const portrait = height > width;
+      const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
+      const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
+      const elevation = portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape;
+      const position = humanSeat.stoolAnchor
+        .clone()
+        .addScaledVector(humanSeat.forward, -retreatOffset)
+        .addScaledVector(humanSeat.right, lateralOffset);
+      position.y = humanSeat.stoolHeight + elevation;
+      camera.position.copy(position);
+      controls.target.copy(cameraTarget);
+      const offset = position.clone().sub(cameraTarget);
+      const radius = offset.length();
+      controls.minDistance = radius;
+      controls.maxDistance = radius;
+      const azimuth = Math.atan2(offset.x, offset.z);
+      controls.minAzimuthAngle = azimuth - CAMERA_HEAD_TURN_LIMIT;
+      controls.maxAzimuthAngle = azimuth + CAMERA_HEAD_TURN_LIMIT;
+      controls.update();
+    };
+
+    applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
     const seatMaterials = {
       human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
@@ -781,6 +798,7 @@ function TexasHoldemArena({ search }) {
       r.setSize(clientWidth, clientHeight);
       cam.aspect = clientWidth / clientHeight;
       cam.updateProjectionMatrix();
+      applySeatedCamera(clientWidth, clientHeight);
     };
 
     window.addEventListener('resize', handleResize);
