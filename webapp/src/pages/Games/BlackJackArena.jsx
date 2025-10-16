@@ -53,8 +53,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.32, landscape: 1.85 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.88, landscape: 1.58 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.13, landscape: 1.63 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
