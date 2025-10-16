@@ -412,13 +412,14 @@ function addPocketCuts(parent, clothPlane) {
 const SIZE_REDUCTION = 0.7;
 // Apply an additional 25% boost so the table, balls, and pockets read larger on screen
 const TABLE_SIZE_BOOST = 1.25;
-const TABLE_DIMENSION_SCALE = 1.2; // enlarge the snooker table footprint (width, length, height) by 20%
+const TABLE_DIMENSION_SCALE = 1.2; // legacy boost to keep the snooker table readable on mobile
+const TABLE_ADDITIONAL_ENLARGEMENT = 1.2; // new 20% scale increase across the full table footprint
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.3 * TABLE_SIZE_BOOST * TABLE_DIMENSION_SCALE;
+const TABLE_SCALE = 1.3 * TABLE_SIZE_BOOST * TABLE_DIMENSION_SCALE * TABLE_ADDITIONAL_ENLARGEMENT;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -8361,8 +8362,8 @@ function SnookerGame() {
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
-        const LIGHT_DISTANCE_NUDGE = 1.05; // move the spotlight slightly away from the chrome plates
-        const LIGHT_HEIGHT_NUDGE = 1.035;
+        const LIGHT_DISTANCE_NUDGE = 1.075; // push the spotlight a touch further from the chrome plates
+        const LIGHT_HEIGHT_NUDGE = 1.05;
         const spot = new THREE.SpotLight(
           0xffffff,
           18.9,
@@ -8385,7 +8386,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const AMBIENT_HEIGHT_NUDGE = 1.045; // lift the ambient light a touch higher to soften reflections
+        const AMBIENT_HEIGHT_NUDGE = 1.06; // lift the ambient light a touch higher to soften reflections
         const ambient = new THREE.AmbientLight(0xffffff, 0.02625);
         ambient.position.set(
           0,
