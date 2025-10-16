@@ -629,7 +629,7 @@ const ACTION_CAM = Object.freeze({
  * • Pas çdo raundi → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
-const SIDE_RAIL_CAMERA_DISTANCE = PLAY_W / 2 + BALL_R * 15;
+const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -682,7 +682,7 @@ const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footpr
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.05; // keep orbit height just above the cue stick
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
@@ -1149,28 +1149,31 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.92,
-    roughness: 0.28,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.18
+    metalness: 0.82,
+    roughness: 0.44,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.32,
+    envMapIntensity: 0.58
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.35,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.2
+    metalness: 0.78,
+    roughness: 0.48,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.34,
+    envMapIntensity: 0.54
   },
   {
     id: 'matteBlack',
     label: 'Black Chrome',
     color: 0x1a1a1a,
-    metalness: 0.64,
-    roughness: 0.58,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.4
+    metalness: 0.56,
+    roughness: 0.62,
+    clearcoat: 0.1,
+    clearcoatRoughness: 0.42,
+    envMapIntensity: 0.5
   }
 ]);
 
@@ -2313,22 +2316,24 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.92;
+const STANDING_VIEW_PHI = 0.84;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.3;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.24);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // allow a flatter cue view while keeping the lens clear of the rails
+const CAMERA_ABS_MIN_PHI = 0.22;
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
-// Bring the standing/broadcast framing closer to the cloth so the table feels less distant
+// Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
+const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
+const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -2361,6 +2366,9 @@ const CAMERA = {
   maxPhi: CAMERA_MAX_PHI
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
+const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
+const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
+const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2530,6 +2538,23 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
+};
+
+const computeShortRailBroadcastDistance = (camera) => {
+  if (!camera) return SHORT_RAIL_CAMERA_DISTANCE;
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov || STANDING_VIEW_FOV);
+  const aspect = camera.aspect || 1;
+  const halfVertical = Math.max(verticalFov / 2, 1e-3);
+  const halfHorizontal = Math.max(
+    Math.atan(Math.tan(halfVertical) * aspect),
+    1e-3
+  );
+  const halfWidth = PLAY_W / 2 + BROADCAST_MARGIN_WIDTH;
+  const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
+  const widthDistance = halfWidth / Math.tan(halfHorizontal);
+  const lengthDistance = halfLength / Math.tan(halfVertical);
+  const required = Math.max(widthDistance, lengthDistance);
+  return Math.max(SHORT_RAIL_CAMERA_DISTANCE, required);
 };
 
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
@@ -5049,6 +5074,9 @@ function SnookerGame() {
         materials.trim.roughness = chromeSelection.roughness;
         materials.trim.clearcoat = chromeSelection.clearcoat;
         materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
+        if (typeof chromeSelection.envMapIntensity === 'number') {
+          materials.trim.envMapIntensity = chromeSelection.envMapIntensity;
+        }
         if (materials.accent?.material) {
           materials.accent = {
             ...materials.accent,
@@ -5778,6 +5806,7 @@ function SnookerGame() {
       let clothMat;
       let cushionMat;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
+      const baseSurfaceWorldY = tableSurfaceY * WORLD_SCALE;
       let shooting = false; // track when a shot is in progress
       const setShootingState = (value) => {
         if (shooting === value) return;
@@ -6381,8 +6410,9 @@ function SnookerGame() {
         }),
         chrome: new THREE.MeshStandardMaterial({
           color: 0xbfc7d5,
-          roughness: 0.25,
-          metalness: 0.9
+          roughness: 0.5,
+          metalness: 0.68,
+          envMapIntensity: 0.6
         }),
         glass: new THREE.MeshStandardMaterial({
           color: 0x9bd3ff,
@@ -7071,7 +7101,7 @@ function SnookerGame() {
                 );
                 if (axis === 'short') {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const baseX = THREE.MathUtils.clamp(
+                  const cueOffsetX = THREE.MathUtils.clamp(
                     anchor.x + offsetSide.x * 0.6 + offsetBack.x * 0.25,
                     -lateralClamp,
                     lateralClamp
@@ -7080,10 +7110,12 @@ function SnookerGame() {
                     activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.5 : 0;
+                  const baseDistance = computeShortRailBroadcastDistance(camera);
+                  const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
-                    baseX,
+                    0,
                     heightBase + ACTION_CAM.heightOffset + heightLift,
-                    railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
+                    railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
                   if (activeShotView.longShot) {
@@ -7093,10 +7125,18 @@ function SnookerGame() {
                       0.35
                     );
                   }
+                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
+                  const focusShiftSign = signed(
+                    cueOffsetX,
+                    signed(anchor.x, 1)
+                  );
                   lookAnchor.x +=
-                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  lookAnchor.z +=
-                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
+                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                  lookAnchor.z = THREE.MathUtils.lerp(
+                    lookAnchor.z,
+                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4),
+                    0.65
+                  );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
@@ -7149,7 +7189,7 @@ function SnookerGame() {
                 const lateral = perp.multiplyScalar(BALL_R * 6);
                 if (axis === 'short') {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const baseX = THREE.MathUtils.clamp(
+                  const cueOffsetX = THREE.MathUtils.clamp(
                     anchor.x - dir.x * BALL_R * 6 + lateral.x,
                     -lateralClamp,
                     lateralClamp
@@ -7158,10 +7198,12 @@ function SnookerGame() {
                     activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.2 : 0;
+                  const baseDistance = computeShortRailBroadcastDistance(camera);
+                  const desiredDistance = baseDistance + longShotPullback;
                   const desired = new THREE.Vector3(
-                    baseX,
+                    0,
                     heightBase + ACTION_CAM.followHeightOffset + heightLift,
-                    railDir * (SHORT_RAIL_CAMERA_DISTANCE + longShotPullback)
+                    railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
                   if (activeShotView.longShot) {
@@ -7171,10 +7213,18 @@ function SnookerGame() {
                       0.35
                     );
                   }
+                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
+                  const focusShiftSign = signed(
+                    cueOffsetX,
+                    signed(anchor.x, 1)
+                  );
                   lookAnchor.x +=
-                    signed(baseX, 0) * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  lookAnchor.z +=
-                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
+                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                  lookAnchor.z = THREE.MathUtils.lerp(
+                    lookAnchor.z,
+                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5),
+                    0.65
+                  );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
@@ -7476,18 +7526,67 @@ function SnookerGame() {
                   setOrbitFocusToDefault();
                 }
               }
-              focusTarget = store.target.clone();
+            focusTarget = store.target.clone();
+          }
+          focusTarget.multiplyScalar(worldScaleFactor);
+          lookTarget = focusTarget;
+          TMP_SPH.copy(sph);
+          if (TMP_SPH.radius > 1e-6) {
+            const aimLineWorldY =
+              (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
+            const aimOffset = aimLineWorldY - lookTarget.y;
+            if (aimOffset > 0) {
+              const normalized = aimOffset / TMP_SPH.radius;
+              let clampedPhi = TMP_SPH.phi;
+              if (normalized >= 1) {
+                clampedPhi = CAMERA.minPhi;
+              } else {
+                const limitPhi = Math.acos(
+                  THREE.MathUtils.clamp(normalized, -1, 1)
+                );
+                const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
+                if (clampedPhi > safePhi) {
+                  clampedPhi = Math.max(safePhi, CAMERA.minPhi);
+                }
+              }
+              if (clampedPhi !== TMP_SPH.phi) {
+                TMP_SPH.phi = clampedPhi;
+                sph.phi = clampedPhi;
+                syncBlendToSpherical();
+              }
             }
-            focusTarget.multiplyScalar(worldScaleFactor);
-            lookTarget = focusTarget;
-            TMP_SPH.copy(sph);
-            camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-            camera.lookAt(lookTarget);
-            renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = null;
-            broadcastArgs.lerp = 0.22;
+          }
+          camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+          const surfaceMarginWorld = Math.max(0, CAMERA_SURFACE_STOP_MARGIN) *
+            (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE);
+          const surfaceClampY = baseSurfaceWorldY + surfaceMarginWorld;
+          if (camera.position.y < surfaceClampY) {
+            camera.position.y = surfaceClampY;
+            TMP_VEC3_A.copy(camera.position).sub(lookTarget);
+            const limitedRadius = TMP_VEC3_A.length();
+            if (limitedRadius > 1e-6) {
+              const normalizedY = THREE.MathUtils.clamp(
+                TMP_VEC3_A.y / limitedRadius,
+                -1,
+                1
+              );
+              const correctedPhi = Math.acos(normalizedY);
+              sph.radius = clampOrbitRadius(limitedRadius);
+              sph.phi = THREE.MathUtils.clamp(
+                correctedPhi,
+                CAMERA.minPhi,
+                CAMERA.maxPhi
+              );
+              TMP_SPH.radius = sph.radius;
+              TMP_SPH.phi = sph.phi;
+            }
+          }
+          camera.lookAt(lookTarget);
+          renderCamera = camera;
+          broadcastArgs.focusWorld =
+            broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+          broadcastArgs.targetWorld = null;
+          broadcastArgs.lerp = 0.22;
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);

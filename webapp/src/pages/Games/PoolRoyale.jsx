@@ -1131,31 +1131,31 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.99,
-    roughness: 0.1,
-    clearcoat: 0.74,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.02
+    metalness: 0.84,
+    roughness: 0.46,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.36,
+    envMapIntensity: 0.58
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.96,
-    roughness: 0.18,
-    clearcoat: 0.56,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 0.98
+    metalness: 0.8,
+    roughness: 0.5,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.34,
+    envMapIntensity: 0.54
   },
   {
     id: 'matteBlack',
     label: 'Black Chrome',
     color: 0x1a1a1a,
-    metalness: 0.84,
-    roughness: 0.36,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.94
+    metalness: 0.58,
+    roughness: 0.64,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.42,
+    envMapIntensity: 0.5
   }
 ]);
 
@@ -6519,8 +6519,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }),
         chrome: new THREE.MeshStandardMaterial({
           color: 0xbfc7d5,
-          roughness: 0.25,
-          metalness: 0.9
+          roughness: 0.5,
+          metalness: 0.68,
+          envMapIntensity: 0.6
         }),
         glass: new THREE.MeshStandardMaterial({
           color: 0x9bd3ff,
