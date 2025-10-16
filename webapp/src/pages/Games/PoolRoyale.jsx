@@ -2283,8 +2283,8 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
-const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.36);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // allow a flatter cue view while keeping the lens clear of the rails
+const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.04; // allow a flatter cue view while keeping the lens clear of the rails
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2328,6 +2328,8 @@ const CAMERA = {
   maxPhi: CAMERA_MAX_PHI
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
+const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
+const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -2365,7 +2367,7 @@ const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36;
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -7655,6 +7657,31 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
+            if (TMP_SPH.radius > 1e-6) {
+              const aimLineWorldY =
+                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
+              const aimOffset = aimLineWorldY - lookTarget.y;
+              if (aimOffset > 0) {
+                const normalized = aimOffset / TMP_SPH.radius;
+                let clampedPhi = TMP_SPH.phi;
+                if (normalized >= 1) {
+                  clampedPhi = CAMERA.minPhi;
+                } else {
+                  const limitPhi = Math.acos(
+                    THREE.MathUtils.clamp(normalized, -1, 1)
+                  );
+                  const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
+                  if (clampedPhi > safePhi) {
+                    clampedPhi = Math.max(safePhi, CAMERA.minPhi);
+                  }
+                }
+                if (clampedPhi !== TMP_SPH.phi) {
+                  TMP_SPH.phi = clampedPhi;
+                  sph.phi = clampedPhi;
+                  syncBlendToSpherical();
+                }
+              }
+            }
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
             camera.lookAt(lookTarget);
             renderCamera = camera;
