@@ -1741,34 +1741,43 @@ const createCarpetTextures = (() => {
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
 
-    // deeper neutral textile base to keep the lounge mood grounded without harsh brightness
+    // rich crimson textile base to restore the original lounge character
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#b9bdb9');
-    gradient.addColorStop(1, '#9ea3a0');
+    gradient.addColorStop(0, '#7c242f');
+    gradient.addColorStop(1, '#9d3642');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
 
     const rand = prng(987654321);
     const image = ctx.getImageData(0, 0, size, size);
     const data = image.data;
+    const baseColor = { r: 112, g: 28, b: 34 };
+    const highlightColor = { r: 196, g: 72, b: 82 };
+    const toChannel = (component) =>
+      Math.round(clamp01(component / 255) * 255);
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
         const fiber = (Math.sin((x / size) * Math.PI * 14) +
           Math.cos((y / size) * Math.PI * 16)) * 0.08;
         const grain = (rand() - 0.5) * 0.12;
-        const shade = clamp01(0.82 + fiber + grain * 0.6);
-        const value = clamp01(shade) * 255;
-        data[idx] = value;
-        data[idx + 1] = value;
-        data[idx + 2] = value;
+        const shade = clamp01(0.55 + fiber * 0.75 + grain * 0.6);
+        const r =
+          baseColor.r + (highlightColor.r - baseColor.r) * shade;
+        const g =
+          baseColor.g + (highlightColor.g - baseColor.g) * shade;
+        const b =
+          baseColor.b + (highlightColor.b - baseColor.b) * shade;
+        data[idx] = toChannel(r);
+        data[idx + 1] = toChannel(g);
+        data[idx + 2] = toChannel(b);
       }
     }
     ctx.putImageData(image, 0, 0);
 
     // subtle horizontal ribbing for textile feel
     ctx.globalAlpha = 0.04;
-    ctx.fillStyle = '#7a7f7c';
+    ctx.fillStyle = '#4f1119';
     for (let row = 0; row < size; row += 3) {
       ctx.fillRect(0, row, size, 1);
     }
@@ -1780,8 +1789,8 @@ const createCarpetTextures = (() => {
     const stripeRadius = size * 0.08;
     const stripeWidth = size * 0.012;
     ctx.lineWidth = stripeWidth;
-    ctx.strokeStyle = '#cbd5c0';
-    ctx.shadowColor = 'rgba(80,90,80,0.14)';
+    ctx.strokeStyle = '#f2b7b4';
+    ctx.shadowColor = 'rgba(80,20,30,0.18)';
     ctx.shadowBlur = stripeWidth * 0.8;
     drawRoundedRect(
       ctx,
@@ -6160,7 +6169,7 @@ function SnookerGame() {
       const carpetDepth = roomDepth - wallThickness + carpetInset;
       const carpetTextures = createCarpetTextures();
       const carpetMat = new THREE.MeshStandardMaterial({
-        color: 0xdde2dc,
+        color: 0x8c2a2e,
         roughness: 0.9,
         metalness: 0.025
       });
@@ -6185,7 +6194,7 @@ function SnookerGame() {
       world.add(carpet);
 
       const wallMat = new THREE.MeshStandardMaterial({
-        color: 0xf8f4e6,
+        color: 0xb9ddff,
         roughness: 0.88,
         metalness: 0.06
       });
