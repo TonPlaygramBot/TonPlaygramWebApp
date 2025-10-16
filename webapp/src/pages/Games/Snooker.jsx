@@ -708,7 +708,7 @@ const SPIN_BOX_FILL_RATIO =
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
-const BACKSPIN_MULTIPLIER = 1.7 * 1.25;
+const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets
 const CUSHION_CUT_ANGLE = 29;
@@ -3463,8 +3463,9 @@ function Table3D(
 
   const { map: clothMap, bump: clothBump } = createClothTextures();
   const clothPrimary = new THREE.Color(palette.cloth);
-  const clothColor = clothPrimary.clone().lerp(new THREE.Color(0xffffff), 0.18);
-  const sheenColor = clothColor.clone().lerp(new THREE.Color(0xffffff), 0.12);
+  const clothHighlight = new THREE.Color(0xffffff);
+  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.24);
+  const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: 0.7,
@@ -3479,12 +3480,12 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
-  const clothTextureScale = 0.032 * 1.35; // tighten the cloth pattern for a crisper weave
+  const clothTextureScale = 0.032 * 1.35 * 0.85; // scale the cloth pattern up so the weave reads clearly
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.25;
-  const baseBumpScale = 0.64;
+  const baseBumpScale = 0.64 * 1.35;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
