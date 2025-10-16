@@ -497,6 +497,11 @@ const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added 
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
+const CLOTH_REFLECTION_LIMITS = Object.freeze({
+  clearcoatMax: 0.028,
+  clearcoatRoughnessMin: 0.48,
+  envMapIntensityMax: 0.22
+});
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
@@ -3520,12 +3525,13 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.7,
-    sheen: 0.98,
+    roughness: 0.82,
+    sheen: 0.92,
     sheenColor,
-    sheenRoughness: 0.34,
-    clearcoat: 0.08,
-    clearcoatRoughness: 0.24,
+    sheenRoughness: 0.52,
+    clearcoat: 0.015,
+    clearcoatRoughness: 0.62,
+    envMapIntensity: 0.18,
     emissive: clothColor.clone().multiplyScalar(0.08),
     emissiveIntensity: 0.58
   });
@@ -3568,6 +3574,7 @@ function Table3D(
     sheenRoughness: clothMat.sheenRoughness,
     clearcoat: clothMat.clearcoat,
     clearcoatRoughness: clothMat.clearcoatRoughness,
+    envMapIntensity: clothMat.envMapIntensity,
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale
   };
@@ -3584,21 +3591,44 @@ function Table3D(
     clothMaterials.forEach((mat) => {
       if (!mat) return;
       mat.roughness = Number.isFinite(overrides.roughness)
-        ? overrides.roughness
+        ? THREE.MathUtils.clamp(overrides.roughness, 0, 1)
         : clothBaseSettings.roughness;
+      mat.sheen = Number.isFinite(overrides.sheen)
+        ? THREE.MathUtils.clamp(overrides.sheen, 0, 1)
+        : clothBaseSettings.sheen;
       mat.sheenRoughness = Number.isFinite(overrides.sheenRoughness)
-        ? overrides.sheenRoughness
+        ? THREE.MathUtils.clamp(overrides.sheenRoughness, 0, 1)
         : clothBaseSettings.sheenRoughness;
-      mat.clearcoat = Number.isFinite(overrides.clearcoat)
+      const targetClearcoat = Number.isFinite(overrides.clearcoat)
         ? overrides.clearcoat
         : clothBaseSettings.clearcoat;
-      mat.clearcoatRoughness = Number.isFinite(overrides.clearcoatRoughness)
+      mat.clearcoat = THREE.MathUtils.clamp(
+        targetClearcoat,
+        0,
+        CLOTH_REFLECTION_LIMITS.clearcoatMax
+      );
+      const targetClearcoatRoughness = Number.isFinite(overrides.clearcoatRoughness)
         ? overrides.clearcoatRoughness
         : clothBaseSettings.clearcoatRoughness;
+      mat.clearcoatRoughness = THREE.MathUtils.clamp(
+        targetClearcoatRoughness,
+        CLOTH_REFLECTION_LIMITS.clearcoatRoughnessMin,
+        1
+      );
       if (typeof mat.emissiveIntensity === 'number') {
         mat.emissiveIntensity = Number.isFinite(overrides.emissiveIntensity)
           ? overrides.emissiveIntensity
           : clothBaseSettings.emissiveIntensity;
+      }
+      if ('envMapIntensity' in mat) {
+        const targetEnvIntensity = Number.isFinite(overrides.envMapIntensity)
+          ? overrides.envMapIntensity
+          : clothBaseSettings.envMapIntensity;
+        mat.envMapIntensity = THREE.MathUtils.clamp(
+          targetEnvIntensity,
+          0,
+          CLOTH_REFLECTION_LIMITS.envMapIntensityMax
+        );
       }
       if (Number.isFinite(targetBump)) {
         mat.bumpScale = targetBump;
