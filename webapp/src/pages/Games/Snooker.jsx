@@ -8374,7 +8374,7 @@ function SnookerGame() {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          16.065,
+          13.65525,
           0,
           Math.PI * 0.36,
           0.42,
@@ -8394,7 +8394,7 @@ function SnookerGame() {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.02625);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.0223125);
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,

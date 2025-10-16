@@ -8582,7 +8582,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          16.66,
+          14.161,
           0,
           Math.PI * 0.36,
           0.42,
@@ -8602,7 +8602,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.094); // return trimmed spot energy through ambient fill
+        const ambient = new THREE.AmbientLight(
+          0xffffff,
+          0.0799
+        ); // return trimmed spot energy through ambient fill
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
