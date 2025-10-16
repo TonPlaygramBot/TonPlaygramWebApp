@@ -410,12 +410,14 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions enlarged for a roomier snooker table but globally reduced by 30%
 const SIZE_REDUCTION = 0.7;
+// Apply an additional 25% boost so the table, balls, and pockets read larger on screen
+const TABLE_SIZE_BOOST = 1.25;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.3;
+const TABLE_SCALE = 1.3 * TABLE_SIZE_BOOST;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
