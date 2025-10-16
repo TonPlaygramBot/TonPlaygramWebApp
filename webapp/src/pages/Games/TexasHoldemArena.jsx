@@ -54,7 +54,9 @@ const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
+const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT;
@@ -81,7 +83,7 @@ const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CAR
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_PLAYER_FOCUS_OFFSET = 0.85 * MODEL_SCALE;
-const CAMERA_PLAYER_FOCUS_DROP = 0.28 * MODEL_SCALE;
+const CAMERA_PLAYER_FOCUS_DROP = 0.36 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_HEAD_PITCH_UP = 0;
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
@@ -98,12 +100,12 @@ const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const DEFAULT_STOOL_THEME = Object.freeze({ seatColor: '#8b0000', legColor: '#1f1f1f' });
-const DEFAULT_OUTFIT_THEME = Object.freeze({ baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' });
-const DEFAULT_HEAD_COLOR = '#f9e0d0';
-const LABEL_SIZE = Object.freeze({ width: 1.7 * MODEL_SCALE, height: 0.82 * MODEL_SCALE });
-const LABEL_BASE_HEIGHT = 0.62 * MODEL_SCALE;
-const HUMAN_LABEL_FORWARD = 0.88 * MODEL_SCALE;
-const AI_LABEL_FORWARD = 0.98 * MODEL_SCALE;
+const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
+const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.04 * MODEL_SCALE;
+const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.18;
+const AI_LABEL_FORWARD = SEAT_DEPTH * 0.22;
+const PLAYER_CHIP_FORWARD_SHIFT = CARD_W * 0.35;
+const PLAYER_CHIP_LATERAL_SHIFT = SEAT_WIDTH * 0.22;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.45;
@@ -208,7 +210,11 @@ function createSeatLayout(count) {
     cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const railAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * RAIL_ANCHOR_RATIO);
     railAnchor.y = TABLE_HEIGHT + RAIL_HEIGHT_OFFSET;
-    const chipAnchor = railAnchor.clone().addScaledVector(forward, -RAIL_BASE_FORWARD_OFFSET);
+    const chipAnchor = railAnchor
+      .clone()
+      .addScaledVector(forward, -RAIL_BASE_FORWARD_OFFSET - PLAYER_CHIP_FORWARD_SHIFT)
+      .addScaledVector(right, PLAYER_CHIP_LATERAL_SHIFT);
+    chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6).addScaledVector(forward, -BET_FORWARD_OFFSET);
     betAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const previewAnchor = betAnchor.clone();
@@ -1103,7 +1109,6 @@ function TexasHoldemArena({ search }) {
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
     const stoolTheme = DEFAULT_STOOL_THEME;
-    const outfitTheme = DEFAULT_OUTFIT_THEME;
     const chairMaterial = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(stoolTheme.seatColor),
       roughness: 0.35,
@@ -1111,23 +1116,6 @@ function TexasHoldemArena({ search }) {
       clearcoat: 1
     });
     const legMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(stoolTheme.legColor) });
-    const outfitBodyMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(outfitTheme.baseColor),
-      roughness: 0.55,
-      metalness: 0.35,
-      emissive: new THREE.Color(outfitTheme.glow),
-      emissiveIntensity: 0.25
-    });
-    const outfitAccentMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(outfitTheme.accentColor),
-      roughness: 0.4,
-      metalness: 0.55
-    });
-    const headMaterial = new THREE.MeshStandardMaterial({ color: DEFAULT_HEAD_COLOR, roughness: 0.75, metalness: 0.1 });
-
-    const torsoGeometry = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
-    const headGeometry = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
-    const collarGeometry = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
 
     const initialPlayers = gameState?.players ?? [];
 
@@ -1167,20 +1155,6 @@ function TexasHoldemArena({ search }) {
       legBase.castShadow = true;
       legBase.receiveShadow = true;
       group.add(legBase);
-
-      const occupant = new THREE.Group();
-      occupant.position.z = -SEAT_DEPTH * 0.12;
-      const torso = new THREE.Mesh(torsoGeometry, outfitBodyMaterial);
-      torso.position.y = SEAT_THICKNESS / 2 + 0.38 * MODEL_SCALE;
-      occupant.add(torso);
-      const head = new THREE.Mesh(headGeometry, headMaterial);
-      head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
-      occupant.add(head);
-      const collar = new THREE.Mesh(collarGeometry, outfitAccentMaterial);
-      collar.rotation.x = Math.PI / 2;
-      collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
-      occupant.add(collar);
-      group.add(occupant);
 
       arenaGroup.add(group);
 
@@ -1268,37 +1242,29 @@ function TexasHoldemArena({ search }) {
       });
     };
 
-    threeRef.current = {
-      renderer,
-      scene,
-      camera,
-      chipFactory,
-      cardGeometry,
-      faceCache,
-      seatGroups,
-      communityMeshes,
-      potStack,
-      deckAnchor,
-      raiseControls,
-      raycaster,
-      orientHumanCards,
-      frameId: null,
-      sharedMaterials: {
-        chair: chairMaterial,
-        leg: legMaterial,
-        outfitBody: outfitBodyMaterial,
-        outfitAccent: outfitAccentMaterial,
-        head: headMaterial
-      },
-      sharedGeometries: {
-        torso: torsoGeometry,
-        head: headGeometry,
-        collar: collarGeometry
-      },
-      arenaGroup,
-      tableInfo,
-      cardThemeId: cardTheme.id
-    };
+      threeRef.current = {
+        renderer,
+        scene,
+        camera,
+        chipFactory,
+        cardGeometry,
+        faceCache,
+        seatGroups,
+        communityMeshes,
+        potStack,
+        deckAnchor,
+        raiseControls,
+        raycaster,
+        orientHumanCards,
+        frameId: null,
+        sharedMaterials: {
+          chair: chairMaterial,
+          leg: legMaterial
+        },
+        arenaGroup,
+        tableInfo,
+        cardThemeId: cardTheme.id
+      };
 
     orientHumanCards();
 
@@ -1499,7 +1465,6 @@ function TexasHoldemArena({ search }) {
           communityMeshes: community,
           raiseControls: controls,
           sharedMaterials,
-          sharedGeometries,
           arenaGroup: arena
         } = threeRef.current;
         seats.forEach((seat) => {
@@ -1540,12 +1505,6 @@ function TexasHoldemArena({ search }) {
         controls?.dispose?.();
         sharedMaterials?.chair?.dispose?.();
         sharedMaterials?.leg?.dispose?.();
-        sharedMaterials?.outfitBody?.dispose?.();
-        sharedMaterials?.outfitAccent?.dispose?.();
-        sharedMaterials?.head?.dispose?.();
-        sharedGeometries?.torso?.dispose?.();
-        sharedGeometries?.head?.dispose?.();
-        sharedGeometries?.collar?.dispose?.();
         tableInfo?.dispose?.();
         r.dispose();
       }
