@@ -1717,10 +1717,10 @@ const createCarpetTextures = (() => {
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
 
-    // rich red textile base with directional variation
+    // light grey textile base with gentle variation for a calm, eco-friendly tone
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#7a0a18');
-    gradient.addColorStop(1, '#5e0913');
+    gradient.addColorStop(0, '#dfe5dd');
+    gradient.addColorStop(1, '#ccd1ca');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
 
@@ -1730,33 +1730,34 @@ const createCarpetTextures = (() => {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
-        const fiber = (Math.sin((x / size) * Math.PI * 18) +
-          Math.cos((y / size) * Math.PI * 22)) * 0.12;
-        const grain = (rand() - 0.5) * 0.22;
-        const shade = clamp01(0.96 + fiber + grain);
-        data[idx] = clamp01(data[idx] / 255 * shade) * 255;
-        data[idx + 1] = clamp01(data[idx + 1] / 255 * (0.98 + grain * 0.35)) * 255;
-        data[idx + 2] = clamp01(data[idx + 2] / 255 * (0.95 + grain * 0.2)) * 255;
+        const fiber = (Math.sin((x / size) * Math.PI * 14) +
+          Math.cos((y / size) * Math.PI * 16)) * 0.08;
+        const grain = (rand() - 0.5) * 0.12;
+        const shade = clamp01(0.94 + fiber + grain * 0.6);
+        const value = clamp01(shade) * 255;
+        data[idx] = value;
+        data[idx + 1] = value;
+        data[idx + 2] = value;
       }
     }
     ctx.putImageData(image, 0, 0);
 
     // subtle horizontal ribbing for textile feel
-    ctx.globalAlpha = 0.05;
-    ctx.fillStyle = '#000000';
+    ctx.globalAlpha = 0.04;
+    ctx.fillStyle = '#8c928c';
     for (let row = 0; row < size; row += 3) {
       ctx.fillRect(0, row, size, 1);
     }
     ctx.globalAlpha = 1;
 
-    // thin continuous gold stripe with rounded corners
+    // thin continuous pale stripe with rounded corners
     const insetRatio = 0.055;
     const stripeInset = size * insetRatio;
     const stripeRadius = size * 0.08;
     const stripeWidth = size * 0.012;
     ctx.lineWidth = stripeWidth;
-    ctx.strokeStyle = '#d4af37';
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.strokeStyle = '#cbd5c0';
+    ctx.shadowColor = 'rgba(80,90,80,0.14)';
     ctx.shadowBlur = stripeWidth * 0.8;
     drawRoundedRect(
       ctx,
@@ -1790,8 +1791,8 @@ const createCarpetTextures = (() => {
       const g = bumpData[i + 1];
       const b = bumpData[i + 2];
       const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-      const noise = (bumpRand() - 0.5) * 0.18;
-      const v = clamp01(0.55 + lum * 0.35 + noise);
+      const noise = (bumpRand() - 0.5) * 0.16;
+      const v = clamp01(0.62 + lum * 0.28 + noise);
       const value = Math.floor(v * 255);
       bumpData[i] = bumpData[i + 1] = bumpData[i + 2] = value;
     }
@@ -6269,9 +6270,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const carpetDepth = roomDepth - wallThickness + carpetInset;
       const carpetTextures = createCarpetTextures();
       const carpetMat = new THREE.MeshStandardMaterial({
-        color: 0xb01224,
-        roughness: 0.92,
-        metalness: 0.04
+        color: 0xdde2dc,
+        roughness: 0.9,
+        metalness: 0.025
       });
       if (carpetTextures.map) {
         carpetMat.map = carpetTextures.map;
@@ -6281,7 +6282,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (carpetTextures.bump) {
         carpetMat.bumpMap = carpetTextures.bump;
         carpetMat.bumpMap.repeat.set(1, 1);
-        carpetMat.bumpScale = 0.24;
+        carpetMat.bumpScale = 0.18;
         carpetMat.bumpMap.needsUpdate = true;
       }
       const carpet = new THREE.Mesh(
@@ -6765,35 +6766,38 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return group;
       };
 
-      const rawCornerInset =
-        toHospitalityUnits(0.58) * hospitalityUpscale + wallThickness * 0.5;
-      const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
-      const cornerInsetFront = Math.min(
-        rawCornerInset,
-        Math.abs(frontInterior) * 0.92
-      );
-      const cornerInsetBack = Math.min(
-        rawCornerInset,
-        Math.abs(backInterior) * 0.92
-      );
-      const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
-      const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
+      const showHospitalityFurniture = false;
+      if (showHospitalityFurniture) {
+        const rawCornerInset =
+          toHospitalityUnits(0.58) * hospitalityUpscale + wallThickness * 0.5;
+        const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
+        const cornerInsetFront = Math.min(
+          rawCornerInset,
+          Math.abs(frontInterior) * 0.92
+        );
+        const cornerInsetBack = Math.min(
+          rawCornerInset,
+          Math.abs(backInterior) * 0.92
+        );
+        const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
+        const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
 
-      [
-        {
-          position: [leftInterior + cornerInsetX, frontInterior + cornerInsetFront],
-          rotationY: Math.PI / 4,
-          chairOffset: [chairSideOffset, -chairForwardOffset]
-        },
-        {
-          position: [rightInterior - cornerInsetX, backInterior - cornerInsetBack],
-          rotationY: -3 * Math.PI / 4,
-          chairOffset: [-chairSideOffset, chairForwardOffset]
-        }
-      ].forEach((config) => {
-        const hospitalitySet = createCornerHospitalitySet(config);
-        world.add(hospitalitySet);
-      });
+        [
+          {
+            position: [leftInterior + cornerInsetX, frontInterior + cornerInsetFront],
+            rotationY: Math.PI / 4,
+            chairOffset: [chairSideOffset, -chairForwardOffset]
+          },
+          {
+            position: [rightInterior - cornerInsetX, backInterior - cornerInsetBack],
+            rotationY: -3 * Math.PI / 4,
+            chairOffset: [-chairSideOffset, chairForwardOffset]
+          }
+        ].forEach((config) => {
+          const hospitalitySet = createCornerHospitalitySet(config);
+          world.add(hospitalitySet);
+        });
+      }
 
       const aspect = host.clientWidth / host.clientHeight;
       const camera = new THREE.PerspectiveCamera(
@@ -8546,14 +8550,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.8925);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 0.98;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.504);
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
@@ -8569,7 +8573,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          19.6,
+          16.66,
           0,
           Math.PI * 0.36,
           0.42,
