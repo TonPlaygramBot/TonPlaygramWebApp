@@ -1,7 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { CSS3DObject, CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -10,7 +8,6 @@ import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { createCardGeometry, createCardMesh, orientCard, setCardFace } from '../../utils/cards3d.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { DEFAULT_CHIP_VALUES, getChipVisual } from '../../utils/chipUi.js';
 import {
   createDeck,
   shuffle,
@@ -264,8 +261,7 @@ function buildInitialState(players, token, stake) {
     pot: 0,
     awaitingInput: false,
     winners: [],
-    round: 0,
-    autoBetsPrepared: false
+    round: 0
   };
 }
 
@@ -276,7 +272,6 @@ function resetForNextRound(state) {
   next.currentIndex = 0;
   next.pot = 0;
   next.winners = [];
-  next.autoBetsPrepared = false;
   next.players = state.players.map((p) => ({
     ...p,
     hand: [],
@@ -288,39 +283,16 @@ function resetForNextRound(state) {
   return next;
 }
 
-function placeAutoBets(state, { includeHuman = false } = {}) {
-  state.players.forEach((player) => {
+function placeInitialBets(state) {
+  state.players.forEach((player, idx) => {
     if (player.isDealer) return;
-    if (!includeHuman && player.isHuman) return;
-    if (player.bet > 0) return;
     const wager = Math.min(player.chips, Math.max(20, Math.round(state.stake * 0.2)));
-    if (wager <= 0) {
-      player.bet = 0;
-      player.result = player.chips <= 0 ? 'Out' : 'No bet';
-      return;
-    }
     player.chips -= wager;
-    if (player.chips < 0) player.chips = 0;
     player.bet = wager;
     state.pot += wager;
     player.result = `Bet ${wager}`;
+    if (player.chips <= 0) player.chips = 0;
   });
-}
-
-function applyHumanBet(state, amount) {
-  const human = state.players.find((p) => p.isHuman && !p.isDealer);
-  if (!human) return;
-  const wager = Math.max(0, Math.min(human.chips, Math.round(amount)));
-  if (wager > 0) {
-    human.chips -= wager;
-    if (human.chips < 0) human.chips = 0;
-    human.bet = wager;
-    state.pot += wager;
-    human.result = `Bet ${wager}`;
-  } else {
-    human.bet = 0;
-    human.result = human.chips <= 0 ? 'Out' : 'No bet';
-  }
 }
 
 function dealInitialCards(state) {
@@ -433,7 +405,6 @@ function BlackJackArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
-  const railUiHostRef = useRef(null);
   const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
@@ -453,23 +424,13 @@ function BlackJackArena({ search }) {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
     const base = buildInitialState(players, token, stake);
-    return resetForNextRound(base);
+    const prepared = resetForNextRound(base);
+    placeInitialBets(prepared);
+    dealInitialCards(prepared);
+    return prepared;
   });
   const [uiState, setUiState] = useState({ actions: [] });
-  const [betChipSelection, setBetChipSelection] = useState([]);
-  const [betSliderValue, setBetSliderValue] = useState(0);
   const timerRef = useRef(null);
-
-  if (!railUiHostRef.current && typeof document !== 'undefined') {
-    const host = document.createElement('div');
-    host.className = 'rail-ui-root rail-ui-root--blackjack';
-    host.style.width = '320px';
-    host.style.pointerEvents = 'auto';
-    host.style.transformStyle = 'preserve-3d';
-    host.style.transformOrigin = 'center';
-    host.style.display = 'none';
-    railUiHostRef.current = host;
-  }
 
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
@@ -499,20 +460,7 @@ function BlackJackArena({ search }) {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.inset = '0';
-    renderer.domElement.style.zIndex = '1';
     mount.appendChild(renderer.domElement);
-
-    const cssRenderer = new CSS3DRenderer();
-    cssRenderer.setSize(mount.clientWidth, mount.clientHeight);
-    cssRenderer.domElement.style.position = 'absolute';
-    cssRenderer.domElement.style.inset = '0';
-    cssRenderer.domElement.style.zIndex = '2';
-    cssRenderer.domElement.style.background = 'transparent';
-    mount.appendChild(cssRenderer.domElement);
-
-    const cssScene = new THREE.Scene();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#020617');
@@ -612,26 +560,6 @@ function BlackJackArena({ search }) {
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
-    let railHud = null;
-    if (railUiHostRef.current && humanSeat) {
-      const host = railUiHostRef.current;
-      const hudObject = new CSS3DObject(host);
-      const basePosition = humanSeat.cardAnchor
-        .clone()
-        .addScaledVector(humanSeat.forward, TABLE_RADIUS * 0.36)
-        .addScaledVector(humanSeat.right, TABLE_RADIUS * 0.22);
-      basePosition.y = tableInfo.tableHeight + CARD_D * 20;
-      const scale = 0.0038 * MODEL_SCALE;
-      hudObject.scale.setScalar(scale);
-      cssScene.add(hudObject);
-      railHud = {
-        object: hudObject,
-        basePosition,
-        forward: humanSeat.forward.clone(),
-        right: humanSeat.right.clone()
-      };
-    }
-
     const seatMaterials = {
       human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
       dealer: new THREE.MeshPhysicalMaterial({ color: 0xf97316, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
@@ -725,16 +653,6 @@ function BlackJackArena({ search }) {
     potStack.position.set(0, TABLE_HEIGHT + CARD_D * 6, 0);
     arena.add(potStack);
 
-    const updateRailHudPose = () => {
-      if (!railHud?.object) return;
-      const { object, basePosition, forward } = railHud;
-      object.position.copy(basePosition);
-      const lookTarget = basePosition.clone().add(forward.clone());
-      object.lookAt(lookTarget);
-      object.rotateX(-THREE.MathUtils.degToRad(56));
-    };
-    updateRailHudPose();
-
     threeRef.current = {
       renderer,
       scene,
@@ -745,21 +663,10 @@ function BlackJackArena({ search }) {
       faceCache,
       chipFactory,
       seatGroups,
-      potStack,
-      cssRenderer,
-      cssScene,
-      railHud,
-      updateRailHudPose
+      potStack
     };
 
     const element = renderer.domElement;
-    const cssElement = cssRenderer.domElement;
-    const forwardedEvents = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerleave'];
-    const forwardPointerEvent = (event) => {
-      if (event.target !== cssElement) return;
-      element.dispatchEvent(new PointerEvent(event.type, event));
-    };
-    forwardedEvents.forEach((name) => cssElement.addEventListener(name, forwardPointerEvent));
     const handlePointerDown = (event) => {
       event.preventDefault();
       pointerStateRef.current = {
@@ -814,14 +721,12 @@ function BlackJackArena({ search }) {
 
     const onResize = () => {
       if (!threeRef.current) return;
-      const { renderer: r, camera: cam, cssRenderer: cssR, updateRailHudPose: updateHud } = threeRef.current;
+      const { renderer: r, camera: cam } = threeRef.current;
       const { clientWidth, clientHeight } = mount;
       r.setSize(clientWidth, clientHeight);
       cam.aspect = clientWidth / clientHeight;
       cam.updateProjectionMatrix();
-      cssR?.setSize(clientWidth, clientHeight);
       applySeatedCamera(clientWidth, clientHeight);
-      updateHud?.();
     };
     window.addEventListener('resize', onResize);
 
@@ -829,9 +734,7 @@ function BlackJackArena({ search }) {
       const three = threeRef.current;
       if (!three) return;
       applyHeadOrientation();
-      three.updateRailHudPose?.();
       three.renderer.render(three.scene, three.camera);
-      three.cssRenderer?.render(three.cssScene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
     animate();
@@ -839,24 +742,13 @@ function BlackJackArena({ search }) {
     return () => {
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(animationRef.current);
-      forwardedEvents.forEach((name) => cssElement.removeEventListener(name, forwardPointerEvent));
       element.removeEventListener('pointerdown', handlePointerDown);
       element.removeEventListener('pointermove', handlePointerMove);
       element.removeEventListener('pointerup', handlePointerUp);
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
-        const {
-          renderer: r,
-          scene: s,
-          chipFactory: factory,
-          seatGroups: seats,
-          potStack: pot,
-          tableInfo: info,
-          cssRenderer: cssR,
-          cssScene: cssS,
-          railHud: hud
-        } = threeRef.current;
+        const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, potStack: pot, tableInfo: info } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
@@ -878,20 +770,9 @@ function BlackJackArena({ search }) {
         factory.disposeStack(pot);
         factory.dispose();
         info?.dispose?.();
-        if (hud?.object) {
-          cssS?.remove(hud.object);
-          hud.object.element?.remove?.();
-        }
-        cssR?.domElement?.remove?.();
         r.dispose();
       }
       mount.removeChild(renderer.domElement);
-      if (cssRenderer.domElement.parentNode === mount) {
-        mount.removeChild(cssRenderer.domElement);
-      }
-      if (railUiHostRef.current) {
-        railUiHostRef.current.style.display = 'none';
-      }
       threeRef.current = null;
     };
   }, []);
@@ -945,26 +826,14 @@ function BlackJackArena({ search }) {
     if (!gameState) return;
     if (gameState.stage === 'round-end') {
       timerRef.current = setTimeout(() => {
-        setGameState((prev) => resetForNextRound(cloneState(prev)));
-      }, 3000);
-      setUiState({ actions: [] });
-      return () => {
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-      };
-    }
-    if (gameState.stage === 'betting') {
-      setUiState({ actions: [] });
-      if (!gameState.autoBetsPrepared) {
         setGameState((prev) => {
-          const next = cloneState(prev);
-          placeAutoBets(next);
-          next.autoBetsPrepared = true;
+          const next = resetForNextRound(cloneState(prev));
+          placeInitialBets(next);
+          dealInitialCards(next);
           return next;
         });
-      }
+      }, 3000);
+      setUiState({ actions: [] });
       return () => {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
@@ -1021,204 +890,7 @@ function BlackJackArena({ search }) {
     });
   };
 
-  const humanPlayer = useMemo(
-    () => gameState.players.find((p) => p.isHuman && !p.isDealer) ?? null,
-    [gameState.players]
-  );
-  const actor = gameState.players[gameState.currentIndex] || null;
-  const betSliderMax = humanPlayer ? Math.max(0, Math.round(humanPlayer.chips)) : 0;
-  const baseBet = humanPlayer ? Math.max(20, Math.round(gameState.stake * 0.2)) : 0;
-  const defaultBet = humanPlayer ? Math.min(betSliderMax, Math.max(baseBet, 0)) : 0;
-  const betChipTotal = useMemo(
-    () => betChipSelection.reduce((sum, chip) => sum + chip, 0),
-    [betChipSelection]
-  );
-  const betEffective = betChipTotal > 0 ? betChipTotal : betSliderValue;
-  const finalBet =
-    betSliderMax > 0
-      ? Math.min(betSliderMax, Math.max(betEffective, defaultBet))
-      : Math.max(0, betEffective);
-  const betSliderEnabled = Boolean(humanPlayer && betSliderMax > 0);
-  const humanNeedsBet = gameState.stage === 'betting' && !!humanPlayer && humanPlayer.bet <= 0;
-  const showRailHud = (gameState.stage === 'betting' && humanNeedsBet) || (gameState.stage === 'player-turns' && actor?.isHuman);
-  const betRemaining = humanPlayer ? Math.max(0, Math.round(humanPlayer.chips - finalBet)) : 0;
-
-  useEffect(() => {
-    if (gameState.stage !== 'betting') {
-      setBetChipSelection([]);
-      setBetSliderValue(0);
-      return;
-    }
-    setBetChipSelection([]);
-    if (!humanPlayer || betSliderMax <= 0) {
-      setBetSliderValue(0);
-      return;
-    }
-    setBetSliderValue(defaultBet);
-  }, [gameState.stage, humanPlayer?.id, betSliderMax, defaultBet]);
-
-  useEffect(() => {
-    if (betSliderMax <= 0) return;
-    setBetSliderValue((prev) => Math.min(prev, betSliderMax));
-  }, [betSliderMax]);
-
-  useEffect(() => {
-    const host = railUiHostRef.current;
-    if (!host) return;
-    host.style.display = showRailHud ? 'block' : 'none';
-    if (showRailHud) {
-      threeRef.current?.updateRailHudPose?.();
-    }
-  }, [showRailHud]);
-
-  const handleBetChip = (value) => {
-    if (gameState.stage !== 'betting' || !betSliderEnabled) return;
-    setBetChipSelection((prev) => {
-      const total = prev.reduce((sum, chip) => sum + chip, 0);
-      const nextTotal = total + value;
-      if (nextTotal > betSliderMax) return prev;
-      const next = [...prev, value];
-      setBetSliderValue(Math.min(betSliderMax, nextTotal));
-      return next;
-    });
-  };
-
-  const handleBetUndo = () => {
-    if (gameState.stage !== 'betting') return;
-    setBetChipSelection((prev) => {
-      if (!prev.length) return prev;
-      const updated = prev.slice(0, -1);
-      const nextTotal = updated.reduce((sum, chip) => sum + chip, 0);
-      setBetSliderValue(nextTotal > 0 ? Math.min(betSliderMax, nextTotal) : defaultBet);
-      return updated;
-    });
-  };
-
-  const handleBetSliderChange = (event) => {
-    if (gameState.stage !== 'betting') return;
-    const value = Number(event.target.value);
-    setBetSliderValue(value);
-    setBetChipSelection([]);
-  };
-
-  const handleBetConfirm = () => {
-    if (gameState.stage !== 'betting' || !humanPlayer) return;
-    setGameState((prev) => {
-      const next = cloneState(prev);
-      applyHumanBet(next, finalBet);
-      dealInitialCards(next);
-      return next;
-    });
-  };
-
-  const handleBetAllIn = () => {
-    if (gameState.stage !== 'betting' || !humanPlayer) return;
-    setGameState((prev) => {
-      const next = cloneState(prev);
-      applyHumanBet(next, betSliderMax);
-      dealInitialCards(next);
-      return next;
-    });
-  };
-
   const dealer = gameState.players[DEALER_INDEX];
-
-  const railUiContent =
-    showRailHud && railUiHostRef.current
-      ? createPortal(
-          <div className="rail-ui-surface">
-            {gameState.stage === 'betting' ? (
-              <>
-                <div className="rail-ui-summary">
-                  <span className="rail-ui-label">Place your wager</span>
-                  <span className="rail-ui-value">
-                    {Math.round(finalBet)} {gameState.token}
-                  </span>
-                </div>
-                <div className="rail-ui-section rail-ui-section--split">
-                  <div className="rail-ui-chips-panel">
-                    <div className="rail-ui-chips-grid">
-                      {DEFAULT_CHIP_VALUES.map((value) => {
-                        const { base, text } = getChipVisual(value);
-                        const disabled = value > betSliderMax;
-                        return (
-                          <button
-                            key={value}
-                            onClick={() => handleBetChip(value)}
-                            className="chip-select"
-                            style={{ '--chip-color': base, '--chip-text': text }}
-                            disabled={!betSliderEnabled || disabled}
-                          >
-                            {value}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button
-                      onClick={handleBetUndo}
-                      disabled={!betChipSelection.length}
-                      className="rail-ui-button rail-ui-button--ghost"
-                    >
-                      Undo
-                    </button>
-                    <span className="rail-ui-note">
-                      Selected: {Math.round(betChipTotal)} {gameState.token}
-                    </span>
-                  </div>
-                  <div className="rail-ui-slider-panel">
-                    <button
-                      onClick={handleBetAllIn}
-                      disabled={!humanPlayer}
-                      className="rail-ui-button rail-ui-button--danger"
-                    >
-                      All-in
-                    </button>
-                    <input
-                      type="range"
-                      orient="vertical"
-                      min={0}
-                      max={betSliderMax}
-                      step={1}
-                      value={Math.min(betSliderMax, betSliderValue)}
-                      onChange={handleBetSliderChange}
-                      disabled={!humanPlayer}
-                      className="vertical-range accent-green-400"
-                    />
-                    <div className="rail-ui-note rail-ui-note--stack">
-                      <span>
-                        Bet: {Math.round(finalBet)} {gameState.token}
-                      </span>
-                      <span>
-                        Remaining: {betRemaining} {gameState.token}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleBetConfirm}
-                      disabled={!humanPlayer}
-                      className="rail-ui-button rail-ui-button--primary"
-                    >
-                      Confirm {Math.round(finalBet)} {gameState.token}
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="rail-ui-actions rail-ui-actions--center">
-                {uiState.actions.map((action) => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleAction(action.id)}
-                    className="rail-ui-button rail-ui-button--action"
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>,
-          railUiHostRef.current
-        )
-      : null;
 
   return (
     <div className="relative w-full h-full">
@@ -1235,7 +907,19 @@ function BlackJackArena({ search }) {
           Round complete
         </div>
       )}
-      {railUiContent}
+      {gameState.stage === 'player-turns' && gameState.players[gameState.currentIndex]?.isHuman && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+          {uiState.actions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => handleAction(action.id)}
+              className="px-5 py-2 rounded-lg bg-green-600/90 text-white font-semibold shadow-lg"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
