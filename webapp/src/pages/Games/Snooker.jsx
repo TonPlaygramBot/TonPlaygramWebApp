@@ -412,12 +412,14 @@ function addPocketCuts(parent, clothPlane) {
 const SIZE_REDUCTION = 0.7;
 // Apply an additional 25% boost so the table, balls, and pockets read larger on screen
 const TABLE_SIZE_BOOST = 1.25;
+// Final tuning pass: push the physical table footprint another 25% larger for better readability on mobile portrait
+const TABLE_ENLARGEMENT = 1.25;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
 // shrink the entire 3D world to ~70% of its previous footprint while preserving
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.3 * TABLE_SIZE_BOOST;
+const TABLE_SCALE = 1.3 * TABLE_SIZE_BOOST * TABLE_ENLARGEMENT;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
