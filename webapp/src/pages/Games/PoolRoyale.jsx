@@ -524,6 +524,10 @@ const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to i
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
 const CLOTH_UNDERLAY_EDGE_INSET = TABLE.THICK * 0.015; // pull the underlay inwards to stay invisible beneath the cushions
 const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the underlay to avoid clipping
+const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
+const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
+const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
+const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -1127,10 +1131,11 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.98,
-    roughness: 0.12,
-    clearcoat: 0.68,
-    clearcoatRoughness: 0.08
+    metalness: 0.99,
+    roughness: 0.1,
+    clearcoat: 0.74,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 1.02
   },
   {
     id: 'gold',
@@ -1139,7 +1144,8 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     metalness: 0.96,
     roughness: 0.18,
     clearcoat: 0.56,
-    clearcoatRoughness: 0.12
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 0.98
   },
   {
     id: 'matteBlack',
@@ -1148,7 +1154,8 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     metalness: 0.84,
     roughness: 0.36,
     clearcoat: 0.32,
-    clearcoatRoughness: 0.18
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.94
   }
 ]);
 
@@ -1611,16 +1618,22 @@ function enhanceChromeMaterial(material) {
       material[key] = value;
     }
   };
-  ensure('metalness', 0.88, (current, target) => Math.max(current, target));
-  ensure('roughness', 0.18, (current, target) => Math.min(current, target));
-  ensure('clearcoat', 0.5, (current, target) => Math.max(current, target));
-  ensure('clearcoatRoughness', 0.12, (current, target) => Math.min(current, target));
-  ensure('envMapIntensity', 1.45, (current, target) => Math.max(current, target));
+  ensure('metalness', 0.9, (current, target) => Math.max(current, target));
+  ensure('roughness', 0.1, (current, target) => Math.min(current, target));
+  ensure('clearcoat', 0.72, (current, target) => Math.max(current, target));
+  ensure('clearcoatRoughness', 0.16, (current, target) => Math.max(current, target));
+  ensure('envMapIntensity', 1.02, (current, target) =>
+    THREE.MathUtils.clamp(current, 0.92, target)
+  );
   if ('reflectivity' in material) {
-    material.reflectivity = Math.max(0.7, material.reflectivity ?? 0.7);
+    material.reflectivity = THREE.MathUtils.clamp(
+      material.reflectivity ?? 0.8,
+      0.72,
+      0.92
+    );
   }
   if ('specularIntensity' in material) {
-    material.specularIntensity = Math.max(1.05, material.specularIntensity ?? 1.05);
+    material.specularIntensity = Math.max(1.02, material.specularIntensity ?? 1.02);
   }
   material.needsUpdate = true;
 }
@@ -2278,7 +2291,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86;
+const STANDING_VIEW_PHI = 0.84;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -2444,6 +2457,12 @@ const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
   { sx: -1, sy: 1 },
+  { sx: 1, sy: 1 }
+];
+const SIDE_POCKET_SIGNS = [
+  { sx: -1, sy: -1 },
+  { sx: -1, sy: 1 },
+  { sx: 1, sy: -1 },
   { sx: 1, sy: 1 }
 ];
 const fitRadius = (camera, margin = 1.1) => {
@@ -3055,6 +3074,46 @@ function reflectRails(ball) {
     return 'corner';
   }
 
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.6;
+  const sideDepthLimit = POCKET_VIS_R * 1.2 * POCKET_VISUAL_EXPANSION;
+  for (const { sx, sy } of SIDE_POCKET_SIGNS) {
+    if (sy * ball.pos.y <= 0) continue;
+    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
+    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
+    if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
+    TMP_VEC2_B.set(-sx * cos, -sy * sin);
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+    if (distNormal >= BALL_R) continue;
+    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    if (lateral > sideSpan) continue;
+    if (distNormal < -sideDepthLimit) continue;
+    const push = BALL_R - distNormal;
+    ball.pos.addScaledVector(TMP_VEC2_B, push);
+    const vn = ball.vel.dot(TMP_VEC2_B);
+    if (vn < 0) {
+      const restitution = CUSHION_RESTITUTION;
+      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+      const vt = TMP_VEC2_D.copy(ball.vel).sub(
+        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+      );
+      const tangentDamping = 0.96;
+      ball.vel
+        .sub(vt)
+        .add(vt.multiplyScalar(tangentDamping));
+    }
+    if (ball.spin?.lengthSq() > 0) {
+      applySpinImpulse(ball, 0.6);
+    }
+    const stamp =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    ball.lastRailHitAt = stamp;
+    ball.lastRailHitType = 'rail';
+    return 'rail';
+  }
+
   // If the ball is entering a pocket capture zone, skip straight rail reflections
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R * 0.5
@@ -3633,6 +3692,29 @@ function Table3D(
   clothUnderlay.receiveShadow = true;
   clothUnderlay.renderOrder = cloth.renderOrder - 1;
   table.add(clothUnderlay);
+
+  const shadowCoverShape = buildSurfaceShape(
+    CLOTH_SHADOW_COVER_HOLE_RADIUS,
+    CLOTH_SHADOW_COVER_EDGE_INSET
+  );
+  const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
+    depth: CLOTH_SHADOW_COVER_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 32,
+    steps: 1
+  });
+  shadowCoverGeo.translate(0, 0, -CLOTH_SHADOW_COVER_THICKNESS);
+  const shadowCoverMat = railMat.clone();
+  shadowCoverMat.side = THREE.DoubleSide;
+  shadowCoverMat.needsUpdate = true;
+  const clothShadowCover = new THREE.Mesh(shadowCoverGeo, shadowCoverMat);
+  clothShadowCover.rotation.x = -Math.PI / 2;
+  clothShadowCover.position.y =
+    clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS - CLOTH_SHADOW_COVER_GAP;
+  clothShadowCover.castShadow = false;
+  clothShadowCover.receiveShadow = true;
+  clothShadowCover.renderOrder = clothUnderlay.renderOrder - 1;
+  table.add(clothShadowCover);
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
@@ -5076,6 +5158,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         materials.trim.roughness = chromeSelection.roughness;
         materials.trim.clearcoat = chromeSelection.clearcoat;
         materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
+        if (typeof chromeSelection.envMapIntensity === 'number') {
+          materials.trim.envMapIntensity = THREE.MathUtils.clamp(
+            chromeSelection.envMapIntensity,
+            0.9,
+            1.1
+          );
+        }
         if (materials.accent?.material) {
           materials.accent = {
             ...materials.accent,
@@ -8479,7 +8568,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          18.82,
+          19.6,
           0,
           Math.PI * 0.36,
           0.42,
@@ -8499,7 +8588,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.10625); // return trimmed spot energy through ambient fill
+        const ambient = new THREE.AmbientLight(0xffffff, 0.094); // return trimmed spot energy through ambient fill
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
