@@ -71,6 +71,13 @@ const SLIDER_DEPTH = CARD_W * 0.48;
 const BUTTON_WIDTH = CARD_W * 1.75;
 const BUTTON_HEIGHT = CARD_D * 16;
 const BUTTON_DEPTH = CARD_W * 0.58;
+const RAIL_FRAME_FORWARD_OFFSET = CARD_W * 0.35;
+const RAIL_FRAME_DEPTH = CARD_W * 3.2;
+const RAIL_FRAME_THICKNESS = CARD_D * 12;
+const RAIL_SLIDER_INSET = CARD_W * 0.12;
+const RAIL_INFO_INSET = CARD_W * 0.44;
+const RAIL_BUTTON_INSET = CARD_W * 0.2;
+const RAIL_CHIP_INSET = CARD_W * 0.32;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -323,13 +330,53 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   arena.add(group);
   const forward = seat.forward.clone().normalize();
   const axis = seat.right.clone().normalize();
-  const anchor = forward.clone().multiplyScalar(tableInfo.radius * 0.94);
+  const anchor = forward.clone().multiplyScalar(tableInfo.radius * 0.89);
   anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET;
-  const chipOrigin = anchor.clone().addScaledVector(axis, -((CHIP_VALUES.length - 1) / 2) * RAIL_CHIP_SPACING);
+  const frameCenter = anchor.clone().addScaledVector(forward, -RAIL_FRAME_FORWARD_OFFSET);
+
+  const frameQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis);
+  const frameWidth = SLIDER_LENGTH + BUTTON_WIDTH * 2.9;
+  const frameGeometry = new THREE.BoxGeometry(frameWidth, RAIL_FRAME_THICKNESS, RAIL_FRAME_DEPTH);
+  const frameMaterial = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color('#4a2f1a'),
+    roughness: 0.46,
+    metalness: 0.28,
+    clearcoat: 0.58,
+    clearcoatRoughness: 0.24
+  });
+  const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+  frame.castShadow = true;
+  frame.receiveShadow = true;
+  frame.setRotationFromQuaternion(frameQuaternion);
+  frame.position.copy(frameCenter);
+  frame.position.y -= RAIL_FRAME_THICKNESS / 2;
+  group.add(frame);
+
+  const insetGeometry = new THREE.BoxGeometry(frameWidth * 0.92, RAIL_FRAME_THICKNESS * 0.45, RAIL_FRAME_DEPTH * 0.78);
+  const insetMaterial = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color('#111827'),
+    roughness: 0.62,
+    metalness: 0.12,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.3
+  });
+  const inset = new THREE.Mesh(insetGeometry, insetMaterial);
+  inset.receiveShadow = true;
+  inset.setRotationFromQuaternion(frameQuaternion);
+  inset.position.copy(frameCenter);
+  inset.position.y = anchor.y - RAIL_FRAME_THICKNESS * 0.28;
+  group.add(inset);
+
+  const chipOrigin = frameCenter
+    .clone()
+    .addScaledVector(axis, -((CHIP_VALUES.length - 1) / 2) * RAIL_CHIP_SPACING)
+    .addScaledVector(forward, -RAIL_CHIP_INSET);
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value);
     chip.scale.setScalar(RAIL_CHIP_SCALE);
-    chip.position.copy(chipOrigin).addScaledVector(axis, index * RAIL_CHIP_SPACING).addScaledVector(forward, -CARD_W * 0.12);
+    chip.position
+      .copy(chipOrigin)
+      .addScaledVector(axis, index * RAIL_CHIP_SPACING);
     chip.userData = { type: 'chip-button', value, baseScale: RAIL_CHIP_SCALE };
     group.add(chip);
     return chip;
@@ -346,9 +393,8 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const track = new THREE.Mesh(trackGeometry, trackMaterial);
   track.castShadow = true;
   track.receiveShadow = true;
-  const alignQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis);
-  track.setRotationFromQuaternion(alignQuat);
-  const trackPosition = anchor.clone().addScaledVector(forward, CARD_W * 0.22);
+  track.setRotationFromQuaternion(frameQuaternion);
+  const trackPosition = frameCenter.clone().addScaledVector(forward, RAIL_SLIDER_INSET);
   track.position.copy(trackPosition);
   track.userData = { type: 'slider-track' };
   group.add(track);
@@ -372,14 +418,14 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
 
   const sliderPlane = new THREE.Plane(forward.clone(), -forward.clone().dot(trackPosition));
   const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 2.2 * MODEL_SCALE, height: 0.8 * MODEL_SCALE });
-  infoSprite.position.copy(trackPosition).addScaledVector(forward, -CARD_W * 0.65);
+  infoSprite.position.copy(frameCenter).addScaledVector(forward, -RAIL_INFO_INSET);
   group.add(infoSprite);
 
   const confirmButton = createRailButton(['Raise', '0'], '#2563eb');
   confirmButton.group.position
     .copy(trackPosition)
     .addScaledVector(axis, SLIDER_LENGTH / 2 + BUTTON_WIDTH * 0.7)
-    .addScaledVector(forward, -CARD_W * 0.08);
+    .addScaledVector(forward, -RAIL_BUTTON_INSET);
   confirmButton.group.userData.action = 'confirm';
   group.add(confirmButton.group);
 
@@ -387,7 +433,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   allInButton.group.position
     .copy(trackPosition)
     .addScaledVector(axis, SLIDER_LENGTH / 2 + BUTTON_WIDTH * 2.05)
-    .addScaledVector(forward, -CARD_W * 0.08);
+    .addScaledVector(forward, -RAIL_BUTTON_INSET);
   allInButton.group.userData.action = 'all-in';
   group.add(allInButton.group);
 
@@ -395,7 +441,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   undoButton.group.position
     .copy(trackPosition)
     .addScaledVector(axis, -SLIDER_LENGTH / 2 - BUTTON_WIDTH * 0.8)
-    .addScaledVector(forward, -CARD_W * 0.08);
+    .addScaledVector(forward, -RAIL_BUTTON_INSET);
   undoButton.group.userData.action = 'undo';
   group.add(undoButton.group);
 
@@ -419,6 +465,10 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     trackMaterial.dispose();
     handleGeometry.dispose();
     handleMaterial.dispose();
+    frameGeometry.dispose();
+    frameMaterial.dispose();
+    insetGeometry.dispose();
+    insetMaterial.dispose();
     confirmButton.dispose();
     allInButton.dispose();
     undoButton.dispose();
@@ -918,17 +968,17 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.near,
       CAMERA_SETTINGS.far
     );
-    camera.position.set(0, TABLE_HEIGHT * 3.5, TABLE_RADIUS * 3.4);
+    camera.position.set(0, TABLE_HEIGHT * 3.3, TABLE_RADIUS * 3.6);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 2.8, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+    const spot = new THREE.SpotLight(0xffffff, 3.36, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
     spot.position.set(3, 7, 3);
     spot.castShadow = true;
     scene.add(spot);
-    const rim = new THREE.PointLight(0x33ccff, 1.2);
+    const rim = new THREE.PointLight(0x33ccff, 1.44);
     rim.position.set(-4, 3, -4);
     scene.add(rim);
 
