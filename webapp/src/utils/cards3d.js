@@ -5,70 +5,7 @@ import { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
 export function createCardGeometry(width, height, depth) {
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-  const cornerRadius = Math.min(width, height) * 0.065;
-
-  const shape = new THREE.Shape();
-  shape.moveTo(-halfWidth + cornerRadius, -halfHeight);
-  shape.lineTo(halfWidth - cornerRadius, -halfHeight);
-  shape.quadraticCurveTo(halfWidth, -halfHeight, halfWidth, -halfHeight + cornerRadius);
-  shape.lineTo(halfWidth, halfHeight - cornerRadius);
-  shape.quadraticCurveTo(halfWidth, halfHeight, halfWidth - cornerRadius, halfHeight);
-  shape.lineTo(-halfWidth + cornerRadius, halfHeight);
-  shape.quadraticCurveTo(-halfWidth, halfHeight, -halfWidth, halfHeight - cornerRadius);
-  shape.lineTo(-halfWidth, -halfHeight + cornerRadius);
-  shape.quadraticCurveTo(-halfWidth, -halfHeight, -halfWidth + cornerRadius, -halfHeight);
-
-  const bevelSize = Math.min(cornerRadius * 0.6, depth * 0.75);
-  const bevelThickness = Math.min(cornerRadius * 0.45, depth * 0.75);
-
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    steps: 1,
-    bevelEnabled: true,
-    bevelThickness,
-    bevelSize,
-    bevelSegments: 5,
-    material: 1,
-    extrudeMaterial: 0
-  });
-
-  geometry.center();
-  geometry.computeVertexNormals();
-
-  const indexAttribute = geometry.index;
-  const normalAttribute = geometry.attributes.normal;
-  if (indexAttribute && normalAttribute) {
-    const { array } = indexAttribute;
-    const edgeIndices = [];
-    const frontIndices = [];
-    const backIndices = [];
-
-    for (let i = 0; i < array.length; i += 3) {
-      const a = array[i];
-      const b = array[i + 1];
-      const c = array[i + 2];
-      const normalZ =
-        (normalAttribute.getZ(a) + normalAttribute.getZ(b) + normalAttribute.getZ(c)) / 3;
-      if (normalZ > 0.5) {
-        frontIndices.push(a, b, c);
-      } else if (normalZ < -0.5) {
-        backIndices.push(a, b, c);
-      } else {
-        edgeIndices.push(a, b, c);
-      }
-    }
-
-    const ordered = [...edgeIndices, ...frontIndices, ...backIndices];
-    geometry.setIndex(ordered);
-    geometry.clearGroups();
-    geometry.addGroup(0, edgeIndices.length, 0);
-    geometry.addGroup(edgeIndices.length, frontIndices.length, 1);
-    geometry.addGroup(edgeIndices.length + frontIndices.length, backIndices.length, 2);
-  }
-
-  return geometry;
+  return new THREE.BoxGeometry(width, height, depth, 1, 1, 1);
 }
 
 export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME) {
@@ -101,13 +38,13 @@ export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME
     roughness: 0.7,
     metalness: 0.12
   });
-  const materials = [edgeMaterial, frontMaterial, backMaterial];
+  const materials = [edgeMaterial, edgeMaterial.clone(), edgeMaterial.clone(), edgeMaterial.clone(), frontMaterial, backMaterial];
   const mesh = new THREE.Mesh(geometry, materials);
   mesh.userData.card = card;
   mesh.userData.frontMaterial = frontMaterial;
   mesh.userData.backMaterial = backMaterial;
   mesh.userData.hiddenMaterial = hiddenMaterial;
-  mesh.userData.edgeMaterials = [edgeMaterial];
+  mesh.userData.edgeMaterials = materials.slice(0, 4);
   mesh.userData.backTexture = backTexture;
   mesh.userData.cardFace = 'front';
   return mesh;
@@ -132,12 +69,12 @@ export function setCardFace(mesh, face) {
   if (!frontMaterial || !backMaterial || face === cardFace) return;
   if (face === 'back') {
     const mat = hiddenMaterial ?? backMaterial;
-    mesh.material[1] = mat;
-    mesh.material[2] = mat;
+    mesh.material[4] = mat;
+    mesh.material[5] = mat;
     mesh.userData.cardFace = 'back';
   } else {
-    mesh.material[1] = frontMaterial;
-    mesh.material[2] = backMaterial;
+    mesh.material[4] = frontMaterial;
+    mesh.material[5] = backMaterial;
     mesh.userData.cardFace = 'front';
   }
 }
