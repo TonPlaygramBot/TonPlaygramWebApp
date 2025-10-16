@@ -77,8 +77,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.25, landscape: 1.7 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 1.08 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.28 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -982,7 +982,7 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.near,
       CAMERA_SETTINGS.far
     );
-    camera.position.set(0, TABLE_HEIGHT * 2.7, TABLE_RADIUS * 4.2);
+    camera.position.set(0, TABLE_HEIGHT * 3.05, TABLE_RADIUS * 3.6);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
