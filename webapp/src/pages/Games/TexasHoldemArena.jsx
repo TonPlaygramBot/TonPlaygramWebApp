@@ -73,7 +73,7 @@ const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.95, landscape: 1.58 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.82, landscape: 1.48 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -88,17 +88,10 @@ const AI_LABEL_FORWARD = 0.98 * MODEL_SCALE;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.56;
-const RAIL_CHIP_CURVE = CARD_W * 0.32;
+const RAIL_CHIP_CURVE = CARD_W * 0.4;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const SLIDER_THICKNESS = CARD_D * 14;
-const BUTTON_WIDTH = CARD_W * 1.75;
-const BUTTON_HEIGHT = CARD_D * 16;
-const BUTTON_DEPTH = CARD_W * 0.58;
 const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.4;
-const RAIL_INFO_FORWARD_OFFSET = CARD_W * 0.18;
-const RAIL_INFO_VERTICAL_OFFSET = SLIDER_THICKNESS * 0.9;
-const RAIL_BUTTON_INSET = CARD_W * 0.2;
-const RAIL_CHIP_INSET = CARD_W * 0.02;
+const RAIL_CHIP_INSET = CARD_W * 0.045;
 const RAIL_ANCHOR_RATIO = 0.98;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -194,9 +187,9 @@ function createSeatLayout(count) {
     seatPos.y = CHAIR_BASE_HEIGHT;
     const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.64);
     cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
-    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.66);
+    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.63);
     chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
-    const previewAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.58);
+    const previewAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6);
     previewAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const stoolAnchor = forward.clone().multiplyScalar(radius);
     stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
@@ -329,65 +322,6 @@ function createRailTextSprite(initialLines = [], options = {}) {
   return sprite;
 }
 
-function createRailButton(labelLines, color, { width = BUTTON_WIDTH, height = BUTTON_HEIGHT, depth = BUTTON_DEPTH } = {}) {
-  const geometry = new THREE.BoxGeometry(width, height, depth);
-  const baseColor = new THREE.Color(color);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: baseColor.clone(),
-    roughness: 0.32,
-    metalness: 0.55,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.22
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  const sprite = createRailTextSprite(Array.isArray(labelLines) ? labelLines : [labelLines], {
-    width: width * 0.85,
-    height: height * 0.09 + 0.45 * MODEL_SCALE
-  });
-  sprite.position.set(0, height / 2 + 0.01, 0);
-  const group = new THREE.Group();
-  group.add(mesh);
-  group.add(sprite);
-  group.userData = { type: 'button', enabled: true };
-  let hovered = false;
-  let enabled = true;
-  const updateColor = () => {
-    const target = enabled ? (hovered ? baseColor.clone().multiplyScalar(1.15) : baseColor) : new THREE.Color('#1f2937');
-    material.color.copy(target);
-  };
-  const setEnabled = (value) => {
-    enabled = Boolean(value);
-    group.userData.enabled = enabled;
-    updateColor();
-  };
-  const setHover = (value) => {
-    hovered = Boolean(value) && enabled;
-    updateColor();
-  };
-  const setText = (lines) => {
-    sprite.userData.update(Array.isArray(lines) ? lines : [lines]);
-  };
-  updateColor();
-  return {
-    group,
-    mesh,
-    geometry,
-    material,
-    sprite,
-    baseColor,
-    setText,
-    setEnabled,
-    setHover,
-    dispose: () => {
-      geometry.dispose();
-      material.dispose();
-      sprite.userData?.dispose?.();
-    }
-  };
-}
-
 function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   if (!arena || !seat || !chipFactory || !tableInfo) return null;
   const group = new THREE.Group();
@@ -418,24 +352,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     return chip;
   });
 
-  const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 1.1 * MODEL_SCALE, height: 0.4 * MODEL_SCALE });
-  infoSprite.position.copy(baseCenter).addScaledVector(forward, RAIL_INFO_FORWARD_OFFSET);
-  infoSprite.position.y = anchor.y + RAIL_INFO_VERTICAL_OFFSET;
-  group.add(infoSprite);
-
-  const undoButton = createRailButton(['Undo'], '#f59e0b');
-  undoButton.group.position
-    .copy(baseCenter)
-    .addScaledVector(axis, -BUTTON_WIDTH * 1.6)
-    .addScaledVector(forward, -RAIL_BUTTON_INSET);
-  undoButton.group.setRotationFromQuaternion(railQuaternion);
-  undoButton.group.userData.action = 'undo';
-  group.add(undoButton.group);
-
-  const interactables = [
-    ...chipButtons,
-    undoButton.group
-  ];
+  const interactables = [...chipButtons];
 
   const dispose = () => {
     chipButtons.forEach((chip) => {
@@ -444,8 +361,6 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
         chip.parent.remove(chip);
       }
     });
-    undoButton.dispose();
-    infoSprite.userData?.dispose?.();
     if (group.parent) {
       group.parent.remove(group);
     }
@@ -454,10 +369,6 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   return {
     group,
     chipButtons,
-    info: infoSprite,
-    buttons: {
-      undo: undoButton
-    },
     interactables,
     dispose
   };
@@ -1070,9 +981,9 @@ function TexasHoldemArena({ search }) {
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
     scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 4.032, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
     spot.position.set(3, 7, 3);
     spot.castShadow = true;
     scene.add(spot);
@@ -1342,9 +1253,8 @@ function TexasHoldemArena({ search }) {
           prev.scale.setScalar(prev.userData.baseScale);
         } else if (prev.userData?.type === 'button') {
           const controls = getControls();
-          const button = controls
-            ? Object.values(controls.buttons).find((btn) => btn.group === prev)
-            : null;
+          const buttons = controls?.buttons ? Object.values(controls.buttons) : [];
+          const button = buttons.find((btn) => btn.group === prev) || null;
           button?.setHover(false);
         }
       }
@@ -1354,9 +1264,8 @@ function TexasHoldemArena({ search }) {
         target.scale.setScalar(target.userData.baseScale * 1.12);
       } else if (target.userData?.type === 'button') {
         const controls = getControls();
-        const button = controls
-          ? Object.values(controls.buttons).find((btn) => btn.group === target)
-          : null;
+        const buttons = controls?.buttons ? Object.values(controls.buttons) : [];
+        const button = buttons.find((btn) => btn.group === target) || null;
         button?.setHover(true);
       }
     };
@@ -1724,6 +1633,7 @@ function TexasHoldemArena({ search }) {
   const overlayTotal = Math.round(totalSpend);
   const overlayConfirmDisabled = !sliderEnabled || overlayTotal <= 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
+  const undoDisabled = !sliderEnabled || chipSelection.length === 0;
 
   useEffect(() => {
     if (!actor?.isHuman || gameState.stage === 'showdown') {
@@ -1768,32 +1678,13 @@ function TexasHoldemArena({ search }) {
         chip.scale.setScalar(chip.userData.baseScale);
       }
     });
-    if (!visible) {
-      if (hoverTargetRef.current) {
-        if (hoverTargetRef.current.userData?.type === 'chip-button') {
-          hoverTargetRef.current.scale.setScalar(hoverTargetRef.current.userData.baseScale);
-        } else if (hoverTargetRef.current.userData?.type === 'button') {
-          const btn = Object.values(controls.buttons).find((entry) => entry.group === hoverTargetRef.current);
-          btn?.setHover(false);
-        }
-        hoverTargetRef.current = null;
+    if (!visible && hoverTargetRef.current) {
+      if (hoverTargetRef.current.userData?.type === 'chip-button') {
+        hoverTargetRef.current.scale.setScalar(hoverTargetRef.current.userData.baseScale);
       }
-      controls.buttons.undo.setHover(false);
-      controls.buttons.undo.setEnabled(false);
-      controls.info.visible = false;
-      controls.info.userData.update(['Raise 0', 'Total 0']);
-      return;
+      hoverTargetRef.current = null;
     }
-    controls.info.visible = true;
-    const token = gameState.token;
-    const total = Math.round(totalSpend);
-    const raiseAmount = Math.round(Math.min(sliderMax, Math.max(0, raisePreview)));
-    const infoLines = toCall > 0
-      ? [`Selected: ${raiseAmount} ${token}`, `Call: ${Math.round(toCall)} ${token}`, `Total: ${total} ${token}`]
-      : [`Selected: ${raiseAmount} ${token}`, `Total: ${total} ${token}`];
-    controls.info.userData.update(infoLines);
-    controls.buttons.undo.setEnabled(chipSelection.length > 0);
-  }, [sliderEnabled, sliderMax, raisePreview, totalSpend, toCall, chipSelection.length, gameState.token]);
+  }, [sliderEnabled, sliderMax]);
 
   const handleChipClick = (value) => {
     if (!sliderEnabled) return;
@@ -1909,28 +1800,6 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center text-white drop-shadow-lg">
-        <p className="text-lg font-semibold">Texas Hold'em Royale</p>
-        <p className="text-sm opacity-80">
-          Pot: {Math.round(gameState.pot)} {gameState.token} · Stage: {gameState.stage.toUpperCase()}
-        </p>
-        {gameState.stage === 'showdown' && (
-          <div className="mt-2 text-sm">
-            {gameState.winners.length === 0 ? (
-              <span>No contest</span>
-            ) : (
-              gameState.winners.map((win, idx) => (
-                <div key={idx}>
-                  Pot {Math.round(win.amount)} →{' '}
-                  {win.winners
-                    .map((i) => gameState.players[i]?.name || 'Player')
-                    .join(', ')}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
       {actor?.isHuman && sliderEnabled && sliderMax > 0 && (
         <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
           <div className="flex flex-col items-center gap-1 text-center">
@@ -1974,7 +1843,19 @@ function TexasHoldemArena({ search }) {
         </div>
       )}
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-3">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={handleUndoChip}
+            disabled={undoDisabled}
+            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
+              undoDisabled
+                ? 'bg-amber-900/40 text-white/40 shadow-none'
+                : 'bg-amber-500/90 hover:bg-amber-400'
+            }`}
+          >
+            Undo
+          </button>
           {uiState.availableActions.map((action) => (
             <button
               key={action.id}
@@ -1984,20 +1865,18 @@ function TexasHoldemArena({ search }) {
               {action.label}
             </button>
           ))}
-          {sliderEnabled && (
-            <button
-              type="button"
-              onClick={handleAllIn}
-              disabled={overlayAllInDisabled}
-              className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
-                overlayAllInDisabled
-                  ? 'bg-red-900/50 text-white/40 shadow-none'
-                  : 'bg-red-600/90 hover:bg-red-500'
-              }`}
-            >
-              All-in
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleAllIn}
+            disabled={overlayAllInDisabled}
+            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
+              overlayAllInDisabled
+                ? 'bg-red-900/50 text-white/40 shadow-none'
+                : 'bg-red-600/90 hover:bg-red-500'
+            }`}
+          >
+            All-in
+          </button>
         </div>
       )}
     </div>
