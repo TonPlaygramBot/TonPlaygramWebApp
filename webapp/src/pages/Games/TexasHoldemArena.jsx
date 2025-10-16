@@ -56,8 +56,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.28, landscape: 1.78 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.94, landscape: 1.58 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.44, landscape: 1.92 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.82, landscape: 1.46 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -71,13 +71,14 @@ const SLIDER_DEPTH = CARD_W * 0.48;
 const BUTTON_WIDTH = CARD_W * 1.75;
 const BUTTON_HEIGHT = CARD_D * 16;
 const BUTTON_DEPTH = CARD_W * 0.58;
-const RAIL_FRAME_FORWARD_OFFSET = CARD_W * 0.35;
+const RAIL_FRAME_FORWARD_OFFSET = CARD_W * 0.52;
 const RAIL_FRAME_DEPTH = CARD_W * 3.2;
 const RAIL_FRAME_THICKNESS = CARD_D * 12;
 const RAIL_SLIDER_INSET = CARD_W * 0.12;
 const RAIL_INFO_INSET = CARD_W * 0.44;
 const RAIL_BUTTON_INSET = CARD_W * 0.2;
 const RAIL_CHIP_INSET = CARD_W * 0.32;
+const RAIL_ANCHOR_RATIO = 0.98;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -330,7 +331,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   arena.add(group);
   const forward = seat.forward.clone().normalize();
   const axis = seat.right.clone().normalize();
-  const anchor = forward.clone().multiplyScalar(tableInfo.radius * 0.89);
+  const anchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
   anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET;
   const frameCenter = anchor.clone().addScaledVector(forward, -RAIL_FRAME_FORWARD_OFFSET);
 
@@ -371,12 +372,14 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     .clone()
     .addScaledVector(axis, -((CHIP_VALUES.length - 1) / 2) * RAIL_CHIP_SPACING)
     .addScaledVector(forward, -RAIL_CHIP_INSET);
+  chipOrigin.y = anchor.y + CARD_D * 2.2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value);
     chip.scale.setScalar(RAIL_CHIP_SCALE);
     chip.position
       .copy(chipOrigin)
       .addScaledVector(axis, index * RAIL_CHIP_SPACING);
+    chip.position.y = anchor.y + CARD_D * 2.2;
     chip.userData = { type: 'chip-button', value, baseScale: RAIL_CHIP_SCALE };
     group.add(chip);
     return chip;
@@ -395,6 +398,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   track.receiveShadow = true;
   track.setRotationFromQuaternion(frameQuaternion);
   const trackPosition = frameCenter.clone().addScaledVector(forward, RAIL_SLIDER_INSET);
+  trackPosition.y = anchor.y + SLIDER_THICKNESS * 0.35;
   track.position.copy(trackPosition);
   track.userData = { type: 'slider-track' };
   group.add(track);
@@ -419,6 +423,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const sliderPlane = new THREE.Plane(forward.clone(), -forward.clone().dot(trackPosition));
   const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 2.2 * MODEL_SCALE, height: 0.8 * MODEL_SCALE });
   infoSprite.position.copy(frameCenter).addScaledVector(forward, -RAIL_INFO_INSET);
+  infoSprite.position.y = anchor.y + SLIDER_THICKNESS * 0.72;
   group.add(infoSprite);
 
   const confirmButton = createRailButton(['Raise', '0'], '#2563eb');
@@ -972,13 +977,13 @@ function TexasHoldemArena({ search }) {
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.72);
     scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 3.36, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+    const spot = new THREE.SpotLight(0xffffff, 4.032, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
     spot.position.set(3, 7, 3);
     spot.castShadow = true;
     scene.add(spot);
-    const rim = new THREE.PointLight(0x33ccff, 1.44);
+    const rim = new THREE.PointLight(0x33ccff, 1.728);
     rim.position.set(-4, 3, -4);
     scene.add(rim);
 
