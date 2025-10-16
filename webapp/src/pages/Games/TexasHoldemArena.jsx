@@ -132,58 +132,44 @@ function buildPlayers(search) {
 function createSeatLayout(count) {
   const radius = CHAIR_RADIUS;
   const layout = [];
-  const sides = 2;
-  const seatsPerSide = Math.ceil(count / sides);
-  const xExtent = TABLE_RADIUS * 1.05;
-  let seatIndex = 0;
-  for (let side = 0; side < sides; side += 1) {
-    const seatsRemaining = count - seatIndex;
-    if (seatsRemaining <= 0) break;
-    const seatsThisSide = Math.min(seatsPerSide, seatsRemaining);
-    const rowSign = side === 0 ? 1 : -1;
-    const seatZ = rowSign * radius;
-    const spacing = seatsThisSide > 1 ? (xExtent * 2) / (seatsThisSide - 1) : 0;
-    const rawOffsets = [];
-    for (let pos = 0; pos < seatsThisSide; pos += 1) {
-      const value = seatsThisSide === 1 ? 0 : -xExtent + spacing * pos;
-      rawOffsets.push(value);
-    }
-    rawOffsets
-      .sort((a, b) => {
-        const diff = Math.abs(a) - Math.abs(b);
-        if (diff !== 0) return diff;
-        return a - b;
-      })
-      .forEach((offset) => {
-        if (seatIndex >= count) return;
-        const seatPos = new THREE.Vector3(offset, CHAIR_BASE_HEIGHT, seatZ);
-        const forward = new THREE.Vector3(0, 0, rowSign);
-        const right = new THREE.Vector3(-rowSign, 0, 0);
-        const cardAnchor = new THREE.Vector3(
-          offset,
-          TABLE_HEIGHT + CARD_D * 6,
-          seatZ - rowSign * (radius - TABLE_RADIUS * 0.68)
-        );
-        const chipAnchor = new THREE.Vector3(
-          offset,
-          TABLE_HEIGHT + CARD_D * 6,
-          seatZ - rowSign * (radius - TABLE_RADIUS * 0.56)
-        );
-        const labelAnchor = new THREE.Vector3(offset, STOOL_HEIGHT + 0.48 * MODEL_SCALE, seatZ + rowSign * 0.6);
-        const stoolAnchor = new THREE.Vector3(offset, CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2, seatZ);
-        layout.push({
-          forward,
-          right,
-          seatPos,
-          cardAnchor,
-          chipAnchor,
-          labelAnchor,
-          stoolAnchor,
-          stoolHeight: STOOL_HEIGHT,
-          isHuman: seatIndex === 0
-        });
-        seatIndex += 1;
-      });
+  const baseAngle = Math.PI / 2;
+  const angleStep = (Math.PI * 2) / count;
+  const cardRadius = TABLE_RADIUS * 0.64;
+  const chipRadius = TABLE_RADIUS * 0.92;
+  const labelRadius = radius + 0.55 * MODEL_SCALE;
+
+  for (let seatIndex = 0; seatIndex < count; seatIndex += 1) {
+    const angle = baseAngle - seatIndex * angleStep;
+    const outward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+    const forward = outward.clone().multiplyScalar(-1).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, WORLD_UP).normalize();
+
+    const seatPos = outward.clone().multiplyScalar(radius);
+    seatPos.y = CHAIR_BASE_HEIGHT;
+
+    const stoolAnchor = outward.clone().multiplyScalar(radius);
+    stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
+
+    const cardAnchor = outward.clone().multiplyScalar(cardRadius);
+    cardAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+
+    const chipAnchor = outward.clone().multiplyScalar(chipRadius);
+    chipAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+
+    const labelAnchor = outward.clone().multiplyScalar(labelRadius);
+    labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
+
+    layout.push({
+      forward,
+      right,
+      seatPos,
+      cardAnchor,
+      chipAnchor,
+      labelAnchor,
+      stoolAnchor,
+      stoolHeight: STOOL_HEIGHT,
+      isHuman: seatIndex === 0
+    });
   }
   return layout;
 }
@@ -793,7 +779,8 @@ function TexasHoldemArena({ search }) {
     seatLayout.forEach((seat) => {
       const group = new THREE.Group();
       group.position.copy(seat.seatPos);
-      group.rotation.y = seat.forward.z > 0 ? Math.PI : 0;
+      const yaw = Math.atan2(seat.forward.x, -seat.forward.z);
+      group.rotation.y = yaw;
 
       const seatMaterial = seat.isHuman ? seatMaterials.human : seatMaterials.ai;
       const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
