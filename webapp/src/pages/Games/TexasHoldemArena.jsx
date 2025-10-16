@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import * as THREE from 'three';
-import { CSS3DObject, CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -10,7 +8,6 @@ import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { createCardGeometry, createCardMesh, orientCard, setCardFace } from '../../utils/cards3d.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { DEFAULT_CHIP_VALUES, getChipVisual } from '../../utils/chipUi.js';
 
 import {
   createDeck,
@@ -61,6 +58,24 @@ const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 }
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
 
+const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
+const CHIP_COLOR_MAP = {
+  1: '#f2b21a',
+  2: '#f97316',
+  5: '#d54a3a',
+  10: '#2196f3',
+  20: '#4caf50',
+  50: '#3a3331',
+  200: '#7b4abd',
+  500: '#a3362e',
+  1000: '#1fb3d6'
+};
+
+function getChipVisual(value) {
+  const base = CHIP_COLOR_MAP[value] ?? '#22d3ee';
+  const text = value >= 50 ? '#f8fafc' : '#0f172a';
+  return { base, text };
+}
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -607,7 +622,6 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
-  const railUiHostRef = useRef(null);
   const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
@@ -640,17 +654,6 @@ function TexasHoldemArena({ search }) {
   const [sliderValue, setSliderValue] = useState(0);
   const timerRef = useRef(null);
 
-  if (!railUiHostRef.current && typeof document !== 'undefined') {
-    const host = document.createElement('div');
-    host.className = 'rail-ui-root rail-ui-root--texas';
-    host.style.width = '360px';
-    host.style.pointerEvents = 'auto';
-    host.style.transformStyle = 'preserve-3d';
-    host.style.transformOrigin = 'center';
-    host.style.display = 'none';
-    railUiHostRef.current = host;
-  }
-
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
     if (!three) return;
@@ -679,20 +682,7 @@ function TexasHoldemArena({ search }) {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.inset = '0';
-    renderer.domElement.style.zIndex = '1';
     mount.appendChild(renderer.domElement);
-
-    const cssRenderer = new CSS3DRenderer();
-    cssRenderer.setSize(mount.clientWidth, mount.clientHeight);
-    cssRenderer.domElement.style.position = 'absolute';
-    cssRenderer.domElement.style.inset = '0';
-    cssRenderer.domElement.style.zIndex = '2';
-    cssRenderer.domElement.style.background = 'transparent';
-    mount.appendChild(cssRenderer.domElement);
-
-    const cssScene = new THREE.Scene();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#030712');
@@ -794,26 +784,6 @@ function TexasHoldemArena({ search }) {
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
-    let railHud = null;
-    if (railUiHostRef.current && humanSeat) {
-      const host = railUiHostRef.current;
-      const hudObject = new CSS3DObject(host);
-      const basePosition = humanSeat.cardAnchor
-        .clone()
-        .addScaledVector(humanSeat.forward, TABLE_RADIUS * 0.34)
-        .addScaledVector(humanSeat.right, TABLE_RADIUS * 0.26);
-      basePosition.y = tableInfo.tableHeight + CARD_D * 24;
-      const scale = 0.004 * MODEL_SCALE;
-      hudObject.scale.setScalar(scale);
-      cssScene.add(hudObject);
-      railHud = {
-        object: hudObject,
-        basePosition,
-        forward: humanSeat.forward.clone(),
-        right: humanSeat.right.clone()
-      };
-    }
-
     const seatMaterials = {
       human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
       ai: new THREE.MeshPhysicalMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.5, clearcoat: 1 })
@@ -903,16 +873,6 @@ function TexasHoldemArena({ search }) {
     potStack.position.copy(POT_OFFSET);
     arenaGroup.add(potStack);
 
-    const updateRailHudPose = () => {
-      if (!railHud?.object) return;
-      const { object, basePosition, forward } = railHud;
-      object.position.copy(basePosition);
-      const lookTarget = basePosition.clone().add(forward.clone());
-      object.lookAt(lookTarget);
-      object.rotateX(-THREE.MathUtils.degToRad(58));
-    };
-    updateRailHudPose();
-
     threeRef.current = {
       renderer,
       scene,
@@ -924,21 +884,10 @@ function TexasHoldemArena({ search }) {
       communityMeshes,
       potStack,
       deckAnchor,
-      cssRenderer,
-      cssScene,
-      railHud,
-      updateRailHudPose,
       frameId: null
     };
 
     const element = renderer.domElement;
-    const cssElement = cssRenderer.domElement;
-    const forwardedEvents = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerleave'];
-    const forwardPointerEvent = (event) => {
-      if (event.target !== cssElement) return;
-      element.dispatchEvent(new PointerEvent(event.type, event));
-    };
-    forwardedEvents.forEach((name) => cssElement.addEventListener(name, forwardPointerEvent));
     const handlePointerDown = (event) => {
       event.preventDefault();
       pointerStateRef.current = {
@@ -993,14 +942,12 @@ function TexasHoldemArena({ search }) {
 
     const handleResize = () => {
       if (!mount || !threeRef.current) return;
-      const { renderer: r, camera: cam, cssRenderer: cssR, updateRailHudPose: updateHud } = threeRef.current;
+      const { renderer: r, camera: cam } = threeRef.current;
       const { clientWidth, clientHeight } = mount;
       r.setSize(clientWidth, clientHeight);
       cam.aspect = clientWidth / clientHeight;
       cam.updateProjectionMatrix();
-      cssR?.setSize(clientWidth, clientHeight);
       applySeatedCamera(clientWidth, clientHeight);
-      updateHud?.();
     };
 
     window.addEventListener('resize', handleResize);
@@ -1009,9 +956,7 @@ function TexasHoldemArena({ search }) {
       const three = threeRef.current;
       if (!three) return;
       applyHeadOrientation();
-      three.updateRailHudPose?.();
       three.renderer.render(three.scene, three.camera);
-      three.cssRenderer?.render(three.cssScene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
     animate();
@@ -1019,23 +964,13 @@ function TexasHoldemArena({ search }) {
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationRef.current);
-      forwardedEvents.forEach((name) => cssElement.removeEventListener(name, forwardPointerEvent));
       element.removeEventListener('pointerdown', handlePointerDown);
       element.removeEventListener('pointermove', handlePointerMove);
       element.removeEventListener('pointerup', handlePointerUp);
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
-        const {
-          renderer: r,
-          scene: s,
-          chipFactory: factory,
-          seatGroups: seats,
-          communityMeshes: community,
-          cssRenderer: cssR,
-          cssScene: cssS,
-          railHud: hud
-        } = threeRef.current;
+        const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, communityMeshes: community } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
@@ -1065,20 +1000,9 @@ function TexasHoldemArena({ search }) {
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
         tableInfo?.dispose?.();
-        if (hud?.object) {
-          cssS?.remove(hud.object);
-          hud.object.element?.remove?.();
-        }
-        cssR?.domElement?.remove?.();
         r.dispose();
       }
       mount.removeChild(renderer.domElement);
-      if (cssRenderer.domElement.parentNode === mount) {
-        mount.removeChild(cssRenderer.domElement);
-      }
-      if (railUiHostRef.current) {
-        railUiHostRef.current.style.display = 'none';
-      }
       threeRef.current = null;
     };
   }, []);
@@ -1276,120 +1200,6 @@ function TexasHoldemArena({ search }) {
     handleAction(action, sliderMax);
   };
 
-  const showRailHud = actor?.isHuman && gameState.stage !== 'showdown';
-
-  useEffect(() => {
-    const host = railUiHostRef.current;
-    if (!host) return;
-    host.style.display = showRailHud ? 'block' : 'none';
-    if (showRailHud) {
-      threeRef.current?.updateRailHudPose?.();
-    }
-  }, [showRailHud]);
-
-  const railUiContent =
-    showRailHud && railUiHostRef.current
-      ? createPortal(
-          <div className="rail-ui-surface">
-            <div className="rail-ui-summary">
-              <span className="rail-ui-label">To call</span>
-              <span className="rail-ui-value">
-                {Math.round(toCall)} {gameState.token}
-              </span>
-            </div>
-            {sliderEnabled ? (
-              <div className="rail-ui-section rail-ui-section--split">
-                <div className="rail-ui-chips-panel">
-                  <div className="rail-ui-chips-grid">
-                    {DEFAULT_CHIP_VALUES.map((value) => {
-                      const { base, text } = getChipVisual(value);
-                      const disabled = value > sliderMax;
-                      return (
-                        <button
-                          key={value}
-                          onClick={() => handleChipClick(value)}
-                          className="chip-select"
-                          style={{ '--chip-color': base, '--chip-text': text }}
-                          disabled={!sliderEnabled || disabled}
-                        >
-                          {value}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={handleUndoChip}
-                    disabled={!chipSelection.length}
-                    className="rail-ui-button rail-ui-button--ghost"
-                  >
-                    Undo
-                  </button>
-                  <span className="rail-ui-note">
-                    Selected raise: {Math.round(raisePreview)} {gameState.token}
-                  </span>
-                </div>
-                <div className="rail-ui-slider-panel">
-                  <button
-                    onClick={handleAllIn}
-                    disabled={!sliderEnabled}
-                    className="rail-ui-button rail-ui-button--danger"
-                  >
-                    All-in
-                  </button>
-                  <input
-                    type="range"
-                    orient="vertical"
-                    min={0}
-                    max={sliderMax}
-                    step={1}
-                    value={Math.min(sliderMax, sliderValue)}
-                    onChange={handleSliderChange}
-                    disabled={!sliderEnabled}
-                    className="vertical-range accent-sky-400"
-                  />
-                  <div className="rail-ui-note rail-ui-note--stack">
-                    <span>
-                      Raise amount: {Math.round(finalRaise)} {gameState.token}
-                    </span>
-                    <span>
-                      Total commitment: {Math.round(totalSpend)} {gameState.token}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleRaiseConfirm}
-                    disabled={!sliderEnabled}
-                    className="rail-ui-button rail-ui-button--primary"
-                  >
-                    {sliderLabel} {Math.round(totalSpend)} {gameState.token}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="rail-ui-section rail-ui-section--disabled">
-                <span className="rail-ui-label">Raise unavailable</span>
-                <span className="rail-ui-subtle">
-                  {toCall > 0
-                    ? `Call ${Math.round(toCall)} ${gameState.token}`
-                    : 'You can only check or fold this turn'}
-                </span>
-              </div>
-            )}
-            <div className="rail-ui-actions">
-              {uiState.availableActions.map((action) => (
-                <button
-                  key={action.id}
-                  onClick={() => handleAction(action.id)}
-                  className="rail-ui-button rail-ui-button--action"
-                >
-                  {action.label}
-                </button>
-              ))}
-            </div>
-          </div>,
-          railUiHostRef.current
-        )
-      : null;
-
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
@@ -1415,7 +1225,85 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      {railUiContent}
+      {actor?.isHuman && gameState.stage !== 'showdown' && (
+        <>
+          {sliderEnabled && (
+            <>
+              <div className="absolute top-1/2 right-32 -translate-y-1/2 flex flex-col items-center gap-3 z-20">
+                <div className="grid grid-cols-2 gap-3">
+                  {CHIP_VALUES.map((value) => {
+                    const { base, text } = getChipVisual(value);
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => handleChipClick(value)}
+                        className="chip-select"
+                        style={{ '--chip-color': base, '--chip-text': text }}
+                      >
+                        {value}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-col items-center gap-2 text-xs text-white drop-shadow-lg">
+                  <button
+                    onClick={handleUndoChip}
+                    disabled={!chipSelection.length}
+                    className="rounded-full bg-amber-400/90 px-4 py-1 text-black font-semibold shadow disabled:opacity-40"
+                  >
+                    Undo
+                  </button>
+                  <span className="text-center">
+                    Selected raise: {Math.round(raisePreview)} {gameState.token}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute top-1/2 right-6 -translate-y-1/2 flex flex-col items-center gap-4 z-20">
+                <button
+                  onClick={handleAllIn}
+                  disabled={!sliderEnabled}
+                  className="rounded-full border border-red-300/80 bg-red-600/80 px-5 py-2 text-white font-semibold shadow-lg disabled:opacity-40"
+                >
+                  All-in
+                </button>
+                <input
+                  type="range"
+                  orient="vertical"
+                  min={0}
+                  max={sliderMax}
+                  step={1}
+                  value={Math.min(sliderMax, sliderValue)}
+                  onChange={handleSliderChange}
+                  disabled={!sliderEnabled}
+                  className="vertical-range accent-sky-400"
+                />
+                <div className="text-xs text-white drop-shadow-lg text-center space-y-1">
+                  <div>Raise amount: {Math.round(finalRaise)} {gameState.token}</div>
+                  <div>Total commitment: {Math.round(totalSpend)} {gameState.token}</div>
+                </div>
+                <button
+                  onClick={handleRaiseConfirm}
+                  disabled={!sliderEnabled}
+                  className="rounded-full bg-blue-600 px-4 py-2 text-white font-semibold shadow-lg disabled:opacity-40 disabled:bg-blue-600/40"
+                >
+                  {sliderLabel} {Math.round(totalSpend)} {gameState.token}
+                </button>
+              </div>
+            </>
+          )}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+            {uiState.availableActions.map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleAction(action.id)}
+                className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
