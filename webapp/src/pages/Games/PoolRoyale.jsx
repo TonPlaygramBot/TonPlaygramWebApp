@@ -508,12 +508,12 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.height
 );
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-// Slightly reduce per-frame friction so rolls feel livelier on high refresh
-// rate displays (e.g. 90 Hz) instead of drifting into slow motion.
+// Slightly reduce per-frame friction so rolls feel lively while holding a steady
+// 60 Hz simulation cadence instead of drifting into slow motion.
 const FRICTION = 0.993;
 const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.02;
-const TARGET_FPS = 90;
+const TARGET_FPS = 60;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -644,6 +644,7 @@ const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
+const SPIN_POWER_BONUS_RATIO = 0.35; // boost cue power by up to 35% when maximum spin is applied
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 const SHOT_FORCE_BOOST = 1.5 * 0.75;
@@ -698,10 +699,10 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 // Match the 2D aiming configuration: tip offset max = 0.85R and side/top spin amounts = 0.35R.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
-const MAX_SPIN_FORWARD = BALL_R * 0.35;
-const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.35, MAX_SPIN_CONTACT_OFFSET);
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.95;
+const MAX_SPIN_FORWARD = BALL_R * 0.5;
+const MAX_SPIN_SIDE = BALL_R * 0.5;
+const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.5, MAX_SPIN_CONTACT_OFFSET);
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -1129,33 +1130,93 @@ const DEFAULT_CHROME_COLOR_ID = 'chrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
-    label: 'Chrome',
+    label: 'Polished Chrome',
     color: 0xc0c9d5,
     metalness: 0.99,
     roughness: 0.1,
     clearcoat: 0.74,
     clearcoatRoughness: 0.16,
-    envMapIntensity: 1.02
+    envMapIntensity: 1.02,
+    getTextures: buildChromeTextureGenerator({
+      orientation: 'horizontal',
+      highlight: 0.62,
+      streaks: 210,
+      streakContrast: 0.22,
+      repeat: { x: 2.8, y: 2.8 },
+      noise: 0.08
+    })
   },
   {
     id: 'gold',
-    label: 'Gold',
+    label: 'Golden Chrome',
     color: 0xd4af37,
     metalness: 0.96,
     roughness: 0.18,
     clearcoat: 0.56,
     clearcoatRoughness: 0.16,
-    envMapIntensity: 0.98
+    envMapIntensity: 0.98,
+    getTextures: buildChromeTextureGenerator({
+      orientation: 'radial',
+      highlight: 0.68,
+      streaks: 160,
+      streakContrast: 0.2,
+      repeat: { x: 2.4, y: 2.4 },
+      noise: 0.05
+    })
   },
   {
     id: 'matteBlack',
     label: 'Black Chrome',
     color: 0x1a1a1a,
-    metalness: 0.84,
-    roughness: 0.36,
-    clearcoat: 0.32,
+    metalness: 0.9,
+    roughness: 0.32,
+    clearcoat: 0.38,
     clearcoatRoughness: 0.2,
-    envMapIntensity: 0.94
+    envMapIntensity: 0.94,
+    getTextures: buildChromeTextureGenerator({
+      orientation: 'horizontal',
+      highlight: 0.38,
+      streaks: 220,
+      streakContrast: 0.32,
+      repeat: { x: 3.2, y: 3.2 },
+      noise: 0.12
+    })
+  },
+  {
+    id: 'frostChrome',
+    label: 'Frost Chrome',
+    color: 0xdfe9f8,
+    metalness: 0.98,
+    roughness: 0.14,
+    clearcoat: 0.7,
+    clearcoatRoughness: 0.12,
+    envMapIntensity: 1.05,
+    getTextures: buildChromeTextureGenerator({
+      orientation: 'vertical',
+      highlight: 0.72,
+      streaks: 190,
+      streakContrast: 0.18,
+      repeat: { x: 2.2, y: 3.1 },
+      noise: 0.06
+    })
+  },
+  {
+    id: 'roseChrome',
+    label: 'Rose Chrome',
+    color: 0xc17c8f,
+    metalness: 0.95,
+    roughness: 0.16,
+    clearcoat: 0.62,
+    clearcoatRoughness: 0.15,
+    envMapIntensity: 1.0,
+    getTextures: buildChromeTextureGenerator({
+      orientation: 'radial',
+      highlight: 0.58,
+      streaks: 170,
+      streakContrast: 0.24,
+      repeat: { x: 2.6, y: 2.6 },
+      noise: 0.07
+    })
   }
 ]);
 
@@ -1635,6 +1696,184 @@ function enhanceChromeMaterial(material) {
   if ('specularIntensity' in material) {
     material.specularIntensity = Math.max(1.02, material.specularIntensity ?? 1.02);
   }
+  material.needsUpdate = true;
+}
+
+function createChromeFinishTextures(options = {}) {
+  if (typeof document === 'undefined') return null;
+  const size = THREE.MathUtils.clamp(options.size ?? 1024, 128, 2048);
+  const orientation = options.orientation === 'vertical'
+    ? 'vertical'
+    : options.orientation === 'radial'
+      ? 'radial'
+      : 'horizontal';
+  const highlight = THREE.MathUtils.clamp(options.highlight ?? 0.55, 0, 1);
+  const streaks = Math.max(4, Math.floor(options.streaks ?? 160));
+  const streakContrast = THREE.MathUtils.clamp(options.streakContrast ?? 0.18, 0, 1);
+  const noise = THREE.MathUtils.clamp(options.noise ?? 0.08, 0, 1);
+  const repeat = options.repeat ?? { x: 2.5, y: 2.5 };
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#f3f6fb';
+  ctx.fillRect(0, 0, size, size);
+
+  if (orientation === 'radial') {
+    const radial = ctx.createRadialGradient(
+      size / 2,
+      size / 2,
+      size * 0.1,
+      size / 2,
+      size / 2,
+      size / 1.2
+    );
+    radial.addColorStop(0, `rgba(255,255,255,${0.6 * highlight})`);
+    radial.addColorStop(0.5, `rgba(220,228,240,${0.35 + highlight * 0.25})`);
+    radial.addColorStop(1, `rgba(200,208,220,${0.18 + highlight * 0.12})`);
+    ctx.fillStyle = radial;
+    ctx.globalAlpha = 0.95;
+    ctx.fillRect(0, 0, size, size);
+  } else {
+    const gradient = orientation === 'vertical'
+      ? ctx.createLinearGradient(0, 0, 0, size)
+      : ctx.createLinearGradient(0, 0, size, 0);
+    gradient.addColorStop(0, `rgba(255,255,255,${0.35 * highlight})`);
+    gradient.addColorStop(0.5, `rgba(213,220,231,${0.55 + highlight * 0.3})`);
+    gradient.addColorStop(1, `rgba(175,184,198,${0.25 + highlight * 0.12})`);
+    ctx.fillStyle = gradient;
+    ctx.globalAlpha = 0.92;
+    ctx.fillRect(0, 0, size, size);
+  }
+
+  ctx.globalAlpha = 1;
+  const axisLimit = orientation === 'vertical' ? size : size;
+  for (let i = 0; i < streaks; i++) {
+    const ratio = i / streaks;
+    const strength = streakContrast * (0.4 + Math.random() * 0.6);
+    const darker = Math.random() > 0.5;
+    ctx.globalAlpha = strength * (darker ? 0.6 : 1);
+    ctx.fillStyle = darker ? 'rgba(60,70,82,1)' : 'rgba(255,255,255,1)';
+    const offset = ratio * axisLimit;
+    if (orientation === 'vertical') {
+      ctx.fillRect(0, offset, size, 1);
+    } else if (orientation === 'horizontal') {
+      ctx.fillRect(offset, 0, 1, size);
+    } else {
+      const angle = ratio * Math.PI * 2;
+      const cx = size / 2 + Math.cos(angle) * size * 0.45;
+      const cy = size / 2 + Math.sin(angle) * size * 0.45;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, size * 0.08, size * 0.4, angle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = noise * 0.5;
+  const noiseCount = Math.floor(size * size * 0.02 * noise);
+  for (let i = 0; i < noiseCount; i++) {
+    const nx = Math.floor(Math.random() * size);
+    const ny = Math.floor(Math.random() * size);
+    const alpha = 0.2 + Math.random() * 0.4;
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(nx, ny, 1, 1);
+    ctx.fillStyle = `rgba(80,90,105,${alpha * 0.7})`;
+    ctx.fillRect((nx + 1) % size, (ny + 1) % size, 1, 1);
+  }
+
+  const roughnessCanvas = document.createElement('canvas');
+  roughnessCanvas.width = size;
+  roughnessCanvas.height = size;
+  const roughCtx = roughnessCanvas.getContext('2d');
+  if (!roughCtx) return null;
+  roughCtx.fillStyle = 'rgba(180,180,180,1)';
+  roughCtx.fillRect(0, 0, size, size);
+  roughCtx.globalAlpha = 0.5;
+  roughCtx.fillStyle = 'rgba(110,110,110,1)';
+  const roughStreaks = Math.max(4, Math.floor(streaks * 0.75));
+  for (let i = 0; i < roughStreaks; i++) {
+    const ratio = i / roughStreaks;
+    const offset = ratio * axisLimit;
+    const alpha = 0.25 + Math.random() * 0.35;
+    roughCtx.globalAlpha = alpha;
+    if (orientation === 'vertical') {
+      roughCtx.fillRect(0, offset, size, 1);
+    } else if (orientation === 'horizontal') {
+      roughCtx.fillRect(offset, 0, 1, size);
+    } else {
+      const angle = ratio * Math.PI * 2;
+      const cx = size / 2 + Math.cos(angle) * size * 0.4;
+      const cy = size / 2 + Math.sin(angle) * size * 0.4;
+      roughCtx.beginPath();
+      roughCtx.ellipse(cx, cy, size * 0.06, size * 0.3, angle, 0, Math.PI * 2);
+      roughCtx.fill();
+    }
+  }
+
+  roughCtx.globalAlpha = noise * 0.9;
+  roughCtx.fillStyle = 'rgba(60,60,60,1)';
+  for (let i = 0; i < noiseCount; i++) {
+    const nx = Math.floor(Math.random() * size);
+    const ny = Math.floor(Math.random() * size);
+    roughCtx.fillRect(nx, ny, 1, 1);
+  }
+
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.RepeatWrapping;
+  map.anisotropy = 8;
+  map.needsUpdate = true;
+  const roughnessMap = new THREE.CanvasTexture(roughnessCanvas);
+  roughnessMap.colorSpace = THREE.LinearSRGBColorSpace;
+  roughnessMap.wrapS = THREE.RepeatWrapping;
+  roughnessMap.wrapT = THREE.RepeatWrapping;
+  roughnessMap.anisotropy = 4;
+  roughnessMap.needsUpdate = true;
+
+  if (repeat) {
+    const rx = Number.isFinite(repeat.x) ? repeat.x : 1;
+    const ry = Number.isFinite(repeat.y) ? repeat.y : 1;
+    map.repeat.set(rx, ry);
+    roughnessMap.repeat.set(rx, ry);
+  }
+
+  return { map, roughnessMap };
+}
+
+function buildChromeTextureGenerator(options = {}) {
+  let cache = null;
+  return () => {
+    if (cache) return cache;
+    const generated = createChromeFinishTextures(options);
+    cache = generated || null;
+    return cache;
+  };
+}
+
+function applyChromeAppearance(material, selection) {
+  if (!material) return;
+  enhanceChromeMaterial(material);
+  const textures =
+    typeof selection?.getTextures === 'function' ? selection.getTextures() : null;
+  if (textures?.map) {
+    material.map = textures.map;
+    material.map.needsUpdate = true;
+  } else {
+    material.map = null;
+  }
+  if (textures?.roughnessMap) {
+    material.roughnessMap = textures.roughnessMap;
+    material.roughnessMap.needsUpdate = true;
+  } else {
+    material.roughnessMap = null;
+  }
+  material.userData = {
+    ...(material.userData || {}),
+    chromeOptionId: selection?.id ?? null
+  };
   material.needsUpdate = true;
 }
 
@@ -3874,7 +4113,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.08;
+  const chromePlateThickness = railH * 0.092; // give chrome plates a subtle thickness boost
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -4697,6 +4936,11 @@ function applyTableFinishToTable(table, finish) {
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const chromeSelection =
+    resolvedFinish?.chromeSelection ||
+    CHROME_COLOR_OPTIONS.find((opt) => opt.id === resolvedFinish?.chromeOptionId) ||
+    CHROME_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_CHROME_COLOR_ID) ||
+    CHROME_COLOR_OPTIONS[0];
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
       ? resolvedFinish.createMaterials
@@ -4718,7 +4962,29 @@ function applyTableFinishToTable(table, finish) {
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
-  enhanceChromeMaterial(trimMat);
+  if (chromeSelection) {
+    trimMat.color.set(chromeSelection.color);
+    if (typeof chromeSelection.metalness === 'number') {
+      trimMat.metalness = chromeSelection.metalness;
+    }
+    if (typeof chromeSelection.roughness === 'number') {
+      trimMat.roughness = chromeSelection.roughness;
+    }
+    if (typeof chromeSelection.clearcoat === 'number') {
+      trimMat.clearcoat = chromeSelection.clearcoat;
+    }
+    if (typeof chromeSelection.clearcoatRoughness === 'number') {
+      trimMat.clearcoatRoughness = chromeSelection.clearcoatRoughness;
+    }
+    if (typeof chromeSelection.envMapIntensity === 'number') {
+      trimMat.envMapIntensity = THREE.MathUtils.clamp(
+        chromeSelection.envMapIntensity,
+        0.9,
+        1.1
+      );
+    }
+  }
+  applyChromeAppearance(trimMat, chromeSelection);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
@@ -5132,6 +5398,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const woodSelection = activeWoodTexture;
     return {
       ...baseFinish,
+      chromeSelection,
       clothDetail:
         clothSelection.detail ?? baseFinish?.clothDetail ?? null,
       colors: {
@@ -5166,6 +5433,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             1.1
           );
         }
+        applyChromeAppearance(materials.trim, chromeSelection);
         if (materials.accent?.material) {
           materials.accent = {
             ...materials.accent,
@@ -5890,8 +6158,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
-      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
+      const mobilePixelCap = window.innerWidth <= 1366 ? 2 : 2.5;
+      const pixelRatio = Math.min(mobilePixelCap, devicePixelRatio);
+      renderer.setPixelRatio(pixelRatio);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -9487,9 +9756,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
-          lastShotPower = clampedPower;
-          playCueHit(clampedPower * 0.6);
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const spinMagnitude = spinAppliedRef.current?.magnitude ?? 0;
+          const spinBoost = 1 + spinMagnitude * SPIN_POWER_BONUS_RATIO;
+          const effectivePower = THREE.MathUtils.clamp(
+            clampedPower * spinBoost,
+            0,
+            1
+          );
+          lastShotPower = effectivePower;
+          playCueHit(effectivePower * 0.6);
+          const powerScale =
+            (SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower) * spinBoost;
           const base = aimDir
             .clone()
             .multiplyScalar(SHOT_BASE_SPEED * powerScale);
