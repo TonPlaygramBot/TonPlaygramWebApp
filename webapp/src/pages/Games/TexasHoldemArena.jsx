@@ -74,10 +74,12 @@ const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.35;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
-const CAMERA_TARGET_LIFT = 0.14 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_PLAYER_FOCUS_OFFSET = 0.85 * MODEL_SCALE;
+const CAMERA_PLAYER_FOCUS_DROP = 0.22 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_HEAD_PITCH_UP = 0;
-const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
@@ -1060,8 +1062,12 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
       position.y = humanSeat.stoolHeight + elevation;
+      const focus = cameraTarget
+        .clone()
+        .addScaledVector(humanSeat.forward, -CAMERA_PLAYER_FOCUS_OFFSET)
+        .add(new THREE.Vector3(0, -CAMERA_PLAYER_FOCUS_DROP, 0));
       camera.position.copy(position);
-      camera.lookAt(cameraTarget);
+      camera.lookAt(focus);
       camera.updateMatrixWorld();
       const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
       const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
