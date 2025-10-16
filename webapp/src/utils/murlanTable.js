@@ -137,7 +137,7 @@ function applyWoodSelectionToMaterials(topMat, rimMat, option) {
   }
 }
 
-function applyTableMaterials(parts, { woodOption, clothOption, baseOption }, renderer) {
+export function applyTableMaterials(parts, { woodOption, clothOption, baseOption }, renderer) {
   if (!parts) return;
 
   if (baseOption) {
