@@ -3,7 +3,7 @@ import * as THREE from 'three';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
-import { buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { createCardGeometry, createCardMesh, orientCard, setCardFace } from '../../utils/cards3d.js';
 import { createChipFactory } from '../../utils/chips3d.js';
@@ -56,126 +56,37 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.32, landscape: 1.85 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.88, landscape: 1.58 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.13, landscape: 1.63 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
+const CHIP_COLORS = Object.freeze({
+  1: '#f2b21a',
+  2: '#f97316',
+  5: '#d54a3a',
+  10: '#2196f3',
+  20: '#4caf50',
+  50: '#3a3331',
+  200: '#7b4abd',
+  500: '#a3362e',
+  1000: '#1fb3d6'
+});
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-
-function createRailLabel(renderer) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-
-  const draw = (raise = 0, total = 0, token = 'TPC') => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.65)';
-    ctx.lineWidth = 16;
-    roundRect(ctx, 24, 24, canvas.width - 48, canvas.height - 48, 48);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 110px "Inter", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(raise)} ${token}`, canvas.width / 2, canvas.height * 0.38);
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '600 70px "Inter", system-ui, sans-serif';
-    ctx.fillText(`Total ${Math.round(total)} ${token}`, canvas.width / 2, canvas.height * 0.72);
-  };
-
-  draw();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set(1.4, 0.62, 1);
-  sprite.userData = { canvas, ctx, texture, draw };
-
-  return sprite;
-}
-
-function updateRailLabel(sprite, raise, total, token) {
-  if (!sprite?.userData?.draw) return;
-  sprite.userData.draw(raise, total, token);
-  if (sprite.userData.texture) {
-    sprite.userData.texture.needsUpdate = true;
-  }
-}
-
-function createRailButton(renderer, { label, color, action, width = 0.84, height = 0.28 }) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-
-  const draw = (active = false) => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    const base = new THREE.Color(color);
-    const top = base.clone().lerp(new THREE.Color('#ffffff'), active ? 0.35 : 0.18);
-    const bottom = base.clone().lerp(new THREE.Color('#000000'), active ? 0.45 : 0.28);
-    gradient.addColorStop(0, top.getStyle());
-    gradient.addColorStop(1, bottom.getStyle());
-    ctx.fillStyle = gradient;
-    roundRect(ctx, 32, 32, canvas.width - 64, canvas.height - 64, 48);
-    ctx.fill();
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 120px "Inter", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-  };
-
-  draw(false);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-
-  const faceMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), faceMaterial);
-  face.position.z = 0.035;
-
-  const baseMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#0f172a'),
-    metalness: 0.2,
-    roughness: 0.65,
-    clearcoat: 0.3
-  });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(width * 1.04, height * 0.6, 0.08), baseMaterial);
-  base.position.z = -0.02;
-
-  const group = new THREE.Group();
-  group.add(base);
-  group.add(face);
-  group.userData = {
-    type: 'rail-button',
-    action,
-    setActive: (active) => {
-      draw(active);
-      texture.needsUpdate = true;
-    },
-    dispose: () => {
-      texture.dispose();
-      faceMaterial.dispose();
-      baseMaterial.dispose();
-    }
-  };
-
-  return group;
-}
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
+
+function getChipStyle(value) {
+  const base = CHIP_COLORS[value] || '#2563eb';
+  return {
+    background: `radial-gradient(circle at 30% 30%, #ffffff, ${base} 52%, #0f172a 96%)`,
+    boxShadow: '0 12px 20px rgba(0, 0, 0, 0.45)',
+    borderColor: 'rgba(248, 250, 252, 0.9)',
+    color: '#f8fafc',
+    textShadow: '0 0 6px rgba(15, 23, 42, 0.6)'
+  };
+}
 
 function flagToName(flag) {
   if (!flag || !REGION_NAMES) return 'Guest';
@@ -707,33 +618,8 @@ function TexasHoldemArena({ search }) {
     startX: 0,
     startY: 0,
     startYaw: 0,
-    startPitch: 0,
-    mode: 'idle',
-    target: null
+    startPitch: 0
   });
-  const raycasterRef = useRef(new THREE.Raycaster());
-  const pointerVectorRef = useRef(new THREE.Vector2());
-  const interactiveTargetsRef = useRef([]);
-  const sliderStateRef = useRef({
-    group: null,
-    track: null,
-    knob: null,
-    label: null,
-    plane: null,
-    trackLength: 1,
-    dragging: false,
-    pointerId: null
-  });
-  const railButtonsRef = useRef([]);
-  const sliderEnabledRef = useRef(false);
-  const sliderMaxRef = useRef(0);
-  const toCallRef = useRef(0);
-  const finalRaiseRef = useRef(0);
-  const totalSpendRef = useRef(0);
-  const chipClickRef = useRef(() => {});
-  const undoChipRef = useRef(() => {});
-  const handleActionRef = useRef(() => {});
-  const pendingButtonRef = useRef(null);
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
@@ -977,325 +863,30 @@ function TexasHoldemArena({ search }) {
     potStack.position.copy(POT_OFFSET);
     arenaGroup.add(potStack);
 
-    const interactiveTargets = [];
-    const railButtons = [];
-    const railStacks = [];
-
-    const raiseUiCleanup = {
-      colliderGeometry: null,
-      colliderMaterial: null,
-      trackGeometry: null,
-      trackMaterial: null,
-      knobGeometry: null,
-      knobMaterial: null
+    threeRef.current = {
+      renderer,
+      scene,
+      camera,
+      chipFactory,
+      cardGeometry,
+      faceCache,
+      seatGroups,
+      communityMeshes,
+      potStack,
+      deckAnchor,
+      frameId: null
     };
-
-    if (humanSeat) {
-      const railHeight = tableInfo.tableHeight + 0.08;
-      const anchor = humanSeat.forward.clone().multiplyScalar(TABLE_RADIUS * 0.72);
-      anchor.y = railHeight;
-      const raiseRailGroup = new THREE.Group();
-      raiseRailGroup.position.copy(anchor);
-      const lookTarget = humanSeat.stoolAnchor.clone();
-      lookTarget.y = railHeight;
-      raiseRailGroup.lookAt(lookTarget);
-      arenaGroup.add(raiseRailGroup);
-
-      const chipSpacing = chipFactory.chipHeight * 1.9;
-      const chipBaseY = chipFactory.chipHeight * 0.5;
-      const colliderGeometry = new THREE.CylinderGeometry(
-        chipFactory.chipHeight * 0.82,
-        chipFactory.chipHeight * 0.82,
-        chipFactory.chipHeight * 3.2,
-        24,
-        1,
-        true
-      );
-      const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
-
-      CHIP_VALUES.forEach((value, index) => {
-        const stack = chipFactory.createStack(value);
-        stack.scale.setScalar(0.9);
-        stack.position.set((index - (CHIP_VALUES.length - 1) / 2) * chipSpacing, chipBaseY, 0);
-        const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
-        collider.position.y = chipFactory.chipHeight * 1.1;
-        collider.userData = { type: 'chip-button', value };
-        stack.add(collider);
-        raiseRailGroup.add(stack);
-        interactiveTargets.push(collider);
-        railStacks.push(stack);
-      });
-
-      const sliderGroup = new THREE.Group();
-      sliderGroup.position.set(0, chipFactory.chipHeight * 0.4, -chipFactory.chipHeight * 3.2);
-      sliderGroup.visible = false;
-      raiseRailGroup.add(sliderGroup);
-
-      const trackLength = chipSpacing * 4.6;
-      const trackGeometry = new THREE.BoxGeometry(
-        trackLength,
-        chipFactory.chipHeight * 0.55,
-        chipFactory.chipHeight * 2.1
-      );
-      const trackMaterial = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#6b4e2e'),
-        metalness: 0.18,
-        roughness: 0.72,
-        clearcoat: 0.28
-      });
-      const track = new THREE.Mesh(trackGeometry, trackMaterial);
-      track.position.y = chipFactory.chipHeight * 0.2;
-      track.userData = { type: 'slider-track' };
-      sliderGroup.add(track);
-      interactiveTargets.push(track);
-
-      const knobGeometry = new THREE.CylinderGeometry(
-        chipFactory.chipHeight * 0.65,
-        chipFactory.chipHeight * 0.65,
-        chipFactory.chipHeight * 0.9,
-        48
-      );
-      const knobMaterial = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#facc15'),
-        emissive: new THREE.Color('#f59e0b'),
-        emissiveIntensity: 0.18,
-        metalness: 0.42,
-        roughness: 0.28,
-        clearcoat: 0.4
-      });
-      const knob = new THREE.Mesh(knobGeometry, knobMaterial);
-      knob.position.set(-trackLength / 2, chipFactory.chipHeight * 0.9, 0);
-      knob.rotation.x = Math.PI / 2;
-      knob.userData = { type: 'slider-knob' };
-      sliderGroup.add(knob);
-      interactiveTargets.push(knob);
-
-      const labelSprite = createRailLabel(renderer);
-      labelSprite.position.set(0, chipFactory.chipHeight * 2.2, 0.05);
-      sliderGroup.add(labelSprite);
-
-      const confirmButton = createRailButton(renderer, {
-        label: 'Confirm',
-        color: '#2563eb',
-        action: 'confirm'
-      });
-      confirmButton.position.set(trackLength / 2 + 0.7, chipFactory.chipHeight * 1.4, 0);
-      confirmButton.visible = false;
-      sliderGroup.add(confirmButton);
-      interactiveTargets.push(confirmButton);
-      railButtons.push(confirmButton);
-
-      const allInButton = createRailButton(renderer, {
-        label: 'All-in',
-        color: '#dc2626',
-        action: 'all-in',
-        width: 0.78
-      });
-      allInButton.position.set(-trackLength / 2 - 0.7, chipFactory.chipHeight * 1.4, 0);
-      allInButton.visible = false;
-      sliderGroup.add(allInButton);
-      interactiveTargets.push(allInButton);
-      railButtons.push(allInButton);
-
-      const undoButton = createRailButton(renderer, {
-        label: 'Undo',
-        color: '#f59e0b',
-        action: 'undo',
-        width: 0.74
-      });
-      undoButton.position.set(0, chipFactory.chipHeight * 1.32, -0.62);
-      undoButton.visible = false;
-      sliderGroup.add(undoButton);
-      interactiveTargets.push(undoButton);
-      railButtons.push(undoButton);
-
-      sliderStateRef.current.group = sliderGroup;
-      sliderStateRef.current.track = track;
-      sliderStateRef.current.knob = knob;
-      sliderStateRef.current.label = labelSprite;
-      sliderStateRef.current.trackLength = trackLength;
-      sliderStateRef.current.dragging = false;
-      sliderStateRef.current.pointerId = null;
-      sliderStateRef.current.plane = new THREE.Plane();
-      sliderStateRef.current.plane.setFromNormalAndCoplanarPoint(
-        new THREE.Vector3(0, 0, 1).applyQuaternion(sliderGroup.getWorldQuaternion(new THREE.Quaternion())),
-        sliderGroup.getWorldPosition(new THREE.Vector3())
-      );
-
-      interactiveTargetsRef.current = interactiveTargets;
-      railButtonsRef.current = railButtons;
-
-      raiseUiCleanup.colliderGeometry = colliderGeometry;
-      raiseUiCleanup.colliderMaterial = colliderMaterial;
-      raiseUiCleanup.trackGeometry = trackGeometry;
-      raiseUiCleanup.trackMaterial = trackMaterial;
-      raiseUiCleanup.knobGeometry = knobGeometry;
-      raiseUiCleanup.knobMaterial = knobMaterial;
-
-      threeRef.current = {
-        renderer,
-        scene,
-        camera,
-        chipFactory,
-        cardGeometry,
-        faceCache,
-        seatGroups,
-        communityMeshes,
-        potStack,
-        deckAnchor,
-        frameId: null,
-        tableInfo,
-        raiseUi: {
-          group: raiseRailGroup,
-          chipStacks: railStacks,
-          buttons: railButtons,
-          label: labelSprite,
-          cleanup: raiseUiCleanup
-        }
-      };
-    } else {
-      threeRef.current = {
-        renderer,
-        scene,
-        camera,
-        chipFactory,
-        cardGeometry,
-        faceCache,
-        seatGroups,
-        communityMeshes,
-        potStack,
-        deckAnchor,
-        frameId: null,
-        tableInfo,
-        raiseUi: null
-      };
-      interactiveTargetsRef.current = interactiveTargets;
-      railButtonsRef.current = railButtons;
-    }
 
     const element = renderer.domElement;
-
-    const resetPointerState = () => {
-      pointerStateRef.current = {
-        active: false,
-        pointerId: null,
-        startX: 0,
-        startY: 0,
-        startYaw: 0,
-        startPitch: 0,
-        mode: 'idle',
-        target: null
-      };
-    };
-
-    const computePointerRay = (event) => {
-      const rect = element.getBoundingClientRect();
-      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycasterRef.current.setFromCamera(pointerVectorRef.current, camera);
-    };
-
-    const resolveInteractiveTarget = (object) => {
-      let current = object;
-      while (current && current !== scene && !current.userData?.type) {
-        current = current.parent;
-      }
-      if (!current?.userData?.type) return null;
-      return current;
-    };
-
-    const pickInteractive = (event) => {
-      if (!sliderEnabledRef.current) return null;
-      const targets = interactiveTargetsRef.current;
-      if (!targets || targets.length === 0) return null;
-      computePointerRay(event);
-      const hits = raycasterRef.current.intersectObjects(targets, true);
-      if (!hits.length) return null;
-      const hit = hits[0];
-      const target = resolveInteractiveTarget(hit.object);
-      if (!target) return null;
-      return { hit, object: target, type: target.userData.type };
-    };
-
-    const updateSliderFromPoint = (point) => {
-      const sliderState = sliderStateRef.current;
-      const max = sliderMaxRef.current;
-      if (!sliderState.group || !sliderState.knob || max <= 0) return;
-      const localPoint = sliderState.group.worldToLocal(point.clone());
-      const half = sliderState.trackLength / 2;
-      const x = THREE.MathUtils.clamp(localPoint.x, -half, half);
-      const ratio = sliderState.trackLength > 0 ? (x + half) / sliderState.trackLength : 0;
-      const nextValue = Math.max(0, Math.min(max, Math.round(max * ratio)));
-      sliderState.knob.position.x = x;
-      setSliderValue((prev) => (prev === nextValue ? prev : nextValue));
-    };
-
-    const handleRailButton = (action) => {
-      if (!action) return;
-      if (action === 'confirm') {
-        const actionId = toCallRef.current > 0 ? 'raise' : 'bet';
-        handleActionRef.current(actionId, finalRaiseRef.current);
-      } else if (action === 'all-in') {
-        const actionId = toCallRef.current > 0 ? 'raise' : 'bet';
-        handleActionRef.current(actionId, sliderMaxRef.current);
-      } else if (action === 'undo') {
-        undoChipRef.current();
-      }
-    };
-
     const handlePointerDown = (event) => {
       event.preventDefault();
-      const hit = pickInteractive(event);
-      if (hit) {
-        if (hit.type === 'chip-button') {
-          chipClickRef.current(hit.object.userData.value);
-          return;
-        }
-        if (hit.type === 'slider-track' || hit.type === 'slider-knob') {
-          pointerStateRef.current = {
-            active: true,
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            startYaw: headAnglesRef.current.yaw,
-            startPitch: headAnglesRef.current.pitch,
-            mode: 'slider',
-            target: hit.object
-          };
-          sliderStateRef.current.dragging = true;
-          sliderStateRef.current.pointerId = event.pointerId;
-          setChipSelection([]);
-          updateSliderFromPoint(hit.hit.point);
-          element.setPointerCapture(event.pointerId);
-          return;
-        }
-        if (hit.type === 'rail-button') {
-          pointerStateRef.current = {
-            active: true,
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            startYaw: 0,
-            startPitch: 0,
-            mode: 'button',
-            target: hit.object
-          };
-          pendingButtonRef.current = hit.object;
-          hit.object.userData.setActive?.(true);
-          element.setPointerCapture(event.pointerId);
-          return;
-        }
-      }
-
       pointerStateRef.current = {
         active: true,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
         startYaw: headAnglesRef.current.yaw,
-        startPitch: headAnglesRef.current.pitch,
-        mode: 'look',
-        target: null
+        startPitch: headAnglesRef.current.pitch
       };
       element.setPointerCapture(event.pointerId);
     };
@@ -1303,37 +894,6 @@ function TexasHoldemArena({ search }) {
     const handlePointerMove = (event) => {
       const state = pointerStateRef.current;
       if (!state.active || state.pointerId !== event.pointerId) return;
-      if (state.mode === 'slider') {
-        computePointerRay(event);
-        const sliderState = sliderStateRef.current;
-        const track = sliderState.track;
-        let point = null;
-        if (track) {
-          const hits = raycasterRef.current.intersectObject(track, true);
-          if (hits.length) {
-            point = hits[0].point;
-          }
-        }
-        if (!point && sliderState.plane) {
-          const intersection = new THREE.Vector3();
-          if (raycasterRef.current.ray.intersectPlane(sliderState.plane, intersection)) {
-            point = intersection;
-          }
-        }
-        if (point) {
-          updateSliderFromPoint(point);
-        }
-        return;
-      }
-      if (state.mode === 'button') {
-        const dx = Math.abs(event.clientX - state.startX);
-        const dy = Math.abs(event.clientY - state.startY);
-        if (dx > 14 || dy > 14) {
-          pendingButtonRef.current?.userData?.setActive?.(false);
-          pendingButtonRef.current = null;
-        }
-        return;
-      }
       const dx = event.clientX - state.startX;
       const dy = event.clientY - state.startY;
       headAnglesRef.current.yaw = THREE.MathUtils.clamp(
@@ -1351,22 +911,17 @@ function TexasHoldemArena({ search }) {
 
     const handlePointerUp = (event) => {
       const state = pointerStateRef.current;
-      if (state.pointerId !== event.pointerId) return;
-      element.releasePointerCapture(event.pointerId);
-      if (state.mode === 'slider') {
-        sliderStateRef.current.dragging = false;
-        sliderStateRef.current.pointerId = null;
-      } else if (state.mode === 'button') {
-        const dx = Math.abs(event.clientX - state.startX);
-        const dy = Math.abs(event.clientY - state.startY);
-        const button = pendingButtonRef.current;
-        if (button && dx <= 14 && dy <= 14) {
-          handleRailButton(button.userData.action);
-        }
-        button?.userData?.setActive?.(false);
-        pendingButtonRef.current = null;
+      if (state.pointerId === event.pointerId) {
+        element.releasePointerCapture(event.pointerId);
+        pointerStateRef.current = {
+          active: false,
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          startYaw: 0,
+          startPitch: 0
+        };
       }
-      resetPointerState();
     };
 
     element.addEventListener('pointerdown', handlePointerDown);
@@ -1405,14 +960,7 @@ function TexasHoldemArena({ search }) {
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
-        const {
-          renderer: r,
-          scene: s,
-          chipFactory: factory,
-          seatGroups: seats,
-          communityMeshes: community,
-          raiseUi
-        } = threeRef.current;
+        const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, communityMeshes: community } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
@@ -1441,62 +989,12 @@ function TexasHoldemArena({ search }) {
           s.remove(mesh);
         });
         factory.disposeStack(threeRef.current.potStack);
-        if (raiseUi?.chipStacks) {
-          raiseUi.chipStacks.forEach((stack) => {
-            factory.disposeStack(stack);
-            s.remove(stack);
-          });
-        }
-        if (raiseUi?.buttons) {
-          raiseUi.buttons.forEach((button) => {
-            button.userData?.dispose?.();
-            button.traverse?.((child) => {
-              if (child !== button && child.isMesh) {
-                child.geometry?.dispose?.();
-              }
-            });
-            if (button.parent) {
-              button.parent.remove(button);
-            }
-          });
-        }
-        if (raiseUi?.label) {
-          raiseUi.label.material?.dispose?.();
-          raiseUi.label.userData?.texture?.dispose?.();
-          if (raiseUi.label.parent) {
-            raiseUi.label.parent.remove(raiseUi.label);
-          }
-        }
-        if (raiseUi?.group) {
-          s.remove(raiseUi.group);
-        }
-        if (raiseUi?.cleanup) {
-          raiseUi.cleanup.colliderGeometry?.dispose?.();
-          raiseUi.cleanup.colliderMaterial?.dispose?.();
-          raiseUi.cleanup.trackGeometry?.dispose?.();
-          raiseUi.cleanup.trackMaterial?.dispose?.();
-          raiseUi.cleanup.knobGeometry?.dispose?.();
-          raiseUi.cleanup.knobMaterial?.dispose?.();
-        }
         factory.dispose();
         tableInfo?.dispose?.();
         r.dispose();
       }
       mount.removeChild(renderer.domElement);
       threeRef.current = null;
-      sliderStateRef.current = {
-        group: null,
-        track: null,
-        knob: null,
-        label: null,
-        plane: null,
-        trackLength: 1,
-        dragging: false,
-        pointerId: null
-      };
-      interactiveTargetsRef.current = [];
-      railButtonsRef.current = [];
-      pendingButtonRef.current = null;
     };
   }, []);
 
@@ -1636,54 +1134,6 @@ function TexasHoldemArena({ search }) {
   const raisePreview = sliderEnabled ? Math.min(sliderMax, effectiveRaise) : 0;
 
   useEffect(() => {
-    sliderEnabledRef.current = sliderEnabled;
-    sliderMaxRef.current = sliderMax;
-    toCallRef.current = toCall;
-    finalRaiseRef.current = finalRaise;
-    totalSpendRef.current = totalSpend;
-  }, [sliderEnabled, sliderMax, toCall, finalRaise, totalSpend]);
-
-  useEffect(() => {
-    chipClickRef.current = handleChipClick;
-  }, [handleChipClick]);
-
-  useEffect(() => {
-    undoChipRef.current = handleUndoChip;
-  }, [handleUndoChip]);
-
-  useEffect(() => {
-    handleActionRef.current = handleAction;
-  }, [handleAction]);
-
-  useEffect(() => {
-    const sliderState = sliderStateRef.current;
-    const three = threeRef.current;
-    const enabled = sliderEnabled && sliderMax > 0;
-    if (sliderState.group) {
-      sliderState.group.visible = enabled;
-    }
-    railButtonsRef.current.forEach((button) => {
-      if (button) button.visible = enabled;
-    });
-    if (three?.raiseUi?.group) {
-      three.raiseUi.group.visible = enabled;
-    }
-    if (!enabled) {
-      sliderState.dragging = false;
-      sliderState.pointerId = null;
-    }
-    if (!sliderState.knob || sliderState.trackLength <= 0) return;
-    const max = Math.max(0, sliderMax);
-    const value = enabled ? Math.min(max, Math.max(0, sliderValue)) : 0;
-    const half = sliderState.trackLength / 2;
-    const x = max > 0 ? (value / max) * sliderState.trackLength - half : -half;
-    sliderState.knob.position.x = THREE.MathUtils.clamp(x, -half, half);
-    if (sliderState.label) {
-      updateRailLabel(sliderState.label, raisePreview, totalSpend, gameState.token);
-    }
-  }, [sliderEnabled, sliderMax, sliderValue, raisePreview, totalSpend, gameState.token]);
-
-  useEffect(() => {
     if (!actor?.isHuman || gameState.stage === 'showdown') {
       setChipSelection([]);
       setSliderValue(0);
@@ -1734,6 +1184,23 @@ function TexasHoldemArena({ search }) {
     });
   };
 
+  const handleSliderChange = (event) => {
+    const value = Number(event.target.value);
+    setSliderValue(value);
+  };
+
+  const handleRaiseConfirm = () => {
+    if (!sliderEnabled) return;
+    const action = toCall > 0 ? 'raise' : 'bet';
+    handleAction(action, finalRaise);
+  };
+
+  const handleAllIn = () => {
+    if (!sliderEnabled) return;
+    const action = toCall > 0 ? 'raise' : 'bet';
+    handleAction(action, sliderMax);
+  };
+
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
@@ -1761,6 +1228,72 @@ function TexasHoldemArena({ search }) {
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
         <>
+          {sliderEnabled && (
+            <>
+              <div
+                className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
+                style={{ bottom: '22%' }}
+              >
+                <div className="flex flex-wrap justify-center gap-3">
+                  {CHIP_VALUES.map((value) => (
+                    <button
+                      key={value}
+                      onClick={() => handleChipClick(value)}
+                      className="!w-14 !h-14 !rounded-full !border-[3px] !bg-transparent !text-base !font-black !shadow-xl !flex !items-center !justify-center"
+                      style={getChipStyle(value)}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-white/90">
+                  <button
+                    onClick={handleUndoChip}
+                    disabled={!chipSelection.length}
+                    className="!px-3 !py-1 !rounded-full !bg-amber-400/90 !text-black !font-semibold !shadow disabled:opacity-40"
+                  >
+                    Undo
+                  </button>
+                  <span>
+                    Selected raise: {Math.round(raisePreview)} {gameState.token}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute top-1/2 right-3 -translate-y-1/2 flex flex-col items-center gap-4 z-20">
+                <button
+                  onClick={handleAllIn}
+                  disabled={!sliderEnabled}
+                  className="!px-4 !py-1 !rounded-full !border !border-red-300 !bg-red-600/80 !text-white !font-semibold !shadow disabled:opacity-40 disabled:bg-red-600/40"
+                >
+                  All-in
+                </button>
+                <div className="flex flex-col items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={sliderMax}
+                    step={1}
+                    value={Math.min(sliderMax, sliderValue)}
+                    onChange={handleSliderChange}
+                    disabled={!sliderEnabled}
+                    className="pointer-events-auto h-56 w-10 accent-sky-400 bg-transparent"
+                    style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
+                  />
+                  <div className="text-xs text-white/80 text-center space-y-1 max-w-[8rem]">
+                    <div>Raise amount: {Math.round(finalRaise)} {gameState.token}</div>
+                    <div>Total commitment: {Math.round(totalSpend)} {gameState.token}</div>
+                  </div>
+                  <button
+                    onClick={handleRaiseConfirm}
+                    disabled={!sliderEnabled}
+                    className="!px-4 !py-2 !rounded-full !bg-blue-600 !text-white !font-semibold !shadow disabled:opacity-40 disabled:bg-blue-600/40"
+                  >
+                    {sliderLabel} {Math.round(totalSpend)} {gameState.token}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
             {uiState.availableActions.map((action) => (
               <button
@@ -1771,31 +1304,6 @@ function TexasHoldemArena({ search }) {
                 {action.label}
               </button>
             ))}
-            {sliderEnabled && (
-              <>
-                <button
-                  onClick={() => handleAction(toCall > 0 ? 'raise' : 'bet', finalRaise)}
-                  disabled={!sliderEnabled}
-                  className="px-5 py-2 rounded-lg bg-sky-600/90 text-white font-semibold shadow-lg disabled:opacity-40"
-                >
-                  {sliderLabel} {Math.round(totalSpend)} {gameState.token}
-                </button>
-                <button
-                  onClick={() => handleAction(toCall > 0 ? 'raise' : 'bet', sliderMax)}
-                  disabled={!sliderEnabled}
-                  className="px-5 py-2 rounded-lg bg-red-600/80 text-white font-semibold shadow-lg disabled:opacity-40"
-                >
-                  All-in {Math.round(toCall + sliderMax)} {gameState.token}
-                </button>
-                <button
-                  onClick={handleUndoChip}
-                  disabled={!sliderEnabled || chipSelection.length === 0}
-                  className="px-5 py-2 rounded-lg bg-amber-500/80 text-white font-semibold shadow-lg disabled:opacity-40"
-                >
-                  Undo Chip
-                </button>
-              </>
-            )}
           </div>
         </>
       )}
