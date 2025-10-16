@@ -287,6 +287,8 @@ const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
 const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
+const AI_TURN_DELAY = 2000;
+const TURN_FOCUS_HOLD_MS = AI_TURN_DELAY;
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -358,6 +360,8 @@ export default function MurlanRoyaleArena({ search }) {
   });
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
+  const prevStateRef = useRef(null);
+  const focusTimerRef = useRef(null);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -534,21 +538,29 @@ export default function MurlanRoyaleArena({ search }) {
     three.cameraAnimationId = requestAnimationFrame(step);
   }, []);
 
-  const focusCameraOnActivePlayer = useCallback(
-    (state, immediate = false) => {
-      if (!state) return;
+  const focusCameraOnPlayer = useCallback(
+    (playerIndex, immediate = false) => {
+      if (typeof playerIndex !== 'number') return;
       const three = threeStateRef.current;
       const seatConfigs = three.seatConfigs;
       if (!seatConfigs?.length) return;
-      const activeIdx = state.activePlayer;
-      if (typeof activeIdx !== 'number') return;
-      const seat = seatConfigs[activeIdx];
+      const seat = seatConfigs[playerIndex];
       if (!seat) return;
       const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
       const desiredTheta = Math.PI / 2 - seatAngle;
       moveCameraToTheta(desiredTheta, immediate);
     },
     [moveCameraToTheta]
+  );
+
+  const focusCameraOnActivePlayer = useCallback(
+    (state, immediate = false) => {
+      if (!state) return;
+      const activeIdx = state.activePlayer;
+      if (typeof activeIdx !== 'number') return;
+      focusCameraOnPlayer(activeIdx, immediate);
+    },
+    [focusCameraOnPlayer]
   );
 
   const applyStateToScene = useCallback((state, selection, immediate = false) => {
@@ -808,13 +820,43 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   useEffect(() => {
+    const prev = prevStateRef.current;
+    prevStateRef.current = gameState;
     gameStateRef.current = gameState;
     setUiState(computeUiState(gameState));
-    if (threeReady) {
-      applyStateToScene(gameState, selectedRef.current);
-      focusCameraOnActivePlayer(gameState);
+    if (!threeReady) return;
+
+    applyStateToScene(gameState, selectedRef.current);
+
+    if (focusTimerRef.current) {
+      clearTimeout(focusTimerRef.current);
+      focusTimerRef.current = null;
     }
-  }, [gameState, threeReady, applyStateToScene, focusCameraOnActivePlayer]);
+
+    const initialRun = !prev;
+    if (initialRun) {
+      focusCameraOnActivePlayer(gameState, true);
+      return;
+    }
+
+    const newCardsPlayed =
+      prev.tableCards !== gameState.tableCards &&
+      Array.isArray(gameState.tableCards) &&
+      gameState.tableCards.length > 0;
+
+    if (newCardsPlayed && typeof prev.activePlayer === 'number') {
+      focusCameraOnPlayer(prev.activePlayer);
+      focusTimerRef.current = setTimeout(() => {
+        const latest = gameStateRef.current;
+        if (!latest) return;
+        focusCameraOnActivePlayer(latest);
+        focusTimerRef.current = null;
+      }, TURN_FOCUS_HOLD_MS);
+      return;
+    }
+
+    focusCameraOnActivePlayer(gameState);
+  }, [gameState, threeReady, applyStateToScene, focusCameraOnActivePlayer, focusCameraOnPlayer]);
 
   useEffect(() => {
     selectedRef.current = selectedIds;
@@ -1294,7 +1336,7 @@ export default function MurlanRoyaleArena({ search }) {
       occupant.add(collar);
       chair.add(occupant);
 
-      const angle = (i / CHAIR_COUNT) * Math.PI * 2 + Math.PI / 2;
+      const angle = Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
       const x = Math.cos(angle) * chairRadius;
       const z = Math.sin(angle) * chairRadius;
       const chairBaseHeight = TABLE_HEIGHT - seatThickness * 0.85;
@@ -1608,6 +1650,10 @@ export default function MurlanRoyaleArena({ search }) {
           }
         );
       }
+      if (focusTimerRef.current) {
+        clearTimeout(focusTimerRef.current);
+        focusTimerRef.current = null;
+      }
       threeStateRef.current = {
         renderer: null,
         scene: null,
@@ -1661,7 +1707,7 @@ export default function MurlanRoyaleArena({ search }) {
         if (!current || current.isHuman) return prev;
         return runAiTurn(prev);
       });
-    }, 750);
+    }, AI_TURN_DELAY);
     return () => clearTimeout(timer);
   }, [gameState, threeReady]);
 
