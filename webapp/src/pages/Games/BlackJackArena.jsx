@@ -454,17 +454,17 @@ function BlackJackArena({ search }) {
       CAMERA_SETTINGS.near,
       CAMERA_SETTINGS.far
     );
-    camera.position.set(0, TABLE_HEIGHT * 3.4, TABLE_RADIUS * 3.1);
+    camera.position.set(0, TABLE_HEIGHT * 3.2, TABLE_RADIUS * 3.3);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.66);
     scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 2.4, TABLE_RADIUS * 8, Math.PI / 3, 0.35, 1);
+    const spot = new THREE.SpotLight(0xffffff, 2.88, TABLE_RADIUS * 8, Math.PI / 3, 0.35, 1);
     spot.position.set(4, 7, 4);
     spot.castShadow = true;
     scene.add(spot);
-    const rim = new THREE.PointLight(0x60a5fa, 1.1);
+    const rim = new THREE.PointLight(0x60a5fa, 1.32);
     rim.position.set(-4, 3, -3);
     scene.add(rim);
 
