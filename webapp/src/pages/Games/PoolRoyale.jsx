@@ -3837,7 +3837,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.036; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.042; // push cushions slightly farther from the rails so they clear the wood trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
