@@ -35,6 +35,10 @@ public class CueCamera : MonoBehaviour
     public float cueMinimumDistance = 0.02f;
     // Height the cue view should reach when the player lifts the camera.
     public float cueRaisedHeight = 0.92f;
+    // Extra padding applied when the player lifts the camera so the frame has
+    // a little more breathing room above the shaft while keeping the cue in
+    // view.
+    public float cueRaisedHeightPadding = 0.05f;
     // Minimum height maintained when the player drops the camera toward the cue.
     public float cueLoweredHeight = 0.3f;
     // Extra forward push applied as the player lowers the camera so the framing
@@ -356,10 +360,11 @@ public class CueCamera : MonoBehaviour
             cueSamplePoint.y = Mathf.Max(cueSamplePoint.y, aimLineHeight);
         }
 
-        float minimumCueHeight = CueBall.position.y + cueBallRadius + Mathf.Max(0f, cueHeightClearance);
+        float cueSurfaceHeight = CueBall.position.y + cueBallRadius;
+        float minimumCueHeight = cueSurfaceHeight + Mathf.Max(0f, cueHeightClearance);
         minimumCueHeight = Mathf.Max(minimumCueHeight, cueSamplePoint.y + Mathf.Max(0f, cueHeightClearance));
 
-        float raisedHeight = Mathf.Max(minimumCueHeight, cueRaisedHeight);
+        float raisedHeight = Mathf.Max(minimumCueHeight, cueRaisedHeight + Mathf.Max(0f, cueRaisedHeightPadding));
         float loweredHeight = Mathf.Max(minimumCueHeight, cueLoweredHeight);
         float height = Mathf.Lerp(raisedHeight, loweredHeight, blend);
         float clothAnchorHeight = minimumCueHeight;
@@ -367,7 +372,7 @@ public class CueCamera : MonoBehaviour
         height = clothAnchorHeight + (height - clothAnchorHeight) * heightScale;
         float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
         height = Mathf.Max(height, minRailHeight);
-        height = Mathf.Max(height, CueBall.position.y + cueBallRadius);
+        height = Mathf.Max(height, cueSurfaceHeight + Mathf.Max(0f, cueHeightClearance));
 
         Vector3 focus = CueBall.position;
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
@@ -543,8 +548,7 @@ public class CueCamera : MonoBehaviour
         }
 
         float raisedFov = Mathf.Clamp(cueRaisedFieldOfView, 10f, 120f);
-        float loweredFov = Mathf.Clamp(cueLoweredFieldOfView, 10f, 120f);
-        float targetFov = Mathf.Lerp(raisedFov, loweredFov, Mathf.Clamp01(loweringBlend));
+        float targetFov = raisedFov;
 
         float smoothSpeed = Mathf.Max(0f, cueAimZoomSmoothSpeed);
         if (deltaTime <= 0f || smoothSpeed <= 0f)
@@ -937,7 +941,9 @@ public class CueCamera : MonoBehaviour
         float heightBias = Mathf.Clamp01(cueAimHeightFocus);
         float heightBlend = Mathf.Lerp(heightBias, 0.85f, Mathf.Clamp01(lowering));
         float desiredHeight = Mathf.Lerp(minimumLookHeight, railLookHeight, heightBlend);
-        lookPoint.y = Mathf.Max(desiredHeight, minimumLookHeight);
+        float aimPlaneHeight = aimEnd.y + cueBallLookOffset;
+        float leveledHeight = Mathf.Lerp(desiredHeight, aimPlaneHeight, lowering);
+        lookPoint.y = Mathf.Max(leveledHeight, minimumLookHeight);
 
         return lookPoint;
     }
