@@ -76,9 +76,9 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(5);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.85, landscape: 2.2 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 0.22, landscape: 0.18 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.25, landscape: 1.7 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 1.08 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
