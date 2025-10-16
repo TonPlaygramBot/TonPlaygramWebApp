@@ -657,7 +657,8 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
+const TABLE_HEIGHT_REDUCTION = 0.8; // lower the overall table stance so the playfield sits 20% closer to the floor
+const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
@@ -680,8 +681,9 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the g
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
+const TABLE_RAIL_SURFACE_Y = TABLE_Y + TABLE_RAIL_TOP_Y;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.05; // keep orbit height just above the cue stick
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.12; // keep orbit height just above the cue stick
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
@@ -2285,13 +2287,13 @@ const CAMERA_ABS_MIN_PHI = 0.3;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.24);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.08; // allow a flatter cue view while keeping the lens clear of the rails
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.037;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.28;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.004;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
@@ -2345,6 +2347,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
+const CAMERA_MIN_HEIGHT = TABLE_RAIL_SURFACE_Y + CAMERA_RAIL_SAFETY;
 const CUE_VIEW_RADIUS_RATIO = 0.05;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.22;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -2390,7 +2393,7 @@ const signed = (value, fallback = 1) =>
 const computeStandingViewHeight = (
   targetHeight,
   horizontalDistance,
-  minHeight = TABLE_Y + TABLE.THICK
+  minHeight = CAMERA_MIN_HEIGHT
 ) => {
   if (!Number.isFinite(horizontalDistance) || horizontalDistance <= 0) {
     return Math.max(minHeight, targetHeight);
@@ -2402,7 +2405,7 @@ const computeStandingViewHeight = (
 const applyStandingViewElevation = (
   desired,
   focus,
-  minHeight = TABLE_Y + TABLE.THICK
+  minHeight = CAMERA_MIN_HEIGHT
 ) => {
   if (!desired || !focus) return;
   const horizontalDistance = Math.hypot(
@@ -7760,10 +7763,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             0,
             CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
           );
+          const railClamp = Math.max(0, CAMERA_MIN_HEIGHT - orbitTargetY);
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
             (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE,
-            cueClearance
+            cueClearance,
+            railClamp
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / radius, -1, 1)
@@ -8076,10 +8081,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             0,
             CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
           );
+          const railClamp = Math.max(0, CAMERA_MIN_HEIGHT - orbitTargetY);
           const cushionLimit = Math.max(
             TABLE.THICK * 0.5,
             (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE,
-            cueClearance
+            cueClearance,
+            railClamp
           );
           const phiCap = Math.acos(
             THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
