@@ -21,6 +21,9 @@ public class CameraController : MonoBehaviour
     // Extra clearance used when clamping the camera height so it always remains
     // above the cue stick and keeps the stick visible in frame.
     public float cueStickHeightClearance = 0.05f;
+    // Radius of the cue ball so the camera can stay above the top surface of
+    // the cue stick as it rests on the cloth.
+    public float cueBallRadius = 0.028575f;
     // Minimum distance the camera should maintain when hugging the table so the
     // framing ends up closer to the cue ball without drifting toward the butt of
     // the cue stick.
@@ -75,10 +78,13 @@ public class CameraController : MonoBehaviour
         // and doesn't fly too high above the table surface.
         Vector3 pos = transform.position;
         float minRailY = railTopY + Mathf.Max(0f, railClearance);
+        float cueTopClearance = Mathf.Max(0f, cueStickHeightClearance);
+        float cueRadius = Mathf.Max(0f, cueBallRadius);
         float cueStickMinY = player != null
-            ? player.position.y + Mathf.Max(0f, cueStickHeightClearance)
+            ? player.position.y + cueRadius + cueTopClearance
             : minRailY;
-        float minY = Mathf.Max(minRailY, cueStickMinY, tableTopY + Mathf.Max(0f, cueStickHeightClearance));
+        float tableCueMinY = tableTopY + cueRadius + cueTopClearance;
+        float minY = Mathf.Max(minRailY, cueStickMinY, tableCueMinY);
         float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
@@ -163,7 +169,9 @@ public class CameraController : MonoBehaviour
         Vector3 lookTarget = tableFocus;
         if (player != null)
         {
-            float focusHeight = Mathf.Max(tableTopY + lookAtHeightOffset, player.position.y + Mathf.Max(0f, cueStickHeightClearance));
+            float focusHeight = Mathf.Max(
+                tableTopY + lookAtHeightOffset,
+                player.position.y + cueRadius + cueTopClearance);
             Vector3 playerFocus = new Vector3(player.position.x, focusHeight, player.position.z);
             lookTarget = Vector3.Lerp(tableFocus, playerFocus, focusBlend);
         }
