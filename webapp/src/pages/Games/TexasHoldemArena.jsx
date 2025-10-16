@@ -4,10 +4,26 @@ import * as THREE from 'three';
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import { createMurlanStyleTable } from '../../utils/murlanTable.js';
-import { createCardGeometry, createCardMesh, orientCard, setCardFace } from '../../utils/cards3d.js';
+import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
+import {
+  createCardGeometry,
+  createCardMesh,
+  orientCard,
+  setCardFace,
+  CARD_THEMES
+} from '../../utils/cards3d.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import {
+  TABLE_WOOD_OPTIONS,
+  TABLE_CLOTH_OPTIONS,
+  TABLE_BASE_OPTIONS,
+  DEFAULT_TABLE_CUSTOMIZATION,
+  WOOD_PRESETS_BY_ID,
+  WOOD_GRAIN_OPTIONS,
+  WOOD_GRAIN_OPTIONS_BY_ID
+} from '../../utils/tableCustomizationOptions.js';
+import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 
 import {
   createDeck,
@@ -73,22 +89,31 @@ const AI_LABEL_FORWARD = 0.98 * MODEL_SCALE;
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.72;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const SLIDER_LENGTH = CARD_W * 4.8;
 const SLIDER_THICKNESS = CARD_D * 14;
-const SLIDER_DEPTH = CARD_W * 0.48;
 const BUTTON_WIDTH = CARD_W * 1.75;
 const BUTTON_HEIGHT = CARD_D * 16;
 const BUTTON_DEPTH = CARD_W * 0.58;
 const RAIL_FRAME_FORWARD_OFFSET = CARD_W * 0.52;
 const RAIL_FRAME_DEPTH = CARD_W * 3.2;
 const RAIL_FRAME_THICKNESS = CARD_D * 12;
-const RAIL_SLIDER_INSET = CARD_W * 0.12;
 const RAIL_INFO_INSET = CARD_W * 0.44;
 const RAIL_BUTTON_INSET = CARD_W * 0.2;
-const RAIL_CHIP_INSET = CARD_W * 0.32;
+const RAIL_CHIP_INSET = CARD_W * 0.05;
 const RAIL_ANCHOR_RATIO = 0.98;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
+
+const APPEARANCE_STORAGE_KEY = 'texasHoldemArenaAppearance';
+const DEFAULT_APPEARANCE = {
+  ...DEFAULT_TABLE_CUSTOMIZATION
+};
+
+const CUSTOMIZATION_SECTIONS = [
+  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
+  { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
+  { key: 'cards', label: 'Letrat', options: CARD_THEMES }
+];
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
 
@@ -137,6 +162,24 @@ function buildPlayers(search) {
     });
   }
   return players;
+}
+
+function normalizeAppearance(value = {}) {
+  const normalized = { ...DEFAULT_APPEARANCE };
+  const entries = [
+    ['tableWood', TABLE_WOOD_OPTIONS.length],
+    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
+    ['tableBase', TABLE_BASE_OPTIONS.length],
+    ['cards', CARD_THEMES.length]
+  ];
+  entries.forEach(([key, max]) => {
+    const raw = Number(value?.[key]);
+    if (Number.isFinite(raw)) {
+      const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
+      normalized[key] = clamped;
+    }
+  });
+  return normalized;
 }
 
 function createSeatLayout(count) {
@@ -357,7 +400,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const frameCenter = anchor.clone().addScaledVector(forward, -RAIL_FRAME_FORWARD_OFFSET);
 
   const frameQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis);
-  const frameWidth = SLIDER_LENGTH + BUTTON_WIDTH * 2.9;
+  const frameWidth = BUTTON_WIDTH * 3.4;
   const frameGeometry = new THREE.BoxGeometry(frameWidth, RAIL_FRAME_THICKNESS, RAIL_FRAME_DEPTH);
   const frameMaterial = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#4a2f1a'),
@@ -406,77 +449,21 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     return chip;
   });
 
-  const trackGeometry = new THREE.BoxGeometry(SLIDER_LENGTH, SLIDER_THICKNESS, SLIDER_DEPTH);
-  const trackMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#1f2937'),
-    roughness: 0.44,
-    metalness: 0.48,
-    clearcoat: 0.85,
-    clearcoatRoughness: 0.24
-  });
-  const track = new THREE.Mesh(trackGeometry, trackMaterial);
-  track.castShadow = true;
-  track.receiveShadow = true;
-  track.setRotationFromQuaternion(frameQuaternion);
-  const trackPosition = frameCenter.clone().addScaledVector(forward, RAIL_SLIDER_INSET);
-  trackPosition.y = anchor.y + SLIDER_THICKNESS * 0.35;
-  track.position.copy(trackPosition);
-  track.userData = { type: 'slider-track' };
-  group.add(track);
-
-  const handleGeometry = new THREE.CylinderGeometry(SLIDER_DEPTH * 0.55, SLIDER_DEPTH * 0.55, SLIDER_THICKNESS * 0.9, 32);
-  const handleMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#facc15'),
-    roughness: 0.22,
-    metalness: 0.82,
-    clearcoat: 1,
-    clearcoatRoughness: 0.12
-  });
-  const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-  handle.castShadow = true;
-  handle.userData = { type: 'slider-handle' };
-  const sliderOrigin = trackPosition.clone().addScaledVector(axis, -SLIDER_LENGTH / 2);
-  const handleHeight = trackPosition.y + SLIDER_THICKNESS / 2 + (SLIDER_THICKNESS * 0.9) / 2;
-  handle.position.copy(sliderOrigin);
-  handle.position.y = handleHeight;
-  group.add(handle);
-
-  const sliderPlane = new THREE.Plane(forward.clone(), -forward.clone().dot(trackPosition));
   const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 2.2 * MODEL_SCALE, height: 0.8 * MODEL_SCALE });
-  infoSprite.position.copy(frameCenter).addScaledVector(forward, -RAIL_INFO_INSET);
+  infoSprite.position.copy(frameCenter).addScaledVector(forward, -RAIL_INFO_INSET * 0.6);
   infoSprite.position.y = anchor.y + SLIDER_THICKNESS * 0.72;
   group.add(infoSprite);
 
-  const confirmButton = createRailButton(['Raise', '0'], '#2563eb');
-  confirmButton.group.position
-    .copy(trackPosition)
-    .addScaledVector(axis, SLIDER_LENGTH / 2 + BUTTON_WIDTH * 0.7)
-    .addScaledVector(forward, -RAIL_BUTTON_INSET);
-  confirmButton.group.userData.action = 'confirm';
-  group.add(confirmButton.group);
-
-  const allInButton = createRailButton(['All-in', '0'], '#dc2626');
-  allInButton.group.position
-    .copy(trackPosition)
-    .addScaledVector(axis, SLIDER_LENGTH / 2 + BUTTON_WIDTH * 2.05)
-    .addScaledVector(forward, -RAIL_BUTTON_INSET);
-  allInButton.group.userData.action = 'all-in';
-  group.add(allInButton.group);
-
   const undoButton = createRailButton(['Undo'], '#f59e0b');
   undoButton.group.position
-    .copy(trackPosition)
-    .addScaledVector(axis, -SLIDER_LENGTH / 2 - BUTTON_WIDTH * 0.8)
+    .copy(frameCenter)
+    .addScaledVector(axis, -BUTTON_WIDTH * 1.6)
     .addScaledVector(forward, -RAIL_BUTTON_INSET);
   undoButton.group.userData.action = 'undo';
   group.add(undoButton.group);
 
   const interactables = [
     ...chipButtons,
-    track,
-    handle,
-    confirmButton.group,
-    allInButton.group,
     undoButton.group
   ];
 
@@ -487,16 +474,10 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
         chip.parent.remove(chip);
       }
     });
-    trackGeometry.dispose();
-    trackMaterial.dispose();
-    handleGeometry.dispose();
-    handleMaterial.dispose();
     frameGeometry.dispose();
     frameMaterial.dispose();
     insetGeometry.dispose();
     insetMaterial.dispose();
-    confirmButton.dispose();
-    allInButton.dispose();
     undoButton.dispose();
     infoSprite.userData?.dispose?.();
     if (group.parent) {
@@ -507,21 +488,8 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   return {
     group,
     chipButtons,
-    slider: {
-      track,
-      handle,
-      axis,
-      origin: sliderOrigin,
-      length: SLIDER_LENGTH,
-      plane: sliderPlane,
-      heightOffset: handleHeight - sliderOrigin.y,
-      info: infoSprite,
-      max: 0,
-      value: 0
-    },
+    info: infoSprite,
     buttons: {
-      confirm: confirmButton,
-      allIn: allInButton,
       undo: undoButton
     },
     interactables,
@@ -529,14 +497,21 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   };
 }
 
-function applyCardToMesh(mesh, card, geometry, cache) {
-  if (!mesh || !card) return;
-  const prev = mesh.userData?.card;
-  if (prev && prev.rank === card.rank && prev.suit === card.suit) {
-    mesh.userData.card = card;
+function applyCardToMesh(mesh, card, geometry, cache, theme) {
+  if (!mesh) return;
+  const target = card || mesh.userData?.card;
+  if (!target) return;
+  const previousCard = mesh.userData?.card;
+  const previousTheme = mesh.userData?.cardThemeId;
+  const nextTheme = theme || CARD_THEMES[0];
+  const sameCard =
+    previousCard && previousCard.rank === target.rank && previousCard.suit === target.suit && previousTheme === nextTheme.id;
+  if (sameCard) {
+    mesh.userData.card = target;
+    mesh.userData.cardThemeId = nextTheme.id;
     return;
   }
-  const fresh = createCardMesh(card, geometry, cache);
+  const fresh = createCardMesh(target, geometry, cache, nextTheme);
   const existing = mesh.material;
   if (Array.isArray(existing)) {
     existing.forEach((mat) => mat?.dispose?.());
@@ -544,7 +519,9 @@ function applyCardToMesh(mesh, card, geometry, cache) {
     existing?.dispose?.();
   }
   mesh.material = fresh.material;
-  mesh.userData = { ...mesh.userData, ...fresh.userData, card };
+  const currentFace = mesh.userData?.cardFace || 'front';
+  mesh.userData = { ...mesh.userData, ...fresh.userData, card: target, cardThemeId: nextTheme.id, cardFace: currentFace };
+  setCardFace(mesh, currentFace);
 }
 
 function buildInitialState(players, token, stake) {
@@ -937,7 +914,6 @@ function TexasHoldemArena({ search }) {
     onUndo: () => {}
   });
   const hoverTargetRef = useRef(null);
-  const sliderEnabledRef = useRef(false);
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
@@ -953,6 +929,20 @@ function TexasHoldemArena({ search }) {
   });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
+  const [appearance, setAppearance] = useState(() => {
+    if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
+    try {
+      const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
+      if (!stored) return { ...DEFAULT_APPEARANCE };
+      const parsed = JSON.parse(stored);
+      return normalizeAppearance(parsed);
+    } catch (error) {
+      console.warn('Failed to load Texas Hold\'em appearance', error);
+      return { ...DEFAULT_APPEARANCE };
+    }
+  });
+  const appearanceRef = useRef(appearance);
+  const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
 
   const applyHeadOrientation = useCallback(() => {
@@ -976,6 +966,122 @@ function TexasHoldemArena({ search }) {
   }, []);
 
   useEffect(() => {
+    appearanceRef.current = appearance;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+      } catch (error) {
+        console.warn('Failed to persist Texas Hold\'em appearance', error);
+      }
+    }
+    const three = threeRef.current;
+    if (!three) return;
+    const safe = normalizeAppearance(appearance);
+    const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
+    if (three.tableInfo?.materials) {
+      applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
+    }
+    three.cardThemeId = cardTheme.id;
+    const applyThemeToMesh = (mesh, cardData) => {
+      if (!mesh) return;
+      const priorFace = mesh.userData?.cardFace || 'front';
+      applyCardToMesh(mesh, cardData, three.cardGeometry, three.faceCache, cardTheme);
+      setCardFace(mesh, priorFace);
+    };
+    three.seatGroups?.forEach((seat) => {
+      seat.cardMeshes.forEach((mesh) => {
+        const data = mesh.userData?.card;
+        if (data) {
+          applyThemeToMesh(mesh, data);
+        } else {
+          applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
+        }
+      });
+    });
+    three.communityMeshes?.forEach((mesh) => {
+      const data = mesh.userData?.card;
+      if (data) {
+        applyThemeToMesh(mesh, data);
+      } else {
+        applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
+      }
+    });
+  }, [appearance]);
+
+  const renderPreview = useCallback((type, option) => {
+    switch (type) {
+      case 'tableWood': {
+        const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
+        const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
+        const presetRef = preset || WOOD_FINISH_PRESETS?.[0];
+        const baseHex = presetRef ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light).toString(16).padStart(6, '0')}` : '#8b5a2b';
+        const accentHex = presetRef
+          ? `#${hslToHexNumber(
+              presetRef.hue,
+              Math.min(1, presetRef.sat + 0.12),
+              Math.max(0, presetRef.light - 0.18)
+            )
+              .toString(16)
+              .padStart(6, '0')}`
+          : '#5a3820';
+        const grainLabel = grain?.label ?? WOOD_GRAIN_OPTIONS?.[0]?.label ?? '';
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
+            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
+              {grainLabel.slice(0, 12)}
+            </div>
+          </div>
+        );
+      }
+      case 'tableCloth':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="h-12 w-20 rounded-[999px] border border-white/10"
+                style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
+              />
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
+          </div>
+        );
+      case 'tableBase':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor})` }} />
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
+          </div>
+        );
+      case 'cards':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0" style={{
+              background: `linear-gradient(135deg, ${option.backGradient?.[0] ?? option.backColor}, ${option.backGradient?.[1] ?? option.backColor})`
+            }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-black/50 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/80">
+                {option.label}
+              </span>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }, []);
+
+  useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -994,11 +1100,11 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.near,
       CAMERA_SETTINGS.far
     );
-    camera.position.set(0, TABLE_HEIGHT * 3.3, TABLE_RADIUS * 3.6);
+    camera.position.set(0, TABLE_HEIGHT * 3.05, TABLE_RADIUS * 3.6);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.72);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambient);
     const spot = new THREE.SpotLight(0xffffff, 4.032, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
     spot.position.set(3, 7, 3);
@@ -1036,9 +1142,15 @@ function TexasHoldemArena({ search }) {
     arenaGroup.add(wall);
 
     const tableInfo = createMurlanStyleTable({ arena: arenaGroup, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
+    const initialAppearance = normalizeAppearance(appearanceRef.current);
+    const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    applyTableMaterials(tableInfo.materials, { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase }, renderer);
 
     const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
     const faceCache = new Map();
+    const cardTheme = CARD_THEMES[initialAppearance.cards] ?? CARD_THEMES[0];
 
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
     const seatLayout = createSeatLayout(PLAYER_COUNT);
@@ -1169,7 +1281,7 @@ function TexasHoldemArena({ search }) {
       arenaGroup.add(group);
 
       const cardMeshes = [0, 1].map(() => {
-        const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache);
+        const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
         mesh.position.copy(deckAnchor);
         mesh.castShadow = true;
         arenaGroup.add(mesh);
@@ -1210,7 +1322,7 @@ function TexasHoldemArena({ search }) {
     });
 
     const communityMeshes = Array.from({ length: 5 }, () => {
-      const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache);
+      const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
       mesh.position.copy(deckAnchor);
       mesh.castShadow = true;
       arenaGroup.add(mesh);
@@ -1222,7 +1334,6 @@ function TexasHoldemArena({ search }) {
     arenaGroup.add(potStack);
 
     const raycaster = new THREE.Raycaster();
-    const sliderPoint = new THREE.Vector3();
 
     threeRef.current = {
       renderer,
@@ -1250,7 +1361,9 @@ function TexasHoldemArena({ search }) {
         head: headGeometry,
         collar: collarGeometry
       },
-      arenaGroup
+      arenaGroup,
+      tableInfo,
+      cardThemeId: cardTheme.id
     };
 
     const element = renderer.domElement;
@@ -1299,23 +1412,6 @@ function TexasHoldemArena({ search }) {
       return { target, point: intersects[0].point };
     };
 
-    const computeSliderValue = (event) => {
-      const controls = getControls();
-      if (!controls?.group?.visible) return null;
-      const slider = controls.slider;
-      if (!slider || slider.max <= 0) return null;
-      const rect = element.getBoundingClientRect();
-      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointerVectorRef.current, camera);
-      const hit = raycaster.ray.intersectPlane(slider.plane, sliderPoint);
-      if (!hit) return null;
-      const offset = sliderPoint.clone().sub(slider.origin);
-      const distance = THREE.MathUtils.clamp(offset.dot(slider.axis), 0, slider.length);
-      const ratio = slider.length > 0 ? distance / slider.length : 0;
-      return slider.max * ratio;
-    };
-
     const resetPointerState = () => {
       pointerStateRef.current = {
         active: false,
@@ -1355,12 +1451,6 @@ function TexasHoldemArena({ search }) {
         element.setPointerCapture(event.pointerId);
         if (type === 'chip-button') {
           interactionsRef.current.onChip?.(target.userData.value);
-        } else if (type === 'slider-track' || type === 'slider-handle') {
-          const value = computeSliderValue(event);
-          if (value !== null) {
-            interactionsRef.current.onSliderChange?.(value);
-          }
-          element.style.cursor = 'grabbing';
         } else if (type === 'button') {
           element.style.cursor = 'pointer';
         }
@@ -1410,13 +1500,6 @@ function TexasHoldemArena({ search }) {
         applyHeadOrientation();
         return;
       }
-      if (state.mode === 'slider-track' || state.mode === 'slider-handle') {
-        const value = computeSliderValue(event);
-        if (value !== null) {
-          interactionsRef.current.onSliderChange?.(value);
-        }
-        return;
-      }
       if (state.mode === 'button' || state.mode === 'chip-button') {
         const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
         state.dragged = distance > 10;
@@ -1428,11 +1511,7 @@ function TexasHoldemArena({ search }) {
       if (state.pointerId === event.pointerId) {
         element.releasePointerCapture(event.pointerId);
         if (state.mode === 'button' && !state.dragged) {
-          if (state.buttonAction === 'confirm') {
-            interactionsRef.current.onConfirm?.();
-          } else if (state.buttonAction === 'all-in') {
-            interactionsRef.current.onAllIn?.();
-          } else if (state.buttonAction === 'undo') {
+          if (state.buttonAction === 'undo') {
             interactionsRef.current.onUndo?.();
           }
         }
@@ -1544,6 +1623,7 @@ function TexasHoldemArena({ search }) {
     const three = threeRef.current;
     if (!three) return;
     const { seatGroups, communityMeshes, chipFactory, potStack } = three;
+    const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
     state.players.forEach((player, idx) => {
@@ -1560,7 +1640,7 @@ function TexasHoldemArena({ search }) {
           return;
         }
         mesh.visible = !player.folded || state.showdown;
-        applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache);
+        applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
         const target = base
           .clone()
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING));
@@ -1587,7 +1667,7 @@ function TexasHoldemArena({ search }) {
         return;
       }
       mesh.visible = true;
-      applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache);
+      applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
       const offset = (idx - 2) * COMMUNITY_SPACING;
       const position = new THREE.Vector3(offset, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
       mesh.position.copy(position);
@@ -1674,6 +1754,10 @@ function TexasHoldemArena({ search }) {
   const sliderEnabled = Boolean(actor?.isHuman && uiState.canRaise && sliderMax > 0);
   const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
   const raisePreview = sliderEnabled ? Math.min(sliderMax, effectiveRaise) : 0;
+  const overlaySelected = Math.round(Math.min(sliderMax, Math.max(0, raisePreview)));
+  const overlayTotal = Math.round(totalSpend);
+  const overlayConfirmDisabled = !sliderEnabled || overlayTotal <= 0;
+  const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
 
   useEffect(() => {
     if (!actor?.isHuman || gameState.stage === 'showdown') {
@@ -1705,9 +1789,6 @@ function TexasHoldemArena({ search }) {
     seat.previewStack.visible = amount > 0;
   }, [raisePreview, sliderEnabled]);
 
-  useEffect(() => {
-    sliderEnabledRef.current = sliderEnabled;
-  }, [sliderEnabled]);
 
   useEffect(() => {
     const three = threeRef.current;
@@ -1731,48 +1812,22 @@ function TexasHoldemArena({ search }) {
         }
         hoverTargetRef.current = null;
       }
-      controls.buttons.confirm.setHover(false);
-      controls.buttons.confirm.setEnabled(false);
-      controls.buttons.allIn.setHover(false);
-      controls.buttons.allIn.setEnabled(false);
       controls.buttons.undo.setHover(false);
       controls.buttons.undo.setEnabled(false);
-      controls.slider.handle.visible = false;
-      controls.slider.info.userData.update(['Raise 0', 'Total 0']);
+      controls.info.visible = false;
+      controls.info.userData.update(['Raise 0', 'Total 0']);
       return;
     }
-    controls.slider.max = sliderMax;
-    const displayValue = Math.min(sliderMax, Math.max(0, raisePreview));
-    controls.slider.value = displayValue;
-    const ratio = sliderMax > 0 ? displayValue / sliderMax : 0;
-    const handlePos = controls.slider.origin
-      .clone()
-      .addScaledVector(controls.slider.axis, controls.slider.length * ratio);
-    handlePos.y = controls.slider.origin.y + controls.slider.heightOffset;
-    controls.slider.handle.position.copy(handlePos);
-    controls.slider.handle.visible = true;
+    controls.info.visible = true;
     const token = gameState.token;
     const total = Math.round(totalSpend);
-    const raiseAmount = Math.round(displayValue);
+    const raiseAmount = Math.round(Math.min(sliderMax, Math.max(0, raisePreview)));
     const infoLines = toCall > 0
       ? [`Selected: ${raiseAmount} ${token}`, `Call: ${Math.round(toCall)} ${token}`, `Total: ${total} ${token}`]
       : [`Selected: ${raiseAmount} ${token}`, `Total: ${total} ${token}`];
-    controls.slider.info.userData.update(infoLines);
-    controls.buttons.confirm.setText([sliderLabel, `${total} ${token}`]);
-    controls.buttons.confirm.setEnabled(total > 0 && sliderEnabled);
-    controls.buttons.allIn.setText(['All-in', `${Math.round(sliderMax)} ${token}`]);
-    controls.buttons.allIn.setEnabled(sliderEnabled && sliderMax > 0);
+    controls.info.userData.update(infoLines);
     controls.buttons.undo.setEnabled(chipSelection.length > 0);
-  }, [
-    sliderEnabled,
-    sliderMax,
-    raisePreview,
-    totalSpend,
-    sliderLabel,
-    toCall,
-    chipSelection.length,
-    gameState.token
-  ]);
+  }, [sliderEnabled, sliderMax, raisePreview, totalSpend, toCall, chipSelection.length, gameState.token]);
 
   const handleChipClick = (value) => {
     if (!sliderEnabled) return;
@@ -1810,21 +1865,84 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     interactionsRef.current = {
       onChip: (value) => handleChipClick(value),
-      onSliderChange: (value) => {
-        if (!sliderEnabledRef.current) return;
-        const clamped = sliderMax > 0 ? Math.min(Math.max(value, 0), sliderMax) : 0;
-        setChipSelection([]);
-        setSliderValue(clamped);
-      },
-      onAllIn: () => handleAllIn(),
-      onConfirm: () => handleRaiseConfirm(),
       onUndo: () => handleUndoChip()
     };
-  }, [handleChipClick, handleAllIn, handleRaiseConfirm, handleUndoChip, sliderMax]);
+  }, [handleChipClick, handleUndoChip]);
 
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
+      <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
+        <button
+          type="button"
+          onClick={() => setConfigOpen((prev) => !prev)}
+          aria-expanded={configOpen}
+          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+            configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+          }`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            className="h-6 w-6"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+            />
+          </svg>
+          <span className="sr-only">Hap personalizimin e tavolinës</span>
+        </button>
+        {configOpen && (
+          <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(false)}
+                className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                aria-label="Mbyll personalizimin"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                <div key={key} className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {options.map((option, idx) => {
+                      const selected = appearance[key] === idx;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                          aria-pressed={selected}
+                          className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            selected ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]' : 'border-white/10 bg-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          {renderPreview(key, option)}
+                          <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center text-white drop-shadow-lg">
         <p className="text-lg font-semibold">Texas Hold'em Royale</p>
         <p className="text-sm opacity-80">
@@ -1847,6 +1965,60 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
+      {actor?.isHuman && sliderEnabled && sliderMax > 0 && (
+        <div className="pointer-events-auto absolute top-1/2 right-4 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
+            <span className="text-2xl font-semibold drop-shadow-md">
+              {overlaySelected} {gameState.token}
+            </span>
+            {toCall > 0 && (
+              <span className="text-[0.7rem] text-white/60">Call {Math.round(toCall)} {gameState.token}</span>
+            )}
+            <span className="text-[0.7rem] text-white/70">Total {overlayTotal} {gameState.token}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={Math.round(sliderMax)}
+            step={1}
+            value={Math.round(sliderValue)}
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              setChipSelection([]);
+              setSliderValue(next);
+            }}
+            className="h-64 w-8 cursor-pointer appearance-none bg-transparent"
+            style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleRaiseConfirm}
+              disabled={overlayConfirmDisabled}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
+                overlayConfirmDisabled
+                  ? 'bg-blue-900/50 text-white/40 shadow-none'
+                  : 'bg-blue-600/90 hover:bg-blue-500'
+              }`}
+            >
+              {sliderLabel}
+            </button>
+            <button
+              type="button"
+              onClick={handleAllIn}
+              disabled={overlayAllInDisabled}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
+                overlayAllInDisabled
+                  ? 'bg-red-900/50 text-white/40 shadow-none'
+                  : 'bg-red-600/90 hover:bg-red-500'
+              }`}
+            >
+              All-in
+            </button>
+          </div>
+        </div>
+      )}
       {actor?.isHuman && gameState.stage !== 'showdown' && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
           {uiState.availableActions.map((action) => (

@@ -22,6 +22,14 @@ import {
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
 import {
+  TABLE_WOOD_OPTIONS,
+  TABLE_CLOTH_OPTIONS,
+  TABLE_BASE_OPTIONS,
+  DEFAULT_TABLE_CUSTOMIZATION,
+  WOOD_PRESETS_BY_ID
+} from '../../utils/tableCustomizationOptions.js';
+import { CARD_THEMES } from '../../utils/cardThemes.js';
+import {
   ComboType,
   DEFAULT_CONFIG as BASE_CONFIG,
   aiChooseAction,
@@ -58,88 +66,6 @@ const OUTFIT_THEMES = [
   { id: 'onyx', label: 'Oniks', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
 ];
 
-const WOOD_PRESETS_BY_ID = Object.freeze(
-  WOOD_FINISH_PRESETS.reduce((acc, preset) => {
-    acc[preset.id] = preset;
-    return acc;
-  }, {})
-);
-
-const TABLE_WOOD_OPTIONS = [
-  { id: 'walnutHeritage', label: 'Arre Heritage', presetId: 'walnut', grainId: 'heritagePlanks' },
-  { id: 'mapleChevron', label: 'Panjo Chevron', presetId: 'maple', grainId: 'atelierChevron' },
-  { id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' },
-  { id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' },
-  { id: 'wengeShadow', label: 'Wenge Hije', presetId: 'wenge', grainId: 'atelierChevron' },
-  { id: 'ebonyClassic', label: 'Eben Klasik', presetId: 'ebony', grainId: 'heritagePlanks' }
-];
-
-const TABLE_CLOTH_OPTIONS = [
-  { id: 'crimson', label: 'Rrobë e Kuqe', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
-  { id: 'emerald', label: 'Rrobë Smerald', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
-  { id: 'arctic', label: 'Rrobë Akull', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
-  { id: 'sunset', label: 'Rrobë Perëndim', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
-  { id: 'violet', label: 'Rrobë Vjollcë', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
-  { id: 'amber', label: 'Rrobë Qelibari', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' }
-];
-
-const TABLE_BASE_OPTIONS = [
-  {
-    id: 'obsidian',
-    label: 'Bazë Obsidian',
-    baseColor: '#141414',
-    columnColor: '#0b0d10',
-    trimColor: '#1f232a',
-    metalness: 0.75,
-    roughness: 0.35
-  },
-  {
-    id: 'forestBronze',
-    label: 'Bazë Pylli',
-    baseColor: '#101714',
-    columnColor: '#0a0f0c',
-    trimColor: '#1f2d24',
-    metalness: 0.7,
-    roughness: 0.38
-  },
-  {
-    id: 'midnightChrome',
-    label: 'Bazë Mesnate',
-    baseColor: '#0f172a',
-    columnColor: '#0a1020',
-    trimColor: '#1e2f4a',
-    metalness: 0.78,
-    roughness: 0.32
-  },
-  {
-    id: 'emberCopper',
-    label: 'Bazë Bakri',
-    baseColor: '#231312',
-    columnColor: '#140707',
-    trimColor: '#5c2d1b',
-    metalness: 0.68,
-    roughness: 0.4
-  },
-  {
-    id: 'violetShadow',
-    label: 'Bazë Hije Vjollcë',
-    baseColor: '#1f1130',
-    columnColor: '#130622',
-    trimColor: '#3f1b5b',
-    metalness: 0.74,
-    roughness: 0.36
-  },
-  {
-    id: 'desertGold',
-    label: 'Bazë Shkretëtirë',
-    baseColor: '#1c1a12',
-    columnColor: '#0f0d06',
-    trimColor: '#5a4524',
-    metalness: 0.72,
-    roughness: 0.39
-  }
-];
-
 const STOOL_THEMES = [
   { id: 'ruby', label: 'Rubi', seatColor: '#8b0000', legColor: '#1f1f1f' },
   { id: 'slate', label: 'Guri', seatColor: '#374151', legColor: '#0f172a' },
@@ -149,76 +75,11 @@ const STOOL_THEMES = [
   { id: 'frost', label: 'Akull', seatColor: '#1f2937', legColor: '#0f172a' }
 ];
 
-const CARD_THEMES = [
-  {
-    id: 'aurora',
-    label: 'Aurora',
-    frontBackground: '#ffffff',
-    frontBorder: '#e2e8f0',
-    edgeColor: '#f0f2f5',
-    backColor: '#0f172a',
-    backGradient: ['#1f2937', '#0b1220'],
-    backAccent: 'rgba(148, 163, 184, 0.35)',
-    hiddenColor: '#0b1020'
-  },
-  {
-    id: 'solstice',
-    label: 'Solstic',
-    frontBackground: '#fffaf0',
-    frontBorder: '#facc15',
-    edgeColor: '#fef3c7',
-    backColor: '#78350f',
-    backGradient: ['#b45309', '#7c2d12'],
-    backAccent: 'rgba(255, 221, 148, 0.4)',
-    hiddenColor: '#3d1a05'
-  },
-  {
-    id: 'nebula',
-    label: 'Nebulë',
-    frontBackground: '#f8fafc',
-    frontBorder: '#a855f7',
-    edgeColor: '#e9d5ff',
-    backColor: '#312e81',
-    backGradient: ['#5b21b6', '#312e81'],
-    backAccent: 'rgba(196, 181, 253, 0.4)',
-    hiddenColor: '#1e1b4b'
-  },
-  {
-    id: 'jade',
-    label: 'Xhade',
-    frontBackground: '#f0fdf4',
-    frontBorder: '#22c55e',
-    edgeColor: '#dcfce7',
-    backColor: '#064e3b',
-    backGradient: ['#047857', '#064e3b'],
-    backAccent: 'rgba(74, 222, 128, 0.45)',
-    hiddenColor: '#022c22'
-  },
-  {
-    id: 'ember',
-    label: 'Gaca',
-    frontBackground: '#fff7ed',
-    frontBorder: '#f97316',
-    edgeColor: '#fed7aa',
-    backColor: '#7c2d12',
-    backGradient: ['#ea580c', '#7c2d12'],
-    backAccent: 'rgba(251, 146, 60, 0.45)',
-    hiddenColor: '#3b1306'
-  },
-  {
-    id: 'onyx',
-    label: 'Oniks',
-    frontBackground: '#f4f4f5',
-    frontBorder: '#9ca3af',
-    edgeColor: '#e4e4e7',
-    backColor: '#1f2937',
-    backGradient: ['#111827', '#1f2937'],
-    backAccent: 'rgba(148, 163, 184, 0.5)',
-    hiddenColor: '#0b0f17'
-  }
-];
-
-const DEFAULT_APPEARANCE = { outfit: 0, tableWood: 0, tableCloth: 0, tableBase: 0, cards: 0, stools: 0 };
+const DEFAULT_APPEARANCE = {
+  outfit: 0,
+  stools: 0,
+  ...DEFAULT_TABLE_CUSTOMIZATION
+};
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },

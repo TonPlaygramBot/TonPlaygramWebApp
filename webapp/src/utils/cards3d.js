@@ -1,23 +1,8 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
+import { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
-export const CARD_THEMES = [
-  {
-    id: 'aurora',
-    label: 'Aurora',
-    frontBackground: '#ffffff',
-    frontBorder: '#e2e8f0',
-    edgeColor: '#f0f2f5',
-    backColor: '#0f172a',
-    backGradient: ['#1f2937', '#0b1220'],
-    backBorder: 'rgba(255,255,255,0.18)',
-    backAccent: 'rgba(255,255,255,0.08)',
-    centerAccent: 'rgba(15,118,110,0.12)',
-    hiddenColor: '#0f172a'
-  }
-];
-
-export const DEFAULT_CARD_THEME = CARD_THEMES[0];
+export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
 export function createCardGeometry(width, height, depth) {
   return new THREE.BoxGeometry(width, height, depth, 1, 1, 1);
