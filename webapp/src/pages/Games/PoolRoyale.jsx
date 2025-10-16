@@ -527,7 +527,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
-const CLOTH_UNDERLAY_EDGE_INSET = TABLE.THICK * 0.015; // pull the underlay inwards to stay invisible beneath the cushions
+const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint while staying invisible via colorWrite=false
 const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the underlay to avoid clipping
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
@@ -2306,7 +2306,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.84;
+const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -2314,7 +2314,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // glide the player camera slightly closer to the cloth
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
@@ -3725,11 +3725,15 @@ function Table3D(
     metalness: 0.05,
     side: THREE.DoubleSide
   });
+  underlayMat.transparent = true;
+  underlayMat.opacity = 0;
+  underlayMat.depthWrite = true;
+  underlayMat.colorWrite = false; // stay hidden while intercepting shadows before they reach the carpet
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
     cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
-  clothUnderlay.castShadow = false;
+  clothUnderlay.castShadow = true;
   clothUnderlay.receiveShadow = true;
   clothUnderlay.renderOrder = cloth.renderOrder - 1;
   table.add(clothUnderlay);
@@ -3747,12 +3751,16 @@ function Table3D(
   shadowCoverGeo.translate(0, 0, -CLOTH_SHADOW_COVER_THICKNESS);
   const shadowCoverMat = railMat.clone();
   shadowCoverMat.side = THREE.DoubleSide;
+  shadowCoverMat.transparent = true;
+  shadowCoverMat.opacity = 0;
+  shadowCoverMat.depthWrite = true;
+  shadowCoverMat.colorWrite = false;
   shadowCoverMat.needsUpdate = true;
   const clothShadowCover = new THREE.Mesh(shadowCoverGeo, shadowCoverMat);
   clothShadowCover.rotation.x = -Math.PI / 2;
   clothShadowCover.position.y =
     clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS - CLOTH_SHADOW_COVER_GAP;
-  clothShadowCover.castShadow = false;
+  clothShadowCover.castShadow = true;
   clothShadowCover.receiveShadow = true;
   clothShadowCover.renderOrder = clothUnderlay.renderOrder - 1;
   table.add(clothShadowCover);
@@ -3914,7 +3922,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.08;
+  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% to better catch highlights
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -6302,7 +6310,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.3;
+      const wallHeightBase = legHeight + TABLE.THICK + 40;
+      const wallHeight = wallHeightBase * 1.3 * 1.3; // raise the arena walls an extra 30%
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -8615,7 +8624,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          14.161,
+          12.7449,
           0,
           Math.PI * 0.36,
           0.42,
