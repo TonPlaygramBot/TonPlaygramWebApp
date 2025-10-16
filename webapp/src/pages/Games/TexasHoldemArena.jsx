@@ -19,8 +19,8 @@ import {
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.85 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.28 * MODEL_SCALE;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -38,7 +38,7 @@ const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_RADIUS = 5.95 * MODEL_SCALE * ARENA_GROWTH * 0.8;
+const CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const PLAYER_COUNT = 6;
@@ -49,18 +49,26 @@ const HOLE_SPACING = CARD_W * 0.7;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
-const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(28);
-const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(14);
-const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
+const CAMERA_TARGET_LIFT = 0.2 * MODEL_SCALE;
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(18);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.44, landscape: 1.92 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.82, landscape: 1.46 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.95, landscape: 1.58 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+const DEFAULT_STOOL_THEME = Object.freeze({ seatColor: '#8b0000', legColor: '#1f1f1f' });
+const DEFAULT_OUTFIT_THEME = Object.freeze({ baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' });
+const DEFAULT_HEAD_COLOR = '#f9e0d0';
+const LABEL_SIZE = Object.freeze({ width: 1.7 * MODEL_SCALE, height: 0.82 * MODEL_SCALE });
+const LABEL_BASE_HEIGHT = 0.62 * MODEL_SCALE;
+const HUMAN_LABEL_FORWARD = 0.88 * MODEL_SCALE;
+const AI_LABEL_FORWARD = 0.98 * MODEL_SCALE;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.72;
@@ -135,7 +143,8 @@ function createSeatLayout(count) {
   const radius = CHAIR_RADIUS;
   const layout = [];
   for (let i = 0; i < count; i += 1) {
-    const angle = Math.PI / 2 + (i / count) * Math.PI * 2;
+    const angle = Math.PI / 2 - (i / count) * Math.PI * 2;
+    const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const seatPos = forward.clone().multiplyScalar(radius);
@@ -146,8 +155,6 @@ function createSeatLayout(count) {
     chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const previewAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.58);
     previewAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
-    const labelAnchor = forward.clone().multiplyScalar(radius + 0.32 * MODEL_SCALE);
-    labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
     const stoolAnchor = forward.clone().multiplyScalar(radius);
     stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
     layout.push({
@@ -158,10 +165,13 @@ function createSeatLayout(count) {
       cardAnchor,
       chipAnchor,
       previewAnchor,
-      labelAnchor,
+      labelOffset: {
+        height: LABEL_BASE_HEIGHT,
+        forward: isHuman ? HUMAN_LABEL_FORWARD : AI_LABEL_FORWARD
+      },
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
-      isHuman: i === 0
+      isHuman
     });
   }
   return layout;
@@ -199,14 +209,25 @@ function makeNameplate(name, chips, renderer) {
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  const scale = 1.45 * MODEL_SCALE;
-  sprite.scale.set(scale, scale * 0.5, 1);
-  sprite.userData.update = draw;
-  sprite.userData.texture = texture;
-  sprite.userData.canvas = canvas;
-  return sprite;
+  texture.needsUpdate = true;
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    depthWrite: false
+  });
+  const geometry = new THREE.PlaneGeometry(LABEL_SIZE.width, LABEL_SIZE.height);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.userData.update = draw;
+  mesh.userData.texture = texture;
+  mesh.userData.canvas = canvas;
+  mesh.userData.dispose = () => {
+    texture.dispose();
+    material.dispose();
+    geometry.dispose();
+  };
+  return mesh;
 }
 
 function roundRect(ctx, x, y, width, height, radius) {
@@ -1065,38 +1086,61 @@ function TexasHoldemArena({ search }) {
 
     applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
-    const seatMaterials = {
-      human: new THREE.MeshPhysicalMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.5, clearcoat: 1 }),
-      ai: new THREE.MeshPhysicalMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.5, clearcoat: 1 })
-    };
-    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x111827 });
+    const stoolTheme = DEFAULT_STOOL_THEME;
+    const outfitTheme = DEFAULT_OUTFIT_THEME;
+    const chairMaterial = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(stoolTheme.seatColor),
+      roughness: 0.35,
+      metalness: 0.5,
+      clearcoat: 1
+    });
+    const legMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(stoolTheme.legColor) });
+    const outfitBodyMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(outfitTheme.baseColor),
+      roughness: 0.55,
+      metalness: 0.35,
+      emissive: new THREE.Color(outfitTheme.glow),
+      emissiveIntensity: 0.25
+    });
+    const outfitAccentMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(outfitTheme.accentColor),
+      roughness: 0.4,
+      metalness: 0.55
+    });
+    const headMaterial = new THREE.MeshStandardMaterial({ color: DEFAULT_HEAD_COLOR, roughness: 0.75, metalness: 0.1 });
 
-    seatLayout.forEach((seat) => {
+    const torsoGeometry = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
+    const headGeometry = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
+    const collarGeometry = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
+
+    const initialPlayers = gameState?.players ?? [];
+
+    seatLayout.forEach((seat, seatIndex) => {
       const group = new THREE.Group();
       group.position.copy(seat.seatPos);
       group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
 
-      const seatMaterial = seat.isHuman ? seatMaterials.human : seatMaterials.ai;
-      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
       seatMesh.position.y = SEAT_THICKNESS / 2;
       seatMesh.castShadow = true;
       seatMesh.receiveShadow = true;
       group.add(seatMesh);
 
-      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), seatMaterial);
+      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
       backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
       backMesh.castShadow = true;
       backMesh.receiveShadow = true;
       group.add(backMesh);
 
-      const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
-      const armLeft = new THREE.Mesh(armGeometry, seatMaterial);
+      const armLeft = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH), chairMaterial);
       armLeft.position.set(-(SEAT_WIDTH / 2 + ARM_THICKNESS / 2), SEAT_THICKNESS / 2 + ARM_HEIGHT / 2, -SEAT_DEPTH * 0.05);
       armLeft.castShadow = true;
       armLeft.receiveShadow = true;
       group.add(armLeft);
-      const armRight = armLeft.clone();
-      armRight.position.x = -armLeft.position.x;
+      const armRight = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH), chairMaterial);
+      armRight.position.set(SEAT_WIDTH / 2 + ARM_THICKNESS / 2, SEAT_THICKNESS / 2 + ARM_HEIGHT / 2, -SEAT_DEPTH * 0.05);
+      armRight.castShadow = true;
+      armRight.receiveShadow = true;
       group.add(armRight);
 
       const legBase = new THREE.Mesh(
@@ -1107,6 +1151,20 @@ function TexasHoldemArena({ search }) {
       legBase.castShadow = true;
       legBase.receiveShadow = true;
       group.add(legBase);
+
+      const occupant = new THREE.Group();
+      occupant.position.z = -SEAT_DEPTH * 0.12;
+      const torso = new THREE.Mesh(torsoGeometry, outfitBodyMaterial);
+      torso.position.y = SEAT_THICKNESS / 2 + 0.38 * MODEL_SCALE;
+      occupant.add(torso);
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
+      occupant.add(head);
+      const collar = new THREE.Mesh(collarGeometry, outfitAccentMaterial);
+      collar.rotation.x = Math.PI / 2;
+      collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
+      occupant.add(collar);
+      group.add(occupant);
 
       arenaGroup.add(group);
 
@@ -1127,12 +1185,15 @@ function TexasHoldemArena({ search }) {
       previewStack.visible = false;
       arenaGroup.add(previewStack);
 
-      const nameplate = makeNameplate('Player', 0, renderer);
-      nameplate.position.copy(seat.labelAnchor);
-      arenaGroup.add(nameplate);
+      const player = initialPlayers[seatIndex] ?? null;
+      const nameplate = makeNameplate(player?.name ?? 'Player', Math.round(player?.chips ?? 0), renderer);
+      nameplate.position.set(0, seat.labelOffset.height, seat.labelOffset.forward);
+      nameplate.rotation.y = Math.PI;
+      group.add(nameplate);
 
       seatGroups.push({
         group,
+        chairMeshes: [seatMesh, backMesh, armLeft, armRight, legBase],
         cardMeshes,
         chipStack,
         previewStack,
@@ -1142,7 +1203,6 @@ function TexasHoldemArena({ search }) {
         cardAnchor: seat.cardAnchor.clone(),
         chipAnchor: seat.chipAnchor.clone(),
         previewAnchor: seat.previewAnchor.clone(),
-        labelAnchor: seat.labelAnchor.clone(),
         stoolAnchor: seat.stoolAnchor.clone(),
         stoolHeight: seat.stoolHeight,
         isHuman: seat.isHuman
@@ -1177,7 +1237,20 @@ function TexasHoldemArena({ search }) {
       deckAnchor,
       raiseControls,
       raycaster,
-      frameId: null
+      frameId: null,
+      sharedMaterials: {
+        chair: chairMaterial,
+        leg: legMaterial,
+        outfitBody: outfitBodyMaterial,
+        outfitAccent: outfitAccentMaterial,
+        head: headMaterial
+      },
+      sharedGeometries: {
+        torso: torsoGeometry,
+        head: headGeometry,
+        collar: collarGeometry
+      },
+      arenaGroup
     };
 
     const element = renderer.domElement;
@@ -1411,7 +1484,10 @@ function TexasHoldemArena({ search }) {
           chipFactory: factory,
           seatGroups: seats,
           communityMeshes: community,
-          raiseControls: controls
+          raiseControls: controls,
+          sharedMaterials,
+          sharedGeometries,
+          arenaGroup: arena
         } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
@@ -1425,11 +1501,15 @@ function TexasHoldemArena({ search }) {
           });
           factory.disposeStack(seat.chipStack);
           factory.disposeStack(seat.previewStack);
+          seat.chairMeshes?.forEach((mesh) => {
+            mesh.geometry?.dispose?.();
+            mesh.parent?.remove(mesh);
+          });
           if (seat.nameplate) {
-            seat.nameplate.material?.map?.dispose?.();
-            seat.nameplate.material?.dispose?.();
-            s.remove(seat.nameplate);
+            seat.nameplate.userData?.dispose?.();
+            seat.nameplate.parent?.remove(seat.nameplate);
           }
+          seat.group?.parent?.remove(seat.group);
         });
         community.forEach((mesh) => {
           mesh.geometry?.dispose?.();
@@ -1442,7 +1522,16 @@ function TexasHoldemArena({ search }) {
         });
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
+        arena?.parent?.remove(arena);
         controls?.dispose?.();
+        sharedMaterials?.chair?.dispose?.();
+        sharedMaterials?.leg?.dispose?.();
+        sharedMaterials?.outfitBody?.dispose?.();
+        sharedMaterials?.outfitAccent?.dispose?.();
+        sharedMaterials?.head?.dispose?.();
+        sharedGeometries?.torso?.dispose?.();
+        sharedGeometries?.head?.dispose?.();
+        sharedGeometries?.collar?.dispose?.();
         tableInfo?.dispose?.();
         r.dispose();
       }
