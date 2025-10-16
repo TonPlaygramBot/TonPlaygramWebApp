@@ -92,7 +92,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.65, landscape: 2.08 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.92, landscape: 2.32 });
+const CAMERA_MAX_EXTRA_HEIGHT = 0.16 * MODEL_SCALE;
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.18 + TABLE_HEIGHT_RAISE,
   landscape: 0.92 + TABLE_HEIGHT_RAISE
@@ -1271,7 +1272,8 @@ function TexasHoldemArena({ search }) {
         .clone()
         .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
-      position.y = humanSeat.stoolHeight + elevation;
+      const maxHeight = humanSeat.stoolHeight + CAMERA_MAX_EXTRA_HEIGHT;
+      position.y = Math.min(humanSeat.stoolHeight + elevation, maxHeight);
       const focus = cameraTarget
         .clone()
         .addScaledVector(humanSeat.forward, -CAMERA_PLAYER_FOCUS_OFFSET)
