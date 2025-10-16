@@ -81,10 +81,10 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(28);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.97, landscape: 1.47 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.58 + TABLE_HEIGHT_RAISE,
-  landscape: 1.28 + TABLE_HEIGHT_RAISE
+  portrait: 1.5 + TABLE_HEIGHT_RAISE,
+  landscape: 1.2 + TABLE_HEIGHT_RAISE
 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
