@@ -70,16 +70,15 @@ const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.15;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.12;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.08;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.35;
-const AI_CARD_FORWARD_OFFSET = CARD_W * 0.1;
+const AI_CARD_FORWARD_OFFSET = CARD_W * 0.08;
 const AI_CARD_VERTICAL_OFFSET = CARD_H * 0.5;
 const AI_CARD_LOOK_LIFT = CARD_H * 0.22;
 const AI_CARD_LOOK_SPLAY = HOLE_SPACING * 0.28;
-const CARD_ANCHOR_RATIO = 0.68;
-const BET_FORWARD_OFFSET = CARD_W * 0.06;
+const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
@@ -90,7 +89,7 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.65, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.95, landscape: 1.58 });
 
@@ -102,16 +101,16 @@ const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MOD
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.24 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
-const PLAYER_CHIP_FORWARD_SHIFT = CARD_W * 0.42;
-const PLAYER_CHIP_LATERAL_SHIFT = SEAT_WIDTH * 0.22;
+const CARD_RAIL_FORWARD_SHIFT = CARD_W * 0.36;
+const CHIP_RAIL_FORWARD_SHIFT = CARD_W * 0.32;
+const CARD_RAIL_LATERAL_SHIFT = CARD_W * 0.9;
+const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 1.35;
 
 const RAIL_CHIP_SCALE = 1.08;
-const RAIL_CHIP_SPACING = CARD_W * 0.45;
-const RAIL_CHIP_CURVE = CARD_W * 0.34;
+const RAIL_CHIP_SPACING = CARD_W * 0.58;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.64;
-const RAIL_CHIP_INSET = CARD_W * 0.05;
 const RAIL_ANCHOR_RATIO = 0.98;
+const RAIL_CHIP_ROW_SPACING = CARD_H * 0.48;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 7;
@@ -424,15 +423,18 @@ function createSeatLayout(count) {
     const seatRadius = isHuman ? CHAIR_RADIUS : AI_CHAIR_RADIUS;
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
-    const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * CARD_ANCHOR_RATIO);
-    cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const railAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * RAIL_ANCHOR_RATIO);
     railAnchor.y = TABLE_HEIGHT + RAIL_HEIGHT_OFFSET;
-    const chipAnchor = railAnchor
-      .clone()
-      .addScaledVector(forward, -RAIL_BASE_FORWARD_OFFSET - PLAYER_CHIP_FORWARD_SHIFT)
-      .addScaledVector(right, PLAYER_CHIP_LATERAL_SHIFT);
+    const cardRailCenter = railAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT);
+    const chipRailCenter = railAnchor.clone().addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT);
+    const cardAnchor = cardRailCenter.clone().addScaledVector(right, -CARD_RAIL_LATERAL_SHIFT);
+    cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    const chipAnchor = chipRailCenter.clone().addScaledVector(right, CHIP_RAIL_LATERAL_SHIFT);
     chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    const cardRailAnchor = cardRailCenter.clone().addScaledVector(right, -CARD_RAIL_LATERAL_SHIFT);
+    cardRailAnchor.y = railAnchor.y;
+    const chipRailAnchor = chipRailCenter.clone().addScaledVector(right, CHIP_RAIL_LATERAL_SHIFT);
+    chipRailAnchor.y = railAnchor.y;
     const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6).addScaledVector(forward, -BET_FORWARD_OFFSET);
     betAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const previewAnchor = betAnchor.clone();
@@ -446,6 +448,8 @@ function createSeatLayout(count) {
       seatPos,
       cardAnchor,
       chipAnchor,
+      cardRailAnchor,
+      chipRailAnchor,
       betAnchor,
       previewAnchor,
       labelOffset: {
@@ -578,21 +582,27 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const axis = seat.right.clone().normalize();
   const anchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
   anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET;
-  const baseCenter = anchor.clone().addScaledVector(forward, -RAIL_BASE_FORWARD_OFFSET);
-
-  const chipOrigin = baseCenter
-    .clone()
-    .addScaledVector(axis, -((CHIP_VALUES.length - 1) / 2) * RAIL_CHIP_SPACING)
-    .addScaledVector(forward, -RAIL_CHIP_INSET);
-  chipOrigin.y = anchor.y + CARD_D * 2.2;
+  const cardRailAnchor = seat.cardRailAnchor
+    ? seat.cardRailAnchor.clone()
+    : anchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
+  cardRailAnchor.y = anchor.y;
+  const chipCenter = seat.chipRailAnchor
+    ? seat.chipRailAnchor.clone()
+    : cardRailAnchor.clone().addScaledVector(axis, CARD_RAIL_LATERAL_SHIFT + CHIP_RAIL_LATERAL_SHIFT);
+  chipCenter.y = anchor.y;
+  const columns = 5;
+  const rows = Math.max(1, Math.ceil(CHIP_VALUES.length / columns));
+  const colOffset = (columns - 1) / 2;
+  const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value);
     chip.scale.setScalar(RAIL_CHIP_SCALE);
-    chip.position.copy(chipOrigin).addScaledVector(axis, index * RAIL_CHIP_SPACING);
-    const normalized = CHIP_VALUES.length > 1 ? (index / (CHIP_VALUES.length - 1)) * 2 - 1 : 0;
-    const curveStrength = Math.max(0, 1 - Math.abs(normalized));
-    const curveOffset = Math.pow(curveStrength, 0.8) * RAIL_CHIP_CURVE;
-    chip.position.addScaledVector(forward, curveOffset);
+    chip.position.copy(chipCenter);
+    chip.position.y = anchor.y + CARD_D * 2.2;
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+    chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
+    chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
     chip.userData = { type: 'chip-button', value, baseScale: RAIL_CHIP_SCALE };
     group.add(chip);
     return chip;
@@ -1433,7 +1443,9 @@ function TexasHoldemArena({ search }) {
         forward: seat.forward.clone(),
         right: seat.right.clone(),
         cardAnchor: seat.cardAnchor.clone(),
+        cardRailAnchor: seat.cardRailAnchor.clone(),
         chipAnchor: seat.chipAnchor.clone(),
+        chipRailAnchor: seat.chipRailAnchor.clone(),
         betAnchor: seat.betAnchor.clone(),
         previewAnchor: seat.previewAnchor.clone(),
         stoolAnchor: seat.stoolAnchor.clone(),
