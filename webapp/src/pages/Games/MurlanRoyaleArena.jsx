@@ -29,7 +29,6 @@ import {
   WOOD_PRESETS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
-import { createCardGeometry } from '../../utils/cards3d.js';
 import {
   ComboType,
   DEFAULT_CONFIG as BASE_CONFIG,
@@ -1154,7 +1153,7 @@ export default function MurlanRoyaleArena({ search }) {
     const armDepth = seatDepth * 0.75;
     const baseColumnHeight = 0.5 * MODEL_SCALE * stoolScale;
 
-    const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
+    const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
     const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
 
     const seatConfigs = [];
@@ -2124,13 +2123,13 @@ function updateCardFace(mesh, mode) {
   if (mode === cardFace) return;
   if (mode === 'back') {
     const mat = hiddenMaterial ?? backMaterial;
-    mesh.material[1] = mat;
-    mesh.material[2] = mat;
+    mesh.material[4] = mat;
+    mesh.material[5] = mat;
     mesh.userData.cardFace = 'back';
     return;
   }
-  mesh.material[1] = frontMaterial;
-  mesh.material[2] = backMaterial;
+  mesh.material[4] = frontMaterial;
+  mesh.material[5] = backMaterial;
   mesh.userData.cardFace = 'front';
 }
 
@@ -2200,6 +2199,7 @@ function createCardMesh(card, geometry, cache, theme) {
     cache.set(faceKey, faceTexture);
   }
   const edgeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.edgeColor), roughness: 0.55, metalness: 0.1 });
+  const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
   const frontMat = new THREE.MeshStandardMaterial({
     map: faceTexture,
     roughness: 0.35,
@@ -2218,13 +2218,13 @@ function createCardMesh(card, geometry, cache, theme) {
     roughness: 0.7,
     metalness: 0.12
   });
-  const mesh = new THREE.Mesh(geometry, [edgeMat, frontMat, backMat]);
+  const mesh = new THREE.Mesh(geometry, [...edgeMats, frontMat, backMat]);
   mesh.userData.cardId = card.id;
   mesh.userData.card = card;
   mesh.userData.frontMaterial = frontMat;
   mesh.userData.backMaterial = backMat;
   mesh.userData.hiddenMaterial = hiddenMat;
-  mesh.userData.edgeMaterials = [edgeMat];
+  mesh.userData.edgeMaterials = edgeMats;
   mesh.userData.backTexture = backTexture;
   mesh.userData.cardFace = 'front';
   return mesh;
