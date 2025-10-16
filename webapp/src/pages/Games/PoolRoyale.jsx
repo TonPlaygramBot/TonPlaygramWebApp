@@ -2284,7 +2284,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.085; // stop just short of the lowest sweep to avoid grazing the cloth and keep slightly above the cloth plane
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.11; // keep the cue cam safely above the cloth at the end of its downward sweep
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
