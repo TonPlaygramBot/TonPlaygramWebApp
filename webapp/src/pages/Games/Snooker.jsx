@@ -506,14 +506,6 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatRoughnessMin: 0.48,
   envMapIntensityMax: 0.22
 });
-const RENDER_PRIORITY = Object.freeze({
-  clothShadowCover: 10,
-  clothUnderlay: 20,
-  cloth: 30,
-  tableMarkings: 40,
-  cushion: 50,
-  overlay: 60
-});
 const POCKET_HOLE_R =
   POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
@@ -1190,46 +1182,19 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'freshGreen',
-    label: 'Fresh Green',
-    color: 0x3fba73,
-    detail: {
-      bumpMultiplier: 0.82,
-      roughness: 0.76,
-      sheenRoughness: 0.48,
-      clearcoat: 0.018,
-      clearcoatRoughness: 0.48,
-      emissiveIntensity: 0.48,
-      envMapIntensity: 0.14
-    }
-  },
-  {
-    id: 'brightMint',
-    label: 'Bright Mint',
-    color: 0x45b974,
-    detail: {
-      bumpMultiplier: 1.04,
-      roughness: 0.8,
-      sheenRoughness: 0.52,
-      clearcoat: 0.032,
-      clearcoatRoughness: 0.4,
-      emissiveIntensity: 0.52,
-      envMapIntensity: 0.16
-    }
-  },
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
+  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
     id: 'emeraldClassic',
     label: 'Green Cloth',
     color: 0x19a34a,
     detail: {
-      bumpMultiplier: 1.28,
-      roughness: 0.83,
-      sheenRoughness: 0.56,
+      bumpMultiplier: 1.22,
+      roughness: 0.78,
+      sheenRoughness: 0.52,
       clearcoat: 0.05,
       clearcoatRoughness: 0.32,
-      emissiveIntensity: 0.56,
-      envMapIntensity: 0.14
+      emissiveIntensity: 0.52
     }
   }
 ]);
@@ -3325,7 +3290,7 @@ function Guret(parent, id, color, x, y) {
       marker.quaternion.setFromUnitVectors(localUp, normal);
       marker.castShadow = false;
       marker.receiveShadow = false;
-      marker.renderOrder = RENDER_PRIORITY.overlay;
+      marker.renderOrder = 2;
       mesh.add(marker);
     });
   }
@@ -3582,11 +3547,7 @@ function Table3D(
     const targetBump = Number.isFinite(overrides.bumpScale)
       ? overrides.bumpScale
       : baseBump * (Number.isFinite(bumpMultiplier) ? bumpMultiplier : 1);
-    const bumpTargets = clothMaterials.map((_, index) => {
-      if (!Number.isFinite(targetBump)) return Number.NaN;
-      return index === 0 ? targetBump : targetBump * 0.86;
-    });
-    clothMaterials.forEach((mat, index) => {
+    clothMaterials.forEach((mat) => {
       if (!mat) return;
       mat.roughness = Number.isFinite(overrides.roughness)
         ? THREE.MathUtils.clamp(overrides.roughness, 0, 1)
@@ -3628,9 +3589,8 @@ function Table3D(
           CLOTH_REFLECTION_LIMITS.envMapIntensityMax
         );
       }
-      const bumpForLayer = bumpTargets[index];
-      if (Number.isFinite(bumpForLayer)) {
-        mat.bumpScale = bumpForLayer;
+      if (Number.isFinite(targetBump)) {
+        mat.bumpScale = targetBump;
       } else {
         mat.bumpScale = clothBaseSettings.bumpScale;
       }
@@ -3703,7 +3663,7 @@ function Table3D(
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
-  cloth.renderOrder = RENDER_PRIORITY.cloth;
+  cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
 
@@ -3730,7 +3690,7 @@ function Table3D(
     cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
   clothUnderlay.castShadow = false;
   clothUnderlay.receiveShadow = true;
-  clothUnderlay.renderOrder = RENDER_PRIORITY.clothUnderlay;
+  clothUnderlay.renderOrder = cloth.renderOrder - 1;
   table.add(clothUnderlay);
 
   const markingsGroup = new THREE.Group();
@@ -3783,7 +3743,7 @@ function Table3D(
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
-      child.renderOrder = RENDER_PRIORITY.tableMarkings;
+      child.renderOrder = cloth.renderOrder + 1;
       child.castShadow = false;
       child.receiveShadow = false;
     }
@@ -4446,7 +4406,7 @@ function Table3D(
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.scale.y = cushionScaleY * (horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1);
-    mesh.renderOrder = RENDER_PRIORITY.cushion;
+    mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
     group.position.set(x, cushionBaseY, z);
@@ -6233,7 +6193,7 @@ function SnookerGame() {
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.95;
+      const wallHeight = (legHeight + TABLE.THICK + 40) * 1.3;
       const carpetThickness = 1.2;
       const carpetInset = wallThickness * 0.02;
       const carpetWidth = roomWidth - wallThickness + carpetInset;
@@ -8632,7 +8592,7 @@ function SnookerGame() {
       );
       chalkPrecisionArea.rotation.x = -Math.PI / 2;
       chalkPrecisionArea.visible = false;
-      chalkPrecisionArea.renderOrder = RENDER_PRIORITY.overlay;
+      chalkPrecisionArea.renderOrder = 2;
       table.add(chalkPrecisionArea);
       chalkAreaRef.current = chalkPrecisionArea;
 
