@@ -682,7 +682,7 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.14; // keep orbit height well above the cue stick surface
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
@@ -2278,13 +2278,13 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.92;
+const STANDING_VIEW_PHI = 0.86;
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.11; // keep the cue cam safely above the cloth at the end of its downward sweep
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -2366,8 +2366,8 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
-// Keep the orbit camera from slipping beneath the cloth when dragged downwards.
-const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.08;
+// Keep the orbit camera from slipping beneath the cue when dragged downwards.
+const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
