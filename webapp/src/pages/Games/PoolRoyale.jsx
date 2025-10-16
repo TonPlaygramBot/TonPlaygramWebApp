@@ -2330,6 +2330,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
+const CAMERA_SURFACE_CLAMP_MARGIN = BALL_R * 0.05; // prevent the orbit camera from dipping beneath the cloth
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -6921,10 +6922,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             0,
             CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
           );
+          const surfaceClearance = Math.max(
+            0,
+            tableSurfaceY + CAMERA_SURFACE_CLAMP_MARGIN - orbitTargetY
+          );
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
             cushionHeight + CAMERA_CUSHION_CLEARANCE,
-            cueClearance
+            cueClearance,
+            surfaceClearance
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -7683,6 +7689,39 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
             }
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+            const surfaceClampWorldY =
+              baseSurfaceWorldY +
+              CAMERA_SURFACE_CLAMP_MARGIN * worldScaleFactor;
+            if (camera.position.y < surfaceClampWorldY) {
+              const requiredOffsetY = surfaceClampWorldY - lookTarget.y;
+              if (requiredOffsetY > 0) {
+                const requiredRadius = clampOrbitRadius(
+                  requiredOffsetY,
+                  cueMinRadius
+                );
+                if (TMP_SPH.radius + 1e-6 < requiredRadius) {
+                  TMP_SPH.radius = requiredRadius;
+                }
+                const safePhi = Math.acos(
+                  THREE.MathUtils.clamp(
+                    requiredOffsetY / Math.max(TMP_SPH.radius, 1e-6),
+                    -1,
+                    1
+                  )
+                );
+                if (TMP_SPH.phi > safePhi) {
+                  TMP_SPH.phi = Math.max(
+                    CAMERA.minPhi,
+                    Math.min(safePhi, CAMERA.maxPhi)
+                  );
+                }
+                TMP_SPH.makeSafe();
+                camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+                sph.radius = clampOrbitRadius(TMP_SPH.radius, cueMinRadius);
+                sph.phi = TMP_SPH.phi;
+                syncBlendToSpherical();
+              }
+            }
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
