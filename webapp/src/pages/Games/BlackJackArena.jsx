@@ -121,41 +121,24 @@ function buildPlayers(search) {
 function createSeatLayout(count) {
   const radius = CHAIR_RADIUS;
   const layout = [];
-  const playerOffsets = [-TABLE_RADIUS * 0.6, -TABLE_RADIUS * 0.2, TABLE_RADIUS * 0.2, TABLE_RADIUS * 0.6].sort((a, b) => {
-    const diff = Math.abs(a) - Math.abs(b);
-    if (diff !== 0) return diff;
-    return a - b;
-  });
   for (let i = 0; i < count; i += 1) {
-    const isDealer = i === DEALER_INDEX;
-    const rowSign = isDealer ? -1 : 1;
-    const seatZ = rowSign * radius;
-    const playerIndex = i < DEALER_INDEX ? i : i - 1;
-    const offset = isDealer ? 0 : playerOffsets[playerIndex] ?? 0;
-    const seatPos = new THREE.Vector3(offset, CHAIR_BASE_HEIGHT, seatZ);
-    const forward = new THREE.Vector3(0, 0, rowSign);
-    const right = new THREE.Vector3(-rowSign, 0, 0);
-    const cardDepth = isDealer ? TABLE_RADIUS * 0.38 : TABLE_RADIUS * 0.62;
-    const chipDepth = isDealer ? TABLE_RADIUS * 0.48 : TABLE_RADIUS * 0.58;
-    const betDepth = isDealer ? TABLE_RADIUS * 0.28 : TABLE_RADIUS * 0.42;
-    const cardAnchor = new THREE.Vector3(
-      offset,
-      TABLE_HEIGHT + CARD_D * 6,
-      seatZ - rowSign * (radius - cardDepth)
-    );
-    const chipAnchor = new THREE.Vector3(
-      offset,
-      TABLE_HEIGHT + CARD_D * 6,
-      seatZ - rowSign * (radius - chipDepth)
-    );
-    const betAnchor = new THREE.Vector3(
-      offset,
-      TABLE_HEIGHT + CARD_D * 6,
-      seatZ - rowSign * (radius - betDepth)
-    );
-    const labelAnchor = new THREE.Vector3(offset, STOOL_HEIGHT + 0.48 * MODEL_SCALE, seatZ + rowSign * 0.6);
-    const stoolAnchor = new THREE.Vector3(offset, CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2, seatZ);
+    const angle = Math.PI / 2 + (i / count) * Math.PI * 2;
+    const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+    const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+    const seatPos = forward.clone().multiplyScalar(radius);
+    seatPos.y = CHAIR_BASE_HEIGHT;
+    const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * (i === DEALER_INDEX ? 0.45 : 0.68));
+    cardAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.55);
+    chipAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+    const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.35);
+    betAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+    const labelAnchor = forward.clone().multiplyScalar(radius + 0.32 * MODEL_SCALE);
+    labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
+    const stoolAnchor = forward.clone().multiplyScalar(radius);
+    stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
     layout.push({
+      angle,
       forward,
       right,
       seatPos,
@@ -165,8 +148,7 @@ function createSeatLayout(count) {
       labelAnchor,
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
-      isHuman: i === 0,
-      isDealer
+      isHuman: i === 0
     });
   }
   return layout;
@@ -570,7 +552,7 @@ function BlackJackArena({ search }) {
     seatLayout.forEach((seat, index) => {
       const group = new THREE.Group();
       group.position.copy(seat.seatPos);
-      group.rotation.y = seat.forward.z > 0 ? Math.PI : 0;
+      group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
 
       const seatMaterial = seat.isHuman
         ? seatMaterials.human
