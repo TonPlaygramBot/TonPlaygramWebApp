@@ -1136,11 +1136,11 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.99,
-    roughness: 0.1,
-    clearcoat: 0.74,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.02
+    metalness: 0.78,
+    roughness: 0.36,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.28,
+    envMapIntensity: 0.6
   },
   {
     id: 'gold',
@@ -6560,8 +6560,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }),
         chrome: new THREE.MeshStandardMaterial({
           color: 0xbfc7d5,
-          roughness: 0.25,
-          metalness: 0.9
+          roughness: 0.44,
+          metalness: 0.72,
+          envMapIntensity: 0.6
         }),
         glass: new THREE.MeshStandardMaterial({
           color: 0x9bd3ff,
@@ -8594,6 +8595,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 0.98;
         const lightRetreatOffset = scaledHeight * 0.24;
+        const lightReflectionGuard = scaledHeight * 0.32;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
@@ -8621,8 +8623,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         );
         spot.position.set(
           triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight + lightRetreatOffset,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.35
+          triangleHeight + lightRetreatOffset + lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
         );
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
         spot.decay = 1.0;
@@ -8639,8 +8641,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         ); // return trimmed spot energy through ambient fill
         ambient.position.set(
           0,
-          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift + lightRetreatOffset,
-          0
+          tableSurfaceY +
+            scaledHeight * 1.95 +
+            lightHeightLift +
+            lightRetreatOffset +
+            lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
         );
         lightingRig.add(ambient);
       };
