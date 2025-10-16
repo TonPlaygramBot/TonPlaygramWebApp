@@ -405,9 +405,8 @@ function addPocketCuts(parent, clothPlane) {
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
-const TABLE_FOOTPRINT_REDUCTION = 0.8; // shorten the overall footprint by 20%
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 0.93 * TABLE_FOOTPRINT_REDUCTION;
+const TABLE_SCALE = 0.93;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -512,7 +511,7 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
 const FRICTION = 0.993;
-const CUSHION_RESTITUTION = 0.94;
+const CUSHION_RESTITUTION = 0.99;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
@@ -647,10 +646,6 @@ const SHOT_FORCE_BOOST = 1.5 * 0.75;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
-const RAIL_TANGENT_DAMPING = 0.88;
-const POCKET_GUIDE_BLEND = 0.55;
-const POCKET_GUIDE_SPEED_RETENTION = 0.92;
-const POCKET_GUIDE_MIN_SPEED = SHOT_BASE_SPEED * 0.18;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
@@ -687,9 +682,6 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.05; // keep orbit height just above the cue stick
-const CAMERA_MIN_AIM_LINE_MARGIN = BALL_R * 0.02;
-const CAMERA_MIN_AIM_LINE_Y = BALL_CENTER_Y + CAMERA_MIN_AIM_LINE_MARGIN;
-const CAMERA_MIN_FOCUS_Y = Math.max(TABLE_Y + TABLE.THICK, CAMERA_MIN_AIM_LINE_Y);
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
@@ -2395,18 +2387,10 @@ const AI_EARLY_SHOT_DELAY_MS = 3500;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
-const clampCameraWorldHeight = (vec, floorWorld) => {
-  if (!vec) return vec;
-  if (!Number.isFinite(floorWorld)) return vec;
-  if (vec.y < floorWorld) {
-    vec.y = floorWorld;
-  }
-  return vec;
-};
 const computeStandingViewHeight = (
   targetHeight,
   horizontalDistance,
-  minHeight = CAMERA_MIN_FOCUS_Y
+  minHeight = TABLE_Y + TABLE.THICK
 ) => {
   if (!Number.isFinite(horizontalDistance) || horizontalDistance <= 0) {
     return Math.max(minHeight, targetHeight);
@@ -2418,7 +2402,7 @@ const computeStandingViewHeight = (
 const applyStandingViewElevation = (
   desired,
   focus,
-  minHeight = CAMERA_MIN_FOCUS_Y
+  minHeight = TABLE_Y + TABLE.THICK
 ) => {
   if (!desired || !focus) return;
   const horizontalDistance = Math.hypot(
@@ -3028,7 +3012,7 @@ function reflectRails(ball) {
   const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const pocketGuard = POCKET_VIS_R * 0.72 * POCKET_VISUAL_EXPANSION;
+  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
   const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
@@ -3044,39 +3028,18 @@ function reflectRails(ball) {
     ball.pos.addScaledVector(TMP_VEC2_B, push);
     const vn = ball.vel.dot(TMP_VEC2_B);
     if (vn < 0) {
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + CUSHION_RESTITUTION) * vn);
-      const proj = TMP_VEC2_FORWARD.copy(TMP_VEC2_B).multiplyScalar(
-        ball.vel.dot(TMP_VEC2_B)
+      const restitution = CUSHION_RESTITUTION;
+      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+      const vt = TMP_VEC2_D.copy(ball.vel).sub(
+        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
       );
-      const vt = TMP_VEC2_D.copy(ball.vel).sub(proj);
-      ball.vel.sub(vt).add(vt.multiplyScalar(RAIL_TANGENT_DAMPING));
+      const tangentDamping = 0.96;
+      ball.vel
+        .sub(vt)
+        .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
-    }
-    const speed = ball.vel.length();
-    if (speed > POCKET_GUIDE_MIN_SPEED) {
-      const pocketTarget = TMP_VEC2_AXIS.set(
-        sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
-        sy * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
-      );
-      pocketTarget.sub(ball.pos);
-      if (pocketTarget.lengthSq() > 1e-6) {
-        pocketTarget.normalize();
-        const guidedSpeed = speed * POCKET_GUIDE_SPEED_RETENTION;
-        const guided = TMP_VEC2_LATERAL.copy(pocketTarget).multiplyScalar(
-          guidedSpeed
-        );
-        const currentDir = TMP_VEC2_LIMIT.copy(ball.vel);
-        const currentLen = currentDir.length();
-        let blendStrength = POCKET_GUIDE_BLEND;
-        if (currentLen > 1e-6) {
-          currentDir.normalize();
-          const alignment = Math.max(0, currentDir.dot(pocketTarget));
-          blendStrength *= alignment > 0 ? alignment : 0.35;
-        }
-        ball.vel.lerp(guided, THREE.MathUtils.clamp(blendStrength, 0, 1));
-      }
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -3097,28 +3060,24 @@ function reflectRails(ball) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    ball.vel.y *= RAIL_TANGENT_DAMPING;
     collided = 'rail';
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    ball.vel.y *= RAIL_TANGENT_DAMPING;
     collided = 'rail';
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    ball.vel.x *= RAIL_TANGENT_DAMPING;
     collided = 'rail';
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    ball.vel.x *= RAIL_TANGENT_DAMPING;
     collided = 'rail';
   }
   if (collided) {
@@ -6959,15 +6918,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             0,
             CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
           );
-          const aimFloorClearance = Math.max(
-            0,
-            CAMERA_MIN_FOCUS_Y - orbitTargetY
-          );
           const minHeightFromTarget = Math.max(
             TABLE.THICK,
             cushionHeight + CAMERA_CUSHION_CLEARANCE,
-            cueClearance,
-            aimFloorClearance
+            cueClearance
           );
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
@@ -7105,7 +7059,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const updateCamera = () => {
           let renderCamera = camera;
           let lookTarget = null;
-          const aimFloorWorld = CAMERA_MIN_FOCUS_Y * worldScaleFactor;
           let broadcastArgs = {
             railDir: 1,
             targetWorld: null,
@@ -7142,11 +7095,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 resolvedTarget.add(offset.clone().multiplyScalar(focusScale));
               }
             }
-            clampCameraWorldHeight(resolvedPosition, aimFloorWorld);
             galleryState.position.copy(resolvedPosition);
             galleryState.target.copy(resolvedTarget);
             camera.position.copy(resolvedPosition);
-            clampCameraWorldHeight(camera.position, aimFloorWorld);
             camera.lookAt(resolvedTarget);
             renderCamera = camera;
             lookTarget = resolvedTarget;
@@ -7158,7 +7109,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               worldScaleFactor
             );
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
-            clampCameraWorldHeight(camera.position, aimFloorWorld);
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
@@ -7622,18 +7572,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 desiredPosition.add(outwardOffset);
               }
             }
-            const minHeightWorld = Math.max(
-              aimFloorWorld,
-              (TABLE_Y +
-                TABLE.THICK +
-                activeShotView.heightOffset * heightScale) * worldScaleFactor
-            );
+            const minHeightWorld =
+              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
+              worldScaleFactor;
             const loweredY =
               desiredPosition.y -
               (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
-            const clampedY = Math.max(minHeightWorld, loweredY);
-            desiredPosition.y = clampedY;
-            clampCameraWorldHeight(desiredPosition, aimFloorWorld);
+            desiredPosition.y =
+              loweredY < minHeightWorld ? minHeightWorld : loweredY;
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -7656,7 +7602,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             } else {
               activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
             }
-            clampCameraWorldHeight(activeShotView.smoothedPos, aimFloorWorld);
             if (!activeShotView.smoothedTarget) {
               activeShotView.smoothedTarget = focusTarget.clone();
             } else {
@@ -7710,7 +7655,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-            clampCameraWorldHeight(camera.position, aimFloorWorld);
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
