@@ -1741,10 +1741,10 @@ const createCarpetTextures = (() => {
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
 
-    // light grey textile base with gentle variation for a calm, eco-friendly tone
+    // deeper neutral textile base to keep the lounge mood grounded without harsh brightness
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#dfe5dd');
-    gradient.addColorStop(1, '#ccd1ca');
+    gradient.addColorStop(0, '#b9bdb9');
+    gradient.addColorStop(1, '#9ea3a0');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
 
@@ -1757,7 +1757,7 @@ const createCarpetTextures = (() => {
         const fiber = (Math.sin((x / size) * Math.PI * 14) +
           Math.cos((y / size) * Math.PI * 16)) * 0.08;
         const grain = (rand() - 0.5) * 0.12;
-        const shade = clamp01(0.94 + fiber + grain * 0.6);
+        const shade = clamp01(0.82 + fiber + grain * 0.6);
         const value = clamp01(shade) * 255;
         data[idx] = value;
         data[idx + 1] = value;
@@ -1768,7 +1768,7 @@ const createCarpetTextures = (() => {
 
     // subtle horizontal ribbing for textile feel
     ctx.globalAlpha = 0.04;
-    ctx.fillStyle = '#8c928c';
+    ctx.fillStyle = '#7a7f7c';
     for (let row = 0; row < size; row += 3) {
       ctx.fillRect(0, row, size, 1);
     }
@@ -6185,7 +6185,7 @@ function SnookerGame() {
       world.add(carpet);
 
       const wallMat = new THREE.MeshStandardMaterial({
-        color: 0xeeeeee,
+        color: 0xf8f4e6,
         roughness: 0.88,
         metalness: 0.06
       });
