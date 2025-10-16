@@ -87,18 +87,18 @@ const HUMAN_LABEL_FORWARD = 0.88 * MODEL_SCALE;
 const AI_LABEL_FORWARD = 0.98 * MODEL_SCALE;
 
 const RAIL_CHIP_SCALE = 1.08;
-const RAIL_CHIP_SPACING = CARD_W * 0.72;
+const RAIL_CHIP_SPACING = CARD_W * 0.56;
+const RAIL_CHIP_CURVE = CARD_W * 0.32;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const SLIDER_THICKNESS = CARD_D * 14;
 const BUTTON_WIDTH = CARD_W * 1.75;
 const BUTTON_HEIGHT = CARD_D * 16;
 const BUTTON_DEPTH = CARD_W * 0.58;
-const RAIL_FRAME_FORWARD_OFFSET = CARD_W * 0.52;
-const RAIL_FRAME_DEPTH = CARD_W * 3.2;
-const RAIL_FRAME_THICKNESS = CARD_D * 12;
-const RAIL_INFO_INSET = CARD_W * 0.44;
+const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.4;
+const RAIL_INFO_FORWARD_OFFSET = CARD_W * 0.18;
+const RAIL_INFO_VERTICAL_OFFSET = SLIDER_THICKNESS * 0.9;
 const RAIL_BUTTON_INSET = CARD_W * 0.2;
-const RAIL_CHIP_INSET = CARD_W * 0.05;
+const RAIL_CHIP_INSET = CARD_W * 0.02;
 const RAIL_ANCHOR_RATIO = 0.98;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -397,42 +397,11 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const axis = seat.right.clone().normalize();
   const anchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
   anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET;
-  const frameCenter = anchor.clone().addScaledVector(forward, -RAIL_FRAME_FORWARD_OFFSET);
+  const baseCenter = anchor.clone().addScaledVector(forward, -RAIL_BASE_FORWARD_OFFSET);
 
-  const frameQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis);
-  const frameWidth = BUTTON_WIDTH * 3.4;
-  const frameGeometry = new THREE.BoxGeometry(frameWidth, RAIL_FRAME_THICKNESS, RAIL_FRAME_DEPTH);
-  const frameMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#4a2f1a'),
-    roughness: 0.46,
-    metalness: 0.28,
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.24
-  });
-  const frame = new THREE.Mesh(frameGeometry, frameMaterial);
-  frame.castShadow = true;
-  frame.receiveShadow = true;
-  frame.setRotationFromQuaternion(frameQuaternion);
-  frame.position.copy(frameCenter);
-  frame.position.y -= RAIL_FRAME_THICKNESS / 2;
-  group.add(frame);
+  const railQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis);
 
-  const insetGeometry = new THREE.BoxGeometry(frameWidth * 0.92, RAIL_FRAME_THICKNESS * 0.45, RAIL_FRAME_DEPTH * 0.78);
-  const insetMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#111827'),
-    roughness: 0.62,
-    metalness: 0.12,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.3
-  });
-  const inset = new THREE.Mesh(insetGeometry, insetMaterial);
-  inset.receiveShadow = true;
-  inset.setRotationFromQuaternion(frameQuaternion);
-  inset.position.copy(frameCenter);
-  inset.position.y = anchor.y - RAIL_FRAME_THICKNESS * 0.28;
-  group.add(inset);
-
-  const chipOrigin = frameCenter
+  const chipOrigin = baseCenter
     .clone()
     .addScaledVector(axis, -((CHIP_VALUES.length - 1) / 2) * RAIL_CHIP_SPACING)
     .addScaledVector(forward, -RAIL_CHIP_INSET);
@@ -440,25 +409,26 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value);
     chip.scale.setScalar(RAIL_CHIP_SCALE);
-    chip.position
-      .copy(chipOrigin)
-      .addScaledVector(axis, index * RAIL_CHIP_SPACING);
-    chip.position.y = anchor.y + CARD_D * 2.2;
+    chip.position.copy(chipOrigin).addScaledVector(axis, index * RAIL_CHIP_SPACING);
+    const normalized = CHIP_VALUES.length > 1 ? (index / (CHIP_VALUES.length - 1)) * 2 - 1 : 0;
+    const curveOffset = (1 - Math.pow(Math.abs(normalized), 1.35)) * RAIL_CHIP_CURVE;
+    chip.position.addScaledVector(forward, curveOffset);
     chip.userData = { type: 'chip-button', value, baseScale: RAIL_CHIP_SCALE };
     group.add(chip);
     return chip;
   });
 
-  const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 2.2 * MODEL_SCALE, height: 0.8 * MODEL_SCALE });
-  infoSprite.position.copy(frameCenter).addScaledVector(forward, -RAIL_INFO_INSET * 0.6);
-  infoSprite.position.y = anchor.y + SLIDER_THICKNESS * 0.72;
+  const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 1.1 * MODEL_SCALE, height: 0.4 * MODEL_SCALE });
+  infoSprite.position.copy(baseCenter).addScaledVector(forward, RAIL_INFO_FORWARD_OFFSET);
+  infoSprite.position.y = anchor.y + RAIL_INFO_VERTICAL_OFFSET;
   group.add(infoSprite);
 
   const undoButton = createRailButton(['Undo'], '#f59e0b');
   undoButton.group.position
-    .copy(frameCenter)
+    .copy(baseCenter)
     .addScaledVector(axis, -BUTTON_WIDTH * 1.6)
     .addScaledVector(forward, -RAIL_BUTTON_INSET);
+  undoButton.group.setRotationFromQuaternion(railQuaternion);
   undoButton.group.userData.action = 'undo';
   group.add(undoButton.group);
 
@@ -474,10 +444,6 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
         chip.parent.remove(chip);
       }
     });
-    frameGeometry.dispose();
-    frameMaterial.dispose();
-    insetGeometry.dispose();
-    insetMaterial.dispose();
     undoButton.dispose();
     infoSprite.userData?.dispose?.();
     if (group.parent) {
@@ -1966,7 +1932,7 @@ function TexasHoldemArena({ search }) {
         )}
       </div>
       {actor?.isHuman && sliderEnabled && sliderMax > 0 && (
-        <div className="pointer-events-auto absolute top-1/2 right-4 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white">
+        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
           <div className="flex flex-col items-center gap-1 text-center">
             <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
             <span className="text-2xl font-semibold drop-shadow-md">
@@ -1977,26 +1943,26 @@ function TexasHoldemArena({ search }) {
             )}
             <span className="text-[0.7rem] text-white/70">Total {overlayTotal} {gameState.token}</span>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={Math.round(sliderMax)}
-            step={1}
-            value={Math.round(sliderValue)}
-            onChange={(event) => {
-              const next = Number(event.target.value);
-              setChipSelection([]);
-              setSliderValue(next);
-            }}
-            className="h-64 w-8 cursor-pointer appearance-none bg-transparent"
-            style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
-          />
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={Math.round(sliderMax)}
+              step={1}
+              value={Math.round(sliderValue)}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setChipSelection([]);
+                setSliderValue(next);
+              }}
+              className="h-64 w-10 cursor-pointer appearance-none bg-transparent"
+              style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
+            />
             <button
               type="button"
               onClick={handleRaiseConfirm}
               disabled={overlayConfirmDisabled}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
+              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
                 overlayConfirmDisabled
                   ? 'bg-blue-900/50 text-white/40 shadow-none'
                   : 'bg-blue-600/90 hover:bg-blue-500'
@@ -2004,23 +1970,11 @@ function TexasHoldemArena({ search }) {
             >
               {sliderLabel}
             </button>
-            <button
-              type="button"
-              onClick={handleAllIn}
-              disabled={overlayAllInDisabled}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
-                overlayAllInDisabled
-                  ? 'bg-red-900/50 text-white/40 shadow-none'
-                  : 'bg-red-600/90 hover:bg-red-500'
-              }`}
-            >
-              All-in
-            </button>
           </div>
         </div>
       )}
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-3">
           {uiState.availableActions.map((action) => (
             <button
               key={action.id}
@@ -2030,6 +1984,20 @@ function TexasHoldemArena({ search }) {
               {action.label}
             </button>
           ))}
+          {sliderEnabled && (
+            <button
+              type="button"
+              onClick={handleAllIn}
+              disabled={overlayAllInDisabled}
+              className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
+                overlayAllInDisabled
+                  ? 'bg-red-900/50 text-white/40 shadow-none'
+                  : 'bg-red-600/90 hover:bg-red-500'
+              }`}
+            >
+              All-in
+            </button>
+          )}
         </div>
       )}
     </div>
