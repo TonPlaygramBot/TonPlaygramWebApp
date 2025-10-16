@@ -859,7 +859,7 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
 });
 
 const TABLE_SIZE_OPTIONS = Object.freeze({
-  '9ft': { id: '9ft', label: '9 ft', scale: 1.2 }
+  '9ft': { id: '9ft', label: '9 ft', scale: 1.44 }
 });
 const DEFAULT_TABLE_SIZE_ID = '9ft';
 
