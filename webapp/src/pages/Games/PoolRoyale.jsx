@@ -2388,10 +2388,6 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
-const LOW_VIEW_TARGET_BLEND_START = 0.24; // start lifting the framing once the camera drops beneath the standing angle
-const LOW_VIEW_TARGET_BLEND_END = 0.92; // fully bias toward the aim focus near the cue-level view
-const LOW_VIEW_TARGET_FALLBACK_DISTANCE = BALL_R * 48; // extend framing down-table when no contact prediction is available
-const LOW_VIEW_TARGET_EXTENSION = BALL_R * 2.4; // push the framing slightly beyond the contact point when a target ball is present
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -7715,8 +7711,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           } else {
             const aimFocus =
               !shooting && cue?.active ? aimFocusRef.current : null;
-            const ballsList =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
             let focusTarget;
             if (
               aimFocus &&
@@ -7736,6 +7730,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               aimFocusRef.current = null;
               const store = ensureOrbitFocus();
               if (store.ballId) {
+                const ballsList =
+                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
                 const focusBall = ballsList.find((b) => b.id === store.ballId);
                 if (focusBall?.active) {
                   store.target.set(
@@ -7748,83 +7744,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 }
               }
               focusTarget = store.target.clone();
-            }
-            if (focusTarget && cue?.active && !shooting) {
-              const cueBall = cueRef.current || cue;
-              const aimDir = aimDirRef.current;
-              const hasAimDir =
-                cueBall?.active &&
-                aimDir &&
-                Number.isFinite(aimDir.x) &&
-                Number.isFinite(aimDir.y);
-              if (hasAimDir) {
-                const aimVec = new THREE.Vector2(aimDir.x, aimDir.y);
-                if (aimVec.lengthSq() > 1e-6) {
-                  const normalizedAim = aimVec.clone().normalize();
-                  const prediction = calcTarget(
-                    cueBall,
-                    normalizedAim.clone(),
-                    ballsList
-                  );
-                  let aimTarget = null;
-                  if (prediction?.targetBall?.pos) {
-                    aimTarget = new THREE.Vector3(
-                      prediction.targetBall.pos.x,
-                      BALL_CENTER_Y,
-                      prediction.targetBall.pos.y
-                    );
-                    aimTarget.add(
-                      new THREE.Vector3(
-                        normalizedAim.x * LOW_VIEW_TARGET_EXTENSION,
-                        0,
-                        normalizedAim.y * LOW_VIEW_TARGET_EXTENSION
-                      )
-                    );
-                  } else if (prediction?.impact) {
-                    aimTarget = new THREE.Vector3(
-                      prediction.impact.x,
-                      BALL_CENTER_Y,
-                      prediction.impact.y
-                    );
-                  }
-                  if (!aimTarget) {
-                    aimTarget = new THREE.Vector3(
-                      cueBall.pos.x +
-                        normalizedAim.x * LOW_VIEW_TARGET_FALLBACK_DISTANCE,
-                      BALL_CENTER_Y,
-                      cueBall.pos.y +
-                        normalizedAim.y * LOW_VIEW_TARGET_FALLBACK_DISTANCE
-                    );
-                  }
-                  aimTarget.x = THREE.MathUtils.clamp(
-                    aimTarget.x,
-                    -PLAY_W / 2,
-                    PLAY_W / 2
-                  );
-                  aimTarget.z = THREE.MathUtils.clamp(
-                    aimTarget.z,
-                    -PLAY_H / 2,
-                    PLAY_H / 2
-                  );
-                  const phiRange = Math.max(
-                    1e-6,
-                    CAMERA.maxPhi - STANDING_VIEW.phi
-                  );
-                  const lowViewFactor = THREE.MathUtils.clamp(
-                    (sph.phi - STANDING_VIEW.phi) / phiRange,
-                    0,
-                    1
-                  );
-                  const aimBlend = THREE.MathUtils.smoothstep(
-                    lowViewFactor,
-                    LOW_VIEW_TARGET_BLEND_START,
-                    LOW_VIEW_TARGET_BLEND_END
-                  );
-                  if (aimBlend > 1e-6) {
-                    focusTarget.lerp(aimTarget, aimBlend);
-                  }
-                }
-              }
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
