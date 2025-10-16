@@ -101,15 +101,18 @@ const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MOD
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.24 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
-const CARD_RAIL_FORWARD_SHIFT = CARD_W * 0.36;
-const CHIP_RAIL_FORWARD_SHIFT = CARD_W * 0.32;
+const RAIL_ANCHOR_RATIO = 0.98;
+const RAIL_FORWARD_MARGIN = TABLE_RADIUS * (1 - RAIL_ANCHOR_RATIO);
+const RAIL_SURFACE_FORWARD_SHIFT = RAIL_FORWARD_MARGIN * 0.65;
+const CARD_RAIL_FORWARD_SHIFT = RAIL_SURFACE_FORWARD_SHIFT;
+const CHIP_RAIL_FORWARD_SHIFT = RAIL_SURFACE_FORWARD_SHIFT * 0.85;
 const CARD_RAIL_LATERAL_SHIFT = CARD_W * 0.9;
 const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 1.35;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.58;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const RAIL_ANCHOR_RATIO = 0.98;
+const RAIL_SURFACE_LIFT = CARD_D * 0.5;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.48;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
@@ -425,16 +428,17 @@ function createSeatLayout(count) {
     seatPos.y = CHAIR_BASE_HEIGHT;
     const railAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * RAIL_ANCHOR_RATIO);
     railAnchor.y = TABLE_HEIGHT + RAIL_HEIGHT_OFFSET;
+    const railSurfaceY = railAnchor.y + RAIL_SURFACE_LIFT;
     const cardRailCenter = railAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT);
     const chipRailCenter = railAnchor.clone().addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT);
     const cardAnchor = cardRailCenter.clone().addScaledVector(right, -CARD_RAIL_LATERAL_SHIFT);
-    cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    cardAnchor.y = railSurfaceY;
     const chipAnchor = chipRailCenter.clone().addScaledVector(right, CHIP_RAIL_LATERAL_SHIFT);
-    chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    chipAnchor.y = railSurfaceY;
     const cardRailAnchor = cardRailCenter.clone().addScaledVector(right, -CARD_RAIL_LATERAL_SHIFT);
-    cardRailAnchor.y = railAnchor.y;
+    cardRailAnchor.y = railSurfaceY;
     const chipRailAnchor = chipRailCenter.clone().addScaledVector(right, CHIP_RAIL_LATERAL_SHIFT);
-    chipRailAnchor.y = railAnchor.y;
+    chipRailAnchor.y = railSurfaceY;
     const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6).addScaledVector(forward, -BET_FORWARD_OFFSET);
     betAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const previewAnchor = betAnchor.clone();
@@ -581,7 +585,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const forward = seat.forward.clone().normalize();
   const axis = seat.right.clone().normalize();
   const anchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
-  anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET;
+  anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET + RAIL_SURFACE_LIFT;
   const cardRailAnchor = seat.cardRailAnchor
     ? seat.cardRailAnchor.clone()
     : anchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
