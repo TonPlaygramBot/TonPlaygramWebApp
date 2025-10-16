@@ -86,8 +86,8 @@ const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.12 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
-const CAMERA_HEAD_PITCH_UP = 0;
-const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
@@ -115,6 +115,11 @@ const RAIL_ANCHOR_RATIO = 0.98;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 7;
+const ARENA_WALL_HEIGHT = 3.6;
+const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+const DEFAULT_PITCH_LIMITS = Object.freeze({ min: -CAMERA_HEAD_PITCH_UP, max: CAMERA_HEAD_PITCH_DOWN });
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -206,61 +211,90 @@ function adjustHexColor(hex, amount) {
 }
 
 function createChairClothTexture(clothOption, renderer) {
-  const top = clothOption?.feltTop ?? '#0f6a2f';
-  const bottom = clothOption?.feltBottom ?? top;
+  const primary = clothOption?.feltTop ?? '#0f6a2f';
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
   const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, top);
-  gradient.addColorStop(1, bottom);
+  const highlight = adjustHexColor(primary, 0.22);
+  const shadow = adjustHexColor(primary, -0.32);
+  const seam = adjustHexColor(primary, -0.48);
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, adjustHexColor(primary, 0.18));
+  gradient.addColorStop(0.45, primary);
+  gradient.addColorStop(1, adjustHexColor(primary, -0.2));
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const highlight = adjustHexColor(top, 0.22);
-  const shadow = adjustHexColor(bottom, -0.24);
-  const seam = adjustHexColor(top, 0.36);
-  const spacing = canvas.width / 11;
-  const lineWidth = Math.max(1.4, canvas.width / 320);
+  const spacing = canvas.width / CHAIR_CLOTH_REPEAT;
+  const halfSpacing = spacing / 2;
+  const lineWidth = Math.max(1.6, spacing * 0.06);
 
-  const drawHatch = (rotation, color, alpha, offset = 0) => {
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(rotation);
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    for (let x = -canvas.width; x <= canvas.width; x += spacing) {
-      ctx.beginPath();
-      ctx.moveTo(x + offset, -canvas.height);
-      ctx.lineTo(x + offset, canvas.height);
-      ctx.stroke();
-    }
-    ctx.restore();
-  };
-
-  drawHatch(Math.PI / 4, highlight, 0.22);
-  drawHatch(-Math.PI / 4, shadow, 0.2, spacing / 2);
-
-  ctx.save();
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate(Math.PI / 4);
-  ctx.globalAlpha = 0.32;
   ctx.strokeStyle = seam;
-  ctx.lineWidth = Math.max(1.8, lineWidth * 1.1);
-  for (let x = -canvas.width; x <= canvas.width; x += spacing) {
+  ctx.lineWidth = lineWidth;
+  ctx.globalAlpha = 0.9;
+  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
     ctx.beginPath();
-    ctx.moveTo(x, -canvas.height);
-    ctx.lineTo(x, canvas.height);
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset - canvas.height, canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset + canvas.height, canvas.height);
     ctx.stroke();
   }
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = adjustHexColor(primary, 0.35);
+  ctx.lineWidth = lineWidth * 0.55;
+  ctx.globalAlpha = 0.55;
+  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(offset + halfSpacing, 0);
+    ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(offset + halfSpacing, 0);
+    ctx.lineTo(offset + halfSpacing + canvas.height, canvas.height);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+  const tuftRadius = Math.max(1.8, spacing * 0.08);
+  for (let y = -spacing; y <= canvas.height + spacing; y += spacing) {
+    for (let x = -spacing; x <= canvas.width + spacing; x += spacing) {
+      ctx.beginPath();
+      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  const sheenGradient = ctx.createRadialGradient(
+    canvas.width * 0.28,
+    canvas.height * 0.32,
+    canvas.width * 0.05,
+    canvas.width * 0.28,
+    canvas.height * 0.32,
+    canvas.width * 0.75
+  );
+  sheenGradient.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
+  sheenGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
+  sheenGradient.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+  ctx.fillStyle = sheenGradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
 
-  ctx.globalAlpha = 0.1;
+  ctx.globalAlpha = 0.08;
   for (let y = 0; y < canvas.height; y += 2) {
     for (let x = 0; x < canvas.width; x += 2) {
-      ctx.fillStyle = Math.random() > 0.55 ? highlight : shadow;
+      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
       ctx.fillRect(x, y, 1, 1);
     }
   }
@@ -279,21 +313,22 @@ function createChairFabricMaterial(clothOption, renderer) {
   const texture = createChairClothTexture(clothOption, renderer);
   const primary = clothOption?.feltTop ?? '#0f6a2f';
   const material = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#ffffff'),
+    color: new THREE.Color(adjustHexColor(primary, 0.04)),
     map: texture,
-    roughness: 0.32,
-    metalness: 0.16,
-    clearcoat: 0.52,
-    clearcoatRoughness: 0.24
+    roughness: 0.28,
+    metalness: 0.08,
+    clearcoat: 0.48,
+    clearcoatRoughness: 0.28,
+    sheen: 0.18
   });
-  if ('sheen' in material) {
-    material.sheen = 0.22;
-  }
   if ('sheenColor' in material) {
     material.sheenColor.set(primary);
   }
   if ('sheenRoughness' in material) {
-    material.sheenRoughness = 0.5;
+    material.sheenRoughness = 0.32;
+  }
+  if ('specularIntensity' in material) {
+    material.specularIntensity = 0.65;
   }
   material.userData.clothTexture = texture;
   material.userData.clothId = clothOption?.id ?? 'default';
@@ -310,65 +345,73 @@ function disposeChairMaterial(material) {
   material.dispose();
 }
 
-function createCurvedArmrest(side, material) {
+function createStraightArmrest(side, material) {
   const sideSign = side === 'right' ? 1 : -1;
   const group = new THREE.Group();
-  const arcStart = new THREE.Vector3(0, 0, ARM_DEPTH * 0.55);
-  const arcControl = new THREE.Vector3(0, ARM_HEIGHT * 0.98, -ARM_DEPTH * 0.05);
-  const arcEnd = new THREE.Vector3(0, 0, -ARM_DEPTH * 0.4);
-  const curve = new THREE.QuadraticBezierCurve3(arcStart, arcControl, arcEnd);
-  const restRadius = ARM_THICKNESS * 0.45;
-  const arcGeometry = new THREE.TubeGeometry(curve, 64, restRadius, 32, false);
-  const arcMesh = new THREE.Mesh(arcGeometry, material);
-  arcMesh.castShadow = true;
-  arcMesh.receiveShadow = true;
-  arcMesh.position.set(0, SEAT_THICKNESS / 2, -SEAT_DEPTH * 0.05);
-  group.add(arcMesh);
 
-  const elbowGeometry = new THREE.SphereGeometry(restRadius * 0.92, 32, 24);
-  const elbow = new THREE.Mesh(elbowGeometry, material);
-  const elbowPoint = curve.getPoint(0.5);
-  elbow.position.set(
-    elbowPoint.x,
-    elbowPoint.y + SEAT_THICKNESS / 2,
-    elbowPoint.z - SEAT_DEPTH * 0.05
+  const baseHeight = SEAT_THICKNESS / 2;
+  const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
+  const topLength = ARM_DEPTH * 1.1;
+  const topThickness = ARM_THICKNESS * 0.65;
+
+  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
+  top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
+  top.castShadow = true;
+  top.receiveShadow = true;
+  group.add(top);
+
+  const createSupport = (zOffset) => {
+    const support = new THREE.Mesh(
+      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
+      material
+    );
+    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
+    support.castShadow = true;
+    support.receiveShadow = true;
+    return support;
+  };
+
+  const frontSupport = createSupport(ARM_DEPTH * 0.4);
+  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
+  group.add(frontSupport, rearSupport);
+
+  const sidePanel = new THREE.Mesh(
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
+    material
   );
-  elbow.castShadow = true;
-  elbow.receiveShadow = true;
-  group.add(elbow);
+  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
+  sidePanel.castShadow = true;
+  sidePanel.receiveShadow = true;
+  group.add(sidePanel);
 
-  const supportRadius = ARM_THICKNESS * 0.28;
-  const supportHeight = SEAT_THICKNESS * 0.92;
-  const supportLength = Math.max(supportHeight - supportRadius * 2, 0);
-  const supportGeometry =
-    supportLength > 1e-4
-      ? new THREE.CapsuleGeometry(supportRadius, supportLength, 16, 24)
-      : new THREE.SphereGeometry(supportRadius, 24, 18);
-  const supportCenterY = supportLength / 2 + supportRadius;
-  const frontBase = new THREE.Mesh(supportGeometry, material);
-  frontBase.position.set(0, supportCenterY, arcMesh.position.z + ARM_DEPTH * 0.45);
-  frontBase.castShadow = true;
-  frontBase.receiveShadow = true;
-  group.add(frontBase);
+  const handRest = new THREE.Mesh(
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
+    material
+  );
+  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
+  handRest.castShadow = true;
+  handRest.receiveShadow = true;
+  group.add(handRest);
 
-  const rearBase = frontBase.clone();
-  rearBase.position.z = arcMesh.position.z - ARM_DEPTH * 0.35;
-  group.add(rearBase);
+  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
 
-  const frontCap = new THREE.Mesh(new THREE.SphereGeometry(restRadius * 0.9, 24, 16), material);
-  frontCap.position.set(0, arcMesh.position.y + ARM_HEIGHT * 0.05, arcMesh.position.z + ARM_DEPTH * 0.62);
-  frontCap.castShadow = true;
-  frontCap.receiveShadow = true;
-  group.add(frontCap);
+  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
+}
 
-  const rearCap = frontCap.clone();
-  rearCap.position.z = arcMesh.position.z - ARM_DEPTH * 0.52;
-  group.add(rearCap);
-
-  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.75), 0, 0);
-  group.rotation.z = THREE.MathUtils.degToRad(sideSign * 4.5);
-
-  return { group, meshes: [arcMesh, elbow, frontBase, rearBase, frontCap, rearCap] };
+function computeCameraPitchLimits(position, baseForward) {
+  const horizontalForward = Math.hypot(baseForward.x, baseForward.z);
+  const baseDownAngle = Math.atan2(-baseForward.y, horizontalForward);
+  const radialDistance = Math.hypot(position.x, position.z);
+  const horizontalGap = Math.max(0.35, ARENA_WALL_INNER_RADIUS - radialDistance);
+  const verticalReach = Math.max(0.01, ARENA_WALL_TOP_Y - position.y);
+  const maxUpAngle = Math.atan2(verticalReach, horizontalGap);
+  const computedUp = Math.max(0, baseDownAngle + maxUpAngle);
+  const clampedUp = Math.min(computedUp, THREE.MathUtils.degToRad(65));
+  const safeUp = clampedUp > 0 ? clampedUp : CAMERA_HEAD_PITCH_UP;
+  return {
+    min: -safeUp,
+    max: CAMERA_HEAD_PITCH_DOWN
+  };
 }
 
 function createSeatLayout(count) {
@@ -972,7 +1015,8 @@ function TexasHoldemArena({ search }) {
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
     baseUp: new THREE.Vector3(0, 1, 0),
-    baseRight: new THREE.Vector3(1, 0, 0)
+    baseRight: new THREE.Vector3(1, 0, 0),
+    pitchLimits: DEFAULT_PITCH_LIMITS
   });
   const pointerStateRef = useRef({
     active: false,
@@ -994,6 +1038,7 @@ function TexasHoldemArena({ search }) {
     onUndo: () => {}
   });
   const hoverTargetRef = useRef(null);
+  const getPitchLimits = () => cameraBasisRef.current?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
@@ -1231,10 +1276,17 @@ function TexasHoldemArena({ search }) {
     arenaGroup.add(carpet);
 
     const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.4, TABLE_RADIUS * ARENA_GROWTH * 2.6, 3.6, 32, 1, true),
+      new THREE.CylinderGeometry(
+        TABLE_RADIUS * ARENA_GROWTH * 2.4,
+        TABLE_RADIUS * ARENA_GROWTH * 2.6,
+        ARENA_WALL_HEIGHT,
+        32,
+        1,
+        true
+      ),
       createArenaWallMaterial('#0b1120', '#1e293b')
     );
-    wall.position.y = 1.8;
+    wall.position.y = ARENA_WALL_CENTER_Y;
     wall.receiveShadow = false;
     arenaGroup.add(wall);
 
@@ -1275,11 +1327,13 @@ function TexasHoldemArena({ search }) {
       const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
       const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
       const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
+      const pitchLimits = computeCameraPitchLimits(position, baseForward);
       cameraBasisRef.current = {
         position: position.clone(),
         baseForward,
         baseUp,
-        baseRight
+        baseRight,
+        pitchLimits
       };
       headAnglesRef.current.yaw = THREE.MathUtils.clamp(
         headAnglesRef.current.yaw,
@@ -1288,8 +1342,8 @@ function TexasHoldemArena({ search }) {
       );
       headAnglesRef.current.pitch = THREE.MathUtils.clamp(
         headAnglesRef.current.pitch,
-        -CAMERA_HEAD_PITCH_UP,
-        CAMERA_HEAD_PITCH_DOWN
+        pitchLimits.min,
+        pitchLimits.max
       );
       applyHeadOrientation();
     };
@@ -1319,9 +1373,9 @@ function TexasHoldemArena({ search }) {
       backMesh.receiveShadow = true;
       group.add(backMesh);
 
-      const armLeft = createCurvedArmrest('left', chairMaterial);
+      const armLeft = createStraightArmrest('left', chairMaterial);
       group.add(armLeft.group);
-      const armRight = createCurvedArmrest('right', chairMaterial);
+      const armRight = createStraightArmrest('right', chairMaterial);
       group.add(armRight.group);
 
       const legBase = new THREE.Mesh(
@@ -1574,10 +1628,11 @@ function TexasHoldemArena({ search }) {
           -CAMERA_HEAD_TURN_LIMIT,
           CAMERA_HEAD_TURN_LIMIT
         );
+        const pitchLimits = getPitchLimits();
         headAnglesRef.current.pitch = THREE.MathUtils.clamp(
           state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
-          -CAMERA_HEAD_PITCH_UP,
-          CAMERA_HEAD_PITCH_DOWN
+          pitchLimits.min,
+          pitchLimits.max
         );
         applyHeadOrientation();
         return;
