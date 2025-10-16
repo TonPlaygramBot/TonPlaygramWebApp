@@ -40,17 +40,18 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
-const CARD_SCALE = 0.95;
+const CARD_SCALE = 0.76;
+const CARD_THICKNESS_SCALE = 0.65;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
-const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE * CARD_THICKNESS_SCALE;
 const CARD_SURFACE_OFFSET = CARD_D * 4;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
 const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
-const ARM_THICKNESS = 0.1 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.135 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
@@ -116,9 +117,10 @@ const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.72;
 const RAIL_CHIP_INSET = CARD_W * 0.12;
 const RAIL_ANCHOR_RATIO = 0.98;
+const SEAT_ROTATION_OFFSET = Math.PI / 8;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
-const CHAIR_CLOTH_REPEAT = 14;
+const CHAIR_CLOTH_REPEAT = 9;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -224,7 +226,7 @@ function createChairClothTexture(clothOption, renderer) {
   const highlight = adjustHexColor(top, 0.22);
   const shadow = adjustHexColor(bottom, -0.24);
   const seam = adjustHexColor(top, 0.36);
-  const spacing = canvas.width / 11;
+  const spacing = canvas.width / 9;
   const lineWidth = Math.max(1.4, canvas.width / 320);
 
   const drawHatch = (rotation, color, alpha, offset = 0) => {
@@ -317,17 +319,17 @@ function createCurvedArmrest(side, material) {
   const sideSign = side === 'right' ? 1 : -1;
   const group = new THREE.Group();
   const arcStart = new THREE.Vector3(0, 0, ARM_DEPTH * 0.55);
-  const arcControl = new THREE.Vector3(0, ARM_HEIGHT * 0.98, -ARM_DEPTH * 0.05);
+  const arcControl = new THREE.Vector3(0, ARM_HEIGHT * 1.08, -ARM_DEPTH * 0.05);
   const arcEnd = new THREE.Vector3(0, 0, -ARM_DEPTH * 0.4);
   const curve = new THREE.QuadraticBezierCurve3(arcStart, arcControl, arcEnd);
-  const arcGeometry = new THREE.TubeGeometry(curve, 48, ARM_THICKNESS / 2, 24, false);
+  const arcGeometry = new THREE.TubeGeometry(curve, 64, ARM_THICKNESS * 0.55, 28, false);
   const arcMesh = new THREE.Mesh(arcGeometry, material);
   arcMesh.castShadow = true;
   arcMesh.receiveShadow = true;
   arcMesh.position.set(0, SEAT_THICKNESS / 2, -SEAT_DEPTH * 0.05);
   group.add(arcMesh);
 
-  const elbowGeometry = new THREE.SphereGeometry(ARM_THICKNESS / 1.6, 24, 18);
+  const elbowGeometry = new THREE.SphereGeometry(ARM_THICKNESS / 1.4, 28, 22);
   const elbow = new THREE.Mesh(elbowGeometry, material);
   const elbowPoint = curve.getPoint(0.5);
   elbow.position.set(
@@ -339,14 +341,10 @@ function createCurvedArmrest(side, material) {
   elbow.receiveShadow = true;
   group.add(elbow);
 
-  const baseGeometry = new THREE.CylinderGeometry(
-    ARM_THICKNESS / 1.2,
-    ARM_THICKNESS / 1.2,
-    SEAT_THICKNESS * 0.75,
-    24
-  );
-  const frontBase = new THREE.Mesh(baseGeometry, material);
-  frontBase.position.set(0, SEAT_THICKNESS * 0.375, arcMesh.position.z + ARM_DEPTH * 0.45);
+  const postHeight = SEAT_THICKNESS * 0.48;
+  const postGeometry = new THREE.CapsuleGeometry(ARM_THICKNESS * 0.58, Math.max(0.01, postHeight - ARM_THICKNESS * 0.58), 12, 28);
+  const frontBase = new THREE.Mesh(postGeometry, material);
+  frontBase.position.set(0, postHeight / 2 + SEAT_THICKNESS * 0.14, arcMesh.position.z + ARM_DEPTH * 0.45);
   frontBase.castShadow = true;
   frontBase.receiveShadow = true;
   group.add(frontBase);
@@ -355,8 +353,8 @@ function createCurvedArmrest(side, material) {
   rearBase.position.z = arcMesh.position.z - ARM_DEPTH * 0.35;
   group.add(rearBase);
 
-  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.75), 0, 0);
-  group.rotation.z = THREE.MathUtils.degToRad(sideSign * 4.5);
+  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.82), 0, 0);
+  group.rotation.z = THREE.MathUtils.degToRad(sideSign * 3.5);
 
   return { group, meshes: [arcMesh, elbow, frontBase, rearBase] };
 }
@@ -364,7 +362,7 @@ function createCurvedArmrest(side, material) {
 function createSeatLayout(count) {
   const layout = [];
   for (let i = 0; i < count; i += 1) {
-    const angle = Math.PI / 2 - (i / count) * Math.PI * 2;
+    const angle = Math.PI / 2 - (i / count) * Math.PI * 2 + SEAT_ROTATION_OFFSET;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
