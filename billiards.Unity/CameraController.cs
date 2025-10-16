@@ -21,9 +21,6 @@ public class CameraController : MonoBehaviour
     // Extra clearance used when clamping the camera height so it always remains
     // above the cue stick and keeps the stick visible in frame.
     public float cueStickHeightClearance = 0.05f;
-    // Additional safety margin that prevents the player view from dipping below
-    // the cue surface when the camera is lowered as far as possible.
-    public float cueStickSurfaceMargin = 0.01f;
     // Radius of the cue ball so the camera can stay above the top surface of
     // the cue stick as it rests on the cloth.
     public float cueBallRadius = 0.028575f;
@@ -33,9 +30,6 @@ public class CameraController : MonoBehaviour
     public float minimumCueViewDistance = 1.45f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 1.9f;
-    // Small amount of headroom applied to the upward clamp so the player can
-    // lift the camera just past the default maximum height.
-    public float maxHeightHeadroom = 0.1f;
     // Default distance of the camera from the table centre when fully raised to
     // provide a broad overview of the action.
     public float distanceFromCenter = 3.8f;
@@ -85,13 +79,13 @@ public class CameraController : MonoBehaviour
         Vector3 pos = transform.position;
         float minRailY = railTopY + Mathf.Max(0f, railClearance);
         float cueTopClearance = Mathf.Max(0f, cueStickHeightClearance);
-        float cueSurfaceMargin = Mathf.Max(0f, cueStickSurfaceMargin);
         float cueRadius = Mathf.Max(0f, cueBallRadius);
-        float cueSurfaceY = (player != null ? player.position.y : tableTopY) + cueRadius;
-        float cueStickMinY = cueSurfaceY + cueTopClearance + cueSurfaceMargin;
-        float tableCueMinY = tableTopY + cueRadius + cueTopClearance + cueSurfaceMargin;
+        float cueStickMinY = player != null
+            ? player.position.y + cueRadius + cueTopClearance
+            : minRailY;
+        float tableCueMinY = tableTopY + cueRadius + cueTopClearance;
         float minY = Mathf.Max(minRailY, cueStickMinY, tableCueMinY);
-        float maxY = tableTopY + maxHeightAboveTable + Mathf.Max(0f, maxHeightHeadroom);
+        float maxY = tableTopY + maxHeightAboveTable;
         pos.y = Mathf.Clamp(pos.y, minY, maxY);
 
         // As the camera is pulled downward toward the rails gradually move it
