@@ -36,7 +36,7 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -55,8 +55,12 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const TABLE_HEIGHT = STOOL_HEIGHT;
+const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
+const AI_CHAIR_GAP = CARD_W * 0.4;
+const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const PLAYER_COUNT = 6;
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
@@ -78,7 +82,10 @@ const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.28 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({
+  portrait: 1.58 + TABLE_HEIGHT_RAISE,
+  landscape: 1.28 + TABLE_HEIGHT_RAISE
+});
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -92,11 +99,11 @@ const HUMAN_LABEL_FORWARD = 0.88 * MODEL_SCALE;
 const AI_LABEL_FORWARD = 0.98 * MODEL_SCALE;
 
 const RAIL_CHIP_SCALE = 1.08;
-const RAIL_CHIP_SPACING = CARD_W * 0.56;
-const RAIL_CHIP_CURVE = CARD_W * 0.52;
+const RAIL_CHIP_SPACING = CARD_W * 0.45;
+const RAIL_CHIP_CURVE = CARD_W * 0.46;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.52;
-const RAIL_CHIP_INSET = CARD_W * 0.075;
+const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.68;
+const RAIL_CHIP_INSET = CARD_W * 0.18;
 const RAIL_ANCHOR_RATIO = 0.98;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -181,14 +188,14 @@ function normalizeAppearance(value = {}) {
 }
 
 function createSeatLayout(count) {
-  const radius = CHAIR_RADIUS;
   const layout = [];
   for (let i = 0; i < count; i += 1) {
     const angle = Math.PI / 2 - (i / count) * Math.PI * 2;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-    const seatPos = forward.clone().multiplyScalar(radius);
+    const seatRadius = isHuman ? CHAIR_RADIUS : AI_CHAIR_RADIUS;
+    const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.64);
     cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
@@ -196,7 +203,7 @@ function createSeatLayout(count) {
     chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const previewAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.58);
     previewAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
-    const stoolAnchor = forward.clone().multiplyScalar(radius);
+    const stoolAnchor = forward.clone().multiplyScalar(seatRadius);
     stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
     layout.push({
       angle,
