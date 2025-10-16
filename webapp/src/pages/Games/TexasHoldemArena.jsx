@@ -56,37 +56,25 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.13, landscape: 1.63 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.28, landscape: 1.78 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.94, landscape: 1.58 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
-const CHIP_COLORS = Object.freeze({
-  1: '#f2b21a',
-  2: '#f97316',
-  5: '#d54a3a',
-  10: '#2196f3',
-  20: '#4caf50',
-  50: '#3a3331',
-  200: '#7b4abd',
-  500: '#a3362e',
-  1000: '#1fb3d6'
-});
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+const RAIL_CHIP_SCALE = 1.08;
+const RAIL_CHIP_SPACING = CARD_W * 0.72;
+const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
+const SLIDER_LENGTH = CARD_W * 4.8;
+const SLIDER_THICKNESS = CARD_D * 14;
+const SLIDER_DEPTH = CARD_W * 0.48;
+const BUTTON_WIDTH = CARD_W * 1.75;
+const BUTTON_HEIGHT = CARD_D * 16;
+const BUTTON_DEPTH = CARD_W * 0.58;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
-
-function getChipStyle(value) {
-  const base = CHIP_COLORS[value] || '#2563eb';
-  return {
-    background: `radial-gradient(circle at 30% 30%, #ffffff, ${base} 52%, #0f172a 96%)`,
-    boxShadow: '0 12px 20px rgba(0, 0, 0, 0.45)',
-    borderColor: 'rgba(248, 250, 252, 0.9)',
-    color: '#f8fafc',
-    textShadow: '0 0 6px rgba(15, 23, 42, 0.6)'
-  };
-}
 
 function flagToName(flag) {
   if (!flag || !REGION_NAMES) return 'Guest';
@@ -222,6 +210,247 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.arcTo(x, y + height, x, y, r);
   ctx.arcTo(x, y, x + width, y, r);
   ctx.closePath();
+}
+
+function createRailTextSprite(initialLines = [], options = {}) {
+  const { width = 1.9 * MODEL_SCALE, height = 0.68 * MODEL_SCALE } = options;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  const draw = (lines) => {
+    const content = Array.isArray(lines) ? lines : [String(lines ?? '')];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(15,23,42,0.82)';
+    ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+    ctx.lineWidth = 14;
+    roundRect(ctx, 32, 32, canvas.width - 64, canvas.height - 64, 56);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const baseY = canvas.height / 2;
+    const lineHeight = 96;
+    const startY = baseY - ((content.length - 1) * lineHeight) / 2;
+    content.forEach((line, idx) => {
+      ctx.font = idx === 0 ? '700 92px "Inter", system-ui, sans-serif' : '600 76px "Inter", system-ui, sans-serif';
+      ctx.fillText(line, canvas.width / 2, startY + idx * lineHeight);
+    });
+  };
+  draw(initialLines);
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(width, height, 1);
+  sprite.center.set(0.5, 0);
+  sprite.userData.update = (lines) => {
+    draw(lines);
+    texture.needsUpdate = true;
+  };
+  sprite.userData.dispose = () => {
+    texture.dispose();
+  };
+  sprite.userData.canvas = canvas;
+  sprite.userData.texture = texture;
+  return sprite;
+}
+
+function createRailButton(labelLines, color, { width = BUTTON_WIDTH, height = BUTTON_HEIGHT, depth = BUTTON_DEPTH } = {}) {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const baseColor = new THREE.Color(color);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: baseColor.clone(),
+    roughness: 0.32,
+    metalness: 0.55,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.22
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  const sprite = createRailTextSprite(Array.isArray(labelLines) ? labelLines : [labelLines], {
+    width: width * 0.85,
+    height: height * 0.09 + 0.45 * MODEL_SCALE
+  });
+  sprite.position.set(0, height / 2 + 0.01, 0);
+  const group = new THREE.Group();
+  group.add(mesh);
+  group.add(sprite);
+  group.userData = { type: 'button', enabled: true };
+  let hovered = false;
+  let enabled = true;
+  const updateColor = () => {
+    const target = enabled ? (hovered ? baseColor.clone().multiplyScalar(1.15) : baseColor) : new THREE.Color('#1f2937');
+    material.color.copy(target);
+  };
+  const setEnabled = (value) => {
+    enabled = Boolean(value);
+    group.userData.enabled = enabled;
+    updateColor();
+  };
+  const setHover = (value) => {
+    hovered = Boolean(value) && enabled;
+    updateColor();
+  };
+  const setText = (lines) => {
+    sprite.userData.update(Array.isArray(lines) ? lines : [lines]);
+  };
+  updateColor();
+  return {
+    group,
+    mesh,
+    geometry,
+    material,
+    sprite,
+    baseColor,
+    setText,
+    setEnabled,
+    setHover,
+    dispose: () => {
+      geometry.dispose();
+      material.dispose();
+      sprite.userData?.dispose?.();
+    }
+  };
+}
+
+function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
+  if (!arena || !seat || !chipFactory || !tableInfo) return null;
+  const group = new THREE.Group();
+  group.visible = false;
+  arena.add(group);
+  const forward = seat.forward.clone().normalize();
+  const axis = seat.right.clone().normalize();
+  const anchor = forward.clone().multiplyScalar(tableInfo.radius * 0.94);
+  anchor.y = tableInfo.surfaceY + RAIL_HEIGHT_OFFSET;
+  const chipOrigin = anchor.clone().addScaledVector(axis, -((CHIP_VALUES.length - 1) / 2) * RAIL_CHIP_SPACING);
+  const chipButtons = CHIP_VALUES.map((value, index) => {
+    const chip = chipFactory.createStack(value);
+    chip.scale.setScalar(RAIL_CHIP_SCALE);
+    chip.position.copy(chipOrigin).addScaledVector(axis, index * RAIL_CHIP_SPACING).addScaledVector(forward, -CARD_W * 0.12);
+    chip.userData = { type: 'chip-button', value, baseScale: RAIL_CHIP_SCALE };
+    group.add(chip);
+    return chip;
+  });
+
+  const trackGeometry = new THREE.BoxGeometry(SLIDER_LENGTH, SLIDER_THICKNESS, SLIDER_DEPTH);
+  const trackMaterial = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color('#1f2937'),
+    roughness: 0.44,
+    metalness: 0.48,
+    clearcoat: 0.85,
+    clearcoatRoughness: 0.24
+  });
+  const track = new THREE.Mesh(trackGeometry, trackMaterial);
+  track.castShadow = true;
+  track.receiveShadow = true;
+  const alignQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis);
+  track.setRotationFromQuaternion(alignQuat);
+  const trackPosition = anchor.clone().addScaledVector(forward, CARD_W * 0.22);
+  track.position.copy(trackPosition);
+  track.userData = { type: 'slider-track' };
+  group.add(track);
+
+  const handleGeometry = new THREE.CylinderGeometry(SLIDER_DEPTH * 0.55, SLIDER_DEPTH * 0.55, SLIDER_THICKNESS * 0.9, 32);
+  const handleMaterial = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color('#facc15'),
+    roughness: 0.22,
+    metalness: 0.82,
+    clearcoat: 1,
+    clearcoatRoughness: 0.12
+  });
+  const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+  handle.castShadow = true;
+  handle.userData = { type: 'slider-handle' };
+  const sliderOrigin = trackPosition.clone().addScaledVector(axis, -SLIDER_LENGTH / 2);
+  const handleHeight = trackPosition.y + SLIDER_THICKNESS / 2 + (SLIDER_THICKNESS * 0.9) / 2;
+  handle.position.copy(sliderOrigin);
+  handle.position.y = handleHeight;
+  group.add(handle);
+
+  const sliderPlane = new THREE.Plane(forward.clone(), -forward.clone().dot(trackPosition));
+  const infoSprite = createRailTextSprite(['Raise 0', 'Total 0'], { width: 2.2 * MODEL_SCALE, height: 0.8 * MODEL_SCALE });
+  infoSprite.position.copy(trackPosition).addScaledVector(forward, -CARD_W * 0.65);
+  group.add(infoSprite);
+
+  const confirmButton = createRailButton(['Raise', '0'], '#2563eb');
+  confirmButton.group.position
+    .copy(trackPosition)
+    .addScaledVector(axis, SLIDER_LENGTH / 2 + BUTTON_WIDTH * 0.7)
+    .addScaledVector(forward, -CARD_W * 0.08);
+  confirmButton.group.userData.action = 'confirm';
+  group.add(confirmButton.group);
+
+  const allInButton = createRailButton(['All-in', '0'], '#dc2626');
+  allInButton.group.position
+    .copy(trackPosition)
+    .addScaledVector(axis, SLIDER_LENGTH / 2 + BUTTON_WIDTH * 2.05)
+    .addScaledVector(forward, -CARD_W * 0.08);
+  allInButton.group.userData.action = 'all-in';
+  group.add(allInButton.group);
+
+  const undoButton = createRailButton(['Undo'], '#f59e0b');
+  undoButton.group.position
+    .copy(trackPosition)
+    .addScaledVector(axis, -SLIDER_LENGTH / 2 - BUTTON_WIDTH * 0.8)
+    .addScaledVector(forward, -CARD_W * 0.08);
+  undoButton.group.userData.action = 'undo';
+  group.add(undoButton.group);
+
+  const interactables = [
+    ...chipButtons,
+    track,
+    handle,
+    confirmButton.group,
+    allInButton.group,
+    undoButton.group
+  ];
+
+  const dispose = () => {
+    chipButtons.forEach((chip) => {
+      chipFactory.disposeStack(chip);
+      if (chip.parent) {
+        chip.parent.remove(chip);
+      }
+    });
+    trackGeometry.dispose();
+    trackMaterial.dispose();
+    handleGeometry.dispose();
+    handleMaterial.dispose();
+    confirmButton.dispose();
+    allInButton.dispose();
+    undoButton.dispose();
+    infoSprite.userData?.dispose?.();
+    if (group.parent) {
+      group.parent.remove(group);
+    }
+  };
+
+  return {
+    group,
+    chipButtons,
+    slider: {
+      track,
+      handle,
+      axis,
+      origin: sliderOrigin,
+      length: SLIDER_LENGTH,
+      plane: sliderPlane,
+      heightOffset: handleHeight - sliderOrigin.y,
+      info: infoSprite,
+      max: 0,
+      value: 0
+    },
+    buttons: {
+      confirm: confirmButton,
+      allIn: allInButton,
+      undo: undoButton
+    },
+    interactables,
+    dispose
+  };
 }
 
 function applyCardToMesh(mesh, card, geometry, cache) {
@@ -615,11 +844,24 @@ function TexasHoldemArena({ search }) {
   const pointerStateRef = useRef({
     active: false,
     pointerId: null,
+    mode: null,
     startX: 0,
     startY: 0,
     startYaw: 0,
-    startPitch: 0
+    startPitch: 0,
+    buttonAction: null,
+    dragged: false
   });
+  const pointerVectorRef = useRef(new THREE.Vector2());
+  const interactionsRef = useRef({
+    onChip: () => {},
+    onSliderChange: () => {},
+    onAllIn: () => {},
+    onConfirm: () => {},
+    onUndo: () => {}
+  });
+  const hoverTargetRef = useRef(null);
+  const sliderEnabledRef = useRef(false);
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
@@ -728,6 +970,7 @@ function TexasHoldemArena({ search }) {
     const deckAnchor = DECK_POSITION.clone();
 
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
+    const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
     const applySeatedCamera = (width, height) => {
       if (!humanSeat) return;
@@ -863,6 +1106,9 @@ function TexasHoldemArena({ search }) {
     potStack.position.copy(POT_OFFSET);
     arenaGroup.add(potStack);
 
+    const raycaster = new THREE.Raycaster();
+    const sliderPoint = new THREE.Vector3();
+
     threeRef.current = {
       renderer,
       scene,
@@ -874,53 +1120,197 @@ function TexasHoldemArena({ search }) {
       communityMeshes,
       potStack,
       deckAnchor,
+      raiseControls,
+      raycaster,
       frameId: null
     };
 
     const element = renderer.domElement;
+    const getControls = () => threeRef.current?.raiseControls || null;
+
+    const applyHoverTarget = (target) => {
+      const prev = hoverTargetRef.current;
+      if (prev && prev !== target) {
+        if (prev.userData?.type === 'chip-button') {
+          prev.scale.setScalar(prev.userData.baseScale);
+        } else if (prev.userData?.type === 'button') {
+          const controls = getControls();
+          const button = controls
+            ? Object.values(controls.buttons).find((btn) => btn.group === prev)
+            : null;
+          button?.setHover(false);
+        }
+      }
+      hoverTargetRef.current = target || null;
+      if (!target) return;
+      if (target.userData?.type === 'chip-button') {
+        target.scale.setScalar(target.userData.baseScale * 1.12);
+      } else if (target.userData?.type === 'button') {
+        const controls = getControls();
+        const button = controls
+          ? Object.values(controls.buttons).find((btn) => btn.group === target)
+          : null;
+        button?.setHover(true);
+      }
+    };
+
+    const pickInteractive = (event) => {
+      const controls = getControls();
+      if (!controls?.group?.visible) return null;
+      const rect = element.getBoundingClientRect();
+      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointerVectorRef.current, camera);
+      const intersects = raycaster.intersectObjects(controls.interactables, true);
+      if (!intersects.length) return null;
+      let target = intersects[0].object;
+      while (target && !target.userData?.type && target.parent) {
+        target = target.parent;
+      }
+      if (!target?.userData?.type) return null;
+      return { target, point: intersects[0].point };
+    };
+
+    const computeSliderValue = (event) => {
+      const controls = getControls();
+      if (!controls?.group?.visible) return null;
+      const slider = controls.slider;
+      if (!slider || slider.max <= 0) return null;
+      const rect = element.getBoundingClientRect();
+      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointerVectorRef.current, camera);
+      const hit = raycaster.ray.intersectPlane(slider.plane, sliderPoint);
+      if (!hit) return null;
+      const offset = sliderPoint.clone().sub(slider.origin);
+      const distance = THREE.MathUtils.clamp(offset.dot(slider.axis), 0, slider.length);
+      const ratio = slider.length > 0 ? distance / slider.length : 0;
+      return slider.max * ratio;
+    };
+
+    const resetPointerState = () => {
+      pointerStateRef.current = {
+        active: false,
+        pointerId: null,
+        mode: null,
+        startX: 0,
+        startY: 0,
+        startYaw: 0,
+        startPitch: 0,
+        buttonAction: null,
+        dragged: false
+      };
+    };
+
     const handlePointerDown = (event) => {
       event.preventDefault();
+      const interactive = pickInteractive(event);
+      if (interactive) {
+        const { target } = interactive;
+        const type = target.userData?.type;
+        if (type === 'button' && target.userData?.enabled === false) {
+          applyHoverTarget(null);
+          element.style.cursor = 'grab';
+          return;
+        }
+        pointerStateRef.current = {
+          active: true,
+          pointerId: event.pointerId,
+          mode: type,
+          startX: event.clientX,
+          startY: event.clientY,
+          startYaw: headAnglesRef.current.yaw,
+          startPitch: headAnglesRef.current.pitch,
+          buttonAction: target.userData?.action ?? null,
+          dragged: false
+        };
+        element.setPointerCapture(event.pointerId);
+        if (type === 'chip-button') {
+          interactionsRef.current.onChip?.(target.userData.value);
+        } else if (type === 'slider-track' || type === 'slider-handle') {
+          const value = computeSliderValue(event);
+          if (value !== null) {
+            interactionsRef.current.onSliderChange?.(value);
+          }
+          element.style.cursor = 'grabbing';
+        } else if (type === 'button') {
+          element.style.cursor = 'pointer';
+        }
+        return;
+      }
       pointerStateRef.current = {
         active: true,
         pointerId: event.pointerId,
+        mode: 'camera',
         startX: event.clientX,
         startY: event.clientY,
         startYaw: headAnglesRef.current.yaw,
-        startPitch: headAnglesRef.current.pitch
+        startPitch: headAnglesRef.current.pitch,
+        buttonAction: null,
+        dragged: false
       };
       element.setPointerCapture(event.pointerId);
+      element.style.cursor = 'grabbing';
     };
 
     const handlePointerMove = (event) => {
       const state = pointerStateRef.current;
-      if (!state.active || state.pointerId !== event.pointerId) return;
-      const dx = event.clientX - state.startX;
-      const dy = event.clientY - state.startY;
-      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
-        state.startYaw - dx * HEAD_YAW_SENSITIVITY,
-        -CAMERA_HEAD_TURN_LIMIT,
-        CAMERA_HEAD_TURN_LIMIT
-      );
-      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
-        state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
-        -CAMERA_HEAD_PITCH_UP,
-        CAMERA_HEAD_PITCH_DOWN
-      );
-      applyHeadOrientation();
+      if (!state.active || state.pointerId !== event.pointerId) {
+        const hit = pickInteractive(event);
+        if (hit?.target?.userData?.type === 'button' && hit.target.userData.enabled === false) {
+          applyHoverTarget(null);
+          element.style.cursor = 'grab';
+          return;
+        }
+        applyHoverTarget(hit?.target ?? null);
+        element.style.cursor = hit ? 'pointer' : 'grab';
+        return;
+      }
+      if (state.mode === 'camera') {
+        const dx = event.clientX - state.startX;
+        const dy = event.clientY - state.startY;
+        headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+          state.startYaw - dx * HEAD_YAW_SENSITIVITY,
+          -CAMERA_HEAD_TURN_LIMIT,
+          CAMERA_HEAD_TURN_LIMIT
+        );
+        headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+          state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
+          -CAMERA_HEAD_PITCH_UP,
+          CAMERA_HEAD_PITCH_DOWN
+        );
+        applyHeadOrientation();
+        return;
+      }
+      if (state.mode === 'slider-track' || state.mode === 'slider-handle') {
+        const value = computeSliderValue(event);
+        if (value !== null) {
+          interactionsRef.current.onSliderChange?.(value);
+        }
+        return;
+      }
+      if (state.mode === 'button' || state.mode === 'chip-button') {
+        const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+        state.dragged = distance > 10;
+      }
     };
 
     const handlePointerUp = (event) => {
       const state = pointerStateRef.current;
       if (state.pointerId === event.pointerId) {
         element.releasePointerCapture(event.pointerId);
-        pointerStateRef.current = {
-          active: false,
-          pointerId: null,
-          startX: 0,
-          startY: 0,
-          startYaw: 0,
-          startPitch: 0
-        };
+        if (state.mode === 'button' && !state.dragged) {
+          if (state.buttonAction === 'confirm') {
+            interactionsRef.current.onConfirm?.();
+          } else if (state.buttonAction === 'all-in') {
+            interactionsRef.current.onAllIn?.();
+          } else if (state.buttonAction === 'undo') {
+            interactionsRef.current.onUndo?.();
+          }
+        }
+        resetPointerState();
+        element.style.cursor = 'grab';
+        applyHoverTarget(null);
       }
     };
 
@@ -960,7 +1350,14 @@ function TexasHoldemArena({ search }) {
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
-        const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, communityMeshes: community } = threeRef.current;
+        const {
+          renderer: r,
+          scene: s,
+          chipFactory: factory,
+          seatGroups: seats,
+          communityMeshes: community,
+          raiseControls: controls
+        } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
@@ -990,6 +1387,7 @@ function TexasHoldemArena({ search }) {
         });
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
+        controls?.dispose?.();
         tableInfo?.dispose?.();
         r.dispose();
       }
@@ -1163,6 +1561,75 @@ function TexasHoldemArena({ search }) {
     seat.previewStack.visible = amount > 0;
   }, [raisePreview, sliderEnabled]);
 
+  useEffect(() => {
+    sliderEnabledRef.current = sliderEnabled;
+  }, [sliderEnabled]);
+
+  useEffect(() => {
+    const three = threeRef.current;
+    const controls = three?.raiseControls;
+    if (!controls) return;
+    const visible = sliderEnabled && sliderMax > 0;
+    controls.group.visible = visible;
+    controls.chipButtons.forEach((chip) => {
+      chip.visible = visible;
+      if (chip.userData?.baseScale) {
+        chip.scale.setScalar(chip.userData.baseScale);
+      }
+    });
+    if (!visible) {
+      if (hoverTargetRef.current) {
+        if (hoverTargetRef.current.userData?.type === 'chip-button') {
+          hoverTargetRef.current.scale.setScalar(hoverTargetRef.current.userData.baseScale);
+        } else if (hoverTargetRef.current.userData?.type === 'button') {
+          const btn = Object.values(controls.buttons).find((entry) => entry.group === hoverTargetRef.current);
+          btn?.setHover(false);
+        }
+        hoverTargetRef.current = null;
+      }
+      controls.buttons.confirm.setHover(false);
+      controls.buttons.confirm.setEnabled(false);
+      controls.buttons.allIn.setHover(false);
+      controls.buttons.allIn.setEnabled(false);
+      controls.buttons.undo.setHover(false);
+      controls.buttons.undo.setEnabled(false);
+      controls.slider.handle.visible = false;
+      controls.slider.info.userData.update(['Raise 0', 'Total 0']);
+      return;
+    }
+    controls.slider.max = sliderMax;
+    const displayValue = Math.min(sliderMax, Math.max(0, raisePreview));
+    controls.slider.value = displayValue;
+    const ratio = sliderMax > 0 ? displayValue / sliderMax : 0;
+    const handlePos = controls.slider.origin
+      .clone()
+      .addScaledVector(controls.slider.axis, controls.slider.length * ratio);
+    handlePos.y = controls.slider.origin.y + controls.slider.heightOffset;
+    controls.slider.handle.position.copy(handlePos);
+    controls.slider.handle.visible = true;
+    const token = gameState.token;
+    const total = Math.round(totalSpend);
+    const raiseAmount = Math.round(displayValue);
+    const infoLines = toCall > 0
+      ? [`Selected: ${raiseAmount} ${token}`, `Call: ${Math.round(toCall)} ${token}`, `Total: ${total} ${token}`]
+      : [`Selected: ${raiseAmount} ${token}`, `Total: ${total} ${token}`];
+    controls.slider.info.userData.update(infoLines);
+    controls.buttons.confirm.setText([sliderLabel, `${total} ${token}`]);
+    controls.buttons.confirm.setEnabled(total > 0 && sliderEnabled);
+    controls.buttons.allIn.setText(['All-in', `${Math.round(sliderMax)} ${token}`]);
+    controls.buttons.allIn.setEnabled(sliderEnabled && sliderMax > 0);
+    controls.buttons.undo.setEnabled(chipSelection.length > 0);
+  }, [
+    sliderEnabled,
+    sliderMax,
+    raisePreview,
+    totalSpend,
+    sliderLabel,
+    toCall,
+    chipSelection.length,
+    gameState.token
+  ]);
+
   const handleChipClick = (value) => {
     if (!sliderEnabled) return;
     setChipSelection((prev) => {
@@ -1184,11 +1651,6 @@ function TexasHoldemArena({ search }) {
     });
   };
 
-  const handleSliderChange = (event) => {
-    const value = Number(event.target.value);
-    setSliderValue(value);
-  };
-
   const handleRaiseConfirm = () => {
     if (!sliderEnabled) return;
     const action = toCall > 0 ? 'raise' : 'bet';
@@ -1200,6 +1662,21 @@ function TexasHoldemArena({ search }) {
     const action = toCall > 0 ? 'raise' : 'bet';
     handleAction(action, sliderMax);
   };
+
+  useEffect(() => {
+    interactionsRef.current = {
+      onChip: (value) => handleChipClick(value),
+      onSliderChange: (value) => {
+        if (!sliderEnabledRef.current) return;
+        const clamped = sliderMax > 0 ? Math.min(Math.max(value, 0), sliderMax) : 0;
+        setChipSelection([]);
+        setSliderValue(clamped);
+      },
+      onAllIn: () => handleAllIn(),
+      onConfirm: () => handleRaiseConfirm(),
+      onUndo: () => handleUndoChip()
+    };
+  }, [handleChipClick, handleAllIn, handleRaiseConfirm, handleUndoChip, sliderMax]);
 
   return (
     <div className="relative w-full h-full">
@@ -1227,85 +1704,17 @@ function TexasHoldemArena({ search }) {
         )}
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
-        <>
-          {sliderEnabled && (
-            <>
-              <div
-                className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
-                style={{ bottom: '22%' }}
-              >
-                <div className="flex flex-wrap justify-center gap-3">
-                  {CHIP_VALUES.map((value) => (
-                    <button
-                      key={value}
-                      onClick={() => handleChipClick(value)}
-                      className="!w-14 !h-14 !rounded-full !border-[3px] !bg-transparent !text-base !font-black !shadow-xl !flex !items-center !justify-center"
-                      style={getChipStyle(value)}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-white/90">
-                  <button
-                    onClick={handleUndoChip}
-                    disabled={!chipSelection.length}
-                    className="!px-3 !py-1 !rounded-full !bg-amber-400/90 !text-black !font-semibold !shadow disabled:opacity-40"
-                  >
-                    Undo
-                  </button>
-                  <span>
-                    Selected raise: {Math.round(raisePreview)} {gameState.token}
-                  </span>
-                </div>
-              </div>
-              <div className="absolute top-1/2 right-3 -translate-y-1/2 flex flex-col items-center gap-4 z-20">
-                <button
-                  onClick={handleAllIn}
-                  disabled={!sliderEnabled}
-                  className="!px-4 !py-1 !rounded-full !border !border-red-300 !bg-red-600/80 !text-white !font-semibold !shadow disabled:opacity-40 disabled:bg-red-600/40"
-                >
-                  All-in
-                </button>
-                <div className="flex flex-col items-center gap-2">
-                  <input
-                    type="range"
-                    min={0}
-                    max={sliderMax}
-                    step={1}
-                    value={Math.min(sliderMax, sliderValue)}
-                    onChange={handleSliderChange}
-                    disabled={!sliderEnabled}
-                    className="pointer-events-auto h-56 w-10 accent-sky-400 bg-transparent"
-                    style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
-                  />
-                  <div className="text-xs text-white/80 text-center space-y-1 max-w-[8rem]">
-                    <div>Raise amount: {Math.round(finalRaise)} {gameState.token}</div>
-                    <div>Total commitment: {Math.round(totalSpend)} {gameState.token}</div>
-                  </div>
-                  <button
-                    onClick={handleRaiseConfirm}
-                    disabled={!sliderEnabled}
-                    className="!px-4 !py-2 !rounded-full !bg-blue-600 !text-white !font-semibold !shadow disabled:opacity-40 disabled:bg-blue-600/40"
-                  >
-                    {sliderLabel} {Math.round(totalSpend)} {gameState.token}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
-            {uiState.availableActions.map((action) => (
-              <button
-                key={action.id}
-                onClick={() => handleAction(action.id)}
-                className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        </>
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+          {uiState.availableActions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => handleAction(action.id)}
+              className="px-5 py-2 rounded-lg bg-blue-600/90 text-white font-semibold shadow-lg"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
