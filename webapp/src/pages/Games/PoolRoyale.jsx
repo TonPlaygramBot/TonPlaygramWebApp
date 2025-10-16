@@ -2366,6 +2366,8 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
+// Keep the orbit camera from slipping beneath the cloth when dragged downwards.
+const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.08;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -7683,6 +7685,33 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
             }
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+            const surfaceMarginWorld = Math.max(
+              0,
+              CAMERA_SURFACE_STOP_MARGIN
+            ) * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE);
+            const surfaceClampY = baseSurfaceWorldY + surfaceMarginWorld;
+            if (camera.position.y < surfaceClampY) {
+              camera.position.y = surfaceClampY;
+              TMP_VEC3_A.copy(camera.position).sub(lookTarget);
+              const limitedRadius = TMP_VEC3_A.length();
+              if (limitedRadius > 1e-6) {
+                const normalizedY = THREE.MathUtils.clamp(
+                  TMP_VEC3_A.y / limitedRadius,
+                  -1,
+                  1
+                );
+                const correctedPhi = Math.acos(normalizedY);
+                sph.radius = clampOrbitRadius(limitedRadius);
+                sph.phi = THREE.MathUtils.clamp(
+                  correctedPhi,
+                  CAMERA.minPhi,
+                  CAMERA.maxPhi
+                );
+                TMP_SPH.radius = sph.radius;
+                TMP_SPH.phi = sph.phi;
+                syncBlendToSpherical();
+              }
+            }
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
