@@ -121,44 +121,40 @@ function buildPlayers(search) {
 function createSeatLayout(count) {
   const radius = CHAIR_RADIUS;
   const layout = [];
-  const southSpread = TABLE_RADIUS * 0.62;
-  const seatConfigs = [
-    { normal: new THREE.Vector3(0, 0, 1), offset: 0, isDealer: false },
-    { normal: new THREE.Vector3(0, 0, 1), offset: southSpread * 0.75, isDealer: false },
-    { normal: new THREE.Vector3(0, 0, 1), offset: -southSpread * 0.75, isDealer: false },
-    { normal: new THREE.Vector3(1, 0, 0), offset: 0, isDealer: false },
-    { normal: new THREE.Vector3(0, 0, -1), offset: 0, isDealer: true }
-  ];
-
+  const playerOffsets = [-TABLE_RADIUS * 0.6, -TABLE_RADIUS * 0.2, TABLE_RADIUS * 0.2, TABLE_RADIUS * 0.6].sort((a, b) => {
+    const diff = Math.abs(a) - Math.abs(b);
+    if (diff !== 0) return diff;
+    return a - b;
+  });
   for (let i = 0; i < count; i += 1) {
-    const config = seatConfigs[i] || seatConfigs[seatConfigs.length - 1];
-    const normal = config.normal.clone().normalize();
-    const forward = normal.clone().multiplyScalar(-1).normalize();
-    const right = new THREE.Vector3().crossVectors(forward, WORLD_UP).normalize();
-    const lateralOffset = right.clone().multiplyScalar(config.offset ?? 0);
-
-    const seatBase = normal.clone().multiplyScalar(radius).add(lateralOffset);
-    const seatPos = new THREE.Vector3(seatBase.x, CHAIR_BASE_HEIGHT, seatBase.z);
-
-    const stoolAnchor = new THREE.Vector3(seatBase.x, CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2, seatBase.z);
-
-    const cardRadius = config.isDealer ? TABLE_RADIUS * 0.58 : TABLE_RADIUS * 0.64;
-    const chipRadius = TABLE_RADIUS * 0.92;
-    const betRadius = config.isDealer ? TABLE_RADIUS * 0.82 : TABLE_RADIUS * 0.86;
-
-    const cardAnchor = normal.clone().multiplyScalar(cardRadius).add(lateralOffset);
-    cardAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-
-    const chipAnchor = normal.clone().multiplyScalar(chipRadius).add(lateralOffset);
-    chipAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-
-    const betAnchor = normal.clone().multiplyScalar(betRadius).add(lateralOffset);
-    betAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-
-    const labelRadius = radius + 0.55 * MODEL_SCALE;
-    const labelAnchor = normal.clone().multiplyScalar(labelRadius).add(lateralOffset);
-    labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
-
+    const isDealer = i === DEALER_INDEX;
+    const rowSign = isDealer ? -1 : 1;
+    const seatZ = rowSign * radius;
+    const playerIndex = i < DEALER_INDEX ? i : i - 1;
+    const offset = isDealer ? 0 : playerOffsets[playerIndex] ?? 0;
+    const seatPos = new THREE.Vector3(offset, CHAIR_BASE_HEIGHT, seatZ);
+    const forward = new THREE.Vector3(0, 0, rowSign);
+    const right = new THREE.Vector3(-rowSign, 0, 0);
+    const cardDepth = isDealer ? TABLE_RADIUS * 0.38 : TABLE_RADIUS * 0.62;
+    const chipDepth = isDealer ? TABLE_RADIUS * 0.48 : TABLE_RADIUS * 0.58;
+    const betDepth = isDealer ? TABLE_RADIUS * 0.28 : TABLE_RADIUS * 0.42;
+    const cardAnchor = new THREE.Vector3(
+      offset,
+      TABLE_HEIGHT + CARD_D * 6,
+      seatZ - rowSign * (radius - cardDepth)
+    );
+    const chipAnchor = new THREE.Vector3(
+      offset,
+      TABLE_HEIGHT + CARD_D * 6,
+      seatZ - rowSign * (radius - chipDepth)
+    );
+    const betAnchor = new THREE.Vector3(
+      offset,
+      TABLE_HEIGHT + CARD_D * 6,
+      seatZ - rowSign * (radius - betDepth)
+    );
+    const labelAnchor = new THREE.Vector3(offset, STOOL_HEIGHT + 0.48 * MODEL_SCALE, seatZ + rowSign * 0.6);
+    const stoolAnchor = new THREE.Vector3(offset, CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2, seatZ);
     layout.push({
       forward,
       right,
@@ -170,10 +166,9 @@ function createSeatLayout(count) {
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
       isHuman: i === 0,
-      isDealer: config.isDealer
+      isDealer
     });
   }
-
   return layout;
 }
 
@@ -575,8 +570,7 @@ function BlackJackArena({ search }) {
     seatLayout.forEach((seat, index) => {
       const group = new THREE.Group();
       group.position.copy(seat.seatPos);
-      const yaw = Math.atan2(seat.forward.x, -seat.forward.z);
-      group.rotation.y = yaw;
+      group.rotation.y = seat.forward.z > 0 ? Math.PI : 0;
 
       const seatMaterial = seat.isHuman
         ? seatMaterials.human
