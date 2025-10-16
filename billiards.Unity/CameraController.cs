@@ -48,6 +48,10 @@ public class CameraController : MonoBehaviour
     // Slight height offset so the camera looks just above the table centre
     // to reduce the viewing angle and give a lower perspective.
     public float lookAtHeightOffset = 0.08f;
+    // Extra upward offset applied to the camera's look target when the camera is
+    // pulled down close to the cloth so the player can still see more of the
+    // table surface instead of just the rails.
+    public float lowHeightLookUpOffset = 0.12f;
     // When the camera moves close to the table corners pull back slightly so
     // the rails remain visible and aiming is easier.
     public float cornerXThreshold = 2.6f;
@@ -164,15 +168,22 @@ public class CameraController : MonoBehaviour
         transform.position = pos;
 
         // Maintain a slightly lower viewing angle by looking just above the table
-        // centre rather than straight down at it.
-        Vector3 tableFocus = new Vector3(0f, tableTopY + lookAtHeightOffset, 0f);
+        // centre rather than straight down at it. When the camera gets close to
+        // the cloth subtly nudge the look target upward to keep more of the
+        // playing field visible.
+        float lookUpBias = Mathf.SmoothStep(0f, 1f, heightBlend);
+        float extraLookUp = Mathf.Lerp(0f, Mathf.Max(0f, lowHeightLookUpOffset), lookUpBias);
+        Vector3 tableFocus = new Vector3(0f, tableTopY + lookAtHeightOffset + extraLookUp, 0f);
         Vector3 lookTarget = tableFocus;
         if (player != null)
         {
             float focusHeight = Mathf.Max(
                 tableTopY + lookAtHeightOffset,
                 player.position.y + cueRadius + cueTopClearance);
-            Vector3 playerFocus = new Vector3(player.position.x, focusHeight, player.position.z);
+            Vector3 playerFocus = new Vector3(
+                player.position.x,
+                focusHeight + extraLookUp,
+                player.position.z);
             lookTarget = Vector3.Lerp(tableFocus, playerFocus, focusBlend);
         }
 
