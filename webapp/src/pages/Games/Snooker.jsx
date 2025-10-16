@@ -8355,6 +8355,7 @@ function SnookerGame() {
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 0.98;
+        const lightRetreatOffset = scaledHeight * 0.24;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
@@ -8382,7 +8383,7 @@ function SnookerGame() {
         );
         spot.position.set(
           triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight,
+          triangleHeight + lightRetreatOffset,
           triangleRadius * LIGHT_LATERAL_SCALE * 0.35
         );
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
@@ -8397,7 +8398,7 @@ function SnookerGame() {
         const ambient = new THREE.AmbientLight(0xffffff, 0.0223125);
         ambient.position.set(
           0,
-          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
+          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift + lightRetreatOffset,
           0
         );
         lightingRig.add(ambient);
