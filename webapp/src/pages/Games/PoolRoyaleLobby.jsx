@@ -20,7 +20,7 @@ export default function PoolRoyaleLobby() {
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
-  const [tableSize, setTableSize] = useState('9ft');
+  const tableSize = '9ft';
   const [playType, setPlayType] = useState('regular');
 
   useEffect(() => {
@@ -147,24 +147,6 @@ export default function PoolRoyaleLobby() {
               key={id}
               onClick={() => setVariant(id)}
               className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Table Size</h3>
-        <div className="flex gap-2">
-          {[
-            { id: '7ft', label: '7 ft' },
-            { id: '8ft', label: '8 ft' },
-            { id: '9ft', label: '9 ft' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setTableSize(id)}
-              className={`lobby-tile ${tableSize === id ? 'lobby-selected' : ''}`}
             >
               {label}
             </button>
