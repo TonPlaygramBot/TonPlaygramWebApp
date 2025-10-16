@@ -21,7 +21,7 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.85 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.24 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.28 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -29,6 +29,7 @@ const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const CARD_SURFACE_OFFSET = CARD_D * 4;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -38,7 +39,7 @@ const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_RADIUS = 5.95 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const CHAIR_RADIUS = 5.95 * MODEL_SCALE * ARENA_GROWTH * 0.8;
 const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const HOLE_SPACING = CARD_W * 0.65;
@@ -52,7 +53,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.13, landscape: 1.63 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
@@ -127,12 +128,12 @@ function createSeatLayout(count) {
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const seatPos = forward.clone().multiplyScalar(radius);
     seatPos.y = CHAIR_BASE_HEIGHT;
-    const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * (i === DEALER_INDEX ? 0.45 : 0.68));
-    cardAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.55);
-    chipAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-    const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.35);
-    betAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+    const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * (i === DEALER_INDEX ? 0.42 : 0.6));
+    cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6);
+    chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.4);
+    betAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const labelAnchor = forward.clone().multiplyScalar(radius + 0.32 * MODEL_SCALE);
     labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
     const stoolAnchor = forward.clone().multiplyScalar(radius);
@@ -595,7 +596,7 @@ function BlackJackArena({ search }) {
 
       const cardMeshes = Array.from({ length: 6 }, () => {
         const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache);
-        mesh.position.set(0, TABLE_HEIGHT + CARD_D * 6, 0);
+        mesh.position.set(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
         mesh.castShadow = true;
         arena.add(mesh);
         return mesh;
@@ -632,7 +633,7 @@ function BlackJackArena({ search }) {
     });
 
     const potStack = chipFactory.createStack(0);
-    potStack.position.set(0, TABLE_HEIGHT + CARD_D * 6, 0);
+    potStack.position.set(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
     arena.add(potStack);
 
     threeRef.current = {

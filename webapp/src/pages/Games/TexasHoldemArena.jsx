@@ -20,7 +20,7 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.85 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.24 * MODEL_SCALE;
+const TABLE_HEIGHT = 1.28 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -28,6 +28,7 @@ const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const CARD_SURFACE_OFFSET = CARD_D * 4;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -37,7 +38,7 @@ const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_RADIUS = 5.95 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const CHAIR_RADIUS = 5.95 * MODEL_SCALE * ARENA_GROWTH * 0.8;
 const CHAIR_BASE_HEIGHT = TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const PLAYER_COUNT = 6;
@@ -45,8 +46,8 @@ const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
 const HOLE_SPACING = CARD_W * 0.7;
-const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_D * 6, 0);
-const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_D * 6, TABLE_RADIUS * 0.55);
+const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
+const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.18 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(28);
@@ -55,15 +56,37 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(22);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.62, landscape: 0.48 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.05, landscape: 1.55 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.13, landscape: 1.63 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 2.1, landscape: 1.72 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
+const CHIP_COLORS = Object.freeze({
+  1: '#f2b21a',
+  2: '#f97316',
+  5: '#d54a3a',
+  10: '#2196f3',
+  20: '#4caf50',
+  50: '#3a3331',
+  200: '#7b4abd',
+  500: '#a3362e',
+  1000: '#1fb3d6'
+});
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
+
+function getChipStyle(value) {
+  const base = CHIP_COLORS[value] || '#2563eb';
+  return {
+    background: `radial-gradient(circle at 30% 30%, #ffffff, ${base} 52%, #0f172a 96%)`,
+    boxShadow: '0 12px 20px rgba(0, 0, 0, 0.45)',
+    borderColor: 'rgba(248, 250, 252, 0.9)',
+    color: '#f8fafc',
+    textShadow: '0 0 6px rgba(15, 23, 42, 0.6)'
+  };
+}
 
 function flagToName(flag) {
   if (!flag || !REGION_NAMES) return 'Guest';
@@ -121,10 +144,12 @@ function createSeatLayout(count) {
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const seatPos = forward.clone().multiplyScalar(radius);
     seatPos.y = CHAIR_BASE_HEIGHT;
-    const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.72);
-    cardAnchor.y = TABLE_HEIGHT + CARD_D * 6;
-    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6);
-    chipAnchor.y = TABLE_HEIGHT + CARD_D * 6;
+    const cardAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.64);
+    cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    const chipAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.66);
+    chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
+    const previewAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.58);
+    previewAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const labelAnchor = forward.clone().multiplyScalar(radius + 0.32 * MODEL_SCALE);
     labelAnchor.y = STOOL_HEIGHT + 0.48 * MODEL_SCALE;
     const stoolAnchor = forward.clone().multiplyScalar(radius);
@@ -136,6 +161,7 @@ function createSeatLayout(count) {
       seatPos,
       cardAnchor,
       chipAnchor,
+      previewAnchor,
       labelAnchor,
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
@@ -798,6 +824,11 @@ function TexasHoldemArena({ search }) {
       chipStack.position.copy(seat.chipAnchor);
       arenaGroup.add(chipStack);
 
+      const previewStack = chipFactory.createStack(0);
+      previewStack.position.copy(seat.previewAnchor);
+      previewStack.visible = false;
+      arenaGroup.add(previewStack);
+
       const nameplate = makeNameplate('Player', 0, renderer);
       nameplate.position.copy(seat.labelAnchor);
       arenaGroup.add(nameplate);
@@ -806,11 +837,13 @@ function TexasHoldemArena({ search }) {
         group,
         cardMeshes,
         chipStack,
+        previewStack,
         nameplate,
         forward: seat.forward.clone(),
         right: seat.right.clone(),
         cardAnchor: seat.cardAnchor.clone(),
         chipAnchor: seat.chipAnchor.clone(),
+        previewAnchor: seat.previewAnchor.clone(),
         labelAnchor: seat.labelAnchor.clone(),
         stoolAnchor: seat.stoolAnchor.clone(),
         stoolHeight: seat.stoolHeight,
@@ -939,6 +972,7 @@ function TexasHoldemArena({ search }) {
             s.remove(mesh);
           });
           factory.disposeStack(seat.chipStack);
+          factory.disposeStack(seat.previewStack);
           if (seat.nameplate) {
             seat.nameplate.material?.map?.dispose?.();
             seat.nameplate.material?.dispose?.();
@@ -1013,7 +1047,7 @@ function TexasHoldemArena({ search }) {
       mesh.visible = true;
       applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache);
       const offset = (idx - 2) * COMMUNITY_SPACING;
-      const position = new THREE.Vector3(offset, TABLE_HEIGHT + CARD_D * 6, 0);
+      const position = new THREE.Vector3(offset, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
       mesh.position.copy(position);
       orientCard(mesh, position.clone().add(new THREE.Vector3(0, 0, 1)), { face: 'front', flat: true });
       setCardFace(mesh, 'front');
@@ -1119,6 +1153,16 @@ function TexasHoldemArena({ search }) {
     setSliderValue((prev) => Math.min(prev, sliderMax));
   }, [sliderMax]);
 
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three) return;
+    const seat = three.seatGroups?.find((s) => s.isHuman);
+    if (!seat?.previewStack) return;
+    const amount = sliderEnabled ? Math.round(raisePreview) : 0;
+    three.chipFactory.setAmount(seat.previewStack, amount);
+    seat.previewStack.visible = amount > 0;
+  }, [raisePreview, sliderEnabled]);
+
   const handleChipClick = (value) => {
     if (!sliderEnabled) return;
     setChipSelection((prev) => {
@@ -1186,13 +1230,17 @@ function TexasHoldemArena({ search }) {
         <>
           {sliderEnabled && (
             <>
-              <div className="absolute bottom-28 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 z-20">
-                <div className="grid grid-cols-3 gap-2">
+              <div
+                className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
+                style={{ bottom: '22%' }}
+              >
+                <div className="flex flex-wrap justify-center gap-3">
                   {CHIP_VALUES.map((value) => (
                     <button
                       key={value}
                       onClick={() => handleChipClick(value)}
-                      className="w-12 h-12 rounded-full border-2 border-sky-300 bg-gradient-to-b from-white to-slate-200 text-black font-bold shadow-lg flex items-center justify-center"
+                      className="!w-14 !h-14 !rounded-full !border-[3px] !bg-transparent !text-base !font-black !shadow-xl !flex !items-center !justify-center"
+                      style={getChipStyle(value)}
                     >
                       {value}
                     </button>
@@ -1202,7 +1250,7 @@ function TexasHoldemArena({ search }) {
                   <button
                     onClick={handleUndoChip}
                     disabled={!chipSelection.length}
-                    className="px-3 py-1 rounded-md bg-amber-400/90 text-black font-semibold shadow disabled:opacity-40"
+                    className="!px-3 !py-1 !rounded-full !bg-amber-400/90 !text-black !font-semibold !shadow disabled:opacity-40"
                   >
                     Undo
                   </button>
@@ -1211,15 +1259,15 @@ function TexasHoldemArena({ search }) {
                   </span>
                 </div>
               </div>
-              <div className="absolute bottom-6 right-4 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 shadow-2xl z-20">
+              <div className="absolute top-1/2 right-3 -translate-y-1/2 flex flex-col items-center gap-4 z-20">
                 <button
                   onClick={handleAllIn}
                   disabled={!sliderEnabled}
-                  className="px-4 py-1 rounded-lg border border-red-300 bg-red-600/80 text-white font-semibold shadow disabled:opacity-40"
+                  className="!px-4 !py-1 !rounded-full !border !border-red-300 !bg-red-600/80 !text-white !font-semibold !shadow disabled:opacity-40 disabled:bg-red-600/40"
                 >
                   All-in
                 </button>
-                <div className="flex flex-col items-center gap-2 w-44">
+                <div className="flex flex-col items-center gap-2">
                   <input
                     type="range"
                     min={0}
@@ -1228,16 +1276,17 @@ function TexasHoldemArena({ search }) {
                     value={Math.min(sliderMax, sliderValue)}
                     onChange={handleSliderChange}
                     disabled={!sliderEnabled}
-                    className="w-full accent-sky-400"
+                    className="pointer-events-auto h-56 w-10 accent-sky-400 bg-transparent"
+                    style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
                   />
-                  <div className="text-xs text-white/80 text-center space-y-1">
+                  <div className="text-xs text-white/80 text-center space-y-1 max-w-[8rem]">
                     <div>Raise amount: {Math.round(finalRaise)} {gameState.token}</div>
                     <div>Total commitment: {Math.round(totalSpend)} {gameState.token}</div>
                   </div>
                   <button
                     onClick={handleRaiseConfirm}
                     disabled={!sliderEnabled}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow disabled:opacity-40 disabled:bg-blue-600/40"
+                    className="!px-4 !py-2 !rounded-full !bg-blue-600 !text-white !font-semibold !shadow disabled:opacity-40 disabled:bg-blue-600/40"
                   >
                     {sliderLabel} {Math.round(totalSpend)} {gameState.token}
                   </button>
