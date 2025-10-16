@@ -1154,10 +1154,11 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.92,
-    roughness: 0.28,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.18
+    metalness: 0.76,
+    roughness: 0.42,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.3,
+    envMapIntensity: 0.58
   },
   {
     id: 'gold',
@@ -6448,8 +6449,9 @@ function SnookerGame() {
         }),
         chrome: new THREE.MeshStandardMaterial({
           color: 0xbfc7d5,
-          roughness: 0.25,
-          metalness: 0.9
+          roughness: 0.44,
+          metalness: 0.72,
+          envMapIntensity: 0.6
         }),
         glass: new THREE.MeshStandardMaterial({
           color: 0x9bd3ff,
@@ -8386,6 +8388,7 @@ function SnookerGame() {
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 0.98;
         const lightRetreatOffset = scaledHeight * 0.24;
+        const lightReflectionGuard = scaledHeight * 0.32;
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
@@ -8413,8 +8416,8 @@ function SnookerGame() {
         );
         spot.position.set(
           triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight + lightRetreatOffset,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.35
+          triangleHeight + lightRetreatOffset + lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
         );
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
         spot.decay = 1.0;
@@ -8428,8 +8431,12 @@ function SnookerGame() {
         const ambient = new THREE.AmbientLight(0xffffff, 0.0223125);
         ambient.position.set(
           0,
-          tableSurfaceY + scaledHeight * 1.95 + lightHeightLift + lightRetreatOffset,
-          0
+          tableSurfaceY +
+            scaledHeight * 1.95 +
+            lightHeightLift +
+            lightRetreatOffset +
+            lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
         );
         lightingRig.add(ambient);
       };
