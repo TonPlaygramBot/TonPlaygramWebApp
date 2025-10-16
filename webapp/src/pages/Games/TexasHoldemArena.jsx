@@ -84,19 +84,15 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_PLAYER_FOCUS_OFFSET = 0.85 * MODEL_SCALE;
-const CAMERA_PLAYER_FOCUS_DROP = 0.36 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = 0.12 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_HEAD_PITCH_UP = 0;
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.65, landscape: 2.08 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.18 + TABLE_HEIGHT_RAISE,
-  landscape: 0.92 + TABLE_HEIGHT_RAISE
-});
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.95, landscape: 1.58 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -1272,10 +1268,7 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
       position.y = humanSeat.stoolHeight + elevation;
-      const focus = cameraTarget
-        .clone()
-        .addScaledVector(humanSeat.forward, -CAMERA_PLAYER_FOCUS_OFFSET)
-        .add(new THREE.Vector3(0, -CAMERA_PLAYER_FOCUS_DROP, 0));
+      const focus = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
       camera.position.copy(position);
       camera.lookAt(focus);
       camera.updateMatrixWorld();
