@@ -1149,31 +1149,28 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.82,
-    roughness: 0.44,
-    clearcoat: 0.2,
-    clearcoatRoughness: 0.32,
-    envMapIntensity: 0.58
+    metalness: 0.92,
+    roughness: 0.28,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.18
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.78,
-    roughness: 0.48,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.34,
-    envMapIntensity: 0.54
+    metalness: 0.88,
+    roughness: 0.35,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.2
   },
   {
     id: 'matteBlack',
     label: 'Black Chrome',
     color: 0x1a1a1a,
-    metalness: 0.56,
-    roughness: 0.62,
-    clearcoat: 0.1,
-    clearcoatRoughness: 0.42,
-    envMapIntensity: 0.5
+    metalness: 0.64,
+    roughness: 0.58,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.4
   }
 ]);
 
@@ -3772,7 +3769,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.03; // push cushions a touch farther from the rails to avoid overlapping the trim
+  const CUSHION_CENTER_NUDGE = 0; // keep cushions flush with the rails so no extra lip appears behind them
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -6410,9 +6407,8 @@ function SnookerGame() {
         }),
         chrome: new THREE.MeshStandardMaterial({
           color: 0xbfc7d5,
-          roughness: 0.5,
-          metalness: 0.68,
-          envMapIntensity: 0.6
+          roughness: 0.25,
+          metalness: 0.9
         }),
         glass: new THREE.MeshStandardMaterial({
           color: 0x9bd3ff,
