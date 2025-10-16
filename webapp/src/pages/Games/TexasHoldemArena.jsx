@@ -88,10 +88,10 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.12, landscape: 1.6 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.2, landscape: 1.68 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.32 + TABLE_HEIGHT_RAISE,
-  landscape: 1.06 + TABLE_HEIGHT_RAISE
+  portrait: 1.26 + TABLE_HEIGHT_RAISE,
+  landscape: 1.0 + TABLE_HEIGHT_RAISE
 });
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
@@ -109,7 +109,7 @@ const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.45;
 const RAIL_CHIP_CURVE = CARD_W * 0.46;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.58;
+const RAIL_BASE_FORWARD_OFFSET = CARD_W * 0.64;
 const RAIL_CHIP_INSET = CARD_W * 0.12;
 const RAIL_ANCHOR_RATIO = 0.98;
 
