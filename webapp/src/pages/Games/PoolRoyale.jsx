@@ -720,7 +720,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions sl
 const UI_SCALE = SIZE_REDUCTION;
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08, 0.44); // enlarge grain ~50% so rails, skirts, and legs read at table scale
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -2284,7 +2284,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.04; // allow a flatter cue view while keeping the lens clear of the rails
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.055; // stop just short of the lowest sweep to avoid grazing the cloth
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043;
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -3460,7 +3460,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
-  const clothTextureScale = 0.032 * 1.35; // tighten the cloth pattern for a crisper weave
+  const clothTextureScale = 0.032 * 1.35 * 2; // halve the cloth pattern size while preserving weave detail
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
@@ -8450,7 +8450,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          18.9,
+          18.82,
           0,
           Math.PI * 0.36,
           0.42,
@@ -8470,7 +8470,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.02625);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.10625); // return trimmed spot energy through ambient fill
         ambient.position.set(
           0,
           tableSurfaceY + scaledHeight * 1.95 + lightHeightLift,
