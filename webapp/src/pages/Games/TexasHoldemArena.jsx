@@ -76,14 +76,14 @@ const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CAR
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_PLAYER_FOCUS_OFFSET = 0.85 * MODEL_SCALE;
-const CAMERA_PLAYER_FOCUS_DROP = 0.22 * MODEL_SCALE;
+const CAMERA_PLAYER_FOCUS_DROP = 0.28 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_HEAD_PITCH_UP = 0;
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.97, landscape: 1.47 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.12, landscape: 1.6 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.5 + TABLE_HEIGHT_RAISE,
   landscape: 1.2 + TABLE_HEIGHT_RAISE
