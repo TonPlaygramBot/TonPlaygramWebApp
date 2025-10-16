@@ -50,7 +50,7 @@ const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
 const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
-const ARM_THICKNESS = 0.05 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.1 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
@@ -92,7 +92,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(40);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: 0.55, landscape: 0.42 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.35, landscape: 1.82 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.65, landscape: 2.08 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.18 + TABLE_HEIGHT_RAISE,
   landscape: 0.92 + TABLE_HEIGHT_RAISE
@@ -103,7 +103,7 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const DEFAULT_STOOL_THEME = Object.freeze({ seatColor: '#8b0000', legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
-const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.14 * MODEL_SCALE;
+const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.24 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
 const PLAYER_CHIP_FORWARD_SHIFT = CARD_W * 0.42;
@@ -221,24 +221,49 @@ function createChairClothTexture(clothOption, renderer) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const highlight = adjustHexColor(top, 0.16);
-  const shadow = adjustHexColor(bottom, -0.18);
+  const highlight = adjustHexColor(top, 0.22);
+  const shadow = adjustHexColor(bottom, -0.24);
+  const seam = adjustHexColor(top, 0.36);
+  const spacing = canvas.width / 11;
+  const lineWidth = Math.max(1.4, canvas.width / 320);
 
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = highlight;
-  for (let y = 0; y < canvas.height; y += 6) {
-    ctx.fillRect(0, y, canvas.width, 2);
-  }
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = shadow;
-  for (let x = 0; x < canvas.width; x += 6) {
-    ctx.fillRect(x, 0, 2, canvas.height);
-  }
+  const drawHatch = (rotation, color, alpha, offset = 0) => {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(rotation);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    for (let x = -canvas.width; x <= canvas.width; x += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x + offset, -canvas.height);
+      ctx.lineTo(x + offset, canvas.height);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
 
-  ctx.globalAlpha = 0.12;
+  drawHatch(Math.PI / 4, highlight, 0.22);
+  drawHatch(-Math.PI / 4, shadow, 0.2, spacing / 2);
+
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(Math.PI / 4);
+  ctx.globalAlpha = 0.32;
+  ctx.strokeStyle = seam;
+  ctx.lineWidth = Math.max(1.8, lineWidth * 1.1);
+  for (let x = -canvas.width; x <= canvas.width; x += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(x, -canvas.height);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.globalAlpha = 0.1;
   for (let y = 0; y < canvas.height; y += 2) {
     for (let x = 0; x < canvas.width; x += 2) {
-      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
+      ctx.fillStyle = Math.random() > 0.55 ? highlight : shadow;
       ctx.fillRect(x, y, 1, 1);
     }
   }
@@ -259,16 +284,19 @@ function createChairFabricMaterial(clothOption, renderer) {
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#ffffff'),
     map: texture,
-    roughness: 0.7,
-    metalness: 0.06,
-    clearcoat: 0.08,
-    clearcoatRoughness: 0.85
+    roughness: 0.32,
+    metalness: 0.16,
+    clearcoat: 0.52,
+    clearcoatRoughness: 0.24
   });
   if ('sheen' in material) {
-    material.sheen = 0.4;
+    material.sheen = 0.22;
   }
   if ('sheenColor' in material) {
     material.sheenColor.set(primary);
+  }
+  if ('sheenRoughness' in material) {
+    material.sheenRoughness = 0.5;
   }
   material.userData.clothTexture = texture;
   material.userData.clothId = clothOption?.id ?? 'default';
@@ -283,6 +311,54 @@ function disposeChairMaterial(material) {
     material.map.dispose?.();
   }
   material.dispose();
+}
+
+function createCurvedArmrest(side, material) {
+  const sideSign = side === 'right' ? 1 : -1;
+  const group = new THREE.Group();
+  const arcStart = new THREE.Vector3(0, 0, ARM_DEPTH * 0.55);
+  const arcControl = new THREE.Vector3(0, ARM_HEIGHT * 0.98, -ARM_DEPTH * 0.05);
+  const arcEnd = new THREE.Vector3(0, 0, -ARM_DEPTH * 0.4);
+  const curve = new THREE.QuadraticBezierCurve3(arcStart, arcControl, arcEnd);
+  const arcGeometry = new THREE.TubeGeometry(curve, 48, ARM_THICKNESS / 2, 24, false);
+  const arcMesh = new THREE.Mesh(arcGeometry, material);
+  arcMesh.castShadow = true;
+  arcMesh.receiveShadow = true;
+  arcMesh.position.set(0, SEAT_THICKNESS / 2, -SEAT_DEPTH * 0.05);
+  group.add(arcMesh);
+
+  const elbowGeometry = new THREE.SphereGeometry(ARM_THICKNESS / 1.6, 24, 18);
+  const elbow = new THREE.Mesh(elbowGeometry, material);
+  const elbowPoint = curve.getPoint(0.5);
+  elbow.position.set(
+    elbowPoint.x,
+    elbowPoint.y + SEAT_THICKNESS / 2,
+    elbowPoint.z - SEAT_DEPTH * 0.05
+  );
+  elbow.castShadow = true;
+  elbow.receiveShadow = true;
+  group.add(elbow);
+
+  const baseGeometry = new THREE.CylinderGeometry(
+    ARM_THICKNESS / 1.2,
+    ARM_THICKNESS / 1.2,
+    SEAT_THICKNESS * 0.75,
+    24
+  );
+  const frontBase = new THREE.Mesh(baseGeometry, material);
+  frontBase.position.set(0, SEAT_THICKNESS * 0.375, arcMesh.position.z + ARM_DEPTH * 0.45);
+  frontBase.castShadow = true;
+  frontBase.receiveShadow = true;
+  group.add(frontBase);
+
+  const rearBase = frontBase.clone();
+  rearBase.position.z = arcMesh.position.z - ARM_DEPTH * 0.35;
+  group.add(rearBase);
+
+  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.75), 0, 0);
+  group.rotation.z = THREE.MathUtils.degToRad(sideSign * 4.5);
+
+  return { group, meshes: [arcMesh, elbow, frontBase, rearBase] };
 }
 
 function createSeatLayout(count) {
@@ -1111,7 +1187,7 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.near,
       CAMERA_SETTINGS.far
     );
-    camera.position.set(0, TABLE_HEIGHT * 2.9, TABLE_RADIUS * 3.85);
+    camera.position.set(0, TABLE_HEIGHT * 3.1, TABLE_RADIUS * 4.25);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
@@ -1236,16 +1312,10 @@ function TexasHoldemArena({ search }) {
       backMesh.receiveShadow = true;
       group.add(backMesh);
 
-      const armLeft = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH), chairMaterial);
-      armLeft.position.set(-(SEAT_WIDTH / 2 + ARM_THICKNESS / 2), SEAT_THICKNESS / 2 + ARM_HEIGHT / 2, -SEAT_DEPTH * 0.05);
-      armLeft.castShadow = true;
-      armLeft.receiveShadow = true;
-      group.add(armLeft);
-      const armRight = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH), chairMaterial);
-      armRight.position.set(SEAT_WIDTH / 2 + ARM_THICKNESS / 2, SEAT_THICKNESS / 2 + ARM_HEIGHT / 2, -SEAT_DEPTH * 0.05);
-      armRight.castShadow = true;
-      armRight.receiveShadow = true;
-      group.add(armRight);
+      const armLeft = createCurvedArmrest('left', chairMaterial);
+      group.add(armLeft.group);
+      const armRight = createCurvedArmrest('right', chairMaterial);
+      group.add(armRight.group);
 
       const legBase = new THREE.Mesh(
         new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
@@ -1287,7 +1357,13 @@ function TexasHoldemArena({ search }) {
 
       seatGroups.push({
         group,
-        chairMeshes: [seatMesh, backMesh, armLeft, armRight, legBase],
+        chairMeshes: [
+          seatMesh,
+          backMesh,
+          ...armLeft.meshes,
+          ...armRight.meshes,
+          legBase
+        ],
         cardMeshes,
         chipStack,
         betStack,

@@ -89,7 +89,7 @@ function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const baseRepeat = 12;
-  const scaledRepeat = baseRepeat * 10;
+  const scaledRepeat = baseRepeat * 30;
   texture.repeat.set(scaledRepeat, scaledRepeat);
   texture.anisotropy = anisotropy;
   applySRGBColorSpace(texture);
