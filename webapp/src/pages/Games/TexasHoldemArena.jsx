@@ -40,7 +40,7 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
-const CARD_SCALE = 0.92;
+const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
@@ -95,13 +95,13 @@ const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.26 
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.64;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.82;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -1.08;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.92;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
 const HUMAN_CARD_CHIP_BLEND = 0.08;
-const HUMAN_CARD_SCALE = 0.9;
-const HUMAN_CHIP_SCALE = 0.88;
+const HUMAN_CARD_SCALE = 0.92;
+const HUMAN_CHIP_SCALE = 0.9;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -114,8 +114,8 @@ const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
 const RAIL_ANCHOR_RATIO = 0.98;
 const RAIL_FORWARD_MARGIN = TABLE_RADIUS * (1 - RAIL_ANCHOR_RATIO);
 const RAIL_SURFACE_FORWARD_SHIFT = RAIL_FORWARD_MARGIN * 0.65;
-const CARD_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 1.28;
-const CHIP_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 1.5;
+const CARD_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 1.18;
+const CHIP_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 1.35;
 const CARD_RAIL_LATERAL_SHIFT = CARD_W * 0.88;
 const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 0.66;
 
@@ -138,7 +138,7 @@ const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
-const DEFAULT_PITCH_LIMITS = Object.freeze({ min: 0, max: CAMERA_HEAD_PITCH_DOWN });
+const DEFAULT_PITCH_LIMITS = Object.freeze({ min: -CAMERA_HEAD_PITCH_UP, max: CAMERA_HEAD_PITCH_DOWN });
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -439,10 +439,8 @@ function computeCameraPitchLimits(position, baseForward, options = {}) {
       safeUp = 0;
     }
   }
-  const upwardAllowance = Math.max(0, Math.min(safeUp, computedUp));
-  const restrictedMin = Math.max(0, -upwardAllowance); // prevent pitching the camera upward
   return {
-    min: restrictedMin,
+    min: -safeUp,
     max: CAMERA_HEAD_PITCH_DOWN
   };
 }
