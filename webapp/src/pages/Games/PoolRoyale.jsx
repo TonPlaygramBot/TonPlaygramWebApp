@@ -1764,6 +1764,7 @@ function enhanceChromeMaterial(material) {
   if ('specularIntensity' in material) {
     material.specularIntensity = Math.max(1.02, material.specularIntensity ?? 1.02);
   }
+  material.side = THREE.DoubleSide;
   material.needsUpdate = true;
 }
 
@@ -4606,6 +4607,40 @@ function Table3D(
         meshList.push(mesh);
       });
     });
+
+    if (!meshList.length) {
+      const fallbackDepth = Math.max(bodyDepth, rimDepth, railH * 0.25, MICRO_EPS * 8);
+      entries.forEach(({ name, mpList }) => {
+        if (!Array.isArray(mpList)) return;
+        mpList.forEach((mp, mpIndex) => {
+          const fallbackShapes = multiPolygonToShapes(mp);
+          fallbackShapes.forEach((shape) => {
+            const fallbackGeo = new THREE.ExtrudeGeometry(shape, {
+              ...bodySettings,
+              depth: fallbackDepth
+            });
+            fallbackGeo.rotateX(-Math.PI / 2);
+            fallbackGeo.translate(0, bodyBaseY, 0);
+            const mesh = new THREE.Mesh(fallbackGeo, material);
+            mesh.castShadow = false;
+            mesh.receiveShadow = true;
+            mesh.renderOrder = 6;
+            mesh.name = `pocketJawFallback-${name}-${mpIndex}`;
+            mesh.userData = {
+              ...(mesh.userData || {}),
+              pocketJaw: {
+                optionId: option?.id ?? DEFAULT_POCKET_JAW_ID,
+                type: 'fallback',
+                sections: { body: true, rim: false },
+                fallback: true
+              }
+            };
+            pocketJawGroup.add(mesh);
+            meshList.push(mesh);
+          });
+        });
+      });
+    }
 
     meshList.forEach((mesh) => {
       jawMeshes.push(mesh);
