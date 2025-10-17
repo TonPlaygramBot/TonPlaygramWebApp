@@ -24,6 +24,7 @@ import {
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
+import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 
 import {
   createDeck,
@@ -77,10 +78,10 @@ const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.45;
-const AI_CARD_FORWARD_OFFSET = CARD_W * 0.08;
-const AI_CARD_VERTICAL_OFFSET = CARD_H * 0.5;
-const AI_CARD_LOOK_LIFT = CARD_H * 0.22;
-const AI_CARD_LOOK_SPLAY = HOLE_SPACING * 0.28;
+const CARD_FORWARD_OFFSET = HUMAN_CARD_FORWARD_OFFSET;
+const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
+const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
+const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
@@ -93,7 +94,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.0, landscape: 1.35 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.16 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
@@ -131,6 +132,30 @@ const RAIL_CHIP_SPACING = CARD_W * 0.5;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.5;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.36;
+
+const CHIP_SCATTER_LAYOUT = Object.freeze({
+  perRow: 5,
+  spacing: CARD_W * 0.56,
+  rowSpacing: CARD_W * 0.44,
+  jitter: CARD_W * 0.1,
+  lift: 0
+});
+
+const CHIP_RAIL_LAYOUT = Object.freeze({
+  perRow: 4,
+  spacing: CARD_W * 0.48,
+  rowSpacing: CARD_W * 0.34,
+  jitter: CARD_W * 0.06,
+  lift: 0
+});
+
+const POT_SCATTER_LAYOUT = Object.freeze({
+  perRow: 6,
+  spacing: CARD_W * 0.58,
+  rowSpacing: CARD_W * 0.46,
+  jitter: CARD_W * 0.14,
+  lift: 0
+});
 
 const CAMERA_PLAYER_FOCUS_BLEND = 0.68;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.26;
@@ -471,23 +496,23 @@ function createSeatLayout(count) {
     const chipRailCenter = railAnchor.clone().addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT);
     const cardAnchor = cardRailCenter
       .clone()
-      .addScaledVector(forward, isHuman ? HUMAN_CARD_INWARD_SHIFT : 0)
-      .addScaledVector(right, isHuman ? -HUMAN_CARD_LATERAL_SHIFT : -CARD_RAIL_LATERAL_SHIFT);
+      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
+      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
     cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const chipAnchor = chipRailCenter
       .clone()
-      .addScaledVector(forward, isHuman ? HUMAN_CHIP_INWARD_SHIFT : 0)
-      .addScaledVector(right, isHuman ? HUMAN_CHIP_LATERAL_SHIFT : CHIP_RAIL_LATERAL_SHIFT);
-    chipAnchor.y = railSurfaceY;
+      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
+      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
+    chipAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const cardRailAnchor = cardRailCenter
       .clone()
-      .addScaledVector(forward, isHuman ? HUMAN_CARD_INWARD_SHIFT : 0)
-      .addScaledVector(right, isHuman ? -HUMAN_CARD_LATERAL_SHIFT : -CARD_RAIL_LATERAL_SHIFT);
+      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
+      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
     cardRailAnchor.y = railSurfaceY;
     const chipRailAnchor = chipRailCenter
       .clone()
-      .addScaledVector(forward, isHuman ? HUMAN_CHIP_INWARD_SHIFT : 0)
-      .addScaledVector(right, isHuman ? HUMAN_CHIP_LATERAL_SHIFT : CHIP_RAIL_LATERAL_SHIFT);
+      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
+      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
     chipRailAnchor.y = railSurfaceY;
     const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6).addScaledVector(forward, -BET_FORWARD_OFFSET);
     betAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
@@ -649,7 +674,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const colOffset = (columns - 1) / 2;
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
-    const chip = chipFactory.createStack(value);
+    const chip = chipFactory.createStack(value, { mode: 'stack' });
     const baseScale = RAIL_CHIP_SCALE;
     chip.position.copy(chipCenter);
     chip.position.y = anchor.y + CARD_D * 2.2;
@@ -1077,6 +1102,7 @@ function TexasHoldemArena({ search }) {
     return resetForNextHand(baseState);
   });
   const gameStateRef = useRef(null);
+  const prevStateRef = useRef(null);
   const [uiState, setUiState] = useState({
     availableActions: [],
     toCall: 0,
@@ -1101,9 +1127,83 @@ function TexasHoldemArena({ search }) {
   const appearanceRef = useRef(appearance);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
+  const soundsRef = useRef({});
+  const potDisplayRef = useRef(0);
+  const potTargetRef = useRef(0);
+  const lastFrameRef = useRef(null);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  const playSound = useCallback((name) => {
+    const audio = soundsRef.current?.[name];
+    if (!audio || isGameMuted()) return;
+    if (name === 'knock') {
+      audio.currentTime = Math.min(audio.duration || 1, 1);
+    } else {
+      audio.currentTime = 0;
+    }
+    audio.volume = getGameVolume();
+    audio.play().catch(() => {});
+    if (name === 'knock') {
+      window.setTimeout(() => {
+        try {
+          audio.pause();
+        } catch (error) {
+          console.debug('Failed to pause knock sound', error);
+        }
+      }, 2000);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
+    const baseVolume = getGameVolume();
+    const muted = isGameMuted();
+    const createAudio = (src) => {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+      audio.volume = baseVolume;
+      audio.muted = muted;
+      return audio;
+    };
+    const sounds = {
+      callRaise: createAudio('/assets/sounds/Callraischip.mp3'),
+      allIn: createAudio('/assets/sounds/allinpushchips2-39133.mp3'),
+      fold: createAudio('/assets/sounds/pounding-cards-on-table-99355.mp3'),
+      flip: createAudio('/assets/sounds/flipcard-91468.mp3'),
+      knock: createAudio('/assets/sounds/wooden-door-knock-102902.mp3')
+    };
+    soundsRef.current = sounds;
+    const handleMuteChange = () => {
+      const nextMuted = isGameMuted();
+      Object.values(soundsRef.current).forEach((audio) => {
+        if (audio) audio.muted = nextMuted;
+      });
+    };
+    const handleVolumeChange = () => {
+      const nextVolume = getGameVolume();
+      Object.values(soundsRef.current).forEach((audio) => {
+        if (audio) audio.volume = nextVolume;
+      });
+    };
+    window.addEventListener('gameMuteChanged', handleMuteChange);
+    window.addEventListener('gameVolumeChanged', handleVolumeChange);
+    return () => {
+      window.removeEventListener('gameMuteChanged', handleMuteChange);
+      window.removeEventListener('gameVolumeChanged', handleVolumeChange);
+      Object.values(soundsRef.current).forEach((audio) => {
+        if (audio) {
+          try {
+            audio.pause();
+          } catch (error) {
+            console.debug('Failed to stop audio', error);
+          }
+        }
+      });
+      soundsRef.current = {};
+    };
+  }, []);
 
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
@@ -1134,7 +1234,7 @@ function TexasHoldemArena({ search }) {
     const basis = cameraBasisRef.current;
     if (!three || !basis) return;
     const seat = three.seatGroups?.[actionIndex];
-    if (!seat) return;
+    if (!seat || seat.isHuman) return;
     const focusPoint = seat.stoolAnchor.clone();
     focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
     const toTarget = focusPoint.sub(basis.position);
@@ -1475,30 +1575,45 @@ function TexasHoldemArena({ search }) {
         arenaGroup.add(mesh);
         return mesh;
       });
-      if (seat.isHuman) {
-        cardMeshes.forEach((mesh) => {
-          mesh.scale.setScalar(HUMAN_CARD_SCALE);
-        });
-      }
+      cardMeshes.forEach((mesh) => {
+        mesh.scale.setScalar(HUMAN_CARD_SCALE);
+      });
 
-      const chipStack = chipFactory.createStack(0);
+      const tableLayout = {
+        perRow: CHIP_SCATTER_LAYOUT.perRow,
+        spacing: CHIP_SCATTER_LAYOUT.spacing,
+        rowSpacing: CHIP_SCATTER_LAYOUT.rowSpacing,
+        jitter: CHIP_SCATTER_LAYOUT.jitter,
+        lift: CHIP_SCATTER_LAYOUT.lift,
+        right: seat.right.clone(),
+        forward: seat.forward.clone()
+      };
+      const railLayout = {
+        perRow: CHIP_RAIL_LAYOUT.perRow,
+        spacing: CHIP_RAIL_LAYOUT.spacing,
+        rowSpacing: CHIP_RAIL_LAYOUT.rowSpacing,
+        jitter: CHIP_RAIL_LAYOUT.jitter,
+        lift: CHIP_RAIL_LAYOUT.lift,
+        right: seat.right.clone(),
+        forward: seat.forward.clone()
+      };
+
+      const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
       chipStack.position.copy(seat.chipAnchor);
       arenaGroup.add(chipStack);
 
-      const betStack = chipFactory.createStack(0);
+      const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
       betStack.position.copy(seat.betAnchor);
       betStack.visible = false;
       arenaGroup.add(betStack);
 
-      const previewStack = chipFactory.createStack(0);
+      const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
       previewStack.position.copy(seat.previewAnchor);
       previewStack.visible = false;
       arenaGroup.add(previewStack);
-      if (seat.isHuman) {
-        chipStack.scale.setScalar(HUMAN_CHIP_SCALE);
-        betStack.scale.setScalar(HUMAN_CHIP_SCALE);
-        previewStack.scale.setScalar(HUMAN_CHIP_SCALE);
-      }
+      chipStack.scale.setScalar(HUMAN_CHIP_SCALE);
+      betStack.scale.setScalar(HUMAN_CHIP_SCALE);
+      previewStack.scale.setScalar(HUMAN_CHIP_SCALE);
 
       const player = initialPlayers[seatIndex] ?? null;
       const nameplate = makeNameplate(player?.name ?? 'Player', Math.round(player?.chips ?? 0), renderer);
@@ -1544,7 +1659,13 @@ function TexasHoldemArena({ search }) {
         previewAnchor: seat.previewAnchor.clone(),
         stoolAnchor: seat.stoolAnchor.clone(),
         stoolHeight: seat.stoolHeight,
-        isHuman: seat.isHuman
+        isHuman: seat.isHuman,
+        tableLayout,
+        railLayout,
+        lastBet: Math.round(initialPlayers[seatIndex]?.bet ?? 0),
+        lastChips: Math.round(initialPlayers[seatIndex]?.chips ?? 0),
+        lastStatus: initialPlayers[seatIndex]?.status ?? '',
+        folded: Boolean(initialPlayers[seatIndex]?.folded)
       });
     });
 
@@ -1556,7 +1677,16 @@ function TexasHoldemArena({ search }) {
       return mesh;
     });
 
-    const potStack = chipFactory.createStack(0);
+    const potLayout = {
+      perRow: POT_SCATTER_LAYOUT.perRow,
+      spacing: POT_SCATTER_LAYOUT.spacing,
+      rowSpacing: POT_SCATTER_LAYOUT.rowSpacing,
+      jitter: POT_SCATTER_LAYOUT.jitter,
+      lift: POT_SCATTER_LAYOUT.lift,
+      right: new THREE.Vector3(1, 0, 0),
+      forward: new THREE.Vector3(0, 0, 1)
+    };
+    const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: potLayout });
     potStack.position.copy(POT_OFFSET);
     arenaGroup.add(potStack);
 
@@ -1566,7 +1696,7 @@ function TexasHoldemArena({ search }) {
       const three = threeRef.current;
       if (!three) return;
       const seat = seatGroups.find((s) => s.isHuman);
-      if (!seat) return;
+      if (!seat || seat.folded) return;
       const { camera } = three;
       if (!camera) return;
       const baseAnchor = seat.cardAnchor
@@ -1597,6 +1727,7 @@ function TexasHoldemArena({ search }) {
         seatGroups,
         communityMeshes,
         potStack,
+        potLayout,
         deckAnchor,
         raiseControls,
         raycaster,
@@ -1610,6 +1741,9 @@ function TexasHoldemArena({ search }) {
         tableInfo,
         cardThemeId: cardTheme.id
       };
+      potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
+      potTargetRef.current = potDisplayRef.current;
+      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
 
     orientHumanCards();
 
@@ -1788,10 +1922,16 @@ function TexasHoldemArena({ search }) {
 
     window.addEventListener('resize', handleResize);
 
-    const animate = () => {
+    const animate = (time) => {
       const three = threeRef.current;
       if (!three) return;
       const pointerState = pointerStateRef.current;
+      if (lastFrameRef.current == null) {
+        lastFrameRef.current = time;
+      }
+      const deltaSeconds = Math.max(0, Math.min(0.1, (time - lastFrameRef.current) / 1000));
+      lastFrameRef.current = time;
+      three.chipFactory.update(deltaSeconds);
       if (!pointerState.active || pointerState.mode !== 'camera') {
         const targetYaw = cameraAutoTargetRef.current?.yaw;
         if (typeof targetYaw === 'number') {
@@ -1811,11 +1951,12 @@ function TexasHoldemArena({ search }) {
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
-    animate();
+    animationRef.current = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationRef.current);
+      lastFrameRef.current = null;
       element.removeEventListener('pointerdown', handlePointerDown);
       element.removeEventListener('pointermove', handlePointerMove);
       element.removeEventListener('pointerup', handlePointerUp);
@@ -1886,64 +2027,132 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { seatGroups, communityMeshes, chipFactory, potStack } = three;
+    const { seatGroups, communityMeshes, chipFactory, potStack, potLayout, deckAnchor, arenaGroup } = three;
     const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
-    let activeBetTotal = 0;
+
+    const previous = prevStateRef.current;
+    potTargetRef.current = Math.max(0, Math.round(state.pot ?? 0));
+
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
       if (!seat) return;
-      const base = seat.cardAnchor.clone();
+      const prevPlayer = previous?.players?.[idx];
+      const baseAnchor = seat.cardAnchor.clone();
       const right = seat.right.clone();
       const forward = seat.forward.clone();
+
+      seat.folded = player.folded;
+      seat.lastStatus = player.status || '';
+
       seat.cardMeshes.forEach((mesh, cardIdx) => {
         const card = player.hand[cardIdx];
         if (!card) {
           mesh.visible = false;
-          mesh.position.copy(three.deckAnchor);
+          mesh.position.copy(deckAnchor);
           return;
         }
-        mesh.visible = !player.folded || state.showdown;
+        mesh.visible = true;
         applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
-        if (player.isHuman) {
-          if (!mesh.visible) {
-            mesh.position.copy(three.deckAnchor);
-          }
+        if (player.isHuman && !player.folded && !state.showdown) {
           setCardFace(mesh, 'front');
           return;
         }
-        const baseAnchor = base.clone().addScaledVector(forward, AI_CARD_FORWARD_OFFSET);
-        const lateral = right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING);
-        const position = baseAnchor.clone().add(lateral);
-        position.y = TABLE_HEIGHT + AI_CARD_VERTICAL_OFFSET;
+        if (player.folded && !state.showdown) {
+          const railBase = seat.cardRailAnchor.clone();
+          const lateral = seat.right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING);
+          const position = railBase.add(lateral);
+          mesh.position.copy(position);
+          const lookTarget = position.clone().add(seat.forward.clone());
+          orientCard(mesh, lookTarget, { face: 'back', flat: true });
+          setCardFace(mesh, 'back');
+          return;
+        }
+        const position = baseAnchor
+          .clone()
+          .addScaledVector(forward, CARD_FORWARD_OFFSET)
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_SPREAD));
+        position.y = TABLE_HEIGHT + CARD_VERTICAL_OFFSET;
         mesh.position.copy(position);
         const lookTarget = seat.stoolAnchor
           .clone()
-          .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + AI_CARD_LOOK_LIFT, 0))
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * AI_CARD_LOOK_SPLAY));
+          .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY));
         orientCard(mesh, lookTarget, { face: state.showdown ? 'front' : 'back', flat: false });
         setCardFace(mesh, state.showdown ? 'front' : 'back');
       });
-      chipFactory.setAmount(seat.chipStack, player.chips);
-      if (seat.betStack) {
-        const betAmount = Math.max(0, Math.round(player.bet));
-        chipFactory.setAmount(seat.betStack, betAmount);
-        seat.betStack.visible = betAmount > 0;
-        activeBetTotal += betAmount;
-      } else {
-        activeBetTotal += Math.max(0, Math.round(player.bet));
+
+      const chipsAmount = Math.max(0, Math.round(player.chips));
+      chipFactory.setAmount(seat.chipStack, chipsAmount, { mode: 'scatter', layout: seat.tableLayout });
+
+      const bet = Math.max(0, Math.round(player.bet));
+      const prevBet = seat.lastBet ?? 0;
+      const betDelta = Math.max(0, bet - prevBet);
+      if (betDelta > 0 && arenaGroup) {
+        const chipHeight = chipFactory.chipHeight;
+        const startBase = seat.chipRailAnchor.clone();
+        startBase.y -= chipHeight / 2;
+        const midBase = seat.chipAnchor.clone();
+        midBase.y -= chipHeight / 2;
+        const endBase = potStack.position.clone();
+        endBase.y -= chipHeight / 2;
+        chipFactory.animateTransfer(betDelta, {
+          scene: arenaGroup,
+          start: startBase,
+          mid: midBase,
+          end: endBase,
+          startLayout: seat.railLayout,
+          midLayout: seat.tableLayout,
+          endLayout: potLayout,
+          pauseDuration: 0.45,
+          toMidDuration: 0.35,
+          toEndDuration: 0.6,
+          onComplete: (value) => {
+            potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
+            chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+          }
+        });
       }
-      const label = seat.nameplate;
+
+      seat.lastBet = bet;
+      seat.lastChips = chipsAmount;
+
+      if (seat.betStack) {
+        chipFactory.setAmount(seat.betStack, 0, { mode: 'scatter', layout: seat.tableLayout });
+        seat.betStack.visible = false;
+      }
+
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
       if (seat.turnToken) {
         seat.turnToken.visible = highlight;
       }
+      const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
-        label.userData.update(player.name, Math.round(player.chips), highlight, status);
+        label.userData.update(player.name, chipsAmount, highlight, status);
         label.userData.texture.needsUpdate = true;
       }
+
+      if (player.folded && !(prevPlayer?.folded)) {
+        playSound('fold');
+      }
+      const currentStatus = player.status || '';
+      const previousStatus = prevPlayer?.status || '';
+      if (currentStatus !== previousStatus) {
+        if (currentStatus === 'All-in') {
+          playSound('allIn');
+        } else if (
+          currentStatus === 'Call' ||
+          currentStatus === 'Bet' ||
+          currentStatus === 'Raise' ||
+          currentStatus.startsWith('SB') ||
+          currentStatus.startsWith('BB')
+        ) {
+          playSound('callRaise');
+        }
+      }
+      seat.lastStatus = currentStatus;
     });
 
     three.orientHumanCards?.();
@@ -1951,7 +2160,7 @@ function TexasHoldemArena({ search }) {
     communityMeshes.forEach((mesh, idx) => {
       const card = state.community[idx];
       if (!card) {
-        mesh.position.copy(three.deckAnchor);
+        mesh.position.copy(deckAnchor);
         mesh.visible = false;
         return;
       }
@@ -1962,19 +2171,58 @@ function TexasHoldemArena({ search }) {
       mesh.position.copy(position);
       orientCard(mesh, position.clone().add(new THREE.Vector3(0, 0, 1)), { face: 'front', flat: true });
       setCardFace(mesh, 'front');
+      if (!previous?.community?.[idx]) {
+        playSound('flip');
+      }
     });
 
-    const potDisplay = Math.max(0, Math.round(state.pot - activeBetTotal));
-    chipFactory.setAmount(potStack, potDisplay);
-  }, [gameState]);
+    state.players.forEach((player, idx) => {
+      const prevPlayer = previous?.players?.[idx];
+      player.hand.forEach((card, cardIdx) => {
+        if (card && !prevPlayer?.hand?.[cardIdx]) {
+          playSound('flip');
+        }
+      });
+    });
+
+    if (potDisplayRef.current > potTargetRef.current || potTargetRef.current === 0) {
+      potDisplayRef.current = potTargetRef.current;
+      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+    }
+
+    prevStateRef.current = {
+      players: state.players.map((p) => ({
+        status: p.status || '',
+        folded: p.folded,
+        chips: Math.round(p.chips),
+        bet: Math.round(p.bet),
+        hand: p.hand.map((card) => (card ? { ...card } : null))
+      })),
+      community: state.community.map((card) => (card ? { ...card } : null)),
+      pot: state.pot,
+      stage: state.stage,
+      actionIndex: state.actionIndex
+    };
+  }, [gameState, playSound]);
 
   const currentActionIndex = gameState?.actionIndex;
   const currentStage = gameState?.stage;
   useEffect(() => {
     if (typeof currentActionIndex !== 'number') return;
     if (currentStage === 'showdown') return;
+    const three = threeRef.current;
+    if (!three) return;
+    const seat = three.seatGroups?.[currentActionIndex];
+    if (seat?.isHuman) {
+      headAnglesRef.current.yaw = 0;
+      headAnglesRef.current.pitch = 0;
+      cameraAutoTargetRef.current = { yaw: 0, activeIndex: currentActionIndex };
+      applyHeadOrientation();
+      playSound('knock');
+      return;
+    }
     updateCameraAutoTarget(currentActionIndex);
-  }, [currentActionIndex, currentStage, updateCameraAutoTarget]);
+  }, [currentActionIndex, currentStage, updateCameraAutoTarget, applyHeadOrientation, playSound]);
 
   useEffect(() => {
     if (timerRef.current) {
@@ -2084,7 +2332,7 @@ function TexasHoldemArena({ search }) {
     const seat = three.seatGroups?.find((s) => s.isHuman);
     if (!seat?.previewStack) return;
     const amount = sliderEnabled ? Math.round(raisePreview) : 0;
-    three.chipFactory.setAmount(seat.previewStack, amount);
+    three.chipFactory.setAmount(seat.previewStack, amount, { mode: 'scatter', layout: seat.tableLayout });
     seat.previewStack.visible = amount > 0;
   }, [raisePreview, sliderEnabled]);
 
