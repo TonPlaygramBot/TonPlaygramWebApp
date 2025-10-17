@@ -91,7 +91,7 @@ const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.15, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.72, landscape: 1.42 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.64, landscape: 1.34 });
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * 0.2;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.16;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.92;
@@ -109,8 +109,8 @@ const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
 const RAIL_ANCHOR_RATIO = 0.98;
 const RAIL_FORWARD_MARGIN = TABLE_RADIUS * (1 - RAIL_ANCHOR_RATIO);
 const RAIL_SURFACE_FORWARD_SHIFT = RAIL_FORWARD_MARGIN * 0.65;
-const CARD_RAIL_FORWARD_SHIFT = RAIL_SURFACE_FORWARD_SHIFT * 0.32;
-const CHIP_RAIL_FORWARD_SHIFT = RAIL_SURFACE_FORWARD_SHIFT * 0.48;
+const CARD_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.42;
+const CHIP_RAIL_FORWARD_SHIFT = RAIL_SURFACE_FORWARD_SHIFT * 0.24;
 const CARD_RAIL_LATERAL_SHIFT = CARD_W * 1.1;
 const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 1.25;
 
@@ -122,7 +122,7 @@ const RAIL_CHIP_ROW_SPACING = CARD_H * 0.48;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 7;
-const ARENA_WALL_HEIGHT = 3.6;
+const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
@@ -440,7 +440,7 @@ function createSeatLayout(count) {
       .clone()
       .addScaledVector(forward, isHuman ? -HUMAN_CARD_INWARD_SHIFT : 0)
       .addScaledVector(right, isHuman ? -HUMAN_CARD_LATERAL_SHIFT : -CARD_RAIL_LATERAL_SHIFT);
-    cardAnchor.y = railSurfaceY;
+    cardAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
     const chipAnchor = chipRailCenter
       .clone()
       .addScaledVector(forward, isHuman ? -HUMAN_CHIP_INWARD_SHIFT : 0)
