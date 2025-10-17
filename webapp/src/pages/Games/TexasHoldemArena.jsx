@@ -92,8 +92,7 @@ const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.9, landscape: 1.32 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.26 });
-const PORTRAIT_CARD_CHIP_FOCUS_BLEND = 0.52;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.15;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.36;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.78;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
@@ -126,7 +125,7 @@ const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.5;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.36;
 
-const CAMERA_PLAYER_FOCUS_BLEND = 0.58;
+const CAMERA_PLAYER_FOCUS_BLEND = 0.68;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.2;
 const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.42;
 const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
@@ -1386,7 +1385,6 @@ function TexasHoldemArena({ search }) {
       const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
       position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
       const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
-      const cardChipBlend = portrait ? PORTRAIT_CARD_CHIP_FOCUS_BLEND : 0.72;
       const focusForwardPull = portrait
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL
         : CAMERA_PLAYER_FOCUS_FORWARD_PULL;
@@ -1394,12 +1392,11 @@ function TexasHoldemArena({ search }) {
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT
         : CAMERA_PLAYER_FOCUS_HEIGHT;
       const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
-      const playerFocus = humanSeat.cardAnchor
+      const chipFocus = humanSeat.chipAnchor
         .clone()
-        .lerp(humanSeat.chipAnchor, cardChipBlend)
         .addScaledVector(humanSeat.forward, -focusForwardPull);
-      playerFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
-      const focus = focusBase.lerp(playerFocus, focusBlend);
+      chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
+      const focus = focusBase.lerp(chipFocus, focusBlend);
       camera.position.copy(position);
       camera.lookAt(focus);
       camera.updateMatrixWorld();
