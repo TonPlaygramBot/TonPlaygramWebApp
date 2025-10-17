@@ -70,7 +70,7 @@ const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.18;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.12;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.45;
@@ -96,13 +96,16 @@ const PORTRAIT_CARD_CHIP_FOCUS_BLEND = 0.6;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.46;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.04;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.58;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.22;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.36;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 1.08;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.92;
-const HUMAN_CARD_CHIP_BLEND = 0.04;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.3;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.94;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.94;
+const HUMAN_CARD_CHIP_BLEND = 0.12;
+const HUMAN_CARD_SCALE = 0.92;
+const HUMAN_CHIP_SCALE = 0.9;
+const HUMAN_FRONT_CHIP_FORWARD = CARD_W * 0.48;
 
-const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
+const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const DEFAULT_STOOL_THEME = Object.freeze({ seatColor: '#8b0000', legColor: '#1f1f1f' });
@@ -416,7 +419,8 @@ function createStraightArmrest(side, material) {
   return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
 }
 
-function computeCameraPitchLimits(position, baseForward) {
+function computeCameraPitchLimits(position, baseForward, options = {}) {
+  const { seatTopPoint = null } = options ?? {};
   const horizontalForward = Math.hypot(baseForward.x, baseForward.z);
   const baseDownAngle = Math.atan2(-baseForward.y, horizontalForward);
   const radialDistance = Math.hypot(position.x, position.z);
@@ -425,7 +429,18 @@ function computeCameraPitchLimits(position, baseForward) {
   const wallLimitedUp = Math.max(0, Math.atan2(verticalReach, horizontalGap) - CAMERA_WALL_MARGIN);
   const maxUpAngle = Math.max(0, Math.min(wallLimitedUp, THREE.MathUtils.degToRad(65)));
   const computedUp = Math.max(0, Math.min(baseDownAngle + maxUpAngle, THREE.MathUtils.degToRad(65)));
-  const safeUp = computedUp > 0 ? computedUp : CAMERA_HEAD_PITCH_UP;
+  let safeUp = computedUp > 0 ? computedUp : CAMERA_HEAD_PITCH_UP;
+  if (seatTopPoint) {
+    const limitVector = seatTopPoint.clone().sub(position);
+    const horizontal = Math.hypot(limitVector.x, limitVector.z);
+    if (horizontal > 1e-3) {
+      const seatDownAngle = Math.atan2(Math.max(0, -limitVector.y), horizontal);
+      const maxSeatUp = Math.max(0, baseDownAngle - seatDownAngle);
+      safeUp = Math.min(safeUp, maxSeatUp);
+    } else if (limitVector.y < 0) {
+      safeUp = 0;
+    }
+  }
   return {
     min: -safeUp,
     max: CAMERA_HEAD_PITCH_DOWN
@@ -628,14 +643,28 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value);
-    chip.scale.setScalar(RAIL_CHIP_SCALE);
-    chip.position.copy(chipCenter);
-    chip.position.y = anchor.y + CARD_D * 2.2;
-    const row = Math.floor(index / columns);
-    const col = index % columns;
-    chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
-    chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
-    chip.userData = { type: 'chip-button', value, baseScale: RAIL_CHIP_SCALE };
+    let baseScale = RAIL_CHIP_SCALE;
+    if (value === 1) {
+      const cardRowCenter = seat.cardAnchor
+        .clone()
+        .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
+        .lerp(seat.chipAnchor, HUMAN_CARD_CHIP_BLEND);
+      chip.position.copy(cardRowCenter);
+      chip.position.addScaledVector(forward, HUMAN_FRONT_CHIP_FORWARD);
+      const scaledHeight = (chipFactory.chipHeight ?? CARD_D) * HUMAN_CHIP_SCALE;
+      chip.position.y = TABLE_HEIGHT + scaledHeight / 2 + CARD_D * 0.2;
+      baseScale = HUMAN_CHIP_SCALE;
+      chip.scale.setScalar(baseScale);
+    } else {
+      chip.position.copy(chipCenter);
+      chip.position.y = anchor.y + CARD_D * 2.2;
+      const row = Math.floor(index / columns);
+      const col = index % columns;
+      chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
+      chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
+      chip.scale.setScalar(RAIL_CHIP_SCALE);
+    }
+    chip.userData = { type: 'chip-button', value, baseScale };
     group.add(chip);
     return chip;
   });
@@ -1345,6 +1374,13 @@ function TexasHoldemArena({ search }) {
 
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
     const seatLayout = createSeatLayout(PLAYER_COUNT);
+    const topSeat = seatLayout
+      .filter((seat) => !seat.isHuman)
+      .reduce((best, seat) => {
+        if (!best) return seat;
+        return seat.seatPos.z < best.seatPos.z ? seat : best;
+      }, null);
+    const seatTopPoint = topSeat ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight) : null;
     const seatGroups = [];
     const deckAnchor = DECK_POSITION.clone();
 
@@ -1384,7 +1420,7 @@ function TexasHoldemArena({ search }) {
       const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
       const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
       const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-      const pitchLimits = computeCameraPitchLimits(position, baseForward);
+      const pitchLimits = computeCameraPitchLimits(position, baseForward, { seatTopPoint });
       cameraBasisRef.current = {
         position: position.clone(),
         baseForward,
@@ -1453,6 +1489,11 @@ function TexasHoldemArena({ search }) {
         arenaGroup.add(mesh);
         return mesh;
       });
+      if (seat.isHuman) {
+        cardMeshes.forEach((mesh) => {
+          mesh.scale.setScalar(HUMAN_CARD_SCALE);
+        });
+      }
 
       const chipStack = chipFactory.createStack(0);
       chipStack.position.copy(seat.chipAnchor);
@@ -1467,6 +1508,11 @@ function TexasHoldemArena({ search }) {
       previewStack.position.copy(seat.previewAnchor);
       previewStack.visible = false;
       arenaGroup.add(previewStack);
+      if (seat.isHuman) {
+        chipStack.scale.setScalar(HUMAN_CHIP_SCALE);
+        betStack.scale.setScalar(HUMAN_CHIP_SCALE);
+        previewStack.scale.setScalar(HUMAN_CHIP_SCALE);
+      }
 
       const player = initialPlayers[seatIndex] ?? null;
       const nameplate = makeNameplate(player?.name ?? 'Player', Math.round(player?.chips ?? 0), renderer);
