@@ -93,9 +93,9 @@ const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.15, landscape: 0.5 }
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.78, landscape: 1.32 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.3 });
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * 0.36;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.3;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.45;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.86;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.6;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.45;
 const HUMAN_CARD_CHIP_BLEND = 0.04;
 
 const CHIP_VALUES = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
