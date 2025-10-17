@@ -180,20 +180,20 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.03; // widen the chrome cut to follow the opened corner pockets
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.08; // push the long-rail chrome farther out so the larger corner pockets stay clear
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // keep the short-rail chrome aligned with the expanded corner mouths
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.02; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
+const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.74; // pull the side chrome in even further to follow the tighter middle pocket openings
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.58; // trim the throat further to align with the reduced side pocket span
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.68; // lower the notch height so the rail cut follows the new pocket edge
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // align the chrome plate cut-out exactly with the narrower side pocket span
-const RAIL_POCKET_CUT_SCALE = 0.86; // tighten the wooden rail pocket cuts to match the smaller pocket mouths
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
+const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
   width,
@@ -425,7 +425,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 635;
 const CORNER_MOUTH_REF = 114;
 const SIDE_MOUTH_REF = 127;
-const SIDE_RAIL_INNER_REDUCTION = 0.86;
+const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
@@ -463,21 +463,16 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1.12; // open the corner pockets a touch more while keeping clear of the chrome
-const POCKET_SIDE_MOUTH_SCALE = 0.76; // tighten the middle pockets further to create smaller pocket mouths
+const POCKET_CORNER_MOUTH_SCALE = 1.005; // open the corner pockets a touch more while keeping clear of the chrome
+const POCKET_SIDE_MOUTH_SCALE = 0.935; // tighten the middle pockets slightly further for consistent rail alignment
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
+  POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const SIDE_POCKET_CENTER_VISUAL_INSET_SCALE = 0.74;
-const SIDE_POCKET_CENTER_VISUAL_INSET =
-  SIDE_POCKET_RADIUS * SIDE_POCKET_CENTER_VISUAL_INSET_SCALE * POCKET_VISUAL_EXPANSION; // push the side pockets outward along the rail
-const SIDE_POCKET_CENTER_OUTSET =
-  SIDE_POCKET_RADIUS * 0.1 * POCKET_VISUAL_EXPANSION; // nudge the side pocket centres slightly away from the table centre
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -2757,8 +2752,8 @@ const pocketCenters = () => [
   cornerPocketCenter(1, -1),
   cornerPocketCenter(-1, 1),
   cornerPocketCenter(1, 1),
-  new THREE.Vector2(-PLAY_W / 2 - SIDE_POCKET_CENTER_OUTSET, 0),
-  new THREE.Vector2(PLAY_W / 2 + SIDE_POCKET_CENTER_OUTSET, 0)
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -3678,8 +3673,7 @@ function Table3D(
   const clothExtend =
     clothExtendBase +
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
-  const clothSideExtra = Math.min(PLAY_W, PLAY_H) * 0.0038; // push the playing surface farther into the side rails to remove visible gaps
-  const halfWext = halfW + clothExtend + clothSideExtra;
+  const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
   const pocketPositions = pocketCenters();
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
@@ -4006,7 +4000,7 @@ function Table3D(
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_CENTER_VISUAL_INSET;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
