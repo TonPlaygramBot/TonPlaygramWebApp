@@ -29,9 +29,12 @@ import {
   createDeck,
   shuffle,
   dealHoleCards,
-  compareHands,
   estimateWinProbability
 } from '../../../../lib/texasHoldem.js';
+import {
+  buildSidePotsFromBets,
+  determineWinnersFromHands
+} from '../../../../lib/texasHoldemGame.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
@@ -90,8 +93,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.25, landscape: 1.5 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.26 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 2.0, landscape: 1.35 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.64;
@@ -102,6 +105,10 @@ const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
 const HUMAN_CARD_CHIP_BLEND = 0.08;
 const HUMAN_CARD_SCALE = 0.92;
 const HUMAN_CHIP_SCALE = 0.9;
+const TURN_TOKEN_RADIUS = 0.14 * MODEL_SCALE;
+const TURN_TOKEN_HEIGHT = 0.05 * MODEL_SCALE;
+const TURN_TOKEN_FORWARD_OFFSET = 0.18 * MODEL_SCALE;
+const TURN_TOKEN_LIFT = 0.08 * MODEL_SCALE;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -873,12 +880,12 @@ function goToShowdown(state) {
     }
     state.community.push(state.deck.pop());
   }
-  const pots = buildSidePots(state.players);
+  const pots = buildSidePotsFromBets(state.players);
   const results = [];
   pots.forEach((pot) => {
     const eligible = pot.players.filter((idx) => !state.players[idx].folded);
     if (!eligible.length) return;
-    const winners = determineWinners(state.players, state.community, eligible);
+    const winners = determineWinnersFromHands(state.players, state.community, eligible);
     const share = pot.amount / winners.length;
     winners.forEach((idx) => {
       state.players[idx].chips += share;
@@ -891,40 +898,6 @@ function goToShowdown(state) {
   state.stage = 'showdown';
   state.showdown = true;
   state.awaitingInput = false;
-}
-
-function buildSidePots(players) {
-  const active = players.filter((p) => p.totalBet > 0);
-  if (!active.length) return [];
-  const bets = [...new Set(active.map((p) => p.totalBet))].sort((a, b) => a - b);
-  const pots = [];
-  let previous = 0;
-  bets.forEach((amount) => {
-    const eligible = players.filter((p) => p.totalBet >= amount).map((p) => p.seatIndex ?? players.indexOf(p));
-    const potAmount = (amount - previous) * eligible.length;
-    pots.push({ amount: potAmount, players: eligible });
-    previous = amount;
-  });
-  return pots;
-}
-
-function determineWinners(players, community, indices) {
-  let winners = [];
-  indices.forEach((idx) => {
-    const player = players[idx];
-    if (!player || player.folded) return;
-    if (!winners.length) {
-      winners = [idx];
-      return;
-    }
-    const contender = compareHands([...player.hand, ...community], [...players[winners[0]].hand, ...community]);
-    if (contender > 0) {
-      winners = [idx];
-    } else if (contender === 0) {
-      winners.push(idx);
-    }
-  });
-  return winners;
 }
 
 function prepareNextAction(state, isNewHand) {
@@ -1327,7 +1300,7 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.near,
       CAMERA_SETTINGS.far
     );
-    camera.position.set(0, TABLE_HEIGHT * 3.1, TABLE_RADIUS * 4.25);
+    camera.position.set(0, TABLE_HEIGHT * 2.85, TABLE_RADIUS * 3.9);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
@@ -1532,6 +1505,20 @@ function TexasHoldemArena({ search }) {
       nameplate.position.set(0, seat.labelOffset.height, seat.labelOffset.forward);
       group.add(nameplate);
 
+      const turnTokenGeometry = new THREE.CylinderGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_RADIUS, TURN_TOKEN_HEIGHT, 24);
+      const turnTokenMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#facc15'),
+        emissive: new THREE.Color('#f97316'),
+        emissiveIntensity: 0.65,
+        roughness: 0.4,
+        metalness: 0.25
+      });
+      const turnToken = new THREE.Mesh(turnTokenGeometry, turnTokenMaterial);
+      turnToken.position.set(0, seat.labelOffset.height + TURN_TOKEN_LIFT, seat.labelOffset.forward + TURN_TOKEN_FORWARD_OFFSET);
+      turnToken.visible = false;
+      turnToken.castShadow = true;
+      group.add(turnToken);
+
       seatGroups.push({
         group,
         chairMeshes: [
@@ -1546,6 +1533,7 @@ function TexasHoldemArena({ search }) {
         betStack,
         previewStack,
         nameplate,
+        turnToken,
         forward: seat.forward.clone(),
         right: seat.right.clone(),
         cardAnchor: seat.cardAnchor.clone(),
@@ -1865,6 +1853,11 @@ function TexasHoldemArena({ search }) {
             seat.nameplate.userData?.dispose?.();
             seat.nameplate.parent?.remove(seat.nameplate);
           }
+          if (seat.turnToken) {
+            seat.turnToken.geometry?.dispose?.();
+            seat.turnToken.material?.dispose?.();
+            seat.turnToken.parent?.remove(seat.turnToken);
+          }
           seat.group?.parent?.remove(seat.group);
         });
         community.forEach((mesh) => {
@@ -1942,8 +1935,11 @@ function TexasHoldemArena({ search }) {
         activeBetTotal += Math.max(0, Math.round(player.bet));
       }
       const label = seat.nameplate;
+      const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
+      if (seat.turnToken) {
+        seat.turnToken.visible = highlight;
+      }
       if (label?.userData?.update) {
-        const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
         const status = player.status || '';
         label.userData.update(player.name, Math.round(player.chips), highlight, status);
         label.userData.texture.needsUpdate = true;
