@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import polygonClipping from 'polygon-clipping';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
@@ -498,6 +499,127 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
+const DEFAULT_POCKET_JAW_ID = 'sleekChrome';
+const POCKET_JAW_STORAGE_KEY = 'poolPocketJawOption';
+const POCKET_JAW_OPTIONS = Object.freeze([
+  Object.freeze({
+    id: 'sleekChrome',
+    label: 'Sleek Chrome',
+    description: 'Slim polished profile hugging each pocket cut.',
+    bodyOuterScale: 1,
+    bodyInnerScale: 0.94,
+    bodyHeightRatio: 0.94,
+    bodyBaseOffset: -MICRO_EPS * 0.25,
+    bodyTopOffset: 0,
+    bodyCurveSegments: 60,
+    rimOuterScale: 1.052,
+    rimInnerScale: 0.97,
+    rimHeightRatio: 0.16,
+    rimTopOffset: MICRO_EPS * 0.6,
+    rimCurveSegments: 64,
+    rimBevelSize: BALL_R * 0.045,
+    rimBevelSegments: 2
+  }),
+  Object.freeze({
+    id: 'heritageGuard',
+    label: 'Heritage Guard',
+    description: 'Classic wrapped jaw with a gentle leather-like flare.',
+    bodyOuterScale: 1,
+    bodyInnerScale: 0.92,
+    bodyHeightRatio: 0.98,
+    bodyBaseOffset: -MICRO_EPS * 0.2,
+    bodyTopOffset: MICRO_EPS * 0.2,
+    bodyCurveSegments: 52,
+    rimOuterScale: 1.038,
+    rimInnerScale: 0.95,
+    rimHeightRatio: 0.12,
+    rimTopOffset: MICRO_EPS * 0.5,
+    rimCurveSegments: 52,
+    rimBevelSize: BALL_R * 0.035,
+    rimBevelSegments: 2
+  }),
+  Object.freeze({
+    id: 'tournamentShield',
+    label: 'Tournament Shield',
+    description: 'Reinforced tournament jaw with a bold chrome lip.',
+    bodyOuterScale: 1.01,
+    bodyInnerScale: 0.9,
+    bodyHeightRatio: 0.96,
+    bodyBaseOffset: -MICRO_EPS * 0.15,
+    bodyTopOffset: MICRO_EPS * 0.25,
+    bodyCurveSegments: 64,
+    rimOuterScale: 1.07,
+    rimInnerScale: 0.92,
+    rimHeightRatio: 0.2,
+    rimTopOffset: MICRO_EPS * 0.55,
+    rimCurveSegments: 64,
+    rimBevelSize: BALL_R * 0.06,
+    rimBevelSegments: 3
+  }),
+  Object.freeze({
+    id: 'arcadeWave',
+    label: 'Arcade Wave',
+    description: 'Sweeping arcade rim that bends outward for drama.',
+    bodyOuterScale: 0.998,
+    bodyInnerScale: 0.9,
+    bodyHeightRatio: 0.9,
+    bodyBaseOffset: -MICRO_EPS * 0.1,
+    bodyTopOffset: MICRO_EPS * 0.18,
+    bodyCurveSegments: 56,
+    rimOuterScale: 1.082,
+    rimInnerScale: 0.94,
+    rimHeightRatio: 0.22,
+    rimTopOffset: MICRO_EPS * 0.7,
+    rimCurveSegments: 56,
+    rimBevelSize: BALL_R * 0.05,
+    rimBevelSegments: 3
+  }),
+  Object.freeze({
+    id: 'shadowEdge',
+    label: 'Shadow Edge',
+    description: 'Low-profile smoked rim that keeps the cut ultra clean.',
+    bodyOuterScale: 1,
+    bodyInnerScale: 0.95,
+    bodyHeightRatio: 0.92,
+    bodyBaseOffset: -MICRO_EPS * 0.15,
+    bodyTopOffset: MICRO_EPS * 0.12,
+    bodyCurveSegments: 48,
+    rimOuterScale: 1.03,
+    rimInnerScale: 0.97,
+    rimHeightRatio: 0.1,
+    rimTopOffset: MICRO_EPS * 0.5,
+    rimCurveSegments: 48,
+    rimBevelSize: BALL_R * 0.03,
+    rimBevelSegments: 2
+  })
+]);
+const POCKET_JAW_OPTIONS_BY_ID = Object.freeze(
+  POCKET_JAW_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
+function resolvePocketJawOption(option) {
+  if (!option) {
+    return (
+      POCKET_JAW_OPTIONS_BY_ID[DEFAULT_POCKET_JAW_ID] ??
+      POCKET_JAW_OPTIONS[0]
+    );
+  }
+  if (typeof option === 'string') {
+    return (
+      POCKET_JAW_OPTIONS_BY_ID[option] ??
+      POCKET_JAW_OPTIONS_BY_ID[DEFAULT_POCKET_JAW_ID] ??
+      POCKET_JAW_OPTIONS[0]
+    );
+  }
+  if (option.id && POCKET_JAW_OPTIONS_BY_ID[option.id]) {
+    return POCKET_JAW_OPTIONS_BY_ID[option.id];
+  }
+  return option;
+}
+
 const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
@@ -3469,7 +3591,10 @@ function Table3D(
     accentMesh: null,
     dimensions: null,
     woodSurfaces: { frame: null, rail: null },
-    woodTextureId: null
+    woodTextureId: null,
+    jawMeshes: [],
+    jawAssemblies: [],
+    jawGroup: null
   };
 
   const halfW = PLAY_W / 2;
@@ -3493,6 +3618,11 @@ function Table3D(
       WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
     defaultWoodOption;
   finishParts.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
+  const resolvedJawOption = resolvePocketJawOption(
+    (finish && typeof finish === 'object'
+      ? finish.pocketJawOption ?? finish.jawOptionId ?? null
+      : null) ?? DEFAULT_POCKET_JAW_ID
+  );
 
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
@@ -3665,7 +3795,8 @@ function Table3D(
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
     applyClothDetail,
-    woodTextureId: finishParts.woodTextureId
+    woodTextureId: finishParts.woodTextureId,
+    jawOptionId: resolvedJawOption?.id ?? DEFAULT_POCKET_JAW_ID
   };
 
   const clothExtendBase = Math.max(
@@ -4227,6 +4358,277 @@ function Table3D(
     const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
+  const pocketJawGroup = new THREE.Group();
+  pocketJawGroup.name = 'pocketJaws';
+  railsGroup.add(pocketJawGroup);
+  finishParts.jawGroup = pocketJawGroup;
+  const rebuildPocketJaws = (
+    optionInput = resolvedJawOption,
+    materialInput = trimMat
+  ) => {
+    const option = resolvePocketJawOption(optionInput);
+    const material = materialInput ?? trimMat;
+    const jawMeshes = Array.isArray(finishParts.jawMeshes)
+      ? finishParts.jawMeshes
+      : [];
+    const jawAssemblies = Array.isArray(finishParts.jawAssemblies)
+      ? finishParts.jawAssemblies
+      : [];
+    jawMeshes.forEach((mesh) => {
+      if (mesh?.parent) mesh.parent.remove(mesh);
+      mesh?.geometry?.dispose?.();
+    });
+    jawAssemblies.forEach((assembly) => {
+      if (assembly?.parent) assembly.parent.remove(assembly);
+    });
+    jawMeshes.length = 0;
+    jawAssemblies.length = 0;
+    pocketJawGroup.clear();
+
+    const baseBodyOuterScale = Number.isFinite(option?.bodyOuterScale)
+      ? option.bodyOuterScale
+      : 1;
+    const baseBodyInnerScale = Number.isFinite(option?.bodyInnerScale)
+      ? option.bodyInnerScale
+      : 0.92;
+    const baseRimOuterScale = Number.isFinite(option?.rimOuterScale)
+      ? option.rimOuterScale
+      : baseBodyOuterScale;
+    const baseRimInnerScale = Number.isFinite(option?.rimInnerScale)
+      ? option.rimInnerScale
+      : baseBodyInnerScale;
+    const bodyHeightRatio = THREE.MathUtils.clamp(
+      Number.isFinite(option?.bodyHeightRatio) ? option.bodyHeightRatio : 1,
+      0.08,
+      1.05
+    );
+    const bodyDepth = Math.max(
+      MICRO_EPS,
+      Math.min(railH, railH * bodyHeightRatio)
+    );
+    const bodyBaseOffset = Number.isFinite(option?.bodyBaseOffset)
+      ? option.bodyBaseOffset
+      : 0;
+    const bodyTopOffset = Number.isFinite(option?.bodyTopOffset)
+      ? option.bodyTopOffset
+      : 0;
+    const railTopY = frameTopY + railH;
+    const bodyTopY = railTopY + bodyTopOffset;
+    const bodyBaseY = bodyTopY - bodyDepth + bodyBaseOffset;
+    const bodyCurveSegments = Math.max(
+      12,
+      Math.round(option?.bodyCurveSegments ?? 48)
+    );
+    const rimHeightRatio = Math.max(
+      0,
+      Number.isFinite(option?.rimHeightRatio) ? option.rimHeightRatio : 0
+    );
+    const rimDepth = rimHeightRatio > 0
+      ? Math.max(MICRO_EPS, Math.min(railH, railH * rimHeightRatio))
+      : 0;
+    const rimBaseOffset = Number.isFinite(option?.rimVerticalOffset)
+      ? option.rimVerticalOffset
+      : 0;
+    const rimTopOffset = Number.isFinite(option?.rimTopOffset)
+      ? option.rimTopOffset
+      : bodyTopOffset;
+    const rimBaseY = railTopY + rimTopOffset - rimDepth + rimBaseOffset;
+    const rimCurveSegments = Math.max(
+      12,
+      Math.round(option?.rimCurveSegments ?? bodyCurveSegments)
+    );
+    const rimBevelSize = Math.max(0, option?.rimBevelSize ?? 0);
+    const rimBevelSegments = Math.max(
+      0,
+      Math.round(option?.rimBevelSegments ?? 2)
+    );
+
+    const pickScale = (type, baseKey, fallback) => {
+      if (!option) return fallback;
+      const suffix =
+        baseKey.charAt(0).toUpperCase() + baseKey.slice(1);
+      const specificKey =
+        type === 'corner'
+          ? `corner${suffix}`
+          : type === 'side'
+            ? `side${suffix}`
+            : null;
+      if (specificKey && Number.isFinite(option[specificKey])) {
+        return option[specificKey];
+      }
+      if (Number.isFinite(option[baseKey])) {
+        return option[baseKey];
+      }
+      return fallback;
+    };
+
+    const safeScalePair = (outer, inner) => {
+      const safeOuter = Math.max(0.01, outer);
+      let safeInner = Number.isFinite(inner) ? inner : safeOuter * 0.92;
+      if (safeInner >= safeOuter) {
+        safeInner = safeOuter - safeOuter * 0.035;
+      }
+      if (safeInner <= 0) {
+        safeInner = safeOuter * 0.65;
+      }
+      return { outer: safeOuter, inner: safeInner };
+    };
+
+    const createRingShapes = (mp, type, outerFallback, innerFallback) => {
+      const outerScale = pickScale(type, outerFallback.key, outerFallback.value);
+      const innerScale = pickScale(type, innerFallback.key, innerFallback.value);
+      const { outer, inner } = safeScalePair(outerScale, innerScale);
+      const outerMP = scaleMultiPolygon(mp, outer);
+      if (!outerMP.length) return [];
+      let ringMP = outerMP;
+      if (inner > 0) {
+        const innerMP = scaleMultiPolygon(mp, inner);
+        if (innerMP.length) {
+          try {
+            const diff = polygonClipping.difference(outerMP, ...innerMP);
+            if (Array.isArray(diff) && diff.length) {
+              ringMP = diff;
+            }
+          } catch (error) {
+            ringMP = outerMP;
+          }
+        }
+      }
+      const shapes = multiPolygonToShapes(ringMP);
+      if (shapes.length) return shapes;
+      return multiPolygonToShapes(outerMP);
+    };
+
+    const entries = [
+      { type: 'corner', name: 'topLeft', mpList: shrinkRailCut(cornerNotchMP(-1, -1)) },
+      { type: 'corner', name: 'topRight', mpList: shrinkRailCut(cornerNotchMP(1, -1)) },
+      { type: 'corner', name: 'bottomRight', mpList: shrinkRailCut(cornerNotchMP(1, 1)) },
+      { type: 'corner', name: 'bottomLeft', mpList: shrinkRailCut(cornerNotchMP(-1, 1)) },
+      { type: 'side', name: 'sideRight', mpList: shrinkRailCut(sideNotchMP(1)) },
+      { type: 'side', name: 'sideLeft', mpList: shrinkRailCut(sideNotchMP(-1)) }
+    ];
+
+    const meshList = [];
+    const bodySettings = {
+      depth: bodyDepth,
+      bevelEnabled: false,
+      curveSegments: bodyCurveSegments,
+      steps: 1
+    };
+    const rimSettings = {
+      depth: rimDepth,
+      bevelEnabled: rimBevelSize > 0,
+      bevelSegments: rimBevelSize > 0 ? Math.max(1, rimBevelSegments) : 0,
+      bevelSize: rimBevelSize,
+      bevelThickness:
+        rimBevelSize > 0
+          ? Math.min(rimDepth * 0.8, rimBevelSize * 0.7)
+          : 0,
+      curveSegments: rimCurveSegments,
+      steps: 1
+    };
+
+    entries.forEach(({ type, name, mpList }) => {
+      if (!Array.isArray(mpList)) return;
+      mpList.forEach((mp, mpIndex) => {
+        const geometryPieces = [];
+        let hasBody = false;
+        let hasRim = false;
+
+        const bodyShapes = createRingShapes(mp, type, {
+          key: 'bodyOuterScale',
+          value: baseBodyOuterScale
+        }, {
+          key: 'bodyInnerScale',
+          value: baseBodyInnerScale
+        });
+        bodyShapes.forEach((shape) => {
+          const geometry = new THREE.ExtrudeGeometry(shape, bodySettings);
+          geometry.rotateX(-Math.PI / 2);
+          geometry.translate(0, bodyBaseY, 0);
+          geometryPieces.push(geometry);
+          hasBody = true;
+        });
+
+        if (rimDepth > MICRO_EPS) {
+          const rimShapes = createRingShapes(mp, type, {
+            key: 'rimOuterScale',
+            value: baseRimOuterScale
+          }, {
+            key: 'rimInnerScale',
+            value: baseRimInnerScale
+          });
+          rimShapes.forEach((shape) => {
+            const geometry = new THREE.ExtrudeGeometry(shape, rimSettings);
+            geometry.rotateX(-Math.PI / 2);
+            geometry.translate(0, rimBaseY, 0);
+            geometryPieces.push(geometry);
+            hasRim = true;
+          });
+        }
+
+        if (!geometryPieces.length) return;
+
+        let combinedGeometry = null;
+        if (geometryPieces.length === 1) {
+          combinedGeometry = geometryPieces[0];
+        } else {
+          combinedGeometry = mergeGeometries(geometryPieces, false);
+          geometryPieces.forEach((geo) => {
+            if (geo !== combinedGeometry) {
+              geo.dispose?.();
+            }
+          });
+        }
+
+        if (!combinedGeometry) {
+          geometryPieces.forEach((geo) => geo.dispose?.());
+          return;
+        }
+
+        const mesh = new THREE.Mesh(combinedGeometry, material);
+        mesh.castShadow = false;
+        mesh.receiveShadow = true;
+        mesh.renderOrder = hasRim ? 5 : 4;
+        mesh.name = `pocketJaw-${name}-${mpIndex}`;
+        mesh.userData = {
+          ...(mesh.userData || {}),
+          pocketJaw: {
+            optionId: option?.id ?? DEFAULT_POCKET_JAW_ID,
+            type,
+            sections: {
+              body: hasBody,
+              rim: hasRim
+            }
+          }
+        };
+        pocketJawGroup.add(mesh);
+        meshList.push(mesh);
+      });
+    });
+
+    meshList.forEach((mesh) => {
+      jawMeshes.push(mesh);
+      jawAssemblies.push(mesh);
+    });
+    finishInfo.jawOptionId = option?.id ?? DEFAULT_POCKET_JAW_ID;
+    finishInfo.parts.jawMeshes = jawMeshes;
+    finishInfo.parts.jawAssemblies = jawAssemblies;
+    finishInfo.parts.jawGroup = pocketJawGroup;
+    if (table.userData?.pocketJaws) {
+      table.userData.pocketJaws.optionId = finishInfo.jawOptionId;
+      table.userData.pocketJaws.material = material;
+      table.userData.pocketJaws.assemblies = jawAssemblies;
+    }
+  };
+  rebuildPocketJaws(resolvedJawOption, trimMat);
+  table.userData.pocketJaws = {
+    group: pocketJawGroup,
+    rebuild: rebuildPocketJaws,
+    optionId: finishInfo.jawOptionId,
+    material: trimMat,
+    assemblies: finishParts.jawAssemblies
+  };
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...shrinkRailCut(sideNotchMP(-1)),
@@ -4787,10 +5189,28 @@ function applyTableFinishToTable(table, finish) {
     }
   };
 
+  const pocketJawOption = resolvePocketJawOption(
+    resolvedFinish?.pocketJawOption ??
+      resolvedFinish?.jawOptionId ??
+      finishInfo.jawOptionId ??
+      DEFAULT_POCKET_JAW_ID
+  );
+  const pocketJawData = table.userData?.pocketJaws;
+  if (pocketJawData?.rebuild) {
+    try {
+      pocketJawData.rebuild(pocketJawOption, trimMat);
+    } catch (error) {
+      console.warn('Failed to rebuild pocket jaws', error);
+    }
+  }
+
   finishInfo.parts.frameMeshes.forEach((mesh) => swapMaterial(mesh, frameMat));
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
+  if (Array.isArray(finishInfo.parts.jawMeshes)) {
+    finishInfo.parts.jawMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
+  }
 
   const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
     frame: null,
@@ -4842,6 +5262,7 @@ function applyTableFinishToTable(table, finish) {
   woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
   finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
   finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
+  finishInfo.jawOptionId = pocketJawOption?.id ?? finishInfo.jawOptionId;
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
@@ -4941,6 +5362,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [pocketJawId, setPocketJawId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(POCKET_JAW_STORAGE_KEY);
+      if (stored && POCKET_JAW_OPTIONS_BY_ID[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_POCKET_JAW_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -4955,6 +5385,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ??
       WOOD_GRAIN_OPTIONS[0],
     [woodTextureId]
+  );
+  const activePocketJawOption = useMemo(
+    () =>
+      POCKET_JAW_OPTIONS_BY_ID[pocketJawId] ??
+      POCKET_JAW_OPTIONS_BY_ID[DEFAULT_POCKET_JAW_ID] ??
+      POCKET_JAW_OPTIONS[0],
+    [pocketJawId]
   );
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
@@ -5190,6 +5627,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       },
       woodTexture: woodSelection,
       woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
+      pocketJawOption: activePocketJawOption,
+      jawOptionId: activePocketJawOption?.id ?? DEFAULT_POCKET_JAW_ID,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -5225,7 +5664,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
+  }, [
+    tableFinishId,
+    activeChromeOption,
+    activeClothOption,
+    activeWoodTexture,
+    activePocketJawOption
+  ]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -5254,6 +5699,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(POCKET_JAW_STORAGE_KEY, pocketJawId);
+    }
+  }, [pocketJawId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -11539,6 +11989,40 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             aria-hidden="true"
                           />
                           {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Pocket Jaws
+                </h3>
+                <div className="mt-2 flex flex-col gap-2">
+                  {POCKET_JAW_OPTIONS.map((option) => {
+                    const active = option.id === pocketJawId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPocketJawId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left text-[11px] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex flex-col gap-1">
+                          <span className="font-semibold uppercase tracking-[0.24em]">
+                            {option.label}
+                          </span>
+                          {option.description && (
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-white/60 leading-snug">
+                              {option.description}
+                            </span>
+                          )}
                         </span>
                       </button>
                     );
