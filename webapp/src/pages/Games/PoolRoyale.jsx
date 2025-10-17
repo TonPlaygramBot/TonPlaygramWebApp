@@ -466,9 +466,11 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = 1.005; // open the corner pockets a touch more while keeping clear of the chrome
+const SIDE_POCKET_TIGHTEN_SCALE = 0.98; // shrink the middle pocket mouths slightly so the cuts hug the pocket diameters
 const POCKET_SIDE_MOUTH_SCALE =
-  (CORNER_MOUTH_REF * POCKET_CORNER_MOUTH_SCALE) /
-  SIDE_MOUTH_REF; // match the middle pocket mouth width to the corners
+  ((CORNER_MOUTH_REF * POCKET_CORNER_MOUTH_SCALE) /
+    SIDE_MOUTH_REF) *
+  SIDE_POCKET_TIGHTEN_SCALE; // keep the side pocket diameter in step with the chrome notch while remaining slightly tighter than the corners
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -477,6 +479,8 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
+const SIDE_POCKET_DIAMETER_MATCH_SCALE = 1 / POCKET_VISUAL_EXPANSION; // counter the visual inflation so the rail cuts track the true pocket size
+const SIDE_POCKET_ALIGNMENT_OFFSET = 0; // keep the side pocket arches centred directly above the pocket locations
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -3972,7 +3976,10 @@ function Table3D(
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
+  const sidePocketCutRadius =
+    sidePocketRadius * SIDE_POCKET_DIAMETER_MATCH_SCALE; // mirror the true pocket diameter when shaping the rail cuts
+  const sidePlatePocketWidth =
+    sidePocketCutRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
@@ -4012,7 +4019,7 @@ function Table3D(
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const sideInset = clothExtend + SIDE_POCKET_ALIGNMENT_OFFSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4134,7 +4141,7 @@ function Table3D(
 
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
-    const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
+    const radius = sidePocketCutRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
       MICRO_EPS,
       radius * CHROME_SIDE_NOTCH_THROAT_SCALE
