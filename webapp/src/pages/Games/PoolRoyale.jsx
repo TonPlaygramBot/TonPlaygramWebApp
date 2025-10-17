@@ -194,7 +194,7 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
-const CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE = 1.4; // stretch the side chrome plates 40% farther overall (20% per side) toward the short rails
+const CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE = 1.55; // stretch the side chrome plates farther toward the short rails so the mid-pocket trim reaches the cushion shoulders
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3998,7 +3998,7 @@ function Table3D(
     sidePlateBaseHeight * CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE
   );
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.94,
+    chromePlateHeight * 0.97,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
@@ -4135,30 +4135,41 @@ function Table3D(
   const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
-    const throatLength = Math.max(
+    const throatReach = Math.max(
       MICRO_EPS,
       radius * CHROME_SIDE_NOTCH_THROAT_SCALE
     );
-    const throatHeight = Math.max(
+    const archRadiusX = Math.max(
       MICRO_EPS,
-      radius * 2 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
+      throatReach * CHROME_SIDE_NOTCH_RADIUS_SCALE
     );
-    const throatRadius = Math.max(
+    const archHalfHeight = Math.max(
       MICRO_EPS,
-      Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
+      radius * CHROME_SIDE_NOTCH_HEIGHT_SCALE
     );
+    const archCenterX = cx + sx * radius + sx * archRadiusX;
+    const archSteps = 128;
+    const archPts = [];
+    for (let i = 0; i <= archSteps; i++) {
+      const angle = Math.PI / 2 - (Math.PI * i) / archSteps;
+      const x = archCenterX + Math.cos(angle) * archRadiusX;
+      const z = Math.sin(angle) * archHalfHeight;
+      archPts.push([x, z]);
+    }
+    const joinX = cx + sx * radius - sx * MICRO_EPS * 2;
+    archPts.push([joinX, -archHalfHeight]);
+    archPts.push([joinX, archHalfHeight]);
+    if (archPts.length) {
+      const [firstX, firstZ] = archPts[0];
+      const [lastX, lastZ] = archPts[archPts.length - 1];
+      if (firstX !== lastX || firstZ !== lastZ) {
+        archPts.push([firstX, firstZ]);
+      }
+    }
 
     const circle = circlePoly(cx, 0, radius, 256);
-    const throat = roundedRectPoly(
-      cx + (sx * throatLength) / 2,
-      0,
-      Math.abs(throatLength),
-      throatHeight,
-      throatRadius,
-      256
-    );
-
-    const union = polygonClipping.union(circle, throat);
+    const arch = [[archPts]];
+    const union = polygonClipping.union(circle, arch);
     return adjustSideNotchDepth(union);
   };
 
