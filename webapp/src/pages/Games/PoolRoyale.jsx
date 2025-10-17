@@ -499,6 +499,8 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
+const POCKET_JAW_BODY_LIFT = BALL_R * 0.035; // raise the main jaw body slightly so it clears the rail surface
+const POCKET_JAW_RIM_EXTRA_LIFT = BALL_R * 0.025; // add an extra lip so the chrome rim stays visible from top-down views
 const DEFAULT_POCKET_JAW_ID = 'sleekChrome';
 const POCKET_JAW_STORAGE_KEY = 'poolPocketJawOption';
 const POCKET_JAW_OPTIONS = Object.freeze([
@@ -4406,12 +4408,14 @@ function Table3D(
       MICRO_EPS,
       Math.min(railH, railH * bodyHeightRatio)
     );
-    const bodyBaseOffset = Number.isFinite(option?.bodyBaseOffset)
+    const baseBodyBaseOffset = Number.isFinite(option?.bodyBaseOffset)
       ? option.bodyBaseOffset
       : 0;
-    const bodyTopOffset = Number.isFinite(option?.bodyTopOffset)
+    const baseBodyTopOffset = Number.isFinite(option?.bodyTopOffset)
       ? option.bodyTopOffset
       : 0;
+    const bodyTopOffset = baseBodyTopOffset + POCKET_JAW_BODY_LIFT;
+    const bodyBaseOffset = baseBodyBaseOffset - POCKET_JAW_BODY_LIFT;
     const railTopY = frameTopY + railH;
     const bodyTopY = railTopY + bodyTopOffset;
     const bodyBaseY = bodyTopY - bodyDepth + bodyBaseOffset;
@@ -4429,9 +4433,11 @@ function Table3D(
     const rimBaseOffset = Number.isFinite(option?.rimVerticalOffset)
       ? option.rimVerticalOffset
       : 0;
-    const rimTopOffset = Number.isFinite(option?.rimTopOffset)
+    const baseRimTopOffset = Number.isFinite(option?.rimTopOffset)
       ? option.rimTopOffset
-      : bodyTopOffset;
+      : baseBodyTopOffset;
+    const rimTopOffset =
+      baseRimTopOffset + POCKET_JAW_BODY_LIFT + POCKET_JAW_RIM_EXTRA_LIFT;
     const rimBaseY = railTopY + rimTopOffset - rimDepth + rimBaseOffset;
     const rimCurveSegments = Math.max(
       12,
@@ -4587,7 +4593,7 @@ function Table3D(
         }
 
         const mesh = new THREE.Mesh(combinedGeometry, material);
-        mesh.castShadow = false;
+        mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.renderOrder = hasRim ? 5 : 4;
         mesh.name = `pocketJaw-${name}-${mpIndex}`;
