@@ -90,12 +90,12 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.62, landscape: 1.32 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.54, landscape: 1.26 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.9, landscape: 1.32 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.26 });
 const PORTRAIT_CARD_CHIP_FOCUS_BLEND = 0.52;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.5;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.08;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.72;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.15;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.78;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.92;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
@@ -1067,7 +1067,7 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
-  const headAnglesRef = useRef({ yaw: 0, pitch: THREE.MathUtils.degToRad(18) });
+  const headAnglesRef = useRef({ yaw: 0, pitch: THREE.MathUtils.degToRad(6) });
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
