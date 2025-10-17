@@ -3942,15 +3942,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThicknessBase = railH * 0.12; // thicken chrome plates by ~50% to better catch highlights
-  const chromePocketCoverageDepth = Math.max(
-    0,
-    railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
-  ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = Math.min(
-    railH * 0.92,
-    Math.max(chromePlateThicknessBase, chromePocketCoverageDepth)
-  );
+  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% to better catch highlights
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
