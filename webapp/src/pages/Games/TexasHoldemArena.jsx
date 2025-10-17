@@ -85,7 +85,7 @@ const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
-const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(4);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
@@ -124,14 +124,13 @@ const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.5;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.5;
-const CARD_RAIL_VERTICAL_LIFT = CARD_D * 0.35;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.36;
 
 const CAMERA_PLAYER_FOCUS_BLEND = 0.58;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.2;
 const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.42;
 const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
-const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(6.5);
+const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
@@ -476,7 +475,7 @@ function createSeatLayout(count) {
       .clone()
       .addScaledVector(forward, isHuman ? HUMAN_CARD_INWARD_SHIFT : 0)
       .addScaledVector(right, isHuman ? -HUMAN_CARD_LATERAL_SHIFT : -CARD_RAIL_LATERAL_SHIFT);
-    cardRailAnchor.y = railSurfaceY + CARD_RAIL_VERTICAL_LIFT;
+    cardRailAnchor.y = railSurfaceY;
     const chipRailAnchor = chipRailCenter
       .clone()
       .addScaledVector(forward, isHuman ? HUMAN_CHIP_INWARD_SHIFT : 0)
@@ -632,7 +631,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const cardRailAnchor = seat.cardRailAnchor
     ? seat.cardRailAnchor.clone()
     : anchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
-  cardRailAnchor.y = anchor.y + CARD_RAIL_VERTICAL_LIFT;
+  cardRailAnchor.y = anchor.y;
   const chipCenter = seat.chipRailAnchor
     ? seat.chipRailAnchor.clone()
     : cardRailAnchor.clone().addScaledVector(axis, CARD_RAIL_LATERAL_SHIFT + CHIP_RAIL_LATERAL_SHIFT);
@@ -1068,7 +1067,7 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
-  const headAnglesRef = useRef({ yaw: 0, pitch: THREE.MathUtils.degToRad(24) });
+  const headAnglesRef = useRef({ yaw: 0, pitch: THREE.MathUtils.degToRad(18) });
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
