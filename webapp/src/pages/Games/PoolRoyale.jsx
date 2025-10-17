@@ -3924,11 +3924,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateBottomY = frameTopY + MICRO_EPS * 6; // tuck chrome plates just above the wooden rail base to avoid z-fighting
-  const chromePlateThickness = Math.max(
-    railH * 0.12,
-    railsTopY - chromePlateBottomY
-  ); // stretch chrome plates downward so they span the full wooden rail thickness
+  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% to better catch highlights
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -3970,7 +3966,8 @@ function Table3D(
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
-  const chromePlateY = chromePlateBottomY;
+  const chromePlateY =
+    railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
