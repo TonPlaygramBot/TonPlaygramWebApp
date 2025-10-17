@@ -212,7 +212,7 @@ const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim t
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.82; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
 const CHROME_PLATE_THICKNESS_SCALE = 1.12; // drop the chrome plates down far enough to wrap the full rail depth and hide the pocket cutouts
-const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
+const RAIL_POCKET_CUT_SCALE = 1; // keep the wooden rail pocket cuts aligned with the field pocket diameter
 
 function buildChromePlateGeometry({
   width,
@@ -3988,7 +3988,7 @@ function Table3D(
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sidePocketRadius = POCKET_TOP_R; // match side chrome pocket cuts to the field pocket diameter
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
@@ -4017,7 +4017,7 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_TOP_R; // align corner chrome pocket cuts with the field pocket diameter
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
