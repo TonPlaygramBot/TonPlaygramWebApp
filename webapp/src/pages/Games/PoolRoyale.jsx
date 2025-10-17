@@ -186,14 +186,15 @@ const CHROME_CORNER_EXPANSION_SCALE = 1.08; // push the long-rail chrome farther
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // keep the short-rail chrome aligned with the expanded corner mouths
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.02; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.74; // pull the side chrome in even further to follow the tighter middle pocket openings
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.58; // trim the throat further to align with the reduced side pocket span
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.68; // lower the notch height so the rail cut follows the new pocket edge
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.02; // enlarge the middle chrome cut so it matches the pocket diameter
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.92; // widen the throat to keep the chrome aligned with the larger middle pocket span
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.94; // lift the notch height so the rail cut follows the pocket edge evenly
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // align the chrome plate cut-out exactly with the narrower side pocket span
-const RAIL_POCKET_CUT_SCALE = 0.86; // tighten the wooden rail pocket cuts to match the smaller pocket mouths
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.06; // open the side chrome plate cut-out to the same width as the middle pocket
+const RAIL_CORNER_POCKET_CUT_SCALE = 0.86; // preserve the tighter wooden rail cuts at the corners
+const RAIL_SIDE_POCKET_CUT_SCALE = 0.94; // widen the wooden rail cuts around the middle pockets
 
 function buildChromePlateGeometry({
   width,
@@ -463,21 +464,23 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1.12; // open the corner pockets a touch more while keeping clear of the chrome
+const POCKET_CORNER_MOUTH_SCALE = 1.18; // open the corner pockets further so they match the rail and chrome cut-outs
 const POCKET_SIDE_MOUTH_SCALE = 0.76; // tighten the middle pockets further to create smaller pocket mouths
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
+const CORNER_POCKET_CENTER_INSET_SCALE = 0.18;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
+  POCKET_VIS_R * CORNER_POCKET_CENTER_INSET_SCALE * POCKET_VISUAL_EXPANSION; // baseline offset from the table corner
+const CORNER_POCKET_ALIGNMENT_OFFSET =
+  POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION; // aligns the pocket centres with the existing rail cut geometry
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const SIDE_POCKET_CENTER_VISUAL_INSET_SCALE = 0.74;
 const SIDE_POCKET_CENTER_VISUAL_INSET =
   SIDE_POCKET_RADIUS * SIDE_POCKET_CENTER_VISUAL_INSET_SCALE * POCKET_VISUAL_EXPANSION; // push the side pockets outward along the rail
-const SIDE_POCKET_CENTER_OUTSET =
-  SIDE_POCKET_RADIUS * 0.1 * POCKET_VISUAL_EXPANSION; // nudge the side pocket centres slightly away from the table centre
+const SIDE_POCKET_CENTER_ALIGNMENT_OFFSET = SIDE_POCKET_CENTER_VISUAL_INSET; // align side pocket centres with the widened rail cut-outs
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -2749,16 +2752,16 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
 
 const cornerPocketCenter = (sx, sz) =>
   new THREE.Vector2(
-    sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
-    sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
+    sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET - CORNER_POCKET_ALIGNMENT_OFFSET),
+    sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET - CORNER_POCKET_ALIGNMENT_OFFSET)
   );
 const pocketCenters = () => [
   cornerPocketCenter(-1, -1),
   cornerPocketCenter(1, -1),
   cornerPocketCenter(-1, 1),
   cornerPocketCenter(1, 1),
-  new THREE.Vector2(-PLAY_W / 2 - SIDE_POCKET_CENTER_OUTSET, 0),
-  new THREE.Vector2(PLAY_W / 2 + SIDE_POCKET_CENTER_OUTSET, 0)
+  new THREE.Vector2(-PLAY_W / 2 + SIDE_POCKET_CENTER_ALIGNMENT_OFFSET, 0),
+  new THREE.Vector2(PLAY_W / 2 - SIDE_POCKET_CENTER_ALIGNMENT_OFFSET, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -4227,21 +4230,23 @@ function Table3D(
     }
   }
 
-  const shrinkRailCut = (mp) => {
-    const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
+  const shrinkRailCut = (mp, scale) => {
+    const scaled = scaleMultiPolygon(mp, scale);
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
+  const shrinkSideRailCut = (mp) => shrinkRailCut(mp, RAIL_SIDE_POCKET_CUT_SCALE);
+  const shrinkCornerRailCut = (mp) => shrinkRailCut(mp, RAIL_CORNER_POCKET_CUT_SCALE);
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...shrinkRailCut(sideNotchMP(-1)),
-    ...shrinkRailCut(sideNotchMP(1))
+    ...shrinkSideRailCut(sideNotchMP(-1)),
+    ...shrinkSideRailCut(sideNotchMP(1))
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...shrinkRailCut(cornerNotchMP(1, 1)),
-    ...shrinkRailCut(cornerNotchMP(-1, 1)),
-    ...shrinkRailCut(cornerNotchMP(-1, -1)),
-    ...shrinkRailCut(cornerNotchMP(1, -1))
+    ...shrinkCornerRailCut(cornerNotchMP(1, 1)),
+    ...shrinkCornerRailCut(cornerNotchMP(-1, 1)),
+    ...shrinkCornerRailCut(cornerNotchMP(-1, -1)),
+    ...shrinkCornerRailCut(cornerNotchMP(1, -1))
   );
 
   const railsOuter = new THREE.Shape();
