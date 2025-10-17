@@ -199,19 +199,18 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.12;
 const CHROME_CORNER_FIELD_PULL_SCALE = 0.28; // drag the chrome arches further toward the cloth so they cover the rail pocket cuts
-const CHROME_CORNER_EXPANSION_SCALE = 1.12; // let the chrome wrap farther across the long rails so pocket cuts stay fully covered
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.05; // push the chrome deeper along the short rails to stop the wood from peeking through the pocket entries
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.02; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
+const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.88; // lengthen the throat so the chrome spans the full pocket cut on the long rails
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.9; // raise the side notch opening to hug the pocket leather instead of clipping it
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.04; // push the throat deeper to eliminate the exposed wood inside the pocket mouth
-const CHROME_SIDE_FIELD_PULL_SCALE = 0.3; // extend the side pocket chrome toward the cloth without adding new trim pieces
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_FIELD_PULL_SCALE = 0.24; // extend the side pocket chrome toward the cloth without adding new trim pieces
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.82; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
-const CHROME_PLATE_RAIL_INSET_SCALE = 0.015; // tuck the plate closer to the wood so the chrome wraps over the rail edge
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3952,9 +3951,9 @@ function Table3D(
     railH * 0.92,
     Math.max(chromePlateThicknessBase, chromePocketCoverageDepth)
   );
-  const chromePlateInset = TABLE.THICK * CHROME_PLATE_RAIL_INSET_SCALE;
+  const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
-    TABLE.THICK * (0.024 + CHROME_CORNER_FIELD_TRIM_SCALE);
+    TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
