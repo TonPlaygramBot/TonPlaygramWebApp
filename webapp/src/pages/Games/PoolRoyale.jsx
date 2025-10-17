@@ -476,8 +476,12 @@ const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const SIDE_POCKET_CENTER_VISUAL_INSET_SCALE = 0.74;
 const SIDE_POCKET_CENTER_VISUAL_INSET =
   SIDE_POCKET_RADIUS * SIDE_POCKET_CENTER_VISUAL_INSET_SCALE * POCKET_VISUAL_EXPANSION; // push the side pockets outward along the rail
-const SIDE_POCKET_CENTER_OUTSET =
-  SIDE_POCKET_RADIUS * 0.1 * POCKET_VISUAL_EXPANSION; // nudge the side pocket centres slightly away from the table centre
+const SIDE_POCKET_CAPTURE_R = SIDE_POCKET_RADIUS * 0.985;
+const CORNER_POCKET_CUT_ALIGNMENT =
+  POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
+const CORNER_POCKET_TOTAL_INSET =
+  CORNER_POCKET_CENTER_INSET + CORNER_POCKET_CUT_ALIGNMENT;
+const SIDE_POCKET_TOTAL_INSET = SIDE_POCKET_CENTER_VISUAL_INSET;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -501,7 +505,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = 1.02; // widen cloth openings just enough to hide gaps while keeping the cloth tight to the pocket edges
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
@@ -2262,9 +2266,14 @@ function applySnookerScaling({
     'applySnookerScaling: side pocket mouth mismatch.'
   );
   if (Array.isArray(pockets)) {
-    pockets.forEach((pocket) => {
+    pockets.forEach((pocket, index) => {
       if (pocket?.userData) {
-        pocket.userData.captureRadius = POCKET_R;
+        const pocketId = pocket.userData.pocketId ?? POCKET_IDS[index];
+        const isSide =
+          pocket.userData.type === 'side' || pocketId === 'TM' || pocketId === 'BM';
+        pocket.userData.captureRadius = isSide
+          ? SIDE_POCKET_CAPTURE_R
+          : POCKET_R;
       }
     });
   }
@@ -2749,16 +2758,18 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
 
 const cornerPocketCenter = (sx, sz) =>
   new THREE.Vector2(
-    sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
-    sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
+    sx * (PLAY_W / 2 - CORNER_POCKET_TOTAL_INSET),
+    sz * (PLAY_H / 2 - CORNER_POCKET_TOTAL_INSET)
   );
+const sidePocketCenter = (sx) =>
+  new THREE.Vector2(sx * (PLAY_W / 2 - SIDE_POCKET_TOTAL_INSET), 0);
 const pocketCenters = () => [
   cornerPocketCenter(-1, -1),
   cornerPocketCenter(1, -1),
   cornerPocketCenter(-1, 1),
   cornerPocketCenter(1, 1),
-  new THREE.Vector2(-PLAY_W / 2 - SIDE_POCKET_CENTER_OUTSET, 0),
-  new THREE.Vector2(PLAY_W / 2 + SIDE_POCKET_CENTER_OUTSET, 0)
+  sidePocketCenter(-1),
+  sidePocketCenter(1)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -2796,9 +2807,9 @@ const getPocketCenterById = (id) => {
     case 'BR':
       return cornerPocketCenter(1, 1);
     case 'TM':
-      return new THREE.Vector2(-PLAY_W / 2, 0);
+      return sidePocketCenter(-1);
     case 'BM':
-      return new THREE.Vector2(PLAY_W / 2, 0);
+      return sidePocketCenter(1);
     default:
       return null;
   }
@@ -3834,12 +3845,20 @@ function Table3D(
     spots: spotMeshes
   };
 
-  const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
-  const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+  const CORNER_POCKET_TOP_R = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const CORNER_POCKET_BOTTOM_R = CORNER_POCKET_TOP_R * 0.7;
+  const SIDE_POCKET_TOP_R = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const SIDE_POCKET_BOTTOM_R = SIDE_POCKET_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
-  const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_TOP_R,
-    POCKET_BOTTOM_R,
+  const cornerPocketGeo = new THREE.CylinderGeometry(
+    CORNER_POCKET_TOP_R,
+    CORNER_POCKET_BOTTOM_R,
+    TABLE.THICK,
+    48
+  );
+  const sidePocketGeo = new THREE.CylinderGeometry(
+    SIDE_POCKET_TOP_R,
+    SIDE_POCKET_BOTTOM_R,
     TABLE.THICK,
     48
   );
@@ -3849,14 +3868,17 @@ function Table3D(
     roughness: 0.6
   });
   const pocketMeshes = [];
-  pocketCenters().forEach((p) => {
-    const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+  pocketCenters().forEach((p, index) => {
+    const isSide = index >= 4;
+    const pocket = new THREE.Mesh(isSide ? sidePocketGeo : cornerPocketGeo, pocketMat);
     pocket.position.set(
       p.x,
       clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
       p.y
     );
     pocket.receiveShadow = true;
+    pocket.userData.pocketId = POCKET_IDS[index];
+    pocket.userData.type = isSide ? 'side' : 'corner';
     table.add(pocket);
     pocketMeshes.push(pocket);
   });
@@ -4707,10 +4729,13 @@ function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketCenters().forEach((p) => {
+  pocketCenters().forEach((p, index) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = CAPTURE_R;
+    const isSide = index >= 4;
+    marker.userData.pocketId = POCKET_IDS[index];
+    marker.userData.type = isSide ? 'side' : 'corner';
+    marker.userData.captureRadius = isSide ? SIDE_POCKET_CAPTURE_R : POCKET_R;
     table.add(marker);
     table.userData.pockets.push(marker);
   });
