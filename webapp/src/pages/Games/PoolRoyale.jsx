@@ -4212,16 +4212,7 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
     const centerZ = 0;
-    const baseSideNotchMP = sideNotchMP(sx);
-    const scaledSideNotchMP = scaleMultiPolygon(
-      baseSideNotchMP,
-      RAIL_POCKET_CUT_SCALE
-    );
-    const chromeSideNotchMP =
-      Array.isArray(scaledSideNotchMP) && scaledSideNotchMP.length
-        ? scaledSideNotchMP
-        : baseSideNotchMP;
-    const notchLocalMP = chromeSideNotchMP.map((poly) =>
+    const notchLocalMP = sideNotchMP(sx).map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
     const plate = new THREE.Mesh(
