@@ -189,11 +189,12 @@ const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 1; // align the chrome cut with the side pocket throat width
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1; // match the notch height to the pocket opening
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // give the throat the same rounding profile as the pocket
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
-const CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE = 1.2; // stretch the side chrome plates 20% farther toward each short rail
+const CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE = 1.4; // stretch the side chrome plates 40% farther overall (20% per side) toward the short rails
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -4140,11 +4141,11 @@ function Table3D(
     );
     const throatHeight = Math.max(
       MICRO_EPS,
-      radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
+      radius * 2 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
     );
     const throatRadius = Math.max(
       MICRO_EPS,
-      Math.min(throatHeight / 2, radius * 0.6)
+      Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
@@ -4154,7 +4155,7 @@ function Table3D(
       Math.abs(throatLength),
       throatHeight,
       throatRadius,
-      192
+      256
     );
 
     const union = polygonClipping.union(circle, throat);
