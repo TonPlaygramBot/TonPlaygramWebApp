@@ -154,7 +154,16 @@ function adjustCornerNotchDepth(mp, centerZ, sz) {
                 const deltaZ = z - centerZ;
                 const towardCenter = -sz * deltaZ;
                 if (towardCenter <= 0) return [x, z];
-                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
+                const scaledDelta = deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE;
+                let nextZ = centerZ + scaledDelta;
+                const fieldPull = Math.min(
+                  Math.abs(scaledDelta),
+                  Math.abs(deltaZ) * CHROME_CORNER_FIELD_PULL_SCALE
+                );
+                if (fieldPull > 0) {
+                  nextZ += -sz * fieldPull;
+                }
+                return [x, nextZ];
               })
             : ring
         )
@@ -171,7 +180,14 @@ function adjustSideNotchDepth(mp) {
             ? ring.map((pt) => {
                 if (!Array.isArray(pt) || pt.length < 2) return pt;
                 const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+                const scaledZ = z * CHROME_SIDE_NOTCH_DEPTH_SCALE;
+                const pullBase = Math.abs(z) * CHROME_SIDE_FIELD_PULL_SCALE;
+                const maxPull = Math.min(Math.abs(scaledZ), pullBase);
+                if (maxPull <= 0) {
+                  return [x, scaledZ];
+                }
+                const dir = scaledZ === 0 ? 0 : scaledZ > 0 ? 1 : -1;
+                return [x, scaledZ - dir * maxPull];
               })
             : ring
         )
@@ -181,7 +197,8 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.12;
+const CHROME_CORNER_FIELD_PULL_SCALE = 0.28; // drag the chrome arches further toward the cloth so they cover the rail pocket cuts
 const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
@@ -190,6 +207,7 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_FIELD_PULL_SCALE = 0.24; // extend the side pocket chrome toward the cloth without adding new trim pieces
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
