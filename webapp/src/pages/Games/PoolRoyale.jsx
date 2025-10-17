@@ -171,7 +171,14 @@ function adjustSideNotchDepth(mp) {
             ? ring.map((pt) => {
                 if (!Array.isArray(pt) || pt.length < 2) return pt;
                 const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+                const scaledZ = z * CHROME_SIDE_NOTCH_DEPTH_SCALE;
+                const pullBase = Math.abs(z) * CHROME_SIDE_FIELD_PULL_SCALE;
+                const maxPull = Math.min(Math.abs(scaledZ), pullBase);
+                if (maxPull <= 0) {
+                  return [x, scaledZ];
+                }
+                const dir = scaledZ === 0 ? 0 : scaledZ > 0 ? 1 : -1;
+                return [x, scaledZ - dir * maxPull];
               })
             : ring
         )
@@ -187,14 +194,15 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 1; // align the chrome cut with the side pocket throat width
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1; // match the notch height to the pocket opening
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // give the throat the same rounding profile as the pocket
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.88; // lengthen the throat so the chrome spans the full pocket cut on the long rails
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.9; // raise the side notch opening to hug the pocket leather instead of clipping it
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.6; // give the throat a softer rounding profile inside the pocket
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.04; // push the throat deeper to eliminate the exposed wood inside the pocket mouth
+const CHROME_SIDE_FIELD_PULL_SCALE = 0.3; // extend the side pocket chrome toward the cloth without adding new trim pieces
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
-const CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE = 1.4; // stretch the side chrome plates 40% farther overall (20% per side) toward the short rails
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.82; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
+const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.015; // tuck the side plates closer to the wood so the chrome wraps over the rail edge
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3926,8 +3934,17 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% to better catch highlights
+  const chromePocketCoverageDepth = Math.max(
+    0,
+    railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
+  ); // extend the pocket arches until they meet the lowered cloth plane
+  const chromePlateThickness = railH * 0.12; // corner chrome thickness matches the current trim profile
+  const sideChromePlateThickness = Math.min(
+    railH * 0.92,
+    Math.max(chromePlateThickness, chromePocketCoverageDepth)
+  );
   const chromePlateInset = TABLE.THICK * 0.02;
+  const sideChromePlateInset = TABLE.THICK * CHROME_SIDE_PLATE_RAIL_INSET_SCALE;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
@@ -3970,12 +3987,14 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const sideChromePlateY =
+    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
+    outerHalfW - sideChromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
@@ -3985,17 +4004,9 @@ function Table3D(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
   );
-  const sidePlateBaseHeight = Math.max(
+  const sidePlateHeightByCushion = Math.max(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
-  );
-  const sidePlateHeightLimit = Math.max(
-    MICRO_EPS,
-    sidePlateHalfHeightLimit * 2
-  );
-  const sidePlateHeightByCushion = Math.min(
-    sidePlateHeightLimit,
-    sidePlateBaseHeight * CHROME_SIDE_PLATE_HEIGHT_EXPANSION_SCALE
   );
   const sideChromePlateHeight = Math.min(
     chromePlateHeight * 0.94,
@@ -4141,7 +4152,7 @@ function Table3D(
     );
     const throatHeight = Math.max(
       MICRO_EPS,
-      radius * 2 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
+      radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
     );
     const throatRadius = Math.max(
       MICRO_EPS,
@@ -4155,23 +4166,9 @@ function Table3D(
       Math.abs(throatLength),
       throatHeight,
       throatRadius,
-      256
+      192
     );
-    const playfieldClip = [[[
-      [cx, -radius * 4],
-      [cx - sx * radius * 8, -radius * 4],
-      [cx - sx * radius * 8, radius * 4],
-      [cx, radius * 4],
-      [cx, -radius * 4]
-    ]]];
-
-    const circleInterior = polygonClipping.intersection(circle, playfieldClip);
-    const union = polygonClipping.union(
-      ...(Array.isArray(circleInterior) && circleInterior.length
-        ? circleInterior
-        : circle),
-      throat
-    );
+    const union = polygonClipping.union(circle, throat);
     return adjustSideNotchDepth(union);
   };
 
@@ -4213,7 +4210,7 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
     const centerZ = 0;
     const notchLocalMP = sideNotchMP(sx).map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
@@ -4223,14 +4220,14 @@ function Table3D(
         width: sideChromePlateWidth,
         height: sideChromePlateHeight,
         radius: sideChromePlateRadius,
-        thickness: chromePlateThickness,
+        thickness: sideChromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, sideChromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
