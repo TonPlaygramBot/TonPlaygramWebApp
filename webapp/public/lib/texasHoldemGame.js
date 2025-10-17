@@ -1,5 +1,40 @@
 import { createDeck, shuffle, dealHoleCards, dealCommunity, compareHands, aiChooseAction } from './texasHoldem.js'
 
+export function determineWinnersFromHands (players, community, indices) {
+  let winners = []
+  indices.forEach((i) => {
+    if (winners.length === 0) {
+      winners = [i]
+      return
+    }
+    const cmp = compareHands(
+      [...players[i].hand, ...community],
+      [...players[winners[0]].hand, ...community]
+    )
+    if (cmp > 0) {
+      winners = [i]
+    } else if (cmp === 0) {
+      winners.push(i)
+    }
+  })
+  return winners
+}
+
+export function buildSidePotsFromBets (players) {
+  const active = players.filter((p) => p.totalBet > 0)
+  if (active.length === 0) return []
+  const bets = [...new Set(active.map((p) => p.totalBet))].sort((a, b) => a - b)
+  let prev = 0
+  const pots = []
+  bets.forEach((b) => {
+    const elig = players.filter((p) => p.totalBet >= b)
+    const amount = (b - prev) * elig.length
+    pots.push({ amount, players: elig.map((p) => p.index ?? players.indexOf(p)) })
+    prev = b
+  })
+  return pots
+}
+
 // Simple Texas Hold'em engine for simulating a hand with betting rounds and pot management.
 // Focuses on fold/call actions which is enough for basic AI training.
 
@@ -114,39 +149,12 @@ export class TexasHoldemGame {
 
   // Determine winners, supporting ties
   determineWinners (indices) {
-    let winners = []
-    indices.forEach((i) => {
-      if (winners.length === 0) {
-        winners = [i]
-        return
-      }
-      const cmp = compareHands(
-        [...this.players[i].hand, ...this.community],
-        [...this.players[winners[0]].hand, ...this.community]
-      )
-      if (cmp > 0) {
-        winners = [i]
-      } else if (cmp === 0) {
-        winners.push(i)
-      }
-    })
-    return winners
+    return determineWinnersFromHands(this.players, this.community, indices)
   }
 
   // Split total bets into pots considering all-ins
   buildPots () {
-    const active = this.players.filter((p) => p.totalBet > 0)
-    if (active.length === 0) return []
-    const bets = [...new Set(active.map((p) => p.totalBet))].sort((a, b) => a - b)
-    let prev = 0
-    const pots = []
-    bets.forEach((b) => {
-      const elig = this.players.filter((p) => p.totalBet >= b)
-      const amount = (b - prev) * elig.length
-      pots.push({ amount, players: elig.map((p) => p.index) })
-      prev = b
-    })
-    return pots
+    return buildSidePotsFromBets(this.players)
   }
 
   showdown () {
