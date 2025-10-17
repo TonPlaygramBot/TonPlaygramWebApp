@@ -211,6 +211,7 @@ const CHROME_SIDE_FIELD_PULL_SCALE = 0.24; // extend the side pocket chrome towa
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
+const CHROME_PLATE_THICKNESS_SCALE = 1.05; // drop the chrome plates down far enough to wrap the full rail depth and hide the pocket cutouts
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3942,7 +3943,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% to better catch highlights
+  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // extend chrome plates to cover the entire wood rail thickness
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
