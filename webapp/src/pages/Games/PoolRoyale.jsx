@@ -4158,7 +4158,21 @@ function Table3D(
       256
     );
 
-    const union = polygonClipping.union(circle, throat);
+    const playfieldClip = [[[
+      [cx, -radius * 4],
+      [cx - sx * radius * 8, -radius * 4],
+      [cx - sx * radius * 8, radius * 4],
+      [cx, radius * 4],
+      [cx, -radius * 4]
+    ]]];
+
+    const circleInterior = polygonClipping.intersection(circle, playfieldClip);
+    const union = polygonClipping.union(
+      ...(Array.isArray(circleInterior) && circleInterior.length
+        ? circleInterior
+        : circle),
+      throat
+    );
     return adjustSideNotchDepth(union);
   };
 
