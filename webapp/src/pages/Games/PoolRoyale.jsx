@@ -140,12 +140,7 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
-function adjustCornerNotchDepth(
-  mp,
-  centerZ,
-  sz,
-  fieldPullScale = CHROME_CORNER_FIELD_PULL_SCALE
-) {
+function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
   }
@@ -159,18 +154,7 @@ function adjustCornerNotchDepth(
                 const deltaZ = z - centerZ;
                 const towardCenter = -sz * deltaZ;
                 if (towardCenter <= 0) return [x, z];
-                const scaledZ = centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE;
-                if (
-                  !Number.isFinite(fieldPullScale) ||
-                  fieldPullScale <= 0 ||
-                  fieldPullScale >= CHROME_CORNER_NOTCH_CENTER_SCALE
-                ) {
-                  return [x, scaledZ];
-                }
-                const limitedZ = centerZ + deltaZ * fieldPullScale;
-                const clampedZ =
-                  deltaZ >= 0 ? Math.min(scaledZ, limitedZ) : Math.max(scaledZ, limitedZ);
-                return [x, clampedZ];
+                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
               })
             : ring
         )
@@ -178,10 +162,7 @@ function adjustCornerNotchDepth(
   );
 }
 
-function adjustSideNotchDepth(
-  mp,
-  fieldPullScale = CHROME_SIDE_NOTCH_FIELD_PULL_SCALE
-) {
+function adjustSideNotchDepth(mp) {
   if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
   return mp.map((poly) =>
     Array.isArray(poly)
@@ -190,17 +171,7 @@ function adjustSideNotchDepth(
             ? ring.map((pt) => {
                 if (!Array.isArray(pt) || pt.length < 2) return pt;
                 const [x, z] = pt;
-                const scaledZ = z * CHROME_SIDE_NOTCH_DEPTH_SCALE;
-                if (
-                  !Number.isFinite(fieldPullScale) ||
-                  fieldPullScale <= 0 ||
-                  fieldPullScale >= CHROME_SIDE_NOTCH_DEPTH_SCALE
-                ) {
-                  return [x, scaledZ];
-                }
-                const limitedZ = z * fieldPullScale;
-                const clampedZ = z >= 0 ? Math.min(scaledZ, limitedZ) : Math.max(scaledZ, limitedZ);
-                return [x, clampedZ];
+                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
               })
             : ring
         )
@@ -211,7 +182,6 @@ function adjustSideNotchDepth(
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_FIELD_PULL_SCALE = 0.82; // draw the chrome downward along the pocket cut so it meets the cloth edge
 const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
@@ -220,7 +190,6 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const CHROME_SIDE_NOTCH_FIELD_PULL_SCALE = 0.9; // let the side chrome sweep farther toward the cloth without widening the throat
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
