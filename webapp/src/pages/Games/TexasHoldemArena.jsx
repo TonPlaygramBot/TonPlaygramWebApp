@@ -70,7 +70,7 @@ const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.15;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.08;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * -0.02;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.35;
@@ -91,7 +91,12 @@ const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.15, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.5 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.72, landscape: 1.42 });
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * 0.2;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.16;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.92;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.08;
+const HUMAN_CARD_CHIP_BLEND = 0.22;
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -431,13 +436,25 @@ function createSeatLayout(count) {
     const railSurfaceY = railAnchor.y + RAIL_SURFACE_LIFT;
     const cardRailCenter = railAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT);
     const chipRailCenter = railAnchor.clone().addScaledVector(forward, CHIP_RAIL_FORWARD_SHIFT);
-    const cardAnchor = cardRailCenter.clone().addScaledVector(right, -CARD_RAIL_LATERAL_SHIFT);
+    const cardAnchor = cardRailCenter
+      .clone()
+      .addScaledVector(forward, isHuman ? -HUMAN_CARD_INWARD_SHIFT : 0)
+      .addScaledVector(right, isHuman ? -HUMAN_CARD_LATERAL_SHIFT : -CARD_RAIL_LATERAL_SHIFT);
     cardAnchor.y = railSurfaceY;
-    const chipAnchor = chipRailCenter.clone().addScaledVector(right, CHIP_RAIL_LATERAL_SHIFT);
+    const chipAnchor = chipRailCenter
+      .clone()
+      .addScaledVector(forward, isHuman ? -HUMAN_CHIP_INWARD_SHIFT : 0)
+      .addScaledVector(right, isHuman ? HUMAN_CHIP_LATERAL_SHIFT : CHIP_RAIL_LATERAL_SHIFT);
     chipAnchor.y = railSurfaceY;
-    const cardRailAnchor = cardRailCenter.clone().addScaledVector(right, -CARD_RAIL_LATERAL_SHIFT);
+    const cardRailAnchor = cardRailCenter
+      .clone()
+      .addScaledVector(forward, isHuman ? -HUMAN_CARD_INWARD_SHIFT : 0)
+      .addScaledVector(right, isHuman ? -HUMAN_CARD_LATERAL_SHIFT : -CARD_RAIL_LATERAL_SHIFT);
     cardRailAnchor.y = railSurfaceY;
-    const chipRailAnchor = chipRailCenter.clone().addScaledVector(right, CHIP_RAIL_LATERAL_SHIFT);
+    const chipRailAnchor = chipRailCenter
+      .clone()
+      .addScaledVector(forward, isHuman ? -HUMAN_CHIP_INWARD_SHIFT : 0)
+      .addScaledVector(right, isHuman ? HUMAN_CHIP_LATERAL_SHIFT : CHIP_RAIL_LATERAL_SHIFT);
     chipRailAnchor.y = railSurfaceY;
     const betAnchor = forward.clone().multiplyScalar(TABLE_RADIUS * 0.6).addScaledVector(forward, -BET_FORWARD_OFFSET);
     betAnchor.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET;
@@ -1479,7 +1496,10 @@ function TexasHoldemArena({ search }) {
       if (!seat) return;
       const { camera } = three;
       if (!camera) return;
-      const baseAnchor = seat.cardAnchor.clone().addScaledVector(seat.forward, HUMAN_CARD_FORWARD_OFFSET);
+      const baseAnchor = seat.cardAnchor
+        .clone()
+        .addScaledVector(seat.forward, HUMAN_CARD_FORWARD_OFFSET)
+        .lerp(seat.chipAnchor, HUMAN_CARD_CHIP_BLEND);
       seat.cardMeshes.forEach((mesh, idx) => {
         if (!mesh.visible || !mesh.userData?.card) {
           return;
