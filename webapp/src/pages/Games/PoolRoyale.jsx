@@ -6,7 +6,6 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import polygonClipping from 'polygon-clipping';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
@@ -195,8 +194,6 @@ const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim t
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
-const CHROME_CORNER_NOTCH_SKIRT_INSET_SCALE = 0.78; // keep the corner skirts slim so they protect the rail cuts without intruding on the pocket throat
-const CHROME_SIDE_NOTCH_SKIRT_INSET_SCALE = 0.7; // pull the side skirts farther inward to maintain a clear side pocket while wrapping the rail cut
 
 function buildChromePlateGeometry({
   width,
@@ -205,9 +202,7 @@ function buildChromePlateGeometry({
   thickness,
   corner = 'topLeft',
   notchMP = null,
-  shapeSegments = 96,
-  notchSkirtDrop = 0,
-  notchSkirtInsetScale = 0.85
+  shapeSegments = 96
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -382,35 +377,6 @@ function buildChromePlateGeometry({
   });
   geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
   geo.rotateX(-Math.PI / 2);
-  if (notchSkirtDrop > MICRO_EPS && notchMP?.length) {
-    const skirtScale = THREE.MathUtils.clamp(notchSkirtInsetScale, 0.05, 0.98);
-    const innerSkirtMP = skirtScale < 0.98 ? scaleMultiPolygon(notchMP, skirtScale) : [];
-    let skirtMP = notchMP;
-    if (innerSkirtMP?.length) {
-      skirtMP = polygonClipping.difference(notchMP, innerSkirtMP);
-    }
-    const skirtShapes = multiPolygonToShapes(skirtMP);
-    if (skirtShapes.length) {
-      const skirtGeo = new THREE.ExtrudeGeometry(skirtShapes, {
-        depth: notchSkirtDrop,
-        bevelEnabled: false,
-        curveSegments: Math.max(8, Math.floor(shapeSegments / 2))
-      });
-      skirtGeo.rotateX(-Math.PI / 2);
-      skirtGeo.translate(0, -notchSkirtDrop, 0);
-      const merged = mergeGeometries(
-        [geo, skirtGeo],
-        true
-      );
-      if (merged) {
-        geo.dispose();
-        skirtGeo.dispose();
-        geo = merged;
-      } else {
-        skirtGeo.dispose();
-      }
-    }
-  }
   geo.computeVertexNormals();
   return geo;
 }
@@ -4002,11 +3968,6 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-  const clothSurfaceY = clothPlaneLocal - CLOTH_DROP;
-  const chromePlatePocketDrop = Math.max(
-    0,
-    chromePlateY - clothSurfaceY - MICRO_EPS * 2
-  );
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
@@ -4214,9 +4175,7 @@ function Table3D(
         thickness: chromePlateThickness,
         corner,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        notchSkirtDrop: chromePlatePocketDrop,
-        notchSkirtInsetScale: CHROME_CORNER_NOTCH_SKIRT_INSET_SCALE
+        shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
@@ -4244,9 +4203,7 @@ function Table3D(
         thickness: chromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        notchSkirtDrop: chromePlatePocketDrop,
-        notchSkirtInsetScale: CHROME_SIDE_NOTCH_SKIRT_INSET_SCALE
+        shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
