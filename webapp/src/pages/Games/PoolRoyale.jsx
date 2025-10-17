@@ -180,20 +180,20 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.03; // widen the chrome cut to follow the opened corner pockets
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // keep the chrome corner cut identical to the pocket diameter
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.08; // push the long-rail chrome farther out so the larger corner pockets stay clear
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // keep the short-rail chrome aligned with the expanded corner mouths
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.02; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // keep the chrome notch flush with the pocket cutout
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.74; // pull the side chrome in even further to follow the tighter middle pocket openings
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1; // match the chrome side cut directly to the pocket diameter
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.58; // trim the throat further to align with the reduced side pocket span
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.68; // lower the notch height so the rail cut follows the new pocket edge
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // align the chrome plate cut-out exactly with the narrower side pocket span
-const RAIL_POCKET_CUT_SCALE = 0.86; // tighten the wooden rail pocket cuts to match the smaller pocket mouths
+const RAIL_POCKET_CUT_SCALE = 1; // keep the rail pocket cut the same size as the pocket geometry
 
 function buildChromePlateGeometry({
   width,
@@ -469,15 +469,14 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
+const POCKET_CORNER_CUT_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
+  POCKET_CORNER_CUT_RADIUS * 0.18; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const SIDE_POCKET_CENTER_VISUAL_INSET_SCALE = 0.74;
-const SIDE_POCKET_CENTER_VISUAL_INSET =
-  SIDE_POCKET_RADIUS * SIDE_POCKET_CENTER_VISUAL_INSET_SCALE * POCKET_VISUAL_EXPANSION; // push the side pockets outward along the rail
+const POCKET_SIDE_CUT_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const SIDE_POCKET_CENTER_OUTSET =
-  SIDE_POCKET_RADIUS * 0.1 * POCKET_VISUAL_EXPANSION; // nudge the side pocket centres slightly away from the table centre
+  POCKET_SIDE_CUT_RADIUS * 0.1; // nudge the side pocket centres slightly away from the table centre
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -501,14 +500,16 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = 1.04; // allow a tiny amount of clearance around the cloth pocket openings
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
   envMapIntensityMax: 0.22
 });
-const POCKET_HOLE_R =
-  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
+const POCKET_CORNER_HOLE_RADIUS =
+  POCKET_CORNER_CUT_RADIUS * POCKET_CUT_EXPANSION; // cloth cutout radius for corner pocket openings
+const POCKET_SIDE_HOLE_RADIUS =
+  POCKET_SIDE_CUT_RADIUS * POCKET_CUT_EXPANSION; // cloth cutout radius for side pocket openings
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -537,7 +538,7 @@ const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the und
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
-const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
+const CLOTH_SHADOW_COVER_CLEARANCE = BALL_R * 0.25; // add a little extra clearance for the hidden shadow cover apertures
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -2752,13 +2753,15 @@ const cornerPocketCenter = (sx, sz) =>
     sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
+const sidePocketCenter = (sx) =>
+  new THREE.Vector2(sx * (PLAY_W / 2 + SIDE_POCKET_CENTER_OUTSET), 0);
 const pocketCenters = () => [
   cornerPocketCenter(-1, -1),
   cornerPocketCenter(1, -1),
   cornerPocketCenter(-1, 1),
   cornerPocketCenter(1, 1),
-  new THREE.Vector2(-PLAY_W / 2 - SIDE_POCKET_CENTER_OUTSET, 0),
-  new THREE.Vector2(PLAY_W / 2 + SIDE_POCKET_CENTER_OUTSET, 0)
+  sidePocketCenter(-1),
+  sidePocketCenter(1)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -3682,6 +3685,8 @@ function Table3D(
   const halfWext = halfW + clothExtend + clothSideExtra;
   const halfHext = halfH + clothExtend;
   const pocketPositions = pocketCenters();
+  const resolvePocketRadius = (index, cornerValue, sideValue) =>
+    (index < 4 ? cornerValue : sideValue);
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
@@ -3691,15 +3696,20 @@ function Table3D(
     shape.lineTo(insetHalfW, insetHalfH);
     shape.lineTo(-insetHalfW, insetHalfH);
     shape.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p) => {
+    pocketPositions.forEach((p, index) => {
+      const resolvedRadius =
+        typeof holeRadius === 'function' ? holeRadius(p, index) : holeRadius;
+      const holeRadiusValue = Math.max(MICRO_EPS, resolvedRadius);
       const hole = new THREE.Path();
-      hole.absellipse(p.x, p.y, holeRadius, holeRadius, 0, Math.PI * 2);
+      hole.absellipse(p.x, p.y, holeRadiusValue, holeRadiusValue, 0, Math.PI * 2);
       shape.holes.push(hole);
     });
     return shape;
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
+  const clothShape = buildSurfaceShape((_, index) =>
+    resolvePocketRadius(index, POCKET_CORNER_HOLE_RADIUS, POCKET_SIDE_HOLE_RADIUS)
+  );
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
     bevelEnabled: false,
@@ -3715,7 +3725,12 @@ function Table3D(
   table.add(cloth);
 
   const underlayShape = buildSurfaceShape(
-    POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE,
+    (_, index) =>
+      resolvePocketRadius(
+        index,
+        POCKET_CORNER_HOLE_RADIUS * CLOTH_UNDERLAY_HOLE_SCALE,
+        POCKET_SIDE_HOLE_RADIUS * CLOTH_UNDERLAY_HOLE_SCALE
+      ),
     CLOTH_UNDERLAY_EDGE_INSET
   );
   const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
@@ -3745,7 +3760,12 @@ function Table3D(
   table.add(clothUnderlay);
 
   const shadowCoverShape = buildSurfaceShape(
-    CLOTH_SHADOW_COVER_HOLE_RADIUS,
+    (_, index) =>
+      resolvePocketRadius(
+        index,
+        POCKET_CORNER_HOLE_RADIUS + CLOTH_SHADOW_COVER_CLEARANCE,
+        POCKET_SIDE_HOLE_RADIUS + CLOTH_SHADOW_COVER_CLEARANCE
+      ),
     CLOTH_SHADOW_COVER_EDGE_INSET
   );
   const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
@@ -3834,23 +3854,36 @@ function Table3D(
     spots: spotMeshes
   };
 
-  const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
-  const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+  const POCKET_CORNER_TOP_R = POCKET_CORNER_CUT_RADIUS;
+  const POCKET_CORNER_BOTTOM_R = POCKET_CORNER_TOP_R * 0.7;
+  const POCKET_SIDE_TOP_R = POCKET_SIDE_CUT_RADIUS;
+  const POCKET_SIDE_BOTTOM_R = POCKET_SIDE_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
-  const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_TOP_R,
-    POCKET_BOTTOM_R,
-    TABLE.THICK,
-    48
-  );
+  const pocketSegments = 48;
+  const pocketGeometries = {
+    corner: new THREE.CylinderGeometry(
+      POCKET_CORNER_TOP_R,
+      POCKET_CORNER_BOTTOM_R,
+      TABLE.THICK,
+      pocketSegments
+    ),
+    side: new THREE.CylinderGeometry(
+      POCKET_SIDE_TOP_R,
+      POCKET_SIDE_BOTTOM_R,
+      TABLE.THICK,
+      pocketSegments
+    )
+  };
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     metalness: 0.45,
     roughness: 0.6
   });
   const pocketMeshes = [];
-  pocketCenters().forEach((p) => {
-    const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+  pocketPositions.forEach((p, index) => {
+    const pocketType = index < 4 ? 'corner' : 'side';
+    const geometry = pocketGeometries[pocketType];
+    const pocket = new THREE.Mesh(geometry, pocketMat);
     pocket.position.set(
       p.x,
       clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
@@ -3973,7 +4006,7 @@ function Table3D(
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sidePocketRadius = POCKET_SIDE_CUT_RADIUS;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
@@ -4002,11 +4035,8 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
-  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset =
-    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_CENTER_VISUAL_INSET;
+  const cornerPocketRadius = POCKET_CORNER_CUT_RADIUS;
+  const cornerChamfer = POCKET_CORNER_CUT_RADIUS * 0.34;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4090,8 +4120,9 @@ function Table3D(
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
-    const cx = sx * (innerHalfW - cornerInset);
-    const cz = sz * (innerHalfH - cornerInset);
+    const center = cornerPocketCenter(sx, sz);
+    const cx = center.x;
+    const cz = center.y;
     const notchCircle = circlePoly(
       cx,
       cz,
@@ -4127,7 +4158,8 @@ function Table3D(
   };
 
   const sideNotchMP = (sx) => {
-    const cx = sx * (innerHalfW - sideInset);
+    const center = sidePocketCenter(sx);
+    const cx = center.x;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
       MICRO_EPS,
