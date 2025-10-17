@@ -140,295 +140,6 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
-function cloneMultiPolygon(mp) {
-  if (!Array.isArray(mp)) return [];
-  return mp
-    .map((poly) => {
-      if (!Array.isArray(poly)) return null;
-      return poly
-        .map((ring) =>
-          Array.isArray(ring)
-            ? ring.map((pt) =>
-                Array.isArray(pt) && pt.length >= 2 ? [pt[0], pt[1]] : [0, 0]
-              )
-            : null
-        )
-        .filter(Boolean);
-    })
-    .filter(Boolean);
-}
-
-function stretchMultiPolygon(mp, stretchX = 1, stretchZ = 1) {
-  if (!Array.isArray(mp)) return [];
-  const sx = Number.isFinite(stretchX) ? stretchX : 1;
-  const sz = Number.isFinite(stretchZ) ? stretchZ : 1;
-  return mp
-    .map((poly) => {
-      if (!Array.isArray(poly) || !poly.length) return null;
-      const outerRing = poly[0];
-      const centroid = centroidFromRing(outerRing);
-      const stretchedPoly = poly
-        .map((ring) => {
-          if (!Array.isArray(ring)) return null;
-          return ring.map((pt) => {
-            if (!Array.isArray(pt) || pt.length < 2) return [0, 0];
-            const dx = pt[0] - centroid.x;
-            const dz = pt[1] - centroid.y;
-            return [centroid.x + dx * sx, centroid.y + dz * sz];
-          });
-        })
-        .filter(Boolean);
-      return stretchedPoly.length ? stretchedPoly : null;
-    })
-    .filter(Boolean);
-}
-
-function offsetMultiPolygon(mp, offsetX = 0, offsetZ = 0) {
-  if (!Array.isArray(mp)) return [];
-  const ox = Number.isFinite(offsetX) ? offsetX : 0;
-  const oz = Number.isFinite(offsetZ) ? offsetZ : 0;
-  if (Math.abs(ox) <= 1e-9 && Math.abs(oz) <= 1e-9) {
-    return cloneMultiPolygon(mp);
-  }
-  return mp
-    .map((poly) => {
-      if (!Array.isArray(poly)) return null;
-      return poly
-        .map((ring) => {
-          if (!Array.isArray(ring)) return null;
-          return ring.map((pt) => {
-            if (!Array.isArray(pt) || pt.length < 2) return [0, 0];
-            return [pt[0] + ox, pt[1] + oz];
-          });
-        })
-        .filter(Boolean);
-    })
-    .filter(Boolean);
-}
-
-function transformMultiPolygon(baseMP, {
-  scale = 1,
-  stretchX = 1,
-  stretchZ = 1,
-  offsetX = 0,
-  offsetZ = 0
-} = {}) {
-  if (!Array.isArray(baseMP) || !baseMP.length) return [];
-  const uniformScale = Number.isFinite(scale) ? scale : 1;
-  let result =
-    Math.abs(uniformScale - 1) > 1e-9 ? scaleMultiPolygon(baseMP, uniformScale) : cloneMultiPolygon(baseMP);
-  const sx = Number.isFinite(stretchX) ? stretchX : 1;
-  const sz = Number.isFinite(stretchZ) ? stretchZ : 1;
-  if (Math.abs(sx - 1) > 1e-9 || Math.abs(sz - 1) > 1e-9) {
-    result = stretchMultiPolygon(result, sx, sz);
-  }
-  const ox = Number.isFinite(offsetX) ? offsetX : 0;
-  const oz = Number.isFinite(offsetZ) ? offsetZ : 0;
-  if (Math.abs(ox) > 1e-9 || Math.abs(oz) > 1e-9) {
-    result = offsetMultiPolygon(result, ox, oz);
-  }
-  return result;
-}
-
-function normalizeStretchConfig(stretch) {
-  if (!stretch || typeof stretch !== 'object') {
-    return { x: 1, z: 1 };
-  }
-  return {
-    x: Number.isFinite(stretch.x) ? stretch.x : 1,
-    z: Number.isFinite(stretch.z) ? stretch.z : 1
-  };
-}
-
-function normalizeOffsetConfig(offset) {
-  if (!offset || typeof offset !== 'object') {
-    return { x: 0, z: 0 };
-  }
-  return {
-    x: Number.isFinite(offset.x) ? offset.x : 0,
-    z: Number.isFinite(offset.z) ? offset.z : 0
-  };
-}
-
-function updatePocketJawMeshes(finishInfo, jawOption) {
-  if (!finishInfo?.parts) return;
-  const context = finishInfo.parts.pocketJawContext;
-  if (!context || !context.group) return;
-  const group = context.group;
-
-  if (Array.isArray(finishInfo.parts.pocketJawMeshes)) {
-    finishInfo.parts.pocketJawMeshes.forEach((mesh) => {
-      if (mesh?.parent === group) {
-        group.remove(mesh);
-      }
-      if (mesh?.geometry) {
-        mesh.geometry.dispose();
-      }
-    });
-  }
-  group.clear();
-  finishInfo.parts.pocketJawMeshes = [];
-  if (context.material) {
-    context.material.dispose();
-    context.material = null;
-  }
-
-  const option = jawOption || POCKET_JAW_OPTIONS[0];
-  if (!option) {
-    context.optionId = null;
-    finishInfo.pocketJawOptionId = null;
-    return;
-  }
-
-  const materialConfig = option.material ?? {};
-  const jawMaterial = new THREE.MeshPhysicalMaterial({
-    color: materialConfig.color ?? 0x111111,
-    roughness: Number.isFinite(materialConfig.roughness)
-      ? materialConfig.roughness
-      : 0.6,
-    metalness: Number.isFinite(materialConfig.metalness)
-      ? materialConfig.metalness
-      : 0.08,
-    sheen: Number.isFinite(materialConfig.sheen) ? materialConfig.sheen : 0.2,
-    sheenRoughness: Number.isFinite(materialConfig.sheenRoughness)
-      ? materialConfig.sheenRoughness
-      : 0.6,
-    clearcoat: Number.isFinite(materialConfig.clearcoat)
-      ? THREE.MathUtils.clamp(materialConfig.clearcoat, 0, 1)
-      : 0,
-    clearcoatRoughness: Number.isFinite(materialConfig.clearcoatRoughness)
-      ? THREE.MathUtils.clamp(materialConfig.clearcoatRoughness, 0, 1)
-      : 0.9
-  });
-  if (Number.isFinite(materialConfig.envMapIntensity)) {
-    jawMaterial.envMapIntensity = materialConfig.envMapIntensity;
-  }
-  jawMaterial.needsUpdate = true;
-
-  const shared = option.shared ?? {};
-  const { base, railH, railsTopY } = context;
-  const createTypeConfig = (specific = {}) => {
-    const cfg = {
-      depthScale: Number.isFinite(specific.depthScale)
-        ? specific.depthScale
-        : Number.isFinite(shared.depthScale)
-          ? shared.depthScale
-          : 0.34,
-      verticalOffset: Number.isFinite(specific.verticalOffset)
-        ? specific.verticalOffset
-        : Number.isFinite(shared.verticalOffset)
-          ? shared.verticalOffset
-          : 0,
-      bevelSegments: Number.isFinite(specific.bevelSegments)
-        ? specific.bevelSegments
-        : Number.isFinite(shared.bevelSegments)
-          ? shared.bevelSegments
-          : 3,
-      bevelSizeScale: Number.isFinite(specific.bevelSizeScale)
-        ? specific.bevelSizeScale
-        : Number.isFinite(shared.bevelSizeScale)
-          ? shared.bevelSizeScale
-          : 0.2,
-      bevelThicknessScale: Number.isFinite(specific.bevelThicknessScale)
-        ? specific.bevelThicknessScale
-        : Number.isFinite(shared.bevelThicknessScale)
-          ? shared.bevelThicknessScale
-          : 0.14,
-      outerScale: Number.isFinite(specific.outerScale)
-        ? specific.outerScale
-        : Number.isFinite(shared.outerScale)
-          ? shared.outerScale
-          : 1.08,
-      innerScale: Number.isFinite(specific.innerScale)
-        ? specific.innerScale
-        : Number.isFinite(shared.innerScale)
-          ? shared.innerScale
-          : 0.85,
-      outerStretch: normalizeStretchConfig(
-        specific.outerStretch ?? shared.outerStretch
-      ),
-      innerStretch: normalizeStretchConfig(
-        specific.innerStretch ?? shared.innerStretch
-      ),
-      outerOffset: normalizeOffsetConfig(
-        specific.outerOffset ?? shared.outerOffset
-      ),
-      innerOffset: normalizeOffsetConfig(
-        specific.innerOffset ?? shared.innerOffset
-      )
-    };
-    const minGap = 0.01;
-    const safeOuter = Math.max(cfg.outerScale, minGap);
-    const safeInner = Math.min(cfg.innerScale, safeOuter - minGap * 0.25);
-    cfg.outerScale = safeOuter;
-    cfg.innerScale = Math.max(minGap * 0.5, safeInner);
-    return cfg;
-  };
-
-  const extrudePocket = (mp, cfg, label) => {
-    if (!Array.isArray(mp) || !mp.length) return;
-    const depth = Math.max(MICRO_EPS, railH * cfg.depthScale);
-    const bevelSize = Math.max(MICRO_EPS, TABLE.THICK * cfg.bevelSizeScale);
-    const bevelThickness = Math.max(
-      MICRO_EPS,
-      TABLE.THICK * cfg.bevelThicknessScale
-    );
-    const outerMP = transformMultiPolygon(mp, {
-      scale: cfg.outerScale,
-      stretchX: cfg.outerStretch.x,
-      stretchZ: cfg.outerStretch.z,
-      offsetX: cfg.outerOffset.x,
-      offsetZ: cfg.outerOffset.z
-    });
-    const innerMP = transformMultiPolygon(mp, {
-      scale: cfg.innerScale,
-      stretchX: cfg.innerStretch.x,
-      stretchZ: cfg.innerStretch.z,
-      offsetX: cfg.innerOffset.x,
-      offsetZ: cfg.innerOffset.z
-    });
-    const rimMP = polygonClipping.difference(outerMP, innerMP);
-    const shapes = multiPolygonToShapes(rimMP);
-    if (!shapes.length) return;
-    let geom = new THREE.ExtrudeGeometry(shapes, {
-      depth,
-      bevelEnabled: bevelSize > MICRO_EPS && bevelThickness > MICRO_EPS,
-      bevelSize,
-      bevelThickness,
-      bevelSegments: Math.max(1, Math.round(cfg.bevelSegments)),
-      curveSegments: 96
-    });
-    geom.rotateX(-Math.PI / 2);
-    geom.computeVertexNormals();
-    const mesh = new THREE.Mesh(geom, jawMaterial);
-    mesh.position.y =
-      railsTopY - depth + TABLE.THICK * cfg.verticalOffset + MICRO_EPS * 4;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.name = label;
-    group.add(mesh);
-    finishInfo.parts.pocketJawMeshes.push(mesh);
-  };
-
-  const cornerCfg = createTypeConfig(option.corner ?? {});
-  const sideCfg = createTypeConfig(option.side ?? {});
-
-  if (Array.isArray(base?.corners)) {
-    base.corners.forEach((entry) => {
-      extrudePocket(entry?.mp, cornerCfg, `pocketJaw-${entry?.id ?? 'corner'}`);
-    });
-  }
-  if (Array.isArray(base?.sides)) {
-    base.sides.forEach((entry) => {
-      extrudePocket(entry?.mp, sideCfg, `pocketJaw-${entry?.id ?? 'side'}`);
-    });
-  }
-
-  context.material = jawMaterial;
-  context.optionId = option.id;
-  finishInfo.pocketJawOptionId = option.id;
-}
-
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -1473,156 +1184,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   }
 ]);
-
-const POCKET_JAW_OPTIONS = Object.freeze([
-  {
-    id: 'flushGuard',
-    label: 'Flush Guard',
-    description: 'Low-profile rim that follows the pocket cut closely.',
-    material: {
-      color: 0x1a2026,
-      roughness: 0.62,
-      metalness: 0.08,
-      sheen: 0.22,
-      sheenRoughness: 0.58
-    },
-    shared: {
-      depthScale: 0.32,
-      bevelSegments: 3,
-      bevelSizeScale: 0.18,
-      bevelThicknessScale: 0.12,
-      innerScale: 0.86,
-      outerScale: 1.06
-    },
-    corner: {
-      outerStretch: { x: 1.05, z: 1.07 },
-      innerStretch: { x: 0.97, z: 0.99 }
-    },
-    side: {
-      outerStretch: { x: 1.03, z: 1.12 },
-      innerStretch: { x: 0.97, z: 1 }
-    }
-  },
-  {
-    id: 'shieldRamp',
-    label: 'Shield Ramp',
-    description: 'Wider guard with a shallow ramp into the pocket.',
-    material: {
-      color: 0x14171d,
-      roughness: 0.58,
-      metalness: 0.12,
-      sheen: 0.26,
-      sheenRoughness: 0.5
-    },
-    shared: {
-      depthScale: 0.38,
-      bevelSegments: 4,
-      bevelSizeScale: 0.24,
-      bevelThicknessScale: 0.18,
-      innerScale: 0.82,
-      outerScale: 1.12
-    },
-    corner: {
-      outerStretch: { x: 1.08, z: 1.14 },
-      innerStretch: { x: 0.95, z: 0.98 },
-      outerOffset: { x: 0.006, z: 0.006 }
-    },
-    side: {
-      outerStretch: { x: 1.04, z: 1.18 },
-      innerStretch: { x: 0.95, z: 1 },
-      outerOffset: { x: 0.004, z: 0 }
-    }
-  },
-  {
-    id: 'featherLite',
-    label: 'Feather Lite',
-    description: 'Slim rim recessed slightly below the chrome lip.',
-    material: {
-      color: 0x111418,
-      roughness: 0.68,
-      metalness: 0.06,
-      sheen: 0.18,
-      sheenRoughness: 0.7
-    },
-    shared: {
-      depthScale: 0.26,
-      bevelSegments: 2,
-      bevelSizeScale: 0.12,
-      bevelThicknessScale: 0.08,
-      verticalOffset: -0.015,
-      innerScale: 0.9,
-      outerScale: 1.04
-    },
-    corner: {
-      outerStretch: { x: 1.02, z: 1.05 },
-      innerStretch: { x: 0.99, z: 0.99 }
-    },
-    side: {
-      outerStretch: { x: 1.01, z: 1.08 },
-      innerStretch: { x: 0.99, z: 1 }
-    }
-  },
-  {
-    id: 'rolledHalo',
-    label: 'Rolled Halo',
-    description: 'Rounded halo with a thicker rolled edge.',
-    material: {
-      color: 0x181c23,
-      roughness: 0.54,
-      metalness: 0.16,
-      sheen: 0.3,
-      sheenRoughness: 0.48
-    },
-    shared: {
-      depthScale: 0.42,
-      bevelSegments: 5,
-      bevelSizeScale: 0.3,
-      bevelThicknessScale: 0.22,
-      innerScale: 0.78,
-      outerScale: 1.1
-    },
-    corner: {
-      outerStretch: { x: 1.1, z: 1.12 },
-      innerStretch: { x: 0.92, z: 0.95 }
-    },
-    side: {
-      outerStretch: { x: 1.05, z: 1.15 },
-      innerStretch: { x: 0.92, z: 0.97 }
-    }
-  },
-  {
-    id: 'wingedContour',
-    label: 'Winged Contour',
-    description: 'Flared wings that bend outward along the rails.',
-    material: {
-      color: 0x0f1318,
-      roughness: 0.6,
-      metalness: 0.1,
-      sheen: 0.24,
-      sheenRoughness: 0.62
-    },
-    shared: {
-      depthScale: 0.34,
-      bevelSegments: 4,
-      bevelSizeScale: 0.2,
-      bevelThicknessScale: 0.14,
-      innerScale: 0.84,
-      outerScale: 1.15
-    },
-    corner: {
-      outerStretch: { x: 1.14, z: 1.2 },
-      outerOffset: { x: 0.01, z: 0.01 },
-      innerStretch: { x: 0.94, z: 0.96 }
-    },
-    side: {
-      outerStretch: { x: 1.08, z: 1.24 },
-      outerOffset: { x: 0.006, z: 0 },
-      innerStretch: { x: 0.94, z: 0.98 }
-    }
-  }
-]);
-
-const DEFAULT_POCKET_JAW_ID = POCKET_JAW_OPTIONS[0].id;
 
 const toHexColor = (value) => {
   if (typeof value === 'number') {
@@ -4654,30 +4215,6 @@ function Table3D(
   });
   railsGroup.add(chromePlates);
 
-  const pocketJawGroup = new THREE.Group();
-  pocketJawGroup.name = 'pocketJawRims';
-  railsGroup.add(pocketJawGroup);
-  finishParts.pocketJawMeshes = [];
-  finishParts.pocketJawContext = {
-    group: pocketJawGroup,
-    railH,
-    railsTopY,
-    material: null,
-    optionId: null,
-    base: {
-      corners: [
-        { id: 'topLeft', mp: cloneMultiPolygon(cornerNotchMP(-1, -1)) },
-        { id: 'topRight', mp: cloneMultiPolygon(cornerNotchMP(1, -1)) },
-        { id: 'bottomRight', mp: cloneMultiPolygon(cornerNotchMP(1, 1)) },
-        { id: 'bottomLeft', mp: cloneMultiPolygon(cornerNotchMP(-1, 1)) }
-      ],
-      sides: [
-        { id: 'sideLeft', mp: cloneMultiPolygon(sideNotchMP(-1)) },
-        { id: 'sideRight', mp: cloneMultiPolygon(sideNotchMP(1)) }
-      ]
-    }
-  };
-
   if (accentConfig && finishParts.dimensions) {
     const accentMesh = createAccentMesh(accentConfig, finishParts.dimensions);
     if (accentMesh) {
@@ -4774,7 +4311,6 @@ function Table3D(
   finishParts.railMeshes.push(railsMesh);
 
   table.add(railsGroup);
-  updatePocketJawMeshes(finishInfo, resolvedFinish?.pocketJawOption ?? null);
 
   const chalkGroup = new THREE.Group();
   const chalkScale = 0.5;
@@ -5342,8 +4878,6 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
 
-  updatePocketJawMeshes(finishInfo, resolvedFinish?.pocketJawOption ?? null);
-
   finishInfo.id = resolvedFinish.id;
   finishInfo.palette = resolvedFinish.colors;
   finishInfo.materials = {
@@ -5407,15 +4941,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
-  const [pocketJawId, setPocketJawId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerPocketJaw');
-      if (stored && POCKET_JAW_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_POCKET_JAW_ID;
-  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -5423,10 +4948,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
-  );
-  const activePocketJawOption = useMemo(
-    () => POCKET_JAW_OPTIONS.find((opt) => opt.id === pocketJawId) ?? POCKET_JAW_OPTIONS[0],
-    [pocketJawId]
   );
   const activeWoodTexture = useMemo(
     () =>
@@ -5659,7 +5180,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
     const woodSelection = activeWoodTexture;
-    const pocketJawSelection = activePocketJawOption;
     return {
       ...baseFinish,
       clothDetail:
@@ -5670,8 +5190,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       },
       woodTexture: woodSelection,
       woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
-      pocketJawOption: pocketJawSelection,
-      pocketJawOptionId: pocketJawSelection?.id ?? DEFAULT_POCKET_JAW_ID,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -5707,13 +5225,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [
-    tableFinishId,
-    activeChromeOption,
-    activeClothOption,
-    activeWoodTexture,
-    activePocketJawOption
-  ]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -5742,11 +5254,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerPocketJaw', pocketJawId);
-    }
-  }, [pocketJawId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -12064,38 +11571,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             aria-hidden="true"
                           />
                           {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Pocket Jaws
-                </h3>
-                <div className="mt-2 flex flex-col gap-2">
-                  {POCKET_JAW_OPTIONS.map((option) => {
-                    const active = option.id === pocketJawId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setPocketJawId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-xl border px-3 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300/80 bg-emerald-300/15 text-white shadow-[0_0_16px_rgba(16,185,129,0.35)]'
-                            : 'border-white/20 bg-white/5 text-white/80 hover:bg-white/10'
-                        }`}
-                      >
-                        <span className="flex flex-col gap-1">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em]">
-                            {option.label}
-                          </span>
-                          <span className="text-[10px] font-medium leading-tight text-white/65">
-                            {option.description}
-                          </span>
                         </span>
                       </button>
                     );
