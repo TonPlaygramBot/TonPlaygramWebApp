@@ -216,6 +216,7 @@ export default function MurlanRoyaleArena({ search }) {
     tableParts: null,
     chairMaterials: null,
     outfitParts: null,
+    turnSpotlight: null,
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
   });
@@ -325,78 +326,106 @@ export default function MurlanRoyaleArena({ search }) {
     texture.needsUpdate = true;
   }, []);
 
-  const moveCameraToTheta = useCallback((theta, immediate = false) => {
+  const lookCameraAtSeat = useCallback((seat, immediate = false) => {
+    if (!seat) return;
     const three = threeStateRef.current;
-    const { camera, controls, cameraTarget } = three;
-    const spherical = three.cameraSpherical;
-    if (!camera || !controls || !cameraTarget || !spherical) return;
+    const { camera, controls } = three;
+    if (!camera || !controls) return;
 
-    const idealRadius = three.cameraIdealRadius ?? spherical.radius;
-    const basePhi = three.cameraPhi ?? spherical.phi;
-    const homeTheta = three.cameraHomeTheta ?? spherical.theta;
-    const headLimit = three.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
-    const minBound = homeTheta - headLimit;
-    const maxBound = homeTheta + headLimit;
-
-    const clampToHeadLimit = (rawTheta) => {
-      const normalized = normalizeAngle(rawTheta);
-      const offset = shortestAngleDifference(homeTheta, normalized);
-      const clampedOffset = THREE.MathUtils.clamp(offset, -headLimit, headLimit);
-      return normalizeAngle(homeTheta + clampedOffset);
-    };
-
-    const applyTheta = (value) => {
-      const constrained = clampToHeadLimit(value);
-      spherical.theta = constrained;
-      spherical.radius = idealRadius;
-      spherical.phi = basePhi;
-      three.cameraAdjusting = true;
-      try {
-        updateCameraFromSpherical(camera, spherical, cameraTarget, three);
-        const actualRadius = three.cameraRadius ?? spherical.radius;
-        controls.target.copy(cameraTarget);
-        controls.minPolarAngle = basePhi;
-        controls.maxPolarAngle = basePhi;
-        controls.minAzimuthAngle = minBound;
-        controls.maxAzimuthAngle = maxBound;
-        controls.minDistance = actualRadius;
-        controls.maxDistance = actualRadius;
-        controls.update();
-      } finally {
-        three.cameraAdjusting = false;
-      }
-    };
+    const focusTarget = seat.focus?.clone();
+    if (!focusTarget) return;
 
     if (three.cameraAnimationId) {
       cancelAnimationFrame(three.cameraAnimationId);
       three.cameraAnimationId = null;
     }
 
-    const startTheta = spherical.theta;
-    const targetTheta = clampToHeadLimit(theta);
-    const delta = shortestAngleDifference(startTheta, targetTheta);
-    const finalTheta = startTheta + delta;
+    const applyTarget = (value) => {
+      const store = threeStateRef.current;
+      if (!store.cameraTarget) {
+        store.cameraTarget = value.clone();
+      } else if (typeof store.cameraTarget.copy === 'function') {
+        store.cameraTarget.copy(value);
+      }
+      store.cameraAdjusting = true;
+      try {
+        controls.target.copy(value);
+        const offset = camera.position.clone().sub(value);
+        const spherical = new THREE.Spherical().setFromVector3(offset);
+        store.cameraSpherical = store.cameraSpherical ?? new THREE.Spherical();
+        store.cameraSpherical.theta = normalizeAngle(spherical.theta);
+        store.cameraSpherical.phi = spherical.phi;
+        store.cameraSpherical.radius = spherical.radius;
+        store.cameraPhi = spherical.phi;
+        store.cameraRadius = spherical.radius;
+        store.cameraIdealRadius = spherical.radius;
+        updateCameraFromSpherical(camera, spherical, value, store);
+        controls.update();
+      } finally {
+        store.cameraAdjusting = false;
+      }
+    };
 
-    if (immediate || Math.abs(delta) < 1e-4) {
-      applyTheta(finalTheta);
+    if (immediate || !three.cameraTarget) {
+      applyTarget(focusTarget);
       return;
     }
 
-    const start = performance.now();
+    const startTarget = three.cameraTarget.clone();
+    const delta = focusTarget.clone().sub(startTarget);
+    if (delta.lengthSq() < 1e-6) {
+      applyTarget(focusTarget);
+      return;
+    }
+
+    const startTime = performance.now();
 
     const step = (time) => {
-      const progress = Math.min(1, (time - start) / CAMERA_TRANSITION_DURATION);
+      const progress = Math.min(1, (time - startTime) / CAMERA_TRANSITION_DURATION);
       const eased = easeOutCubic(progress);
-      const value = startTheta + delta * eased;
-      applyTheta(value);
+      const current = startTarget.clone().addScaledVector(delta, eased);
+      applyTarget(current);
       if (progress < 1) {
         three.cameraAnimationId = requestAnimationFrame(step);
       } else {
         three.cameraAnimationId = null;
+        applyTarget(focusTarget);
       }
     };
 
     three.cameraAnimationId = requestAnimationFrame(step);
+  }, []);
+
+  const updateTurnSpotlight = useCallback((playerIndex) => {
+    const store = threeStateRef.current;
+    const spotlight = store.turnSpotlight;
+    const seatConfigs = store.seatConfigs;
+    if (!spotlight?.light || !spotlight?.target) return;
+
+    if (typeof playerIndex !== 'number' || !seatConfigs?.[playerIndex]) {
+      spotlight.light.visible = false;
+      spotlight.light.intensity = 0;
+      return;
+    }
+
+    const seat = seatConfigs[playerIndex];
+    const baseTarget = seat.stoolPosition ? seat.stoolPosition.clone() : seat.focus?.clone();
+    if (!baseTarget) {
+      spotlight.light.visible = false;
+      spotlight.light.intensity = 0;
+      return;
+    }
+
+    const stoolHeight = seat.stoolHeight ?? TABLE_HEIGHT;
+    baseTarget.y = stoolHeight;
+    const lightPos = baseTarget.clone();
+    lightPos.y = stoolHeight + 1.8 * MODEL_SCALE;
+
+    spotlight.light.position.copy(lightPos);
+    spotlight.light.visible = true;
+    spotlight.light.intensity = 1.35;
+    spotlight.target.position.copy(baseTarget);
+    spotlight.target.updateMatrixWorld();
   }, []);
 
   const focusCameraOnPlayer = useCallback(
@@ -407,21 +436,27 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seatConfigs?.length) return;
       const seat = seatConfigs[playerIndex];
       if (!seat) return;
-      const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
-      const desiredTheta = Math.PI / 2 - seatAngle;
-      moveCameraToTheta(desiredTheta, immediate);
+      lookCameraAtSeat(seat, immediate);
     },
-    [moveCameraToTheta]
+    [lookCameraAtSeat]
   );
 
   const focusCameraOnActivePlayer = useCallback(
     (state, immediate = false) => {
-      if (!state) return;
+      if (!state) {
+        updateTurnSpotlight(null);
+        return;
+      }
       const activeIdx = state.activePlayer;
+      if (state.status === 'PLAYING' && typeof activeIdx === 'number') {
+        updateTurnSpotlight(activeIdx);
+      } else {
+        updateTurnSpotlight(null);
+      }
       if (typeof activeIdx !== 'number') return;
       focusCameraOnPlayer(activeIdx, immediate);
     },
-    [focusCameraOnPlayer]
+    [focusCameraOnPlayer, updateTurnSpotlight]
   );
 
   const applyStateToScene = useCallback((state, selection, immediate = false) => {
@@ -847,9 +882,18 @@ export default function MurlanRoyaleArena({ search }) {
     spot.position.set(0, 4.5, 4.8);
     scene.add(ambient, hemi, key, fill, rim, spot);
 
+    const turnSpot = new THREE.SpotLight(0xffd54f, 0, 10, Math.PI / 6, 0.45, 1.2);
+    turnSpot.position.set(0, TABLE_HEIGHT + 3.2 * MODEL_SCALE, 0);
+    turnSpot.visible = false;
+    scene.add(turnSpot);
+
     const spotTarget = new THREE.Object3D();
     scene.add(spotTarget);
     spot.target = spotTarget;
+
+    const turnSpotTarget = new THREE.Object3D();
+    scene.add(turnSpotTarget);
+    turnSpot.target = turnSpotTarget;
 
     const arena = new THREE.Group();
     scene.add(arena);
@@ -1247,9 +1291,12 @@ export default function MurlanRoyaleArena({ search }) {
     const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
     threeStateRef.current.appearance = { ...currentAppearance };
+    threeStateRef.current.turnSpotlight = { light: turnSpot, target: turnSpotTarget };
 
     spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
     spot.target.updateMatrixWorld();
+    turnSpotTarget.position.set(0, TABLE_HEIGHT, 0);
+    turnSpot.target.updateMatrixWorld();
 
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const camera = new THREE.PerspectiveCamera(
@@ -1548,6 +1595,7 @@ export default function MurlanRoyaleArena({ search }) {
         tableParts: null,
         chairMaterials: null,
         outfitParts: null,
+        turnSpotlight: null,
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
       };
