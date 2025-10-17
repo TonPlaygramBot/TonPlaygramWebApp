@@ -186,14 +186,15 @@ const CHROME_CORNER_EXPANSION_SCALE = 1.08; // push the long-rail chrome farther
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // keep the short-rail chrome aligned with the expanded corner mouths
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.02; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.74; // pull the side chrome in even further to follow the tighter middle pocket openings
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.58; // trim the throat further to align with the reduced side pocket span
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.68; // lower the notch height so the rail cut follows the new pocket edge
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.04; // open the side chrome plates so the middle pockets share the same diameter as their cuts
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.86; // extend the throat to align with the widened middle pocket span
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.92; // raise the notch height to follow the expanded side pocket edge
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // align the chrome plate cut-out exactly with the narrower side pocket span
-const RAIL_POCKET_CUT_SCALE = 0.86; // tighten the wooden rail pocket cuts to match the smaller pocket mouths
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.08; // widen the chrome plate cut-out to match the enlarged middle pocket mouth
+const RAIL_CORNER_POCKET_CUT_SCALE = 0.86; // preserve the existing corner rail cuts so their chrome plates remain untouched
+const RAIL_SIDE_POCKET_CUT_SCALE = 0.96; // expand the wooden rail cuts at the side pockets to match their pocket diameter
 
 function buildChromePlateGeometry({
   width,
@@ -470,12 +471,26 @@ const POCKET_CORNER_MOUTH =
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
+const CORNER_POCKET_ARC_INSET = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
+const CORNER_POCKET_CENTER_BASE_INSET =
+  POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION;
+const CORNER_POCKET_ALIGNMENT_DELTA =
+  POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // nudge pocket centres so they follow the existing rail and chrome cuts
+const CORNER_POCKET_CUT_INSET =
+  CORNER_POCKET_ARC_INSET + CORNER_POCKET_CENTER_BASE_INSET;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
+  CORNER_POCKET_CUT_INSET - CORNER_POCKET_ALIGNMENT_DELTA;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const SIDE_POCKET_CENTER_VISUAL_INSET_SCALE = 0.74;
-const SIDE_POCKET_CENTER_VISUAL_INSET =
-  SIDE_POCKET_RADIUS * SIDE_POCKET_CENTER_VISUAL_INSET_SCALE * POCKET_VISUAL_EXPANSION; // push the side pockets outward along the rail
+const SIDE_POCKET_CENTER_VISUAL_INSET_BASE =
+  SIDE_POCKET_RADIUS * SIDE_POCKET_CENTER_VISUAL_INSET_SCALE * POCKET_VISUAL_EXPANSION;
+const SIDE_POCKET_ALIGNMENT_DELTA =
+  SIDE_POCKET_RADIUS * 0.12 * POCKET_VISUAL_EXPANSION; // align side pocket centres with the widened rail and chrome cuts
+const SIDE_POCKET_CENTER_VISUAL_INSET = Math.max(
+  SIDE_POCKET_RADIUS * 0.35 * POCKET_VISUAL_EXPANSION,
+  SIDE_POCKET_CENTER_VISUAL_INSET_BASE - SIDE_POCKET_ALIGNMENT_DELTA
+);
+const SIDE_POCKET_CUT_INSET = SIDE_POCKET_CENTER_VISUAL_INSET_BASE;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -526,7 +541,12 @@ const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
-const CAPTURE_R = POCKET_R; // pocket capture radius
+const CORNER_POCKET_CAPTURE_EXPANSION = 1.06; // match the playable corner pocket radius with the existing rail and chrome cuts
+const SIDE_POCKET_CAPTURE_EXPANSION = 0.985; // keep side pocket capture close to the widened middle pocket cuts
+const CORNER_CAPTURE_RADIUS = POCKET_R * CORNER_POCKET_CAPTURE_EXPANSION;
+const SIDE_CAPTURE_RADIUS =
+  SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION * SIDE_POCKET_CAPTURE_EXPANSION;
+const CAPTURE_R = Math.max(CORNER_CAPTURE_RADIUS, SIDE_CAPTURE_RADIUS); // fallback trigger radius for pocket detection helpers
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
@@ -2260,9 +2280,10 @@ function applySnookerScaling({
     'applySnookerScaling: side pocket mouth mismatch.'
   );
   if (Array.isArray(pockets)) {
-    pockets.forEach((pocket) => {
+    pockets.forEach((pocket, index) => {
       if (pocket?.userData) {
-        pocket.userData.captureRadius = POCKET_R;
+        pocket.userData.captureRadius =
+          index >= 4 ? SIDE_CAPTURE_RADIUS : CORNER_CAPTURE_RADIUS;
       }
     });
   }
@@ -2763,8 +2784,7 @@ function computeClothExtents() {
 }
 
 const resolveCornerPocketCenter = (sx, sz, extents = computeClothExtents()) => {
-  const cornerInset =
-    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
+  const cornerInset = CORNER_POCKET_CENTER_INSET;
   const { halfWext, halfHext } = extents;
   return new THREE.Vector2(
     sx * (halfWext - cornerInset),
@@ -3859,9 +3879,9 @@ function Table3D(
     cornerPocketRadius *
     CHROME_CORNER_POCKET_RADIUS_SCALE *
     CHROME_CORNER_NOTCH_EXPANSION_SCALE *
-    RAIL_POCKET_CUT_SCALE;
+    RAIL_CORNER_POCKET_CUT_SCALE;
   const sidePocketCutRadius =
-    sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE * RAIL_POCKET_CUT_SCALE;
+    sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE * RAIL_SIDE_POCKET_CUT_SCALE;
   const cornerPocketGeo = new THREE.CylinderGeometry(
     cornerPocketCutRadius,
     cornerPocketCutRadius * POCKET_BOTTOM_RATIO,
@@ -4039,9 +4059,8 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset =
-    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_CENTER_VISUAL_INSET;
+  const cornerCutInset = CORNER_POCKET_CUT_INSET;
+  const sideInset = SIDE_POCKET_CUT_INSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4125,8 +4144,8 @@ function Table3D(
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
-    const cx = sx * (innerHalfW - cornerInset);
-    const cz = sz * (innerHalfH - cornerInset);
+    const cx = sx * (innerHalfW - cornerCutInset);
+    const cz = sz * (innerHalfH - cornerCutInset);
     const notchCircle = circlePoly(
       cx,
       cz,
@@ -4262,14 +4281,14 @@ function Table3D(
     }
   }
 
-  const shrinkRailCut = (mp) => {
-    const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
+  const shrinkRailCut = (mp, scale = RAIL_CORNER_POCKET_CUT_SCALE) => {
+    const scaled = scaleMultiPolygon(mp, scale);
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...shrinkRailCut(sideNotchMP(-1)),
-    ...shrinkRailCut(sideNotchMP(1))
+    ...shrinkRailCut(sideNotchMP(-1), RAIL_SIDE_POCKET_CUT_SCALE),
+    ...shrinkRailCut(sideNotchMP(1), RAIL_SIDE_POCKET_CUT_SCALE)
   );
   openingMP = polygonClipping.union(
     openingMP,
@@ -4742,10 +4761,11 @@ function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketPositions.forEach((p) => {
+  pocketPositions.forEach((p, index) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = CAPTURE_R;
+    marker.userData.captureRadius =
+      index >= 4 ? SIDE_CAPTURE_RADIUS : CORNER_CAPTURE_RADIUS;
     table.add(marker);
     table.userData.pockets.push(marker);
   });
@@ -10995,7 +11015,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+            const captureRadius =
+              pocketIndex >= 4 ? SIDE_CAPTURE_RADIUS : CORNER_CAPTURE_RADIUS;
+            if (b.pos.distanceTo(c) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
