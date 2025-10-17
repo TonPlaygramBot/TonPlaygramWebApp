@@ -140,10 +140,11 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
-function adjustCornerNotchDepth(mp, centerZ, sz) {
+function adjustCornerNotchDepth(mp, centerZ, sz, towardCenterLimit = 0) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
   }
+  const limit = Math.max(MICRO_EPS, Math.abs(towardCenterLimit));
   return mp.map((poly) =>
     Array.isArray(poly)
       ? poly.map((ring) =>
@@ -154,7 +155,14 @@ function adjustCornerNotchDepth(mp, centerZ, sz) {
                 const deltaZ = z - centerZ;
                 const towardCenter = -sz * deltaZ;
                 if (towardCenter <= 0) return [x, z];
-                return [x, centerZ + deltaZ * CHROME_CORNER_NOTCH_CENTER_SCALE];
+                const normalized = THREE.MathUtils.clamp(towardCenter / limit, 0, 1);
+                const eased = Math.pow(normalized, CHROME_CORNER_FIELD_DROP_EXPONENT);
+                const scale = THREE.MathUtils.lerp(
+                  1,
+                  CHROME_CORNER_NOTCH_CENTER_SCALE,
+                  eased
+                );
+                return [x, centerZ + deltaZ * scale];
               })
             : ring
         )
@@ -162,8 +170,9 @@ function adjustCornerNotchDepth(mp, centerZ, sz) {
   );
 }
 
-function adjustSideNotchDepth(mp) {
+function adjustSideNotchDepth(mp, towardCenterLimit = 0) {
   if (!Array.isArray(mp)) return Array.isArray(mp) ? mp : [];
+  const limit = Math.max(MICRO_EPS, Math.abs(towardCenterLimit));
   return mp.map((poly) =>
     Array.isArray(poly)
       ? poly.map((ring) =>
@@ -171,7 +180,14 @@ function adjustSideNotchDepth(mp) {
             ? ring.map((pt) => {
                 if (!Array.isArray(pt) || pt.length < 2) return pt;
                 const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+                const normalized = THREE.MathUtils.clamp(Math.abs(z) / limit, 0, 1);
+                const eased = Math.pow(normalized, CHROME_SIDE_NOTCH_DEPTH_EXPONENT);
+                const scale = THREE.MathUtils.lerp(
+                  1,
+                  CHROME_SIDE_NOTCH_DEPTH_SCALE,
+                  eased
+                );
+                return [x, z * scale];
               })
             : ring
         )
@@ -181,7 +197,8 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.82; // pull the inner chrome edge down so it blankets the wooden pocket cuts
+const CHROME_CORNER_FIELD_DROP_EXPONENT = 1.4; // ease the compression so only the cloth-facing edge shifts noticeably
 const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
@@ -189,7 +206,8 @@ const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.84; // tuck the side chrome toward the cloth to hide the exposed rail cuts
+const CHROME_SIDE_NOTCH_DEPTH_EXPONENT = 1.2; // keep the adjustment strongest right at the pocket throat
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
@@ -4088,11 +4106,8 @@ function Table3D(
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
-    const notchCircle = circlePoly(
-      cx,
-      cz,
-      cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE
-    );
+    const pocketRadius = cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE;
+    const notchCircle = circlePoly(cx, cz, pocketRadius);
     const x1 = cx;
     const x2 = cx + sx * cornerChamfer;
     const z1 = cz - sz * cornerChamfer;
@@ -4115,7 +4130,8 @@ function Table3D(
       ]]];
       union = polygonClipping.union(union, fieldClip);
     }
-    const adjusted = adjustCornerNotchDepth(union, cz, sz);
+    const towardCenterLimit = Math.max(MICRO_EPS, pocketRadius + cornerChamfer);
+    const adjusted = adjustCornerNotchDepth(union, cz, sz, towardCenterLimit);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
     }
@@ -4149,7 +4165,8 @@ function Table3D(
     );
 
     const union = polygonClipping.union(circle, throat);
-    return adjustSideNotchDepth(union);
+    const depthLimit = Math.max(MICRO_EPS, Math.max(radius, throatHeight / 2));
+    return adjustSideNotchDepth(union, depthLimit);
   };
 
   const chromePlates = new THREE.Group();
