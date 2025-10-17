@@ -93,9 +93,9 @@ const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.15, landscape: 0.5 }
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.52, landscape: 1.26 });
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * 0.08;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.14;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.22;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.92;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.78;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.7;
 const HUMAN_CARD_CHIP_BLEND = 0.16;
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
@@ -110,15 +110,15 @@ const RAIL_ANCHOR_RATIO = 0.98;
 const RAIL_FORWARD_MARGIN = TABLE_RADIUS * (1 - RAIL_ANCHOR_RATIO);
 const RAIL_SURFACE_FORWARD_SHIFT = RAIL_FORWARD_MARGIN * 0.65;
 const CARD_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.42;
-const CHIP_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.18;
+const CHIP_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.26;
 const CARD_RAIL_LATERAL_SHIFT = CARD_W * 1.1;
-const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 1.05;
+const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 0.95;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.58;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.5;
-const RAIL_CHIP_ROW_SPACING = CARD_H * 0.48;
+const RAIL_CHIP_ROW_SPACING = CARD_H * 0.42;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 7;
@@ -1041,7 +1041,7 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
-  const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
+  const headAnglesRef = useRef({ yaw: 0, pitch: THREE.MathUtils.degToRad(12) });
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
