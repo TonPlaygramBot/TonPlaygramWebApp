@@ -211,6 +211,8 @@ const CHROME_SIDE_FIELD_PULL_SCALE = 0.24; // extend the side pocket chrome towa
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
+const CHROME_CORNER_PLATE_CENTER_PULL = TABLE.THICK * 0.015; // nudge the corner chrome plates slightly toward the table center
+const CHROME_SIDE_PLATE_CENTER_PULL = TABLE.THICK * 0.015; // nudge the side chrome plates slightly toward the table center
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -4180,14 +4182,23 @@ function Table3D(
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
+  const cornerPlateCenterXOffset = Math.max(
+    MICRO_EPS,
+    outerHalfW - chromePlateWidth / 2 - chromePlateInset - CHROME_CORNER_PLATE_CENTER_PULL
+  );
+  const cornerPlateCenterZOffset = Math.max(
+    MICRO_EPS,
+    outerHalfH - chromePlateHeight / 2 - chromePlateInset - CHROME_CORNER_PLATE_CENTER_PULL
+  );
+
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
-    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
+    const centerX = sx * cornerPlateCenterXOffset;
+    const centerZ = sz * cornerPlateCenterZOffset;
     const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -4212,11 +4223,16 @@ function Table3D(
     finishParts.trimMeshes.push(plate);
   });
 
+  const sidePlateCenterXOffset = Math.max(
+    MICRO_EPS,
+    outerHalfW - sideChromePlateWidth / 2 - chromePlateInset - CHROME_SIDE_PLATE_CENTER_PULL
+  );
+
   [
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX = sx * sidePlateCenterXOffset;
     const centerZ = 0;
     const notchLocalMP = sideNotchMP(sx).map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
