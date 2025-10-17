@@ -176,6 +176,15 @@
           <option value="retro">Retro</option>
         </select>
       </label>
+      <label>Pocket Jaw Rims:
+        <select id="pocket-select">
+          <option value="matte-ebony">Matte Ebony Wrap</option>
+          <option value="polished-chrome">Polished Chrome Sweep</option>
+          <option value="burnished-brass">Burnished Brass Curve</option>
+          <option value="carbon-weave">Carbon Weave Guard</option>
+          <option value="aurora-neon">Aurora Neon Halo</option>
+        </select>
+      </label>
       <label>Frame Color:
         <input id="frame-color" type="color" value="#ff0000" />
       </label>
@@ -201,10 +210,246 @@
       const brightnessValue = document.getElementById('brightness-value');
       const bgImage = document.querySelector('.bg');
       const frameSelect = document.getElementById('frame-select');
+      const pocketSelect = document.getElementById('pocket-select');
       const frameColorInput = document.getElementById('frame-color');
       const cardColorInput = document.getElementById('card-color');
       const controls = document.getElementById('controls');
       const frameSvg = document.getElementById('frame');
+
+      const frameTemplates = {
+        classic: (color) => `
+        <rect x="80" y="80" width="840" height="1340" fill="rgba(0,255,0,0.15)" stroke="${color}" stroke-width="20" />
+        <rect x="20" y="20" width="960" height="1460" fill="none" stroke="${color}" stroke-width="40" />`,
+        minimal: (color) => `
+        <rect x="40" y="40" width="920" height="1420" fill="none" stroke="${color}" stroke-width="20" />`,
+        neon: (color) => `
+        <rect x="60" y="60" width="880" height="1380" fill="none" stroke="${color}" stroke-width="25" stroke-dasharray="10 5" />`,
+        retro: (color) => `
+        <rect x="30" y="30" width="940" height="1440" fill="none" stroke="${color}" stroke-width="30" />`
+      };
+
+      const CORNER_TRANSFORMS = [
+        'translate(140 140)',
+        'translate(860 140) scale(-1 1)',
+        'translate(860 1360) scale(-1 -1)',
+        'translate(140 1360) scale(1 -1)'
+      ];
+
+      const SIDE_TRANSFORMS = [
+        'translate(500 90)',
+        'translate(500 1410) scale(1 -1)'
+      ];
+
+      function cornerArc(radius, options = {}) {
+        const { color, width, dash, opacity = 1, linecap = 'round' } = options;
+        if (!color || !width) return '';
+        const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+        return `<path d="M 0 ${radius} A ${radius} ${radius} 0 0 1 ${radius} 0" stroke="${color}" stroke-width="${width}" stroke-linecap="${linecap}" stroke-linejoin="round" stroke-opacity="${opacity}" fill="none"${dashAttr} />`;
+      }
+
+      function sideArc(radius, options = {}) {
+        const { color, width, dash, opacity = 1, linecap = 'round' } = options;
+        if (!color || !width) return '';
+        const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+        return `<path d="M -${radius} 0 A ${radius} ${radius} 0 0 1 ${radius} 0" stroke="${color}" stroke-width="${width}" stroke-linecap="${linecap}" stroke-linejoin="round" stroke-opacity="${opacity}" fill="none"${dashAttr} />`;
+      }
+
+      function createCornerLip(radius, lip = {}) {
+        const { color, width, length, dash, opacity = 1, cap = 'round', inset = 0 } = lip;
+        if (!color || !width || !length) return '';
+        const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+        const start = inset;
+        return `
+          <line x1="${start}" y1="0" x2="${start - length}" y2="0" stroke="${color}" stroke-width="${width}" stroke-linecap="${cap}" stroke-opacity="${opacity}"${dashAttr} />
+          <line x1="0" y1="${start}" x2="0" y2="${start - length}" stroke="${color}" stroke-width="${width}" stroke-linecap="${cap}" stroke-opacity="${opacity}"${dashAttr} />
+        `;
+      }
+
+      function createSideLip(lip = {}) {
+        const { color, width, length, dash, opacity = 1, cap = 'round', offset = 0 } = lip;
+        if (!color || !width || !length) return '';
+        const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+        return `
+          <line x1="${-length}" y1="${offset}" x2="${length}" y2="${offset}" stroke="${color}" stroke-width="${width}" stroke-linecap="${cap}" stroke-opacity="${opacity}"${dashAttr} />
+          <line x1="0" y1="${offset}" x2="0" y2="${offset - length}" stroke="${color}" stroke-width="${width}" stroke-linecap="${cap}" stroke-opacity="${opacity}"${dashAttr} />
+        `;
+      }
+
+      function createPocketMarkup(cfg = {}) {
+        const cornerRadius = cfg.cornerRadius ?? 118;
+        const sideRadius = cfg.sideRadius ?? 112;
+
+        const cornerSegments = [];
+        const cornerDefs = [
+          cfg.cornerRim && { radius: cornerRadius, ...cfg.cornerRim },
+          cfg.cornerAccent && { radius: Math.max(0, cornerRadius - (cfg.cornerAccent.offset ?? 0)), ...cfg.cornerAccent },
+          cfg.cornerHighlight && { radius: Math.max(0, cornerRadius - (cfg.cornerHighlight.offset ?? 0)), ...cfg.cornerHighlight },
+          cfg.cornerInner && { radius: Math.max(0, cornerRadius - (cfg.cornerInner.offset ?? 0)), ...cfg.cornerInner }
+        ].filter(Boolean);
+        cornerDefs.forEach((def) => {
+          cornerSegments.push(cornerArc(def.radius, def));
+        });
+
+        if (cfg.cornerLip) {
+          cornerSegments.push(createCornerLip(cornerRadius, cfg.cornerLip));
+        }
+        if (cfg.cornerLipSecondary) {
+          cornerSegments.push(createCornerLip(cornerRadius, cfg.cornerLipSecondary));
+        }
+
+        const sideSegments = [];
+        const sideDefs = [
+          cfg.sideRim && { radius: sideRadius, ...cfg.sideRim },
+          cfg.sideAccent && { radius: Math.max(0, sideRadius - (cfg.sideAccent.offset ?? 0)), ...cfg.sideAccent },
+          cfg.sideHighlight && { radius: Math.max(0, sideRadius - (cfg.sideHighlight.offset ?? 0)), ...cfg.sideHighlight },
+          cfg.sideInner && { radius: Math.max(0, sideRadius - (cfg.sideInner.offset ?? 0)), ...cfg.sideInner }
+        ].filter(Boolean);
+        sideDefs.forEach((def) => {
+          sideSegments.push(sideArc(def.radius, def));
+        });
+
+        if (cfg.sideLip) {
+          sideSegments.push(createSideLip(cfg.sideLip));
+        }
+        if (cfg.sideLipSecondary) {
+          sideSegments.push(createSideLip(cfg.sideLipSecondary));
+        }
+
+        const cornerMarkup = cornerSegments.join('');
+        const sideMarkup = sideSegments.join('');
+
+        return `
+          <g class="pocket-rims" fill="none">
+            ${CORNER_TRANSFORMS.map((transform) => `<g transform="${transform}">${cornerMarkup}</g>`).join('')}
+            ${SIDE_TRANSFORMS.map((transform) => `<g transform="${transform}">${sideMarkup}</g>`).join('')}
+          </g>
+        `;
+      }
+
+      const pocketStyles = {
+        'matte-ebony': {
+          render: (uid) => ({
+            markup: createPocketMarkup({
+              cornerRadius: 118,
+              sideRadius: 114,
+              cornerRim: { color: '#1b1f24', width: 28 },
+              cornerAccent: { offset: 12, color: '#3a424c', width: 6, dash: '14 6', opacity: 0.6 },
+              cornerHighlight: { offset: 20, color: '#5c6570', width: 4, opacity: 0.45 },
+              cornerLip: { color: '#2a3038', width: 18, length: 96, opacity: 0.85 },
+              sideRim: { color: '#1b1f24', width: 26 },
+              sideAccent: { offset: 10, color: '#3a424c', width: 6, dash: '12 8', opacity: 0.6 },
+              sideHighlight: { offset: 18, color: '#5c6570', width: 4, opacity: 0.45 },
+              sideLip: { color: '#2a3038', width: 16, length: 140, opacity: 0.85 }
+            })
+          })
+        },
+        'polished-chrome': {
+          render: (uid) => ({
+            defs: `
+              <linearGradient id="${uid}-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f5f7fa" />
+                <stop offset="45%" stop-color="#c8ccd3" />
+                <stop offset="65%" stop-color="#ffffff" />
+                <stop offset="100%" stop-color="#9ea3ab" />
+              </linearGradient>
+              <linearGradient id="${uid}-accent" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#d7dbe2" stop-opacity="0.9" />
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0.4" />
+              </linearGradient>
+            `,
+            markup: createPocketMarkup({
+              cornerRadius: 122,
+              sideRadius: 118,
+              cornerRim: { color: `url(#${uid}-rim)`, width: 30, linecap: 'butt' },
+              cornerAccent: { offset: 10, color: '#fdfefe', width: 6, opacity: 0.75 },
+              cornerHighlight: { offset: 18, color: `url(#${uid}-accent)`, width: 8, dash: '16 9', opacity: 0.9 },
+              cornerLip: { color: '#d5dae3', width: 16, length: 108, cap: 'butt', opacity: 0.9 },
+              sideRim: { color: `url(#${uid}-rim)`, width: 28, linecap: 'butt' },
+              sideAccent: { offset: 8, color: '#ffffff', width: 5, opacity: 0.75 },
+              sideHighlight: { offset: 16, color: `url(#${uid}-accent)`, width: 9, dash: '18 10', opacity: 0.9 },
+              sideLip: { color: '#d5dae3', width: 16, length: 156, cap: 'butt', opacity: 0.9 }
+            })
+          })
+        },
+        'burnished-brass': {
+          render: (uid) => ({
+            defs: `
+              <linearGradient id="${uid}-brass" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f0d99b" />
+                <stop offset="50%" stop-color="#c99a3d" />
+                <stop offset="100%" stop-color="#7f5415" />
+              </linearGradient>
+              <linearGradient id="${uid}-brass-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ffe4b3" stop-opacity="0.9" />
+                <stop offset="100%" stop-color="#ffd27d" stop-opacity="0.3" />
+              </linearGradient>
+            `,
+            markup: createPocketMarkup({
+              cornerRadius: 120,
+              sideRadius: 116,
+              cornerRim: { color: `url(#${uid}-brass)`, width: 30 },
+              cornerAccent: { offset: 14, color: '#ffdca2', width: 7, opacity: 0.7 },
+              cornerHighlight: { offset: 22, color: `url(#${uid}-brass-glow)`, width: 6, dash: '10 7', opacity: 0.8 },
+              cornerLip: { color: '#8c6121', width: 18, length: 104, opacity: 0.85 },
+              cornerLipSecondary: { color: '#f1d296', width: 8, length: 84, opacity: 0.6, dash: '8 6' },
+              sideRim: { color: `url(#${uid}-brass)`, width: 28 },
+              sideAccent: { offset: 12, color: '#ffdca2', width: 7, opacity: 0.7 },
+              sideHighlight: { offset: 20, color: `url(#${uid}-brass-glow)`, width: 6, dash: '12 8', opacity: 0.8 },
+              sideLip: { color: '#8c6121', width: 18, length: 150, opacity: 0.85 },
+              sideLipSecondary: { color: '#f1d296', width: 7, length: 130, opacity: 0.6, dash: '9 6' }
+            })
+          })
+        },
+        'carbon-weave': {
+          render: (uid) => ({
+            defs: `
+              <pattern id="${uid}-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect x="0" y="0" width="6" height="6" fill="#111" />
+                <rect x="0" y="0" width="3" height="6" fill="#1f1f1f" />
+              </pattern>
+            `,
+            markup: createPocketMarkup({
+              cornerRadius: 118,
+              sideRadius: 114,
+              cornerRim: { color: `url(#${uid}-hatch)`, width: 32, linecap: 'butt' },
+              cornerAccent: { offset: 10, color: '#2f363c', width: 6, dash: '6 6', opacity: 0.9 },
+              cornerHighlight: { offset: 18, color: '#6ad0ff', width: 4, opacity: 0.55 },
+              cornerInner: { offset: 26, color: '#0f1114', width: 10, opacity: 0.9 },
+              cornerLip: { color: '#262c32', width: 18, length: 102, opacity: 0.9 },
+              sideRim: { color: `url(#${uid}-hatch)`, width: 30, linecap: 'butt' },
+              sideAccent: { offset: 8, color: '#2f363c', width: 6, dash: '8 8', opacity: 0.9 },
+              sideHighlight: { offset: 16, color: '#6ad0ff', width: 4, opacity: 0.55 },
+              sideInner: { offset: 24, color: '#0f1114', width: 10, opacity: 0.9 },
+              sideLip: { color: '#262c32', width: 18, length: 150, opacity: 0.9 }
+            })
+          })
+        },
+        'aurora-neon': {
+          render: (uid) => ({
+            defs: `
+              <radialGradient id="${uid}-glow" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stop-color="#00ffd1" stop-opacity="0.95" />
+                <stop offset="60%" stop-color="#00c9ff" stop-opacity="0.6" />
+                <stop offset="100%" stop-color="#0059ff" stop-opacity="0.2" />
+              </radialGradient>
+            `,
+            markup: createPocketMarkup({
+              cornerRadius: 120,
+              sideRadius: 116,
+              cornerRim: { color: '#0e1224', width: 30 },
+              cornerAccent: { offset: 12, color: '#00ffd1', width: 8, opacity: 0.9 },
+              cornerHighlight: { offset: 20, color: `url(#${uid}-glow)`, width: 10, opacity: 0.75 },
+              cornerLip: { color: '#0e1224', width: 18, length: 120, opacity: 0.9 },
+              cornerLipSecondary: { color: '#00ffd1', width: 6, length: 86, opacity: 0.7, dash: '4 6' },
+              sideRim: { color: '#0e1224', width: 28 },
+              sideAccent: { offset: 10, color: '#00ffd1', width: 8, opacity: 0.9 },
+              sideHighlight: { offset: 20, color: `url(#${uid}-glow)`, width: 10, opacity: 0.75 },
+              sideLip: { color: '#0e1224', width: 18, length: 160, opacity: 0.9 },
+              sideLipSecondary: { color: '#00ffd1', width: 6, length: 120, opacity: 0.7, dash: '4 6' }
+            })
+          })
+        }
+      };
 
       let ballVolume = volumeSlider.value / 100;
       bgImage.style.filter = `brightness(${brightnessSlider.value}%)`;
@@ -217,20 +462,16 @@
       });
 
       function renderFrame() {
-        const color = frameColorInput.value;
-        const style = frameSelect.value;
-        const templates = {
-          classic: `
-        <rect x="80" y="80" width="840" height="1340" fill="rgba(0,255,0,0.15)" stroke="${color}" stroke-width="20" />
-        <rect x="20" y="20" width="960" height="1460" fill="none" stroke="${color}" stroke-width="40" />`,
-          minimal: `
-        <rect x="40" y="40" width="920" height="1420" fill="none" stroke="${color}" stroke-width="20" />`,
-          neon: `
-        <rect x="60" y="60" width="880" height="1380" fill="none" stroke="${color}" stroke-width="25" stroke-dasharray="10 5" />`,
-          retro: `
-        <rect x="30" y="30" width="940" height="1440" fill="none" stroke="${color}" stroke-width="30" />`
-        };
-        frameSvg.innerHTML = templates[style];
+        const frameColor = frameColorInput.value;
+        const frameStyle = frameSelect.value;
+        const pocketStyle = pocketSelect.value;
+        const frameMarkup = frameTemplates[frameStyle] ? frameTemplates[frameStyle](frameColor) : '';
+        const pocketConfig = pocketStyles[pocketStyle];
+        const uid = `pocket-${pocketStyle}`;
+        const pocketResult = pocketConfig ? pocketConfig.render(uid) : null;
+        const defs = pocketResult && pocketResult.defs ? `<defs>${pocketResult.defs}</defs>` : '';
+        const pockets = pocketResult && pocketResult.markup ? pocketResult.markup : '';
+        frameSvg.innerHTML = `${defs}${frameMarkup}${pockets}`;
       }
 
       renderFrame();
@@ -245,6 +486,7 @@
       });
 
       frameSelect.addEventListener('change', renderFrame);
+      pocketSelect.addEventListener('change', renderFrame);
       frameColorInput.addEventListener('input', renderFrame);
       cardColorInput.addEventListener('input', () => {
         controls.style.background = cardColorInput.value;
