@@ -70,7 +70,7 @@ const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.12;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
 const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
 const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.45;
@@ -89,21 +89,20 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
-const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.22, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.48, landscape: 1.32 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.56, landscape: 1.42 });
-const PORTRAIT_CARD_CHIP_FOCUS_BLEND = 0.6;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.46;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.04;
-const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.58;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.3;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.46;
-const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.94;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.94;
-const HUMAN_CARD_CHIP_BLEND = 0.12;
+const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.62, landscape: 1.32 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.72, landscape: 1.42 });
+const PORTRAIT_CARD_CHIP_FOCUS_BLEND = 0.52;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.5;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.08;
+const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.72;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.42;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.58;
+const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
+const HUMAN_CARD_CHIP_BLEND = 0.08;
 const HUMAN_CARD_SCALE = 0.92;
 const HUMAN_CHIP_SCALE = 0.9;
-const HUMAN_FRONT_CHIP_FORWARD = CARD_W * 0.48;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -643,27 +642,14 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   const rowOffset = (rows - 1) / 2;
   const chipButtons = CHIP_VALUES.map((value, index) => {
     const chip = chipFactory.createStack(value);
-    let baseScale = RAIL_CHIP_SCALE;
-    if (value === 1) {
-      const cardRowCenter = seat.cardAnchor
-        .clone()
-        .addScaledVector(forward, HUMAN_CARD_FORWARD_OFFSET)
-        .lerp(seat.chipAnchor, HUMAN_CARD_CHIP_BLEND);
-      chip.position.copy(cardRowCenter);
-      chip.position.addScaledVector(forward, HUMAN_FRONT_CHIP_FORWARD);
-      const scaledHeight = (chipFactory.chipHeight ?? CARD_D) * HUMAN_CHIP_SCALE;
-      chip.position.y = TABLE_HEIGHT + scaledHeight / 2 + CARD_D * 0.2;
-      baseScale = HUMAN_CHIP_SCALE;
-      chip.scale.setScalar(baseScale);
-    } else {
-      chip.position.copy(chipCenter);
-      chip.position.y = anchor.y + CARD_D * 2.2;
-      const row = Math.floor(index / columns);
-      const col = index % columns;
-      chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
-      chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
-      chip.scale.setScalar(RAIL_CHIP_SCALE);
-    }
+    const baseScale = RAIL_CHIP_SCALE;
+    chip.position.copy(chipCenter);
+    chip.position.y = anchor.y + CARD_D * 2.2;
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+    chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
+    chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
+    chip.scale.setScalar(baseScale);
     chip.userData = { type: 'chip-button', value, baseScale };
     group.add(chip);
     return chip;
