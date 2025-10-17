@@ -202,8 +202,7 @@ function buildChromePlateGeometry({
   thickness,
   corner = 'topLeft',
   notchMP = null,
-  shapeSegments = 96,
-  pocketDrop = 0
+  shapeSegments = 96
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -347,7 +346,6 @@ function buildChromePlateGeometry({
   );
 
   let shapesToExtrude = [shape];
-  const notchZones = [];
   if (notchMP?.length) {
     const extracted = shape.extractPoints(shapeSegments);
     const basePts = extracted.shape;
@@ -367,45 +365,6 @@ function buildChromePlateGeometry({
         }
       }
     }
-
-    notchMP.forEach((poly) => {
-      if (!Array.isArray(poly) || !poly.length) return;
-      const outerRing = poly[0];
-      if (!Array.isArray(outerRing) || outerRing.length < 3) return;
-      const centroid = centroidFromRing(outerRing);
-      let minX = Infinity;
-      let maxX = -Infinity;
-      let minZ = Infinity;
-      let maxZ = -Infinity;
-      let maxDistSq = 0;
-      for (let i = 0; i < outerRing.length; i++) {
-        const pt = outerRing[i];
-        if (!Array.isArray(pt) || pt.length < 2) continue;
-        const [px, pz] = pt;
-        minX = Math.min(minX, px);
-        maxX = Math.max(maxX, px);
-        minZ = Math.min(minZ, pz);
-        maxZ = Math.max(maxZ, pz);
-        const dx = px - centroid.x;
-        const dz = pz - centroid.y;
-        const distSq = dx * dx + dz * dz;
-        if (distSq > maxDistSq) {
-          maxDistSq = distSq;
-        }
-      }
-      if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return;
-      const baseRadius = Math.sqrt(Math.max(0, maxDistSq));
-      const radiusMargin = baseRadius * 0.18 + MICRO_EPS * 12;
-      notchZones.push({
-        cx: centroid.x,
-        cz: centroid.y,
-        radiusSq: (baseRadius * 1.12 + MICRO_EPS * 12) ** 2,
-        minX: minX - radiusMargin,
-        maxX: maxX + radiusMargin,
-        minZ: minZ - radiusMargin,
-        maxZ: maxZ + radiusMargin
-      });
-    });
   }
 
   let geo = new THREE.ExtrudeGeometry(shapesToExtrude, {
@@ -418,32 +377,6 @@ function buildChromePlateGeometry({
   });
   geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
   geo.rotateX(-Math.PI / 2);
-  if (pocketDrop > MICRO_EPS && notchZones.length) {
-    const pos = geo.attributes.position;
-    const limit = Math.max(MICRO_EPS * 6, bevelThickness * 0.85);
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);
-      if (y > limit + pocketDrop * 0.25) continue;
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      let inZone = false;
-      for (let j = 0; j < notchZones.length; j++) {
-        const zone = notchZones[j];
-        if (x < zone.minX || x > zone.maxX || z < zone.minZ || z > zone.maxZ) {
-          continue;
-        }
-        const dx = x - zone.cx;
-        const dz = z - zone.cz;
-        if (dx * dx + dz * dz <= zone.radiusSq) {
-          inZone = true;
-          break;
-        }
-      }
-      if (!inZone) continue;
-      pos.setY(i, y - pocketDrop);
-    }
-    pos.needsUpdate = true;
-  }
   geo.computeVertexNormals();
   return geo;
 }
@@ -4035,12 +3968,6 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-  const chromePlateBottomY = chromePlateY;
-  const chromePocketTargetY = clothPlaneLocal + MICRO_EPS * 0.5;
-  const chromePocketDrop = Math.min(
-    railH * 0.85,
-    Math.max(0, chromePlateBottomY - chromePocketTargetY)
-  );
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
@@ -4248,8 +4175,7 @@ function Table3D(
         thickness: chromePlateThickness,
         corner,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        pocketDrop: chromePocketDrop
+        shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
@@ -4277,8 +4203,7 @@ function Table3D(
         thickness: chromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        pocketDrop: chromePocketDrop
+        shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
