@@ -83,19 +83,19 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = -0.02 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.05 * MODEL_SCALE;
 const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
 const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.15, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.85, landscape: 1.35 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.52, landscape: 1.26 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.78, landscape: 1.32 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.58, landscape: 1.3 });
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * 0.08;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.34;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.48;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.92;
-const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.58;
+const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.44;
 const HUMAN_CARD_CHIP_BLEND = 0.16;
 
 const CHIP_VALUES = [1000, 500, 200, 50, 20, 10, 5, 2, 1];
@@ -110,9 +110,9 @@ const RAIL_ANCHOR_RATIO = 0.98;
 const RAIL_FORWARD_MARGIN = TABLE_RADIUS * (1 - RAIL_ANCHOR_RATIO);
 const RAIL_SURFACE_FORWARD_SHIFT = RAIL_FORWARD_MARGIN * 0.65;
 const CARD_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.42;
-const CHIP_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.52;
+const CHIP_RAIL_FORWARD_SHIFT = -RAIL_SURFACE_FORWARD_SHIFT * 0.68;
 const CARD_RAIL_LATERAL_SHIFT = CARD_W * 1.1;
-const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 0.82;
+const CHIP_RAIL_LATERAL_SHIFT = CARD_W * 0.66;
 
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.58;
@@ -120,9 +120,12 @@ const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.5;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.42;
 
-const CAMERA_PLAYER_FOCUS_BLEND = 0.48;
+const CAMERA_PLAYER_FOCUS_BLEND = 0.52;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.18;
+const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.3;
+const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.18;
 const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
+const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 7;
@@ -1354,16 +1357,15 @@ function TexasHoldemArena({ search }) {
         .clone()
         .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
-      position.y = humanSeat.stoolHeight + elevation;
+      const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
+      position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
+      const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
       const playerFocus = humanSeat.cardAnchor
         .clone()
-        .lerp(humanSeat.chipAnchor, 0.6)
-        .addScaledVector(humanSeat.forward, -CARD_W * 0.1);
-      playerFocus.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET * 0.5 - CAMERA_PLAYER_FOCUS_DROP;
-      const focus = cameraTarget
-        .clone()
-        .lerp(playerFocus, CAMERA_PLAYER_FOCUS_BLEND)
-        .add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
+        .lerp(humanSeat.chipAnchor, 0.72)
+        .addScaledVector(humanSeat.forward, -CAMERA_PLAYER_FOCUS_FORWARD_PULL);
+      playerFocus.y = TABLE_HEIGHT + CAMERA_PLAYER_FOCUS_HEIGHT - CAMERA_PLAYER_FOCUS_DROP;
+      const focus = focusBase.lerp(playerFocus, CAMERA_PLAYER_FOCUS_BLEND);
       camera.position.copy(position);
       camera.lookAt(focus);
       camera.updateMatrixWorld();
