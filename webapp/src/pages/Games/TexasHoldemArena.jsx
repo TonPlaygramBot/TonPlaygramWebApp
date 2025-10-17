@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -85,9 +84,11 @@ const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CAR
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.12 * MODEL_SCALE;
-const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
-const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
-const CAMERA_TRANSITION_DURATION = 520;
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
+const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
+const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
+const HEAD_YAW_SENSITIVITY = 0.0042;
+const HEAD_PITCH_SENSITIVITY = 0.0035;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.62, landscape: 1.32 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.54, landscape: 1.26 });
@@ -104,6 +105,7 @@ const HUMAN_CARD_SCALE = 0.92;
 const HUMAN_CHIP_SCALE = 0.9;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const DEFAULT_STOOL_THEME = Object.freeze({ seatColor: '#8b0000', legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
@@ -128,6 +130,7 @@ const CAMERA_PLAYER_FOCUS_BLEND = 0.58;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.2;
 const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.42;
 const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
+const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
@@ -135,6 +138,8 @@ const CHAIR_CLOTH_REPEAT = 7;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+const DEFAULT_PITCH_LIMITS = Object.freeze({ min: -CAMERA_HEAD_PITCH_UP, max: CAMERA_HEAD_PITCH_DOWN });
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -413,6 +418,34 @@ function createStraightArmrest(side, material) {
   return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
 }
 
+function computeCameraPitchLimits(position, baseForward, options = {}) {
+  const { seatTopPoint = null } = options ?? {};
+  const horizontalForward = Math.hypot(baseForward.x, baseForward.z);
+  const baseDownAngle = Math.atan2(-baseForward.y, horizontalForward);
+  const radialDistance = Math.hypot(position.x, position.z);
+  const horizontalGap = Math.max(0.35, ARENA_WALL_INNER_RADIUS - radialDistance);
+  const verticalReach = Math.max(0.01, ARENA_WALL_TOP_Y - position.y);
+  const wallLimitedUp = Math.max(0, Math.atan2(verticalReach, horizontalGap) - CAMERA_WALL_MARGIN);
+  const maxUpAngle = Math.max(0, Math.min(wallLimitedUp, THREE.MathUtils.degToRad(65)));
+  const computedUp = Math.max(0, Math.min(baseDownAngle + maxUpAngle, THREE.MathUtils.degToRad(65)));
+  let safeUp = computedUp > 0 ? computedUp : CAMERA_HEAD_PITCH_UP;
+  if (seatTopPoint) {
+    const limitVector = seatTopPoint.clone().sub(position);
+    const horizontal = Math.hypot(limitVector.x, limitVector.z);
+    if (horizontal > 1e-3) {
+      const seatDownAngle = Math.atan2(Math.max(0, -limitVector.y), horizontal);
+      const maxSeatUp = Math.max(0, baseDownAngle - seatDownAngle);
+      safeUp = Math.min(safeUp, maxSeatUp);
+    } else if (limitVector.y < 0) {
+      safeUp = 0;
+    }
+  }
+  return {
+    min: -safeUp,
+    max: CAMERA_HEAD_PITCH_DOWN
+  };
+}
+
 function createSeatLayout(count) {
   const layout = [];
   for (let i = 0; i < count; i += 1) {
@@ -642,64 +675,6 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
     interactables,
     dispose
   };
-}
-
-function easeOutCubic(t) {
-  return 1 - Math.pow(1 - t, 3);
-}
-
-function normalizeAngle(angle) {
-  const twoPi = Math.PI * 2;
-  let value = angle % twoPi;
-  if (value > Math.PI) {
-    value -= twoPi;
-  } else if (value <= -Math.PI) {
-    value += twoPi;
-  }
-  return value;
-}
-
-function shortestAngleDifference(from, to) {
-  return normalizeAngle(to - from);
-}
-
-function updateCameraFromSpherical(camera, spherical, target, store) {
-  const offset = new THREE.Vector3().setFromSpherical(spherical);
-  const position = offset.clone().add(target);
-
-  if (store?.cameraBounds) {
-    const { cameraBounds } = store;
-    const clamped = position.clone();
-    if (typeof cameraBounds.minX === 'number' && typeof cameraBounds.maxX === 'number') {
-      clamped.x = THREE.MathUtils.clamp(clamped.x, cameraBounds.minX, cameraBounds.maxX);
-    }
-    if (typeof cameraBounds.minY === 'number' || typeof cameraBounds.maxY === 'number') {
-      const lower = typeof cameraBounds.minY === 'number' ? cameraBounds.minY : clamped.y;
-      const upper = typeof cameraBounds.maxY === 'number' ? cameraBounds.maxY : clamped.y;
-      clamped.y = THREE.MathUtils.clamp(clamped.y, lower, upper);
-    }
-    if (typeof cameraBounds.minZ === 'number' && typeof cameraBounds.maxZ === 'number') {
-      clamped.z = THREE.MathUtils.clamp(clamped.z, cameraBounds.minZ, cameraBounds.maxZ);
-    }
-    if (!clamped.equals(position)) {
-      const correctedOffset = clamped.clone().sub(target);
-      const corrected = new THREE.Spherical().setFromVector3(correctedOffset);
-      spherical.radius = corrected.radius;
-      spherical.theta = corrected.theta;
-      spherical.phi = corrected.phi;
-      camera.position.copy(clamped);
-    } else {
-      camera.position.copy(position);
-    }
-    store.cameraRadius = spherical.radius;
-  } else {
-    camera.position.copy(position);
-    if (store) {
-      store.cameraRadius = spherical.radius;
-    }
-  }
-
-  camera.lookAt(target);
 }
 
 function applyCardToMesh(mesh, card, geometry, cache, theme) {
@@ -1092,12 +1067,22 @@ function TexasHoldemArena({ search }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const animationRef = useRef(null);
+  const headAnglesRef = useRef({ yaw: 0, pitch: THREE.MathUtils.degToRad(18) });
+  const cameraBasisRef = useRef({
+    position: new THREE.Vector3(),
+    baseForward: new THREE.Vector3(0, 0, -1),
+    baseUp: new THREE.Vector3(0, 1, 0),
+    baseRight: new THREE.Vector3(1, 0, 0),
+    pitchLimits: DEFAULT_PITCH_LIMITS
+  });
   const pointerStateRef = useRef({
     active: false,
     pointerId: null,
     mode: null,
     startX: 0,
     startY: 0,
+    startYaw: 0,
+    startPitch: 0,
     buttonAction: null,
     dragged: false
   });
@@ -1110,13 +1095,13 @@ function TexasHoldemArena({ search }) {
     onUndo: () => {}
   });
   const hoverTargetRef = useRef(null);
+  const getPitchLimits = () => cameraBasisRef.current?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(search);
     const { token, stake } = parseSearch(search);
     const baseState = buildInitialState(players, token, stake);
     return resetForNextHand(baseState);
   });
-  const gameStateRef = useRef(gameState);
   const [uiState, setUiState] = useState({
     availableActions: [],
     toCall: 0,
@@ -1142,112 +1127,26 @@ function TexasHoldemArena({ search }) {
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
 
-  const moveCameraToTheta = useCallback((theta, immediate = false) => {
-    const store = threeRef.current;
-    if (!store) return;
-    const { camera, orbitControls: controls, cameraTarget } = store;
-    const spherical = store.cameraSpherical;
-    if (!camera || !controls || !cameraTarget || !spherical) return;
+  const applyHeadOrientation = useCallback(() => {
+    const three = threeRef.current;
+    if (!three) return;
+    const { camera } = three;
+    const basis = cameraBasisRef.current;
+    const { yaw, pitch } = headAnglesRef.current;
 
-    const idealRadius = store.cameraIdealRadius ?? spherical.radius;
-    const basePhi = store.cameraPhi ?? spherical.phi;
-    const homeTheta = store.cameraHomeTheta ?? spherical.theta;
-    const headLimit = store.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
-    const minBound = homeTheta - headLimit;
-    const maxBound = homeTheta + headLimit;
+    const yawQuat = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
+    const rotatedForward = basis.baseForward.clone().applyQuaternion(yawQuat);
+    const rotatedUp = basis.baseUp.clone().applyQuaternion(yawQuat);
+    const rightAxis = basis.baseRight.clone().applyQuaternion(yawQuat);
+    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightAxis, pitch);
+    const finalForward = rotatedForward.applyQuaternion(pitchQuat).normalize();
+    const finalUp = rotatedUp.applyQuaternion(pitchQuat).normalize();
 
-    const clampToHeadLimit = (rawTheta) => {
-      const normalized = normalizeAngle(rawTheta);
-      const offset = shortestAngleDifference(homeTheta, normalized);
-      const clampedOffset = THREE.MathUtils.clamp(offset, -headLimit, headLimit);
-      return normalizeAngle(homeTheta + clampedOffset);
-    };
-
-    const applyTheta = (value) => {
-      const constrained = clampToHeadLimit(value);
-      spherical.theta = constrained;
-      spherical.radius = idealRadius;
-      spherical.phi = basePhi;
-      store.cameraAdjusting = true;
-      try {
-        updateCameraFromSpherical(camera, spherical, cameraTarget, store);
-        const actualRadius = store.cameraRadius ?? spherical.radius;
-        controls.target.copy(cameraTarget);
-        controls.minPolarAngle = basePhi;
-        controls.maxPolarAngle = basePhi;
-        controls.minAzimuthAngle = minBound;
-        controls.maxAzimuthAngle = maxBound;
-        controls.minDistance = actualRadius;
-        controls.maxDistance = actualRadius;
-        controls.update();
-      } finally {
-        store.cameraAdjusting = false;
-      }
-      store.orientHumanCards?.();
-    };
-
-    if (store.cameraAnimationId) {
-      cancelAnimationFrame(store.cameraAnimationId);
-      store.cameraAnimationId = null;
-    }
-
-    const startTheta = spherical.theta;
-    const targetTheta = clampToHeadLimit(theta);
-    const delta = shortestAngleDifference(startTheta, targetTheta);
-    const finalTheta = startTheta + delta;
-
-    if (immediate || Math.abs(delta) < 1e-4) {
-      applyTheta(finalTheta);
-      return;
-    }
-
-    const start = performance.now();
-
-    const step = (time) => {
-      const progress = Math.min(1, (time - start) / CAMERA_TRANSITION_DURATION);
-      const eased = easeOutCubic(progress);
-      const value = startTheta + delta * eased;
-      applyTheta(value);
-      if (progress < 1) {
-        store.cameraAnimationId = requestAnimationFrame(step);
-      } else {
-        store.cameraAnimationId = null;
-      }
-    };
-
-    store.cameraAnimationId = requestAnimationFrame(step);
+    camera.position.copy(basis.position);
+    camera.up.copy(finalUp);
+    camera.lookAt(basis.position.clone().add(finalForward));
+    three.orientHumanCards?.();
   }, []);
-
-  const focusCameraOnSeat = useCallback(
-    (seatIndex, immediate = false) => {
-      if (typeof seatIndex !== 'number') return;
-      const store = threeRef.current;
-      if (!store?.seatGroups?.length) return;
-      const seat = store.seatGroups[seatIndex];
-      if (!seat?.forward) return;
-      const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
-      const desiredTheta = Math.PI / 2 - seatAngle;
-      moveCameraToTheta(desiredTheta, immediate);
-    },
-    [moveCameraToTheta]
-  );
-
-  const focusCameraOnActivePlayer = useCallback(
-    (state, immediate = false) => {
-      const currentState = state ?? gameStateRef.current;
-      if (!currentState) return;
-      const activeIdx = currentState.actionIndex;
-      if (typeof activeIdx !== 'number') return;
-      focusCameraOnSeat(activeIdx, immediate);
-    },
-    [focusCameraOnSeat]
-  );
-
-  useEffect(() => {
-    gameStateRef.current = gameState;
-    if (!threeRef.current?.camera) return;
-    focusCameraOnActivePlayer(gameState);
-  }, [gameState, focusCameraOnActivePlayer]);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -1461,27 +1360,32 @@ function TexasHoldemArena({ search }) {
 
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
     const seatLayout = createSeatLayout(PLAYER_COUNT);
+    const topSeat = seatLayout
+      .filter((seat) => !seat.isHuman)
+      .reduce((best, seat) => {
+        if (!best) return seat;
+        return seat.seatPos.z < best.seatPos.z ? seat : best;
+      }, null);
+    const seatTopPoint = topSeat ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight) : null;
     const seatGroups = [];
     const deckAnchor = DECK_POSITION.clone();
 
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
-
-    const baseTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
-    let cameraTarget = baseTarget.clone();
-    let initialPosition = camera.position.clone();
-    if (humanSeat) {
-      const portrait = mount.clientHeight > mount.clientWidth;
+    const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
+    const applySeatedCamera = (width, height) => {
+      if (!humanSeat) return;
+      const portrait = height > width;
       const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
       const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
       const elevation = portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape;
-      initialPosition = humanSeat.stoolAnchor
+      const position = humanSeat.stoolAnchor
         .clone()
         .addScaledVector(humanSeat.forward, -retreatOffset)
         .addScaledVector(humanSeat.right, lateralOffset);
       const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
-      initialPosition.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
-      const focusBase = baseTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
+      position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
+      const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
       const cardChipBlend = portrait ? PORTRAIT_CARD_CHIP_FOCUS_BLEND : 0.72;
       const focusForwardPull = portrait
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL
@@ -1495,76 +1399,35 @@ function TexasHoldemArena({ search }) {
         .lerp(humanSeat.chipAnchor, cardChipBlend)
         .addScaledVector(humanSeat.forward, -focusForwardPull);
       playerFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
-      cameraTarget = focusBase.lerp(playerFocus, focusBlend);
-    } else {
-      const portrait = mount.clientHeight > mount.clientWidth;
-      const cameraBackOffset = portrait ? 1.65 : 1.05;
-      const cameraForwardOffset = portrait ? 0.18 : 0.35;
-      const cameraHeightOffset = portrait ? 1.46 : 1.12;
-      const angle = Math.PI / 2;
-      initialPosition = new THREE.Vector3(
-        Math.cos(angle) * (CHAIR_RADIUS + cameraBackOffset - cameraForwardOffset),
-        TABLE_HEIGHT + cameraHeightOffset,
-        Math.sin(angle) * (CHAIR_RADIUS + cameraBackOffset - cameraForwardOffset)
+      const focus = focusBase.lerp(playerFocus, focusBlend);
+      camera.position.copy(position);
+      camera.lookAt(focus);
+      camera.updateMatrixWorld();
+      const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+      const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
+      const pitchLimits = computeCameraPitchLimits(position, baseForward, { seatTopPoint });
+      cameraBasisRef.current = {
+        position: position.clone(),
+        baseForward,
+        baseUp,
+        baseRight,
+        pitchLimits
+      };
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+        headAnglesRef.current.yaw,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
       );
-      cameraTarget = baseTarget.clone();
-    }
-
-    const initialOffset = initialPosition.clone().sub(cameraTarget);
-    const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    spherical.radius = THREE.MathUtils.clamp(
-      spherical.radius * ARENA_CAMERA_DEFAULTS.initialRadiusFactor,
-      CAMERA_SETTINGS.minRadius,
-      CAMERA_SETTINGS.maxRadius
-    );
-    spherical.phi = THREE.MathUtils.clamp(
-      spherical.phi,
-      ARENA_CAMERA_DEFAULTS.phiMin,
-      ARENA_CAMERA_DEFAULTS.phiMax
-    );
-    const storedSpherical = spherical.clone();
-    storedSpherical.theta = normalizeAngle(storedSpherical.theta);
-    updateCameraFromSpherical(camera, storedSpherical, cameraTarget, null);
-    const homeTheta = storedSpherical.theta;
-
-    const orbitControls = new OrbitControls(camera, renderer.domElement);
-    orbitControls.enableDamping = true;
-    orbitControls.target.copy(cameraTarget);
-    orbitControls.enablePan = false;
-    orbitControls.enableZoom = false;
-    orbitControls.enableRotate = false;
-    orbitControls.minPolarAngle = storedSpherical.phi;
-    orbitControls.maxPolarAngle = storedSpherical.phi;
-    orbitControls.minAzimuthAngle = homeTheta - CAMERA_HEAD_LIMIT;
-    orbitControls.maxAzimuthAngle = homeTheta + CAMERA_HEAD_LIMIT;
-    orbitControls.minDistance = storedSpherical.radius;
-    orbitControls.maxDistance = storedSpherical.radius;
-    orbitControls.rotateSpeed = 0.38;
-
-    const handleControlChange = () => {
-      const store = threeRef.current;
-      if (!store?.cameraTarget || !store.cameraSpherical || store.cameraAdjusting) return;
-      store.cameraAdjusting = true;
-      try {
-        const offset = camera.position.clone().sub(store.cameraTarget);
-        const current = new THREE.Spherical().setFromVector3(offset);
-        updateCameraFromSpherical(camera, current, store.cameraTarget, store);
-        store.cameraSpherical.theta = normalizeAngle(current.theta);
-        store.cameraSpherical.phi = current.phi;
-        store.cameraSpherical.radius = current.radius;
-        if (typeof store.cameraIdealRadius !== 'number') {
-          store.cameraIdealRadius = current.radius;
-        }
-        const actualRadius = store.cameraRadius ?? current.radius;
-        orbitControls.minDistance = actualRadius;
-        orbitControls.maxDistance = actualRadius;
-        orbitControls.update();
-      } finally {
-        store.cameraAdjusting = false;
-      }
-      store.orientHumanCards?.();
+      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+        headAnglesRef.current.pitch,
+        pitchLimits.min,
+        pitchLimits.max
+      );
+      applyHeadOrientation();
     };
-    orbitControls.addEventListener('change', handleControlChange);
+
+    applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
     const stoolTheme = DEFAULT_STOOL_THEME;
     const chairMaterial = createChairFabricMaterial(initialCloth, renderer);
@@ -1709,43 +1572,31 @@ function TexasHoldemArena({ search }) {
       });
     };
 
-    threeRef.current = {
-      renderer,
-      scene,
-      camera,
-      chipFactory,
-      cardGeometry,
-      faceCache,
-      seatGroups,
-      communityMeshes,
-      potStack,
-      deckAnchor,
-      raiseControls,
-      raycaster,
-      orientHumanCards,
-      orbitControls,
-      cameraTarget: cameraTarget.clone(),
-      cameraSpherical: storedSpherical,
-      cameraRadius: storedSpherical.radius,
-      cameraIdealRadius: storedSpherical.radius,
-      cameraPhi: storedSpherical.phi,
-      cameraHomeTheta: homeTheta,
-      cameraHeadLimit: CAMERA_HEAD_LIMIT,
-      cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
-      cameraAnimationId: null,
-      cameraAdjusting: false,
-      cameraChangeHandler: handleControlChange,
-      sharedMaterials: {
-        chair: chairMaterial,
-        leg: legMaterial
-      },
-      arenaGroup,
-      tableInfo,
-      cardThemeId: cardTheme.id
-    };
+      threeRef.current = {
+        renderer,
+        scene,
+        camera,
+        chipFactory,
+        cardGeometry,
+        faceCache,
+        seatGroups,
+        communityMeshes,
+        potStack,
+        deckAnchor,
+        raiseControls,
+        raycaster,
+        orientHumanCards,
+        frameId: null,
+        sharedMaterials: {
+          chair: chairMaterial,
+          leg: legMaterial
+        },
+        arenaGroup,
+        tableInfo,
+        cardThemeId: cardTheme.id
+      };
 
     orientHumanCards();
-    focusCameraOnActivePlayer(gameStateRef.current, true);
 
     const element = renderer.domElement;
     const getControls = () => threeRef.current?.raiseControls || null;
@@ -1798,15 +1649,17 @@ function TexasHoldemArena({ search }) {
         mode: null,
         startX: 0,
         startY: 0,
+        startYaw: 0,
+        startPitch: 0,
         buttonAction: null,
         dragged: false
       };
     };
 
     const handlePointerDown = (event) => {
+      event.preventDefault();
       const interactive = pickInteractive(event);
       if (interactive) {
-        event.preventDefault();
         const { target } = interactive;
         const type = target.userData?.type;
         if (type === 'button' && target.userData?.enabled === false) {
@@ -1820,6 +1673,8 @@ function TexasHoldemArena({ search }) {
           mode: type,
           startX: event.clientX,
           startY: event.clientY,
+          startYaw: headAnglesRef.current.yaw,
+          startPitch: headAnglesRef.current.pitch,
           buttonAction: target.userData?.action ?? null,
           dragged: false
         };
@@ -1831,8 +1686,19 @@ function TexasHoldemArena({ search }) {
         }
         return;
       }
-      resetPointerState();
-      element.style.cursor = 'grab';
+      pointerStateRef.current = {
+        active: true,
+        pointerId: event.pointerId,
+        mode: 'camera',
+        startX: event.clientX,
+        startY: event.clientY,
+        startYaw: headAnglesRef.current.yaw,
+        startPitch: headAnglesRef.current.pitch,
+        buttonAction: null,
+        dragged: false
+      };
+      element.setPointerCapture(event.pointerId);
+      element.style.cursor = 'grabbing';
     };
 
     const handlePointerMove = (event) => {
@@ -1848,6 +1714,23 @@ function TexasHoldemArena({ search }) {
         element.style.cursor = hit ? 'pointer' : 'grab';
         return;
       }
+      if (state.mode === 'camera') {
+        const dx = event.clientX - state.startX;
+        const dy = event.clientY - state.startY;
+        headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+          state.startYaw - dx * HEAD_YAW_SENSITIVITY,
+          -CAMERA_HEAD_TURN_LIMIT,
+          CAMERA_HEAD_TURN_LIMIT
+        );
+        const pitchLimits = getPitchLimits();
+        headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+          state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
+          pitchLimits.min,
+          pitchLimits.max
+        );
+        applyHeadOrientation();
+        return;
+      }
       if (state.mode === 'button' || state.mode === 'chip-button') {
         const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
         state.dragged = distance > 10;
@@ -1857,9 +1740,7 @@ function TexasHoldemArena({ search }) {
     const handlePointerUp = (event) => {
       const state = pointerStateRef.current;
       if (state.pointerId === event.pointerId) {
-        if (element.hasPointerCapture(event.pointerId)) {
-          element.releasePointerCapture(event.pointerId);
-        }
+        element.releasePointerCapture(event.pointerId);
         if (state.mode === 'button' && !state.dragged) {
           if (state.buttonAction === 'undo') {
             interactionsRef.current.onUndo?.();
@@ -1884,6 +1765,7 @@ function TexasHoldemArena({ search }) {
       r.setSize(clientWidth, clientHeight);
       cam.aspect = clientWidth / clientHeight;
       cam.updateProjectionMatrix();
+      applySeatedCamera(clientWidth, clientHeight);
     };
 
     window.addEventListener('resize', handleResize);
@@ -1891,8 +1773,7 @@ function TexasHoldemArena({ search }) {
     const animate = () => {
       const three = threeRef.current;
       if (!three) return;
-      three.orbitControls?.update();
-      three.orientHumanCards?.();
+      applyHeadOrientation();
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -1913,21 +1794,10 @@ function TexasHoldemArena({ search }) {
           chipFactory: factory,
           seatGroups: seats,
           communityMeshes: community,
-          raiseControls,
-          orbitControls: cameraControls,
-          cameraChangeHandler,
-          cameraAnimationId,
+          raiseControls: controls,
           sharedMaterials,
-          arenaGroup: arena,
-          tableInfo,
-          potStack: storedPot
+          arenaGroup: arena
         } = threeRef.current;
-        if (cameraAnimationId) {
-          cancelAnimationFrame(cameraAnimationId);
-        }
-        if (cameraControls && cameraChangeHandler) {
-          cameraControls.removeEventListener('change', cameraChangeHandler);
-        }
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
@@ -1960,11 +1830,10 @@ function TexasHoldemArena({ search }) {
           }
           s.remove(mesh);
         });
-        factory.disposeStack(storedPot);
+        factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
         arena?.parent?.remove(arena);
-        raiseControls?.dispose?.();
-        cameraControls?.dispose?.();
+        controls?.dispose?.();
         disposeChairMaterial(sharedMaterials?.chair);
         sharedMaterials?.leg?.dispose?.();
         tableInfo?.dispose?.();
