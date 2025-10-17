@@ -186,14 +186,14 @@ const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long ra
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.94; // tighten the side chrome to match the slimmer pocket openings
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.78; // trim the throat to align with the reduced side pocket span
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.82; // lower the notch height so the rail cut follows the new pocket edge
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.9; // pull the side chrome tighter so it hugs the smaller pocket openings
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.72; // trim the throat further to align with the reduced side pocket span
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.78; // lower the notch height so the rail cut follows the new pocket edge
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.54; // pull the centre chrome in so the plates follow the tighter side pocket
-const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.44; // pull the centre chrome in so the plates follow the tighter side pocket
+const RAIL_POCKET_CUT_SCALE = 0.94; // tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
   width,
@@ -425,7 +425,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 635;
 const CORNER_MOUTH_REF = 114;
 const SIDE_MOUTH_REF = 127;
-const SIDE_RAIL_INNER_REDUCTION = 0.82;
+const SIDE_RAIL_INNER_REDUCTION = 0.86;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
@@ -463,8 +463,8 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1.03; // open the corner pockets a touch more while keeping clear of the chrome
-const POCKET_SIDE_MOUTH_SCALE = 0.912; // tighten the middle pockets to match the previous corner mouth width
+const POCKET_CORNER_MOUTH_SCALE = 1.05; // open the corner pockets a bit more while keeping clear of the chrome
+const POCKET_SIDE_MOUTH_SCALE = 0.88; // tighten the middle pockets further to create smaller pocket mouths
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
