@@ -187,12 +187,14 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.76; // tighten the notch so the chrome blankets the side pocket cutouts
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.64; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.84; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders and bridges the rail cuts
+const CHROME_PLATE_THICKNESS_SCALE = 1.5; // deepen the chrome trim so it reads thicker than the stock build
+const CHROME_POCKET_BRIDGE_SCALE = 0.08; // extend chrome coverage over the pocket relief cuts on the rails
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3925,10 +3927,11 @@ function Table3D(
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
   const chromePlateBottomY = frameTopY + MICRO_EPS * 6; // tuck chrome plates just above the wooden rail base to avoid z-fighting
-  const chromePlateThickness = Math.max(
+  const chromePlateThicknessBase = Math.max(
     railH * 0.12,
     railsTopY - chromePlateBottomY
-  ); // stretch chrome plates downward so they span the full wooden rail thickness
+  );
+  const chromePlateThickness = chromePlateThicknessBase * CHROME_PLATE_THICKNESS_SCALE; // stretch chrome plates downward so they span the full wooden rail thickness with additional depth
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -3939,6 +3942,7 @@ function Table3D(
   const chromeCornerMeetX = Math.max(0, horizLen / 2);
   const bottomVerticalCenterZ =
     -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
+  const chromePocketBridge = TABLE.THICK * CHROME_POCKET_BRIDGE_SCALE;
   const chromeCornerMeetZ = Math.max(
     0,
     Math.abs(bottomVerticalCenterZ - trimmedVertSeg / 2)
@@ -3947,14 +3951,18 @@ function Table3D(
     0,
     Math.abs(bottomVerticalCenterZ + trimmedVertSeg / 2)
   );
-  const chromePlateExpansionX = Math.max(
-    0,
-    (chromePlateInnerLimitX - chromeCornerMeetX) * CHROME_CORNER_EXPANSION_SCALE
-  );
-  const chromePlateExpansionZ = Math.max(
-    0,
-    (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
-  );
+  const chromePlateExpansionX =
+    Math.max(
+      0,
+      (chromePlateInnerLimitX - chromeCornerMeetX) * CHROME_CORNER_EXPANSION_SCALE
+    ) +
+    chromePocketBridge;
+  const chromePlateExpansionZ =
+    Math.max(
+      0,
+      (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
+    ) +
+    chromePocketBridge * 0.5;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
@@ -3973,7 +3981,8 @@ function Table3D(
   const chromePlateY = chromePlateBottomY;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
+  const sidePlatePocketWidth =
+    sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE + chromePocketBridge * 1.5;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
@@ -3988,7 +3997,10 @@ function Table3D(
   );
   const sidePlateHeightByCushion = Math.max(
     MICRO_EPS,
-    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
+    Math.min(
+      sidePlateHalfHeightLimit + chromePocketBridge * 0.5,
+      sideChromeMeetZ + chromePocketBridge * 0.5
+    ) * 2
   );
   const sideChromePlateHeight = Math.min(
     chromePlateHeight * 0.94,
