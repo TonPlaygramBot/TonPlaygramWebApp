@@ -739,7 +739,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
-// angle for cushion cuts guiding balls into pockets
+// angle for cushion cuts guiding balls into pockets (WPA K-55 profile ≈32°)
 const CUSHION_CUT_ANGLE = 32;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
@@ -8796,6 +8796,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (table?.userData) {
         const cushionLip = table.userData.cushionTopLocal ?? TABLE.THICK;
         cushionHeightRef.current = Math.max(TABLE.THICK + 0.1, cushionLip - 0.02);
+        const tableSizeMeta = tableSizeRef.current;
+        if (tableSizeMeta) {
+          table.userData.officialSpec = {
+            id: tableSizeMeta.id,
+            playfield: tableSizeMeta.playfield,
+            ballDiameterMm: tableSizeMeta.ballDiameterMm,
+            pocketMouthMm: tableSizeMeta.pocketMouthMm,
+            cushionCutAngleDeg: tableSizeMeta.cushionCutAngleDeg,
+            cushionPocketAnglesDeg: tableSizeMeta.cushionPocketAnglesDeg
+          };
+        }
       }
       // ensure the camera respects the configured zoom limits
       sph.radius = clampOrbitRadius(sph.radius);
