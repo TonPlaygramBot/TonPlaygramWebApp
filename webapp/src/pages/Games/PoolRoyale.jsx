@@ -193,7 +193,7 @@ const CHROME_CORNER_EXPANSION_SCALE = 1.036; // tuck the chrome just shy of the 
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.998; // keep the short-rail chrome aligned without spilling over the cushion edge
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.92; // tighten the side arches so the chrome hugs the slimmer middle pocket openings
+const CHROME_SIDE_POCKET_RADIUS_SCALE = CHROME_CORNER_POCKET_RADIUS_SCALE; // match corner pocket arches so all chrome cutouts share one diameter
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82; // match the snooker side pocket throat profile
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // align the notch opening height with the snooker middle pockets
@@ -207,7 +207,7 @@ const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
-const RAIL_POCKET_CUT_SCALE = 0.93; // trim the wooden rail cutouts tighter so the wood hugs the pocket mouths without overhangs
+const RAIL_POCKET_CUT_SCALE = 1; // keep wooden rail cutouts the same size as the pocket geometry for consistent alignment
 
 function buildChromePlateGeometry({
   width,
@@ -478,10 +478,10 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = 1.005; // open the corner pockets a touch more while keeping clear of the chrome
-const POCKET_SIDE_MOUTH_TIGHTEN = 0.94; // shrink the middle pocket mouth slightly so it reads tighter than regulation
+const POCKET_SIDE_MOUTH_TIGHTEN = 1; // mirror the corner pocket mouth so all six pockets share the same opening
 const POCKET_SIDE_MOUTH_SCALE =
   ((CORNER_MOUTH_REF * POCKET_CORNER_MOUTH_SCALE) / SIDE_MOUTH_REF) *
-  POCKET_SIDE_MOUTH_TIGHTEN; // keep side pockets slimmer than the corners so the middle pockets feel more challenging
+  POCKET_SIDE_MOUTH_TIGHTEN; // keep side pockets identical to the corners by reusing the corner mouth diameter
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
