@@ -70,7 +70,7 @@ const AI_CHAIR_GAP = CARD_W * 0.4;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
-const MAX_PLAYER_COUNT = 6;
+const MAX_PLAYER_COUNT = 7;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
@@ -610,7 +610,9 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   if (safeCount <= 0) {
     return layout;
   }
-  const useCardinal = Boolean(options?.useCardinal);
+  const cardinalForDiamond =
+    tableInfo?.shapeId === DIAMOND_SHAPE_ID && safeCount > 0 && safeCount <= 4;
+  const useCardinal = Boolean(options?.useCardinal) || cardinalForDiamond;
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
@@ -1972,6 +1974,7 @@ function TexasHoldemArena({ search }) {
         previewStack,
         nameplate,
         turnToken,
+        labelOffset: { ...seat.labelOffset },
         forward: seat.forward.clone(),
         right: seat.right.clone(),
         cardAnchor: seat.cardAnchor.clone(),
@@ -2189,6 +2192,9 @@ function TexasHoldemArena({ search }) {
       }
       if (state.mode === 'camera') {
         const dx = event.clientX - state.startX;
+        if (!state.dragged && Math.abs(dx) > 3) {
+          state.dragged = true;
+        }
         headAnglesRef.current.yaw = THREE.MathUtils.clamp(
           state.startYaw - dx * HEAD_YAW_SENSITIVITY,
           -CAMERA_HEAD_TURN_LIMIT,
@@ -2212,6 +2218,8 @@ function TexasHoldemArena({ search }) {
       const state = pointerStateRef.current;
       if (state.pointerId === event.pointerId) {
         element.releasePointerCapture(event.pointerId);
+        const wasCameraDrag = state.mode === 'camera' && state.dragged;
+        const releaseYaw = headAnglesRef.current.yaw;
         if (state.mode === 'button' && !state.dragged) {
           if (state.buttonAction === 'undo') {
             interactionsRef.current.onUndo?.();
@@ -2220,10 +2228,14 @@ function TexasHoldemArena({ search }) {
         resetPointerState();
         element.style.cursor = 'grab';
         applyHoverTarget(null);
-        const currentActionIndex = gameStateRef.current?.actionIndex;
-        const stage = gameStateRef.current?.stage;
-        if (typeof currentActionIndex === 'number' && stage !== 'showdown') {
-          updateCameraAutoTarget(currentActionIndex);
+        if (wasCameraDrag) {
+          cameraAutoTargetRef.current = { yaw: releaseYaw, activeIndex: null };
+        } else {
+          const currentActionIndex = gameStateRef.current?.actionIndex;
+          const stage = gameStateRef.current?.stage;
+          if (typeof currentActionIndex === 'number' && stage !== 'showdown') {
+            updateCameraAutoTarget(currentActionIndex);
+          }
         }
       }
     };
