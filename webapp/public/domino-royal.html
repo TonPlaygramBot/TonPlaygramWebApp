@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
@@ -25,27 +25,27 @@
 <body>
 <div id="app"></div>
 <div id="status" role="status">Ready</div>
-<button id="btnRules" type="button" aria-label="Rregulla" title="Rregulla">
+<button id="btnRules" type="button" aria-label="Rules" title="Rules">
   <span aria-hidden="true">ℹ️</span>
 </button>
-<div id="railControls" aria-label="Kontrollet e lojës">
-  <button id="draw" type="button">Tërhiq</button>
-  <button id="pass" type="button">Kalo</button>
+<div id="railControls" aria-label="Game controls">
+  <button id="draw" type="button">Draw</button>
+  <button id="pass" type="button">Pass</button>
 </div>
 <div id="rules">
   <div class="card">
-    <h2>Domino Shqiptare — Rregulla për 2–4 lojtarë</h2>
+    <h2>Domino Royal — Rules for 2–4 players</h2>
     <ol>
-      <li><b>Set:</b> Double-Six (28 gurë, 0–6). Çdo gur unik (a,b) me a≤b. Dublikatat nuk lejohen.</li>
-      <li><b>Shpërndarja:</b> 7 gurë secili. Pjesa tjetër = <i>stok</i> (boneyard).</li>
-      <li><b>Nisja:</b> Kush ka dopion më të lartë nis. Në mungesë dopios, nis ai me gurin më të lartë.</li>
-      <li><b>Vënia në tavolinë:</b> Gjarpër horizontal mbi rrobën jeshile; vetëm dopiot vendosen vertikalisht. Kur afrohet skaji, kthehet 90° brenda fushës.</li>
-      <li><b>Përputhja:</b> Skaji i lirë duhet të përputhet në vlerë. Dopio pranon nga të dyja anët të njëjtën vlerë.</li>
-      <li><b>Nëse s’ke lojë:</b> Tërhiq nga stok-u derisa të kesh lojë. Nëse stok-u mbaron, kalon rradha.</li>
-      <li><b>Mbyllja:</b> Fiton ai që mbaron i pari ose kur loja bllokohet – fiton ai me shumën më të ulët të pikëve në dorë.</li>
+      <li><b>Set:</b> Double-Six (28 tiles, 0–6). Each tile is unique (a,b) with a≤b. No duplicates.</li>
+      <li><b>Dealing:</b> 7 tiles per player. The rest form the <i>stock</i> (boneyard).</li>
+      <li><b>Opening:</b> The player with the highest double starts. If no double, the highest tile opens.</li>
+      <li><b>On the table:</b> Build a horizontal chain across the green cloth. Only doubles stand vertically. At the cloth edges, pivot and keep the chain running horizontally.</li>
+      <li><b>Matching:</b> Free ends must match in value. Doubles accept the same value on both sides.</li>
+      <li><b>No move?</b> Draw from the stock until you can play. If the stock is empty, pass.</li>
+      <li><b>Ending:</b> The winner is the first out. If play is blocked, the lowest pip total wins.</li>
     </ol>
     <div class="row">
-      <button id="closeRules">Mbyll</button>
+      <button id="closeRules">Close</button>
     </div>
   </div>
 </div>
@@ -877,17 +877,29 @@ function startGame(){
   players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
   boneyard=shuffle(genSet());
   for(let r=0;r<7;r++) players.forEach(p=>p.hand.push(boneyard.pop()));
-  players.forEach(p=> shuffle(p.hand)); // random order çdo lojë
+  players.forEach(p=> shuffle(p.hand)); // random order every game
   renderHands();
   let starter=0, idx=-1, bestD=-1;
   players.forEach((p,pi)=>{ const i=highestDoubleIndex(p.hand); if(i>=0 && p.hand[i].a>bestD){ bestD=p.hand[i].a; starter=pi; idx=i; } });
   if(idx<0){ idx=0; }
   const t=players[starter].hand.splice(idx,1)[0];
-  chain.push({tile:t,x:0,z:0,rot:0});
+  const firstTile=canonTile(t) || t;
+  const firstRot = (firstTile.a===firstTile.b) ? Math.PI/2 : 0;
+  chain.push({tile:firstTile,x:0,z:0,rot:firstRot});
   const step=.10;
-  if(!flipDir){ ends={ L:{v:t.a,x:-step,z:0,dir:[-1,0]}, R:{v:t.b,x: step,z:0,dir:[ 1,0]} }; }
-  else        { ends={ L:{v:t.a,x: step,z:0,dir:[ 1,0]}, R:{v:t.b,x:-step,z:0,dir:[-1,0]} }; }
-  renderChain(); current=(starter+1)%N; setStatus(`Rradha: Lojtari ${current+1}`); updateInteractivity();
+  if(!flipDir){
+    ends={
+      L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
+      R:{v:firstTile.b,x: step,z:0,dir:[ 1,0],orient:0}
+    };
+  }
+  else{
+    ends={
+      L:{v:firstTile.a,x: step,z:0,dir:[ 1,0],orient:0},
+      R:{v:firstTile.b,x:-step,z:0,dir:[-1,0],orient:Math.PI}
+    };
+  }
+  renderChain(); current=(starter+1)%N; setStatus(`Turn: Player ${current+1}`); updateInteractivity();
 }
 
 /* ---------- Placement & Snake ---------- */
@@ -900,14 +912,33 @@ function placeOnBoard(tile, side){
   const end=(side<0?ends.L:ends.R); const want=end.v;
   let a=tile.a,b=tile.b; if(a!==want && b===want){ [a,b]=[b,a]; }
   if(a!==want){ return false; }
-  let [dx,dz]=end.dir; let ang=Math.atan2(dz,dx);
+  let [dx,dz]=end.dir;
   let nx=end.x+dx*STEP, nz=end.z+dz*STEP;
-  // kufijtë e fushës katrore
-  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; ang=Math.atan2(dz,dx); nx=end.x+dx*STEP; nz=end.z+dz*STEP; }
-  let rot=ang; if(a===b) rot+=Math.PI/2; // dopio vertikale
-  chain.push({tile:canonTile({a,b}),x:nx,z:nz,rot});
+  // table bounds (square)
+  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; nx=end.x+dx*STEP; nz=end.z+dz*STEP; }
+  const isDouble=(a===b);
+  let rot;
+  if(isDouble){
+    rot=Math.PI/2;
+  } else if(Math.abs(dx)>=Math.abs(dz)){
+    rot=(dx>=0)?0:Math.PI;
+  } else {
+    rot=end.orient ?? 0;
+  }
+  const placedTile=canonTile({a,b}) || {a,b};
+  chain.push({tile:placedTile,x:nx,z:nz,rot});
   const newVal=(side<0? b : a);
-  if(side<0) ends.L={v:newVal,x:nx,z:nz,dir:[dx,dz]}; else ends.R={v:newVal,x:nx,z:nz,dir:[dx,dz]};
+  let nextOrient;
+  if(Math.abs(dx)>=Math.abs(dz)){
+    nextOrient=(dx>=0)?0:Math.PI;
+  } else {
+    nextOrient=end.orient ?? rot;
+  }
+  if(isDouble && Math.abs(dx)<Math.abs(dz)){
+    nextOrient=end.orient ?? 0;
+  }
+  const updatedEnd={v:newVal,x:nx,z:nz,dir:[dx,dz],orient:nextOrient};
+  if(side<0) ends.L=updatedEnd; else ends.R=updatedEnd;
   renderChain(); SFX.place.currentTime=0; SFX.place.play();
   return true;
 }
@@ -933,7 +964,7 @@ const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
 }
-function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; showMarkersFor(tile); setStatus('Zgjidh skajin (tap marker)'); }
+function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
 
 renderer.domElement.addEventListener('pointerdown',ev=>{
   // FIX: përdor madhësinë e saktë të canvas-it (rect) për koordinatat NDC
@@ -966,18 +997,18 @@ function blockedAndWinner(){
   const nobodyCan = players.every(p=> !canPlayAny(p.hand));
   if(nobodyCan && boneyard.length===0){
     let best=Infinity, win=-1; players.forEach((p,pi)=>{ const s=pipSum(p.hand); if(s<best){best=s;win=pi;} });
-    return {blocked:true, winner:win, reason:`Bllokuar. Dora më e ulët = Lojtari ${win+1} (${best})`};
+    return {blocked:true, winner:win, reason:`Blocked. Lowest hand = Player ${win+1} (${best})`};
   }
   return null;
 }
 
 function updateInteractivity(){
   const blk = blockedAndWinner(); if(blk){ setStatus(blk.reason); return; }
-  setStatus(`Rradha: Lojtari ${current+1}`);
+  setStatus(`Turn: Player ${current+1}`);
   renderHands(); renderChain();
 }
 function nextTurn(){
-  if(players[human].hand.length===0){ setStatus('Fitove!'); return; }
+  if(players[human].hand.length===0){ setStatus('You won!'); return; }
   current=(current+1)%N; const blk = blockedAndWinner(); if(blk){ setStatus(blk.reason); return; }
   updateInteractivity(); if(current!==human) setTimeout(cpuPlay,450);
 }
@@ -987,7 +1018,7 @@ function cpuPlay(){
     for(let i=0;i<p.hand.length;i++){ const t=p.hand[i]; if(!isValidTile(t)) continue; if(t.a===ends.L.v||t.b===ends.L.v){ playable=i; side=-1; break;} if(t.a===ends.R.v||t.b===ends.R.v){ playable=i; side=1; break;} }
   } else { playable=0; }
   if(playable<0){ if(boneyard.length){ const d=boneyard.pop(); if(isValidTile(d)) p.hand.push(d); renderHands(); SFX.draw.currentTime=0; SFX.draw.play(); setTimeout(cpuPlay,350); return;} nextTurn(); return; }
-  const tile=p.hand.splice(playable,1)[0]; placeOnBoard(tile, side); renderHands(); if(p.hand.length===0){ setStatus(`Lojtari ${current+1} fitoi!`); return;} nextTurn();
+  const tile=p.hand.splice(playable,1)[0]; placeOnBoard(tile, side); renderHands(); if(p.hand.length===0){ setStatus(`Player ${current+1} won!`); return;} nextTurn();
 }
 
 /* ---------- Rules panel handlers ---------- */
@@ -996,20 +1027,20 @@ closeRules.addEventListener('click',()=>{ panelRules.style.display='none'; });
 panelRules.addEventListener('click',(e)=>{ if(e.target===panelRules) panelRules.style.display='none'; });
 
 /* ---------- Mini tests (console) ---------- */
-console.assert(document.getElementById('draw') && document.getElementById('pass'), 'UI buttons ekzistojnë');
+console.assert(document.getElementById('draw') && document.getElementById('pass'), 'UI buttons exist');
 (()=>{ const s=genSet(); const key=t=>`${t.a},${t.b}`; const uniq=new Set(s.map(key));
-  console.assert(s.length===28 && uniq.size===28,'double-six: 28 unik');
-  console.assert(s.some(t=>t.a===0&&t.b===0) && s.some(t=>t.a===6&&t.b===6),'set përmban 00 dhe 66');
-  console.assert(s.every(t=>t.a>=0 && t.b>=0 && t.a<=6 && t.b<=6 && t.a<=t.b),'vlera në rang dhe të renditura');
+  console.assert(s.length===28 && uniq.size===28,'double-six: 28 unique');
+  console.assert(s.some(t=>t.a===0&&t.b===0) && s.some(t=>t.a===6&&t.b===6),'set contains 00 and 66');
+  console.assert(s.every(t=>t.a>=0 && t.b>=0 && t.a<=6 && t.b<=6 && t.a<=t.b),'values in range and sorted');
 })();
 (()=>{ const ct1=canonTile({a:6,b:2}); const ct2=canonTile({a:2,b:6});
-  console.assert(ct1.a===2 && ct1.b===6 && ct2.a===2 && ct2.b===6,'canonTile simetrik dhe idempotent');
+  console.assert(ct1.a===2 && ct1.b===6 && ct2.a===2 && ct2.b===6,'canonTile symmetric and idempotent');
 })();
 (()=>{ const bad1=canonTile({a:-1,b:3}); const bad2=canonTile({a:9,b:1});
-  console.assert(bad1===null && bad2===null,'canonTile refuzon vlera jashtë rangut');
+  console.assert(bad1===null && bad2===null,'canonTile rejects out-of-range values');
 })();
-(()=>{ const m=makeDomino(6,6,{flat:true,faceUp:true}); const anyRing=m.children.some(ch=>ch.geometry?.type==='RingGeometry'); console.assert(anyRing,'perimeter/pip rings ekzistojnë (flat)'); })();
-(()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pikat ekzistojnë'); })();
+(()=>{ const m=makeDomino(6,6,{flat:true,faceUp:true}); const anyRing=m.children.some(ch=>ch.geometry?.type==='RingGeometry'); console.assert(anyRing,'perimeter/pip rings exist (flat)'); })();
+(()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pips exist'); })();
 
 /* ---------- Loop & Resize ---------- */
 function tick(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick);} tick();
