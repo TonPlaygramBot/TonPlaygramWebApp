@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 <title>Domino Royal 3D</title>
 <style>
-  :root{ --hud-safe: env(safe-area-inset-bottom, 0px); }
   html,body{margin:0;height:100%;background:#ece6dc;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   #app{position:fixed;inset:0; width:100dvw; height:100dvh;}
   canvas{display:block; width:100dvw !important; height:100dvh !important; touch-action:none}
-  #hud{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:.5rem;padding:calc(.5rem + var(--hud-safe)) 1rem .5rem 1rem;pointer-events:auto; z-index:2}
-  .bar{background:#1a5e2a;color:#fff;border-radius:12px;box-shadow:0 3px 0 #0d3619;padding:.4rem .6rem;display:flex;gap:.5rem;align-items:center}
-  select,button{font-weight:700;border:0;border-radius:10px;padding:.45rem .7rem}
-  select{background:#0e3c20;color:#fff}
-  button{background:#ffd24a;color:#333}
-  #status{position:fixed;top:.5rem;left:50%;transform:translateX(-50%);padding:.35rem .6rem;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2}
+  button{font-weight:700;border:0;border-radius:999px;padding:.45rem .7rem;background:#ffd24a;color:#333;box-shadow:0 4px 12px rgba(0,0,0,.25);}
+  button:active{transform:translateY(1px);}
+  #status{position:fixed;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);padding:.35rem .75rem;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2;backdrop-filter:blur(6px);}
+  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(3.8rem, 18vh, 9.5rem));transform:translateX(-50%);display:flex;gap:.75rem;align-items:center;background:rgba(64,42,20,.88);color:#fff;border-radius:999px;padding:.55rem .9rem;box-shadow:0 14px 30px rgba(0,0,0,.45);z-index:2;pointer-events:auto;}
+  #railControls button{background:#ffd24a;color:#3b250f;min-width:5.2rem;font-size:1rem;padding:.55rem 1.05rem;}
+  #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
+  #btnRules span{pointer-events:none;}
   #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3}
   #rules .card{max-width:720px;background:#fff;color:#222;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:16px 18px}
   #rules h2{margin:0 0 6px 0;font-size:18px}
@@ -24,20 +24,13 @@
 </head>
 <body>
 <div id="app"></div>
-<div id="status">Ready</div>
-<div id="hud">
-  <div class="bar">
-    <span>Lojtarë</span>
-    <select id="players">
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4" selected>4</option>
-    </select>
-    <button id="start">Start</button>
-    <button id="draw" disabled>Tërhiq</button>
-    <button id="pass" disabled>Kalo</button>
-    <button id="btnRules">Rregulla</button>
-  </div>
+<div id="status" role="status">Ready</div>
+<button id="btnRules" type="button" aria-label="Rregulla" title="Rregulla">
+  <span aria-hidden="true">ℹ️</span>
+</button>
+<div id="railControls" aria-label="Kontrollet e lojës">
+  <button id="draw" type="button">Tërhiq</button>
+  <button id="pass" type="button">Kalo</button>
 </div>
 <div id="rules">
   <div class="card">
@@ -686,6 +679,7 @@ const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
     chair.position.copy(pos);
     tableG.add(chair);
     chair.lookAt(lookTargetWorld);
+    chair.rotateY(Math.PI);
   });
 }
 
@@ -800,21 +794,20 @@ function makeDomino(a,b,{flat=true, faceUp=true}={}){
 
 /* ---------- Game State ---------- */
 const statusEl = document.getElementById('status');
-const btnStart = document.getElementById('start');
 const btnDraw = document.getElementById('draw');
 const btnPass = document.getElementById('pass');
-const selPlayers = document.getElementById('players');
 const btnRules = document.getElementById('btnRules');
 const panelRules = document.getElementById('rules');
 const closeRules = document.getElementById('closeRules');
 
+let statusPrefix = '';
 let N = 4; let players = []; let boneyard = []; let chain = [];
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
 let flipDir = false; // alterno drejtimin e zinxhirit pas çdo loje
 
-function setStatus(t){ statusEl.textContent = t; }
+function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t; }
 
 function genSet(){ const set=[]; for(let a=0;a<=6;a++){ for(let b=a;b<=6;b++){ set.push({a,b}); } } return set; }
 function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
@@ -822,21 +815,14 @@ function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(
 const urlParams = new URLSearchParams(window.location.search);
 const requestedPlayers = Number.parseInt(urlParams.get('players') || urlParams.get('playerCount') || '', 10);
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
-  selPlayers.value = String(requestedPlayers);
+  N = requestedPlayers;
 }
-N = Number.parseInt(selPlayers.value, 10) || 4;
 const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
 const stakeToken = urlParams.get('token') || 'TPC';
 if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
-  setStatus(`Ready — Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`);
+  statusPrefix = `Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`;
+  setStatus('Ready');
 }
-
-selPlayers.addEventListener('change', () => {
-  const value = Number.parseInt(selPlayers.value, 10);
-  if (Number.isFinite(value)) {
-    N = Math.max(2, Math.min(4, value));
-  }
-});
 
 function layoutSeat(idx){
   const EDGE = IN_HW;  const MARGIN = 0.04;
@@ -886,7 +872,9 @@ function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
 function startGame(){
   chain=[]; ends=null; selectedTile=null; clearMarkers();
   flipDir = !flipDir;
-  N=parseInt(selPlayers.value,10); players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
+  const numericN = Number.isFinite(N) ? Math.round(N) : 4;
+  N = Math.max(2, Math.min(4, numericN));
+  players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
   boneyard=shuffle(genSet());
   for(let r=0;r<7;r++) players.forEach(p=>p.hand.push(boneyard.pop()));
   players.forEach(p=> shuffle(p.hand)); // random order çdo lojë
@@ -901,8 +889,6 @@ function startGame(){
   else        { ends={ L:{v:t.a,x: step,z:0,dir:[ 1,0]}, R:{v:t.b,x:-step,z:0,dir:[-1,0]} }; }
   renderChain(); current=(starter+1)%N; setStatus(`Rradha: Lojtari ${current+1}`); updateInteractivity();
 }
-
-btnStart.addEventListener('click',()=>{ btnDraw.disabled=false; btnPass.disabled=false; startGame(); });
 
 /* ---------- Placement & Snake ---------- */
 const STEP=.10;
@@ -973,6 +959,8 @@ btnDraw.addEventListener('click',()=>{ if(current!==human) return;
 });
 btnPass.addEventListener('click',()=>{ if(current===human){ clearMarkers(); selectedTile=null; nextTurn(); }});
 
+startGame();
+
 function blockedAndWinner(){
   if(!ends) return null;
   const nobodyCan = players.every(p=> !canPlayAny(p.hand));
@@ -1008,7 +996,7 @@ closeRules.addEventListener('click',()=>{ panelRules.style.display='none'; });
 panelRules.addEventListener('click',(e)=>{ if(e.target===panelRules) panelRules.style.display='none'; });
 
 /* ---------- Mini tests (console) ---------- */
-console.assert(document.getElementById('start') && document.getElementById('draw') && document.getElementById('pass'), 'UI buttons ekzistojnë');
+console.assert(document.getElementById('draw') && document.getElementById('pass'), 'UI buttons ekzistojnë');
 (()=>{ const s=genSet(); const key=t=>`${t.a},${t.b}`; const uniq=new Set(s.map(key));
   console.assert(s.length===28 && uniq.size===28,'double-six: 28 unik');
   console.assert(s.some(t=>t.a===0&&t.b===0) && s.some(t=>t.a===6&&t.b===6),'set përmban 00 dhe 66');
