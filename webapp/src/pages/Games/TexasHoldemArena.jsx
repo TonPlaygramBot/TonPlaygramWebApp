@@ -70,7 +70,7 @@ const AI_CHAIR_GAP = CARD_W * 0.4;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
-const MAX_PLAYER_COUNT = 7;
+const MAX_PLAYER_COUNT = 6;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
@@ -347,6 +347,38 @@ function buildCardinalSeatAngles(count) {
   }
 }
 
+function buildClassicOctagonAngles(count) {
+  if (!Number.isFinite(count) || count <= 0) {
+    return [];
+  }
+  const safeCount = Math.max(1, Math.floor(count));
+  const slotAngles = [
+    (3 * Math.PI) / 8,
+    Math.PI / 8,
+    -Math.PI / 8,
+    (-3 * Math.PI) / 8,
+    (-5 * Math.PI) / 8,
+    (-7 * Math.PI) / 8,
+    (7 * Math.PI) / 8,
+    (5 * Math.PI) / 8
+  ];
+  // Skip the two slots that sit immediately to the human player's left and right
+  // so opponents remain on the flat edges in front of the user.
+  const preferredSlots = [0, 2, 3, 4, 5, 6];
+  const angles = [];
+  for (let i = 0; i < safeCount; i += 1) {
+    const slotIndex = preferredSlots[i];
+    if (slotIndex == null) {
+      const fallbackAngle =
+        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
+      angles.push(fallbackAngle);
+    } else {
+      angles.push(slotAngles[slotIndex]);
+    }
+  }
+  return angles;
+}
+
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
@@ -614,9 +646,11 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     tableInfo?.shapeId === DIAMOND_SHAPE_ID && safeCount > 0 && safeCount <= 4;
   const useCardinal = Boolean(options?.useCardinal) || cardinalForDiamond;
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
+  const classicAngles =
+    tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
-    const angle = cardinalAngles?.[i] ?? baseAngle;
+    const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
