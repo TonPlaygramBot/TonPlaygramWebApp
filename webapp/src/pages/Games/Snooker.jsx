@@ -195,8 +195,8 @@ const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.99; // gently shrink chrome plates along the long rails
-const CHROME_CORNER_HEIGHT_SCALE = 0.99; // gently shrink chrome plates along the short rails
+const CHROME_CORNER_WIDTH_SCALE = 1.01; // extend chrome plates slightly farther along the long rails for fuller coverage
+const CHROME_CORNER_HEIGHT_SCALE = 1.01; // extend chrome plates slightly farther along the short rails for fuller coverage
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -3853,7 +3853,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
+  const chromePlateThickness = railH * 0.16; // deepen chrome plates so they wrap the rail sides and pocket cuts
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);

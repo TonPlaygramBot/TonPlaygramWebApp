@@ -189,8 +189,8 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the short rails while keeping the plates clear of the pocket entries
+const CHROME_CORNER_EXPANSION_SCALE = 1.08; // push the chrome slightly farther along the long rails so the plates hug the cushions
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.01; // nudge the chrome farther along the short rails for better pocket coverage
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -204,7 +204,7 @@ const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim t
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
 const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.02; // align the side plate inset with the snooker chrome placement
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.02; // push the middle chrome slightly farther so it wraps the rail sides
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.045; // extend the center trim span so the chrome fully blankets the rail caps
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.012; // widen the side plates a touch toward each pocket for better coverage
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
@@ -3948,7 +3948,7 @@ function Table3D(
     0,
     railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
   ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = railH * 0.12; // corner chrome thickness matches the current trim profile
+  const chromePlateThickness = railH * 0.16; // deepen the corner chrome so it blankets the rail sides and pocket cuts
   const sideChromePlateThickness = Math.min(
     railH * 0.92,
     Math.max(chromePlateThickness, chromePocketCoverageDepth)
