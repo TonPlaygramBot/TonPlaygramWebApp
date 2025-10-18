@@ -109,6 +109,39 @@ function scaleShape2D(shape, scaleX, scaleY, divisions = 64) {
   return scaledShape;
 }
 
+function getShapeOutlinePoints(shape, divisions = 128) {
+  if (!shape?.extractPoints) return [];
+  const pointsData = shape.extractPoints(divisions);
+  const outline = pointsData?.shape ?? [];
+  return outline.map((pt) => new THREE.Vector2(pt.x, pt.y));
+}
+
+function createDirectionalRadiusSampler(points, fallbackRadius) {
+  const usablePoints = Array.isArray(points) && points.length > 0 ? points : null;
+  return (direction) => {
+    const dir = direction instanceof THREE.Vector3
+      ? new THREE.Vector2(direction.x, direction.z)
+      : direction instanceof THREE.Vector2
+        ? direction.clone()
+        : new THREE.Vector2(direction?.x ?? 0, direction?.y ?? 0);
+    if (dir.lengthSq() === 0) {
+      return fallbackRadius;
+    }
+    dir.normalize();
+    let max = -Infinity;
+    usablePoints?.forEach((pt) => {
+      const projection = pt.dot(dir);
+      if (projection > max) {
+        max = projection;
+      }
+    });
+    if (!Number.isFinite(max) || max <= 0) {
+      return fallbackRadius;
+    }
+    return max;
+  };
+}
+
 export const TABLE_SHAPE_OPTIONS = Object.freeze([
   {
     id: 'classicOctagon',
@@ -140,28 +173,13 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'executiveCapsule',
-    label: 'Kapsul Ekzekutive',
-    preview: {
-      borderRadius: '50% / 60%'
-    },
-    createShapes: ({ radius }) => {
-      const width = radius * 2.25;
-      const height = radius * 1.2;
-      const topShape = createRoundedRectangleShape(width, height, height * 0.45, 24);
-      const feltShape = createRoundedRectangleShape(width * 0.8, height * 0.82, height * 0.35, 24);
-      const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
-      return { topShape, feltShape, rimInnerShape };
-    }
-  },
-  {
     id: 'diamondEdge',
     label: 'Diamant Edge',
     preview: {
       clipPath: 'polygon(50% 0%, 80% 20%, 100% 50%, 80% 80%, 50% 100%, 20% 80%, 0% 50%, 20% 20%)'
     },
     createShapes: ({ radius }) => {
-      const topShape = createDiamondShape(radius * 2.1, radius * 1.55);
+      const topShape = createDiamondShape(radius * 2.73, radius * 1.55);
       const feltShape = createDiamondShape(radius * 1.55, radius * 1.15);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
       return { topShape, feltShape, rimInnerShape };
@@ -400,6 +418,11 @@ export function createMurlanStyleTable({
   const feltRadius = shapeData?.feltRadius ?? tableRadius * (0.72 / 0.9);
   const curveSegments = Math.max(1, Math.round((shapeOption?.curveSegments ?? 32) / 4));
 
+  const outerOutline = getShapeOutlinePoints(topShape, curveSegments * 8);
+  const innerOutline = getShapeOutlinePoints(rimInnerShape, curveSegments * 8);
+  const outerRadiusSampler = createDirectionalRadiusSampler(outerOutline, tableRadius);
+  const innerRadiusSampler = createDirectionalRadiusSampler(innerOutline, feltRadius);
+
   const tableGroup = new ThreeNamespace.Group();
   const topGeometry = new ThreeNamespace.ExtrudeGeometry(topShape, {
     depth: woodDepth,
@@ -491,7 +514,19 @@ export function createMurlanStyleTable({
     feltRadius,
     dispose,
     materials: tableParts,
-    shapeId: shapeOption?.id || 'classicOctagon'
+    shapeId: shapeOption?.id || 'classicOctagon',
+    getOuterRadius: (direction) => outerRadiusSampler(direction),
+    getInnerRadius: (direction) => {
+      const outer = outerRadiusSampler(direction);
+      const inner = innerRadiusSampler(direction);
+      if (!Number.isFinite(inner) || inner <= 0) {
+        return outer * 0.85;
+      }
+      if (inner >= outer) {
+        return outer * 0.85;
+      }
+      return inner;
+    }
   };
 }
 
