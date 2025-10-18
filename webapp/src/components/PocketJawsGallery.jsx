@@ -154,36 +154,11 @@ function createPocketJaw(style, materials) {
   const rimOuter = lipRadius;
   const tube = Math.max(0.004 * scale, (rimOuter - rimInner) * 0.5);
   const major = (rimOuter + rimInner) * 0.5;
-  const rimCenterY = 0.06 * scale + tube;
-  const rimSegments = 72;
-  const rimRingSegments = 28;
-  const rimPts = [];
-  for (let i = 0; i <= rimRingSegments; i += 1) {
-    const theta = (i / rimRingSegments) * Math.PI * 2;
-    const x = major + tube * Math.cos(theta);
-    const y = rimCenterY + tube * Math.sin(theta);
-    rimPts.push(new THREE.Vector2(x, y));
-  }
-  const rimGeo = new THREE.LatheGeometry(rimPts, rimSegments, 0, Math.PI);
-  rimGeo.computeVertexNormals();
+  const rimGeo = new THREE.TorusGeometry(major, tube, 22, 96, Math.PI);
   const rim = new THREE.Mesh(rimGeo, materials.rim);
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.06 * scale;
   group.add(rim);
-  const coverInner = Math.min(rimOuter - tube * 0.25, rimInner + tube * 0.85);
-  const coverOuter = rimOuter - Math.max(tube * 0.25, 0.004 * scale);
-  if (coverOuter > coverInner + 1e-4) {
-    const coverLift = 0.04 * scale;
-    const coverThickness = Math.max(0.012 * scale, tube * 1.1);
-    const coverPts = [
-      new THREE.Vector2(coverInner, coverLift),
-      new THREE.Vector2(coverOuter, coverLift),
-      new THREE.Vector2(coverOuter, coverLift - coverThickness),
-      new THREE.Vector2(coverInner, coverLift - coverThickness)
-    ];
-    const coverGeo = new THREE.LatheGeometry(coverPts, rimSegments, 0, Math.PI);
-    coverGeo.computeVertexNormals();
-    const coverMesh = new THREE.Mesh(coverGeo, materials.rim);
-    group.add(coverMesh);
-  }
   const baseR = rimOuter + 0.02 * scale;
   const plate = new THREE.Mesh(
     new THREE.CylinderGeometry(baseR, baseR, 0.03 * scale, 48, 1, false, 0, Math.PI),
