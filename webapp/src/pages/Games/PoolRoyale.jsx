@@ -223,6 +223,8 @@ const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
+const CHROME_CORNER_PLATE_THICKNESS_SCALE = 1.02; // drop the corner chrome deep enough to blanket the rail sides and pocket cuts
+const CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE = 1.05; // let the side chrome wrap past the rail midline without floating above the wood
 const RAIL_POCKET_CUT_SCALE = 0.965; // tighten the wooden rail pocket cuts a touch more so the wood fully wraps the pocket mouths
 
 function buildChromePlateGeometry({
@@ -4017,9 +4019,12 @@ function Table3D(
     0,
     railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
   ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = railH * 0.17; // deepen the corner chrome so it blankets the rail sides and pocket cuts
+  const chromePlateThickness = Math.max(
+    railH * CHROME_CORNER_PLATE_THICKNESS_SCALE,
+    chromePocketCoverageDepth
+  );
   const sideChromePlateThickness = Math.min(
-    railH * 0.92,
+    railH * CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE,
     Math.max(chromePlateThickness, chromePocketCoverageDepth)
   );
   const chromePlateInset = TABLE.THICK * 0.02;
