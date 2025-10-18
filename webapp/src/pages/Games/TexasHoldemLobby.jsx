@@ -16,7 +16,6 @@ export default function TexasHoldemLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('local');
-  const [playerCount, setPlayerCount] = useState(6);
   const [avatar, setAvatar] = useState('');
   const startBet = stake.amount / 100;
 
@@ -49,7 +48,6 @@ export default function TexasHoldemLobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
-    if (playerCount) params.set('players', playerCount);
     const username = getTelegramUsername();
     if (username) params.set('username', username);
     if (mode === 'local') params.set('avatars', 'flags');
@@ -72,23 +70,6 @@ export default function TexasHoldemLobby() {
         <p className="text-sm text-center">
           Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
         </p>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Players</h3>
-        <p className="text-xs text-center text-text/70">
-          Opponents: {Math.max(0, playerCount - 1)}
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: 6 }, (_, idx) => idx + 1).map((count) => (
-            <button
-              key={count}
-              onClick={() => setPlayerCount(count)}
-              className={`lobby-tile ${playerCount === count ? 'lobby-selected' : ''}`}
-            >
-              {count}
-            </button>
-          ))}
-        </div>
       </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
