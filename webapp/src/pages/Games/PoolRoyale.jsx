@@ -3770,7 +3770,7 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     const toCenter = new THREE.Vector2(-center.x, -center.y);
     if (toCenter.lengthSq() > 1e-6) {
       toCenter.normalize();
-      pocketGroup.rotation.y = Math.atan2(-toCenter.y, toCenter.x);
+      pocketGroup.rotation.y = Math.atan2(toCenter.y, toCenter.x);
     }
     pocketGroup.position.set(center.x, clothPlaneLocal + verticalLift, center.y);
     assemblyGroup.add(pocketGroup);
