@@ -50,6 +50,125 @@ export function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
+function createOvalShape(width, height, segments = 48) {
+  const shape = new THREE.Shape();
+  const halfSegments = Math.max(12, segments);
+  for (let i = 0; i <= halfSegments; i += 1) {
+    const angle = (i / halfSegments) * Math.PI * 2;
+    const x = Math.cos(angle) * (width / 2);
+    const y = Math.sin(angle) * (height / 2);
+    if (i === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+  return shape;
+}
+
+function createRoundedRectangleShape(width, height, radius, segments = 16) {
+  const shape = new THREE.Shape();
+  const hw = width / 2;
+  const hh = height / 2;
+  const cornerRadius = Math.min(radius, hw, hh);
+  shape.moveTo(-hw + cornerRadius, hh);
+  shape.lineTo(hw - cornerRadius, hh);
+  shape.absarc(hw - cornerRadius, hh - cornerRadius, cornerRadius, Math.PI / 2, 0, true);
+  shape.lineTo(hw, -hh + cornerRadius);
+  shape.absarc(hw - cornerRadius, -hh + cornerRadius, cornerRadius, 0, -Math.PI / 2, true);
+  shape.lineTo(-hw + cornerRadius, -hh);
+  shape.absarc(-hw + cornerRadius, -hh + cornerRadius, cornerRadius, -Math.PI / 2, -Math.PI, true);
+  shape.lineTo(-hw, hh - cornerRadius);
+  shape.absarc(-hw + cornerRadius, hh - cornerRadius, cornerRadius, -Math.PI, -Math.PI / 2, true);
+  shape.closePath();
+  return shape;
+}
+
+function createDiamondShape(width, height) {
+  const shape = new THREE.Shape();
+  const hw = width / 2;
+  const hh = height / 2;
+  shape.moveTo(0, hh);
+  shape.lineTo(hw, 0);
+  shape.lineTo(0, -hh);
+  shape.lineTo(-hw, 0);
+  shape.closePath();
+  return shape;
+}
+
+function scaleShape2D(shape, scaleX, scaleY, divisions = 64) {
+  if (!shape) return null;
+  const pointsData = shape.extractPoints(divisions);
+  const transform = (point) => new THREE.Vector2(point.x * scaleX, point.y * scaleY);
+  const scaledShape = new THREE.Shape(pointsData.shape.map(transform));
+  pointsData.holes?.forEach((holePoints) => {
+    const hole = new THREE.Path(holePoints.map(transform));
+    scaledShape.holes.push(hole);
+  });
+  return scaledShape;
+}
+
+export const TABLE_SHAPE_OPTIONS = Object.freeze([
+  {
+    id: 'classicOctagon',
+    label: 'Oktagon Klasik',
+    preview: {
+      clipPath:
+        'polygon(50% 0%, 80% 10%, 100% 40%, 100% 60%, 80% 90%, 50% 100%, 20% 90%, 0% 60%, 0% 40%, 20% 10%)'
+    },
+    createShapes: ({ radius }) => {
+      const topShape = createRegularPolygonShape(8, radius);
+      const feltShape = createRegularPolygonShape(8, radius * 0.8);
+      const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
+      return { topShape, feltShape, rimInnerShape };
+    }
+  },
+  {
+    id: 'grandOval',
+    label: 'Oval Grand',
+    preview: {
+      borderRadius: '50% / 35%'
+    },
+    createShapes: ({ radius }) => {
+      const width = radius * 2.1;
+      const height = radius * 1.45;
+      const topShape = createOvalShape(width, height, 64);
+      const feltShape = createOvalShape(width * 0.82, height * 0.82, 64);
+      const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
+      return { topShape, feltShape, rimInnerShape };
+    }
+  },
+  {
+    id: 'executiveCapsule',
+    label: 'Kapsul Ekzekutive',
+    preview: {
+      borderRadius: '50% / 60%'
+    },
+    createShapes: ({ radius }) => {
+      const width = radius * 2.25;
+      const height = radius * 1.2;
+      const topShape = createRoundedRectangleShape(width, height, height * 0.45, 24);
+      const feltShape = createRoundedRectangleShape(width * 0.8, height * 0.82, height * 0.35, 24);
+      const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
+      return { topShape, feltShape, rimInnerShape };
+    }
+  },
+  {
+    id: 'diamondEdge',
+    label: 'Diamant Edge',
+    preview: {
+      clipPath: 'polygon(50% 0%, 80% 20%, 100% 50%, 80% 80%, 50% 100%, 20% 80%, 0% 50%, 20% 20%)'
+    },
+    createShapes: ({ radius }) => {
+      const topShape = createDiamondShape(radius * 2.1, radius * 1.55);
+      const feltShape = createDiamondShape(radius * 1.55, radius * 1.15);
+      const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
+      return { topShape, feltShape, rimInnerShape };
+    }
+  }
+]);
+
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
   const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
@@ -210,7 +329,8 @@ export function createMurlanStyleTable({
   tableHeight = 0.81,
   woodOption = DEFAULT_TABLE_WOOD_OPTION,
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
-  baseOption = DEFAULT_TABLE_BASE_OPTION
+  baseOption = DEFAULT_TABLE_BASE_OPTION,
+  shapeOption = TABLE_SHAPE_OPTIONS[0]
 } = {}) {
   if (!arena) throw new Error('createMurlanStyleTable requires an arena group.');
 
@@ -268,14 +388,26 @@ export function createMurlanStyleTable({
     emissiveIntensity: 0.08
   });
 
+  const shapeData = shapeOption?.createShapes?.({
+    radius: tableRadius,
+    height: tableHeight,
+    ThreeNamespace,
+    scaleFactor
+  });
+  const topShape = shapeData?.topShape ?? createRegularPolygonShape(8, tableRadius);
+  const feltShape = shapeData?.feltShape ?? createRegularPolygonShape(8, tableRadius * 0.8);
+  const rimInnerShape = shapeData?.rimInnerShape ?? scaleShape2D(feltShape, 0.97, 0.97);
+  const feltRadius = shapeData?.feltRadius ?? tableRadius * (0.72 / 0.9);
+  const curveSegments = Math.max(1, Math.round((shapeOption?.curveSegments ?? 32) / 4));
+
   const tableGroup = new ThreeNamespace.Group();
-  const topGeometry = new ThreeNamespace.ExtrudeGeometry(createRegularPolygonShape(8, tableRadius), {
+  const topGeometry = new ThreeNamespace.ExtrudeGeometry(topShape, {
     depth: woodDepth,
     bevelEnabled: true,
     bevelThickness: woodDepth * 0.45,
     bevelSize: woodDepth * 0.45,
     bevelSegments: 2,
-    curveSegments: 1
+    curveSegments
   });
   topGeometry.rotateX(-Math.PI / 2);
   const topMesh = new ThreeNamespace.Mesh(topGeometry, topWoodMat);
@@ -284,24 +416,23 @@ export function createMurlanStyleTable({
   topMesh.receiveShadow = true;
   tableGroup.add(topMesh);
 
-  const feltRadius = tableRadius * (0.72 / 0.9);
-  const feltGeometry = new ThreeNamespace.CircleGeometry(feltRadius, 64);
+  const feltGeometry = new ThreeNamespace.ShapeGeometry(feltShape, curveSegments * 4);
   feltGeometry.rotateX(-Math.PI / 2);
   const feltMesh = new ThreeNamespace.Mesh(feltGeometry, surfaceMat);
   feltMesh.position.y = tableY + clothRise;
   feltMesh.receiveShadow = true;
   tableGroup.add(feltMesh);
 
-  const rimOuter = createRegularPolygonShape(8, tableRadius);
-  const rimInner = createRegularPolygonShape(8, feltRadius * 0.97);
-  rimOuter.holes.push(rimInner);
+  const rimOuter = topShape.clone();
+  const rimInner = rimInnerShape.clone();
+  rimOuter.holes = [rimInner];
   const rimGeometry = new ThreeNamespace.ExtrudeGeometry(rimOuter, {
     depth: rimDepth,
     bevelEnabled: true,
     bevelThickness: rimDepth * 0.32,
     bevelSize: rimDepth * 0.32,
     bevelSegments: 2,
-    curveSegments: 1
+    curveSegments
   });
   rimGeometry.rotateX(-Math.PI / 2);
   const rimMesh = new ThreeNamespace.Mesh(rimGeometry, rimWoodMat);
@@ -317,7 +448,7 @@ export function createMurlanStyleTable({
   baseMesh.receiveShadow = true;
   tableGroup.add(baseMesh);
 
-  const trimGeometry = new ThreeNamespace.CylinderGeometry(tableRadius * 0.985, tableRadius, trimHeight, 8, 1, false);
+  const trimGeometry = new ThreeNamespace.CylinderGeometry(tableRadius * 0.985, tableRadius, trimHeight, 64, 1, false);
   const trimMesh = new ThreeNamespace.Mesh(trimGeometry, trimMat);
   trimMesh.position.y = tableY - trimOffset;
   trimMesh.castShadow = true;
@@ -359,12 +490,14 @@ export function createMurlanStyleTable({
     radius: tableRadius,
     feltRadius,
     dispose,
-    materials: tableParts
+    materials: tableParts,
+    shapeId: shapeOption?.id || 'classicOctagon'
   };
 }
 
 export const DEFAULT_MURLAN_TABLE_OPTIONS = Object.freeze({
   wood: DEFAULT_TABLE_WOOD_OPTION,
   cloth: DEFAULT_TABLE_CLOTH_OPTION,
-  base: DEFAULT_TABLE_BASE_OPTION
+  base: DEFAULT_TABLE_BASE_OPTION,
+  shape: TABLE_SHAPE_OPTIONS[0]
 });
