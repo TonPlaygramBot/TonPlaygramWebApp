@@ -15,43 +15,6 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     }),
     cushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
-  },
-  '9ft': {
-    id: '9ft',
-    label: '9 ft',
-    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // 100" × 50"
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
-    }),
-    cushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    scaleOverrides: Object.freeze({
-      scale: BASE_TABLE_SCALE,
-      mobileScale: BASE_TABLE_MOBILE_SCALE,
-      compactScale: BASE_TABLE_COMPACT_SCALE
-    })
-  },
-  '10ft': {
-    id: '10ft',
-    label: '10 ft',
-    // WPA tournament specification for the 10 ft × 5 ft playing surface
-    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 120" × 60"
-    ballDiameterMm: 57.15, // reuse the official 2 1/4" pool balls (same as 8 ft spec)
-    pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
-    }),
-    cushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    cushionRestitution: 0.965,
-    componentPreset: 'snookerFrame',
-    scaleOverrides: Object.freeze({
-      scale: Number((BASE_TABLE_SCALE * (3048 / BASE_PLAYFIELD_WIDTH_MM)).toFixed(3)),
-      mobileScale: Number((BASE_TABLE_MOBILE_SCALE * (3048 / BASE_PLAYFIELD_WIDTH_MM)).toFixed(3)),
-      compactScale: Number((BASE_TABLE_COMPACT_SCALE * (3048 / BASE_PLAYFIELD_WIDTH_MM)).toFixed(3))
-    })
   }
 });
 
@@ -93,7 +56,7 @@ export const TABLE_SIZE_OPTIONS = Object.freeze(
   }, {})
 );
 
-export const DEFAULT_TABLE_SIZE_ID = '9ft';
+export const DEFAULT_TABLE_SIZE_ID = '8ft';
 
 export function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
