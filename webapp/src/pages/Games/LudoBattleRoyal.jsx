@@ -3,9 +3,10 @@ import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  createArenaCarpetMaterial,
-  createArenaWallMaterial
-} from '../../utils/arenaDecor.js';
+  buildDominoArena,
+  DOMINO_TABLE_DIMENSIONS,
+  DOMINO_CAMERA_CONFIG
+} from '../../utils/dominoArena.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
@@ -20,52 +21,27 @@ import {
   cheerSound
 } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
-import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const TABLE_RADIUS = 3.315; // 30% wider to mirror the Chess Battle Royal arena scale
-const TABLE_HEIGHT = 2.05; // Raised so the surface meets the chair seating height
-
-const WALL_PROXIMITY_FACTOR = 0.5;
-const WALL_HEIGHT_MULTIPLIER = 2;
-const CHAIR_SCALE = 4;
-const CHAIR_CLEARANCE = 0.52;
 const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
-const CAMERA_MIN_RADIUS_FACTOR = 0.95;
-const CAMERA_MAX_RADIUS_FACTOR = 2.4;
-const CAMERA_INITIAL_PHI_LERP = 0.35;
+const CAMERA_INITIAL_PHI_LERP = 0.42;
 const CAMERA_VERTICAL_SENSITIVITY = 0.003;
 const CAMERA_LEAN_STRENGTH = 0.0065;
-
-const SNOOKER_TABLE_SCALE = 1.3;
-const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
-const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
-const SNOOKER_ROOM_DEPTH = SNOOKER_TABLE_H * 3.6;
-const SNOOKER_SIDE_CLEARANCE = SNOOKER_ROOM_DEPTH / 2 - SNOOKER_TABLE_H / 2;
-const SNOOKER_ROOM_WIDTH = SNOOKER_TABLE_W + SNOOKER_SIDE_CLEARANCE * 2;
-const SNOOKER_SIZE_REDUCTION = 0.7;
-const SNOOKER_GLOBAL_SIZE_FACTOR = 0.85 * SNOOKER_SIZE_REDUCTION;
-const SNOOKER_WORLD_SCALE = 0.85 * SNOOKER_GLOBAL_SIZE_FACTOR * 0.7;
-const CHESS_ARENA = Object.freeze({
-  width: (SNOOKER_ROOM_WIDTH * SNOOKER_WORLD_SCALE) / 2,
-  depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
-});
-
 const CAM = {
-  fov: 52,
-  near: 0.1,
-  far: 5000,
-  minR: 3.4 * CAMERA_MIN_RADIUS_FACTOR,
-  maxR: 3.4 * CAMERA_MAX_RADIUS_FACTOR,
-  phiMin: 0.92,
-  phiMax: 1.22
+  fov: DOMINO_CAMERA_CONFIG.fov,
+  near: DOMINO_CAMERA_CONFIG.near,
+  far: DOMINO_CAMERA_CONFIG.far,
+  minR: DOMINO_CAMERA_CONFIG.minRadius,
+  maxR: DOMINO_CAMERA_CONFIG.maxRadius,
+  phiMin: Math.PI * 0.38,
+  phiMax: DOMINO_CAMERA_CONFIG.maxPolarAngle
 };
 
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-const BOARD_DISPLAY_SIZE = 3.4;
+const BOARD_DISPLAY_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 const RING_STEPS = 52;
 const HOME_STEPS = 4;
@@ -392,283 +368,40 @@ function Ludo3D({ avatar, username }) {
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0c1020);
+    scene.background = new THREE.Color(0xece6dc);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 1.1);
-    scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.35);
-    key.position.set(1.6, 2.8, 1.8);
-    scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.8);
-    fill.position.set(-1.6, 2.4, -1.8);
-    scene.add(fill);
-    const rim = new THREE.PointLight(0xff7373, 0.6, 12, 2.0);
-    rim.position.set(0, 2.3, 0);
-    scene.add(rim);
-    const spot = new THREE.SpotLight(0xffffff, 1.4, 0, Math.PI / 4.5, 0.32, 1.2);
-    spot.position.set(0.4, 4.4, 4.4);
-    scene.add(spot);
-    const spotTarget = new THREE.Object3D();
-    scene.add(spotTarget);
-    spot.target = spotTarget;
-
-    const arena = new THREE.Group();
-    scene.add(arena);
-
-    const arenaHalfWidth = CHESS_ARENA.width / 2;
-    const arenaHalfDepth = CHESS_ARENA.depth / 2;
-    const wallInset = 0.5;
-    const halfRoomX = (arenaHalfWidth - wallInset) * WALL_PROXIMITY_FACTOR;
-    const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
-    const roomHalfWidth = halfRoomX + wallInset;
-    const roomHalfDepth = halfRoomZ + wallInset;
-
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
-      new THREE.MeshStandardMaterial({
-        color: 0x0f1222,
-        roughness: 0.95,
-        metalness: 0.05
-      })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    arena.add(floor);
-
-    const carpetMat = createArenaCarpetMaterial();
-    const carpet = new THREE.Mesh(
-      new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
-      carpetMat
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.002;
-    arena.add(carpet);
-
-    const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
-    const wallT = 0.1;
-    const wallMat = createArenaWallMaterial();
-    const backWall = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
-      wallMat
-    );
-    backWall.position.set(0, wallH / 2, halfRoomZ);
-    arena.add(backWall);
-    const frontWall = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
-      wallMat
-    );
-    frontWall.position.set(0, wallH / 2, -halfRoomZ);
-    arena.add(frontWall);
-    const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
-      wallMat
-    );
-    leftWall.position.set(-halfRoomX, wallH / 2, 0);
-    arena.add(leftWall);
-    const rightWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
-      wallMat
-    );
-    rightWall.position.set(halfRoomX, wallH / 2, 0);
-    arena.add(rightWall);
-
-    const ceilTrim = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, 0.02, halfRoomZ * 2),
-      new THREE.MeshStandardMaterial({
-        color: 0x1a233f,
-        roughness: 0.9,
-        metalness: 0.02,
-        side: THREE.DoubleSide
-      })
-    );
-    ceilTrim.position.set(0, wallH - 0.02, 0);
-    arena.add(ceilTrim);
-
-    const ledMat = new THREE.MeshStandardMaterial({
-      color: 0x00f7ff,
-      emissive: 0x0099aa,
-      emissiveIntensity: 0.4,
-      roughness: 0.6,
-      metalness: 0.2,
-      side: THREE.DoubleSide
-    });
-    const stripBack = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, 0.02, 0.01),
-      ledMat
-    );
-    stripBack.position.set(0, 0.05, halfRoomZ - wallT / 2);
-    arena.add(stripBack);
-    const stripFront = stripBack.clone();
-    stripFront.position.set(0, 0.05, -halfRoomZ + wallT / 2);
-    arena.add(stripFront);
-    const stripLeft = new THREE.Mesh(
-      new THREE.BoxGeometry(0.01, 0.02, halfRoomZ * 2),
-      ledMat
-    );
-    stripLeft.position.set(-halfRoomX + wallT / 2, 0.05, 0);
-    arena.add(stripLeft);
-    const stripRight = stripLeft.clone();
-    stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
-    arena.add(stripRight);
-
-    const tableInfo = createMurlanStyleTable({
-      THREE,
-      arena,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT
-    });
-    if (tableInfo?.dispose) {
+    const arenaSetup = buildDominoArena({ scene, renderer });
+    if (arenaSetup?.dispose) {
       disposers.push(() => {
         try {
-          tableInfo.dispose();
+          arenaSetup.dispose();
         } catch (error) {
-          console.warn('Failed to dispose Ludo table', error);
+          console.warn('Failed to dispose Ludo arena', error);
         }
       });
     }
 
-    function makeChair() {
-      const g = new THREE.Group();
-      const seat = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.06, 0.5),
-        new THREE.MeshStandardMaterial({
-          color: 0x2b314e,
-          roughness: 0.6,
-          metalness: 0.1
-        })
-      );
-      seat.position.y = 0.48;
-      g.add(seat);
-      const back = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.5, 0.06),
-        new THREE.MeshStandardMaterial({
-          color: 0x32395c,
-          roughness: 0.6
-        })
-      );
-      back.position.set(0, 0.78, -0.22);
-      g.add(back);
-      const legG = new THREE.CylinderGeometry(0.03, 0.03, 0.46, 12);
-      const legM = new THREE.MeshStandardMaterial({
-        color: 0x444444,
-        roughness: 0.7
-      });
-      [
-        [-0.2, 0.23, -0.2],
-        [0.2, 0.23, -0.2],
-        [-0.2, 0.23, 0.2],
-        [0.2, 0.23, 0.2]
-      ].forEach(([x, y, z]) => {
-        const leg = new THREE.Mesh(legG, legM);
-        leg.position.set(x, y, z);
-        g.add(leg);
-      });
-      g.scale.setScalar(CHAIR_SCALE);
-      return g;
-    }
-
-    const chairA = makeChair();
-    const seatHalfDepth = 0.25 * CHAIR_SCALE;
-    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
-    const userChairOffset = 0.18;
-    chairA.position.set(0, 0, -(chairDistance + userChairOffset));
-    arena.add(chairA);
-    const chairB = makeChair();
-    chairB.position.set(0, 0, chairDistance);
-    chairB.rotation.y = Math.PI;
-    arena.add(chairB);
-
-    function makeStudioCamera() {
-      const cam = new THREE.Group();
-      const legLen = 1.2;
-      const legRad = 0.025;
-      const legG = new THREE.CylinderGeometry(legRad, legRad, legLen, 10);
-      const legM = new THREE.MeshStandardMaterial({
-        color: 0x333333,
-        roughness: 0.5,
-        metalness: 0.3
-      });
-      const l1 = new THREE.Mesh(legG, legM);
-      l1.position.set(-0.28, legLen / 2, 0);
-      l1.rotation.z = THREE.MathUtils.degToRad(18);
-      const l2 = l1.clone();
-      l2.position.set(0.18, legLen / 2, 0.24);
-      const l3 = l1.clone();
-      l3.position.set(0.18, legLen / 2, -0.24);
-      cam.add(l1, l2, l3);
-      const head = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.1, 0.08, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0x2e2e2e,
-          roughness: 0.6,
-          metalness: 0.2
-        })
-      );
-      head.position.set(0, legLen + 0.04, 0);
-      cam.add(head);
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.34, 0.22, 0.22),
-        new THREE.MeshStandardMaterial({
-          color: 0x151515,
-          roughness: 0.5,
-          metalness: 0.4
-        })
-      );
-      body.position.set(0, legLen + 0.2, 0);
-      cam.add(body);
-      const lens = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 0.22, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0x202020,
-          roughness: 0.4,
-          metalness: 0.5
-        })
-      );
-      lens.rotation.z = Math.PI / 2;
-      lens.position.set(0.22, legLen + 0.2, 0);
-      cam.add(lens);
-      const handle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.01, 0.01, 0.3, 10),
-        new THREE.MeshStandardMaterial({
-          color: 0x444444,
-          roughness: 0.6
-        })
-      );
-      handle.rotation.z = THREE.MathUtils.degToRad(30);
-      handle.position.set(-0.16, legLen + 0.16, -0.1);
-      cam.add(handle);
-      return cam;
-    }
-
-    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
-    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
-    const studioCamA = makeStudioCamera();
-    studioCamA.position.set(-cameraRigOffsetX, 0, -cameraRigOffsetZ);
-    arena.add(studioCamA);
-    const studioCamB = makeStudioCamera();
-    studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
-    arena.add(studioCamB);
-
-    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
-    boardGroup.position.y = tableSurfaceY + 0.01;
+    boardGroup.position.set(0, 0.004, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
-    arena.add(boardGroup);
+    if (arenaSetup?.boardAnchor) {
+      arenaSetup.boardAnchor.add(boardGroup);
+    } else if (arenaSetup?.arena) {
+      arenaSetup.arena.add(boardGroup);
+    } else {
+      scene.add(boardGroup);
+    }
 
     const boardLookTarget = new THREE.Vector3(
       0,
-      boardGroup.position.y + 0.16,
+      DOMINO_CAMERA_CONFIG.targetY,
       0
     );
-    spotTarget.position.copy(boardLookTarget);
-    spot.target.updateMatrixWorld();
-    studioCamA.lookAt(boardLookTarget);
-    studioCamB.lookAt(boardLookTarget);
 
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const initialRadius = Math.max(
       BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
-      CAM.minR + 0.6
+      CAM.minR
     );
     sph = new THREE.Spherical(
       initialRadius,
