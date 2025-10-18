@@ -194,15 +194,15 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.98; // ease back the chrome on the 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.88; // lengthen the throat so the chrome spans the full pocket cut on the long rails
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.9; // raise the side notch opening to hug the pocket leather instead of clipping it
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.6; // give the throat a softer rounding profile inside the pocket
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.04; // push the throat deeper to eliminate the exposed wood inside the pocket mouth
-const CHROME_SIDE_FIELD_PULL_SCALE = 0.3; // extend the side pocket chrome toward the cloth without adding new trim pieces
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82; // match the snooker side pocket throat profile
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // align the notch opening height with the snooker middle pockets
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
+const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.82; // push the center chrome farther toward the corner pockets so the trim reaches their shoulders
-const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.015; // tuck the side plates closer to the wood so the chrome wraps over the rail edge
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.4; // mirror the snooker side plate span for matching proportions
+const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.02; // align the side plate inset with the snooker chrome placement
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -3998,7 +3998,7 @@ function Table3D(
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.03
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
