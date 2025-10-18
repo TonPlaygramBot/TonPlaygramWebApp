@@ -225,7 +225,7 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_CORNER_PLATE_THICKNESS_SCALE = 1.06; // drop the corner chrome deep enough to blanket the rail sides and pocket cuts
 const CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE = 1.08; // let the side chrome wrap past the rail midline without floating above the wood
-const RAIL_POCKET_CUT_SCALE = 0.965; // open the wooden rail pocket cuts slightly so chrome plates blanket the rounded edges
+const RAIL_POCKET_CUT_SCALE = 0.952; // open the wooden rail pocket cuts slightly more so chrome plates blanket the rounded edges
 
 function buildChromePlateGeometry({
   width,
@@ -581,11 +581,11 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.38; // deepen the exterior rail rounding so the wood shoulders feel fully curved
-const RAIL_SIDE_EDGE_RADIUS_MULT = 1.58; // push long-rail rounding farther so the wood sidewalls read curved in portrait
-const RAIL_END_EDGE_RADIUS_MULT = 1.16; // give the short rails a subtly stronger contour for consistency with the corners
-const RAIL_EDGE_BOTTOM_START = 0.16; // start the sidewall curvature lower so the rail profile feels fully rounded
-const RAIL_EDGE_VERTICAL_POWER = 1.48; // ease the curve so the sides roll smoothly into the top rail surface
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.414; // deepen the exterior rail rounding so the wood shoulders feel fully curved
+const RAIL_SIDE_EDGE_RADIUS_MULT = 1.68; // push long-rail rounding farther so the wood sidewalls read curved in portrait
+const RAIL_END_EDGE_RADIUS_MULT = 1.23; // give the short rails a subtly stronger contour for consistency with the corners
+const RAIL_EDGE_BOTTOM_START = 0.148; // start the sidewall curvature lower so the rail profile feels fully rounded
+const RAIL_EDGE_VERTICAL_POWER = 1.42; // ease the curve so the sides roll smoothly into the top rail surface
 const RAIL_EDGE_NORMAL_BLEND = 0.9; // bias the normals further upward so specular highlights wrap around the curvature
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
