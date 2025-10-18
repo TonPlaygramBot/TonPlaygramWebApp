@@ -582,6 +582,11 @@ const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the clot
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.34; // soften the exterior rail corners with a deeper curve
+const RAIL_SIDE_EDGE_RADIUS_MULT = 1.42; // push long-rail rounding farther so the wood sidewalls read curved in portrait
+const RAIL_END_EDGE_RADIUS_MULT = 1.1; // give the short rails a subtler contour so they stay consistent with the corners
+const RAIL_EDGE_BOTTOM_START = 0.18; // start the sidewall curvature lower so the rail profile feels fully rounded
+const RAIL_EDGE_VERTICAL_POWER = 1.6; // ease the curve so the sides roll smoothly into the top rail surface
+const RAIL_EDGE_NORMAL_BLEND = 0.9; // bias the normals further upward so specular highlights wrap around the curvature
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -1730,14 +1735,34 @@ function enhanceChromeMaterial(material) {
   material.needsUpdate = true;
 }
 
-function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25) {
+function softenOuterExtrudeEdges(geometry, depth, options = {}) {
   if (!geometry || typeof depth !== 'number' || depth <= 0) return geometry;
+  const config =
+    typeof options === 'number'
+      ? { radiusRatio: options }
+      : options && typeof options === 'object'
+        ? options
+        : {};
+  const {
+    radiusRatio = 0.25,
+    axisRadiusScale = { x: 1, y: 1 },
+    bottomStartRatio = 0,
+    verticalPower = 2,
+    normalBlend = 0.85
+  } = config;
   const target = geometry.toNonIndexed ? geometry.toNonIndexed() : geometry;
   const position = target.attributes.position;
   const normal = target.attributes.normal;
   if (!position || !normal) return target;
   const depthSafe = depth <= 0 ? 1 : depth;
-  const radius = Math.max(0, depthSafe * radiusRatio);
+  const baseRadius = Math.max(0, depthSafe * radiusRatio);
+  const axisScale = {
+    x: Number.isFinite(axisRadiusScale?.x) ? axisRadiusScale.x : 1,
+    y: Number.isFinite(axisRadiusScale?.y) ? axisRadiusScale.y : 1
+  };
+  const bottomStart = THREE.MathUtils.clamp(bottomStartRatio ?? 0, 0, 0.99);
+  const verticalExponent = Math.max(0.5, verticalPower ?? 2);
+  const blendStrength = THREE.MathUtils.clamp(normalBlend ?? 0.85, 0, 1.5);
   const pos = new THREE.Vector3();
   const norm = new THREE.Vector3();
   const planarNormal = new THREE.Vector2();
@@ -1751,14 +1776,23 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25) {
     planarPos.set(pos.x, pos.y);
     const dot = planarNormal.dot(planarPos);
     if (dot <= 0) continue;
-    const heightT = THREE.MathUtils.clamp(pos.z / depthSafe, 0, 1);
+    let heightT = pos.z / depthSafe;
+    if (heightT <= bottomStart) continue;
+    heightT = (heightT - bottomStart) / Math.max(1e-6, 1 - bottomStart);
+    heightT = THREE.MathUtils.clamp(heightT, 0, 1);
     if (heightT <= 0) continue;
     const eased = Math.sin((heightT * Math.PI) / 2);
-    const inset = radius * eased * eased;
+    const shaped = Math.pow(eased, verticalExponent);
+    const axisWeightX = Math.abs(planarNormal.x);
+    const axisWeightY = Math.abs(planarNormal.y);
+    const axisSum = axisWeightX + axisWeightY || 1;
+    const radiusScale =
+      (axisWeightX * axisScale.x + axisWeightY * axisScale.y) / Math.max(axisSum, 1e-6);
+    const inset = baseRadius * radiusScale * shaped;
     pos.x -= planarNormal.x * inset;
     pos.y -= planarNormal.y * inset;
     position.setXYZ(i, pos.x, pos.y, pos.z);
-    const blend = eased * 0.85;
+    const blend = eased * blendStrength;
     const blended = new THREE.Vector3(
       THREE.MathUtils.lerp(norm.x, 0, blend),
       THREE.MathUtils.lerp(norm.y, 0, blend),
@@ -4425,7 +4459,13 @@ function Table3D(
     bevelEnabled: false,
     curveSegments: 96
   });
-  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO);
+  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, {
+    radiusRatio: RAIL_OUTER_EDGE_RADIUS_RATIO,
+    axisRadiusScale: { x: RAIL_END_EDGE_RADIUS_MULT, y: RAIL_SIDE_EDGE_RADIUS_MULT },
+    bottomStartRatio: RAIL_EDGE_BOTTOM_START,
+    verticalPower: RAIL_EDGE_VERTICAL_POWER,
+    normalBlend: RAIL_EDGE_NORMAL_BLEND
+  });
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
