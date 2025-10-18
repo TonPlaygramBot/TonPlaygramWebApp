@@ -11,9 +11,8 @@
   button{font-weight:700;border:0;border-radius:999px;padding:.45rem .7rem;background:#ffd24a;color:#333;box-shadow:0 4px 12px rgba(0,0,0,.25);}
   button:active{transform:translateY(1px);}
   #status{position:fixed;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);padding:.35rem .75rem;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2;backdrop-filter:blur(6px);}
-  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(3.2rem, 16vh, 8.5rem));transform:translateX(-50%);display:flex;flex-direction:column;gap:.55rem;align-items:stretch;background:rgba(64,42,20,.9);color:#fff;border-radius:22px;padding:.6rem .85rem;box-shadow:0 14px 30px rgba(0,0,0,.45);z-index:2;pointer-events:auto;min-width:6.75rem;}
-  #railControls.anchored{bottom:auto;}
-  #railControls button{background:#ffd24a;color:#3b250f;min-width:0;font-size:1rem;padding:.55rem 1.05rem;border-radius:16px;}
+  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(3.8rem, 18vh, 9.5rem));transform:translateX(-50%);display:flex;gap:.75rem;align-items:center;background:rgba(64,42,20,.88);color:#fff;border-radius:999px;padding:.55rem .9rem;box-shadow:0 14px 30px rgba(0,0,0,.45);z-index:2;pointer-events:auto;}
+  #railControls button{background:#ffd24a;color:#3b250f;min-width:5.2rem;font-size:1rem;padding:.55rem 1.05rem;}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
   #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3}
@@ -38,9 +37,9 @@
     <h2>Domino Royal — Rules for 2–4 players</h2>
     <ol>
       <li><b>Set:</b> Double-Six (28 tiles, 0–6). Each tile is unique (a,b) with a≤b. No duplicates.</li>
-      <li><b>Dealing:</b> 7 tiles per player. The rest form the face-down <i>stock</i> stack on the cloth.</li>
+      <li><b>Dealing:</b> 7 tiles per player. The rest form the <i>stock</i> (boneyard).</li>
       <li><b>Opening:</b> The player with the highest double starts. If no double, the highest tile opens.</li>
-      <li><b>On the table:</b> Lay a tight horizontal chain across the green cloth. Tiles touch edge-to-edge and stay flat; only doubles may stand upright when space demands.</li>
+      <li><b>On the table:</b> Build a horizontal chain across the green cloth. Only doubles stand vertically. At the cloth edges, pivot and keep the chain running horizontally.</li>
       <li><b>Matching:</b> Free ends must match in value. Doubles accept the same value on both sides.</li>
       <li><b>No move?</b> Draw from the stock until you can play. If the stock is empty, pass.</li>
       <li><b>Ending:</b> The winner is the first out. If play is blocked, the lowest pip total wins.</li>
@@ -497,13 +496,6 @@ tableG.rotation.y = 0.10; // pak rrotullim për perspektivë
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
 
-const boneyardStackG = new THREE.Group();
-tableG.add(boneyardStackG);
-boneyardStackG.position.set(-CLOTH_HW + 0.24, CLOTH_TOP + 0.008, CLOTH_HW - 0.20);
-boneyardStackG.visible = false;
-const BONEYARD_VISUAL_LIMIT = 14;
-const boneyardStackMeshes = [];
-
 /* ---------- Arena Dressings (Carpet & Walls) ---------- */
 const roomWidth = 6.2;
 const roomDepth = 6.2;
@@ -625,19 +617,10 @@ const ZMAX = CLOTH_HW - 0.06;
 
 // Domino scale — pak më e vogël se më parë
 const SCALE=0.68;
-const TILE_SCALE_X = 0.10;
-const TILE_SCALE_Y_FLAT = 0.016/0.22;
-const TILE_SCALE_Y_UPRIGHT = 0.20/2.0;
-const TILE_SCALE_Z_FLAT = 0.20/2.0;
-const TILE_SCALE_Z_UPRIGHT = 0.016/0.22;
-const TILE_WORLD_LENGTH = SCALE * TILE_SCALE_Y_FLAT * 2;
-const TILE_WORLD_THICKNESS = 0.22 * SCALE * TILE_SCALE_Z_FLAT;
 const TILE_UP_H = 0.20 * SCALE;
 const TILE_UP_HALF = TILE_UP_H * 0.5;
 const RAIL_TOP = Y + 0.02 + RIM_H;
 const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
-const STACK_SPACING = TILE_WORLD_THICKNESS * 1.08;
-const STEP = TILE_WORLD_LENGTH * 0.995;
 
 /* ---------- Table (Square Poker Style) ---------- */
 {
@@ -699,96 +682,6 @@ const STEP = TILE_WORLD_LENGTH * 0.995;
     chair.lookAt(lookTargetWorld);
     chair.rotateY(Math.PI);
   });
-}
-
-/* ---------- Boneyard Stack (Visual) ---------- */
-const BONEYARD_UI_OFFSET = 54;
-const tmpVecA = new THREE.Vector3();
-const tmpVecB = new THREE.Vector3();
-const tmpVecScreen = new THREE.Vector3();
-const activeAnimations = [];
-
-function createBoneyardStackTile(){
-  const domino = makeDomino(0, 0, { flat: true, faceUp: false });
-  orientDominoFlat(domino, Math.PI / 2);
-  domino.rotateX(Math.PI);
-  domino.position.set(0, 0, 0);
-  domino.castShadow = true;
-  domino.receiveShadow = true;
-  return domino;
-}
-
-function syncBoneyardVisuals(){
-  const targetCount = Math.min(boneyard.length, BONEYARD_VISUAL_LIMIT);
-  while(boneyardStackMeshes.length > targetCount){
-    const mesh = boneyardStackMeshes.pop();
-    if(mesh?.parent){ mesh.parent.remove(mesh); }
-  }
-  while(boneyardStackMeshes.length < targetCount){
-    const domino = createBoneyardStackTile();
-    boneyardStackG.add(domino);
-    boneyardStackMeshes.push(domino);
-  }
-  boneyardStackMeshes.forEach((mesh, idx)=>{
-    mesh.position.set(0, STACK_SPACING * idx, 0);
-  });
-  boneyardStackG.visible = targetCount > 0;
-}
-
-function detachTopBoneyardMesh(){
-  if(!boneyardStackMeshes.length) return null;
-  const mesh = boneyardStackMeshes.pop();
-  tableG.attach(mesh);
-  return mesh;
-}
-
-function animateMeshTo(mesh, targetVec, duration = 420, onComplete){
-  if(!mesh || !targetVec) return;
-  const from = mesh.position.clone();
-  const to = targetVec.clone();
-  const start = performance.now();
-  activeAnimations.push({ mesh, from, to, start, duration: Math.max(1, duration), onComplete });
-}
-
-function updateAnimations(now){
-  for(let i=activeAnimations.length-1; i>=0; i--){
-    const anim = activeAnimations[i];
-    if(!anim.mesh){ activeAnimations.splice(i,1); continue; }
-    const t = Math.min(1, (now - anim.start) / anim.duration);
-    const eased = 1 - Math.pow(1 - t, 3);
-    anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
-    if(t >= 1){
-      if(typeof anim.onComplete === 'function'){ anim.onComplete(); }
-      activeAnimations.splice(i,1);
-    }
-  }
-}
-
-function releaseDrawUiAnchor(){
-  if(!railControlsEl) return;
-  if(railControlsEl.classList.contains('anchored')){
-    railControlsEl.classList.remove('anchored');
-    railControlsEl.style.left='';
-    railControlsEl.style.top='';
-    railControlsEl.style.transform='';
-  }
-}
-
-function updateDrawUiPlacement(){
-  if(!railControlsEl) return;
-  if(!boneyardStackG.visible){ releaseDrawUiAnchor(); return; }
-  const height = Math.max(0, boneyardStackMeshes.length - 0.4);
-  tmpVecA.set(0, STACK_SPACING * height, 0);
-  boneyardStackG.localToWorld(tmpVecA);
-  tmpVecScreen.copy(tmpVecA).project(camera);
-  if(tmpVecScreen.z < -1 || tmpVecScreen.z > 1){ releaseDrawUiAnchor(); return; }
-  const rect = renderer.domElement.getBoundingClientRect();
-  const x = (tmpVecScreen.x * 0.5 + 0.5) * rect.width + rect.left;
-  const y = (-tmpVecScreen.y * 0.5 + 0.5) * rect.height + rect.top + BONEYARD_UI_OFFSET;
-  railControlsEl.classList.add('anchored');
-  railControlsEl.style.left = `${x}px`;
-  railControlsEl.style.top = `${y}px`;
-  railControlsEl.style.transform = 'translate(-50%,0)';
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
@@ -900,17 +793,11 @@ function makeDomino(a,b,{flat=true, faceUp=true}={}){
   group.add(collider);
 
   // Integrim me sistemin ekzistues: në fushë duhen "flat" (faqe lart)
-  if(flat){
-    group.rotation.x = -Math.PI/2;
-  } else if(!faceUp){
-    group.rotation.y += Math.PI;
-  }
+  if(flat){ group.rotation.x = -Math.PI/2; }
 
   // Ruaj shkallën ekzistuese të botës (ashtu si para ndryshimit)
-  const sx = SCALE * TILE_SCALE_X;
-  const sy = SCALE * (flat ? TILE_SCALE_Y_FLAT : TILE_SCALE_Y_UPRIGHT);
-  const sz = SCALE * (flat ? TILE_SCALE_Z_FLAT : TILE_SCALE_Z_UPRIGHT);
-  group.scale.set(sx, sy, sz);
+  const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
+  group.scale.set(SCALE*sx, SCALE*sy, SCALE*sz);
 
   group.userData.val = [a,b];
   return group;
@@ -918,7 +805,6 @@ function makeDomino(a,b,{flat=true, faceUp=true}={}){
 
 /* ---------- Game State ---------- */
 const statusEl = document.getElementById('status');
-const railControlsEl = document.getElementById('railControls');
 const btnDraw = document.getElementById('draw');
 const btnPass = document.getElementById('pass');
 const btnRules = document.getElementById('btnRules');
@@ -963,19 +849,6 @@ function layoutSeat(idx){
   const west  = [-(EDGE - MARGIN), 0.00, -Math.PI/2];
   const seats = [south, east, north, west];
   return seats[idx % seats.length];
-}
-
-function animateHumanDraw(){
-  const mesh = detachTopBoneyardMesh();
-  if(!mesh){ syncBoneyardVisuals(); return; }
-  const [seatX, seatZ] = layoutSeat(human);
-  tmpVecB.copy(mesh.position);
-  tmpVecB.y = Math.max(tmpVecB.y, CLOTH_TOP + TILE_WORLD_THICKNESS * 0.6);
-  mesh.position.copy(tmpVecB);
-  tmpVecA.set(seatX * 0.55, HAND_Y + TILE_WORLD_THICKNESS * 6.5, seatZ + 0.08);
-  mesh.userData = { ...(mesh.userData || {}), tempDraw:true };
-  animateMeshTo(mesh, tmpVecA, 420, ()=>{ tableG.remove(mesh); if(mesh.userData) delete mesh.userData.tempDraw; });
-  syncBoneyardVisuals();
 }
 
 function renderHands(){
@@ -1150,15 +1023,12 @@ function cpuDrawUntilPlayable(player){
     const {L,R} = validSidesFor(tile);
     if(L || R) break;
   }
-  if(drew){ syncBoneyardVisuals(); }
   return drew;
 }
 
 function startGame(){
   chain=[]; ends=null; selectedTile=null; clearMarkers();
   usedTileKeys.clear();
-  activeAnimations.length = 0;
-  tableG.children.slice().forEach(child=>{ if(child?.userData?.tempDraw){ tableG.remove(child); }});
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
@@ -1166,7 +1036,6 @@ function startGame(){
   boneyard=shuffle(genSet());
   for(let r=0;r<7;r++) players.forEach(p=>p.hand.push(boneyard.pop()));
   players.forEach(p=> shuffle(p.hand)); // random order every game
-  syncBoneyardVisuals();
   renderHands();
   let starter=0, idx=-1, bestD=-1;
   players.forEach((p,pi)=>{ const i=highestDoubleIndex(p.hand); if(i>=0 && p.hand[i].a>bestD){ bestD=p.hand[i].a; starter=pi; idx=i; } });
@@ -1176,7 +1045,7 @@ function startGame(){
   const firstRot = (firstTile.a===firstTile.b) ? Math.PI/2 : 0;
   chain.push({tile:firstTile,x:0,z:0,rot:firstRot,double:firstTile.a===firstTile.b});
   usedTileKeys.add(tileKey(firstTile));
-  const step=STEP;
+  const step=.10;
   if(!flipDir){
     ends={
       L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
@@ -1193,6 +1062,7 @@ function startGame(){
 }
 
 /* ---------- Placement & Snake ---------- */
+const STEP=.10;
 function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
 function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
 
@@ -1243,7 +1113,7 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.085, .013, 20, 64); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.06, .009, 16, 48); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -1277,20 +1147,8 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
 });
 
 btnDraw.addEventListener('click',()=>{ if(current!==human) return;
-  let drewAny = false;
-  while(boneyard.length){
-    const t=boneyard.pop();
-    if(!isValidTile(t)) continue;
-    players[human].hand.push(t);
-    drewAny = true;
-    animateHumanDraw();
-    const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v);
-    const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
-    if(canL||canR) break;
-  }
-  if(drewAny){ SFX.draw.currentTime=0; SFX.draw.play(); }
-  else { releaseDrawUiAnchor(); }
-  clearMarkers(); selectedTile=null; renderHands();
+  while(boneyard.length){ const t=boneyard.pop(); if(!isValidTile(t)) continue; players[human].hand.push(t); const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v); if(canL||canR) break; }
+  clearMarkers(); selectedTile=null; renderHands(); SFX.draw.currentTime=0; SFX.draw.play();
 });
 btnPass.addEventListener('click',()=>{ if(current===human){ clearMarkers(); selectedTile=null; nextTurn(); }});
 
@@ -1393,15 +1251,7 @@ console.assert(document.getElementById('draw') && document.getElementById('pass'
 (()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pips exist'); })();
 
 /* ---------- Loop & Resize ---------- */
-function tick(){
-  const now = performance.now();
-  updateAnimations(now);
-  updateDrawUiPlacement();
-  controls.update();
-  renderer.render(scene,camera);
-  requestAnimationFrame(tick);
-}
-tick();
+function tick(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick);} tick();
 function onResize(){ fitCamera(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
 
