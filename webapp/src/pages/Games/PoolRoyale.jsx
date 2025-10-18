@@ -19,6 +19,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
+import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -886,19 +887,57 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
   }
 });
 
-const TABLE_SIZE_OPTIONS = Object.freeze({
-  '9ft': { id: '9ft', label: '9 ft', scale: 1.44 }
-});
-const DEFAULT_TABLE_SIZE_ID = '9ft';
-
 function resolvePoolVariant(variantId) {
   const key = typeof variantId === 'string' ? variantId.toLowerCase() : '';
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
-function resolveTableSize(sizeId) {
-  const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
-  return TABLE_SIZE_OPTIONS[key] || TABLE_SIZE_OPTIONS[DEFAULT_TABLE_SIZE_ID];
+function useResponsiveTableSize(option) {
+  const [scale, setScale] = useState(() => option?.scale ?? 1);
+
+  useEffect(() => {
+    if (!option) {
+      setScale(1);
+      return;
+    }
+    const baseScale = option.scale ?? 1;
+    const mobileScale = option.mobileScale ?? baseScale;
+    const compactScale = option.compactScale ?? mobileScale;
+    const updateScale = () => {
+      if (typeof window === 'undefined') {
+        setScale(baseScale);
+        return;
+      }
+      const { innerWidth: width, innerHeight: height } = window;
+      const isPortrait = height >= width;
+      let next = baseScale;
+      if (width <= 420 || height <= 720) {
+        next = compactScale;
+      } else if (width <= 1024 || isPortrait) {
+        next = mobileScale;
+      }
+      setScale((prev) => (Math.abs(prev - next) > 1e-3 ? next : prev));
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    window.addEventListener('orientationchange', updateScale);
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      window.removeEventListener('orientationchange', updateScale);
+    };
+  }, [option]);
+
+  return useMemo(() => {
+    if (!option) {
+      return { id: 'default', label: 'Default', baseScale: scale, scale };
+    }
+    return {
+      ...option,
+      baseScale: option.scale ?? 1,
+      scale
+    };
+  }, [option, scale]);
 }
 
 function getPoolBallColor(variant, index) {
@@ -4953,6 +4992,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
+  const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerTableFinish');
@@ -5214,10 +5254,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const toggleChalkAssist = useCallback(() => {
     setActiveChalkIndex(null);
   }, []);
-  const tableSizeRef = useRef(activeTableSize);
+  const tableSizeRef = useRef(responsiveTableSize);
   useEffect(() => {
-    tableSizeRef.current = activeTableSize;
-  }, [activeTableSize]);
+    tableSizeRef.current = responsiveTableSize;
+  }, [responsiveTableSize]);
+  const applyWorldScaleRef = useRef(() => {});
+  useEffect(() => {
+    applyWorldScaleRef.current?.();
+  }, [responsiveTableSize]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -8355,6 +8399,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               : STANDING_VIEW_MARGIN_LANDSCAPE
         );
         fit(margin);
+        applyWorldScaleRef.current = () => {
+          const changed = applyWorldScale();
+          if (changed) {
+            const nextMargin = Math.max(
+              STANDING_VIEW.margin,
+              topViewRef.current
+                ? 1.05
+                : window.innerHeight > window.innerWidth
+                  ? STANDING_VIEW_MARGIN_PORTRAIT
+                  : STANDING_VIEW_MARGIN_LANDSCAPE
+            );
+            fit(nextMargin);
+            updateCamera();
+          }
+          return changed;
+        };
         syncBlendToSpherical();
         setOrbitFocusToDefault();
         orbitRadiusLimitRef.current = sph.radius;
@@ -8739,24 +8799,32 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       }
       // ensure the camera respects the configured zoom limits
       sph.radius = clampOrbitRadius(sph.radius);
-      const tableScale = tableSizeRef.current?.scale ?? 1;
-      worldScaleFactor = WORLD_SCALE * tableScale;
-      world.scale.setScalar(worldScaleFactor);
-      const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * worldScaleFactor;
-      world.position.y = surfaceOffset;
-      if (broadcastCamerasRef.current) {
+      const applyWorldScale = () => {
+        const tableScale = tableSizeRef.current?.scale ?? 1;
+        const nextScale = WORLD_SCALE * tableScale;
+        const changed = Math.abs(worldScaleFactor - nextScale) > 1e-4;
+        worldScaleFactor = nextScale;
+        world.scale.setScalar(nextScale);
+        const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * nextScale;
+        world.position.y = surfaceOffset;
         const rig = broadcastCamerasRef.current;
-        const focusWorld = rig.defaultFocus
-          ? rig.defaultFocus.clone().multiplyScalar(worldScaleFactor)
-          : new THREE.Vector3();
-        rig.defaultFocusWorld = focusWorld;
-        if (rig.cameras) {
-          Object.values(rig.cameras).forEach((cam) => {
-            cam?.head?.lookAt(focusWorld);
-          });
+        if (rig) {
+          const focusWorld = rig.defaultFocus
+            ? rig.defaultFocus.clone().multiplyScalar(nextScale)
+            : new THREE.Vector3();
+          rig.defaultFocusWorld = focusWorld;
+          if (rig.cameras) {
+            Object.values(rig.cameras).forEach((cam) => {
+              cam?.head?.lookAt(focusWorld);
+            });
+          }
         }
-      }
-      world.updateMatrixWorld(true);
+        if (changed) {
+          world.updateMatrixWorld(true);
+        }
+        return changed;
+      };
+      applyWorldScale();
       updateCamera();
       fit(
         topViewRef.current
@@ -11188,15 +11256,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
-          const margin = Math.max(
-            STANDING_VIEW.margin,
-            topViewRef.current
-              ? 1.05
-              : window.innerHeight > window.innerWidth
-                ? 1.6
-                : 1.4
-          );
-          fit(margin);
+          const scaleChanged = applyWorldScaleRef.current?.() ?? false;
+          if (!scaleChanged) {
+            const margin = Math.max(
+              STANDING_VIEW.margin,
+              topViewRef.current
+                ? 1.05
+                : window.innerHeight > window.innerWidth
+                  ? 1.6
+                  : 1.4
+            );
+            fit(margin);
+          }
           const resizeAspect = host.clientWidth / host.clientHeight;
           pocketCamerasRef.current.forEach((entry) => {
             if (!entry?.camera) return;
@@ -11207,6 +11278,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.addEventListener('resize', onResize);
 
         return () => {
+          applyWorldScaleRef.current = () => {};
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
