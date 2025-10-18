@@ -188,6 +188,10 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
+const CORNER_POCKET_CUT_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+const SIDE_POCKET_CUT_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+const POCKET_RIM_MATCH_EXPANSION = TABLE.THICK * 0.008;
+const POCKET_RIM_RAIL_CLEARANCE = TABLE.THICK * 0.005;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.05; // slim the chrome along the long rails so the corner plates stay tighter to the pockets
@@ -3660,6 +3664,12 @@ function createPocketJawMaterials(option) {
   return { body, rim, base };
 }
 
+function resolvePocketJawLift(clothPlaneLocal, requestedLift = TABLE.THICK * 0.01) {
+  const railTop = FRAME_TOP_Y + RAIL_HEIGHT;
+  const targetLift = railTop - clothPlaneLocal + POCKET_RIM_RAIL_CLEARANCE;
+  return Math.max(requestedLift ?? 0, targetLift, 0);
+}
+
 function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = TABLE.THICK * 0.01) {
   const resolved = resolvePocketJawOption(option);
   if (!resolved || !table) return null;
@@ -3686,29 +3696,37 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
   pts.push(new THREE.Vector2(innerRadius + flare + lipInset, lipHeight));
   const topOffset = pts[pts.length - 1].y;
   const adjustedPts = pts.map((pt) => new THREE.Vector2(pt.x, pt.y - topOffset));
+  const lipStartIndex = Math.max(0, adjustedPts.length - 2);
   const rimOuterRaw = adjustedPts.reduce((max, pt) => Math.max(max, pt.x), innerRadius + lipInset);
-  const rimOuter = Math.min(rimOuterRaw, innerRadius + TABLE.THICK * 0.18);
-  const finalPts = adjustedPts.map((pt, idx) => {
-    if (idx >= adjustedPts.length - 2) {
-      return new THREE.Vector2(Math.min(pt.x, rimOuter), pt.y);
-    }
-    return pt;
-  });
-  const minY = finalPts.reduce((min, pt) => Math.min(min, pt.y), Infinity);
-  const rimTube = Math.max((rimOuter - innerRadius) * 0.5, TABLE.THICK * 0.01);
-  const rimMajor = (rimOuter + innerRadius) * 0.5;
-  const baseThickness = Math.max(TABLE.THICK * 0.05, Math.abs(minY) * 0.12);
-  const baseOffset = minY - baseThickness / 2 - TABLE.THICK * 0.012;
-  const baseRadius = rimOuter + Math.max(scale * 0.03, TABLE.THICK * 0.03);
+  const rimOuterLimit = innerRadius + TABLE.THICK * 0.24;
 
   const assemblyGroup = new THREE.Group();
   assemblyGroup.name = 'pocketJawSet';
   const pocketGroups = [];
+  const lift = resolvePocketJawLift(clothPlaneLocal, verticalLift);
+  let rimOuterMax = 0;
   const centers = pocketCenters();
   centers.forEach((center, index) => {
     const isSide = index >= 4;
     const arc = isSide ? Math.PI : Math.PI / 2;
     const phiStart = -arc / 2;
+    const rimTarget =
+      (isSide ? SIDE_POCKET_CUT_RADIUS : CORNER_POCKET_CUT_RADIUS) + POCKET_RIM_MATCH_EXPANSION;
+    const rimOuter = Math.min(Math.max(rimOuterRaw, rimTarget), rimOuterLimit);
+    rimOuterMax = Math.max(rimOuterMax, rimOuter);
+    const finalPts = adjustedPts.map((pt, idx) => {
+      if (idx >= lipStartIndex) {
+        return new THREE.Vector2(Math.min(pt.x, rimOuter), pt.y);
+      }
+      return pt;
+    });
+    const minY = finalPts.reduce((min, pt) => Math.min(min, pt.y), Infinity);
+    const rimTube = Math.max((rimOuter - innerRadius) * 0.5, TABLE.THICK * 0.01);
+    const rimMajor = (rimOuter + innerRadius) * 0.5;
+    const baseThickness = Math.max(TABLE.THICK * 0.05, Math.abs(minY) * 0.12);
+    const baseOffset = minY - baseThickness / 2 - TABLE.THICK * 0.012;
+    const baseRadius = rimOuter + Math.max(scale * 0.03, TABLE.THICK * 0.03);
+
     const jawGeom = new THREE.LatheGeometry(finalPts, 64, phiStart, arc);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, materials.body);
@@ -3747,7 +3765,7 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
       toCenter.normalize();
       pocketGroup.rotation.y = Math.atan2(-toCenter.y, toCenter.x);
     }
-    pocketGroup.position.set(center.x, clothPlaneLocal + verticalLift, center.y);
+    pocketGroup.position.set(center.x, clothPlaneLocal + lift, center.y);
     assemblyGroup.add(pocketGroup);
     pocketGroups.push(pocketGroup);
   });
@@ -3757,8 +3775,8 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     optionId: resolved.id,
     materials,
     pockets: pocketGroups,
-    verticalLift,
-    rimOuter
+    verticalLift: lift,
+    rimOuter: rimOuterMax
   };
 }
 
@@ -3795,10 +3813,10 @@ function applyPocketJawSelection(table, finishInfo, option) {
     typeof context.clothPlaneLocal === 'number'
       ? context.clothPlaneLocal
       : CLOTH_TOP_LOCAL + CLOTH_LIFT;
-  const verticalLift =
-    typeof context.verticalLift === 'number'
-      ? context.verticalLift
-      : TABLE.THICK * 0.01;
+  const verticalLift = resolvePocketJawLift(
+    clothPlaneLocal,
+    typeof context.verticalLift === 'number' ? context.verticalLift : TABLE.THICK * 0.01
+  );
   const current = finishInfo.pocketJawState || null;
   if (current?.optionId === resolved.id) {
     return;
@@ -3819,6 +3837,10 @@ function applyPocketJawSelection(table, finishInfo, option) {
   if (finishInfo.parts) {
     finishInfo.parts.pocketJawGroup = next?.group ?? null;
   }
+  finishInfo.pocketJawContext = {
+    clothPlaneLocal,
+    verticalLift: next?.verticalLift ?? verticalLift
+  };
 }
 
 function Table3D(
@@ -4041,7 +4063,7 @@ function Table3D(
     pocketJawOptionId: initialPocketJawOption?.id ?? DEFAULT_POCKET_JAW_ID,
     pocketJawContext: {
       clothPlaneLocal,
-      verticalLift: TABLE.THICK * 0.01
+      verticalLift: resolvePocketJawLift(clothPlaneLocal, TABLE.THICK * 0.01)
     }
   };
 
@@ -4246,7 +4268,8 @@ function Table3D(
     pocketJawState?.optionId ?? initialPocketJawOption?.id ?? DEFAULT_POCKET_JAW_ID;
   finishInfo.pocketJawContext = {
     clothPlaneLocal,
-    verticalLift: TABLE.THICK * 0.01
+    verticalLift:
+      pocketJawState?.verticalLift ?? resolvePocketJawLift(clothPlaneLocal, TABLE.THICK * 0.01)
   };
 
   const railH = RAIL_HEIGHT;
@@ -4372,7 +4395,7 @@ function Table3D(
   const sideChromePlateY =
     railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
 
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sidePocketRadius = SIDE_POCKET_CUT_RADIUS;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
@@ -4401,7 +4424,7 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = CORNER_POCKET_CUT_RADIUS;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
@@ -5285,9 +5308,10 @@ function applyTableFinishToTable(table, finish) {
   if (typeof context.clothPlaneLocal !== 'number') {
     context.clothPlaneLocal = table.userData?.clothPlaneLocal ?? CLOTH_TOP_LOCAL + CLOTH_LIFT;
   }
-  if (typeof context.verticalLift !== 'number') {
-    context.verticalLift = TABLE.THICK * 0.01;
-  }
+  context.verticalLift = resolvePocketJawLift(
+    context.clothPlaneLocal,
+    typeof context.verticalLift === 'number' ? context.verticalLift : TABLE.THICK * 0.01
+  );
   finishInfo.pocketJawContext = context;
   applyPocketJawSelection(table, finishInfo, resolvedFinish?.pocketJawOption);
 
