@@ -48,7 +48,7 @@ export default function TexasHoldemLobby() {
     params.set('mode', mode);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
-    const totalPlayers = Math.min(Math.max(2, opponents + 1), 7);
+    const totalPlayers = Math.min(Math.max(2, opponents + 1), 6);
     params.set('players', totalPlayers);
     if (avatar) params.set('avatar', avatar);
     const username = getTelegramUsername();
@@ -77,7 +77,7 @@ export default function TexasHoldemLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Opponents</h3>
         <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: 6 }, (_, idx) => idx + 1).map((count) => {
+          {Array.from({ length: 5 }, (_, idx) => idx + 1).map((count) => {
             const isSelected = opponents === count;
             return (
               <button
@@ -92,7 +92,7 @@ export default function TexasHoldemLobby() {
           })}
         </div>
         <p className="text-xs text-center text-text/80">
-          Choose how many players you want to face (1 - 6)
+          Choose how many players you want to face (1 - 5)
         </p>
       </div>
       <div className="space-y-2">
