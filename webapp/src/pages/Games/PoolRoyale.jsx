@@ -213,6 +213,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // align the notch opening height w
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
 const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
+const CHROME_CORNER_EDGE_RADIUS_RATIO = 1.08; // round chrome corners to follow the softened rail profile
 const CHROME_SIDE_PLATE_CORNER_RADIUS_RATIO = 0.72; // increase the chrome side plate rounding on portrait rails
 const CHROME_SIDE_PLATE_RECT_RADIUS_RATIO = 0.22; // allow a larger fillet on the side plates to match reference hardware
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.28; // carve a deeper wedge so no chrome lingers on the field side of the pocket
@@ -413,7 +414,6 @@ function buildChromePlateGeometry({
     bevelThickness,
     curveSegments: 64
   });
-  geo.translate(0, 0, -thickness / 2);
   geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
@@ -4062,7 +4062,6 @@ function Table3D(
     Math.max(chromePlateThickness, chromePocketCoverageDepth)
   );
   const chromePlateInset = TABLE.THICK * 0.02;
-  const chromePlateLift = chromePlateInset;
   const sideChromePlateInset = TABLE.THICK * CHROME_SIDE_PLATE_RAIL_INSET_SCALE;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -4101,10 +4100,16 @@ function Table3D(
   );
   const chromePlateRadius = Math.max(
     0,
-    Math.min(outerCornerRadius, chromePlateWidth / 2, chromePlateHeight / 2)
+    Math.min(
+      outerCornerRadius * CHROME_CORNER_EDGE_RADIUS_RATIO,
+      chromePlateWidth / 2,
+      chromePlateHeight / 2
+    )
   );
-  const chromePlateY = railsTopY + chromePlateLift - chromePlateThickness / 2;
-  const sideChromePlateY = railsTopY + chromePlateLift - sideChromePlateThickness / 2;
+  const chromePlateY =
+    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const sideChromePlateY =
+    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
@@ -4297,11 +4302,6 @@ function Table3D(
     return adjustSideNotchDepth(union);
   };
 
-  const shrinkRailCut = (mp) => {
-    const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
-    return Array.isArray(scaled) && scaled.length ? scaled : mp;
-  };
-
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
   [
@@ -4312,19 +4312,11 @@ function Table3D(
   ].forEach(({ corner, sx, sz }) => {
     const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
     const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
-    const notchLocalMP = shrinkRailCut(cornerNotchMP(sx, sz))
-      .map((poly) => {
-        if (!Array.isArray(poly)) return null;
-        const rings = poly
-          .map((ring) =>
-            Array.isArray(ring)
-              ? ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
-              : []
-          )
-          .filter((ring) => ring.length);
-        return rings.length ? rings : null;
-      })
-      .filter(Boolean);
+    const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
+      )
+    );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: chromePlateWidth,
@@ -4350,19 +4342,9 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
     const centerZ = 0;
-    const notchLocalMP = shrinkRailCut(sideNotchMP(sx))
-      .map((poly) => {
-        if (!Array.isArray(poly)) return null;
-        const rings = poly
-          .map((ring) =>
-            Array.isArray(ring)
-              ? ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
-              : []
-          )
-          .filter((ring) => ring.length);
-        return rings.length ? rings : null;
-      })
-      .filter(Boolean);
+    const notchLocalMP = sideNotchMP(sx).map((poly) =>
+      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
+    );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: sideChromePlateWidth,
@@ -4391,6 +4373,10 @@ function Table3D(
     }
   }
 
+  const shrinkRailCut = (mp) => {
+    const scaled = scaleMultiPolygon(mp, RAIL_POCKET_CUT_SCALE);
+    return Array.isArray(scaled) && scaled.length ? scaled : mp;
+  };
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...shrinkRailCut(sideNotchMP(-1)),
