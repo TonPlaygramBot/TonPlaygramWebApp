@@ -782,6 +782,16 @@ function makeDomino(a,b,{flat=true, faceUp=true}={}){
 
   group.add(body);
 
+  // Invisible collider to make touch / pick detection more forgiving on mobile
+  const colliderGeo = new THREE.BoxGeometry(1.6, faceUp ? 0.65 : 1.2, 1.6);
+  const colliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  const collider = new THREE.Mesh(colliderGeo, colliderMat);
+  collider.name = 'touchCollider';
+  collider.renderOrder = -1;
+  collider.castShadow = false;
+  collider.receiveShadow = false;
+  group.add(collider);
+
   // Integrim me sistemin ekzistues: në fushë duhen "flat" (faqe lart)
   if(flat){ group.rotation.x = -Math.PI/2; }
 
@@ -914,6 +924,108 @@ function renderChain(){
 function highestDoubleIndex(hand){ let best=-1, idx=-1; hand.forEach((t,i)=>{ if(t.a===t.b && t.a>best){best=t.a; idx=i;} }); return idx; }
 function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
 
+const VALUE_MAX_OCCURRENCES = 8; // each pip value appears 8 times in a double-six set (including doubles)
+
+function valueOccurrencesInTiles(tiles, value, skipIndex=-1){
+  let total = 0;
+  tiles.forEach((t,i)=>{
+    if(skipIndex===i) return;
+    if(!isValidTile(t)) return;
+    if(t.a===value) total++;
+    if(t.b===value) total++;
+  });
+  return total;
+}
+
+function valueOccurrencesInChain(value){
+  let total = 0;
+  chain.forEach(c=>{
+    const {a,b} = c.tile;
+    if(a===value) total++;
+    if(b===value) total++;
+  });
+  return total;
+}
+
+function enumerateMoves(hand){
+  const moves = [];
+  if(!hand || !hand.length) return moves;
+  if(!ends){
+    hand.forEach((tile,index)=>{
+      if(!isValidTile(tile)) return;
+      moves.push({tile,index,side:1,match:tile.a,other:tile.b});
+    });
+    return moves;
+  }
+  hand.forEach((tile,index)=>{
+    if(!isValidTile(tile)) return;
+    const {L,R} = validSidesFor(tile);
+    if(L){
+      const match = ends.L.v;
+      const other = (tile.a===match) ? tile.b : tile.a;
+      moves.push({tile,index,side:-1,match,other});
+    }
+    if(R){
+      const match = ends.R.v;
+      const other = (tile.a===match) ? tile.b : tile.a;
+      moves.push({tile,index,side:1,match,other});
+    }
+  });
+  return moves;
+}
+
+function scoreMove(player, move){
+  const {tile,index,other,side} = move;
+  let score = 0;
+  const sum = tile.a + tile.b;
+  score += sum; // prefer dumping high pips to avoid being stuck later
+  if(tile.a===tile.b){
+    score += 6; // doubles can open/close branches effectively
+  }
+
+  const sameValueRemaining = valueOccurrencesInTiles(player.hand, other, index);
+  score += sameValueRemaining * 2.5; // keeping follow-up options for ourselves
+
+  const occurrencesFromTile = (tile.a === tile.b) ? 2 : ((tile.a === other || tile.b === other) ? 1 : 0);
+  const knownElsewhere = valueOccurrencesInChain(other) + sameValueRemaining + occurrencesFromTile;
+  const remainingElsewhere = Math.max(0, VALUE_MAX_OCCURRENCES - knownElsewhere);
+  if(remainingElsewhere === 0){
+    score += 6; // completely choke the value — strong blocking move
+  } else if(remainingElsewhere <= 2){
+    score += 3;
+  }
+  score += (VALUE_MAX_OCCURRENCES - remainingElsewhere) * 1.25;
+
+  if(ends){
+    const currentEndValue = (side < 0 ? ends.L.v : ends.R.v);
+    if(currentEndValue === other && tile.a !== tile.b){
+      // keeping the same value on the end makes it predictable — slight penalty unless it's a double
+      score -= 1.5;
+    }
+    if(sameValueRemaining === 0 && remainingElsewhere > 0){
+      // avoid stranding ourselves with no follow-up on that end unless it is a blocking move
+      score -= 2;
+    }
+  }
+
+  score += Math.random() * 0.25; // tiny randomness to avoid deterministic loops
+  return score;
+}
+
+function cpuDrawUntilPlayable(player){
+  let drew = false;
+  while(boneyard.length){
+    const tile = boneyard.pop();
+    if(!isValidTile(tile)) continue;
+    player.hand.push(tile);
+    drew = true;
+    if(!ends) break;
+    const {L,R} = validSidesFor(tile);
+    if(L || R) break;
+  }
+  return drew;
+}
+
 function startGame(){
   chain=[]; ends=null; selectedTile=null; clearMarkers();
   usedTileKeys.clear();
@@ -1001,7 +1113,7 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.045, .005, 12, 32); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.06, .009, 16, 48); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -1063,12 +1175,58 @@ function nextTurn(){
   updateInteractivity(); if(current!==human) setTimeout(cpuPlay,450);
 }
 function cpuPlay(){
-  const p=players[current]; let playable=-1, side=1;
-  if(ends){
-    for(let i=0;i<p.hand.length;i++){ const t=p.hand[i]; if(!isValidTile(t)) continue; if(t.a===ends.L.v||t.b===ends.L.v){ playable=i; side=-1; break;} if(t.a===ends.R.v||t.b===ends.R.v){ playable=i; side=1; break;} }
-  } else { playable=0; }
-  if(playable<0){ if(boneyard.length){ const d=boneyard.pop(); if(isValidTile(d)) p.hand.push(d); renderHands(); SFX.draw.currentTime=0; SFX.draw.play(); setTimeout(cpuPlay,350); return;} nextTurn(); return; }
-  const tile=p.hand.splice(playable,1)[0]; placeOnBoard(tile, side); renderHands(); if(p.hand.length===0){ setStatus(`Player ${current+1} won!`); return;} nextTurn();
+  const player = players[current];
+  if(!player){ nextTurn(); return; }
+
+  const moves = enumerateMoves(player.hand).map(move => ({ ...move, score: scoreMove(player, move) }));
+  moves.sort((a,b)=> b.score - a.score);
+
+  if(!moves.length){
+    const drew = cpuDrawUntilPlayable(player);
+    if(drew){
+      renderHands();
+      SFX.draw.currentTime = 0; SFX.draw.play();
+      if(canPlayAny(player.hand)){
+        setTimeout(cpuPlay, 350);
+      } else {
+        nextTurn();
+      }
+    } else {
+      nextTurn();
+    }
+    return;
+  }
+
+  for(const move of moves){
+    const tile = player.hand[move.index];
+    if(!tile) continue;
+    const picked = player.hand.splice(move.index,1)[0];
+    const placed = placeOnBoard(picked, move.side);
+    if(placed){
+      renderHands();
+      if(player.hand.length===0){
+        setStatus(`Player ${current+1} won!`);
+        return;
+      }
+      nextTurn();
+      return;
+    }
+    player.hand.splice(move.index,0,picked);
+  }
+
+  // Fallback: if all scored moves failed (shouldn't happen) just draw or pass
+  const drew = cpuDrawUntilPlayable(player);
+  if(drew){
+    renderHands();
+    SFX.draw.currentTime = 0; SFX.draw.play();
+    if(canPlayAny(player.hand)){
+      setTimeout(cpuPlay, 350);
+    } else {
+      nextTurn();
+    }
+  } else {
+    nextTurn();
+  }
 }
 
 /* ---------- Rules panel handlers ---------- */
