@@ -12,22 +12,38 @@ export default function Games() {
       <div className="space-y-4">
         <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
           <div className="flex overflow-x-auto space-x-4 items-center pb-2">
-            <Link
-              to="/games/texasholdem/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+          <Link
+            to="/games/texasholdem/lobby"
+            className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+          >
+            <img
+              src="/assets/icons/texas-holdem.svg"
+              alt=""
+              className="h-20 w-20"
+            />
+            <h3
+              className="text-sm font-semibold text-center text-yellow-400"
+              style={{ WebkitTextStroke: '1px black' }}
             >
-              <img
-                src="/assets/icons/texas-holdem.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Texas Hold'em
-              </h3>
-            </Link>
+              Texas Hold'em
+            </h3>
+          </Link>
+          <Link
+            to="/games/domino-royal/lobby"
+            className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+          >
+            <img
+              src="/assets/icons/domino-royal.svg"
+              alt=""
+              className="h-20 w-20"
+            />
+            <h3
+              className="text-sm font-semibold text-center text-yellow-400"
+              style={{ WebkitTextStroke: '1px black' }}
+            >
+              Domino Royal 3D
+            </h3>
+          </Link>
             <Link
               to="/games/blackjack/lobby"
               className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"

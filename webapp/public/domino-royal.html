@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Domino Royal 3D</title>
+<style>
+  :root{ --hud-safe: env(safe-area-inset-bottom, 0px); }
+  html,body{margin:0;height:100%;background:#ece6dc;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  #app{position:fixed;inset:0; width:100dvw; height:100dvh;}
+  canvas{display:block; width:100dvw !important; height:100dvh !important; touch-action:none}
+  #hud{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:.5rem;padding:calc(.5rem + var(--hud-safe)) 1rem .5rem 1rem;pointer-events:auto; z-index:2}
+  .bar{background:#1a5e2a;color:#fff;border-radius:12px;box-shadow:0 3px 0 #0d3619;padding:.4rem .6rem;display:flex;gap:.5rem;align-items:center}
+  select,button{font-weight:700;border:0;border-radius:10px;padding:.45rem .7rem}
+  select{background:#0e3c20;color:#fff}
+  button{background:#ffd24a;color:#333}
+  #status{position:fixed;top:.5rem;left:50%;transform:translateX(-50%);padding:.35rem .6rem;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2}
+  #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3}
+  #rules .card{max-width:720px;background:#fff;color:#222;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:16px 18px}
+  #rules h2{margin:0 0 6px 0;font-size:18px}
+  #rules ol{margin:6px 0 0 18px}
+  #rules .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="status">Ready</div>
+<div id="hud">
+  <div class="bar">
+    <span>Lojtarë</span>
+    <select id="players">
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4" selected>4</option>
+    </select>
+    <button id="start">Start</button>
+    <button id="draw" disabled>Tërhiq</button>
+    <button id="pass" disabled>Kalo</button>
+    <button id="btnRules">Rregulla</button>
+  </div>
+</div>
+<div id="rules">
+  <div class="card">
+    <h2>Domino Shqiptare — Rregulla për 2–4 lojtarë</h2>
+    <ol>
+      <li><b>Set:</b> Double-Six (28 gurë, 0–6). Çdo gur unik (a,b) me a≤b. Dublikatat nuk lejohen.</li>
+      <li><b>Shpërndarja:</b> 7 gurë secili. Pjesa tjetër = <i>stok</i> (boneyard).</li>
+      <li><b>Nisja:</b> Kush ka dopion më të lartë nis. Në mungesë dopios, nis ai me gurin më të lartë.</li>
+      <li><b>Vënia në tavolinë:</b> Gjarpër horizontal mbi rrobën jeshile; vetëm dopiot vendosen vertikalisht. Kur afrohet skaji, kthehet 90° brenda fushës.</li>
+      <li><b>Përputhja:</b> Skaji i lirë duhet të përputhet në vlerë. Dopio pranon nga të dyja anët të njëjtën vlerë.</li>
+      <li><b>Nëse s’ke lojë:</b> Tërhiq nga stok-u derisa të kesh lojë. Nëse stok-u mbaron, kalon rradha.</li>
+      <li><b>Mbyllja:</b> Fiton ai që mbaron i pari ose kur loja bllokohet – fiton ai me shumën më të ulët të pikëve në dorë.</li>
+    </ol>
+    <div class="row">
+      <button id="closeRules">Mbyll</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "https://esm.sh/three@0.160.0";
+import { OrbitControls } from "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js";
+import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
+
+/* ---------- Audio (SFX) ---------- */
+const SFX = {
+  place: new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_7dc2b2.mp3?filename=click-124467.mp3"),
+  draw:  new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b2f7c5.mp3?filename=pop-124476.mp3")
+};
+SFX.place.volume = 0.7; SFX.draw.volume = 0.7;
+
+/* ---------- Renderer / Scene ---------- */
+const app = document.getElementById("app");
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+function setRendererSize(){
+  const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
+  renderer.setSize(w, h, false);
+}
+setRendererSize();
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = envTex;
+
+const camera = new THREE.PerspectiveCamera(56, 1, 0.05, 100);
+function fitCamera(){
+  const vv = window.visualViewport; const w= vv?vv.width:innerWidth; const h= vv?vv.height:innerHeight;
+  camera.aspect = w/h; camera.updateProjectionMatrix(); setRendererSize();
+}
+fitCamera();
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0.64, 0);
+controls.minDistance = 1.1; controls.maxDistance = 4; controls.maxPolarAngle = Math.PI*0.49;
+
+/* ---------- Lights ---------- */
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.55); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+
+/* ---------- World / Groups ---------- */
+const tableG = new THREE.Group();
+scene.add(tableG);
+tableG.rotation.y = 0.10; // pak rrotullim për perspektivë
+const piecesG = new THREE.Group();
+tableG.add(piecesG);
+
+/* ---------- Shapes ---------- */
+function roundedRectShape(hw=0.95, hh=0.95, r=0.06){
+  const w=hw*2, h=hh*2; const s=new THREE.Shape();
+  s.moveTo(-hw+r,-hh);
+  s.lineTo(hw-r,-hh); s.quadraticCurveTo(hw,-hh,hw,-hh+r);
+  s.lineTo(hw,hh-r); s.quadraticCurveTo(hw,hh,hw-r,hh);
+  s.lineTo(-hw+r,hh); s.quadraticCurveTo(-hw,hh,-hw,hh-r);
+  s.lineTo(-hw,-hh+r); s.quadraticCurveTo(-hw,-hh,-hw+r,-hh);
+  return s;
+}
+function roundedRectAbs(w, h, r){ return roundedRectShape(w*0.5, h*0.5, r); }
+function makeClothTexture(hex="#155c2a"){ const c=document.createElement("canvas"),S=512; c.width=c.height=S; const g=c.getContext("2d"); g.fillStyle=hex; g.fillRect(0,0,S,S); g.globalAlpha=.08; g.fillStyle="#fff"; for(let i=0;i<S;i+=6){ g.fillRect(i,0,1,S); g.fillRect(0,i,S,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(5,5); t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; }
+function makeSpeckle(size=256, density=0.08){ const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); g.fillStyle='#808080'; g.fillRect(0,0,size,size); g.globalAlpha=0.25; g.fillStyle='#9a9a9a'; const dots = Math.floor(size*size*density*0.002); for(let i=0;i<dots;i++){ const x=Math.random()*size, y=Math.random()*size, r=0.5+Math.random()*1.2; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); } const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.anisotropy=renderer.capabilities.getMaxAnisotropy(); return tex; }
+
+/* ---------- Materials ---------- */
+const porcelainMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf8f8fb,
+  roughness: 0.12,
+  metalness: 0.2,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,
+  reflectivity: 0.6,
+});
+const pipMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0a0a0a,
+  roughness: 0.05,
+  metalness: 0.6,
+  clearcoat: 0.9,
+  clearcoatRoughness: 0.04,
+});
+const goldMat = new THREE.MeshPhysicalMaterial({
+  color: 0xFFD700,                 // brighter gold
+  emissive: 0x3a2a00,              // warm self-light so it never looks black
+  emissiveIntensity: 0.55,
+  metalness: 1.0,
+  roughness: 0.18,
+  reflectivity: 1.0,
+  envMapIntensity: 1.4,
+  transmission: 0.0,
+  side: THREE.DoubleSide,
+  polygonOffset: true,
+  polygonOffsetFactor: -1,
+  polygonOffsetUnits: -1,
+});
+const wood = new THREE.MeshStandardMaterial({ color:"#5a3a19", roughness:.55, metalness:.08 });
+const woodDark = new THREE.MeshStandardMaterial({ color:"#4a3115", roughness:.7, metalness:.05 });
+const felt = new THREE.MeshStandardMaterial({ color:"#155c2a", map:makeClothTexture("#155c2a"), roughness:1, metalness:0 });
+const baseGreen = new THREE.MeshStandardMaterial({ color:"#0f3e2d", roughness:.85, metalness:.05});
+const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
+
+/* ---------- Dimensions (Square Table) ---------- */
+const Y=0.64;
+const OUT_HW = 0.95;              // gjysmë-gjerësi e bordit të jashtëm
+const RIM_THICK = 0.07;           // trashësia e rim-it
+const IN_HW  = 0.76;              // brenda rim-it (buzë e brendshme)
+const CLOTH_HW = 0.70;            // fushë jeshile (gjysmë-gjerësi)
+const RIM_H = 0.07;
+
+// Kufijtë e zinxhirit mbi rrobë
+const XMAX = CLOTH_HW - 0.06;
+const ZMAX = CLOTH_HW - 0.06;
+
+// Domino scale — pak më e vogël se më parë
+const SCALE=0.68;
+const TILE_UP_H = 0.20 * SCALE;
+const TILE_UP_HALF = TILE_UP_H * 0.5;
+const RAIL_TOP = Y + 0.02 + RIM_H;
+const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
+
+/* ---------- Table (Square Poker Style) ---------- */
+{
+  // baza druri (pak bevel)
+  const g = new THREE.ExtrudeGeometry(roundedRectShape(OUT_HW, OUT_HW, 0.06), {depth:.02, bevelEnabled:true, bevelThickness:.012, bevelSize:.012});
+  g.rotateX(-Math.PI/2);
+  const m = new THREE.Mesh(g, wood); m.position.y=Y; m.castShadow=true; tableG.add(m);
+}
+{
+  // fusha jeshile (rrobë)
+  const g = new THREE.ExtrudeGeometry(roundedRectShape(CLOTH_HW, CLOTH_HW, 0.04), {depth:.012, bevelEnabled:false});
+  g.rotateX(-Math.PI/2);
+  const m = new THREE.Mesh(g, felt); m.position.y=Y+.022; m.receiveShadow=true; tableG.add(m);
+}
+{
+  // rim katror me hapje brenda
+  const outer = roundedRectShape(OUT_HW, OUT_HW, 0.06);
+  const inner = roundedRectShape(IN_HW, IN_HW, 0.05); outer.holes.push(inner);
+  const g = new THREE.ExtrudeGeometry(outer, {depth:RIM_H, bevelEnabled:true, bevelThickness:.02, bevelSize:.02});
+  g.rotateX(-Math.PI/2);
+  const rim = new THREE.Mesh(g, woodDark); rim.position.y=Y+.02; rim.castShadow=true; tableG.add(rim);
+}
+{
+  // skirti poshtë si bazament
+  const skirtH=.60; const skirt = new THREE.Mesh(new THREE.BoxGeometry((OUT_HW+0.05)*2, skirtH, (OUT_HW+0.05)*2), baseGreen);
+  skirt.position.y=Y - skirtH/2 + 0.01; skirt.castShadow=true; skirt.receiveShadow=true; tableG.add(skirt);
+}
+{
+  // dysheme
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(6,48), new THREE.MeshStandardMaterial({color:"#ece6dc", roughness:.98}));
+  floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; tableG.add(floor);
+}
+
+/* ---------- Tile Helpers (ensure defined before use) ---------- */
+function isValidTile(t){
+  if(!t || typeof t.a!=="number" || typeof t.b!=="number") return false;
+  if(t.a<0||t.b<0||t.a>6||t.b>6) return false; return true;
+}
+function canonTile(t){
+  if(!isValidTile(t)) return null; let {a,b}=t; if(a>b){ const k=a; a=b; b=k; } return {a,b};
+}
+
+/* ---------- Domino EXACT per kërkesën tënde ---------- */
+function pipPositions(){
+  return [
+    [-0.3, 0.6], [0, 0.6], [0.3, 0.6],
+    [-0.3, 0.3], [0, 0.3], [0.3, 0.3],
+    [-0.3, 0.0], [0, 0.0], [0.3, 0.0],
+  ];
+}
+const INDEX_SETS = { 0: [], 1: [4], 2: [0,8], 3: [0,4,8], 4: [0,2,6,8], 5: [0,2,4,6,8], 6: [0,2,3,5,6,8] };
+
+function addGoldPerimeter(domino){
+  const inset = 0.04;
+  const w = 1 - inset*2;
+  const h = 2 - inset*2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-w/2, -h/2);
+  shape.lineTo( w/2, -h/2);
+  shape.lineTo( w/2,  h/2);
+  shape.lineTo(-w/2,  h/2);
+  shape.lineTo(-w/2, -h/2);
+  const hole = new THREE.Path();
+  const t = 0.015;
+  hole.moveTo(-w/2 + t, -h/2 + t);
+  hole.lineTo( w/2 - t, -h/2 + t);
+  hole.lineTo( w/2 - t,  h/2 - t);
+  hole.lineTo(-w/2 + t,  h/2 - t);
+  hole.lineTo(-w/2 + t, -h/2 + t);
+  shape.holes.push(hole);
+  const extrude = new THREE.ExtrudeGeometry(shape, { depth: 0.01, bevelEnabled: false });
+  const frame = new THREE.Mesh(extrude, goldMat.clone());
+  frame.position.z = 0.11;
+  frame.renderOrder = 5; // sit on top
+  domino.add(frame);
+}
+
+function addPips(dominoFace, count, yOffset){
+  const positions = pipPositions();
+  const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
+  const pipGeo = new THREE.SphereGeometry(0.085, 24, 24);
+  idxs.forEach(i => {
+    const [px, py] = positions[i];
+    const sphere = new THREE.Mesh(pipGeo, pipMat);
+    sphere.position.set(px, py + yOffset, 0.11);
+    dominoFace.add(sphere);
+
+    // Unazë ari rreth pikes (gold)
+    const innerR = 0.107;
+    const outerR = 0.120;
+    const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
+    const ring = new THREE.Mesh(ringGeo, goldMat.clone());
+    ring.position.set(px, py + yOffset, 0.11);
+    ring.renderOrder = 6; // above porcelain & pip
+    dominoFace.add(ring);
+  });
+}
+
+function makeDomino(a,b,{flat=true, faceUp=true}={}){
+  const ct = canonTile({a,b}); if(!ct){ return new THREE.Group(); }
+  a=ct.a; b=ct.b;
+
+  const group = new THREE.Group();
+
+  // Trupi SAKTËSISHT si në kodin tënd
+  const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
+  const body = new THREE.Mesh(bodyGeo, porcelainMat.clone());
+  body.castShadow = true; body.receiveShadow = true;
+
+  // Vijë mesi — GOLD
+  const midW = 1 - 0.08;         // sipas kodit
+  const midH = 0.03;
+  const midR = 0.06;
+  const midShape = roundedRectAbs(midW, midH, Math.min(midR, midH/2));
+  const midGeo = new THREE.ExtrudeGeometry(midShape, { depth: 0.01, bevelEnabled: false });
+  const midLine = new THREE.Mesh(midGeo, goldMat.clone());
+  midLine.position.z = 0.11;
+  midLine.renderOrder = 5;
+  body.add(midLine);
+
+  // Kornizë ari rrethuese — GOLD
+  addGoldPerimeter(body);
+
+  // Pikat sipas kodit — faqe sipër & poshtë (në koordinata të trupit)
+  if(faceUp){
+    addPips(body, a, -0.8);
+    addPips(body, b,  0.2);
+  }
+
+  group.add(body);
+
+  // Integrim me sistemin ekzistues: në fushë duhen "flat" (faqe lart)
+  if(flat){ group.rotation.x = -Math.PI/2; }
+
+  // Ruaj shkallën ekzistuese të botës (ashtu si para ndryshimit)
+  const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
+  group.scale.set(SCALE*sx, SCALE*sy, SCALE*sz);
+
+  group.userData.val = [a,b];
+  return group;
+}
+
+/* ---------- Game State ---------- */
+const statusEl = document.getElementById('status');
+const btnStart = document.getElementById('start');
+const btnDraw = document.getElementById('draw');
+const btnPass = document.getElementById('pass');
+const selPlayers = document.getElementById('players');
+const btnRules = document.getElementById('btnRules');
+const panelRules = document.getElementById('rules');
+const closeRules = document.getElementById('closeRules');
+
+let N = 4; let players = []; let boneyard = []; let chain = [];
+let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
+let current = 0; let human = 0;
+let markers = {L:null, R:null}; let selectedTile = null;
+let flipDir = false; // alterno drejtimin e zinxhirit pas çdo loje
+
+function setStatus(t){ statusEl.textContent = t; }
+
+function genSet(){ const set=[]; for(let a=0;a<=6;a++){ for(let b=a;b<=6;b++){ set.push({a,b}); } } return set; }
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+const urlParams = new URLSearchParams(window.location.search);
+const requestedPlayers = Number.parseInt(urlParams.get('players') || urlParams.get('playerCount') || '', 10);
+if (requestedPlayers >= 2 && requestedPlayers <= 4) {
+  selPlayers.value = String(requestedPlayers);
+}
+N = Number.parseInt(selPlayers.value, 10) || 4;
+const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
+const stakeToken = urlParams.get('token') || 'TPC';
+if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
+  setStatus(`Ready — Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`);
+}
+
+selPlayers.addEventListener('change', () => {
+  const value = Number.parseInt(selPlayers.value, 10);
+  if (Number.isFinite(value)) {
+    N = Math.max(2, Math.min(4, value));
+  }
+});
+
+function layoutSeat(idx){
+  const EDGE = IN_HW;  const MARGIN = 0.04;
+  const south = [ 0.00,  (EDGE - MARGIN), 0        ];
+  const east  = [ (EDGE - MARGIN), 0.00,  Math.PI/2];
+  const north = [ 0.00, -(EDGE - MARGIN), Math.PI  ];
+  const west  = [-(EDGE - MARGIN), 0.00, -Math.PI/2];
+  const seats = [south, east, north, west];
+  return seats[idx % seats.length];
+}
+
+function renderHands(){
+  players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
+
+  const EDGE_SPAN = CLOTH_HW - 0.08; const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+  const GAP = .092; const HOLE = 0; // equal gap for all, no special case
+
+  players.forEach((p,pi)=>{
+    const [x0,z0] = layoutSeat(pi);
+    const faceUp = (pi===human);
+    const start = -((p.hand.length-1)*(GAP))/2; // symmetric layout, same gap
+    const isSide = (pi===1 || pi===3);
+
+    p.hand.forEach((h,hi)=>{
+      const m = makeDomino(h.a,h.b,{flat:false, faceUp});
+      let offset = start + GAP*hi;
+      if(isSide){ const zLine = clamp(z0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(x0, HAND_Y, zLine); }
+      else      { const xLine = clamp(x0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(xLine, HAND_Y, z0); }
+      const yawTowardCenter = Math.atan2(-x0, -z0);
+      m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
+      m.rotation.z += (Math.random()*0.02-0.01);
+      h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
+    });
+  });
+}
+
+/* ---------- Chain Rendering ---------- */
+function renderChain(){
+  chain.forEach(c=>{ if(c.mesh) piecesG.remove(c.mesh); });
+  chain.forEach(c=>{ const m=makeDomino(c.tile.a,c.tile.b,{flat:true,faceUp:true}); m.position.set(c.x, Y+.03, c.z); m.rotation.y=c.rot||0; c.mesh=m; piecesG.add(m); });
+}
+
+/* ---------- Start / Turn Order ---------- */
+function highestDoubleIndex(hand){ let best=-1, idx=-1; hand.forEach((t,i)=>{ if(t.a===t.b && t.a>best){best=t.a; idx=i;} }); return idx; }
+function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
+
+function startGame(){
+  chain=[]; ends=null; selectedTile=null; clearMarkers();
+  flipDir = !flipDir;
+  N=parseInt(selPlayers.value,10); players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
+  boneyard=shuffle(genSet());
+  for(let r=0;r<7;r++) players.forEach(p=>p.hand.push(boneyard.pop()));
+  players.forEach(p=> shuffle(p.hand)); // random order çdo lojë
+  renderHands();
+  let starter=0, idx=-1, bestD=-1;
+  players.forEach((p,pi)=>{ const i=highestDoubleIndex(p.hand); if(i>=0 && p.hand[i].a>bestD){ bestD=p.hand[i].a; starter=pi; idx=i; } });
+  if(idx<0){ idx=0; }
+  const t=players[starter].hand.splice(idx,1)[0];
+  chain.push({tile:t,x:0,z:0,rot:0});
+  const step=.10;
+  if(!flipDir){ ends={ L:{v:t.a,x:-step,z:0,dir:[-1,0]}, R:{v:t.b,x: step,z:0,dir:[ 1,0]} }; }
+  else        { ends={ L:{v:t.a,x: step,z:0,dir:[ 1,0]}, R:{v:t.b,x:-step,z:0,dir:[-1,0]} }; }
+  renderChain(); current=(starter+1)%N; setStatus(`Rradha: Lojtari ${current+1}`); updateInteractivity();
+}
+
+btnStart.addEventListener('click',()=>{ btnDraw.disabled=false; btnPass.disabled=false; startGame(); });
+
+/* ---------- Placement & Snake ---------- */
+const STEP=.10;
+function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
+function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
+
+function placeOnBoard(tile, side){
+  if(!chain.length) return false; if(!isValidTile(tile)) return false;
+  const end=(side<0?ends.L:ends.R); const want=end.v;
+  let a=tile.a,b=tile.b; if(a!==want && b===want){ [a,b]=[b,a]; }
+  if(a!==want){ return false; }
+  let [dx,dz]=end.dir; let ang=Math.atan2(dz,dx);
+  let nx=end.x+dx*STEP, nz=end.z+dz*STEP;
+  // kufijtë e fushës katrore
+  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; ang=Math.atan2(dz,dx); nx=end.x+dx*STEP; nz=end.z+dz*STEP; }
+  let rot=ang; if(a===b) rot+=Math.PI/2; // dopio vertikale
+  chain.push({tile:canonTile({a,b}),x:nx,z:nz,rot});
+  const newVal=(side<0? b : a);
+  if(side<0) ends.L={v:newVal,x:nx,z:nz,dir:[dx,dz]}; else ends.R={v:newVal,x:nx,z:nz,dir:[dx,dz]};
+  renderChain(); SFX.place.currentTime=0; SFX.place.play();
+  return true;
+}
+function nextCandidate(end){
+  let {x,z,dir:[dx,dz]}=end; let ang=Math.atan2(dz,dx);
+  let nx=x+dx*STEP, nz=z+dz*STEP;
+  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; ang=Math.atan2(dz,dx); nx=x+dx*STEP; nz=z+dz*STEP; }
+  return {nx,nz,rot:ang,dx,dz};
+}
+
+/* ---------- Markers for manual placement ---------- */
+function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
+function makeMarker(){ const g=new THREE.TorusGeometry(.045, .005, 12, 32); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
+function showMarkersFor(tile){
+  clearMarkers(); if(!ends) return;
+  const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
+  if(canL){ const c=nextCandidate(ends.L); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.userData={marker:true, side:-1}; piecesG.add(mk); markers.L=mk; }
+  if(canR){ const c=nextCandidate(ends.R); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.userData={marker:true, side:1}; piecesG.add(mk); markers.R=mk; }
+}
+
+/* ---------- Interactivity ---------- */
+const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
+function findPickRoot(o){
+  let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
+}
+function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; showMarkersFor(tile); setStatus('Zgjidh skajin (tap marker)'); }
+
+renderer.domElement.addEventListener('pointerdown',ev=>{
+  // FIX: përdor madhësinë e saktë të canvas-it (rect) për koordinatat NDC
+  const rect = renderer.domElement.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
+  const y = -(((ev.clientY - rect.top)/rect.height)*2 - 1);
+  pointer.set(x,y); raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(piecesG.children,true); if(!hits.length) return; const hit=hits[0];
+  const obj=findPickRoot(hit.object);
+  const isHumanTurn=(current===human);
+  if(!isHumanTurn) return;
+  if(obj.userData && obj.userData.owner===human){ humanPickTile(obj); return; }
+  if(obj.userData && obj.userData.marker && selectedTile){
+    const side=obj.userData.side; const idx=players[human].hand.indexOf(selectedTile); if(idx>=0) players[human].hand.splice(idx,1);
+    if(!placeOnBoard(selectedTile, side)){ players[human].hand.splice(idx,0,selectedTile); }
+    selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
+  }
+});
+
+btnDraw.addEventListener('click',()=>{ if(current!==human) return;
+  while(boneyard.length){ const t=boneyard.pop(); if(!isValidTile(t)) continue; players[human].hand.push(t); const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v); if(canL||canR) break; }
+  clearMarkers(); selectedTile=null; renderHands(); SFX.draw.currentTime=0; SFX.draw.play();
+});
+btnPass.addEventListener('click',()=>{ if(current===human){ clearMarkers(); selectedTile=null; nextTurn(); }});
+
+function blockedAndWinner(){
+  if(!ends) return null;
+  const nobodyCan = players.every(p=> !canPlayAny(p.hand));
+  if(nobodyCan && boneyard.length===0){
+    let best=Infinity, win=-1; players.forEach((p,pi)=>{ const s=pipSum(p.hand); if(s<best){best=s;win=pi;} });
+    return {blocked:true, winner:win, reason:`Bllokuar. Dora më e ulët = Lojtari ${win+1} (${best})`};
+  }
+  return null;
+}
+
+function updateInteractivity(){
+  const blk = blockedAndWinner(); if(blk){ setStatus(blk.reason); return; }
+  setStatus(`Rradha: Lojtari ${current+1}`);
+  renderHands(); renderChain();
+}
+function nextTurn(){
+  if(players[human].hand.length===0){ setStatus('Fitove!'); return; }
+  current=(current+1)%N; const blk = blockedAndWinner(); if(blk){ setStatus(blk.reason); return; }
+  updateInteractivity(); if(current!==human) setTimeout(cpuPlay,450);
+}
+function cpuPlay(){
+  const p=players[current]; let playable=-1, side=1;
+  if(ends){
+    for(let i=0;i<p.hand.length;i++){ const t=p.hand[i]; if(!isValidTile(t)) continue; if(t.a===ends.L.v||t.b===ends.L.v){ playable=i; side=-1; break;} if(t.a===ends.R.v||t.b===ends.R.v){ playable=i; side=1; break;} }
+  } else { playable=0; }
+  if(playable<0){ if(boneyard.length){ const d=boneyard.pop(); if(isValidTile(d)) p.hand.push(d); renderHands(); SFX.draw.currentTime=0; SFX.draw.play(); setTimeout(cpuPlay,350); return;} nextTurn(); return; }
+  const tile=p.hand.splice(playable,1)[0]; placeOnBoard(tile, side); renderHands(); if(p.hand.length===0){ setStatus(`Lojtari ${current+1} fitoi!`); return;} nextTurn();
+}
+
+/* ---------- Rules panel handlers ---------- */
+btnRules.addEventListener('click',()=>{ panelRules.style.display='flex'; });
+closeRules.addEventListener('click',()=>{ panelRules.style.display='none'; });
+panelRules.addEventListener('click',(e)=>{ if(e.target===panelRules) panelRules.style.display='none'; });
+
+/* ---------- Mini tests (console) ---------- */
+console.assert(document.getElementById('start') && document.getElementById('draw') && document.getElementById('pass'), 'UI buttons ekzistojnë');
+(()=>{ const s=genSet(); const key=t=>`${t.a},${t.b}`; const uniq=new Set(s.map(key));
+  console.assert(s.length===28 && uniq.size===28,'double-six: 28 unik');
+  console.assert(s.some(t=>t.a===0&&t.b===0) && s.some(t=>t.a===6&&t.b===6),'set përmban 00 dhe 66');
+  console.assert(s.every(t=>t.a>=0 && t.b>=0 && t.a<=6 && t.b<=6 && t.a<=t.b),'vlera në rang dhe të renditura');
+})();
+(()=>{ const ct1=canonTile({a:6,b:2}); const ct2=canonTile({a:2,b:6});
+  console.assert(ct1.a===2 && ct1.b===6 && ct2.a===2 && ct2.b===6,'canonTile simetrik dhe idempotent');
+})();
+(()=>{ const bad1=canonTile({a:-1,b:3}); const bad2=canonTile({a:9,b:1});
+  console.assert(bad1===null && bad2===null,'canonTile refuzon vlera jashtë rangut');
+})();
+(()=>{ const m=makeDomino(6,6,{flat:true,faceUp:true}); const anyRing=m.children.some(ch=>ch.geometry?.type==='RingGeometry'); console.assert(anyRing,'perimeter/pip rings ekzistojnë (flat)'); })();
+(()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pikat ekzistojnë'); })();
+
+/* ---------- Loop & Resize ---------- */
+function tick(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick);} tick();
+function onResize(){ fitCamera(); }
+addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
+
+camera.position.set(2.0, 1.7, 2.05);
+</script>
+</body>
+</html>

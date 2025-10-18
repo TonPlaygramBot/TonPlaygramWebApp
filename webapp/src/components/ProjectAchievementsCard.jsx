@@ -9,6 +9,7 @@ export default function ProjectAchievementsCard() {
     '🥅 Goal Rush multiplayer',
     '🎱 Pool Royale',
     "🃏 Texas Hold'em",
+    '🁣 Domino Royal 3D',
     '🃏 Black Jack Multiplayer',
     '⚽ Free Kick',
     '🂠 Murlan Royale',
