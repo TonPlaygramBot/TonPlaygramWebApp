@@ -39,6 +39,18 @@ import {
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
+function applyTablePhysicsSpec(meta) {
+  const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
+    ? meta.cushionCutAngleDeg
+    : DEFAULT_CUSHION_CUT_ANGLE;
+  CUSHION_CUT_ANGLE = cushionAngle;
+
+  const restitution = Number.isFinite(meta?.cushionRestitution)
+    ? meta.cushionRestitution
+    : DEFAULT_CUSHION_RESTITUTION;
+  CUSHION_RESTITUTION = restitution;
+}
+
 function signedRingArea(ring) {
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
@@ -535,7 +547,8 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
 const FRICTION = 0.993;
-const CUSHION_RESTITUTION = 0.99;
+const DEFAULT_CUSHION_RESTITUTION = 0.99;
+let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
@@ -740,7 +753,8 @@ const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets (WPA K-55 profile ≈32°)
-const CUSHION_CUT_ANGLE = 32;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
+let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
@@ -3513,11 +3527,17 @@ function createAccentMesh(accent, dims) {
 
 function Table3D(
   parent,
-  finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]
+  finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
+  tableSpecMeta = null
 ) {
+  const tableSizeMeta =
+    tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
+  applyTablePhysicsSpec(tableSizeMeta);
+
   const table = new THREE.Group();
   table.userData = table.userData || {};
   table.userData.cushions = [];
+  table.userData.componentPreset = tableSizeMeta?.componentPreset || 'pool';
 
   const finishParts = {
     frameMeshes: [],
@@ -8774,13 +8794,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Table
       const finishForScene = tableFinishRef.current;
+      const tableSizeMeta = tableSizeRef.current;
       const {
         centers,
         baulkZ,
         group: table,
         clothMat: tableCloth,
         cushionMat: tableCushion
-      } = Table3D(world, finishForScene);
+      } = Table3D(world, finishForScene, tableSizeMeta);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -8796,7 +8817,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       if (table?.userData) {
         const cushionLip = table.userData.cushionTopLocal ?? TABLE.THICK;
         cushionHeightRef.current = Math.max(TABLE.THICK + 0.1, cushionLip - 0.02);
-        const tableSizeMeta = tableSizeRef.current;
         if (tableSizeMeta) {
           table.userData.officialSpec = {
             id: tableSizeMeta.id,
@@ -8804,7 +8824,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ballDiameterMm: tableSizeMeta.ballDiameterMm,
             pocketMouthMm: tableSizeMeta.pocketMouthMm,
             cushionCutAngleDeg: tableSizeMeta.cushionCutAngleDeg,
-            cushionPocketAnglesDeg: tableSizeMeta.cushionPocketAnglesDeg
+            cushionPocketAnglesDeg: tableSizeMeta.cushionPocketAnglesDeg,
+            cushionRestitution: tableSizeMeta.cushionRestitution,
+            componentPreset: tableSizeMeta.componentPreset
           };
         }
       }

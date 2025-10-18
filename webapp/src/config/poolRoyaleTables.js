@@ -36,18 +36,21 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
   '10ft': {
     id: '10ft',
     label: '10 ft',
-    playfield: Object.freeze({ widthMm: 2845, heightMm: 1422 }), // 112" × 56"
-    ballDiameterMm: 57.15,
+    // WPA tournament specification for the 10 ft × 5 ft playing surface
+    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 120" × 60"
+    ballDiameterMm: 57.15, // reuse the official 2 1/4" pool balls (same as 8 ft spec)
     pocketMouthMm: Object.freeze({
       corner: 114.3,
       side: 127
     }),
     cushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
+    cushionRestitution: 0.965,
+    componentPreset: 'snookerFrame',
     scaleOverrides: Object.freeze({
-      scale: 1.6,
-      mobileScale: 1.44,
-      compactScale: 1.36
+      scale: Number((BASE_TABLE_SCALE * (3048 / BASE_PLAYFIELD_WIDTH_MM)).toFixed(3)),
+      mobileScale: Number((BASE_TABLE_MOBILE_SCALE * (3048 / BASE_PLAYFIELD_WIDTH_MM)).toFixed(3)),
+      compactScale: Number((BASE_TABLE_COMPACT_SCALE * (3048 / BASE_PLAYFIELD_WIDTH_MM)).toFixed(3))
     })
   }
 });
