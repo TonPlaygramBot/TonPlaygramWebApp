@@ -203,8 +203,9 @@ const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim t
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
 const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.02; // align the side plate inset with the snooker chrome placement
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.97; // let the middle chrome reach slightly farther toward the short rails
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.055; // ease back the center trim so the chrome fully blankets the rail caps
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.02; // push the middle chrome slightly farther so it wraps the rail sides
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.045; // extend the center trim span so the chrome fully blankets the rail caps
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.012; // widen the side plates a touch toward each pocket for better coverage
 const RAIL_POCKET_CUT_SCALE = 0.97; // slightly tighten the wooden rail pocket cuts to match the smaller pocket mouths
 
 function buildChromePlateGeometry({
@@ -4007,7 +4008,8 @@ function Table3D(
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
-      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE
+      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
+      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
