@@ -194,7 +194,7 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.01; // nudge the chrome farther alo
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // round the rail corners so the wood follows the chrome profile
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82; // match the snooker side pocket throat profile
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
@@ -555,7 +555,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.26; // soften the exterior rail corners with a deeper curve like the reference table
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -3948,10 +3948,7 @@ function Table3D(
     0,
     railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
   ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = Math.max(
-    railH * 0.16,
-    chromePocketCoverageDepth
-  ); // extend the corner chrome downward until it meets the cloth surface
+  const chromePlateThickness = railH * 0.16; // deepen the corner chrome so it blankets the rail sides and pocket cuts
   const sideChromePlateThickness = Math.min(
     railH * 0.92,
     Math.max(chromePlateThickness, chromePocketCoverageDepth)
