@@ -198,6 +198,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
 const CHROME_CORNER_WIDTH_SCALE = 0.99; // gently shrink chrome plates along the long rails
 const CHROME_CORNER_HEIGHT_SCALE = 0.99; // gently shrink chrome plates along the short rails
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
@@ -3819,10 +3820,10 @@ function Table3D(
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
-  const outerCornerRadius = Math.min(
-    Math.min(longRailW, endRailW) * 1.6,
-    Math.min(outerHalfW, outerHalfH) * 0.2
-  );
+  const outerCornerRadius =
+    Math.min(Math.min(longRailW, endRailW) * 1.6, Math.min(outerHalfW, outerHalfH) * 0.2) *
+    WOOD_RAIL_CORNER_RADIUS_SCALE;
+  const hasRoundedRailCorners = outerCornerRadius > MICRO_EPS;
 
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
@@ -4186,43 +4187,51 @@ function Table3D(
   );
 
   const railsOuter = new THREE.Shape();
-  railsOuter.moveTo(outerHalfW, -outerHalfH + outerCornerRadius);
-  railsOuter.lineTo(outerHalfW, outerHalfH - outerCornerRadius);
-  railsOuter.absarc(
-    outerHalfW - outerCornerRadius,
-    outerHalfH - outerCornerRadius,
-    outerCornerRadius,
-    0,
-    Math.PI / 2,
-    false
-  );
-  railsOuter.lineTo(-outerHalfW + outerCornerRadius, outerHalfH);
-  railsOuter.absarc(
-    -outerHalfW + outerCornerRadius,
-    outerHalfH - outerCornerRadius,
-    outerCornerRadius,
-    Math.PI / 2,
-    Math.PI,
-    false
-  );
-  railsOuter.lineTo(-outerHalfW, -outerHalfH + outerCornerRadius);
-  railsOuter.absarc(
-    -outerHalfW + outerCornerRadius,
-    -outerHalfH + outerCornerRadius,
-    outerCornerRadius,
-    Math.PI,
-    1.5 * Math.PI,
-    false
-  );
-  railsOuter.lineTo(outerHalfW - outerCornerRadius, -outerHalfH);
-  railsOuter.absarc(
-    outerHalfW - outerCornerRadius,
-    -outerHalfH + outerCornerRadius,
-    outerCornerRadius,
-    -Math.PI / 2,
-    0,
-    false
-  );
+  if (hasRoundedRailCorners) {
+    railsOuter.moveTo(outerHalfW, -outerHalfH + outerCornerRadius);
+    railsOuter.lineTo(outerHalfW, outerHalfH - outerCornerRadius);
+    railsOuter.absarc(
+      outerHalfW - outerCornerRadius,
+      outerHalfH - outerCornerRadius,
+      outerCornerRadius,
+      0,
+      Math.PI / 2,
+      false
+    );
+    railsOuter.lineTo(-outerHalfW + outerCornerRadius, outerHalfH);
+    railsOuter.absarc(
+      -outerHalfW + outerCornerRadius,
+      outerHalfH - outerCornerRadius,
+      outerCornerRadius,
+      Math.PI / 2,
+      Math.PI,
+      false
+    );
+    railsOuter.lineTo(-outerHalfW, -outerHalfH + outerCornerRadius);
+    railsOuter.absarc(
+      -outerHalfW + outerCornerRadius,
+      -outerHalfH + outerCornerRadius,
+      outerCornerRadius,
+      Math.PI,
+      1.5 * Math.PI,
+      false
+    );
+    railsOuter.lineTo(outerHalfW - outerCornerRadius, -outerHalfH);
+    railsOuter.absarc(
+      outerHalfW - outerCornerRadius,
+      -outerHalfH + outerCornerRadius,
+      outerCornerRadius,
+      -Math.PI / 2,
+      0,
+      false
+    );
+  } else {
+    railsOuter.moveTo(outerHalfW, -outerHalfH);
+    railsOuter.lineTo(outerHalfW, outerHalfH);
+    railsOuter.lineTo(-outerHalfW, outerHalfH);
+    railsOuter.lineTo(-outerHalfW, -outerHalfH);
+    railsOuter.lineTo(outerHalfW, -outerHalfH);
+  }
 
   openingMP.forEach((poly) => {
     if (!poly?.length) return;
@@ -4479,47 +4488,54 @@ function Table3D(
   const skirtShape = new THREE.Shape();
   const outW = frameOuterX + baseOverhang;
   const outZ = frameOuterZ + baseOverhang;
-  const skirtOuterRadius = Math.min(
-    outerCornerRadius + baseOverhang * 0.4,
-    Math.min(outW, outZ)
-  );
-  skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
-  skirtShape.lineTo(outW, outZ - skirtOuterRadius);
-  skirtShape.absarc(
-    outW - skirtOuterRadius,
-    outZ - skirtOuterRadius,
-    skirtOuterRadius,
-    0,
-    Math.PI / 2,
-    false
-  );
-  skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
-  skirtShape.absarc(
-    -outW + skirtOuterRadius,
-    outZ - skirtOuterRadius,
-    skirtOuterRadius,
-    Math.PI / 2,
-    Math.PI,
-    false
-  );
-  skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
-  skirtShape.absarc(
-    -outW + skirtOuterRadius,
-    -outZ + skirtOuterRadius,
-    skirtOuterRadius,
-    Math.PI,
-    1.5 * Math.PI,
-    false
-  );
-  skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
-  skirtShape.absarc(
-    outW - skirtOuterRadius,
-    -outZ + skirtOuterRadius,
-    skirtOuterRadius,
-    -Math.PI / 2,
-    0,
-    false
-  );
+  const skirtOuterRadius = hasRoundedRailCorners
+    ? Math.min(outerCornerRadius + baseOverhang * 0.4, Math.min(outW, outZ))
+    : 0;
+  if (skirtOuterRadius > MICRO_EPS) {
+    skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
+    skirtShape.lineTo(outW, outZ - skirtOuterRadius);
+    skirtShape.absarc(
+      outW - skirtOuterRadius,
+      outZ - skirtOuterRadius,
+      skirtOuterRadius,
+      0,
+      Math.PI / 2,
+      false
+    );
+    skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
+    skirtShape.absarc(
+      -outW + skirtOuterRadius,
+      outZ - skirtOuterRadius,
+      skirtOuterRadius,
+      Math.PI / 2,
+      Math.PI,
+      false
+    );
+    skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
+    skirtShape.absarc(
+      -outW + skirtOuterRadius,
+      -outZ + skirtOuterRadius,
+      skirtOuterRadius,
+      Math.PI,
+      1.5 * Math.PI,
+      false
+    );
+    skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
+    skirtShape.absarc(
+      outW - skirtOuterRadius,
+      -outZ + skirtOuterRadius,
+      skirtOuterRadius,
+      -Math.PI / 2,
+      0,
+      false
+    );
+  } else {
+    skirtShape.moveTo(outW, -outZ);
+    skirtShape.lineTo(outW, outZ);
+    skirtShape.lineTo(-outW, outZ);
+    skirtShape.lineTo(-outW, -outZ);
+    skirtShape.lineTo(outW, -outZ);
+  }
   const inner = new THREE.Path();
   const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
   if (skirtInnerRadius > 1e-4) {
