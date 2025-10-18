@@ -917,25 +917,23 @@ function placeOnBoard(tile, side){
   // table bounds (square)
   if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; nx=end.x+dx*STEP; nz=end.z+dz*STEP; }
   const isDouble=(a===b);
+  const isHorizontal=Math.abs(dx)>=Math.abs(dz);
   let rot;
   if(isDouble){
-    rot=Math.PI/2;
-  } else if(Math.abs(dx)>=Math.abs(dz)){
-    rot=(dx>=0)?0:Math.PI;
+    rot = isHorizontal ? Math.PI/2 : 0;
+  } else if(isHorizontal){
+    rot = (dx>=0) ? 0 : Math.PI;
   } else {
-    rot=end.orient ?? 0;
+    rot = (dz>=0) ? Math.PI/2 : -Math.PI/2;
   }
   const placedTile=canonTile({a,b}) || {a,b};
   chain.push({tile:placedTile,x:nx,z:nz,rot});
   const newVal=(side<0? b : a);
   let nextOrient;
-  if(Math.abs(dx)>=Math.abs(dz)){
-    nextOrient=(dx>=0)?0:Math.PI;
+  if(isHorizontal){
+    nextOrient = (dx>=0) ? 0 : Math.PI;
   } else {
-    nextOrient=end.orient ?? rot;
-  }
-  if(isDouble && Math.abs(dx)<Math.abs(dz)){
-    nextOrient=end.orient ?? 0;
+    nextOrient = (dz>=0) ? Math.PI/2 : -Math.PI/2;
   }
   const updatedEnd={v:newVal,x:nx,z:nz,dir:[dx,dz],orient:nextOrient};
   if(side<0) ends.L=updatedEnd; else ends.R=updatedEnd;
