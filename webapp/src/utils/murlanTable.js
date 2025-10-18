@@ -34,18 +34,6 @@ const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
   emissive: '#021a0b'
 });
 
-const DEFAULT_TABLE_SHAPE_OPTION = Object.freeze({
-  id: 'classicOctagon',
-  label: 'Oktagon Klasik',
-  type: 'polygon',
-  sides: 8,
-  innerScale: 0.78,
-  rimInnerScale: 0.73,
-  trimOuterScale: 1.04,
-  trimInnerScale: 0.9,
-  segments: 8
-});
-
 export function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
   for (let i = 0; i < sides; i += 1) {
@@ -60,163 +48,6 @@ export function createRegularPolygonShape(sides = 8, radius = 1) {
   }
   shape.closePath();
   return shape;
-}
-
-function createCircularShape(radius = 1, segments = 48) {
-  const shape = new THREE.Shape();
-  shape.absarc(0, 0, radius, 0, Math.PI * 2, false);
-  shape.closePath();
-  return shape;
-}
-
-function createOvalShape(radius = 1, widthScale = 1, heightScale = 0.68, segments = 48) {
-  const shape = new THREE.Shape();
-  for (let i = 0; i <= segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const x = Math.cos(angle) * radius * widthScale;
-    const y = Math.sin(angle) * radius * heightScale;
-    if (i === 0) {
-      shape.moveTo(x, y);
-    } else {
-      shape.lineTo(x, y);
-    }
-  }
-  shape.closePath();
-  return shape;
-}
-
-function createRacetrackShape(radius = 1, widthScale = 1, heightScale = 0.62, cornerScale = 0.32, segments = 48) {
-  const halfWidth = radius * widthScale;
-  const halfHeight = radius * heightScale;
-  const cornerRadius = Math.min(halfHeight, halfWidth) * cornerScale;
-  const segmentCount = Math.max(4, segments);
-  const arcSegments = Math.floor(segmentCount / 4);
-  const shape = new THREE.Shape();
-
-  const drawArc = (cx, cy, startAngle, endAngle) => {
-    for (let i = 0; i <= arcSegments; i += 1) {
-      const t = startAngle + ((endAngle - startAngle) * i) / arcSegments;
-      const x = cx + Math.cos(t) * cornerRadius;
-      const y = cy + Math.sin(t) * cornerRadius;
-      shape.lineTo(x, y);
-    }
-  };
-
-  shape.moveTo(-halfWidth + cornerRadius, -halfHeight);
-  shape.lineTo(halfWidth - cornerRadius, -halfHeight);
-  drawArc(halfWidth - cornerRadius, -halfHeight + cornerRadius, -Math.PI / 2, 0);
-  shape.lineTo(halfWidth, halfHeight - cornerRadius);
-  drawArc(halfWidth - cornerRadius, halfHeight - cornerRadius, 0, Math.PI / 2);
-  shape.lineTo(-halfWidth + cornerRadius, halfHeight);
-  drawArc(-halfWidth + cornerRadius, halfHeight - cornerRadius, Math.PI / 2, Math.PI);
-  shape.lineTo(-halfWidth, -halfHeight + cornerRadius);
-  drawArc(-halfWidth + cornerRadius, -halfHeight + cornerRadius, Math.PI, (Math.PI * 3) / 2);
-  shape.closePath();
-  return shape;
-}
-
-function scaleShape(shape, scaleX = 1, scaleY = 1) {
-  const scaled = shape.clone();
-  scaled.scale(scaleX, scaleY);
-  return scaled;
-}
-
-function computeShapeRadius(shape) {
-  const { shape: points } = shape.extractPoints(64);
-  return points.reduce((max, point) => Math.max(max, Math.hypot(point.x, point.y)), 0);
-}
-
-function resolveShapeConfiguration(option = {}) {
-  return {
-    ...DEFAULT_TABLE_SHAPE_OPTION,
-    ...option
-  };
-}
-
-function buildTableShape(option, radius) {
-  const config = resolveShapeConfiguration(option);
-  const segments = Math.max(4, config.segments ?? 32);
-  let topShape;
-  switch (config.type) {
-    case 'circle':
-      topShape = createCircularShape(radius, segments);
-      break;
-    case 'oval':
-      topShape = createOvalShape(radius, config.widthScale ?? 1, config.heightScale ?? 0.68, segments);
-      break;
-    case 'racetrack':
-      topShape = createRacetrackShape(
-        radius,
-        config.widthScale ?? 1,
-        config.heightScale ?? 0.62,
-        config.cornerScale ?? 0.32,
-        segments
-      );
-      break;
-    case 'polygon':
-    default:
-      topShape = createRegularPolygonShape(Math.max(3, config.sides ?? 8), radius);
-      break;
-  }
-
-  let feltShape;
-  let rimInnerShape;
-  if (config.type === 'polygon') {
-    const sides = Math.max(3, config.sides ?? 8);
-    feltShape = createRegularPolygonShape(sides, radius * (config.innerScale ?? 0.75));
-    rimInnerShape = createRegularPolygonShape(sides, radius * (config.rimInnerScale ?? 0.7));
-  } else if (config.type === 'circle') {
-    feltShape = createCircularShape(radius * (config.innerScale ?? 0.7), segments);
-    rimInnerShape = createCircularShape(radius * (config.rimInnerScale ?? 0.64), segments);
-  } else if (config.type === 'oval') {
-    feltShape = createOvalShape(
-      radius * (config.innerScale ?? 0.68),
-      config.widthScale ?? 1,
-      config.heightScale ?? 0.68,
-      segments
-    );
-    rimInnerShape = createOvalShape(
-      radius * (config.rimInnerScale ?? 0.62),
-      config.widthScale ?? 1,
-      config.heightScale ?? 0.68,
-      segments
-    );
-  } else {
-    feltShape = createRacetrackShape(
-      radius * (config.innerScale ?? 0.7),
-      config.widthScale ?? 1,
-      config.heightScale ?? 0.62,
-      config.cornerScale ?? 0.32,
-      segments
-    );
-    rimInnerShape = createRacetrackShape(
-      radius * (config.rimInnerScale ?? 0.64),
-      config.widthScale ?? 1,
-      config.heightScale ?? 0.62,
-      config.cornerScale ?? 0.32,
-      segments
-    );
-  }
-
-  const rimOuterShape = topShape.clone();
-  const trimOuterShape = scaleShape(topShape, config.trimOuterScale ?? 1.04, config.trimOuterScale ?? 1.04);
-  const trimInnerShape = scaleShape(topShape, config.trimInnerScale ?? 0.9, config.trimInnerScale ?? 0.9);
-
-  const feltRadius = computeShapeRadius(feltShape);
-  const boundingRadius = computeShapeRadius(topShape);
-
-  return {
-    config,
-    segments,
-    topShape,
-    feltShape,
-    rimOuterShape,
-    rimInnerShape,
-    trimOuterShape,
-    trimInnerShape,
-    feltRadius,
-    radius: boundingRadius
-  };
 }
 
 function adjustHexColor(hex, amount) {
@@ -379,8 +210,7 @@ export function createMurlanStyleTable({
   tableHeight = 0.81,
   woodOption = DEFAULT_TABLE_WOOD_OPTION,
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
-  baseOption = DEFAULT_TABLE_BASE_OPTION,
-  shapeOption = DEFAULT_TABLE_SHAPE_OPTION
+  baseOption = DEFAULT_TABLE_BASE_OPTION
 } = {}) {
   if (!arena) throw new Error('createMurlanStyleTable requires an arena group.');
 
@@ -438,16 +268,14 @@ export function createMurlanStyleTable({
     emissiveIntensity: 0.08
   });
 
-  const shapeSet = buildTableShape(shapeOption, tableRadius);
-
   const tableGroup = new ThreeNamespace.Group();
-  const topGeometry = new ThreeNamespace.ExtrudeGeometry(shapeSet.topShape, {
+  const topGeometry = new ThreeNamespace.ExtrudeGeometry(createRegularPolygonShape(8, tableRadius), {
     depth: woodDepth,
     bevelEnabled: true,
     bevelThickness: woodDepth * 0.45,
     bevelSize: woodDepth * 0.45,
     bevelSegments: 2,
-    curveSegments: shapeSet.segments
+    curveSegments: 1
   });
   topGeometry.rotateX(-Math.PI / 2);
   const topMesh = new ThreeNamespace.Mesh(topGeometry, topWoodMat);
@@ -456,15 +284,16 @@ export function createMurlanStyleTable({
   topMesh.receiveShadow = true;
   tableGroup.add(topMesh);
 
-  const feltGeometry = new ThreeNamespace.ShapeGeometry(shapeSet.feltShape, shapeSet.segments);
+  const feltRadius = tableRadius * (0.72 / 0.9);
+  const feltGeometry = new ThreeNamespace.CircleGeometry(feltRadius, 64);
   feltGeometry.rotateX(-Math.PI / 2);
   const feltMesh = new ThreeNamespace.Mesh(feltGeometry, surfaceMat);
   feltMesh.position.y = tableY + clothRise;
   feltMesh.receiveShadow = true;
   tableGroup.add(feltMesh);
 
-  const rimOuter = shapeSet.rimOuterShape.clone();
-  const rimInner = shapeSet.rimInnerShape.clone();
+  const rimOuter = createRegularPolygonShape(8, tableRadius);
+  const rimInner = createRegularPolygonShape(8, feltRadius * 0.97);
   rimOuter.holes.push(rimInner);
   const rimGeometry = new ThreeNamespace.ExtrudeGeometry(rimOuter, {
     depth: rimDepth,
@@ -472,7 +301,7 @@ export function createMurlanStyleTable({
     bevelThickness: rimDepth * 0.32,
     bevelSize: rimDepth * 0.32,
     bevelSegments: 2,
-    curveSegments: shapeSet.segments
+    curveSegments: 1
   });
   rimGeometry.rotateX(-Math.PI / 2);
   const rimMesh = new ThreeNamespace.Mesh(rimGeometry, rimWoodMat);
@@ -488,18 +317,9 @@ export function createMurlanStyleTable({
   baseMesh.receiveShadow = true;
   tableGroup.add(baseMesh);
 
-  const trimOuter = shapeSet.trimOuterShape.clone();
-  const trimInner = shapeSet.trimInnerShape.clone();
-  trimOuter.holes.push(trimInner);
-  const trimGeometry = new ThreeNamespace.ExtrudeGeometry(trimOuter, {
-    depth: trimHeight,
-    bevelEnabled: false,
-    steps: 1,
-    curveSegments: shapeSet.segments
-  });
+  const trimGeometry = new ThreeNamespace.CylinderGeometry(tableRadius * 0.985, tableRadius, trimHeight, 8, 1, false);
   const trimMesh = new ThreeNamespace.Mesh(trimGeometry, trimMat);
-  trimGeometry.rotateX(-Math.PI / 2);
-  trimMesh.position.y = tableY - trimOffset - trimHeight / 2;
+  trimMesh.position.y = tableY - trimOffset;
   trimMesh.castShadow = true;
   trimMesh.receiveShadow = true;
   tableGroup.add(trimMesh);
@@ -536,17 +356,15 @@ export function createMurlanStyleTable({
     group: tableGroup,
     surfaceY: tableY + clothRise,
     tableHeight,
-    radius: shapeSet.radius,
-    feltRadius: shapeSet.feltRadius,
+    radius: tableRadius,
+    feltRadius,
     dispose,
-    materials: tableParts,
-    shapeId: shapeSet.config.id
+    materials: tableParts
   };
 }
 
 export const DEFAULT_MURLAN_TABLE_OPTIONS = Object.freeze({
   wood: DEFAULT_TABLE_WOOD_OPTION,
   cloth: DEFAULT_TABLE_CLOTH_OPTION,
-  base: DEFAULT_TABLE_BASE_OPTION,
-  shape: DEFAULT_TABLE_SHAPE_OPTION
+  base: DEFAULT_TABLE_BASE_OPTION
 });
