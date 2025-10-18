@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   buildDominoArena,
   DOMINO_TABLE_DIMENSIONS,
@@ -26,8 +27,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
 const CAMERA_INITIAL_PHI_LERP = 0.42;
-const CAMERA_VERTICAL_SENSITIVITY = 0.003;
-const CAMERA_LEAN_STRENGTH = 0.0065;
+const CAMERA_DOLLY_FACTOR = 0.2;
 const CAM = {
   fov: DOMINO_CAMERA_CONFIG.fov,
   near: DOMINO_CAMERA_CONFIG.near,
@@ -41,7 +41,9 @@ const CAM = {
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-const BOARD_DISPLAY_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
+const BOARD_SCALE_MULTIPLIER = 1.25;
+const BASE_BOARD_DISPLAY_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
+const BOARD_DISPLAY_SIZE = BASE_BOARD_DISPLAY_SIZE * BOARD_SCALE_MULTIPLIER;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 const RING_STEPS = 52;
 const HOME_STEPS = 4;
@@ -74,24 +76,27 @@ function makeDice() {
     envMapIntensity: 1.4
   });
 
-  const pipMaterial = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    metalness: 0,
-    roughness: 0.85,
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1
+  });
+
+  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    emissive: 0x3a2a00,
+    emissiveIntensity: 0.55,
+    metalness: 1,
+    roughness: 0.18,
+    reflectivity: 1,
+    envMapIntensity: 1.35,
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -1,
-    polygonOffsetUnits: -0.5
-  });
-
-  const pipRimMaterial = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    metalness: 0,
-    roughness: 0.75,
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -0.5,
-    polygonOffsetUnits: -0.25
+    polygonOffsetUnits: -1
   });
 
   const body = new THREE.Mesh(
@@ -108,8 +113,18 @@ function makeDice() {
   body.receiveShadow = true;
   dice.add(body);
 
-  const pipGeo = new THREE.CircleGeometry(DICE_PIP_RADIUS, 48);
-  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 48);
+  const pipGeo = new THREE.SphereGeometry(
+    DICE_PIP_RADIUS,
+    36,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2
+  );
+  pipGeo.rotateX(Math.PI);
+  pipGeo.computeVertexNormals();
+  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const halfSize = DICE_SIZE / 2;
   const faceDepth = halfSize - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
@@ -172,25 +187,29 @@ function makeDice() {
       const base = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
-        .addScaledVector(n, faceDepth);
+        .addScaledVector(n, faceDepth - DICE_PIP_DEPTH * 0.5);
 
       const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.castShadow = true;
       pip.receiveShadow = true;
-      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH * 0.35);
-      pip.lookAt(pip.position.clone().add(n));
+      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
       dice.add(pip);
 
       const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
       rim.receiveShadow = true;
+      rim.renderOrder = 6;
       rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
-      rim.lookAt(rim.position.clone().add(n));
+      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
       dice.add(rim);
     });
   });
 
   dice.userData.setValue = (val) => {
+    dice.userData.currentValue = val;
     setDiceOrientation(dice, val);
   };
+  dice.userData.currentValue = 1;
   return dice;
 }
 
@@ -209,23 +228,52 @@ function setDiceOrientation(dice, val) {
   dice.setRotationFromQuaternion(q);
 }
 
-function spinDice(dice, duration = 700) {
+function spinDice(
+  dice,
+  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+) {
   return new Promise((resolve) => {
     const start = performance.now();
-    const target = 1 + Math.floor(Math.random() * 6);
-    (function step() {
-      const t = performance.now() - start;
-      const k = Math.min(1, t / duration);
-      dice.rotation.x += 0.38 * (1 - k);
-      dice.rotation.y += 0.41 * (1 - k);
-      dice.rotation.z += 0.33 * (1 - k);
-      if (k < 1) {
+    const startPos = dice.position.clone();
+    const endPos = targetPosition.clone();
+    const spinVec = new THREE.Vector3(
+      0.6 + Math.random() * 0.5,
+      0.7 + Math.random() * 0.45,
+      0.5 + Math.random() * 0.55
+    );
+    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.12, 0, (Math.random() - 0.5) * 0.12);
+    const targetValue = 1 + Math.floor(Math.random() * 6);
+
+    const step = () => {
+      const now = performance.now();
+      const t = Math.min(1, (now - start) / Math.max(1, duration));
+      const eased = easeOutCubic(t);
+      const position = startPos.clone().lerp(endPos, eased);
+      const wobbleStrength = Math.sin(eased * Math.PI);
+      position.addScaledVector(wobble, wobbleStrength * 0.45);
+      const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
+      position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
+      dice.position.copy(position);
+
+      const spinFactor = 1 - eased * 0.35;
+      dice.rotation.x += spinVec.x * spinFactor * 0.2;
+      dice.rotation.y += spinVec.y * spinFactor * 0.2;
+      dice.rotation.z += spinVec.z * spinFactor * 0.2;
+
+      if (t < 1) {
         requestAnimationFrame(step);
       } else {
-        setDiceOrientation(dice, target);
-        resolve(target);
+        if (typeof dice.userData?.setValue === 'function') {
+          dice.userData.setValue(targetValue);
+        } else {
+          setDiceOrientation(dice, targetValue);
+        }
+        dice.position.copy(endPos);
+        resolve(targetValue);
       }
-    })();
+    };
+
+    requestAnimationFrame(step);
   });
 }
 
@@ -250,11 +298,15 @@ function ease(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
 function Ludo3D({ avatar, username }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const zoomRef = useRef({});
+  const controlsRef = useRef(null);
   const diceRef = useRef(null);
+  const diceTransitionRef = useRef(null);
   const rollDiceRef = useRef(() => {});
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
@@ -272,7 +324,68 @@ function Ludo3D({ avatar, username }) {
     winner: null
   });
 
-  const updateTurnIndicator = (player) => {
+  const stopDiceTransition = () => {
+    if (diceTransitionRef.current?.cancel) {
+      try {
+        diceTransitionRef.current.cancel();
+      } catch (error) {
+        console.warn('Failed to cancel dice transition', error);
+      }
+    }
+    diceTransitionRef.current = null;
+  };
+
+  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04 } = {}) => {
+    if (!dice || !destination) return;
+    const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
+    stopDiceTransition();
+    const startPos = dice.position.clone();
+    const started = performance.now();
+    const state = { cancelled: false };
+    const handle = {
+      cancel: () => {
+        state.cancelled = true;
+      }
+    };
+    diceTransitionRef.current = handle;
+    const step = () => {
+      if (state.cancelled) return;
+      const now = performance.now();
+      const t = Math.min(1, (now - started) / Math.max(1, duration));
+      const eased = easeOutCubic(t);
+      const pos = startPos.clone().lerp(target, eased);
+      if (lift > 0) {
+        const arc = Math.sin(Math.PI * eased) * lift * (1 - eased * 0.35);
+        pos.y = THREE.MathUtils.lerp(startPos.y, target.y, eased) + arc;
+      }
+      dice.position.copy(pos);
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        dice.position.copy(target);
+        if (diceTransitionRef.current === handle) {
+          diceTransitionRef.current = null;
+        }
+      }
+    };
+    requestAnimationFrame(step);
+  };
+
+  const moveDiceToRail = (player, immediate = false) => {
+    const dice = diceRef.current;
+    if (!dice) return;
+    const rails = dice.userData?.railPositions;
+    if (!rails || !rails[player]) return;
+    const target = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
+    if (immediate) {
+      stopDiceTransition();
+      dice.position.copy(target);
+      return;
+    }
+    animateDicePosition(dice, target, { duration: 520, lift: 0.05 });
+  };
+
+  const updateTurnIndicator = (player, immediate = false) => {
     const indicator = turnIndicatorRef.current;
     if (!indicator) return;
     const material = Array.isArray(indicator.material)
@@ -284,6 +397,7 @@ function Ludo3D({ avatar, username }) {
     if (material.emissive) {
       material.emissive.set(color.clone().multiplyScalar(0.3));
     }
+    moveDiceToRail(player, immediate);
   };
 
   useEffect(() => {
@@ -336,8 +450,7 @@ function Ludo3D({ avatar, username }) {
     const host = wrapRef.current;
     if (!host) return;
     let scene, camera, renderer;
-    let sph;
-    const orbit = { drag: false, x: 0, y: 0 };
+    let controls;
     const pointer = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
 
@@ -365,6 +478,7 @@ function Ludo3D({ avatar, username }) {
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.zIndex = '0';
+    renderer.domElement.style.touchAction = 'none';
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
@@ -403,11 +517,26 @@ function Ludo3D({ avatar, username }) {
       BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
       CAM.minR
     );
-    sph = new THREE.Spherical(
+    const initialSpherical = new THREE.Spherical(
       initialRadius,
       THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
       Math.PI * 0.25
     );
+    const initialOffset = new THREE.Vector3().setFromSpherical(initialSpherical);
+    camera.position.copy(boardLookTarget).add(initialOffset);
+    camera.lookAt(boardLookTarget);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = false;
+    controls.enableZoom = true;
+    controls.minDistance = CAM.minR;
+    controls.maxDistance = CAM.maxR;
+    controls.maxPolarAngle = CAM.phiMax;
+    controls.minPolarAngle = CAM.phiMin;
+    controls.target.copy(boardLookTarget);
+    controlsRef.current = controls;
 
     const fit = () => {
       const w = host.clientWidth;
@@ -418,31 +547,34 @@ function Ludo3D({ avatar, username }) {
       const boardSize = RAW_BOARD_SIZE * BOARD_SCALE;
       const needed =
         boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      sph.radius = clamp(Math.max(needed, sph.radius), CAM.minR, CAM.maxR);
-      const offset = new THREE.Vector3().setFromSpherical(sph);
-      camera.position.copy(boardLookTarget).add(offset);
-      camera.lookAt(boardLookTarget);
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
+      const dir = camera.position.clone().sub(boardLookTarget).normalize();
+      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+      controls.update();
     };
     fitRef.current = fit;
     fit();
 
+    const dollyScale = 1 + CAMERA_DOLLY_FACTOR;
     zoomRef.current = {
       zoomIn: () => {
-        const r = sph.radius || initialRadius;
-        sph.radius = clamp(r - 1.2, CAM.minR, CAM.maxR);
-        fit();
+        if (!controls) return;
+        controls.dollyIn(dollyScale);
+        controls.update();
       },
       zoomOut: () => {
-        const r = sph.radius || initialRadius;
-        sph.radius = clamp(r + 1.2, CAM.minR, CAM.maxR);
-        fit();
+        if (!controls) return;
+        controls.dollyOut(dollyScale);
+        controls.update();
       }
     };
 
     const boardData = buildLudoBoard(boardGroup);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
-    updateTurnIndicator(0);
+    moveDiceToRail(0, true);
+    updateTurnIndicator(0, true);
 
     stateRef.current = {
       paths: boardData.paths,
@@ -461,7 +593,14 @@ function Ludo3D({ avatar, username }) {
       const dice = diceRef.current;
       const rollFn = rollDiceRef.current;
       const state = stateRef.current;
-      if (!dice || !rollFn || !state || state.winner || state.animation) {
+      if (
+        !dice ||
+        !rollFn ||
+        !state ||
+        state.winner ||
+        state.animation ||
+        dice.userData?.isRolling
+      ) {
         return false;
       }
       const rect = renderer.domElement.getBoundingClientRect();
@@ -476,52 +615,27 @@ function Ludo3D({ avatar, username }) {
       }
       return false;
     };
-
-    const onDown = (e) => {
-      const clientX = e.clientX || e.touches?.[0]?.clientX;
-      const clientY = e.clientY || e.touches?.[0]?.clientY;
-      if (clientX != null && clientY != null) {
-        const handled = attemptDiceRoll(clientX, clientY);
-        if (handled) return;
+    let pointerLocked = false;
+    const onPointerDown = (event) => {
+      const { clientX, clientY } = event;
+      if (clientX == null || clientY == null) return;
+      const handled = attemptDiceRoll(clientX, clientY);
+      if (handled) {
+        pointerLocked = true;
+        if (controls) controls.enabled = false;
+        event.preventDefault();
       }
-      orbit.drag = true;
-      orbit.x = clientX || 0;
-      orbit.y = clientY || 0;
     };
-    const onMove = (e) => {
-      if (!orbit.drag) return;
-      const x = e.clientX || e.touches?.[0]?.clientX || orbit.x;
-      const y = e.clientY || e.touches?.[0]?.clientY || orbit.y;
-      const dx = x - orbit.x;
-      const dy = y - orbit.y;
-      orbit.x = x;
-      orbit.y = y;
-      sph.theta -= dx * 0.004;
-      const phiDelta = -dy * CAMERA_VERTICAL_SENSITIVITY;
-      sph.phi = clamp(sph.phi + phiDelta, CAM.phiMin, CAM.phiMax);
-      const leanDelta = dy * CAMERA_LEAN_STRENGTH;
-      sph.radius = clamp(sph.radius - leanDelta, CAM.minR, CAM.maxR);
-      fit();
+    const onPointerUp = () => {
+      if (!pointerLocked) return;
+      pointerLocked = false;
+      if (controls) controls.enabled = true;
     };
-    const onUp = () => {
-      orbit.drag = false;
-    };
-    const onWheel = (e) => {
-      const r = sph.radius || initialRadius;
-      sph.radius = clamp(r + e.deltaY * 0.2, CAM.minR, CAM.maxR);
-      fit();
-    };
-    renderer.domElement.addEventListener('mousedown', onDown);
-    renderer.domElement.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    renderer.domElement.addEventListener('touchstart', onDown, {
-      passive: true
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, {
+      passive: false
     });
-    renderer.domElement.addEventListener('touchmove', onMove, {
-      passive: true
-    });
-    window.addEventListener('touchend', onUp);
-    renderer.domElement.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
     const step = () => {
       const state = stateRef.current;
@@ -550,6 +664,21 @@ function Ludo3D({ avatar, username }) {
           }
         }
       }
+      const diceObj = diceRef.current;
+      const lights = diceObj?.userData?.lights;
+      if (diceObj && lights) {
+        const pos = diceObj.position;
+        if (lights.accent?.userData?.offset) {
+          lights.accent.position.copy(pos).add(lights.accent.userData.offset);
+        }
+        if (lights.fill?.userData?.offset) {
+          lights.fill.position.copy(pos).add(lights.fill.userData.offset);
+        }
+        if (lights.target) {
+          lights.target.position.copy(pos);
+        }
+      }
+      controls?.update();
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(step);
     };
@@ -563,13 +692,14 @@ function Ludo3D({ avatar, username }) {
       stateRef.current = null;
       turnIndicatorRef.current = null;
       window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('mousedown', onDown);
-      renderer.domElement.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      renderer.domElement.removeEventListener('touchstart', onDown);
-      renderer.domElement.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-      renderer.domElement.removeEventListener('wheel', onWheel);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      controlsRef.current = null;
+      controls?.dispose();
+      controls = null;
+      stopDiceTransition();
+      diceRef.current = null;
       disposers.forEach((fn) => {
         try {
           fn();
@@ -762,10 +892,26 @@ function Ludo3D({ avatar, username }) {
     if (!state || state.winner) return;
     if (state.animation) return;
     const dice = diceRef.current;
-    if (!dice) return;
-    const value = await spinDice(dice, 700);
-    setUi((s) => ({ ...s, dice: value }));
+    if (!dice || dice.userData?.isRolling) return;
     const player = state.turn;
+    const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
+    const rollTargets = dice.userData?.rollTargets;
+    const clothLimit = dice.userData?.clothLimit ?? DOMINO_TABLE_DIMENSIONS.clothHalfWidth - 0.12;
+    const baseTarget = rollTargets?.[player]?.clone() ?? new THREE.Vector3(0, baseHeight, 0);
+    const jitter = new THREE.Vector3((Math.random() - 0.5) * 0.18, 0, (Math.random() - 0.5) * 0.18);
+    baseTarget.add(jitter);
+    baseTarget.x = THREE.MathUtils.clamp(baseTarget.x, -clothLimit, clothLimit);
+    baseTarget.z = THREE.MathUtils.clamp(baseTarget.z, -clothLimit, clothLimit);
+    baseTarget.y = baseHeight;
+    stopDiceTransition();
+    dice.userData.isRolling = true;
+    const value = await spinDice(dice, {
+      duration: 950,
+      targetPosition: baseTarget,
+      bounceHeight: dice.userData?.bounceHeight ?? 0.06
+    });
+    dice.userData.isRolling = false;
+    setUi((s) => ({ ...s, dice: value }));
     const options = getMovableTokens(player, value);
     if (!options.length) {
       advanceTurn(value === 6);
@@ -984,17 +1130,49 @@ function buildLudoBoard(boardGroup) {
   });
 
   const dice = makeDice();
-  dice.position.set(0, DICE_BASE_HEIGHT, 0);
+  const clothHalf = DOMINO_TABLE_DIMENSIONS.clothHalfWidth;
+  const railDistance = clothHalf + 0.09;
+  const railHeight = DICE_BASE_HEIGHT + 0.024;
+  const rollRadius = clothHalf * 0.45;
+  const railPositions = [
+    new THREE.Vector3(0, railHeight, -railDistance),
+    new THREE.Vector3(railDistance, railHeight, 0),
+    new THREE.Vector3(0, railHeight, railDistance),
+    new THREE.Vector3(-railDistance, railHeight, 0)
+  ];
+  const rollTargets = [
+    new THREE.Vector3(0, DICE_BASE_HEIGHT, -rollRadius),
+    new THREE.Vector3(rollRadius, DICE_BASE_HEIGHT, 0),
+    new THREE.Vector3(0, DICE_BASE_HEIGHT, rollRadius),
+    new THREE.Vector3(-rollRadius, DICE_BASE_HEIGHT, 0)
+  ];
+  dice.position.copy(railPositions[0]);
+  dice.userData.railPositions = railPositions.map((pos) => pos.clone());
+  dice.userData.rollTargets = rollTargets.map((pos) => pos.clone());
+  dice.userData.baseHeight = DICE_BASE_HEIGHT;
+  dice.userData.railHeight = railHeight;
+  dice.userData.bounceHeight = 0.07;
+  dice.userData.clothLimit = clothHalf - 0.12;
+  dice.userData.isRolling = false;
   scene.add(dice);
 
+  const diceLightTarget = new THREE.Object3D();
+  scene.add(diceLightTarget);
+
   const diceAccent = new THREE.SpotLight(0xffffff, 2.1, 3.4, Math.PI / 5, 0.42, 1.25);
-  diceAccent.position.set(0.45, 1.55, 1.05);
-  diceAccent.target = dice;
+  diceAccent.userData.offset = new THREE.Vector3(0.45, 1.55, 1.05);
+  diceAccent.target = diceLightTarget;
   scene.add(diceAccent);
 
   const diceFill = new THREE.PointLight(0xfff8e1, 1.05, 2.6, 2.2);
-  diceFill.position.set(-0.65, 1.25, -0.75);
+  diceFill.userData.offset = new THREE.Vector3(-0.65, 1.25, -0.75);
   scene.add(diceFill);
+
+  dice.userData.lights = {
+    accent: diceAccent,
+    fill: diceFill,
+    target: diceLightTarget
+  };
 
   const indicatorMat = new THREE.MeshStandardMaterial({
     color: PLAYER_COLORS[0],
