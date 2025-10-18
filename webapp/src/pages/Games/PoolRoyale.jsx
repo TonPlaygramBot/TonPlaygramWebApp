@@ -420,12 +420,14 @@ const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 0.93;
+const INCH_TO_MM = 25.4;
+const TARGET_MM_TO_UNITS = 0.04756913385826771; // preserves the previous world scale while matching WPA specs
+const TABLE_SCALE = TARGET_MM_TO_UNITS * INCH_TO_MM; // converts official inch dimensions to scene units
 const TABLE = {
-  W: 66 * TABLE_SCALE,
-  H: 132 * TABLE_SCALE,
+  W: 63 * TABLE_SCALE, // official 63" outside width for a 9 ft table
+  H: 113 * TABLE_SCALE, // official 113" outside length for a 9 ft table
   THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE
+  WALL: 6.5 * TABLE_SCALE // rail width (cushion nose to cabinet edge)
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
@@ -439,7 +441,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 635;
 const CORNER_MOUTH_REF = 114;
 const SIDE_MOUTH_REF = 127;
-const SIDE_RAIL_INNER_REDUCTION = 0.8;
+const SIDE_RAIL_INNER_REDUCTION = 0;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
