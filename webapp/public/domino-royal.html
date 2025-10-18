@@ -11,8 +11,10 @@
   button{font-weight:700;border:0;border-radius:999px;padding:.45rem .7rem;background:#ffd24a;color:#333;box-shadow:0 4px 12px rgba(0,0,0,.25);}
   button:active{transform:translateY(1px);}
   #status{position:fixed;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);padding:.35rem .75rem;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2;backdrop-filter:blur(6px);}
-  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(3.8rem, 18vh, 9.5rem));transform:translateX(-50%);display:flex;gap:.75rem;align-items:center;background:rgba(64,42,20,.88);color:#fff;border-radius:999px;padding:.55rem .9rem;box-shadow:0 14px 30px rgba(0,0,0,.45);z-index:2;pointer-events:auto;}
-  #railControls button{background:#ffd24a;color:#3b250f;min-width:5.2rem;font-size:1rem;padding:.55rem 1.05rem;}
+  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(2.4rem, 14vh, 6.4rem));transform:translateX(-50%);display:flex;flex-direction:column;gap:.65rem;align-items:stretch;background:rgba(64,42,20,.88);color:#fff;border-radius:1.25rem;padding:.75rem .95rem 1rem .95rem;box-shadow:0 14px 30px rgba(0,0,0,.45);z-index:2;pointer-events:auto;min-width:clamp(8.5rem, 46vw, 13rem);}
+  #railControls button{background:#ffd24a;color:#3b250f;font-size:1.05rem;padding:.7rem 1.1rem;border-radius:.9rem;}
+  #draw{font-size:1.1rem;padding:.82rem 1.2rem;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+  #pass{background:rgba(255,210,74,.22);color:#f8e6b5;border:2px solid rgba(255,210,74,.55);}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
   #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3}
@@ -39,9 +41,9 @@
       <li><b>Set:</b> Double-Six (28 tiles, 0–6). Each tile is unique (a,b) with a≤b. No duplicates.</li>
       <li><b>Dealing:</b> 7 tiles per player. The rest form the <i>stock</i> (boneyard).</li>
       <li><b>Opening:</b> The player with the highest double starts. If no double, the highest tile opens.</li>
-      <li><b>On the table:</b> Build a horizontal chain across the green cloth. Only doubles stand vertically. At the cloth edges, pivot and keep the chain running horizontally.</li>
-      <li><b>Matching:</b> Free ends must match in value. Doubles accept the same value on both sides.</li>
-      <li><b>No move?</b> Draw from the stock until you can play. If the stock is empty, pass.</li>
+      <li><b>On the table:</b> Every tile lies flat on the green cloth, touching end-to-end without overlapping. Keep the chain flush as you pivot at the rails so the spacing stays even.</li>
+      <li><b>Matching:</b> The touching halves must show the same pip value. Doubles stand upright in place; all other tiles extend the snake in a straight line.</li>
+      <li><b>No move?</b> Draw from the face-down stock stack near you (tap the Draw button below it) until you can play. If the stock is empty, pass.</li>
       <li><b>Ending:</b> The winner is the first out. If play is blocked, the lowest pip total wins.</li>
     </ol>
     <div class="row">
@@ -622,6 +624,18 @@ const TILE_UP_HALF = TILE_UP_H * 0.5;
 const RAIL_TOP = Y + 0.02 + RIM_H;
 const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
 
+const boneyardStackG = new THREE.Group();
+const BONEYARD_STACK_POSITION = new THREE.Vector3(0, CLOTH_TOP + 0.0075, CLOTH_HW - 0.18);
+boneyardStackG.position.copy(BONEYARD_STACK_POSITION);
+piecesG.add(boneyardStackG);
+const BONEYARD_STACK_STEP = SCALE * 0.22 * 0.1 * 1.02;
+const MAX_BONEYARD_DISPLAY = 12;
+let boneyardStackVisible = 0;
+let boneyardStackTopLocal = 0;
+
+const drawAnimations = [];
+const DRAW_ANIM_DURATION = 480;
+
 /* ---------- Table (Square Poker Style) ---------- */
 {
   // baza druri (pak bevel)
@@ -920,7 +934,72 @@ function renderChain(){
   });
 }
 
+function renderBoneyardStack(){
+  boneyardStackG.clear();
+  const available = Array.isArray(boneyard) ? boneyard.length : 0;
+  const visible = Math.min(available, MAX_BONEYARD_DISPLAY);
+  boneyardStackVisible = visible;
+  boneyardStackTopLocal = visible > 0 ? (visible - 1) * BONEYARD_STACK_STEP : 0;
+  if(visible === 0){
+    return;
+  }
+
+  for(let i=0;i<visible;i++){
+    const domino = makeDomino(0,0,{flat:true, faceUp:false});
+    orientDominoFlat(domino, Math.PI/2);
+    domino.rotation.z = Math.PI;
+    domino.position.set((i%2===0?1:-1)*0.0045, i * BONEYARD_STACK_STEP, (i%3-1)*0.0035);
+    domino.userData = { stock:true };
+    boneyardStackG.add(domino);
+  }
+}
+
+function getBoneyardTopWorld(){
+  if(!boneyardStackVisible){
+    return null;
+  }
+  const localTop = new THREE.Vector3(0, boneyardStackTopLocal, 0);
+  return boneyardStackG.localToWorld(localTop);
+}
+
+function spawnDrawAnimation(startWorld, seatIndex = human){
+  if(!startWorld){
+    return;
+  }
+  const start = startWorld.clone ? startWorld.clone() : new THREE.Vector3().copy(startWorld);
+  const domino = makeDomino(0,0,{flat:true, faceUp:false});
+  orientDominoFlat(domino, Math.PI/2);
+  domino.rotation.z = Math.PI;
+  domino.userData = { stockAnim:true };
+  domino.position.copy(start);
+  piecesG.add(domino);
+
+  const [seatX, seatZ] = layoutSeat(seatIndex);
+  const end = new THREE.Vector3(seatX * 0.55, HAND_Y + 0.012, seatZ - 0.08);
+  drawAnimations.push({
+    mesh: domino,
+    start,
+    end,
+    startTime: performance.now(),
+    duration: DRAW_ANIM_DURATION,
+    arc: 0.05
+  });
+}
+
 /* ---------- Start / Turn Order ---------- */
+function drawTileFromStock(){
+  while(boneyard.length){
+    const tile = boneyard.pop();
+    if(!isValidTile(tile)){
+      continue;
+    }
+    renderBoneyardStack();
+    return tile;
+  }
+  renderBoneyardStack();
+  return null;
+}
+
 function highestDoubleIndex(hand){ let best=-1, idx=-1; hand.forEach((t,i)=>{ if(t.a===t.b && t.a>best){best=t.a; idx=i;} }); return idx; }
 function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
 
@@ -1015,8 +1094,8 @@ function scoreMove(player, move){
 function cpuDrawUntilPlayable(player){
   let drew = false;
   while(boneyard.length){
-    const tile = boneyard.pop();
-    if(!isValidTile(tile)) continue;
+    const tile = drawTileFromStock();
+    if(!tile) break;
     player.hand.push(tile);
     drew = true;
     if(!ends) break;
@@ -1034,7 +1113,15 @@ function startGame(){
   N = Math.max(2, Math.min(4, numericN));
   players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
   boneyard=shuffle(genSet());
-  for(let r=0;r<7;r++) players.forEach(p=>p.hand.push(boneyard.pop()));
+  renderBoneyardStack();
+  for(let r=0;r<7;r++){
+    players.forEach(p=>{
+      const dealt = drawTileFromStock();
+      if(dealt){
+        p.hand.push(dealt);
+      }
+    });
+  }
   players.forEach(p=> shuffle(p.hand)); // random order every game
   renderHands();
   let starter=0, idx=-1, bestD=-1;
@@ -1045,7 +1132,7 @@ function startGame(){
   const firstRot = (firstTile.a===firstTile.b) ? Math.PI/2 : 0;
   chain.push({tile:firstTile,x:0,z:0,rot:firstRot,double:firstTile.a===firstTile.b});
   usedTileKeys.add(tileKey(firstTile));
-  const step=.10;
+  const step=STEP;
   if(!flipDir){
     ends={
       L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
@@ -1062,7 +1149,7 @@ function startGame(){
 }
 
 /* ---------- Placement & Snake ---------- */
-const STEP=.10;
+const STEP=SCALE * (0.016/0.22) * 2;
 function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
 function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
 
@@ -1085,14 +1172,14 @@ function placeOnBoard(tile, side){
   } else {
     rot = (dz>=0) ? Math.PI/2 : -Math.PI/2;
   }
-  const placedTile=canonTile({a,b}) || {a,b};
-  const key = tileKey(placedTile);
+  const orientedTile = {a,b};
+  const key = tileKey(orientedTile);
   if(usedTileKeys.has(key)){
     return false;
   }
-  chain.push({tile:placedTile,x:nx,z:nz,rot,double:isDouble});
+  chain.push({tile:orientedTile,x:nx,z:nz,rot,double:isDouble});
   usedTileKeys.add(key);
-  const newVal=(side<0? b : a);
+  const newVal=b;
   let nextOrient;
   if(isHorizontal){
     nextOrient = (dx>=0) ? 0 : Math.PI;
@@ -1113,7 +1200,7 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.06, .009, 16, 48); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.085, .014, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -1146,9 +1233,18 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
   }
 });
 
-btnDraw.addEventListener('click',()=>{ if(current!==human) return;
-  while(boneyard.length){ const t=boneyard.pop(); if(!isValidTile(t)) continue; players[human].hand.push(t); const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v); if(canL||canR) break; }
-  clearMarkers(); selectedTile=null; renderHands(); SFX.draw.currentTime=0; SFX.draw.play();
+btnDraw.addEventListener('click',()=>{ if(current!==human) return; let drewTile=false;
+  while(boneyard.length){
+    const startWorld = getBoneyardTopWorld();
+    const t=drawTileFromStock();
+    if(!t) break;
+    players[human].hand.push(t);
+    spawnDrawAnimation(startWorld, human);
+    drewTile = true;
+    const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
+    if(canL||canR) break;
+  }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw.currentTime=0; SFX.draw.play(); }
 });
 btnPass.addEventListener('click',()=>{ if(current===human){ clearMarkers(); selectedTile=null; nextTurn(); }});
 
@@ -1250,8 +1346,29 @@ console.assert(document.getElementById('draw') && document.getElementById('pass'
 (()=>{ const m=makeDomino(6,6,{flat:true,faceUp:true}); const anyRing=m.children.some(ch=>ch.geometry?.type==='RingGeometry'); console.assert(anyRing,'perimeter/pip rings exist (flat)'); })();
 (()=>{ const m=makeDomino(3,4,{flat:false,faceUp:true}); const pipCount=m.children.reduce((n,ch)=>n+(ch.geometry?.type==='SphereGeometry'?1:0),0); console.assert(pipCount>0,'pips exist'); })();
 
+function updateDrawAnimations(now){
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  for(let i=drawAnimations.length-1;i>=0;i--){
+    const anim = drawAnimations[i];
+    const elapsed = timestamp - anim.startTime;
+    const t = Math.min(1, elapsed / (anim.duration || DRAW_ANIM_DURATION));
+    const ease = 1 - Math.pow(1 - t, 3);
+    const pos = anim.start.clone();
+    pos.lerp(anim.end, ease);
+    if(anim.arc){
+      pos.y += Math.sin(Math.PI * ease) * anim.arc;
+    }
+    anim.mesh.position.copy(pos);
+    if(t >= 1){
+      piecesG.remove(anim.mesh);
+      drawAnimations.splice(i,1);
+    }
+  }
+}
+
 /* ---------- Loop & Resize ---------- */
-function tick(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick);} tick();
+function tick(now){ updateDrawAnimations(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
+requestAnimationFrame(tick);
 function onResize(){ fitCamera(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
 
