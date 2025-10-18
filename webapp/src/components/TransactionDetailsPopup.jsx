@@ -17,6 +17,7 @@ const GAME_NAME_MAP = {
   fallingball: 'Falling Ball',
   pool: 'Pool Royale',
   texas: "Texas Hold'em",
+  domino: 'Domino Royal 3D',
   blackjack: 'Black Jack Multiplayer',
   freekick: 'Free Kick',
   murlan: 'Murlan Royale'

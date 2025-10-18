@@ -40,6 +40,8 @@ import LudoBattleRoyal from './pages/Games/LudoBattleRoyal.jsx';
 import LudoBattleRoyalLobby from './pages/Games/LudoBattleRoyalLobby.jsx';
 import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
+import DominoRoyal from './pages/Games/DominoRoyal.jsx';
+import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
@@ -107,6 +109,11 @@ export default function App() {
               element={<TexasHoldemLobby />}
             />
             <Route path="/games/texasholdem" element={<TexasHoldem />} />
+            <Route
+              path="/games/domino-royal/lobby"
+              element={<DominoRoyalLobby />}
+            />
+            <Route path="/games/domino-royal" element={<DominoRoyal />} />
             <Route path="/games/blackjack/lobby" element={<BlackJackLobby />} />
             <Route path="/games/blackjack" element={<BlackJack />} />
             <Route
