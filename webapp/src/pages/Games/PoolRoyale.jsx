@@ -486,6 +486,10 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
+const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+const POCKET_RIM_OVERHANG = TABLE.THICK * 0.004;
+const POCKET_RIM_LIFT = TABLE.THICK * 0.006;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -3686,20 +3690,22 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
   pts.push(new THREE.Vector2(innerRadius + flare + lipInset, lipHeight));
   const topOffset = pts[pts.length - 1].y;
   const adjustedPts = pts.map((pt) => new THREE.Vector2(pt.x, pt.y - topOffset));
-  const rimOuterRaw = adjustedPts.reduce((max, pt) => Math.max(max, pt.x), innerRadius + lipInset);
-  const rimOuter = Math.min(rimOuterRaw, innerRadius + TABLE.THICK * 0.18);
-  const finalPts = adjustedPts.map((pt, idx) => {
-    if (idx >= adjustedPts.length - 2) {
-      return new THREE.Vector2(Math.min(pt.x, rimOuter), pt.y);
-    }
-    return pt;
-  });
-  const minY = finalPts.reduce((min, pt) => Math.min(min, pt.y), Infinity);
-  const rimTube = Math.max((rimOuter - innerRadius) * 0.5, TABLE.THICK * 0.01);
-  const rimMajor = (rimOuter + innerRadius) * 0.5;
-  const baseThickness = Math.max(TABLE.THICK * 0.05, Math.abs(minY) * 0.12);
-  const baseOffset = minY - baseThickness / 2 - TABLE.THICK * 0.012;
-  const baseRadius = rimOuter + Math.max(scale * 0.03, TABLE.THICK * 0.03);
+  const baseProfilePts = adjustedPts.map((pt) => new THREE.Vector2(pt.x, pt.y));
+  const createProfile = (targetOuter) => {
+    const rimOuter = Math.max(innerRadius + lipInset, targetOuter);
+    const finalPts = baseProfilePts.map((pt, idx) => {
+      const x = idx >= baseProfilePts.length - 2 ? rimOuter : pt.x;
+      return new THREE.Vector2(x, pt.y);
+    });
+    const minY = finalPts.reduce((min, pt) => Math.min(min, pt.y), Infinity);
+    const rimTube = Math.max((rimOuter - innerRadius) * 0.5, TABLE.THICK * 0.01);
+    const rimMajor = (rimOuter + innerRadius) * 0.5;
+    const baseThickness = Math.max(TABLE.THICK * 0.05, Math.abs(minY) * 0.12);
+    const baseOffset = minY - baseThickness / 2 - TABLE.THICK * 0.012;
+    const baseRadius = rimOuter + Math.max(scale * 0.03, TABLE.THICK * 0.03);
+    return { finalPts, rimOuter, rimTube, rimMajor, baseThickness, baseOffset, baseRadius };
+  };
+  const profileCache = { corner: null, side: null };
 
   const assemblyGroup = new THREE.Group();
   assemblyGroup.name = 'pocketJawSet';
@@ -3709,23 +3715,42 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     const isSide = index >= 4;
     const arc = isSide ? Math.PI : Math.PI / 2;
     const phiStart = -arc / 2;
-    const jawGeom = new THREE.LatheGeometry(finalPts, 64, phiStart, arc);
+    const profileKey = isSide ? 'side' : 'corner';
+    if (!profileCache[profileKey]) {
+      const targetOuter =
+        (isSide ? SIDE_CHROME_NOTCH_RADIUS : CORNER_CHROME_NOTCH_RADIUS) + POCKET_RIM_OVERHANG;
+      profileCache[profileKey] = createProfile(targetOuter);
+    }
+    const profile = profileCache[profileKey];
+    const jawGeom = new THREE.LatheGeometry(
+      profile.finalPts.map((pt) => pt.clone()),
+      64,
+      phiStart,
+      arc
+    );
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, materials.body);
     jawMesh.receiveShadow = true;
     jawMesh.castShadow = false;
 
     const rimSegments = isSide ? 128 : 96;
-    const rimGeom = new THREE.TorusGeometry(rimMajor, rimTube, 24, rimSegments, arc);
+    const rimGeom = new THREE.TorusGeometry(
+      profile.rimMajor,
+      profile.rimTube,
+      24,
+      rimSegments,
+      arc
+    );
     const rimMesh = new THREE.Mesh(rimGeom, materials.rim);
     rimMesh.rotation.x = Math.PI / 2;
+    rimMesh.position.y = profile.rimTube + POCKET_RIM_LIFT;
     rimMesh.castShadow = false;
     rimMesh.receiveShadow = true;
 
     const baseGeom = new THREE.CylinderGeometry(
-      baseRadius,
-      baseRadius,
-      baseThickness,
+      profile.baseRadius,
+      profile.baseRadius,
+      profile.baseThickness,
       48,
       1,
       false,
@@ -3733,7 +3758,7 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
       arc
     );
     const baseMesh = new THREE.Mesh(baseGeom, materials.base);
-    baseMesh.position.y = baseOffset;
+    baseMesh.position.y = profile.baseOffset;
     baseMesh.receiveShadow = true;
     baseMesh.castShadow = false;
 
@@ -3752,13 +3777,14 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     pocketGroups.push(pocketGroup);
   });
   table.add(assemblyGroup);
+  const referenceProfile = profileCache.corner ?? profileCache.side;
   return {
     group: assemblyGroup,
     optionId: resolved.id,
     materials,
     pockets: pocketGroups,
     verticalLift,
-    rimOuter
+    rimOuter: referenceProfile?.rimOuter ?? innerRadius + lipInset
   };
 }
 
