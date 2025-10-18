@@ -98,10 +98,8 @@ fitCamera();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.target.set(0, Y + 0.05, 0);
-controls.enablePan = false;
-controls.enableZoom = false;
-controls.enableRotate = false;
+controls.target.set(0, 0.64, 0);
+controls.minDistance = 1.1; controls.maxDistance = 4; controls.maxPolarAngle = Math.PI*0.49;
 
 /* ---------- Lights ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
@@ -115,8 +113,6 @@ scene.add(tableG);
 tableG.rotation.y = 0.10; // pak rrotullim për perspektivë
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
-const chairsG = new THREE.Group();
-tableG.add(chairsG);
 
 /* ---------- Shapes ---------- */
 function roundedRectShape(hw=0.95, hh=0.95, r=0.06){
@@ -131,16 +127,6 @@ function roundedRectShape(hw=0.95, hh=0.95, r=0.06){
 function roundedRectAbs(w, h, r){ return roundedRectShape(w*0.5, h*0.5, r); }
 function makeClothTexture(hex="#155c2a"){ const c=document.createElement("canvas"),S=512; c.width=c.height=S; const g=c.getContext("2d"); g.fillStyle=hex; g.fillRect(0,0,S,S); g.globalAlpha=.08; g.fillStyle="#fff"; for(let i=0;i<S;i+=6){ g.fillRect(i,0,1,S); g.fillRect(0,i,S,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(5,5); t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; }
 function makeSpeckle(size=256, density=0.08){ const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); g.fillStyle='#808080'; g.fillRect(0,0,size,size); g.globalAlpha=0.25; g.fillStyle='#9a9a9a'; const dots = Math.floor(size*size*density*0.002); for(let i=0;i<dots;i++){ const x=Math.random()*size, y=Math.random()*size, r=0.5+Math.random()*1.2; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); } const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.anisotropy=renderer.capabilities.getMaxAnisotropy(); return tex; }
-function applySRGBColorSpace(texture){ if(texture){ texture.colorSpace = THREE.SRGBColorSpace; texture.needsUpdate = true; } }
-function adjustHexColor(hex, amount){ const col = new THREE.Color(hex); const hsl = { h:0,s:0,l:0 }; col.getHSL(hsl); hsl.l = THREE.MathUtils.clamp(hsl.l + amount, 0, 1); const out = new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l); return `#${out.getHexString()}`; }
-function createChairClothTexture(renderer){ const size=512; const canvas=document.createElement('canvas'); canvas.width=canvas.height=size; const ctx=canvas.getContext('2d'); const primary='#8b1538'; const accent='#5c0f26'; const highlight='#d35a7a'; const gradient=ctx.createLinearGradient(0,0,size,size); gradient.addColorStop(0,adjustHexColor(primary,0.08)); gradient.addColorStop(1,primary); ctx.fillStyle=gradient; ctx.fillRect(0,0,size,size); const spacing=size/6; const half=spacing/2; ctx.fillStyle='rgba(0,0,0,0.28)'; const tuftRadius=Math.max(1.8,spacing*0.08); for(let y=-spacing;y<=size+spacing;y+=spacing){ for(let x=-spacing;x<=size+spacing;x+=spacing){ ctx.beginPath(); ctx.ellipse(x+half,y+half,tuftRadius,tuftRadius*0.85,0,0,Math.PI*2); ctx.fill(); } } ctx.save(); ctx.globalCompositeOperation='overlay'; const sheen=ctx.createRadialGradient(size*0.28,size*0.32,size*0.05,size*0.28,size*0.32,size*0.75); sheen.addColorStop(0,'rgba(255,255,255,0.24)'); sheen.addColorStop(0.5,'rgba(255,255,255,0.08)'); sheen.addColorStop(1,'rgba(0,0,0,0.32)'); ctx.fillStyle=sheen; ctx.fillRect(0,0,size,size); ctx.restore(); ctx.globalAlpha=0.08; for(let y=0;y<size;y+=2){ for(let x=0;x<size;x+=2){ ctx.fillStyle=Math.random()>0.5?highlight:accent; ctx.fillRect(x,y,1,1); } } ctx.globalAlpha=1; const texture=new THREE.CanvasTexture(canvas); texture.wrapS=texture.wrapT=THREE.RepeatWrapping; texture.repeat.set(2,2); texture.anisotropy=renderer.capabilities.getMaxAnisotropy(); applySRGBColorSpace(texture); return texture; }
-function createChairFabricMaterial(renderer){ const texture=createChairClothTexture(renderer); const material=new THREE.MeshPhysicalMaterial({ color:new THREE.Color(adjustHexColor('#8b1538',0.04)), map:texture, roughness:0.32, metalness:0.08, clearcoat:0.42, clearcoatRoughness:0.28, sheen:0.2 }); if('sheenColor' in material){ material.sheenColor=new THREE.Color('#d35a7a'); } if('sheenRoughness' in material){ material.sheenRoughness=0.32; } if('specularIntensity' in material){ material.specularIntensity=0.6; } material.userData.clothTexture=texture; return material; }
-function disposeChairMaterial(material){ if(!material) return; const tex=material.userData?.clothTexture; tex?.dispose?.(); material.map?.dispose?.(); material.dispose(); }
-function createStraightArmrest(side, material, dims){ const sideSign = side==='right'?1:-1; const group=new THREE.Group(); const { seatThickness, armHeight, armDepth, armThickness } = dims; const baseHeight=seatThickness/2; const supportHeight=armHeight+seatThickness*0.65; const topLength=armDepth*1.1; const topThickness=armThickness*0.65; const top=new THREE.Mesh(new THREE.BoxGeometry(armThickness*0.95, topThickness, topLength), material); top.position.set(0, baseHeight+supportHeight, -armDepth*0.05); top.castShadow=top.receiveShadow=true; group.add(top); const createSupport=(zOffset)=>{ const support=new THREE.Mesh(new THREE.BoxGeometry(armThickness*0.6, supportHeight, armThickness*0.7), material); support.position.set(0, baseHeight+supportHeight/2, top.position.z+zOffset); support.castShadow=support.receiveShadow=true; return support; }; const frontSupport=createSupport(armDepth*0.4); const backSupport=createSupport(-armDepth*0.4); group.add(frontSupport); group.add(backSupport); group.position.set(sideSign*(dims.seatWidth/2+armThickness*0.7),0,0); group.userData.meshes=[top,frontSupport,backSupport]; return group; }
-const CHAIR_DIMS = Object.freeze({ seatWidth:0.68, seatDepth:0.64, seatThickness:0.08, backHeight:0.56, backThickness:0.06, armThickness:0.09, armHeight:0.26, armDepth:0.52, baseHeight:0.28 });
-function createChair(renderer){ const dims=CHAIR_DIMS; const material=createChairFabricMaterial(renderer); const legMaterial=new THREE.MeshStandardMaterial({ color:new THREE.Color('#1f1f1f'), roughness:0.4, metalness:0.45 }); const group=new THREE.Group(); const seat=new THREE.Mesh(new THREE.BoxGeometry(dims.seatWidth,dims.seatThickness,dims.seatDepth), material); seat.position.y=dims.seatThickness/2; seat.castShadow=seat.receiveShadow=true; group.add(seat); const back=new THREE.Mesh(new THREE.BoxGeometry(dims.seatWidth,dims.backHeight,dims.backThickness), material); back.position.set(0, dims.seatThickness/2 + dims.backHeight/2, -dims.seatDepth/2 + dims.backThickness/2); back.castShadow=back.receiveShadow=true; group.add(back); const armLeft=createStraightArmrest('left', material, dims); const armRight=createStraightArmrest('right', material, dims); group.add(armLeft); group.add(armRight); const base=new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, dims.baseHeight, 16), legMaterial); base.position.y = -dims.seatThickness/2 - dims.baseHeight/2; base.castShadow=base.receiveShadow=true; group.add(base); group.userData={ material, legMaterial, meshes:[seat,back,...armLeft.userData.meshes,...armRight.userData.meshes,base] }; return group; }
-function disposeChair(group){ if(!group) return; group.userData?.meshes?.forEach(m=>m.geometry?.dispose?.()); disposeChairMaterial(group.userData?.material); group.userData?.legMaterial?.dispose?.(); }
-const carpetTextureFactory = (()=>{ let cache=null; const clamp01=(v)=>Math.min(1,Math.max(0,v)); const prng=(seed)=>{ let value=seed>>>0; return ()=>{ value=(value*1664525+1013904223)%4294967296; return value/4294967296; }; }; const drawRoundedRect=(ctx,x,y,w,h,r)=>{ const radius=Math.max(0,Math.min(r,Math.min(w,h)/2)); ctx.beginPath(); ctx.moveTo(x+radius,y); ctx.lineTo(x+w-radius,y); ctx.quadraticCurveTo(x+w,y,x+w,y+radius); ctx.lineTo(x+w,y+h-radius); ctx.quadraticCurveTo(x+w,y+h,x+w-radius,y+h); ctx.lineTo(x+radius,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-radius); ctx.lineTo(x,y+radius); ctx.quadraticCurveTo(x,y,x+radius,y); ctx.closePath(); }; return (renderer)=>{ if(cache) return cache; if(typeof document==='undefined'){ cache={ map:null, bump:null }; return cache; } const size=1024; const canvas=document.createElement('canvas'); canvas.width=canvas.height=size; const ctx=canvas.getContext('2d'); const gradient=ctx.createLinearGradient(0,0,size,size); gradient.addColorStop(0,'#7c242f'); gradient.addColorStop(1,'#9d3642'); ctx.fillStyle=gradient; ctx.fillRect(0,0,size,size); const rand=prng(987654321); const image=ctx.getImageData(0,0,size,size); const data=image.data; const baseColor={r:112,g:28,b:34}; const highlightColor={r:196,g:72,b:82}; const toChannel=(component)=>Math.round(clamp01(component/255)*255); for(let y=0;y<size;y++){ for(let x=0;x<size;x++){ const idx=(y*size+x)*4; const fiber=(Math.sin((x/size)*Math.PI*14)+Math.cos((y/size)*Math.PI*16))*0.08; const grain=(rand()-0.5)*0.12; const shade=clamp01(0.55+fiber*0.75+grain*0.6); const r=baseColor.r+(highlightColor.r-baseColor.r)*shade; const g=baseColor.g+(highlightColor.g-baseColor.g)*shade; const b=baseColor.b+(highlightColor.b-baseColor.b)*shade; data[idx]=toChannel(r); data[idx+1]=toChannel(g); data[idx+2]=toChannel(b); } } ctx.putImageData(image,0,0); ctx.globalAlpha=0.04; ctx.fillStyle='#4f1119'; for(let row=0;row<size;row+=3){ ctx.fillRect(0,row,size,1); } ctx.globalAlpha=1; const insetRatio=0.055; const stripeInset=size*insetRatio; const stripeRadius=size*0.08; const stripeWidth=size*0.012; ctx.lineWidth=stripeWidth; ctx.strokeStyle='#f2b7b4'; ctx.shadowColor='rgba(80,20,30,0.18)'; ctx.shadowBlur=stripeWidth*0.8; drawRoundedRect(ctx,stripeInset,stripeInset,size-stripeInset*2,size-stripeInset*2,stripeRadius); ctx.stroke(); ctx.shadowBlur=0; const texture=new THREE.CanvasTexture(canvas); texture.wrapS=texture.wrapT=THREE.ClampToEdgeWrapping; texture.anisotropy=renderer.capabilities.getMaxAnisotropy(); texture.minFilter=THREE.LinearMipMapLinearFilter; texture.magFilter=THREE.LinearFilter; texture.generateMipmaps=true; applySRGBColorSpace(texture); const bumpCanvas=document.createElement('canvas'); bumpCanvas.width=bumpCanvas.height=size; const bumpCtx=bumpCanvas.getContext('2d'); bumpCtx.drawImage(canvas,0,0); const bumpImage=bumpCtx.getImageData(0,0,size,size); const bumpData=bumpImage.data; const bumpRand=prng(246813579); for(let i=0;i<bumpData.length;i+=4){ const r=bumpData[i]; const g=bumpData[i+1]; const b=bumpData[i+2]; const lum=(r*0.299+g*0.587+b*0.114)/255; const noise=(bumpRand()-0.5)*0.16; const v=clamp01(0.62+lum*0.28+noise); const value=Math.floor(v*255); bumpData[i]=bumpData[i+1]=bumpData[i+2]=value; } bumpCtx.putImageData(bumpImage,0,0); const bump=new THREE.CanvasTexture(bumpCanvas); bump.wrapS=bump.wrapT=THREE.ClampToEdgeWrapping; bump.anisotropy=renderer.capabilities.getMaxAnisotropy(); bump.minFilter=THREE.LinearMipMapLinearFilter; bump.magFilter=THREE.LinearFilter; bump.generateMipmaps=true; cache={ map:texture, bump }; return cache; }; })();
 
 /* ---------- Materials ---------- */
 const porcelainMat = new THREE.MeshPhysicalMaterial({
@@ -186,13 +172,6 @@ const IN_HW  = 0.76;              // brenda rim-it (buzë e brendshme)
 const CLOTH_HW = 0.70;            // fushë jeshile (gjysmë-gjerësi)
 const RIM_H = 0.07;
 
-const FLOOR_Y = 0;
-const ROOM_WIDTH = 6.6;
-const ROOM_DEPTH = 6.6;
-const WALL_THICKNESS = 0.35;
-const WALL_HEIGHT = 3.6;
-const CARPET_THICKNESS = 0.12;
-
 // Kufijtë e zinxhirit mbi rrobë
 const XMAX = CLOTH_HW - 0.06;
 const ZMAX = CLOTH_HW - 0.06;
@@ -231,60 +210,9 @@ const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
   skirt.position.y=Y - skirtH/2 + 0.01; skirt.castShadow=true; skirt.receiveShadow=true; tableG.add(skirt);
 }
 {
-  // tapeti i sallës (stil Pool Royale)
-  const carpetTextures = carpetTextureFactory(renderer);
-  const carpetMat = new THREE.MeshStandardMaterial({ color: 0x8c2a2e, roughness: 0.9, metalness: 0.025 });
-  if(carpetTextures.map){ carpetMat.map = carpetTextures.map; carpetMat.map.repeat.set(1,1); carpetMat.map.needsUpdate = true; }
-  if(carpetTextures.bump){ carpetMat.bumpMap = carpetTextures.bump; carpetMat.bumpMap.repeat.set(1,1); carpetMat.bumpScale = 0.18; carpetMat.bumpMap.needsUpdate = true; }
-  const carpet = new THREE.Mesh(new THREE.BoxGeometry(ROOM_WIDTH - WALL_THICKNESS*0.6, CARPET_THICKNESS, ROOM_DEPTH - WALL_THICKNESS*0.6), carpetMat);
-  carpet.position.set(0, FLOOR_Y + CARPET_THICKNESS/2, 0);
-  carpet.castShadow = false; carpet.receiveShadow = true; tableG.add(carpet);
-}
-{
-  // bazamenti nën tapet
-  const base = new THREE.Mesh(new THREE.BoxGeometry(ROOM_WIDTH + 1.2, 0.04, ROOM_DEPTH + 1.2), new THREE.MeshStandardMaterial({ color: "#d8d0c1", roughness: 0.96 }));
-  base.position.y = FLOOR_Y - 0.02; base.receiveShadow = true; tableG.add(base);
-}
-{
-  // muret e sallës (stil Pool Royale)
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xb9ddff, roughness: 0.88, metalness: 0.06 });
-  const makeWall = (w, h, d) => { const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat); wall.position.y = FLOOR_Y + h/2; wall.receiveShadow = true; tableG.add(wall); return wall; };
-  const backWall = makeWall(ROOM_WIDTH, WALL_HEIGHT, WALL_THICKNESS); backWall.position.z = ROOM_DEPTH/2;
-  const frontWall = makeWall(ROOM_WIDTH, WALL_HEIGHT, WALL_THICKNESS); frontWall.position.z = -ROOM_DEPTH/2;
-  const leftWall = makeWall(WALL_THICKNESS, WALL_HEIGHT, ROOM_DEPTH); leftWall.position.x = -ROOM_WIDTH/2;
-  const rightWall = makeWall(WALL_THICKNESS, WALL_HEIGHT, ROOM_DEPTH); rightWall.position.x = ROOM_WIDTH/2;
-}
-{
-  // karriget (stil Texas Hold'em)
-  const chairBaseLift = CHAIR_DIMS.baseHeight + CHAIR_DIMS.seatThickness / 2;
-  const chairInfos = [];
-  for(let i=0;i<4;i++){
-    const chair = createChair(renderer);
-    const layout = layoutSeat(i);
-    const seatVec = new THREE.Vector3(layout[0], 0, layout[1]);
-    const outwardDir = seatVec.lengthSq() > 0 ? seatVec.clone().normalize() : new THREE.Vector3(0,0,1);
-    const distance = OUT_HW + 0.85;
-    const position = outwardDir.clone().multiplyScalar(distance);
-    chair.position.set(position.x, FLOOR_Y + CARPET_THICKNESS + chairBaseLift, position.z);
-    chair.lookAt(new THREE.Vector3(0, chair.position.y + 0.2, 0));
-    chairsG.add(chair);
-    chairInfos.push({ chair, outward: outwardDir });
-  }
-  const playerChair = chairInfos[0];
-  if(playerChair){
-    tableG.updateWorldMatrix(true, false);
-    playerChair.chair.updateWorldMatrix(true, false);
-    const seatPosWorld = playerChair.chair.getWorldPosition(new THREE.Vector3());
-    const originWorld = tableG.localToWorld(new THREE.Vector3(0, 0, 0));
-    const outwardWorldPoint = tableG.localToWorld(playerChair.outward.clone());
-    const outwardWorld = outwardWorldPoint.sub(originWorld).normalize();
-    const headHeight = FLOOR_Y + CARPET_THICKNESS + chairBaseLift + 0.74;
-    const retreat = 0.32;
-    camera.position.copy(seatPosWorld).addScaledVector(outwardWorld, -retreat);
-    camera.position.y = headHeight;
-    controls.target.set(0, Y + 0.05, 0);
-    camera.lookAt(controls.target);
-  }
+  // dysheme
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(6,48), new THREE.MeshStandardMaterial({color:"#ece6dc", roughness:.98}));
+  floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; tableG.add(floor);
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
@@ -625,6 +553,8 @@ console.assert(document.getElementById('start') && document.getElementById('draw
 function tick(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick);} tick();
 function onResize(){ fitCamera(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
+
+camera.position.set(2.0, 1.7, 2.05);
 </script>
 </body>
 </html>
