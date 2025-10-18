@@ -207,7 +207,7 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.998; // keep the short-rail chrome 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.7;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82; // match the snooker side pocket throat profile
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
@@ -223,9 +223,9 @@ const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
-const CHROME_CORNER_PLATE_THICKNESS_SCALE = 1.02; // drop the corner chrome deep enough to blanket the rail sides and pocket cuts
-const CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE = 1.05; // let the side chrome wrap past the rail midline without floating above the wood
-const RAIL_POCKET_CUT_SCALE = 0.965; // tighten the wooden rail pocket cuts a touch more so the wood fully wraps the pocket mouths
+const CHROME_CORNER_PLATE_THICKNESS_SCALE = 1.06; // drop the corner chrome deep enough to blanket the rail sides and pocket cuts
+const CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE = 1.08; // let the side chrome wrap past the rail midline without floating above the wood
+const RAIL_POCKET_CUT_SCALE = 0.94; // tighten the wooden rail pocket cuts a touch more so the wood fully wraps the pocket mouths
 
 function buildChromePlateGeometry({
   width,
