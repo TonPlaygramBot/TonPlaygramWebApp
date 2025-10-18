@@ -617,8 +617,10 @@ const ZMAX = CLOTH_HW - 0.06;
 
 // Domino scale — pak më e vogël se më parë
 const SCALE=0.68;
+const TILE_UP_H = 0.20 * SCALE;
+const TILE_UP_HALF = TILE_UP_H * 0.5;
 const RAIL_TOP = Y + 0.02 + RIM_H;
-const HAND_Y = RAIL_TOP + 0.008 + 0.0008;
+const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
 
 /* ---------- Table (Square Poker Style) ---------- */
 {
@@ -852,13 +854,13 @@ function renderHands(){
     const isSide = (pi===1 || pi===3);
 
     p.hand.forEach((h,hi)=>{
-      const m = makeDomino(h.a,h.b,{flat:true, faceUp});
+      const m = makeDomino(h.a,h.b,{flat:false, faceUp});
       let offset = start + GAP*hi;
       if(isSide){ const zLine = clamp(z0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(x0, HAND_Y, zLine); }
       else      { const xLine = clamp(x0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(xLine, HAND_Y, z0); }
       const yawTowardCenter = Math.atan2(-x0, -z0);
-      const randomYaw = (Math.random()*0.08 - 0.04);
-      m.rotation.y = (pi===human ? 0 : yawTowardCenter) + randomYaw;
+      m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
+      m.rotation.z += (Math.random()*0.02-0.01);
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
     });
   });
