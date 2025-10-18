@@ -83,10 +83,110 @@ export const TABLE_BASE_OPTIONS = [
   }
 ];
 
+export const CHAIR_COLOR_OPTIONS = [
+  {
+    id: 'emeraldRegal',
+    label: 'Karrige Smerald',
+    feltTop: '#0f5132',
+    feltBottom: '#06281a'
+  },
+  {
+    id: 'midnightCobalt',
+    label: 'Karrige Kobalt',
+    feltTop: '#1e3a8a',
+    feltBottom: '#111c44'
+  },
+  {
+    id: 'crimsonVelvet',
+    label: 'Karrige Kadife Kuqe',
+    feltTop: '#7f1d1d',
+    feltBottom: '#3f0a0a'
+  },
+  {
+    id: 'charcoalGold',
+    label: 'Karrige Grafit',
+    feltTop: '#3a342e',
+    feltBottom: '#171311'
+  },
+  {
+    id: 'violetLuxe',
+    label: 'Karrige Vjollcë',
+    feltTop: '#553c9a',
+    feltBottom: '#2a1659'
+  }
+];
+
+export const TABLE_SHAPE_OPTIONS = [
+  {
+    id: 'classicOctagon',
+    label: 'Oktagon Klasik',
+    type: 'polygon',
+    sides: 8,
+    innerScale: 0.78,
+    rimInnerScale: 0.73,
+    trimOuterScale: 1.04,
+    trimInnerScale: 0.9,
+    segments: 8,
+    previewClipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)'
+  },
+  {
+    id: 'royalCircle',
+    label: 'Rreth Mbretëror',
+    type: 'circle',
+    innerScale: 0.7,
+    rimInnerScale: 0.64,
+    trimOuterScale: 1.05,
+    trimInnerScale: 0.9,
+    segments: 48,
+    previewClipPath: 'ellipse(50% 50% at 50% 50%)'
+  },
+  {
+    id: 'grandOval',
+    label: 'Oval Grand',
+    type: 'oval',
+    widthScale: 1,
+    heightScale: 0.68,
+    innerScale: 0.68,
+    rimInnerScale: 0.62,
+    trimOuterScale: 1.04,
+    trimInnerScale: 0.88,
+    segments: 48,
+    previewClipPath: 'ellipse(50% 40% at 50% 50%)'
+  },
+  {
+    id: 'futuristHex',
+    label: 'Heksagon Futurist',
+    type: 'polygon',
+    sides: 6,
+    innerScale: 0.76,
+    rimInnerScale: 0.7,
+    trimOuterScale: 1.03,
+    trimInnerScale: 0.88,
+    segments: 6,
+    previewClipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)'
+  },
+  {
+    id: 'racetrackElite',
+    label: 'Pistë Elite',
+    type: 'racetrack',
+    widthScale: 1,
+    heightScale: 0.62,
+    cornerScale: 0.32,
+    innerScale: 0.7,
+    rimInnerScale: 0.64,
+    trimOuterScale: 1.05,
+    trimInnerScale: 0.9,
+    segments: 48,
+    previewClipPath: 'inset(12% 8% round 40%)'
+  }
+];
+
 export const DEFAULT_TABLE_CUSTOMIZATION = Object.freeze({
   tableWood: 0,
   tableCloth: 1,
   tableBase: 0,
+  tableShape: 0,
+  chairColor: 0,
   cards: 0
 });
 
