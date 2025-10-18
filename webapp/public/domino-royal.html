@@ -878,7 +878,8 @@ function renderChain(){
     const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true });
     const yPos = CLOTH_TOP + 0.008;
     domino.position.set(c.x, yPos, c.z);
-    domino.rotation.y = c.rot || 0;
+    // Siguro që çdo domino në fushë të jetë krejtësisht e sheshtë (pa tilt)
+    domino.rotation.set(-Math.PI / 2, c.rot || 0, 0);
     c.mesh = domino;
     piecesG.add(domino);
   });
