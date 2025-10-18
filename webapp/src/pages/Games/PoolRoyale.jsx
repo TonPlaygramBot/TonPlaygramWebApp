@@ -207,12 +207,15 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.998; // keep the short-rail chrome 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // widen the notch slightly to remove leftover chrome wedges at the pocket corners
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.7;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82; // match the snooker side pocket throat profile
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
 const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
+const CHROME_CORNER_EDGE_RADIUS_RATIO = 1.08; // round chrome corners to follow the softened rail profile
+const CHROME_SIDE_PLATE_CORNER_RADIUS_RATIO = 0.72; // increase the chrome side plate rounding on portrait rails
+const CHROME_SIDE_PLATE_RECT_RADIUS_RATIO = 0.22; // allow a larger fillet on the side plates to match reference hardware
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.28; // carve a deeper wedge so no chrome lingers on the field side of the pocket
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.18; // run the trim farther down the short rail to keep the notch flush with the cushion
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
@@ -245,9 +248,16 @@ function buildChromePlateGeometry({
     typeof corner === 'string' && corner.toLowerCase().startsWith('side');
 
   if (isSidePlate) {
+    const minDim = Math.min(width, height);
     const rectRadius = Math.max(
       0,
-      Math.min(r * 0.5, Math.min(width, height) * 0.06)
+      Math.min(
+        minDim * CHROME_SIDE_PLATE_RECT_RADIUS_RATIO,
+        Math.max(
+          minDim * (CHROME_SIDE_PLATE_RECT_RADIUS_RATIO * 0.5),
+          r * CHROME_SIDE_PLATE_CORNER_RADIUS_RATIO
+        )
+      )
     );
     const topStartX = -hw + rectRadius;
     shape.moveTo(topStartX, hh);
@@ -569,7 +579,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.34; // soften the exterior rail corners with a deeper curve
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -750,7 +760,7 @@ const SPIN_BOX_FILL_RATIO =
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
-const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
+const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5 * 1.5; // boost backspin strength by an additional 50%
 const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets (WPA K-55 profile ≈32°)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
@@ -4049,10 +4059,13 @@ function Table3D(
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
   );
-  const chromePlateRadius = Math.min(
-    outerCornerRadius * 0.95,
-    chromePlateWidth / 2,
-    chromePlateHeight / 2
+  const chromePlateRadius = Math.max(
+    0,
+    Math.min(
+      outerCornerRadius * CHROME_CORNER_EDGE_RADIUS_RATIO,
+      chromePlateWidth / 2,
+      chromePlateHeight / 2
+    )
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
@@ -4083,9 +4096,16 @@ function Table3D(
     chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
-  const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.3,
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.04
+  const sidePlateMinDim = Math.min(sideChromePlateWidth, sideChromePlateHeight);
+  const sideChromePlateRadius = Math.max(
+    0,
+    Math.min(
+      sidePlateMinDim * CHROME_SIDE_PLATE_RECT_RADIUS_RATIO,
+      Math.max(
+        sidePlateMinDim * (CHROME_SIDE_PLATE_RECT_RADIUS_RATIO * 0.5),
+        chromePlateRadius * CHROME_SIDE_PLATE_CORNER_RADIUS_RATIO
+      )
+    )
   );
 
   const innerHalfW = halfWext;
