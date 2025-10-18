@@ -609,6 +609,7 @@ const RIM_THICK = 0.07;           // trashësia e rim-it
 const IN_HW  = 0.76;              // brenda rim-it (buzë e brendshme)
 const CLOTH_HW = 0.70;            // fushë jeshile (gjysmë-gjerësi)
 const RIM_H = 0.07;
+const CLOTH_TOP = Y + 0.022;
 
 // Kufijtë e zinxhirit mbi rrobë
 const XMAX = CLOTH_HW - 0.06;
@@ -806,6 +807,12 @@ let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
 let flipDir = false; // alterno drejtimin e zinxhirit pas çdo loje
+const usedTileKeys = new Set();
+
+function tileKey(tile){
+  const ct = canonTile(tile);
+  return ct ? `${ct.a}|${ct.b}` : '';
+}
 
 function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} • ${t}` : t; }
 
@@ -861,8 +868,21 @@ function renderHands(){
 
 /* ---------- Chain Rendering ---------- */
 function renderChain(){
-  chain.forEach(c=>{ if(c.mesh) piecesG.remove(c.mesh); });
-  chain.forEach(c=>{ const m=makeDomino(c.tile.a,c.tile.b,{flat:true,faceUp:true}); m.position.set(c.x, Y+.03, c.z); m.rotation.y=c.rot||0; c.mesh=m; piecesG.add(m); });
+  chain.forEach(c=>{
+    if(c.mesh){
+      piecesG.remove(c.mesh);
+      c.mesh = null;
+    }
+  });
+  chain.forEach(c=>{
+    const isDouble = c.double ?? (c.tile.a === c.tile.b);
+    const domino = makeDomino(c.tile.a, c.tile.b, { flat: isDouble, faceUp: true });
+    const yPos = isDouble ? (CLOTH_TOP + 0.008) : (CLOTH_TOP + TILE_UP_HALF + 0.001);
+    domino.position.set(c.x, yPos, c.z);
+    domino.rotation.y = c.rot || 0;
+    c.mesh = domino;
+    piecesG.add(domino);
+  });
 }
 
 /* ---------- Start / Turn Order ---------- */
@@ -871,6 +891,7 @@ function pipSum(hand){ return hand.reduce((s,t)=>s+t.a+t.b,0); }
 
 function startGame(){
   chain=[]; ends=null; selectedTile=null; clearMarkers();
+  usedTileKeys.clear();
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
@@ -885,7 +906,8 @@ function startGame(){
   const t=players[starter].hand.splice(idx,1)[0];
   const firstTile=canonTile(t) || t;
   const firstRot = (firstTile.a===firstTile.b) ? Math.PI/2 : 0;
-  chain.push({tile:firstTile,x:0,z:0,rot:firstRot});
+  chain.push({tile:firstTile,x:0,z:0,rot:firstRot,double:firstTile.a===firstTile.b});
+  usedTileKeys.add(tileKey(firstTile));
   const step=.10;
   if(!flipDir){
     ends={
@@ -927,7 +949,12 @@ function placeOnBoard(tile, side){
     rot = (dz>=0) ? Math.PI/2 : -Math.PI/2;
   }
   const placedTile=canonTile({a,b}) || {a,b};
-  chain.push({tile:placedTile,x:nx,z:nz,rot});
+  const key = tileKey(placedTile);
+  if(usedTileKeys.has(key)){
+    return false;
+  }
+  chain.push({tile:placedTile,x:nx,z:nz,rot,double:isDouble});
+  usedTileKeys.add(key);
   const newVal=(side<0? b : a);
   let nextOrient;
   if(isHorizontal){
