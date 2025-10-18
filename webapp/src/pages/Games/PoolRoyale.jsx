@@ -226,6 +226,9 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_CORNER_PLATE_THICKNESS_SCALE = 1.06; // drop the corner chrome deep enough to blanket the rail sides and pocket cuts
 const CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE = 1.08; // let the side chrome wrap past the rail midline without floating above the wood
 const RAIL_POCKET_CUT_SCALE = 0.952; // open the wooden rail pocket cuts slightly more so chrome plates blanket the rounded edges
+const RAIL_CORNER_CUT_INSET_SCALE = 0.984; // nudge the corner rail cutouts outward so chrome plates stay fully exposed
+const RAIL_SIDE_CUT_INSET_SCALE = 0.982; // push the side rail cutouts slightly toward the aprons for better chrome visibility
+const CHROME_PLATE_RENDER_ORDER = 4; // ensure chrome hardware renders above the wooden rails
 
 function buildChromePlateGeometry({
   width,
@@ -4151,9 +4154,11 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset =
+  const baseCornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = baseCornerInset * RAIL_CORNER_CUT_INSET_SCALE;
+  const baseSideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const sideInset = baseSideInset * RAIL_SIDE_CUT_INSET_SCALE;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4332,6 +4337,7 @@ function Table3D(
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
@@ -4360,6 +4366,7 @@ function Table3D(
     plate.position.set(centerX, sideChromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
@@ -4471,6 +4478,7 @@ function Table3D(
   railsMesh.position.y = frameTopY;
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = true;
+  railsMesh.renderOrder = CHROME_PLATE_RENDER_ORDER - 1;
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
