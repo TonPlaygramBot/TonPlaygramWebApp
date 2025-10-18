@@ -176,13 +176,17 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     id: 'diamondEdge',
     label: 'Diamant Edge',
     preview: {
-      clipPath: 'polygon(50% 0%, 80% 20%, 100% 50%, 80% 80%, 50% 100%, 20% 80%, 0% 50%, 20% 20%)'
+      borderRadius: '18%'
     },
-    createShapes: ({ radius }) => {
-      const topShape = createDiamondShape(radius * 2.73, radius * 1.55);
-      const feltShape = createDiamondShape(radius * 1.55, radius * 1.15);
-      const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
-      return { topShape, feltShape, rimInnerShape };
+    createShapes: ({ radius, scaleFactor }) => {
+      const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : radius / 0.9 || 1;
+      const outerHalf = 0.95 * factor;
+      const clothHalf = 0.7 * factor;
+      const innerHalf = 0.76 * factor;
+      const topShape = createRoundedRectangleShape(outerHalf * 2, outerHalf * 2, 0.12 * factor);
+      const feltShape = createRoundedRectangleShape(clothHalf * 2, clothHalf * 2, 0.08 * factor);
+      const rimInnerShape = createRoundedRectangleShape(innerHalf * 2, innerHalf * 2, 0.1 * factor);
+      return { topShape, feltShape, rimInnerShape, feltRadius: clothHalf };
     }
   }
 ]);
