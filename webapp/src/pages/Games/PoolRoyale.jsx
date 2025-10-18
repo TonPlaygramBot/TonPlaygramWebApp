@@ -1646,6 +1646,10 @@ function enhanceChromeMaterial(material) {
   ensure('envMapIntensity', 1.02, (current, target) =>
     THREE.MathUtils.clamp(current, 0.92, target)
   );
+  if (material.side !== THREE.DoubleSide) {
+    material.side = THREE.DoubleSide;
+  }
+  material.shadowSide = THREE.DoubleSide;
   if ('reflectivity' in material) {
     material.reflectivity = THREE.MathUtils.clamp(
       material.reflectivity ?? 0.8,
