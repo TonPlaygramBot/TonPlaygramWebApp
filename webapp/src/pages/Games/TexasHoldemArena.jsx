@@ -68,7 +68,10 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const AI_CHAIR_GAP = CARD_W * 0.4;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
-const PLAYER_COUNT = 6;
+const DEFAULT_PLAYER_COUNT = 6;
+const MIN_PLAYER_COUNT = 2;
+const MAX_PLAYER_COUNT = 6;
+const DIAMOND_SHAPE_ID = 'diamondEdge';
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
@@ -88,7 +91,7 @@ const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CAR
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.16 * MODEL_SCALE;
-const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(38);
+const CAMERA_HEAD_TURN_LIMIT = THREE.MathUtils.degToRad(175);
 const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
@@ -242,6 +245,30 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'cards', label: 'Letrat', options: CARD_THEMES }
 ];
 
+const NON_DIAMOND_SHAPE_INDEX = (() => {
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
+  return index >= 0 ? index : 0;
+})();
+
+function enforceShapeForPlayers(appearance, playerCount) {
+  const safe = { ...appearance };
+  const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape];
+  if (playerCount > 4 && shapeOption?.id === DIAMOND_SHAPE_ID) {
+    safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
+  }
+  return safe;
+}
+
+function getEffectiveShapeConfig(shapeIndex, playerCount) {
+  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
+  const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
+  if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
+    return { option: fallback, rotationY: 0, forced: true };
+  }
+  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
+  return { option: requested ?? fallback, rotationY, forced: false };
+}
+
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
 
 function flagToName(flag) {
@@ -252,6 +279,13 @@ function flagToName(flag) {
   return REGION_NAMES.of(code) || 'Guest';
 }
 
+function clampPlayerCount(value) {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_PLAYER_COUNT;
+  }
+  return Math.min(Math.max(MIN_PLAYER_COUNT, Math.round(value)), MAX_PLAYER_COUNT);
+}
+
 function parseSearch(search) {
   const params = new URLSearchParams(search);
   const username = params.get('username') || 'You';
@@ -259,11 +293,16 @@ function parseSearch(search) {
   const amount = Number.parseInt(params.get('amount') || '1000', 10);
   const token = params.get('token') || 'TPC';
   const stake = Number.isFinite(amount) && amount > 0 ? amount : 1000;
-  return { username, avatar, stake, token };
+  const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
+  const playerCount = clampPlayerCount(rawPlayers);
+  return { username, avatar, stake, token, playerCount };
 }
 
-function buildPlayers(search) {
-  const { username, stake } = parseSearch(search);
+function buildPlayers(searchOrOptions) {
+  const options =
+    typeof searchOrOptions === 'string' ? parseSearch(searchOrOptions) : { ...searchOrOptions };
+  const { username, stake } = options;
+  const playerCount = clampPlayerCount(options?.playerCount);
   const baseChips = Math.max(400, Math.round(stake));
   const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
   const humanFlag = flags.shift() || '🇦🇱';
@@ -277,7 +316,7 @@ function buildPlayers(search) {
       avatar: null
     }
   ];
-  for (let i = 0; i < PLAYER_COUNT - 1; i += 1) {
+  for (let i = 0; i < Math.max(0, playerCount - 1); i += 1) {
     const flag = flags[i] || FLAG_EMOJIS[(i * 17) % FLAG_EMOJIS.length];
     players.push({
       id: `ai-${i}`,
@@ -288,7 +327,24 @@ function buildPlayers(search) {
       avatar: null
     });
   }
-  return players;
+  return players.slice(0, playerCount);
+}
+
+function buildCardinalSeatAngles(count) {
+  if (!Number.isFinite(count) || count <= 0) {
+    return [];
+  }
+  const baseAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+  switch (Math.min(count, baseAngles.length)) {
+    case 1:
+      return [baseAngles[0]];
+    case 2:
+      return [baseAngles[0], baseAngles[2]];
+    case 3:
+      return [baseAngles[0], baseAngles[3], baseAngles[1]];
+    default:
+      return baseAngles.slice(0, Math.min(count, baseAngles.length));
+  }
 }
 
 function normalizeAppearance(value = {}) {
@@ -548,10 +604,17 @@ function clampValue(value, min, max) {
   return Math.min(Math.max(value, low), high);
 }
 
-function createSeatLayout(count, tableInfo = null) {
+function createSeatLayout(count, tableInfo = null, options = {}) {
   const layout = [];
-  for (let i = 0; i < count; i += 1) {
-    const angle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / count) * Math.PI * 2;
+  const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+  if (safeCount <= 0) {
+    return layout;
+  }
+  const useCardinal = Boolean(options?.useCardinal);
+  const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
+  for (let i = 0; i < safeCount; i += 1) {
+    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
+    const angle = cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
@@ -1194,10 +1257,11 @@ function TexasHoldemArena({ search }) {
     onUndo: () => {}
   });
   const hoverTargetRef = useRef(null);
+  const searchOptions = useMemo(() => parseSearch(search), [search]);
+  const effectivePlayerCount = clampPlayerCount(searchOptions.playerCount);
   const [gameState, setGameState] = useState(() => {
-    const players = buildPlayers(search);
-    const { token, stake } = parseSearch(search);
-    const baseState = buildInitialState(players, token, stake);
+    const players = buildPlayers(searchOptions);
+    const baseState = buildInitialState(players, searchOptions.token, searchOptions.stake);
     return resetForNextHand(baseState);
   });
   const gameStateRef = useRef(null);
@@ -1224,6 +1288,20 @@ function TexasHoldemArena({ search }) {
     }
   });
   const appearanceRef = useRef(appearance);
+  useEffect(() => {
+    if (effectivePlayerCount > 4) {
+      const currentShape = TABLE_SHAPE_OPTIONS[appearance.tableShape];
+      if (currentShape?.id === DIAMOND_SHAPE_ID && NON_DIAMOND_SHAPE_INDEX !== appearance.tableShape) {
+        setAppearance((prev) => {
+          const prevShape = TABLE_SHAPE_OPTIONS[prev.tableShape];
+          if (prevShape?.id !== DIAMOND_SHAPE_ID) {
+            return prev;
+          }
+          return { ...prev, tableShape: NON_DIAMOND_SHAPE_INDEX };
+        });
+      }
+    }
+  }, [effectivePlayerCount, appearance.tableShape]);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
   const soundsRef = useRef({});
@@ -1371,14 +1449,22 @@ function TexasHoldemArena({ search }) {
     }
     const three = threeRef.current;
     if (!three) return;
-    const safe = normalizeAppearance(appearance);
+    const normalized = normalizeAppearance(appearance);
+    const safe = enforceShapeForPlayers(normalized, effectivePlayerCount);
     const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
+      safe.tableShape,
+      effectivePlayerCount
+    );
     const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
-    if (shapeOption && three.tableShapeId !== shapeOption.id && three.arenaGroup) {
+    const shapeChanged = shapeOption && three.tableShapeId !== shapeOption.id;
+    const rotationChanged = Number.isFinite(rotationY)
+      ? Math.abs((three.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3
+      : false;
+    if (shapeOption && three.arenaGroup && (shapeChanged || rotationChanged)) {
       const nextTable = createMurlanStyleTable({
         arena: three.arenaGroup,
         renderer: three.renderer,
@@ -1387,11 +1473,31 @@ function TexasHoldemArena({ search }) {
         woodOption,
         clothOption,
         baseOption,
-        shapeOption
+        shapeOption,
+        rotationY
       });
       three.tableInfo?.dispose?.();
       three.tableInfo = nextTable;
       three.tableShapeId = shapeOption.id;
+      if (three.deckAnchor) {
+        const updatedDeckAnchor = DECK_POSITION.clone();
+        if (nextTable.rotationY) {
+          updatedDeckAnchor.applyAxisAngle(WORLD_UP, nextTable.rotationY);
+        }
+        three.deckAnchor.copy(updatedDeckAnchor);
+        three.seatGroups?.forEach((seat) => {
+          seat.cardMeshes.forEach((mesh) => {
+            if (!mesh.userData?.card) {
+              mesh.position.copy(updatedDeckAnchor);
+            }
+          });
+        });
+        three.communityMeshes?.forEach((mesh) => {
+          if (!mesh.userData?.card) {
+            mesh.position.copy(updatedDeckAnchor);
+          }
+        });
+      }
       const humanSeat = three.seatGroups?.find((seat) => seat.isHuman) ?? null;
       const previousControls = three.raiseControls || null;
       const previousVisible = Boolean(previousControls?.group?.visible);
@@ -1477,7 +1583,7 @@ function TexasHoldemArena({ search }) {
         applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
       }
     });
-  }, [appearance]);
+  }, [appearance, effectivePlayerCount]);
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
@@ -1642,12 +1748,16 @@ function TexasHoldemArena({ search }) {
     wall.receiveShadow = false;
     arenaGroup.add(wall);
 
-    const initialAppearance = normalizeAppearance(appearanceRef.current);
+    const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
+    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
     const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const initialChair = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const initialShape = TABLE_SHAPE_OPTIONS[initialAppearance.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
+    const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
+      initialAppearance.tableShape,
+      effectivePlayerCount
+    );
     const tableInfo = createMurlanStyleTable({
       arena: arenaGroup,
       renderer,
@@ -1656,7 +1766,8 @@ function TexasHoldemArena({ search }) {
       woodOption: initialWood,
       clothOption: initialCloth,
       baseOption: initialBase,
-      shapeOption: initialShape
+      shapeOption: initialShape,
+      rotationY: initialRotation
     });
     applyTableMaterials(tableInfo.materials, { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase }, renderer);
 
@@ -1665,7 +1776,10 @@ function TexasHoldemArena({ search }) {
     const cardTheme = CARD_THEMES[initialAppearance.cards] ?? CARD_THEMES[0];
 
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
-    const seatLayout = createSeatLayout(PLAYER_COUNT, tableInfo);
+    const initialPlayers = gameState?.players ?? [];
+    const initialPlayerCount = initialPlayers.length || effectivePlayerCount;
+    const useCardinalLayout = initialShape?.id === DIAMOND_SHAPE_ID && initialPlayerCount <= 4;
+    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, { useCardinal: useCardinalLayout });
     const topSeat = seatLayout
       .filter((seat) => !seat.isHuman)
       .reduce((best, seat) => {
@@ -1675,6 +1789,9 @@ function TexasHoldemArena({ search }) {
     const seatTopPoint = topSeat ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight) : null;
     const seatGroups = [];
     const deckAnchor = DECK_POSITION.clone();
+    if (tableInfo.rotationY) {
+      deckAnchor.applyAxisAngle(WORLD_UP, tableInfo.rotationY);
+    }
 
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
@@ -1740,8 +1857,6 @@ function TexasHoldemArena({ search }) {
       color: new THREE.Color(initialChair.legColor ?? stoolTheme.legColor)
     });
     legMaterial.userData = { ...(legMaterial.userData || {}), chairId: initialChair.id ?? 'default' };
-
-    const initialPlayers = gameState?.players ?? [];
 
     seatLayout.forEach((seat, seatIndex) => {
       const group = new THREE.Group();
@@ -2661,15 +2776,21 @@ function TexasHoldemArena({ search }) {
                   <div className="grid grid-cols-2 gap-2">
                     {options.map((option, idx) => {
                       const selected = appearance[key] === idx;
+                      const disabled =
+                        key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
                       return (
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                          onClick={() => {
+                            if (disabled) return;
+                            setAppearance((prev) => ({ ...prev, [key]: idx }));
+                          }}
                           aria-pressed={selected}
+                          disabled={disabled}
                           className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                             selected ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]' : 'border-white/10 bg-white/5 hover:border-white/20'
-                          }`}
+                          } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
                         >
                           {renderPreview(key, option)}
                           <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>

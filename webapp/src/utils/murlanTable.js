@@ -348,7 +348,8 @@ export function createMurlanStyleTable({
   woodOption = DEFAULT_TABLE_WOOD_OPTION,
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
   baseOption = DEFAULT_TABLE_BASE_OPTION,
-  shapeOption = TABLE_SHAPE_OPTIONS[0]
+  shapeOption = TABLE_SHAPE_OPTIONS[0],
+  rotationY = 0
 } = {}) {
   if (!arena) throw new Error('createMurlanStyleTable requires an arena group.');
 
@@ -478,8 +479,35 @@ export function createMurlanStyleTable({
   trimMesh.receiveShadow = true;
   tableGroup.add(trimMesh);
 
+  const normalizedRotation = Number.isFinite(rotationY) ? rotationY : 0;
   tableGroup.position.y = 0;
+  if (normalizedRotation !== 0) {
+    tableGroup.rotation.y = normalizedRotation;
+  }
   arena.add(tableGroup);
+
+  const upAxis = new ThreeNamespace.Vector3(0, 1, 0);
+  const inverseRotationQuat = new ThreeNamespace.Quaternion().setFromAxisAngle(upAxis, -normalizedRotation);
+  const toLocalDirection = (direction) => {
+    if (direction instanceof ThreeNamespace.Vector3) {
+      const clone = direction.clone();
+      if (clone.lengthSq() === 0) {
+        return new ThreeNamespace.Vector2(0, 1);
+      }
+      clone.applyQuaternion(inverseRotationQuat);
+      return new ThreeNamespace.Vector2(clone.x, clone.z);
+    }
+    if (direction instanceof ThreeNamespace.Vector2) {
+      const vec3 = new ThreeNamespace.Vector3(direction.x, 0, direction.y).applyQuaternion(inverseRotationQuat);
+      return new ThreeNamespace.Vector2(vec3.x, vec3.z);
+    }
+    const x = Number(direction?.x) || 0;
+    const y = Number(direction?.y) || 0;
+    if (x === 0 && y === 0) {
+      return new ThreeNamespace.Vector2(0, 1);
+    }
+    return new ThreeNamespace.Vector2(x, y);
+  };
 
   const tableParts = {
     baseMat,
@@ -515,10 +543,15 @@ export function createMurlanStyleTable({
     dispose,
     materials: tableParts,
     shapeId: shapeOption?.id || 'classicOctagon',
-    getOuterRadius: (direction) => outerRadiusSampler(direction),
+    rotationY: Number.isFinite(rotationY) ? rotationY : 0,
+    getOuterRadius: (direction) => {
+      const local = toLocalDirection(direction);
+      return outerRadiusSampler(local);
+    },
     getInnerRadius: (direction) => {
-      const outer = outerRadiusSampler(direction);
-      const inner = innerRadiusSampler(direction);
+      const local = toLocalDirection(direction);
+      const outer = outerRadiusSampler(local);
+      const inner = innerRadiusSampler(local);
       if (!Number.isFinite(inner) || inner <= 0) {
         return outer * 0.85;
       }
