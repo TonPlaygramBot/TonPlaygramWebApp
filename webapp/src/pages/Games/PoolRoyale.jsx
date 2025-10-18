@@ -225,10 +225,13 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_CORNER_PLATE_THICKNESS_SCALE = 1.06; // drop the corner chrome deep enough to blanket the rail sides and pocket cuts
 const CHROME_SIDE_PLATE_THICKNESS_MAX_SCALE = 1.08; // let the side chrome wrap past the rail midline without floating above the wood
-const RAIL_POCKET_CUT_SCALE = 0.952; // open the wooden rail pocket cuts slightly more so chrome plates blanket the rounded edges
+const RAIL_POCKET_CUT_SCALE = 0.972; // open the wooden rail pocket cuts slightly more so chrome plates blanket the rounded edges
 const RAIL_CORNER_CUT_INSET_SCALE = 0.984; // nudge the corner rail cutouts outward so chrome plates stay fully exposed
 const RAIL_SIDE_CUT_INSET_SCALE = 0.982; // push the side rail cutouts slightly toward the aprons for better chrome visibility
 const CHROME_PLATE_RENDER_ORDER = 4; // ensure chrome hardware renders above the wooden rails
+const POCKET_RIM_SCALE = 0.965; // shrink plastic inserts slightly so they tuck just inside the chrome arches
+const POCKET_RIM_DEPTH_RATIO = 0.6; // keep the plastic inserts shallow compared to the full chrome plate depth
+const POCKET_RIM_Y_OFFSET_RATIO = 0.35; // sink the plastic inserts so their top edge blends into the chrome trim
 
 function buildChromePlateGeometry({
   width,
@@ -754,11 +757,11 @@ const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-// Match the 2D aiming configuration: tip offset max = 0.85R and side/top spin amounts = 0.35R.
+// Match the 2D aiming configuration for side spin while allowing full top/back contact travel.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
-const MAX_SPIN_FORWARD = BALL_R * 0.35;
+const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.35, MAX_SPIN_CONTACT_OFFSET);
+const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -4309,6 +4312,36 @@ function Table3D(
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
+  const pocketRimMaterial =
+    rawMaterials.pocketRim ??
+    new THREE.MeshStandardMaterial({
+      color: 0x050505,
+      metalness: 0.12,
+      roughness: 0.72,
+      envMapIntensity: 0.2
+    });
+  pocketRimMaterial.needsUpdate = true;
+  pocketRimMaterial.side = THREE.DoubleSide;
+  pocketRimMaterial.shadowSide = THREE.DoubleSide;
+
+  const buildPocketRimMesh = (localMP, depth, segments = chromePlateShapeSegments) => {
+    if (!Array.isArray(localMP) || !localMP.length || depth <= MICRO_EPS) {
+      return null;
+    }
+    const shapes = multiPolygonToShapes(localMP);
+    if (!shapes.length) return null;
+    let geometry = new THREE.ExtrudeGeometry(shapes, {
+      depth,
+      bevelEnabled: false,
+      curveSegments: Math.max(32, segments)
+    });
+    geometry.rotateX(-Math.PI / 2);
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, pocketRimMaterial);
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    return mesh;
+  };
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
@@ -4340,6 +4373,38 @@ function Table3D(
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
+
+    const cornerCenterX = sx * (innerHalfW - cornerInset);
+    const cornerCenterZ = sz * (innerHalfH - cornerInset);
+    const circleLocalMP = circlePoly(
+      cornerCenterX,
+      cornerCenterZ,
+      cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE,
+      192
+    ).map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
+      )
+    );
+    const curvedLocalMP = polygonClipping.intersection(
+      notchLocalMP,
+      circleLocalMP
+    );
+    const rimLocalMP = scaleMultiPolygon(curvedLocalMP, POCKET_RIM_SCALE);
+    const pocketRimDepth = Math.max(
+      chromePlateThickness * POCKET_RIM_DEPTH_RATIO,
+      chromePocketCoverageDepth * 0.45
+    );
+    const pocketRim = buildPocketRimMesh(rimLocalMP, pocketRimDepth);
+    if (pocketRim) {
+      pocketRim.position.set(
+        centerX,
+        chromePlateY - pocketRimDepth * POCKET_RIM_Y_OFFSET_RATIO,
+        centerZ
+      );
+      pocketRim.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
+      chromePlates.add(pocketRim);
+    }
   });
 
   [
@@ -4369,6 +4434,39 @@ function Table3D(
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
+
+    const sideCenterX = sx * (innerHalfW - sideInset);
+    const sideCircleLocalMP = circlePoly(
+      sideCenterX,
+      0,
+      sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE,
+      192
+    ).map((poly) =>
+      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
+    );
+    const sideCurvedLocalMP = polygonClipping.intersection(
+      notchLocalMP,
+      sideCircleLocalMP
+    );
+    const sideRimLocalMP = scaleMultiPolygon(sideCurvedLocalMP, POCKET_RIM_SCALE);
+    const sidePocketRimDepth = Math.max(
+      sideChromePlateThickness * POCKET_RIM_DEPTH_RATIO,
+      chromePocketCoverageDepth * 0.45
+    );
+    const sidePocketRim = buildPocketRimMesh(
+      sideRimLocalMP,
+      sidePocketRimDepth,
+      160
+    );
+    if (sidePocketRim) {
+      sidePocketRim.position.set(
+        centerX,
+        sideChromePlateY - sidePocketRimDepth * POCKET_RIM_Y_OFFSET_RATIO,
+        centerZ
+      );
+      sidePocketRim.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
+      chromePlates.add(sidePocketRim);
+    }
   });
   railsGroup.add(chromePlates);
 
