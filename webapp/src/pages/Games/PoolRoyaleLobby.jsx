@@ -10,10 +10,7 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import {
-  TABLE_SIZE_LIST,
-  resolveTableSize
-} from '../../config/poolRoyaleTables.js';
+import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -24,10 +21,8 @@ export default function PoolRoyaleLobby() {
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
-  const [tableSize, setTableSize] = useState(() => {
-    const params = new URLSearchParams(search);
-    return resolveTableSize(params.get('tableSize')).id;
-  });
+  const searchParams = new URLSearchParams(search);
+  const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [playType, setPlayType] = useState('regular');
 
   useEffect(() => {
@@ -36,12 +31,6 @@ export default function PoolRoyaleLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(search);
-    const resolved = resolveTableSize(params.get('tableSize')).id;
-    setTableSize((prev) => (prev === resolved ? prev : resolved));
-  }, [search]);
 
   const startGame = async () => {
     let tgId;
@@ -93,7 +82,7 @@ export default function PoolRoyaleLobby() {
     navigate(`/games/pollroyale?${params.toString()}`);
   };
 
-  const winnerParam = new URLSearchParams(search).get('winner');
+  const winnerParam = searchParams.get('winner');
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
@@ -160,20 +149,6 @@ export default function PoolRoyaleLobby() {
               key={id}
               onClick={() => setVariant(id)}
               className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Table Size</h3>
-        <div className="flex flex-wrap gap-2">
-          {TABLE_SIZE_LIST.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setTableSize(id)}
-              className={`lobby-tile ${tableSize === id ? 'lobby-selected' : ''}`}
             >
               {label}
             </button>
