@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import {
   buildDominoArena,
@@ -16,9 +17,6 @@ const SNAKE_BOARD_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
 
 const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
 const CAMERA_INITIAL_PHI_LERP = ARENA_CAMERA_DEFAULTS.initialPhiLerp;
-const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
-const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
-const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAM = {
   fov: DOMINO_CAMERA_CONFIG.fov,
   near: DOMINO_CAMERA_CONFIG.near,
@@ -205,85 +203,85 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   );
 
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-  const initialRadius = Math.max(
-    SNAKE_BOARD_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
-    CAM.minR
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
+  controls.maxPolarAngle = CAM.phiMax;
+  controls.enablePan = true;
+
+  const cameraOffset = new THREE.Vector3().setFromSpherical(
+    new THREE.Spherical(
+      Math.max(SNAKE_BOARD_SIZE * CAMERA_INITIAL_RADIUS_FACTOR, CAM.minR),
+      THREE.MathUtils.lerp(ARENA_CAMERA_DEFAULTS.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
+      Math.PI * 0.25
+    )
   );
-  const sph = new THREE.Spherical(
-    initialRadius,
-    THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
-    Math.PI * 0.25
-  );
+
+  camera.position.copy(boardLookTarget).add(cameraOffset);
+  controls.target.copy(boardLookTarget);
+  controls.minDistance = CAM.minR;
+  controls.maxDistance = CAM.maxR;
+  controls.update();
+
+  const ensureMinDistance = () => {
+    const needed =
+      SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+    const minDistance = clamp(needed, CAM.minR, CAM.maxR);
+    controls.minDistance = minDistance;
+    controls.maxDistance = Math.max(minDistance + 0.01, CAM.maxR);
+    const currentOffset = camera.position.clone().sub(boardLookTarget);
+    const currentDistance = currentOffset.length();
+    if (currentDistance < minDistance) {
+      currentOffset.normalize().multiplyScalar(minDistance);
+      camera.position.copy(boardLookTarget).add(currentOffset);
+      controls.update();
+      cameraOffset.copy(currentOffset);
+    }
+  };
 
   const fit = () => {
     const w = host.clientWidth;
     const h = host.clientHeight;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
-    const needed =
-      SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-    sph.radius = clamp(Math.max(needed, sph.radius), CAM.minR, CAM.maxR);
-    const offset = new THREE.Vector3().setFromSpherical(sph);
-    camera.position.copy(boardLookTarget).add(offset);
-    camera.lookAt(boardLookTarget);
+    ensureMinDistance();
   };
+
   fit();
+
+  const updateCameraOffset = () => {
+    cameraOffset.copy(camera.position).sub(boardLookTarget);
+  };
+
+  updateCameraOffset();
+  controls.addEventListener('change', updateCameraOffset);
 
   cameraRef.current = camera;
 
-  const drag = { on: false, x: 0, y: 0 };
-  const dom = renderer.domElement;
-  const onDown = (e) => {
-    drag.on = true;
-    drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
-    drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
-  };
-  const onMove = (e) => {
-    if (!drag.on) return;
-    const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
-    const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
-    const dx = x - drag.x;
-    const dy = y - drag.y;
-    drag.x = x;
-    drag.y = y;
-    sph.theta -= dx * 0.004;
-    const phiDelta = -dy * CAMERA_VERTICAL_SENSITIVITY;
-    sph.phi = clamp(sph.phi + phiDelta, CAM.phiMin, CAM.phiMax);
-    const leanDelta = dy * CAMERA_LEAN_STRENGTH;
-    sph.radius = clamp(sph.radius - leanDelta, CAM.minR, CAM.maxR);
-    fit();
-  };
-  const onUp = () => {
-    drag.on = false;
-  };
-  const onWheel = (e) => {
-    const r = sph.radius || initialRadius;
-    sph.radius = clamp(r + e.deltaY * CAMERA_WHEEL_FACTOR, CAM.minR, CAM.maxR);
-    fit();
-  };
-  dom.addEventListener('mousedown', onDown);
-  dom.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
-  dom.addEventListener('touchstart', onDown, { passive: true });
-  dom.addEventListener('touchmove', onMove, { passive: true });
-  window.addEventListener('touchend', onUp);
-  dom.addEventListener('wheel', onWheel, { passive: true });
-
   disposeHandlers.push(() => {
-    dom.removeEventListener('mousedown', onDown);
-    dom.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-    dom.removeEventListener('touchstart', onDown);
-    dom.removeEventListener('touchmove', onMove);
-    window.removeEventListener('touchend', onUp);
-    dom.removeEventListener('wheel', onWheel);
+    controls.removeEventListener('change', updateCameraOffset);
+    controls.dispose();
   });
 
-  return { boardGroup, boardLookTarget, fit };
+  const updateCameraTarget = () => {
+    camera.position.copy(boardLookTarget).add(cameraOffset);
+    controls.target.copy(boardLookTarget);
+    controls.update();
+    ensureMinDistance();
+    updateCameraOffset();
+  };
+
+  return { boardGroup, boardLookTarget, fit, updateCameraTarget, controls };
 }
 
-function buildSnakeBoard(boardGroup, boardLookTarget, disposeHandlers = []) {
+function buildSnakeBoard(
+  boardGroup,
+  boardLookTarget,
+  disposeHandlers = [],
+  onTargetChange = null
+) {
   const boardRoot = new THREE.Group();
   boardGroup.add(boardRoot);
 
@@ -412,6 +410,7 @@ function buildSnakeBoard(boardGroup, boardLookTarget, disposeHandlers = []) {
     bounds.getCenter(center);
     center.y = bounds.max.y + 0.12;
     boardLookTarget.copy(center);
+    onTargetChange?.();
   }
 
   return {
@@ -781,8 +780,17 @@ export default function SnakeBoard3D({
     handlers.length = 0;
 
     const arena = buildArena(scene, renderer, mount, cameraRef, handlers);
-    const board = buildSnakeBoard(arena.boardGroup, arena.boardLookTarget, handlers);
-    boardRef.current = { ...board, boardLookTarget: arena.boardLookTarget };
+    const board = buildSnakeBoard(
+      arena.boardGroup,
+      arena.boardLookTarget,
+      handlers,
+      arena.updateCameraTarget
+    );
+    boardRef.current = {
+      ...board,
+      boardLookTarget: arena.boardLookTarget,
+      controls: arena.controls
+    };
 
     railTextureRef.current = makeRailTexture();
     snakeTextureRef.current = makeSnakeTexture();
@@ -791,6 +799,7 @@ export default function SnakeBoard3D({
     arena.fit();
 
     renderer.setAnimationLoop(() => {
+      arena.controls?.update?.();
       if (cameraRef.current) {
         renderer.render(scene, cameraRef.current);
       }
