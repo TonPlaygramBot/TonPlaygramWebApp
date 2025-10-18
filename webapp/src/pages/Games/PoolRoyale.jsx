@@ -37,7 +37,6 @@ import {
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
-import PocketJawsGallery from '../../components/PocketJawsGallery.jsx';
 
 function signedRingArea(ring) {
   let area = 0;
@@ -488,8 +487,6 @@ const CORNER_POCKET_CENTER_INSET =
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-const POCKET_RIM_OVERHANG = TABLE.THICK * 0.004;
-const POCKET_RIM_LIFT = TABLE.THICK * 0.006;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -1199,81 +1196,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   }
 ]);
-
-const DEFAULT_POCKET_JAW_ID = 'classicSnooker';
-const POCKET_JAW_OPTIONS = Object.freeze([
-  {
-    id: 'classicSnooker',
-    label: 'Classic Snooker',
-    description: 'Balanced leather cup with brushed rim',
-    mouthR: 0.53,
-    depth: 0.55,
-    flare: 0.18,
-    bevel: 0.04,
-    surface: 'leather',
-    rimFinish: 'steel'
-  },
-  {
-    id: 'beveledEdge',
-    label: 'Beveled Edge',
-    description: 'Crisp beveled entry with taut rim control',
-    mouthR: 0.56,
-    depth: 0.5,
-    flare: 0.1,
-    bevel: 0.09,
-    surface: 'leather',
-    rimFinish: 'steel'
-  },
-  {
-    id: 'deepCup',
-    label: 'Deep Cup',
-    description: 'Deeper capture pocket with anodized rim',
-    mouthR: 0.52,
-    depth: 0.75,
-    flare: 0.08,
-    bevel: 0.04,
-    surface: 'leather',
-    rimFinish: 'anodized'
-  },
-  {
-    id: 'chamfered',
-    label: 'Chamfered',
-    description: 'Chamfered cushion relief with steady rim',
-    mouthR: 0.54,
-    depth: 0.55,
-    flare: 0.12,
-    bevel: 0.12,
-    surface: 'leather',
-    rimFinish: 'steel'
-  },
-  {
-    id: 'metalRim',
-    label: 'Metal Rim',
-    description: 'Sculpted collar with polished rim band',
-    mouthR: 0.57,
-    depth: 0.52,
-    flare: 0.14,
-    bevel: 0.05,
-    surface: 'leather',
-    rimFinish: 'steel'
-  }
-]);
-
-const POCKET_JAW_OPTIONS_BY_ID = POCKET_JAW_OPTIONS.reduce((acc, option) => {
-  acc[option.id] = option;
-  return acc;
-}, {});
-
-const resolvePocketJawOption = (value) => {
-  if (!value) return POCKET_JAW_OPTIONS_BY_ID[DEFAULT_POCKET_JAW_ID];
-  if (typeof value === 'string') {
-    return POCKET_JAW_OPTIONS_BY_ID[value] ?? POCKET_JAW_OPTIONS_BY_ID[DEFAULT_POCKET_JAW_ID];
-  }
-  if (typeof value === 'object' && value.id && POCKET_JAW_OPTIONS_BY_ID[value.id]) {
-    return POCKET_JAW_OPTIONS_BY_ID[value.id];
-  }
-  return POCKET_JAW_OPTIONS_BY_ID[DEFAULT_POCKET_JAW_ID];
-};
 
 const toHexColor = (value) => {
   if (typeof value === 'number') {
@@ -3542,362 +3464,6 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
-const POCKET_JAW_TEXTURE_CACHE = {
-  leather: null,
-  rubber: null,
-  brushed: null,
-  anodized: null
-};
-
-function canvasTexturePocket(draw, size = 512) {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  draw(ctx, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  return texture;
-}
-
-function ensurePocketJawTextures() {
-  if (!POCKET_JAW_TEXTURE_CACHE.leather) {
-    POCKET_JAW_TEXTURE_CACHE.leather = canvasTexturePocket((g, S) => {
-      g.fillStyle = '#2a2f3c';
-      g.fillRect(0, 0, S, S);
-      for (let i = 0; i < S * 8; i += 1) {
-        const x = Math.random() * S;
-        const y = Math.random() * S;
-        const r = Math.random() * 1.2 + 0.3;
-        const a = 0.08 + Math.random() * 0.06;
-        g.fillStyle = `rgba(255,255,255,${a})`;
-        g.beginPath();
-        g.arc(x, y, r, 0, Math.PI * 2);
-        g.fill();
-      }
-      const grd = g.createRadialGradient(S / 2, S / 2, S * 0.1, S / 2, S / 2, S * 0.7);
-      grd.addColorStop(0, 'rgba(255,255,255,0.02)');
-      grd.addColorStop(1, 'rgba(0,0,0,0.15)');
-      g.fillStyle = grd;
-      g.fillRect(0, 0, S, S);
-    });
-  }
-  if (!POCKET_JAW_TEXTURE_CACHE.rubber) {
-    POCKET_JAW_TEXTURE_CACHE.rubber = canvasTexturePocket((g, S) => {
-      g.fillStyle = '#1a1d24';
-      g.fillRect(0, 0, S, S);
-      g.strokeStyle = 'rgba(255,255,255,0.06)';
-      g.lineWidth = 2;
-      for (let y = 0; y < S; y += 24) {
-        g.beginPath();
-        g.moveTo(0, y);
-        g.lineTo(S, y);
-        g.stroke();
-      }
-      for (let x = 0; x < S; x += 24) {
-        g.beginPath();
-        g.moveTo(x, 0);
-        g.lineTo(x, S);
-        g.stroke();
-      }
-    });
-  }
-  if (!POCKET_JAW_TEXTURE_CACHE.brushed) {
-    POCKET_JAW_TEXTURE_CACHE.brushed = canvasTexturePocket((g, S) => {
-      const base = g.createLinearGradient(0, 0, S, 0);
-      base.addColorStop(0, '#b7bcc4');
-      base.addColorStop(1, '#8c939c');
-      g.fillStyle = base;
-      g.fillRect(0, 0, S, S);
-      g.globalAlpha = 0.17;
-      g.fillStyle = '#ffffff';
-      for (let i = 0; i < S * 2; i += 1) {
-        const y = Math.random() * S;
-        g.fillRect(0, y, S, 1);
-      }
-      g.globalAlpha = 1;
-    }, 1024);
-  }
-  if (!POCKET_JAW_TEXTURE_CACHE.anodized) {
-    POCKET_JAW_TEXTURE_CACHE.anodized = canvasTexturePocket((g, S) => {
-      const base = g.createLinearGradient(0, 0, 0, S);
-      base.addColorStop(0, '#3a4a5f');
-      base.addColorStop(1, '#1e2430');
-      g.fillStyle = base;
-      g.fillRect(0, 0, S, S);
-      g.globalAlpha = 0.12;
-      g.fillStyle = '#ffffff';
-      for (let i = 0; i < S; i += 1) {
-        const x = Math.random() * S;
-        g.fillRect(x, 0, 1, S);
-      }
-      g.globalAlpha = 1;
-    });
-  }
-  return POCKET_JAW_TEXTURE_CACHE;
-}
-
-function createPocketJawMaterials(option) {
-  const textures = ensurePocketJawTextures();
-  const bodyTexture = option.surface === 'rubber' ? textures.rubber : textures.leather;
-  const rimTexture = option.rimFinish === 'anodized' ? textures.anodized : textures.brushed;
-  const body = new THREE.MeshStandardMaterial({
-    map: bodyTexture,
-    roughness: option.surface === 'rubber' ? 0.92 : 0.82,
-    metalness: option.surface === 'rubber' ? 0.04 : 0.12
-  });
-  const rim = new THREE.MeshStandardMaterial({
-    map: rimTexture,
-    metalness: option.rimFinish === 'anodized' ? 0.6 : 0.9,
-    roughness: option.rimFinish === 'anodized' ? 0.48 : 0.32
-  });
-  const base = new THREE.MeshStandardMaterial({
-    color: 0x1b1f2c,
-    roughness: 0.94,
-    metalness: 0.08
-  });
-  return { body, rim, base };
-}
-
-function normalizeAngleRadians(angle) {
-  if (!Number.isFinite(angle)) return 0;
-  let normalized = angle % (Math.PI * 2);
-  if (normalized > Math.PI) {
-    normalized -= Math.PI * 2;
-  } else if (normalized < -Math.PI) {
-    normalized += Math.PI * 2;
-  }
-  return normalized;
-}
-
-function computePocketJawOrientation(center, isSidePocket) {
-  if (!center) return 0;
-  if (isSidePocket) {
-    return center.x < 0 ? 0 : Math.PI;
-  }
-  const sx = center.x < 0 ? -1 : 1;
-  const sz = center.y < 0 ? -1 : 1;
-  if (sx < 0 && sz < 0) return 0;
-  if (sx > 0 && sz < 0) return Math.PI / 2;
-  if (sx > 0 && sz > 0) return Math.PI;
-  return -Math.PI / 2;
-}
-
-function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = TABLE.THICK * 0.01) {
-  const resolved = resolvePocketJawOption(option);
-  if (!resolved || !table) return null;
-  const materials = createPocketJawMaterials(resolved);
-  const scale = resolved.mouthR > 0 ? POCKET_VIS_R / resolved.mouthR : 1;
-  const innerRadius = resolved.mouthR * scale;
-  const flare = resolved.flare * scale;
-  const depth = Math.min(resolved.depth * scale, POCKET_DROP_DEPTH * 0.65);
-  const wallTop = Math.max(0.12 * scale, 0.08 * scale + resolved.bevel * scale * 0.35);
-  const bevel = resolved.bevel * scale;
-  const lipInset = Math.max(scale * 0.028, bevel * 0.35);
-  const lipHeight = Math.max(scale * 0.05, TABLE.THICK * 0.02);
-  const steps = 18;
-  const pts = [];
-  for (let i = 0; i <= steps; i += 1) {
-    const t = i / steps;
-    const easing = Math.sin(t * Math.PI);
-    const taper = innerRadius - t * wallTop * (0.7 + 0.3 * (1 - t));
-    const radius = Math.max(innerRadius * 0.62, taper + easing * flare * 0.22);
-    const y = -t * depth;
-    pts.push(new THREE.Vector2(radius, y));
-  }
-  pts.push(new THREE.Vector2(innerRadius + flare, -depth * 0.08));
-  pts.push(new THREE.Vector2(innerRadius + flare + lipInset, lipHeight));
-  const topOffset = pts[pts.length - 1].y;
-  const adjustedPts = pts.map((pt) => new THREE.Vector2(pt.x, pt.y - topOffset));
-  const baseProfilePts = adjustedPts.map((pt) => new THREE.Vector2(pt.x, pt.y));
-  const createProfile = (targetOuter) => {
-    const rimOuter = Math.max(innerRadius + lipInset, targetOuter);
-    const finalPts = baseProfilePts.map((pt, idx) => {
-      const x = idx >= baseProfilePts.length - 2 ? rimOuter : pt.x;
-      return new THREE.Vector2(x, pt.y);
-    });
-    const minY = finalPts.reduce((min, pt) => Math.min(min, pt.y), Infinity);
-    const rimTube = Math.max((rimOuter - innerRadius) * 0.5, TABLE.THICK * 0.01);
-    const rimMajor = (rimOuter + innerRadius) * 0.5;
-    const baseThickness = Math.max(TABLE.THICK * 0.05, Math.abs(minY) * 0.12);
-    const baseOffset = minY - baseThickness / 2 - TABLE.THICK * 0.012;
-    const baseRadius = rimOuter + Math.max(scale * 0.03, TABLE.THICK * 0.03);
-    return { finalPts, rimOuter, rimTube, rimMajor, baseThickness, baseOffset, baseRadius };
-  };
-  const profileCache = { corner: null, side: null };
-
-  const assemblyGroup = new THREE.Group();
-  assemblyGroup.name = 'pocketJawSet';
-  const pocketGroups = [];
-  const centers = pocketCenters();
-  centers.forEach((center, index) => {
-    const isSide = index >= 4;
-    const arc = isSide ? Math.PI : Math.PI / 2;
-    const phiStart = -arc / 2;
-    const profileKey = isSide ? 'side' : 'corner';
-    if (!profileCache[profileKey]) {
-      const targetOuter =
-        (isSide ? SIDE_CHROME_NOTCH_RADIUS : CORNER_CHROME_NOTCH_RADIUS) + POCKET_RIM_OVERHANG;
-      profileCache[profileKey] = createProfile(targetOuter);
-    }
-    const profile = profileCache[profileKey];
-    const jawGeom = new THREE.LatheGeometry(
-      profile.finalPts.map((pt) => pt.clone()),
-      64,
-      phiStart,
-      arc
-    );
-    jawGeom.computeVertexNormals();
-    const jawMesh = new THREE.Mesh(jawGeom, materials.body);
-    jawMesh.receiveShadow = true;
-    jawMesh.castShadow = false;
-    jawMesh.position.y = lipHeight * 0.5;
-
-    const rimSegments = isSide ? 128 : 96;
-    const rimGeom = new THREE.TorusGeometry(
-      profile.rimMajor,
-      profile.rimTube,
-      24,
-      rimSegments,
-      arc
-    );
-    const rimMesh = new THREE.Mesh(rimGeom, materials.rim);
-    rimMesh.rotation.x = Math.PI / 2;
-    const rimVerticalLift = profile.rimTube + POCKET_RIM_LIFT + TABLE.THICK * 0.01;
-    rimMesh.position.y = rimVerticalLift;
-    rimMesh.castShadow = false;
-    rimMesh.receiveShadow = true;
-    rimMesh.renderOrder = 4;
-
-    const collarTube = Math.max(profile.rimTube * 0.45, TABLE.THICK * 0.004);
-    const collarMajor = Math.max(
-      innerRadius + (profile.rimOuter - innerRadius) * 0.55,
-      profile.rimMajor - profile.rimTube * 0.35
-    );
-    const collarGeom = new THREE.TorusGeometry(collarMajor, collarTube, 16, rimSegments, arc);
-    const collarMesh = new THREE.Mesh(collarGeom, materials.rim);
-    collarMesh.rotation.x = Math.PI / 2;
-    collarMesh.position.y = rimVerticalLift - profile.rimTube * 0.6;
-    collarMesh.castShadow = false;
-    collarMesh.receiveShadow = true;
-    collarMesh.renderOrder = 3;
-
-    const baseGeom = new THREE.CylinderGeometry(
-      profile.baseRadius,
-      profile.baseRadius,
-      profile.baseThickness,
-      48,
-      1,
-      false,
-      phiStart,
-      arc
-    );
-    const baseMesh = new THREE.Mesh(baseGeom, materials.base);
-    baseMesh.position.y = profile.baseOffset;
-    baseMesh.receiveShadow = true;
-    baseMesh.castShadow = false;
-
-    const pocketGroup = new THREE.Group();
-    pocketGroup.add(baseMesh);
-    pocketGroup.add(jawMesh);
-    pocketGroup.add(collarMesh);
-    pocketGroup.add(rimMesh);
-
-    const toCenter = new THREE.Vector2(-center.x, -center.y);
-    let appliedRotation = 0;
-    if (toCenter.lengthSq() > 1e-6) {
-      toCenter.normalize();
-      appliedRotation = Math.atan2(toCenter.y, toCenter.x);
-      pocketGroup.rotation.y = appliedRotation;
-    }
-    const desiredRotation = computePocketJawOrientation(center, isSide);
-    const rotationOffset = normalizeAngleRadians(desiredRotation - appliedRotation);
-    if (Math.abs(rotationOffset) > 1e-4) {
-      jawMesh.rotation.y += rotationOffset;
-      rimMesh.rotation.y += rotationOffset;
-      collarMesh.rotation.y += rotationOffset;
-      baseMesh.rotation.y += rotationOffset;
-    }
-    pocketGroup.position.set(center.x, clothPlaneLocal + verticalLift, center.y);
-    assemblyGroup.add(pocketGroup);
-    pocketGroups.push(pocketGroup);
-  });
-  table.add(assemblyGroup);
-  const referenceProfile = profileCache.corner ?? profileCache.side;
-  return {
-    group: assemblyGroup,
-    optionId: resolved.id,
-    materials,
-    pockets: pocketGroups,
-    verticalLift,
-    rimOuter: referenceProfile?.rimOuter ?? innerRadius + lipInset
-  };
-}
-
-function disposePocketJawState(state) {
-  if (!state) return;
-  const disposeMesh = (mesh) => {
-    if (!mesh) return;
-    if (mesh.geometry) {
-      mesh.geometry.dispose();
-    }
-  };
-  if (state.group) {
-    state.group.traverse((obj) => {
-      if (obj.isMesh) {
-        disposeMesh(obj);
-      }
-    });
-  }
-  if (state.materials) {
-    Object.values(state.materials).forEach((mat) => {
-      if (mat?.dispose) {
-        mat.dispose();
-      }
-    });
-  }
-}
-
-function applyPocketJawSelection(table, finishInfo, option) {
-  if (!table || !finishInfo) return;
-  const resolved = resolvePocketJawOption(option);
-  if (!resolved) return;
-  const context = finishInfo.pocketJawContext || {};
-  const clothPlaneLocal =
-    typeof context.clothPlaneLocal === 'number'
-      ? context.clothPlaneLocal
-      : CLOTH_TOP_LOCAL + CLOTH_LIFT;
-  const verticalLift =
-    typeof context.verticalLift === 'number'
-      ? context.verticalLift
-      : TABLE.THICK * 0.01;
-  const current = finishInfo.pocketJawState || null;
-  if (current?.optionId === resolved.id) {
-    return;
-  }
-  if (current) {
-    if (current.group?.parent === table) {
-      table.remove(current.group);
-    }
-    disposePocketJawState(current);
-    finishInfo.pocketJawState = null;
-    if (finishInfo.parts) {
-      finishInfo.parts.pocketJawGroup = null;
-    }
-  }
-  const next = buildPocketJawAssembly(table, resolved, clothPlaneLocal, verticalLift);
-  finishInfo.pocketJawState = next;
-  finishInfo.pocketJawOptionId = resolved.id;
-  if (finishInfo.parts) {
-    finishInfo.parts.pocketJawGroup = next?.group ?? null;
-  }
-}
-
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]
@@ -3915,8 +3481,7 @@ function Table3D(
     accentMesh: null,
     dimensions: null,
     woodSurfaces: { frame: null, rail: null },
-    woodTextureId: null,
-    pocketJawGroup: null
+    woodTextureId: null
   };
 
   const halfW = PLAY_W / 2;
@@ -3931,7 +3496,6 @@ function Table3D(
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
-  const initialPocketJawOption = resolvePocketJawOption(resolvedFinish?.pocketJawOption);
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
   const defaultWoodOption =
     WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
@@ -4113,13 +3677,7 @@ function Table3D(
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
     applyClothDetail,
-    woodTextureId: finishParts.woodTextureId,
-    pocketJawState: null,
-    pocketJawOptionId: initialPocketJawOption?.id ?? DEFAULT_POCKET_JAW_ID,
-    pocketJawContext: {
-      clothPlaneLocal,
-      verticalLift: TABLE.THICK * 0.01
-    }
+    woodTextureId: finishParts.woodTextureId
   };
 
   const clothExtendBase = Math.max(
@@ -4310,21 +3868,6 @@ function Table3D(
     table.add(pocket);
     pocketMeshes.push(pocket);
   });
-
-  const pocketJawState = buildPocketJawAssembly(
-    table,
-    initialPocketJawOption,
-    clothPlaneLocal,
-    TABLE.THICK * 0.01
-  );
-  finishParts.pocketJawGroup = pocketJawState?.group ?? null;
-  finishInfo.pocketJawState = pocketJawState;
-  finishInfo.pocketJawOptionId =
-    pocketJawState?.optionId ?? initialPocketJawOption?.id ?? DEFAULT_POCKET_JAW_ID;
-  finishInfo.pocketJawContext = {
-    clothPlaneLocal,
-    verticalLift: TABLE.THICK * 0.01
-  };
 
   const railH = RAIL_HEIGHT;
   const railsTopY = frameTopY + railH;
@@ -5358,16 +4901,6 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
 
-  const context = finishInfo.pocketJawContext || {};
-  if (typeof context.clothPlaneLocal !== 'number') {
-    context.clothPlaneLocal = table.userData?.clothPlaneLocal ?? CLOTH_TOP_LOCAL + CLOTH_LIFT;
-  }
-  if (typeof context.verticalLift !== 'number') {
-    context.verticalLift = TABLE.THICK * 0.01;
-  }
-  finishInfo.pocketJawContext = context;
-  applyPocketJawSelection(table, finishInfo, resolvedFinish?.pocketJawOption);
-
   finishInfo.id = resolvedFinish.id;
   finishInfo.palette = resolvedFinish.colors;
   finishInfo.materials = {
@@ -5431,15 +4964,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
-  const [pocketJawId, setPocketJawId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerPocketJaw');
-      if (stored && POCKET_JAW_OPTIONS_BY_ID[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_POCKET_JAW_ID;
-  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -5447,10 +4971,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
-  );
-  const activePocketJawOption = useMemo(
-    () => resolvePocketJawOption(pocketJawId),
-    [pocketJawId]
   );
   const activeWoodTexture = useMemo(
     () =>
@@ -5683,7 +5203,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
     const woodSelection = activeWoodTexture;
-    const pocketJawSelection = activePocketJawOption;
     return {
       ...baseFinish,
       clothDetail:
@@ -5694,7 +5213,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       },
       woodTexture: woodSelection,
       woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
-      pocketJawOption: pocketJawSelection,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -5730,13 +5248,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [
-    tableFinishId,
-    activeChromeOption,
-    activeClothOption,
-    activeWoodTexture,
-    activePocketJawOption
-  ]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -5760,11 +5272,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerPocketJaw', pocketJawId);
-    }
-  }, [pocketJawId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
@@ -12027,42 +11534,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       </button>
                     );
                   })}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                Pocket Jaws
-              </h3>
-              <p className="mt-1 text-[11px] leading-4 text-white/60">
-                Select a jaw profile that matches the way the rails cut into each pocket.
-              </p>
-              <div className="mt-3">
-                <PocketJawsGallery variant={activePocketJawOption} />
-              </div>
-              <div className="mt-3 flex flex-col gap-2">
-                {POCKET_JAW_OPTIONS.map((option) => {
-                  const active = option.id === pocketJawId;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setPocketJawId(option.id)}
-                      aria-pressed={active}
-                      className={`flex flex-col items-start rounded-xl border px-3 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                        active
-                          ? 'border-emerald-300 bg-emerald-300/10 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
-                          : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/15'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
-                        {option.label}
-                      </span>
-                      <span className="mt-1 text-[10px] leading-4 text-white/60">
-                        {option.description}
-                      </span>
-                    </button>
-                  );
-                })}
               </div>
             </div>
             <div>
