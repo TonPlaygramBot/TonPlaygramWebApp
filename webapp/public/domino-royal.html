@@ -875,9 +875,8 @@ function renderChain(){
     }
   });
   chain.forEach(c=>{
-    const isDouble = c.double ?? (c.tile.a === c.tile.b);
-    const domino = makeDomino(c.tile.a, c.tile.b, { flat: isDouble, faceUp: true });
-    const yPos = isDouble ? (CLOTH_TOP + 0.008) : (CLOTH_TOP + TILE_UP_HALF + 0.001);
+    const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true });
+    const yPos = CLOTH_TOP + 0.008;
     domino.position.set(c.x, yPos, c.z);
     domino.rotation.y = c.rot || 0;
     c.mesh = domino;
