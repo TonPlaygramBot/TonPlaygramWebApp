@@ -3664,6 +3664,30 @@ function createPocketJawMaterials(option) {
   return { body, rim, base };
 }
 
+function normalizeAngleRadians(angle) {
+  if (!Number.isFinite(angle)) return 0;
+  let normalized = angle % (Math.PI * 2);
+  if (normalized > Math.PI) {
+    normalized -= Math.PI * 2;
+  } else if (normalized < -Math.PI) {
+    normalized += Math.PI * 2;
+  }
+  return normalized;
+}
+
+function computePocketJawOrientation(center, isSidePocket) {
+  if (!center) return 0;
+  if (isSidePocket) {
+    return center.x < 0 ? 0 : Math.PI;
+  }
+  const sx = center.x < 0 ? -1 : 1;
+  const sz = center.y < 0 ? -1 : 1;
+  if (sx < 0 && sz < 0) return 0;
+  if (sx > 0 && sz < 0) return Math.PI / 2;
+  if (sx > 0 && sz > 0) return Math.PI;
+  return -Math.PI / 2;
+}
+
 function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = TABLE.THICK * 0.01) {
   const resolved = resolvePocketJawOption(option);
   if (!resolved || !table) return null;
@@ -3732,6 +3756,7 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     const jawMesh = new THREE.Mesh(jawGeom, materials.body);
     jawMesh.receiveShadow = true;
     jawMesh.castShadow = false;
+    jawMesh.position.y = lipHeight * 0.5;
 
     const rimSegments = isSide ? 128 : 96;
     const rimGeom = new THREE.TorusGeometry(
@@ -3743,9 +3768,24 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     );
     const rimMesh = new THREE.Mesh(rimGeom, materials.rim);
     rimMesh.rotation.x = Math.PI / 2;
-    rimMesh.position.y = profile.rimTube + POCKET_RIM_LIFT;
+    const rimVerticalLift = profile.rimTube + POCKET_RIM_LIFT + TABLE.THICK * 0.01;
+    rimMesh.position.y = rimVerticalLift;
     rimMesh.castShadow = false;
     rimMesh.receiveShadow = true;
+    rimMesh.renderOrder = 4;
+
+    const collarTube = Math.max(profile.rimTube * 0.45, TABLE.THICK * 0.004);
+    const collarMajor = Math.max(
+      innerRadius + (profile.rimOuter - innerRadius) * 0.55,
+      profile.rimMajor - profile.rimTube * 0.35
+    );
+    const collarGeom = new THREE.TorusGeometry(collarMajor, collarTube, 16, rimSegments, arc);
+    const collarMesh = new THREE.Mesh(collarGeom, materials.rim);
+    collarMesh.rotation.x = Math.PI / 2;
+    collarMesh.position.y = rimVerticalLift - profile.rimTube * 0.6;
+    collarMesh.castShadow = false;
+    collarMesh.receiveShadow = true;
+    collarMesh.renderOrder = 3;
 
     const baseGeom = new THREE.CylinderGeometry(
       profile.baseRadius,
@@ -3765,12 +3805,23 @@ function buildPocketJawAssembly(table, option, clothPlaneLocal, verticalLift = T
     const pocketGroup = new THREE.Group();
     pocketGroup.add(baseMesh);
     pocketGroup.add(jawMesh);
+    pocketGroup.add(collarMesh);
     pocketGroup.add(rimMesh);
 
     const toCenter = new THREE.Vector2(-center.x, -center.y);
+    let appliedRotation = 0;
     if (toCenter.lengthSq() > 1e-6) {
       toCenter.normalize();
-      pocketGroup.rotation.y = Math.atan2(toCenter.y, toCenter.x);
+      appliedRotation = Math.atan2(toCenter.y, toCenter.x);
+      pocketGroup.rotation.y = appliedRotation;
+    }
+    const desiredRotation = computePocketJawOrientation(center, isSide);
+    const rotationOffset = normalizeAngleRadians(desiredRotation - appliedRotation);
+    if (Math.abs(rotationOffset) > 1e-4) {
+      jawMesh.rotation.y += rotationOffset;
+      rimMesh.rotation.y += rotationOffset;
+      collarMesh.rotation.y += rotationOffset;
+      baseMesh.rotation.y += rotationOffset;
     }
     pocketGroup.position.set(center.x, clothPlaneLocal + verticalLift, center.y);
     assemblyGroup.add(pocketGroup);
