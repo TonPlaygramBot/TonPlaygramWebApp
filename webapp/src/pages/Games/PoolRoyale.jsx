@@ -202,8 +202,8 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.996; // tighten the chrome corner arc so the curved cut sits closer to the pocket
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.008; // expand the corner chrome footprint slightly so it reaches further toward the rail centerline
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.958; // trim the short-rail chrome a touch more so it stays clear of the cushion edge
+const CHROME_CORNER_EXPANSION_SCALE = 1.016; // expand the corner chrome footprint slightly so it reaches further toward the rail centerline
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.99; // trim the short-rail chrome a touch more so it stays clear of the cushion edge
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.99; // ease the chrome corner notch inward so the rounded cut looks smaller
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.014; // leave a bit more chrome on the field side so the plate stretches outward cleanly
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -216,10 +216,10 @@ const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.32; // carve a deeper wedge so no chrome lingers on the field side of the pocket
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.18; // run the trim farther down the short rail to keep the notch flush with the cushion
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
-const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward so they clear the rail caps on mobile
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
+const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.03; // pull the side plates inward so they clear the rail caps on mobile
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.09; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.014; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
@@ -4011,9 +4011,9 @@ function Table3D(
     0,
     railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
   ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = railH * 0.17; // deepen the corner chrome so it blankets the rail sides and pocket cuts
+  const chromePlateThickness = railH * 0.22; // deepen the corner chrome so it blankets the rail sides and pocket cuts
   const sideChromePlateThickness = Math.min(
-    railH * 0.92,
+    railH * 0.98,
     Math.max(chromePlateThickness, chromePocketCoverageDepth)
   );
   const chromePlateInset = TABLE.THICK * 0.02;
