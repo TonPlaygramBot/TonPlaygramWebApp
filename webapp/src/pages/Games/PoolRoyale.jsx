@@ -4459,44 +4459,10 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
-  const createCornerPocketCoverFromSide = (sx, sz) => {
-    const base = scaleSidePocketCut(sideNotchMP(sx));
-    const baseCenterX = sx * (innerHalfW - sideInset);
-    const targetCenterX = sx * (innerHalfW - cornerInset);
-    const targetCenterZ = sz * (innerHalfH - cornerInset);
-    return translateMultiPolygon(
-      base,
-      targetCenterX - baseCenterX,
-      targetCenterZ
-    );
-  };
+  const createCornerPocketCover = (sx, sz) =>
+    scaleCornerPocketCut(cornerNotchMP(sx, sz));
 
-  const createSidePocketCoverFromCorners = (sx) => {
-    const translateCornerMP = (sz) => {
-      const base = scaleCornerPocketCut(cornerNotchMP(sx, sz));
-      const baseCenterX = sx * (innerHalfW - cornerInset);
-      const baseCenterZ = sz * (innerHalfH - cornerInset);
-      const targetCenterX = sx * (innerHalfW - sideInset);
-      const targetCenterZ = 0;
-      return translateMultiPolygon(
-        base,
-        targetCenterX - baseCenterX,
-        targetCenterZ - baseCenterZ
-      );
-    };
-    try {
-      const combined = polygonClipping.union(
-        translateCornerMP(1),
-        translateCornerMP(-1)
-      );
-      if (Array.isArray(combined) && combined.length) {
-        return combined;
-      }
-    } catch (err) {
-      console.warn('Side pocket cover union failed', err);
-    }
-    return translateCornerMP(1);
-  };
+  const createSidePocketCover = (sx) => scaleSidePocketCut(sideNotchMP(sx));
 
   const pocketCoverGroup = new THREE.Group();
   const pocketCoverMat = new THREE.MeshPhysicalMaterial({
@@ -4599,7 +4565,7 @@ function Table3D(
 
   [
     {
-      mp: createCornerPocketCoverFromSide(1, 1),
+      mp: createCornerPocketCover(1, 1),
       clip: {
         type: 'corner',
         sx: 1,
@@ -4609,7 +4575,7 @@ function Table3D(
       }
     },
     {
-      mp: createCornerPocketCoverFromSide(-1, 1),
+      mp: createCornerPocketCover(-1, 1),
       clip: {
         type: 'corner',
         sx: -1,
@@ -4619,7 +4585,7 @@ function Table3D(
       }
     },
     {
-      mp: createCornerPocketCoverFromSide(-1, -1),
+      mp: createCornerPocketCover(-1, -1),
       clip: {
         type: 'corner',
         sx: -1,
@@ -4629,7 +4595,7 @@ function Table3D(
       }
     },
     {
-      mp: createCornerPocketCoverFromSide(1, -1),
+      mp: createCornerPocketCover(1, -1),
       clip: {
         type: 'corner',
         sx: 1,
@@ -4639,7 +4605,7 @@ function Table3D(
       }
     },
     {
-      mp: createSidePocketCoverFromCorners(-1),
+      mp: createSidePocketCover(-1),
       clip: {
         type: 'side',
         sx: -1,
@@ -4648,7 +4614,7 @@ function Table3D(
       }
     },
     {
-      mp: createSidePocketCoverFromCorners(1),
+      mp: createSidePocketCover(1),
       clip: {
         type: 'side',
         sx: 1,
