@@ -4457,10 +4457,10 @@ function Table3D(
     if (!clip) return null;
     const { type, sx = 0, sz = 0, centerX = 0, centerZ = 0 } = clip;
     if (type === 'corner') {
-      const minX = sx === 1 ? centerX - POCKET_COVER_CLIP_WIDTH : centerX;
-      const maxX = sx === 1 ? centerX : centerX + POCKET_COVER_CLIP_WIDTH;
-      const minZ = sz === 1 ? centerZ - POCKET_COVER_CLIP_DEPTH : centerZ;
-      const maxZ = sz === 1 ? centerZ : centerZ + POCKET_COVER_CLIP_DEPTH;
+      const minX = sx === 1 ? centerX : centerX - POCKET_COVER_CLIP_WIDTH;
+      const maxX = sx === 1 ? centerX + POCKET_COVER_CLIP_WIDTH : centerX;
+      const minZ = sz === 1 ? centerZ : centerZ - POCKET_COVER_CLIP_DEPTH;
+      const maxZ = sz === 1 ? centerZ + POCKET_COVER_CLIP_DEPTH : centerZ;
       if (minX === maxX || minZ === maxZ) return null;
       return boxPoly(
         Math.min(minX, maxX),
@@ -4470,8 +4470,8 @@ function Table3D(
       );
     }
     if (type === 'side') {
-      const minX = sx === 1 ? centerX - POCKET_COVER_CLIP_WIDTH : centerX;
-      const maxX = sx === 1 ? centerX : centerX + POCKET_COVER_CLIP_WIDTH;
+      const minX = sx === 1 ? centerX : centerX - POCKET_COVER_CLIP_WIDTH;
+      const maxX = sx === 1 ? centerX + POCKET_COVER_CLIP_WIDTH : centerX;
       const minZ = centerZ - POCKET_COVER_CLIP_DEPTH;
       const maxZ = centerZ + POCKET_COVER_CLIP_DEPTH;
       if (minX === maxX || minZ === maxZ) return null;
