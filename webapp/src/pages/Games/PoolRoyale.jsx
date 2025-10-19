@@ -200,15 +200,15 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.012; // open the chrome corner arc a touch more so the curved cut reads larger
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.996; // tighten the chrome corner arc so the curved cut sits closer to the pocket
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.008; // expand the corner chrome footprint slightly so it reaches further toward the rail centerline
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.958; // trim the short-rail chrome a touch more so it stays clear of the cushion edge
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.004; // let the chrome corner notch breathe slightly so the curved cut opens up
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.99; // ease the chrome corner notch inward so the rounded cut looks smaller
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.014; // leave a bit more chrome on the field side so the plate stretches outward cleanly
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.22;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.875; // open the side chrome throat a touch more to mirror the larger middle rail cuts
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.22; // keep the side chrome throat shallow so the cut stays centered above the pocket
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
@@ -221,8 +221,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly 
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
-const RAIL_CORNER_POCKET_CUT_SCALE = 0.958; // ease the corner rail pocket cuts a touch wider so the curved openings read larger
-const RAIL_SIDE_POCKET_CUT_SCALE = 1.036; // relax the side pocket cuts a bit more so the middle openings grow larger
+const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
+const RAIL_SIDE_POCKET_CUT_SCALE = 1; // match the side rail cutouts directly to the middle pocket diameter
 
 function buildChromePlateGeometry({
   width,
