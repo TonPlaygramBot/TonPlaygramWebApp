@@ -210,7 +210,7 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.22;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.22; // keep the side chrome throat shallow so the cut stays centered above the pocket
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.964; // pinch the middle chrome rounding so the side cuts read slightly smaller
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.948; // pinch the middle chrome rounding so the side cuts read slightly smaller
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
 const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.32; // carve a deeper wedge so no chrome lingers on the field side of the pocket
@@ -222,7 +222,7 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
-const RAIL_SIDE_POCKET_CUT_SCALE = 0.986; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
 
 function buildChromePlateGeometry({
   width,
@@ -4104,7 +4104,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const CORNER_NOTCH_EXTRA_INSET =
-    TABLE.THICK * 0.034; // nudge the chrome/rail corner cutouts slightly further toward centre for tighter alignment
+    TABLE.THICK * 0.041; // nudge the chrome/rail corner cutouts slightly further toward centre for tighter alignment
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION +
     CORNER_POCKET_CENTER_INSET +
