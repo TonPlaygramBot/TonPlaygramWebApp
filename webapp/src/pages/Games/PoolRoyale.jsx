@@ -4450,7 +4450,57 @@ function Table3D(
   });
   const pocketCoverDepth = railH * POCKET_COVER_DEPTH_SCALE;
   const pocketCoverBaseY = frameTopY + Math.max(0, railH - pocketCoverDepth);
-  const buildPocketCoverShapes = (mp) => {
+  const POCKET_COVER_CLIP_WIDTH = outerHalfW * 4 + TABLE.THICK;
+  const POCKET_COVER_CLIP_DEPTH = outerHalfH * 4 + TABLE.THICK;
+
+  const createPocketCoverClipMask = (clip) => {
+    if (!clip) return null;
+    const { type, sx = 0, sz = 0, centerX = 0, centerZ = 0 } = clip;
+    if (type === 'corner') {
+      const minX = sx === 1 ? centerX - POCKET_COVER_CLIP_WIDTH : centerX;
+      const maxX = sx === 1 ? centerX : centerX + POCKET_COVER_CLIP_WIDTH;
+      const minZ = sz === 1 ? centerZ - POCKET_COVER_CLIP_DEPTH : centerZ;
+      const maxZ = sz === 1 ? centerZ : centerZ + POCKET_COVER_CLIP_DEPTH;
+      if (minX === maxX || minZ === maxZ) return null;
+      return boxPoly(
+        Math.min(minX, maxX),
+        Math.min(minZ, maxZ),
+        Math.max(minX, maxX),
+        Math.max(minZ, maxZ)
+      );
+    }
+    if (type === 'side') {
+      const minX = sx === 1 ? centerX - POCKET_COVER_CLIP_WIDTH : centerX;
+      const maxX = sx === 1 ? centerX : centerX + POCKET_COVER_CLIP_WIDTH;
+      const minZ = centerZ - POCKET_COVER_CLIP_DEPTH;
+      const maxZ = centerZ + POCKET_COVER_CLIP_DEPTH;
+      if (minX === maxX || minZ === maxZ) return null;
+      return boxPoly(
+        Math.min(minX, maxX),
+        Math.min(minZ, maxZ),
+        Math.max(minX, maxX),
+        Math.max(minZ, maxZ)
+      );
+    }
+    return null;
+  };
+
+  const clipPocketCoverMPToArch = (mp, clip) => {
+    if (!clip) return mp;
+    const mask = createPocketCoverClipMask(clip);
+    if (!mask) return mp;
+    try {
+      const clipped = polygonClipping.intersection(mp, mask);
+      if (Array.isArray(clipped) && clipped.length) {
+        return clipped;
+      }
+    } catch (err) {
+      console.warn('Pocket cover arch clip failed', err);
+    }
+    return mp;
+  };
+
+  const buildPocketCoverShapes = (mp, clip) => {
     if (!Array.isArray(mp) || !mp.length) return [];
     let coverMP = mp;
     if (POCKET_COVER_INNER_SCALE > 0 && POCKET_COVER_INNER_SCALE < 1) {
@@ -4466,11 +4516,12 @@ function Table3D(
         }
       }
     }
-    return multiPolygonToShapes(coverMP);
+    const clipped = clipPocketCoverMPToArch(coverMP, clip);
+    return multiPolygonToShapes(clipped);
   };
 
-  const addPocketCoverFromMP = (mp) => {
-    const shapes = buildPocketCoverShapes(mp);
+  const addPocketCoverFromMP = ({ mp, clip }) => {
+    const shapes = buildPocketCoverShapes(mp, clip);
     shapes.forEach((shape) => {
       const geo = new THREE.ExtrudeGeometry(shape, {
         depth: pocketCoverDepth,
@@ -4488,12 +4539,64 @@ function Table3D(
   };
 
   [
-    scaleCornerPocketCut(cornerNotchMP(1, 1)),
-    scaleCornerPocketCut(cornerNotchMP(-1, 1)),
-    scaleCornerPocketCut(cornerNotchMP(-1, -1)),
-    scaleCornerPocketCut(cornerNotchMP(1, -1)),
-    scaleSidePocketCut(sideNotchMP(-1)),
-    scaleSidePocketCut(sideNotchMP(1))
+    {
+      mp: scaleCornerPocketCut(cornerNotchMP(1, 1)),
+      clip: {
+        type: 'corner',
+        sx: 1,
+        sz: 1,
+        centerX: innerHalfW - cornerInset,
+        centerZ: innerHalfH - cornerInset
+      }
+    },
+    {
+      mp: scaleCornerPocketCut(cornerNotchMP(-1, 1)),
+      clip: {
+        type: 'corner',
+        sx: -1,
+        sz: 1,
+        centerX: -(innerHalfW - cornerInset),
+        centerZ: innerHalfH - cornerInset
+      }
+    },
+    {
+      mp: scaleCornerPocketCut(cornerNotchMP(-1, -1)),
+      clip: {
+        type: 'corner',
+        sx: -1,
+        sz: -1,
+        centerX: -(innerHalfW - cornerInset),
+        centerZ: -(innerHalfH - cornerInset)
+      }
+    },
+    {
+      mp: scaleCornerPocketCut(cornerNotchMP(1, -1)),
+      clip: {
+        type: 'corner',
+        sx: 1,
+        sz: -1,
+        centerX: innerHalfW - cornerInset,
+        centerZ: -(innerHalfH - cornerInset)
+      }
+    },
+    {
+      mp: scaleSidePocketCut(sideNotchMP(-1)),
+      clip: {
+        type: 'side',
+        sx: -1,
+        centerX: -(innerHalfW - sideInset),
+        centerZ: 0
+      }
+    },
+    {
+      mp: scaleSidePocketCut(sideNotchMP(1)),
+      clip: {
+        type: 'side',
+        sx: 1,
+        centerX: innerHalfW - sideInset,
+        centerZ: 0
+      }
+    }
   ].forEach(addPocketCoverFromMP);
 
   if (pocketCoverGroup.children.length) {
