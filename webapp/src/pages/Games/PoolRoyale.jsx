@@ -4287,6 +4287,20 @@ function Table3D(
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
+  const cornerPlateGeomSpec = {
+    width: sideChromePlateWidth,
+    height: sideChromePlateHeight,
+    radius: sideChromePlateRadius,
+    thickness: sideChromePlateThickness,
+    y: sideChromePlateY
+  };
+  const sidePlateGeomSpec = {
+    width: chromePlateWidth,
+    height: chromePlateHeight,
+    radius: chromePlateRadius,
+    thickness: chromePlateThickness,
+    y: chromePlateY
+  };
   const scalePocketCutMP = (mp, scale) => {
     if (!Array.isArray(mp)) {
       return mp;
@@ -4309,8 +4323,10 @@ function Table3D(
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
-    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
+    const centerX =
+      sx * (outerHalfW - cornerPlateGeomSpec.width / 2 - chromePlateInset);
+    const centerZ =
+      sz * (outerHalfH - cornerPlateGeomSpec.height / 2 - chromePlateInset);
     const notchLocalMP = scaleCornerPocketCut(cornerNotchMP(sx, sz)).map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -4318,17 +4334,17 @@ function Table3D(
     );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
-        width: chromePlateWidth,
-        height: chromePlateHeight,
-        radius: chromePlateRadius,
-        thickness: chromePlateThickness,
+        width: cornerPlateGeomSpec.width,
+        height: cornerPlateGeomSpec.height,
+        radius: cornerPlateGeomSpec.radius,
+        thickness: cornerPlateGeomSpec.thickness,
         corner,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, cornerPlateGeomSpec.y, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
@@ -4339,24 +4355,25 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
+    const centerX =
+      sx * (outerHalfW - sidePlateGeomSpec.width / 2 - sideChromePlateInset);
     const centerZ = 0;
     const notchLocalMP = scaleSidePocketCut(sideNotchMP(sx)).map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
-        width: sideChromePlateWidth,
-        height: sideChromePlateHeight,
-        radius: sideChromePlateRadius,
-        thickness: sideChromePlateThickness,
+        width: sidePlateGeomSpec.width,
+        height: sidePlateGeomSpec.height,
+        radius: sidePlateGeomSpec.radius,
+        thickness: sidePlateGeomSpec.thickness,
         corner: id,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
-    plate.position.set(centerX, sideChromePlateY, centerZ);
+    plate.position.set(centerX, sidePlateGeomSpec.y, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
