@@ -248,6 +248,10 @@ const CORNER_POCKET_COVER_SIZE_SCALE =
 const SIDE_POCKET_COVER_SIZE_SCALE =
   (RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE) ** 2; // swap liner widths so the side covers inherit the previous corner-pocket footprint
 const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
+const CORNER_POCKET_COVER_CENTER_SCALE = 0.9; // bias the inner scale at the middle of the corner arc so the cap looks thicker there
+const CORNER_POCKET_COVER_TAPER_EXPONENT = 1.35; // smooth how the corner cover transitions from thick center to slim edges
+const SIDE_POCKET_COVER_CENTER_SCALE = 0.88; // bias the inner scale toward the middle of the side pocket curve
+const SIDE_POCKET_COVER_TAPER_EXPONENT = 1.2; // ease the side pocket taper so it thins gradually toward each rail
 const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
 
 function buildChromePlateGeometry({
@@ -4530,11 +4534,157 @@ function Table3D(
     return mp;
   };
 
+  const multiPolygonBounds = (mp) => {
+    if (!Array.isArray(mp) || !mp.length) {
+      return null;
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    mp.forEach((poly) => {
+      if (!Array.isArray(poly)) return;
+      poly.forEach((ring) => {
+        if (!Array.isArray(ring)) return;
+        ring.forEach((pt) => {
+          if (!Array.isArray(pt) || pt.length < 2) return;
+          const [x, z] = pt;
+          if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (z < minZ) minZ = z;
+          if (z > maxZ) maxZ = z;
+        });
+      });
+    });
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+      return null;
+    }
+    return { minX, maxX, minZ, maxZ };
+  };
+
+  const ensureClosedRing = (ring) => {
+    if (!Array.isArray(ring) || !ring.length) {
+      return [];
+    }
+    const result = ring.slice();
+    const first = result[0];
+    const last = result[result.length - 1];
+    if (!first || !last) {
+      return result.filter((pt) => Array.isArray(pt) && pt.length >= 2);
+    }
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      result.push([first[0], first[1]]);
+    }
+    return result;
+  };
+
+  const angleDifference = (a, b) => {
+    const diff = THREE.MathUtils.euclideanModulo(a - b + Math.PI, Math.PI * 2) - Math.PI;
+    return diff;
+  };
+
+  const scaleMultiPolygonDirectional = (mp, { centerX = 0, centerZ = 0, getScale }) => {
+    if (!Array.isArray(mp) || typeof getScale !== 'function') {
+      return [];
+    }
+    const cx = Number.isFinite(centerX) ? centerX : 0;
+    const cz = Number.isFinite(centerZ) ? centerZ : 0;
+    return mp
+      .map((poly) => {
+        if (!Array.isArray(poly) || !poly.length) return null;
+        const scaledPoly = poly
+          .map((ring) => {
+            if (!Array.isArray(ring) || !ring.length) return null;
+            const scaledRing = ring
+              .map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return null;
+                const dx = pt[0] - cx;
+                const dz = pt[1] - cz;
+                const scale = Math.max(0, Number(getScale(dx, dz)) || 0);
+                return [cx + dx * scale, cz + dz * scale];
+              })
+              .filter((pt) => Array.isArray(pt) && pt.length === 2);
+            if (!scaledRing.length) return null;
+            return ensureClosedRing(scaledRing);
+          })
+          .filter((ring) => Array.isArray(ring) && ring.length > 0);
+        if (!scaledPoly.length) return null;
+        return scaledPoly;
+      })
+      .filter((poly) => Array.isArray(poly) && poly.length > 0);
+  };
+
+  const createPocketCoverInner = (mp, clip) => {
+    if (!Array.isArray(mp) || !mp.length) {
+      return [];
+    }
+    if (!(POCKET_COVER_INNER_SCALE > 0 && POCKET_COVER_INNER_SCALE < 1)) {
+      return [];
+    }
+    const baseScale = Math.max(0, Math.min(1, POCKET_COVER_INNER_SCALE));
+    const defaultInner = scaleMultiPolygon(mp, baseScale);
+    if (!clip || typeof clip !== 'object') {
+      return defaultInner;
+    }
+    const { type, centerX = 0, centerZ = 0 } = clip;
+    if (!Number.isFinite(centerX) || !Number.isFinite(centerZ)) {
+      return defaultInner;
+    }
+
+    if (type === 'corner') {
+      const { sx = 1, sz = 1 } = clip;
+      const diagAngle = Math.atan2(-sz, -sx);
+      const centerScale = baseScale * CORNER_POCKET_COVER_CENTER_SCALE;
+      const edgeScale = baseScale;
+      const exponent = Math.max(0.5, CORNER_POCKET_COVER_TAPER_EXPONENT || 1);
+      const directional = scaleMultiPolygonDirectional(mp, {
+        centerX,
+        centerZ,
+        getScale: (dx, dz) => {
+          const angle = Math.atan2(dz, dx);
+          const diff = Math.abs(angleDifference(angle, diagAngle));
+          const normalized = Math.min(1, diff / (Math.PI / 2));
+          const bias = Math.pow(normalized, exponent);
+          return THREE.MathUtils.lerp(centerScale, edgeScale, bias);
+        }
+      });
+      return Array.isArray(directional) && directional.length ? directional : defaultInner;
+    }
+
+    if (type === 'side') {
+      const bounds = multiPolygonBounds(mp);
+      if (!bounds) {
+        return defaultInner;
+      }
+      const halfWidth = Math.max(
+        MICRO_EPS,
+        Math.abs(bounds.maxX - centerX),
+        Math.abs(bounds.minX - centerX)
+      );
+      const centerScale = baseScale * SIDE_POCKET_COVER_CENTER_SCALE;
+      const edgeScale = baseScale;
+      const exponent = Math.max(0.5, SIDE_POCKET_COVER_TAPER_EXPONENT || 1);
+      const directional = scaleMultiPolygonDirectional(mp, {
+        centerX,
+        centerZ,
+        getScale: (dx) => {
+          const normalized = Math.min(1, Math.abs(dx) / halfWidth);
+          const bias = Math.pow(normalized, exponent);
+          return THREE.MathUtils.lerp(centerScale, edgeScale, bias);
+        }
+      });
+      return Array.isArray(directional) && directional.length ? directional : defaultInner;
+    }
+
+    return defaultInner;
+  };
+
   const buildPocketCoverShapes = (mp, clip) => {
     if (!Array.isArray(mp) || !mp.length) return [];
     let coverMP = mp;
     if (POCKET_COVER_INNER_SCALE > 0 && POCKET_COVER_INNER_SCALE < 1) {
-      const inner = scaleMultiPolygon(mp, POCKET_COVER_INNER_SCALE);
+      const inner = createPocketCoverInner(mp, clip);
       if (Array.isArray(inner) && inner.length) {
         try {
           const diff = polygonClipping.difference(mp, inner);
