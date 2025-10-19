@@ -220,7 +220,7 @@ const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
-const RAIL_POCKET_CUT_SCALE = 0.965; // tighten the wooden rail pocket cuts a touch more so the wood fully wraps the pocket mouths
+const RAIL_POCKET_CUT_SCALE = 0.972; // slightly relax the wooden rail pocket cuts so the curved openings are a hair larger
 
 function buildChromePlateGeometry({
   width,
