@@ -243,6 +243,10 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const CORNER_POCKET_COVER_SIZE_SCALE =
+  RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE; // shrink the corner plastic liners so they match the slimmer middle pocket plates
+const SIDE_POCKET_COVER_SIZE_SCALE =
+  RAIL_SIDE_POCKET_CUT_SCALE / RAIL_CORNER_POCKET_CUT_SCALE; // grow the side plastic liners so they mirror the broader corner pocket plates
 const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
 const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
 
@@ -4460,7 +4464,13 @@ function Table3D(
   finishParts.railMeshes.push(railsMesh);
 
   const createCornerPocketCoverFromSide = (sx, sz) => {
-    const base = scaleSidePocketCut(sideNotchMP(sx));
+    let base = scaleSidePocketCut(sideNotchMP(sx));
+    if (CORNER_POCKET_COVER_SIZE_SCALE !== 1) {
+      const scaled = scaleMultiPolygon(base, CORNER_POCKET_COVER_SIZE_SCALE);
+      if (Array.isArray(scaled) && scaled.length) {
+        base = scaled;
+      }
+    }
     const baseCenterX = sx * (innerHalfW - sideInset);
     const targetCenterX = sx * (innerHalfW - cornerInset);
     const targetCenterZ = sz * (innerHalfH - cornerInset);
@@ -4473,7 +4483,13 @@ function Table3D(
 
   const createSidePocketCoverFromCorners = (sx) => {
     const translateCornerMP = (sz) => {
-      const base = scaleCornerPocketCut(cornerNotchMP(sx, sz));
+      let base = scaleCornerPocketCut(cornerNotchMP(sx, sz));
+      if (SIDE_POCKET_COVER_SIZE_SCALE !== 1) {
+        const scaled = scaleMultiPolygon(base, SIDE_POCKET_COVER_SIZE_SCALE);
+        if (Array.isArray(scaled) && scaled.length) {
+          base = scaled;
+        }
+      }
       const baseCenterX = sx * (innerHalfW - cornerInset);
       const baseCenterZ = sz * (innerHalfH - cornerInset);
       const targetCenterX = sx * (innerHalfW - sideInset);
