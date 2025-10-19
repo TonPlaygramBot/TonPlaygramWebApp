@@ -1282,6 +1282,9 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
+const STORAGE_CORNER_POCKET_COVER = 'poolCornerPocketCoverEnabled';
+const STORAGE_SIDE_POCKET_COVER = 'poolSidePocketCoverEnabled';
+
 const toHexColor = (value) => {
   if (typeof value === 'number') {
     return `#${value.toString(16).padStart(6, '0')}`;
@@ -3556,8 +3559,13 @@ function createAccentMesh(accent, dims) {
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
-  tableSpecMeta = null
+  tableSpecMeta = null,
+  options = {}
 ) {
+  const {
+    cornerPocketCovers = true,
+    sidePocketCovers = true
+  } = options ?? {};
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
   applyTablePhysicsSpec(tableSizeMeta);
@@ -4470,6 +4478,12 @@ function Table3D(
     scaleMultiPolygon(scaleSidePocketCut(sideNotchMP(sx)), SIDE_POCKET_COVER_SIZE_SCALE);
 
   const pocketCoverGroup = new THREE.Group();
+  const cornerPocketCoverGroup = new THREE.Group();
+  const sidePocketCoverGroup = new THREE.Group();
+  cornerPocketCoverGroup.visible = !!cornerPocketCovers;
+  sidePocketCoverGroup.visible = !!sidePocketCovers;
+  pocketCoverGroup.add(cornerPocketCoverGroup);
+  pocketCoverGroup.add(sidePocketCoverGroup);
   const pocketCoverMat = new THREE.MeshPhysicalMaterial({
     color: 0x0c0c0f,
     roughness: 0.34,
@@ -4550,7 +4564,7 @@ function Table3D(
     return multiPolygonToShapes(clipped);
   };
 
-  const addPocketCoverFromMP = ({ mp, clip }) => {
+  const addPocketCoverFromMP = (targetGroup, { mp, clip }) => {
     const shapes = buildPocketCoverShapes(mp, clip);
     shapes.forEach((shape) => {
       const geo = new THREE.ExtrudeGeometry(shape, {
@@ -4564,7 +4578,7 @@ function Table3D(
       mesh.position.y = pocketCoverBaseY;
       mesh.castShadow = false;
       mesh.receiveShadow = false;
-      pocketCoverGroup.add(mesh);
+      targetGroup.add(mesh);
     });
   };
 
@@ -4608,7 +4622,10 @@ function Table3D(
         centerX: innerHalfW - cornerInset,
         centerZ: -(innerHalfH - cornerInset)
       }
-    },
+    }
+  ].forEach((config) => addPocketCoverFromMP(cornerPocketCoverGroup, config));
+
+  [
     {
       mp: createSidePocketCover(-1),
       clip: {
@@ -4627,12 +4644,16 @@ function Table3D(
         centerZ: 0
       }
     }
-  ]
-    .forEach(addPocketCoverFromMP);
+  ].forEach((config) => addPocketCoverFromMP(sidePocketCoverGroup, config));
 
-  if (pocketCoverGroup.children.length) {
+  if (cornerPocketCoverGroup.children.length || sidePocketCoverGroup.children.length) {
     railsGroup.add(pocketCoverGroup);
   }
+
+  table.userData.pocketCoverGroups = {
+    corner: cornerPocketCoverGroup,
+    side: sidePocketCoverGroup
+  };
 
   table.add(railsGroup);
 
@@ -5065,7 +5086,8 @@ function Table3D(
     baulkZ,
     group: table,
     clothMat,
-    cushionMat
+    cushionMat,
+    pocketCoverGroups: table.userData.pocketCoverGroups
   };
 }
 
@@ -5289,9 +5311,28 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       WOOD_GRAIN_OPTIONS[0],
     [woodTextureId]
   );
+  const [cornerPocketCoverEnabled, setCornerPocketCoverEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(STORAGE_CORNER_POCKET_COVER);
+      if (stored != null) {
+        return stored === 'true';
+      }
+    }
+    return true;
+  });
+  const [sidePocketCoverEnabled, setSidePocketCoverEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(STORAGE_SIDE_POCKET_COVER);
+      if (stored != null) {
+        return stored === 'true';
+      }
+    }
+    return true;
+  });
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
+  const tableGroupRef = useRef(null);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
@@ -5591,6 +5632,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        STORAGE_CORNER_POCKET_COVER,
+        cornerPocketCoverEnabled ? 'true' : 'false'
+      );
+    }
+  }, [cornerPocketCoverEnabled]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        STORAGE_SIDE_POCKET_COVER,
+        sidePocketCoverEnabled ? 'true' : 'false'
+      );
+    }
+  }, [sidePocketCoverEnabled]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -9026,9 +9083,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         group: table,
         clothMat: tableCloth,
         cushionMat: tableCushion
-      } = Table3D(world, finishForScene, tableSizeMeta);
+      } = Table3D(world, finishForScene, tableSizeMeta, {
+        cornerPocketCovers: cornerPocketCoverEnabled,
+        sidePocketCovers: sidePocketCoverEnabled
+      });
       clothMat = tableCloth;
       cushionMat = tableCushion;
+      tableGroupRef.current = table;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
         ? table.userData.chalks
         : [];
@@ -11561,6 +11622,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
+          tableGroupRef.current = null;
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
@@ -11590,6 +11652,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         setErr(e?.message || String(e));
       }
   }, []);
+
+  useEffect(() => {
+    const table = tableGroupRef.current;
+    if (!table) return;
+    const coverGroups = table.userData?.pocketCoverGroups;
+    if (!coverGroups) return;
+    if (coverGroups.corner) {
+      coverGroups.corner.visible = cornerPocketCoverEnabled;
+    }
+    if (coverGroups.side) {
+      coverGroups.side.visible = sidePocketCoverEnabled;
+    }
+  }, [cornerPocketCoverEnabled, sidePocketCoverEnabled]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -11953,6 +12028,75 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Pocket Covers
+                </h3>
+                <div className="mt-2 space-y-3">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.28em] text-white/50">
+                      Corner Pockets
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCornerPocketCoverEnabled(true)}
+                        aria-pressed={cornerPocketCoverEnabled}
+                        className={`flex-1 min-w-[6.5rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          cornerPocketCoverEnabled
+                            ? 'bg-emerald-400 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        Enabled
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCornerPocketCoverEnabled(false)}
+                        aria-pressed={!cornerPocketCoverEnabled}
+                        className={`flex-1 min-w-[6.5rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          !cornerPocketCoverEnabled
+                            ? 'bg-emerald-400 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        Hidden
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.28em] text-white/50">
+                      Middle Pockets
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSidePocketCoverEnabled(true)}
+                        aria-pressed={sidePocketCoverEnabled}
+                        className={`flex-1 min-w-[6.5rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          sidePocketCoverEnabled
+                            ? 'bg-emerald-400 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        Enabled
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSidePocketCoverEnabled(false)}
+                        aria-pressed={!sidePocketCoverEnabled}
+                        className={`flex-1 min-w-[6.5rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          !sidePocketCoverEnabled
+                            ? 'bg-emerald-400 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        Hidden
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
