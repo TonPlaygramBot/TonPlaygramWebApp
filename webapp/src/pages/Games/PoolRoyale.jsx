@@ -4568,6 +4568,19 @@ function Table3D(
     });
   };
 
+  const shouldOmitPocketCover = (clip) => {
+    if (!clip) return false;
+    if (clip.type === 'corner' && clip.sx === 1 && clip.sz === 1) {
+      // Remove one plastic cover from the front-right corner pocket
+      return true;
+    }
+    if (clip.type === 'side' && clip.sx === 1) {
+      // Remove one plastic cover from the right middle pocket
+      return true;
+    }
+    return false;
+  };
+
   [
     {
       mp: createCornerPocketCover(1, 1),
@@ -4627,7 +4640,9 @@ function Table3D(
         centerZ: 0
       }
     }
-  ].forEach(addPocketCoverFromMP);
+  ]
+    .filter(({ clip }) => !shouldOmitPocketCover(clip))
+    .forEach(addPocketCoverFromMP);
 
   if (pocketCoverGroup.children.length) {
     railsGroup.add(pocketCoverGroup);
