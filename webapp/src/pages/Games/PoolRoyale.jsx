@@ -223,8 +223,8 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
-const WOOD_RAIL_CORNER_POCKET_CUT_SCALE = 0.94; // push the wooden rail corner cuts farther outward so their arc sits farther from centre
-const WOOD_RAIL_SIDE_POCKET_CUT_SCALE = 0.974; // nudge the wooden side rail cutouts farther outward without affecting the chrome trim
+const WOOD_RAIL_CORNER_POCKET_CUT_SCALE = 0.952; // push the wooden rail corner cuts outward a touch so their arc sits farther from centre
+const WOOD_RAIL_SIDE_POCKET_CUT_SCALE = 0.986; // nudge the wooden side rail cutouts outward without affecting the chrome trim
 
 function buildChromePlateGeometry({
   width,
