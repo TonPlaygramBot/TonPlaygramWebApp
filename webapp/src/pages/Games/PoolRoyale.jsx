@@ -4110,7 +4110,7 @@ function Table3D(
     CORNER_POCKET_CENTER_INSET +
     CORNER_NOTCH_EXTRA_INSET;
   const sideInset =
-    SIDE_POCKET_RADIUS * 0.79 * POCKET_VISUAL_EXPANSION; // ease the middle rail cuts outward a touch more so they sit closer to the side rails
+    SIDE_POCKET_RADIUS * 0.765 * POCKET_VISUAL_EXPANSION; // push the middle rail cuts farther outward so the chrome and rail rounding hug the side rails
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
