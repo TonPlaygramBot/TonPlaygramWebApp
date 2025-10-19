@@ -241,7 +241,6 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly 
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
-const CHROME_PLATE_SURFACE_THICKNESS_SCALE = 0.1; // keep chrome plates slim so they rest on top of the rails without wrapping down the sides
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
 const CORNER_POCKET_COVER_SIZE_SCALE =
@@ -703,9 +702,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const SPIN_STRENGTH = BALL_R * 0.0390625;
+const SPIN_STRENGTH = BALL_R * 0.03125;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.021875;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
@@ -763,11 +762,11 @@ const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-// Allow a deeper strike: tip offset max = 0.95R and side/top spin amounts = 0.4375R.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.95;
-const MAX_SPIN_FORWARD = BALL_R * 0.4375;
-const MAX_SPIN_SIDE = BALL_R * 0.4375;
-const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.4375, MAX_SPIN_CONTACT_OFFSET);
+// Match the 2D aiming configuration: tip offset max = 0.85R and side/top spin amounts = 0.35R.
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
+const MAX_SPIN_FORWARD = BALL_R * 0.35;
+const MAX_SPIN_SIDE = BALL_R * 0.35;
+const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.35, MAX_SPIN_CONTACT_OFFSET);
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -1285,29 +1284,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
 
 const STORAGE_CORNER_POCKET_COVER = 'poolCornerPocketCoverEnabled';
 const STORAGE_SIDE_POCKET_COVER = 'poolSidePocketCoverEnabled';
-const STORAGE_POCKET_COVER_LAYOUT = 'poolPocketCoverLayout';
-
-const POCKET_COVER_LAYOUTS = Object.freeze([
-  Object.freeze({
-    id: 'classic',
-    label: 'Classic Layout',
-    cornerStyle: 'corner',
-    sideStyle: 'side'
-  }),
-  Object.freeze({
-    id: 'swapped',
-    label: 'Swap Styles',
-    cornerStyle: 'side',
-    sideStyle: 'corner'
-  })
-]);
-
-const POCKET_COVER_LAYOUTS_BY_ID = Object.freeze(
-  POCKET_COVER_LAYOUTS.reduce((acc, layout) => {
-    acc[layout.id] = layout;
-    return acc;
-  }, {})
-);
 
 const toHexColor = (value) => {
   if (typeof value === 'number') {
@@ -3588,9 +3564,7 @@ function Table3D(
 ) {
   const {
     cornerPocketCovers = true,
-    sidePocketCovers = true,
-    cornerCoverStyle = 'corner',
-    sideCoverStyle = 'side'
+    sidePocketCovers = true
   } = options ?? {};
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -4031,8 +4005,7 @@ function Table3D(
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.056; // pull cushions a touch farther toward centre so they no longer overlap the wood trim
   const SIDE_CUSHION_RAIL_REACH =
     TABLE.THICK * 0.038; // push the long-rail cushions out far enough that they rest against the side rails without overlapping
-  const CUSHION_HEIGHT_LEVEL_SCALE = 0.97; // drop cushion tops slightly so they sit flush with the rail caps
-  const SHORT_CUSHION_HEIGHT_SCALE = 1.02; // keep the short-rail cushions fractionally taller for symmetry after lowering
+  const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
   const outerCornerRadius =
@@ -4068,11 +4041,15 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = Math.max(
-    MICRO_EPS,
-    railH * CHROME_PLATE_SURFACE_THICKNESS_SCALE
-  ); // keep the chrome plates shallow so they rest on top of the rails
-  const sideChromePlateThickness = chromePlateThickness;
+  const chromePocketCoverageDepth = Math.max(
+    0,
+    railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
+  ); // extend the pocket arches until they meet the lowered cloth plane
+  const chromePlateThickness = railH * 0.17; // deepen the corner chrome so it blankets the rail sides and pocket cuts
+  const sideChromePlateThickness = Math.min(
+    railH * 0.92,
+    Math.max(chromePlateThickness, chromePocketCoverageDepth)
+  );
   const chromePlateInset = TABLE.THICK * 0.02;
   const sideChromePlateInset = TABLE.THICK * CHROME_SIDE_PLATE_RAIL_INSET_SCALE;
   const chromeCornerPlateTrim =
@@ -4494,38 +4471,15 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
-  const getPocketCoverScale = (style = 'corner') =>
-    style === 'side' ? SIDE_POCKET_COVER_SIZE_SCALE : CORNER_POCKET_COVER_SIZE_SCALE;
+  const createCornerPocketCover = (sx, sz) =>
+    scaleMultiPolygon(scaleCornerPocketCut(cornerNotchMP(sx, sz)), CORNER_POCKET_COVER_SIZE_SCALE);
 
-  const createCornerPocketCover = (sx, sz, style = 'corner') =>
-    scaleMultiPolygon(
-      scaleCornerPocketCut(cornerNotchMP(sx, sz)),
-      getPocketCoverScale(style)
-    );
-
-  const createSidePocketCover = (sx, style = 'side') =>
-    scaleMultiPolygon(
-      scaleSidePocketCut(sideNotchMP(sx)),
-      getPocketCoverScale(style)
-    );
+  const createSidePocketCover = (sx) =>
+    scaleMultiPolygon(scaleSidePocketCut(sideNotchMP(sx)), SIDE_POCKET_COVER_SIZE_SCALE);
 
   const pocketCoverGroup = new THREE.Group();
   const cornerPocketCoverGroup = new THREE.Group();
   const sidePocketCoverGroup = new THREE.Group();
-  const cornerPocketCoverVariants = {
-    corner: new THREE.Group(),
-    side: new THREE.Group()
-  };
-  const sidePocketCoverVariants = {
-    side: new THREE.Group(),
-    corner: new THREE.Group()
-  };
-  Object.values(cornerPocketCoverVariants).forEach((group) =>
-    cornerPocketCoverGroup.add(group)
-  );
-  Object.values(sidePocketCoverVariants).forEach((group) =>
-    sidePocketCoverGroup.add(group)
-  );
   cornerPocketCoverGroup.visible = !!cornerPocketCovers;
   sidePocketCoverGroup.visible = !!sidePocketCovers;
   pocketCoverGroup.add(cornerPocketCoverGroup);
@@ -4628,22 +4582,9 @@ function Table3D(
     });
   };
 
-  const resolveCoverStyle = (style) => (style === 'side' ? 'side' : 'corner');
-  const activeCornerCoverStyle = resolveCoverStyle(cornerCoverStyle);
-  const activeSideCoverStyle = resolveCoverStyle(sideCoverStyle);
-
-  const applyCoverVariantVisibility = (variants, activeStyle) => {
-    Object.entries(variants).forEach(([styleKey, group]) => {
-      if (group) {
-        group.visible = styleKey === activeStyle;
-      }
-    });
-  };
-
-  const cornerCoverConfigs = [
+  [
     {
-      sx: 1,
-      sz: 1,
+      mp: createCornerPocketCover(1, 1),
       clip: {
         type: 'corner',
         sx: 1,
@@ -4653,8 +4594,7 @@ function Table3D(
       }
     },
     {
-      sx: -1,
-      sz: 1,
+      mp: createCornerPocketCover(-1, 1),
       clip: {
         type: 'corner',
         sx: -1,
@@ -4664,8 +4604,7 @@ function Table3D(
       }
     },
     {
-      sx: -1,
-      sz: -1,
+      mp: createCornerPocketCover(-1, -1),
       clip: {
         type: 'corner',
         sx: -1,
@@ -4675,8 +4614,7 @@ function Table3D(
       }
     },
     {
-      sx: 1,
-      sz: -1,
+      mp: createCornerPocketCover(1, -1),
       clip: {
         type: 'corner',
         sx: 1,
@@ -4685,18 +4623,11 @@ function Table3D(
         centerZ: -(innerHalfH - cornerInset)
       }
     }
-  ];
+  ].forEach((config) => addPocketCoverFromMP(cornerPocketCoverGroup, config));
 
-  cornerCoverConfigs.forEach(({ sx, sz, clip }) => {
-    Object.entries(cornerPocketCoverVariants).forEach(([styleKey, group]) => {
-      const mp = createCornerPocketCover(sx, sz, styleKey);
-      addPocketCoverFromMP(group, { mp, clip });
-    });
-  });
-
-  const sideCoverConfigs = [
+  [
     {
-      sx: -1,
+      mp: createSidePocketCover(-1),
       clip: {
         type: 'side',
         sx: -1,
@@ -4705,7 +4636,7 @@ function Table3D(
       }
     },
     {
-      sx: 1,
+      mp: createSidePocketCover(1),
       clip: {
         type: 'side',
         sx: 1,
@@ -4713,17 +4644,7 @@ function Table3D(
         centerZ: 0
       }
     }
-  ];
-
-  sideCoverConfigs.forEach(({ sx, clip }) => {
-    Object.entries(sidePocketCoverVariants).forEach(([styleKey, group]) => {
-      const mp = createSidePocketCover(sx, styleKey);
-      addPocketCoverFromMP(group, { mp, clip });
-    });
-  });
-
-  applyCoverVariantVisibility(cornerPocketCoverVariants, activeCornerCoverStyle);
-  applyCoverVariantVisibility(sidePocketCoverVariants, activeSideCoverStyle);
+  ].forEach((config) => addPocketCoverFromMP(sidePocketCoverGroup, config));
 
   if (cornerPocketCoverGroup.children.length || sidePocketCoverGroup.children.length) {
     railsGroup.add(pocketCoverGroup);
@@ -4731,15 +4652,7 @@ function Table3D(
 
   table.userData.pocketCoverGroups = {
     corner: cornerPocketCoverGroup,
-    side: sidePocketCoverGroup,
-    variants: {
-      corner: cornerPocketCoverVariants,
-      side: sidePocketCoverVariants
-    },
-    style: {
-      corner: activeCornerCoverStyle,
-      side: activeSideCoverStyle
-    }
+    side: sidePocketCoverGroup
   };
 
   table.add(railsGroup);
@@ -4833,10 +4746,7 @@ function Table3D(
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const cushionHeightTarget = railsTopY - cushionBaseY;
-  const cushionScaleY = Math.max(
-    0.001,
-    (cushionHeightTarget / railH) * CUSHION_HEIGHT_LEVEL_SCALE
-  );
+  const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
 
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
@@ -5419,21 +5329,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return true;
   });
-  const [pocketCoverLayoutId, setPocketCoverLayoutId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(STORAGE_POCKET_COVER_LAYOUT);
-      if (stored && POCKET_COVER_LAYOUTS_BY_ID[stored]) {
-        return stored;
-      }
-    }
-    return POCKET_COVER_LAYOUTS[0]?.id ?? 'classic';
-  });
-  const activePocketCoverLayout = useMemo(
-    () =>
-      POCKET_COVER_LAYOUTS_BY_ID[pocketCoverLayoutId] ??
-      POCKET_COVER_LAYOUTS_BY_ID[POCKET_COVER_LAYOUTS[0]?.id ?? 'classic'],
-    [pocketCoverLayoutId]
-  );
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
@@ -5753,11 +5648,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       );
     }
   }, [sidePocketCoverEnabled]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_POCKET_COVER_LAYOUT, pocketCoverLayoutId);
-    }
-  }, [pocketCoverLayoutId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -9195,9 +9085,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         cushionMat: tableCushion
       } = Table3D(world, finishForScene, tableSizeMeta, {
         cornerPocketCovers: cornerPocketCoverEnabled,
-        sidePocketCovers: sidePocketCoverEnabled,
-        cornerCoverStyle: activePocketCoverLayout.cornerStyle,
-        sideCoverStyle: activePocketCoverLayout.sideStyle
+        sidePocketCovers: sidePocketCoverEnabled
       });
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -11770,35 +11658,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     if (!table) return;
     const coverGroups = table.userData?.pocketCoverGroups;
     if (!coverGroups) return;
-    const resolveStyle = (style) => (style === 'side' ? 'side' : 'corner');
-    const cornerStyle = resolveStyle(activePocketCoverLayout?.cornerStyle);
-    const sideStyle = resolveStyle(activePocketCoverLayout?.sideStyle);
-    const applyStyle = (type, style) => {
-      const variants = coverGroups.variants?.[type];
-      if (variants) {
-        Object.entries(variants).forEach(([key, group]) => {
-          if (group) {
-            group.visible = key === style;
-          }
-        });
-      }
-      if (coverGroups.style) {
-        coverGroups.style[type] = style;
-      }
-    };
-    applyStyle('corner', cornerStyle);
-    applyStyle('side', sideStyle);
     if (coverGroups.corner) {
       coverGroups.corner.visible = cornerPocketCoverEnabled;
     }
     if (coverGroups.side) {
       coverGroups.side.visible = sidePocketCoverEnabled;
     }
-  }, [
-    cornerPocketCoverEnabled,
-    sidePocketCoverEnabled,
-    activePocketCoverLayout
-  ]);
+  }, [cornerPocketCoverEnabled, sidePocketCoverEnabled]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -12229,31 +12095,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       >
                         Hidden
                       </button>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.28em] text-white/50">
-                      Cover Layout
-                    </p>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {POCKET_COVER_LAYOUTS.map((layout) => {
-                        const active = layout.id === pocketCoverLayoutId;
-                        return (
-                          <button
-                            key={layout.id}
-                            type="button"
-                            onClick={() => setPocketCoverLayoutId(layout.id)}
-                            aria-pressed={active}
-                            className={`flex-1 min-w-[6.5rem] rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                              active
-                                ? 'bg-emerald-400 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                : 'bg-white/10 text-white/80 hover:bg-white/20'
-                            }`}
-                          >
-                            {layout.label}
-                          </button>
-                        );
-                      })}
                     </div>
                   </div>
                 </div>
