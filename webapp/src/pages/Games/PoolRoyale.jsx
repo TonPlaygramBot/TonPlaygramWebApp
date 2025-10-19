@@ -153,6 +153,26 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
+function translateMultiPolygon(mp, dx = 0, dz = 0) {
+  if (!Array.isArray(mp) || (!dx && !dz)) {
+    return Array.isArray(mp) ? mp : [];
+  }
+  const offsetX = Number.isFinite(dx) ? dx : 0;
+  const offsetZ = Number.isFinite(dz) ? dz : 0;
+  return mp.map((poly) =>
+    Array.isArray(poly)
+      ? poly.map((ring) =>
+          Array.isArray(ring)
+            ? ring.map((pt) => {
+                if (!Array.isArray(pt) || pt.length < 2) return pt;
+                return [pt[0] + offsetX, pt[1] + offsetZ];
+              })
+            : ring
+        )
+      : poly
+  );
+}
+
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -573,7 +593,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners perfectly straight without rounding
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -4439,6 +4459,45 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
+  const createCornerPocketCoverFromSide = (sx, sz) => {
+    const base = scaleSidePocketCut(sideNotchMP(sx));
+    const baseCenterX = sx * (innerHalfW - sideInset);
+    const targetCenterX = sx * (innerHalfW - cornerInset);
+    const targetCenterZ = sz * (innerHalfH - cornerInset);
+    return translateMultiPolygon(
+      base,
+      targetCenterX - baseCenterX,
+      targetCenterZ
+    );
+  };
+
+  const createSidePocketCoverFromCorners = (sx) => {
+    const translateCornerMP = (sz) => {
+      const base = scaleCornerPocketCut(cornerNotchMP(sx, sz));
+      const baseCenterX = sx * (innerHalfW - cornerInset);
+      const baseCenterZ = sz * (innerHalfH - cornerInset);
+      const targetCenterX = sx * (innerHalfW - sideInset);
+      const targetCenterZ = 0;
+      return translateMultiPolygon(
+        base,
+        targetCenterX - baseCenterX,
+        targetCenterZ - baseCenterZ
+      );
+    };
+    try {
+      const combined = polygonClipping.union(
+        translateCornerMP(1),
+        translateCornerMP(-1)
+      );
+      if (Array.isArray(combined) && combined.length) {
+        return combined;
+      }
+    } catch (err) {
+      console.warn('Side pocket cover union failed', err);
+    }
+    return translateCornerMP(1);
+  };
+
   const pocketCoverGroup = new THREE.Group();
   const pocketCoverMat = new THREE.MeshPhysicalMaterial({
     color: 0x0c0c0f,
@@ -4540,7 +4599,7 @@ function Table3D(
 
   [
     {
-      mp: scaleCornerPocketCut(cornerNotchMP(1, 1)),
+      mp: createCornerPocketCoverFromSide(1, 1),
       clip: {
         type: 'corner',
         sx: 1,
@@ -4550,7 +4609,7 @@ function Table3D(
       }
     },
     {
-      mp: scaleCornerPocketCut(cornerNotchMP(-1, 1)),
+      mp: createCornerPocketCoverFromSide(-1, 1),
       clip: {
         type: 'corner',
         sx: -1,
@@ -4560,7 +4619,7 @@ function Table3D(
       }
     },
     {
-      mp: scaleCornerPocketCut(cornerNotchMP(-1, -1)),
+      mp: createCornerPocketCoverFromSide(-1, -1),
       clip: {
         type: 'corner',
         sx: -1,
@@ -4570,7 +4629,7 @@ function Table3D(
       }
     },
     {
-      mp: scaleCornerPocketCut(cornerNotchMP(1, -1)),
+      mp: createCornerPocketCoverFromSide(1, -1),
       clip: {
         type: 'corner',
         sx: 1,
@@ -4580,7 +4639,7 @@ function Table3D(
       }
     },
     {
-      mp: scaleSidePocketCut(sideNotchMP(-1)),
+      mp: createSidePocketCoverFromCorners(-1),
       clip: {
         type: 'side',
         sx: -1,
@@ -4589,7 +4648,7 @@ function Table3D(
       }
     },
     {
-      mp: scaleSidePocketCut(sideNotchMP(1)),
+      mp: createSidePocketCoverFromCorners(1),
       clip: {
         type: 'side',
         sx: 1,
