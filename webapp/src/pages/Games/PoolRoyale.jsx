@@ -3969,7 +3969,7 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.056; // pull cushions a touch farther toward centre so they no longer overlap the wood trim
   const SIDE_CUSHION_RAIL_REACH =
-    TABLE.THICK * 0.028; // push the long-rail cushions out far enough that they rest against the side rails without overlapping
+    TABLE.THICK * 0.034; // push the long-rail cushions out far enough that they rest against the side rails without overlapping
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -4096,7 +4096,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const CORNER_NOTCH_EXTRA_INSET =
-    TABLE.THICK * 0.022; // move the chrome/rail corner cutouts a touch further toward centre to keep the curved trim aligned
+    TABLE.THICK * 0.028; // move the chrome/rail corner cutouts a touch further toward centre to keep the curved trim aligned
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION +
     CORNER_POCKET_CENTER_INSET +
