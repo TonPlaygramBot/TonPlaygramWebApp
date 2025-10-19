@@ -249,6 +249,39 @@ const SIDE_POCKET_COVER_SIZE_SCALE =
   RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE; // swap liner widths so the side covers inherit the previous corner-pocket footprint
 const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
 const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
+const POCKET_COVER_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'hybrid',
+    label: 'Hybrid Shell',
+    cornerNotchScale: RAIL_CORNER_POCKET_CUT_SCALE,
+    cornerCoverScale: CORNER_POCKET_COVER_SIZE_SCALE,
+    sideNotchScale: RAIL_SIDE_POCKET_CUT_SCALE,
+    sideCoverScale: SIDE_POCKET_COVER_SIZE_SCALE,
+    innerScale: POCKET_COVER_INNER_SCALE,
+    depthScale: POCKET_COVER_DEPTH_SCALE
+  },
+  {
+    id: 'uniform',
+    label: 'Uniform Shell',
+    cornerNotchScale: RAIL_CORNER_POCKET_CUT_SCALE,
+    cornerCoverScale: 1,
+    sideNotchScale: RAIL_SIDE_POCKET_CUT_SCALE,
+    sideCoverScale: 1,
+    innerScale: 0.9,
+    depthScale: 0.94
+  }
+]);
+const POCKET_COVER_STYLES_BY_ID = Object.freeze(
+  POCKET_COVER_STYLE_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+const DEFAULT_POCKET_COVER_STYLE_ID = POCKET_COVER_STYLE_OPTIONS[0]?.id ?? 'hybrid';
+const resolvePocketCoverStyleId = (value) =>
+  value && POCKET_COVER_STYLES_BY_ID[value]
+    ? value
+    : DEFAULT_POCKET_COVER_STYLE_ID;
 
 function buildChromePlateGeometry({
   width,
@@ -3556,7 +3589,8 @@ function createAccentMesh(accent, dims) {
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
-  tableSpecMeta = null
+  tableSpecMeta = null,
+  pocketCoverConfig = null
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -4298,10 +4332,10 @@ function Table3D(
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
 
-  const scaleCornerPocketCut = (mp) =>
-    scalePocketCutMP(mp, RAIL_CORNER_POCKET_CUT_SCALE);
-  const scaleSidePocketCut = (mp) =>
-    scalePocketCutMP(mp, RAIL_SIDE_POCKET_CUT_SCALE);
+  const scaleCornerPocketCut = (mp, scale = RAIL_CORNER_POCKET_CUT_SCALE) =>
+    scalePocketCutMP(mp, scale);
+  const scaleSidePocketCut = (mp, scale = RAIL_SIDE_POCKET_CUT_SCALE) =>
+    scalePocketCutMP(mp, scale);
 
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
@@ -4463,11 +4497,23 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
-  const createCornerPocketCover = (sx, sz) =>
-    scaleMultiPolygon(scaleCornerPocketCut(cornerNotchMP(sx, sz)), CORNER_POCKET_COVER_SIZE_SCALE);
+  const createCornerPocketCover = (sx, sz, variant = null) => {
+    const notchScale = variant?.cornerNotchScale ?? RAIL_CORNER_POCKET_CUT_SCALE;
+    const coverScale = variant?.cornerCoverScale ?? 1;
+    return scaleMultiPolygon(
+      scaleCornerPocketCut(cornerNotchMP(sx, sz), notchScale),
+      coverScale
+    );
+  };
 
-  const createSidePocketCover = (sx) =>
-    scaleMultiPolygon(scaleSidePocketCut(sideNotchMP(sx)), SIDE_POCKET_COVER_SIZE_SCALE);
+  const createSidePocketCover = (sx, variant = null) => {
+    const notchScale = variant?.sideNotchScale ?? RAIL_SIDE_POCKET_CUT_SCALE;
+    const coverScale = variant?.sideCoverScale ?? 1;
+    return scaleMultiPolygon(
+      scaleSidePocketCut(sideNotchMP(sx), notchScale),
+      coverScale
+    );
+  };
 
   const pocketCoverGroup = new THREE.Group();
   const pocketCoverMat = new THREE.MeshPhysicalMaterial({
@@ -4478,10 +4524,27 @@ function Table3D(
     clearcoat: 0.32,
     clearcoatRoughness: 0.48
   });
-  const pocketCoverDepth = railH * POCKET_COVER_DEPTH_SCALE;
-  const pocketCoverBaseY = frameTopY + Math.max(0, railH - pocketCoverDepth);
   const POCKET_COVER_CLIP_WIDTH = outerHalfW * 4 + TABLE.THICK;
   const POCKET_COVER_CLIP_DEPTH = outerHalfH * 4 + TABLE.THICK;
+  const activeCornerCoverId = resolvePocketCoverStyleId(pocketCoverConfig?.corner);
+  const activeSideCoverId = resolvePocketCoverStyleId(pocketCoverConfig?.side);
+  const pocketCoverGroups = {
+    corner: new Map(),
+    side: new Map()
+  };
+  POCKET_COVER_STYLE_OPTIONS.forEach((variant) => {
+    const cornerGroup = new THREE.Group();
+    cornerGroup.name = `cornerPocketCover:${variant.id}`;
+    cornerGroup.visible = variant.id === activeCornerCoverId;
+    pocketCoverGroup.add(cornerGroup);
+    pocketCoverGroups.corner.set(variant.id, cornerGroup);
+
+    const sideGroup = new THREE.Group();
+    sideGroup.name = `sidePocketCover:${variant.id}`;
+    sideGroup.visible = variant.id === activeSideCoverId;
+    pocketCoverGroup.add(sideGroup);
+    pocketCoverGroups.side.set(variant.id, sideGroup);
+  });
 
   const createPocketCoverClipMask = (clip) => {
     if (!clip) return null;
@@ -4530,11 +4593,11 @@ function Table3D(
     return mp;
   };
 
-  const buildPocketCoverShapes = (mp, clip) => {
+  const buildPocketCoverShapes = (mp, clip, innerScale = POCKET_COVER_INNER_SCALE) => {
     if (!Array.isArray(mp) || !mp.length) return [];
     let coverMP = mp;
-    if (POCKET_COVER_INNER_SCALE > 0 && POCKET_COVER_INNER_SCALE < 1) {
-      const inner = scaleMultiPolygon(mp, POCKET_COVER_INNER_SCALE);
+    if (innerScale > 0 && innerScale < 1) {
+      const inner = scaleMultiPolygon(mp, innerScale);
       if (Array.isArray(inner) && inner.length) {
         try {
           const diff = polygonClipping.difference(mp, inner);
@@ -4550,85 +4613,122 @@ function Table3D(
     return multiPolygonToShapes(clipped);
   };
 
-  const addPocketCoverFromMP = ({ mp, clip }) => {
-    const shapes = buildPocketCoverShapes(mp, clip);
+  const addPocketCoverFromMP = ({
+    mp,
+    clip,
+    innerScale,
+    depth,
+    baseY,
+    group
+  }) => {
+    if (!group) return;
+    const shapes = buildPocketCoverShapes(mp, clip, innerScale);
     shapes.forEach((shape) => {
       const geo = new THREE.ExtrudeGeometry(shape, {
-        depth: pocketCoverDepth,
+        depth,
         bevelEnabled: false,
         curveSegments: 96
       });
       geo.rotateX(-Math.PI / 2);
       geo.computeVertexNormals();
       const mesh = new THREE.Mesh(geo, pocketCoverMat);
-      mesh.position.y = pocketCoverBaseY;
+      mesh.position.y = baseY;
       mesh.castShadow = false;
       mesh.receiveShadow = false;
-      pocketCoverGroup.add(mesh);
+      group.add(mesh);
     });
   };
 
-  [
-    {
-      mp: createCornerPocketCover(1, 1),
-      clip: {
-        type: 'corner',
-        sx: 1,
-        sz: 1,
-        centerX: innerHalfW - cornerInset,
-        centerZ: innerHalfH - cornerInset
+  const addPocketCoversForVariant = (variant) => {
+    const innerScale = variant.innerScale ?? POCKET_COVER_INNER_SCALE;
+    const depthScale = variant.depthScale ?? POCKET_COVER_DEPTH_SCALE;
+    const depth = railH * depthScale;
+    const baseY = frameTopY + Math.max(0, railH - depth);
+    const cornerGroup = pocketCoverGroups.corner.get(variant.id);
+    const sideGroup = pocketCoverGroups.side.get(variant.id);
+
+    [
+      {
+        mp: createCornerPocketCover(1, 1, variant),
+        clip: {
+          type: 'corner',
+          sx: 1,
+          sz: 1,
+          centerX: innerHalfW - cornerInset,
+          centerZ: innerHalfH - cornerInset
+        }
+      },
+      {
+        mp: createCornerPocketCover(-1, 1, variant),
+        clip: {
+          type: 'corner',
+          sx: -1,
+          sz: 1,
+          centerX: -(innerHalfW - cornerInset),
+          centerZ: innerHalfH - cornerInset
+        }
+      },
+      {
+        mp: createCornerPocketCover(-1, -1, variant),
+        clip: {
+          type: 'corner',
+          sx: -1,
+          sz: -1,
+          centerX: -(innerHalfW - cornerInset),
+          centerZ: -(innerHalfH - cornerInset)
+        }
+      },
+      {
+        mp: createCornerPocketCover(1, -1, variant),
+        clip: {
+          type: 'corner',
+          sx: 1,
+          sz: -1,
+          centerX: innerHalfW - cornerInset,
+          centerZ: -(innerHalfH - cornerInset)
+        }
       }
-    },
-    {
-      mp: createCornerPocketCover(-1, 1),
-      clip: {
-        type: 'corner',
-        sx: -1,
-        sz: 1,
-        centerX: -(innerHalfW - cornerInset),
-        centerZ: innerHalfH - cornerInset
+    ].forEach((entry) =>
+      addPocketCoverFromMP({
+        ...entry,
+        innerScale,
+        depth,
+        baseY,
+        group: cornerGroup
+      })
+    );
+
+    [
+      {
+        mp: createSidePocketCover(-1, variant),
+        clip: {
+          type: 'side',
+          sx: -1,
+          centerX: -(innerHalfW - sideInset),
+          centerZ: 0
+        }
+      },
+      {
+        mp: createSidePocketCover(1, variant),
+        clip: {
+          type: 'side',
+          sx: 1,
+          centerX: innerHalfW - sideInset,
+          centerZ: 0
+        }
       }
-    },
-    {
-      mp: createCornerPocketCover(-1, -1),
-      clip: {
-        type: 'corner',
-        sx: -1,
-        sz: -1,
-        centerX: -(innerHalfW - cornerInset),
-        centerZ: -(innerHalfH - cornerInset)
-      }
-    },
-    {
-      mp: createCornerPocketCover(1, -1),
-      clip: {
-        type: 'corner',
-        sx: 1,
-        sz: -1,
-        centerX: innerHalfW - cornerInset,
-        centerZ: -(innerHalfH - cornerInset)
-      }
-    },
-    {
-      mp: createSidePocketCover(-1),
-      clip: {
-        type: 'side',
-        sx: -1,
-        centerX: -(innerHalfW - sideInset),
-        centerZ: 0
-      }
-    },
-    {
-      mp: createSidePocketCover(1),
-      clip: {
-        type: 'side',
-        sx: 1,
-        centerX: innerHalfW - sideInset,
-        centerZ: 0
-      }
-    }
-  ]
-    .forEach(addPocketCoverFromMP);
+    ].forEach((entry) =>
+      addPocketCoverFromMP({
+        ...entry,
+        innerScale,
+        depth,
+        baseY,
+        group: sideGroup
+      })
+    );
+  };
+
+  POCKET_COVER_STYLE_OPTIONS.forEach(addPocketCoversForVariant);
 
   if (pocketCoverGroup.children.length) {
     railsGroup.add(pocketCoverGroup);
@@ -5056,6 +5156,11 @@ function Table3D(
   table.userData.cushionLipClearance = clothPlaneWorld;
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
+  table.userData.pocketCoverGroups = pocketCoverGroups;
+  table.userData.pocketCoverSelection = {
+    corner: activeCornerCoverId,
+    side: activeSideCoverId
+  };
   parent.add(table);
 
   const baulkZ = baulkLineZ;
@@ -5274,6 +5379,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [cornerPocketCoverStyleId, setCornerPocketCoverStyleId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolCornerPocketCoverStyle');
+      if (stored && POCKET_COVER_STYLES_BY_ID[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_POCKET_COVER_STYLE_ID;
+  });
+  const [sidePocketCoverStyleId, setSidePocketCoverStyleId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolSidePocketCoverStyle');
+      if (stored && POCKET_COVER_STYLES_BY_ID[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_POCKET_COVER_STYLE_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -5288,6 +5411,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ??
       WOOD_GRAIN_OPTIONS[0],
     [woodTextureId]
+  );
+  const pocketCoverConfig = useMemo(
+    () => ({
+      corner: resolvePocketCoverStyleId(cornerPocketCoverStyleId),
+      side: resolvePocketCoverStyleId(sidePocketCoverStyleId)
+    }),
+    [cornerPocketCoverStyleId, sidePocketCoverStyleId]
   );
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
@@ -5557,8 +5687,32 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           materials.accent = {
             ...materials.accent,
             material: materials.accent.material.clone()
-          };
-        }
+  };
+}
+
+function applyPocketCoverSelectionToTable(table, selection) {
+  if (!table || !selection) return;
+  const groups = table.userData?.pocketCoverGroups;
+  if (!groups) return;
+  const resolvedCorner = resolvePocketCoverStyleId(selection.corner);
+  const resolvedSide = resolvePocketCoverStyleId(selection.side);
+  const applyVisibility = (map, activeId) => {
+    if (!(map instanceof Map)) return;
+    map.forEach((group, id) => {
+      if (group && typeof group.visible === 'boolean') {
+        group.visible = id === activeId;
+      }
+    });
+  };
+  applyVisibility(groups.corner, resolvedCorner);
+  applyVisibility(groups.side, resolvedSide);
+  if (table.userData) {
+    table.userData.pocketCoverSelection = {
+      corner: resolvedCorner,
+      side: resolvedSide
+    };
+  }
+}
         return materials;
       }
     };
@@ -5567,6 +5721,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     tableFinishRef.current = tableFinish;
   }, [tableFinish]);
+  const pocketCoverConfigRef = useRef(pocketCoverConfig);
+  useEffect(() => {
+    pocketCoverConfigRef.current = pocketCoverConfig;
+  }, [pocketCoverConfig]);
   const activeVariantRef = useRef(activeVariant);
   useEffect(() => {
     activeVariantRef.current = activeVariant;
@@ -5592,6 +5750,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
   }, [woodTextureId]);
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolCornerPocketCoverStyle', cornerPocketCoverStyleId);
+    }
+  }, [cornerPocketCoverStyleId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolSidePocketCoverStyle', sidePocketCoverStyleId);
+    }
+  }, [sidePocketCoverStyleId]);
+  useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -5614,6 +5782,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     };
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
+  const applyPocketCoversRef = useRef(() => {});
+  useEffect(() => {
+    applyPocketCoversRef.current?.(pocketCoverConfig);
+  }, [pocketCoverConfig]);
   const [frameState, setFrameState] = useState(() =>
     rules.getInitialFrame('Player', 'AI')
   );
@@ -9026,7 +9198,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         group: table,
         clothMat: tableCloth,
         cushionMat: tableCushion
-      } = Table3D(world, finishForScene, tableSizeMeta);
+      } = Table3D(world, finishForScene, tableSizeMeta, pocketCoverConfigRef.current);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -9039,6 +9211,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           applyTableFinishToTable(table, nextFinish);
         }
       };
+      applyPocketCoversRef.current = (nextConfig) => {
+        if (table && nextConfig) {
+          applyPocketCoverSelectionToTable(table, nextConfig);
+        }
+      };
+      applyPocketCoverSelectionToTable(table, pocketCoverConfigRef.current);
       if (table?.userData) {
         const cushionLip = table.userData.cushionTopLocal ?? TABLE.THICK;
         cushionHeightRef.current = Math.max(TABLE.THICK + 0.1, cushionLip - 0.02);
@@ -11561,6 +11739,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
+          applyPocketCoversRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
@@ -11953,6 +12132,63 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Pocket Covers
+                </h3>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.38em] text-white/50">
+                      Corner Pockets
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {POCKET_COVER_STYLE_OPTIONS.map((option) => {
+                        const active = option.id === cornerPocketCoverStyleId;
+                        return (
+                          <button
+                            key={`corner-${option.id}`}
+                            type="button"
+                            onClick={() => setCornerPocketCoverStyleId(option.id)}
+                            aria-pressed={active}
+                            className={`flex-1 min-w-[8rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.38em] text-white/50">
+                      Middle Pockets
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {POCKET_COVER_STYLE_OPTIONS.map((option) => {
+                        const active = option.id === sidePocketCoverStyleId;
+                        return (
+                          <button
+                            key={`side-${option.id}`}
+                            type="button"
+                            onClick={() => setSidePocketCoverStyleId(option.id)}
+                            aria-pressed={active}
+                            className={`flex-1 min-w-[8rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
