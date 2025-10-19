@@ -223,6 +223,8 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const WOOD_RAIL_CORNER_POCKET_CUT_SCALE = 0.952; // push the wooden rail corner cuts outward a touch so their arc sits farther from centre
+const WOOD_RAIL_SIDE_POCKET_CUT_SCALE = 0.986; // nudge the wooden side rail cutouts outward without affecting the chrome trim
 
 function buildChromePlateGeometry({
   width,
@@ -4272,10 +4274,14 @@ function Table3D(
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
 
-  const scaleCornerPocketCut = (mp) =>
-    scalePocketCutMP(mp, RAIL_CORNER_POCKET_CUT_SCALE);
-  const scaleSidePocketCut = (mp) =>
-    scalePocketCutMP(mp, RAIL_SIDE_POCKET_CUT_SCALE);
+  const chromeCornerPocketCut = (sx, sz) =>
+    scalePocketCutMP(cornerNotchMP(sx, sz), RAIL_CORNER_POCKET_CUT_SCALE);
+  const chromeSidePocketCut = (sx) =>
+    scalePocketCutMP(sideNotchMP(sx), RAIL_SIDE_POCKET_CUT_SCALE);
+  const railCornerPocketCut = (sx, sz) =>
+    scalePocketCutMP(cornerNotchMP(sx, sz), WOOD_RAIL_CORNER_POCKET_CUT_SCALE);
+  const railSidePocketCut = (sx) =>
+    scalePocketCutMP(sideNotchMP(sx), WOOD_RAIL_SIDE_POCKET_CUT_SCALE);
 
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
@@ -4285,7 +4291,7 @@ function Table3D(
   ].forEach(({ corner, sx, sz }) => {
     const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
     const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
-    const notchLocalMP = scaleCornerPocketCut(cornerNotchMP(sx, sz)).map((poly) =>
+    const notchLocalMP = chromeCornerPocketCut(sx, sz).map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
       )
@@ -4315,7 +4321,7 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
     const centerZ = 0;
-    const notchLocalMP = scaleSidePocketCut(sideNotchMP(sx)).map((poly) =>
+    const notchLocalMP = chromeSidePocketCut(sx).map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
     const plate = new THREE.Mesh(
@@ -4348,15 +4354,15 @@ function Table3D(
 
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...scaleSidePocketCut(sideNotchMP(-1)),
-    ...scaleSidePocketCut(sideNotchMP(1))
+    ...railSidePocketCut(-1),
+    ...railSidePocketCut(1)
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...scaleCornerPocketCut(cornerNotchMP(1, 1)),
-    ...scaleCornerPocketCut(cornerNotchMP(-1, 1)),
-    ...scaleCornerPocketCut(cornerNotchMP(-1, -1)),
-    ...scaleCornerPocketCut(cornerNotchMP(1, -1))
+    ...railCornerPocketCut(1, 1),
+    ...railCornerPocketCut(-1, 1),
+    ...railCornerPocketCut(-1, -1),
+    ...railCornerPocketCut(1, -1)
   );
 
   const railsOuter = new THREE.Shape();
