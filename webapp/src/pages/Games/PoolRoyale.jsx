@@ -218,8 +218,10 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.18; // run the trim farther down 
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
 const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward so they clear the rail caps on mobile
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
+const CHROME_CORNER_WIDTH_SCALE = 0.99; // match the snooker chrome footprint while keeping coverage on the rails
+const CHROME_CORNER_HEIGHT_SCALE = 0.99; // match the snooker chrome footprint while keeping coverage on the rails
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // gently widen the side plates so they still clear the pocket gaps
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
@@ -4043,15 +4045,23 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const chromePlateWidth = Math.max(
+  const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
-  const chromePlateHeight = Math.max(
+  const chromePlateBaseHeight = Math.max(
     MICRO_EPS,
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
+  );
+  const chromePlateWidth = Math.max(
+    MICRO_EPS,
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
+  );
+  const chromePlateHeight = Math.max(
+    MICRO_EPS,
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -4069,23 +4079,32 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - sideChromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
-  const sideChromePlateWidth = Math.max(
+  const sideChromePlateBaseWidth = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
-      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
-      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE
+      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE
+  );
+  const sideChromePlateWidth = Math.max(
+    MICRO_EPS,
+    Math.min(
+      sidePlateMaxWidth,
+      sideChromePlateBaseWidth * (1 + CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE)
+    )
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
   );
-  const sidePlateHeightByCushion = Math.max(
+  const sideChromePlateBaseHeight = Math.max(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
-  const sideChromePlateHeight = Math.min(
-    chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE,
-    Math.max(MICRO_EPS, sidePlateHeightByCushion)
+  const sideChromePlateHeight = Math.max(
+    MICRO_EPS,
+    Math.min(
+      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE,
+      sideChromePlateBaseHeight
+    )
   );
   const sidePlateThroatRadius = Math.max(
     MICRO_EPS,
