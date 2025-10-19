@@ -201,8 +201,8 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const WOOD_CORNER_CUT_SCALE = 0.985; // tighten wooden rail corner cutouts further so the chrome notches stay fully covered
-const WOOD_SIDE_CUT_SCALE = 0.99; // shrink side pocket cutouts so the wooden rails wrap cleanly around the pocket entries
+const WOOD_CORNER_CUT_SCALE = 0.993; // tighten wooden rail corner cutouts to better match the chrome plates
+const WOOD_SIDE_CUT_SCALE = 0.995; // gently shrink side pocket cutouts on the wooden rails
 
 function buildChromePlateGeometry({
   width,
