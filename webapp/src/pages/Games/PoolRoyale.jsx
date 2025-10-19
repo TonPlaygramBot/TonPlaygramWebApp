@@ -202,13 +202,13 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.012; // trim the chrome width slightly so it eases back toward the rail edges
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.982; // pull the short-rail chrome in a touch more to match the tightened rail cuts
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.985; // narrow the notch further so the chrome corner cut mirrors the smaller rail opening
+const CHROME_CORNER_EXPANSION_SCALE = 1.018; // tuck the chrome just shy of the rail edge so it no longer overlaps the wood caps
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.988; // keep the short-rail chrome aligned without spilling over the cushion edge
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.992; // narrow the notch so the chrome corner cut hugs the smaller rail opening
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.02;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.905; // open the side chrome throat a touch more to mirror the larger middle rail cuts
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.875; // open the side chrome throat a touch more to mirror the larger middle rail cuts
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
@@ -220,8 +220,8 @@ const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
-const RAIL_CORNER_POCKET_CUT_SCALE = 0.925; // tighten the corner rail pocket cuts further so the curved openings read smaller
-const RAIL_SIDE_POCKET_CUT_SCALE = 1.052; // relax the side pocket cuts a bit more so the middle openings grow larger
+const RAIL_CORNER_POCKET_CUT_SCALE = 0.94; // tighten the corner rail pocket cuts further so the curved openings read smaller
+const RAIL_SIDE_POCKET_CUT_SCALE = 1.036; // relax the side pocket cuts a bit more so the middle openings grow larger
 
 function buildChromePlateGeometry({
   width,
