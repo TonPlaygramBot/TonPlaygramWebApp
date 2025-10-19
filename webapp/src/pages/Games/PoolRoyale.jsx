@@ -223,6 +223,8 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
+const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
 
 function buildChromePlateGeometry({
   width,
@@ -4436,6 +4438,67 @@ function Table3D(
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
+
+  const pocketCoverGroup = new THREE.Group();
+  const pocketCoverMat = new THREE.MeshPhysicalMaterial({
+    color: 0x0c0c0f,
+    roughness: 0.34,
+    metalness: 0.18,
+    reflectivity: 0.08,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.48
+  });
+  const pocketCoverDepth = railH * POCKET_COVER_DEPTH_SCALE;
+  const pocketCoverBaseY = frameTopY + Math.max(0, railH - pocketCoverDepth);
+  const buildPocketCoverShapes = (mp) => {
+    if (!Array.isArray(mp) || !mp.length) return [];
+    let coverMP = mp;
+    if (POCKET_COVER_INNER_SCALE > 0 && POCKET_COVER_INNER_SCALE < 1) {
+      const inner = scaleMultiPolygon(mp, POCKET_COVER_INNER_SCALE);
+      if (Array.isArray(inner) && inner.length) {
+        try {
+          const diff = polygonClipping.difference(mp, inner);
+          if (Array.isArray(diff) && diff.length) {
+            coverMP = diff;
+          }
+        } catch (err) {
+          console.warn('Pocket cover clip failed', err);
+        }
+      }
+    }
+    return multiPolygonToShapes(coverMP);
+  };
+
+  const addPocketCoverFromMP = (mp) => {
+    const shapes = buildPocketCoverShapes(mp);
+    shapes.forEach((shape) => {
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: pocketCoverDepth,
+        bevelEnabled: false,
+        curveSegments: 96
+      });
+      geo.rotateX(-Math.PI / 2);
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, pocketCoverMat);
+      mesh.position.y = pocketCoverBaseY;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      pocketCoverGroup.add(mesh);
+    });
+  };
+
+  [
+    scaleCornerPocketCut(cornerNotchMP(1, 1)),
+    scaleCornerPocketCut(cornerNotchMP(-1, 1)),
+    scaleCornerPocketCut(cornerNotchMP(-1, -1)),
+    scaleCornerPocketCut(cornerNotchMP(1, -1)),
+    scaleSidePocketCut(sideNotchMP(-1)),
+    scaleSidePocketCut(sideNotchMP(1))
+  ].forEach(addPocketCoverFromMP);
+
+  if (pocketCoverGroup.children.length) {
+    railsGroup.add(pocketCoverGroup);
+  }
 
   table.add(railsGroup);
 
