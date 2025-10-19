@@ -202,14 +202,14 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 0.972; // trim the chrome width slightly further so it eases back toward the rail edges
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.934; // pull the short-rail chrome in a touch more to match the tightened rail cuts
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.978; // narrow the notch further so the chrome corner cut mirrors the smaller rail opening
+const CHROME_CORNER_EXPANSION_SCALE = 1.012; // trim the chrome width slightly so it eases back toward the rail edges
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.982; // pull the short-rail chrome in a touch more to match the tightened rail cuts
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.985; // narrow the notch further so the chrome corner cut mirrors the smaller rail opening
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.02;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 1; // restore the original middle pocket throat shape on the chrome plates
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1; // restore the original middle pocket throat height on the chrome plates
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.905; // open the side chrome throat a touch more to mirror the larger middle rail cuts
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
 const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
@@ -221,7 +221,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly 
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.925; // tighten the corner rail pocket cuts further so the curved openings read smaller
-const RAIL_SIDE_POCKET_CUT_SCALE = 1; // restore the side pocket rail cuts to their earlier silhouette
+const RAIL_SIDE_POCKET_CUT_SCALE = 1.052; // relax the side pocket cuts a bit more so the middle openings grow larger
 
 function buildChromePlateGeometry({
   width,
@@ -441,7 +441,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.72; // drop the rails a touch more so the trim sits flush with the skirts
+const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -3750,11 +3750,11 @@ function Table3D(
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.34,
-    Math.min(PLAY_W, PLAY_H) * 0.0095
+    Math.min(PLAY_W, PLAY_H) * 0.009
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0062; // extend the cloth slightly more so rails meet the cloth with no gaps
+    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
   const pocketPositions = pocketCenters();
@@ -3967,8 +3967,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const SHORT_CUSHION_CENTER_NUDGE = TABLE.THICK * 0.058; // keep the short rail cushions offset just enough to clear the rail trim
-  const LONG_CUSHION_CENTER_NUDGE = TABLE.THICK * 0.014; // tuck the long rail cushions closer so they hug the wood rails evenly
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.042; // push cushions slightly farther from the rails so they clear the wood trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -4016,11 +4015,10 @@ function Table3D(
   );
   const chromePlateInset = TABLE.THICK * 0.02;
   const sideChromePlateInset = TABLE.THICK * CHROME_SIDE_PLATE_RAIL_INSET_SCALE;
-  const CHROME_CORNER_EDGE_REDUCTION = TABLE.THICK * 0.01; // shave the chrome plates back slightly on both axes so they sit inside the rails
   const chromeCornerPlateTrim =
-    TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE) + CHROME_CORNER_EDGE_REDUCTION;
-  const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - SHORT_CUSHION_CENTER_NUDGE;
-  const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - LONG_CUSHION_CENTER_NUDGE;
+    TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
+  const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromeCornerMeetX = Math.max(0, horizLen / 2);
@@ -4586,11 +4584,11 @@ function Table3D(
     if (horizontal) {
       const side = z >= 0 ? 1 : -1;
       group.position.z =
-        side * (halfH - CUSHION_RAIL_FLUSH - LONG_CUSHION_CENTER_NUDGE);
+        side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
     } else {
       const side = x >= 0 ? 1 : -1;
       group.position.x =
-        side * (halfW - CUSHION_RAIL_FLUSH - SHORT_CUSHION_CENTER_NUDGE);
+        side * (halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
     }
 
     group.userData = group.userData || {};
