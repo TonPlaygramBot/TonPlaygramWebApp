@@ -3940,27 +3940,23 @@ function Table3D(
   const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
-  const pocketDepth = TABLE.THICK * 1.4;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
-    pocketDepth,
-    48,
-    1,
-    true
+    TABLE.THICK,
+    48
   );
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     metalness: 0.45,
     roughness: 0.6
   });
-  pocketMat.side = THREE.DoubleSide;
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(
       p.x,
-      clothPlaneLocal - pocketDepth / 2 - pocketSurfaceOffset,
+      clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
       p.y
     );
     pocket.receiveShadow = true;
@@ -4572,9 +4568,8 @@ function Table3D(
     });
   };
 
-  const pocketCoverConfigs = [
+  [
     {
-      id: 'corner-NE',
       mp: createCornerPocketCover(1, 1),
       clip: {
         type: 'corner',
@@ -4585,7 +4580,6 @@ function Table3D(
       }
     },
     {
-      id: 'corner-NW',
       mp: createCornerPocketCover(-1, 1),
       clip: {
         type: 'corner',
@@ -4596,7 +4590,6 @@ function Table3D(
       }
     },
     {
-      id: 'corner-SW',
       mp: createCornerPocketCover(-1, -1),
       clip: {
         type: 'corner',
@@ -4607,7 +4600,6 @@ function Table3D(
       }
     },
     {
-      id: 'corner-SE',
       mp: createCornerPocketCover(1, -1),
       clip: {
         type: 'corner',
@@ -4618,7 +4610,6 @@ function Table3D(
       }
     },
     {
-      id: 'side-W',
       mp: createSidePocketCover(-1),
       clip: {
         type: 'side',
@@ -4628,7 +4619,6 @@ function Table3D(
       }
     },
     {
-      id: 'side-E',
       mp: createSidePocketCover(1),
       clip: {
         type: 'side',
@@ -4637,12 +4627,7 @@ function Table3D(
         centerZ: 0
       }
     }
-  ];
-  // Leave one middle and one corner pocket without the chrome/plastic cover to expose the cloth opening.
-  const removedPocketCoverIds = new Set(['corner-NE', 'side-E']);
-  pocketCoverConfigs
-    .filter(({ id }) => !removedPocketCoverIds.has(id))
-    .forEach(addPocketCoverFromMP);
+  ].forEach(addPocketCoverFromMP);
 
   if (pocketCoverGroup.children.length) {
     railsGroup.add(pocketCoverGroup);
