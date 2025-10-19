@@ -4104,12 +4104,13 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const CORNER_NOTCH_EXTRA_INSET =
-    TABLE.THICK * 0.074; // push the chrome/rail corner cutouts farther toward centre for tighter alignment
+    TABLE.THICK * 0.082; // push the chrome/rail corner cutouts even farther toward centre for tighter alignment
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION +
     CORNER_POCKET_CENTER_INSET +
     CORNER_NOTCH_EXTRA_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.802 * POCKET_VISUAL_EXPANSION; // ease the middle rail cuts outward so they sit closer to the side rails
+  const sideInset =
+    SIDE_POCKET_RADIUS * 0.79 * POCKET_VISUAL_EXPANSION; // ease the middle rail cuts outward a touch more so they sit closer to the side rails
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
