@@ -202,8 +202,8 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.012; // trim the chrome width slightly so it eases back toward the rail edges
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.982; // pull the short-rail chrome in a touch more to match the tightened rail cuts
+const CHROME_CORNER_EXPANSION_SCALE = 0.992; // trim the chrome width slightly so it eases back toward the rail edges
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.962; // pull the short-rail chrome in a touch more to match the tightened rail cuts
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.985; // narrow the notch further so the chrome corner cut mirrors the smaller rail opening
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.02;
@@ -441,7 +441,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
+const RAIL_HEIGHT = TABLE.THICK * 1.74; // lower the rails slightly so the trim meets the skirts without a visible gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -3750,11 +3750,11 @@ function Table3D(
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.34,
-    Math.min(PLAY_W, PLAY_H) * 0.009
+    Math.min(PLAY_W, PLAY_H) * 0.0095
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
+    Math.min(PLAY_W, PLAY_H) * 0.0044; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
   const pocketPositions = pocketCenters();
@@ -3967,7 +3967,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.042; // push cushions slightly farther from the rails so they clear the wood trim
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.058; // push cushions slightly farther from the rails so they clear the wood trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
