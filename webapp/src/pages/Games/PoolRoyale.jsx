@@ -3968,6 +3968,8 @@ function Table3D(
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.056; // pull cushions a touch farther toward centre so they no longer overlap the wood trim
+  const SIDE_CUSHION_RAIL_REACH =
+    TABLE.THICK * 0.02; // push the long-rail cushions out just enough to kiss the side rails without crossing over
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -4093,8 +4095,12 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
+  const CORNER_NOTCH_EXTRA_INSET =
+    TABLE.THICK * 0.012; // tuck the chrome/rail corner cutouts slightly further inward to match the cloth pocket line
   const cornerInset =
-    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
+    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION +
+    CORNER_POCKET_CENTER_INSET +
+    CORNER_NOTCH_EXTRA_INSET;
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
@@ -4587,8 +4593,8 @@ function Table3D(
         side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
     } else {
       const side = x >= 0 ? 1 : -1;
-      group.position.x =
-        side * (halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
+      const reach = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
+      group.position.x = side * reach;
     }
 
     group.userData = group.userData || {};
