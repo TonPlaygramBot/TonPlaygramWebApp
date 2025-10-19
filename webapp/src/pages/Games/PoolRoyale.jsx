@@ -173,6 +173,43 @@ function translateMultiPolygon(mp, dx = 0, dz = 0) {
   );
 }
 
+function mapMultiPolygon(mp, mapPoint) {
+  if (!Array.isArray(mp) || typeof mapPoint !== 'function') {
+    return Array.isArray(mp) ? mp : [];
+  }
+  return mp
+    .map((poly) => {
+      if (!Array.isArray(poly) || !poly.length) return null;
+      const mappedPoly = poly
+        .map((ring) => {
+          if (!Array.isArray(ring) || !ring.length) return null;
+          const mappedRing = ring
+            .map((pt) => {
+              if (!Array.isArray(pt) || pt.length < 2) return null;
+              const mapped = mapPoint(pt[0], pt[1], pt);
+              if (!Array.isArray(mapped) || mapped.length < 2) return null;
+              return [mapped[0], mapped[1]];
+            })
+            .filter((pt) => Array.isArray(pt) && pt.length >= 2);
+          if (mappedRing.length < 3) return null;
+          const first = mappedRing[0];
+          const last = mappedRing[mappedRing.length - 1];
+          if (
+            first &&
+            last &&
+            (first[0] !== last[0] || first[1] !== last[1])
+          ) {
+            mappedRing.push([first[0], first[1]]);
+          }
+          return mappedRing;
+        })
+        .filter((ring) => Array.isArray(ring) && ring.length >= 3);
+      if (!mappedPoly.length) return null;
+      return mappedPoly;
+    })
+    .filter((poly) => Array.isArray(poly) && poly.length > 0);
+}
+
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -243,12 +280,14 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
-const CORNER_POCKET_COVER_SIZE_SCALE =
-  RAIL_SIDE_POCKET_CUT_SCALE / RAIL_CORNER_POCKET_CUT_SCALE; // swap liner widths so the corner covers inherit the previous side-pocket footprint
-const SIDE_POCKET_COVER_SIZE_SCALE =
-  RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE; // swap liner widths so the side covers inherit the previous corner-pocket footprint
+const CORNER_POCKET_COVER_SIZE_SCALE = 1; // align the corner liners directly with the chrome plate arches
+const SIDE_POCKET_COVER_SIZE_SCALE = 1; // keep the side liners flush with the chrome arches without overshooting the cushions
 const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
 const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
+const SIDE_POCKET_COVER_TAPER_POWER = 1.6; // ease side-pocket liner thickness toward zero as it meets the cushions
+const SIDE_POCKET_COVER_TAPER_STRENGTH = 1; // ensure the plastic stops exactly where the green cushion begins
+const CORNER_POCKET_COVER_TAPER_POWER = 1.45; // feather corner liner thickness so the edges fade into the cushions
+const CORNER_POCKET_COVER_TAPER_STRENGTH = 1; // let the corner liners end precisely at the cushion start
 
 function buildChromePlateGeometry({
   width,
@@ -4483,6 +4522,80 @@ function Table3D(
   const POCKET_COVER_CLIP_WIDTH = outerHalfW * 4 + TABLE.THICK;
   const POCKET_COVER_CLIP_DEPTH = outerHalfH * 4 + TABLE.THICK;
 
+  const getPocketCoverExtents = (mp, centerX, centerZ) => {
+    let maxDX = 0;
+    let maxDZ = 0;
+    if (!Array.isArray(mp)) {
+      return { maxDX, maxDZ };
+    }
+    mp.forEach((poly) => {
+      if (!Array.isArray(poly)) return;
+      poly.forEach((ring) => {
+        if (!Array.isArray(ring)) return;
+        ring.forEach((pt) => {
+          if (!Array.isArray(pt) || pt.length < 2) return;
+          maxDX = Math.max(maxDX, Math.abs(pt[0] - centerX));
+          maxDZ = Math.max(maxDZ, Math.abs(pt[1] - centerZ));
+        });
+      });
+    });
+    return { maxDX, maxDZ };
+  };
+
+  const applyPocketCoverInnerTaper = (innerMP, outerMP, clip, scale) => {
+    if (!clip || !Array.isArray(innerMP) || !innerMP.length) {
+      return innerMP;
+    }
+    const { type, centerX = 0, centerZ = 0 } = clip;
+    if (type !== 'corner' && type !== 'side') {
+      return innerMP;
+    }
+    const { maxDX, maxDZ } = getPocketCoverExtents(outerMP, centerX, centerZ);
+    const limitX = Math.max(maxDX, MICRO_EPS);
+    const limitZ = Math.max(maxDZ, MICRO_EPS);
+    const taperPower =
+      type === 'side' ? SIDE_POCKET_COVER_TAPER_POWER : CORNER_POCKET_COVER_TAPER_POWER;
+    const taperStrength =
+      type === 'side'
+        ? SIDE_POCKET_COVER_TAPER_STRENGTH
+        : CORNER_POCKET_COVER_TAPER_STRENGTH;
+    if (taperStrength <= 0) {
+      return innerMP;
+    }
+    const safeScale = Math.max(scale, MICRO_EPS);
+
+    return mapMultiPolygon(innerMP, (x, z) => {
+      const dx = x - centerX;
+      const dz = z - centerZ;
+      const distance = Math.hypot(dx, dz);
+      if (distance <= MICRO_EPS) {
+        return [x, z];
+      }
+      let normalized = 0;
+      if (type === 'side') {
+        normalized = THREE.MathUtils.clamp(Math.abs(dz) / limitZ, 0, 1);
+      } else {
+        const nx = THREE.MathUtils.clamp(Math.abs(dx) / limitX, 0, 1);
+        const nz = THREE.MathUtils.clamp(Math.abs(dz) / limitZ, 0, 1);
+        normalized = Math.max(nx, nz);
+      }
+      if (normalized <= MICRO_EPS) {
+        return [x, z];
+      }
+      const taper = Math.min(1, taperStrength * Math.pow(normalized, taperPower));
+      if (taper <= MICRO_EPS) {
+        return [x, z];
+      }
+      const outerDistance = distance / safeScale;
+      const newDistance = THREE.MathUtils.lerp(distance, outerDistance, taper);
+      if (!Number.isFinite(newDistance) || newDistance <= MICRO_EPS) {
+        return [x, z];
+      }
+      const ratio = newDistance / distance;
+      return [centerX + dx * ratio, centerZ + dz * ratio];
+    });
+  };
+
   const createPocketCoverClipMask = (clip) => {
     if (!clip) return null;
     const { type, sx = 0, sz = 0, centerX = 0, centerZ = 0 } = clip;
@@ -4536,8 +4649,14 @@ function Table3D(
     if (POCKET_COVER_INNER_SCALE > 0 && POCKET_COVER_INNER_SCALE < 1) {
       const inner = scaleMultiPolygon(mp, POCKET_COVER_INNER_SCALE);
       if (Array.isArray(inner) && inner.length) {
+        const taperedInner = applyPocketCoverInnerTaper(
+          inner,
+          mp,
+          clip,
+          POCKET_COVER_INNER_SCALE
+        );
         try {
-          const diff = polygonClipping.difference(mp, inner);
+          const diff = polygonClipping.difference(mp, taperedInner);
           if (Array.isArray(diff) && diff.length) {
             coverMP = diff;
           }
