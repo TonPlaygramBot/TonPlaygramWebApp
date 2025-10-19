@@ -173,48 +173,6 @@ function translateMultiPolygon(mp, dx = 0, dz = 0) {
   );
 }
 
-function multiPolygonBounds(mp) {
-  if (!Array.isArray(mp)) {
-    return null;
-  }
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minZ = Infinity;
-  let maxZ = -Infinity;
-  let hasPoint = false;
-  mp.forEach((poly) => {
-    if (!Array.isArray(poly)) return;
-    poly.forEach((ring) => {
-      if (!Array.isArray(ring)) return;
-      ring.forEach((pt) => {
-        if (!Array.isArray(pt) || pt.length < 2) return;
-        const [x, z] = pt;
-        if (!Number.isFinite(x) || !Number.isFinite(z)) return;
-        hasPoint = true;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (z < minZ) minZ = z;
-        if (z > maxZ) maxZ = z;
-      });
-    });
-  });
-  if (!hasPoint) {
-    return null;
-  }
-  return { minX, maxX, minZ, maxZ };
-}
-
-function multiPolygonSize(mp) {
-  const bounds = multiPolygonBounds(mp);
-  if (!bounds) {
-    return { width: 0, depth: 0 };
-  }
-  return {
-    width: bounds.maxX - bounds.minX,
-    depth: bounds.maxZ - bounds.minZ
-  };
-}
-
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -285,6 +243,10 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const CORNER_POCKET_COVER_SIZE_SCALE =
+  RAIL_SIDE_POCKET_CUT_SCALE / RAIL_CORNER_POCKET_CUT_SCALE; // swap liner widths so the corner covers inherit the previous side-pocket footprint
+const SIDE_POCKET_COVER_SIZE_SCALE =
+  RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE; // swap liner widths so the side covers inherit the previous corner-pocket footprint
 const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
 const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
 
@@ -4341,47 +4303,6 @@ function Table3D(
   const scaleSidePocketCut = (mp) =>
     scalePocketCutMP(mp, RAIL_SIDE_POCKET_CUT_SCALE);
 
-  const pocketCoverScale = (() => {
-    // Resize the plastic liners so the larger footprint lives on the corners
-    // while the slimmer profile moves to the side pockets. We measure the base
-    // geometry for each pocket type, compare their spans, and then derive
-    // uniform scales that effectively swap the perceived sizes.
-    const cornerCenter = {
-      x: innerHalfW - cornerInset,
-      z: innerHalfH - cornerInset
-    };
-    const sideCenter = {
-      x: innerHalfW - sideInset,
-      z: 0
-    };
-    const normalizeMP = (mp, center) =>
-      translateMultiPolygon(mp, -center.x, -center.z);
-    const safeDimension = (value) =>
-      Number.isFinite(value) && value > MICRO_EPS ? value : 1;
-
-    const baseCornerMP = scaleCornerPocketCut(cornerNotchMP(1, 1));
-    const baseSideMP = scaleSidePocketCut(sideNotchMP(1));
-    const cornerDims = multiPolygonSize(normalizeMP(baseCornerMP, cornerCenter));
-    const sideDims = multiPolygonSize(normalizeMP(baseSideMP, sideCenter));
-
-    const cornerWidth = safeDimension(cornerDims.width);
-    const cornerDepth = safeDimension(cornerDims.depth);
-    const sideWidth = safeDimension(sideDims.width);
-    const sideDepth = safeDimension(sideDims.depth);
-
-    const cornerToSide = Math.max(sideWidth / cornerWidth, sideDepth / cornerDepth);
-    const sideToCorner = Math.max(cornerWidth / sideWidth, cornerDepth / sideDepth);
-
-    return {
-      corner:
-        Math.max(0, cornerToSide) *
-        (RAIL_SIDE_POCKET_CUT_SCALE / RAIL_CORNER_POCKET_CUT_SCALE),
-      side:
-        Math.max(0, sideToCorner) *
-        (RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE)
-    };
-  })();
-
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
@@ -4543,10 +4464,10 @@ function Table3D(
   finishParts.railMeshes.push(railsMesh);
 
   const createCornerPocketCover = (sx, sz) =>
-    scaleMultiPolygon(scaleCornerPocketCut(cornerNotchMP(sx, sz)), pocketCoverScale.corner);
+    scaleMultiPolygon(scaleCornerPocketCut(cornerNotchMP(sx, sz)), CORNER_POCKET_COVER_SIZE_SCALE);
 
   const createSidePocketCover = (sx) =>
-    scaleMultiPolygon(scaleSidePocketCut(sideNotchMP(sx)), pocketCoverScale.side);
+    scaleMultiPolygon(scaleSidePocketCut(sideNotchMP(sx)), SIDE_POCKET_COVER_SIZE_SCALE);
 
   const pocketCoverGroup = new THREE.Group();
   const pocketCoverMat = new THREE.MeshPhysicalMaterial({
