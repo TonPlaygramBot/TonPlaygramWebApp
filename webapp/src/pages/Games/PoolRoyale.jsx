@@ -202,12 +202,12 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.018; // tuck the chrome just shy of the rail edge so it no longer overlaps the wood caps
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.988; // keep the short-rail chrome aligned without spilling over the cushion edge
+const CHROME_CORNER_EXPANSION_SCALE = 0.992; // shrink the corner chrome footprint so it hugs the rail faces more tightly
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.972; // trim the short-rail chrome to keep it well clear of the cushion edge
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.992; // narrow the notch so the chrome corner cut hugs the smaller rail opening
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0.018; // shave a deeper sliver off the field side so the chrome sits cleanly against the rail
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.22;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.875; // open the side chrome throat a touch more to mirror the larger middle rail cuts
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
@@ -442,7 +442,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const FRAME_TOP_Y = -TABLE.THICK + 0.01;
+const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
 const WIDTH_REF = 2540;
@@ -718,7 +718,7 @@ const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
@@ -3749,12 +3749,12 @@ function Table3D(
   };
 
   const clothExtendBase = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.34,
-    Math.min(PLAY_W, PLAY_H) * 0.009
+    SIDE_RAIL_INNER_THICKNESS * 0.38,
+    Math.min(PLAY_W, PLAY_H) * 0.0105
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
+    Math.min(PLAY_W, PLAY_H) * 0.0042; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
   const pocketPositions = pocketCenters();
@@ -3967,7 +3967,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.042; // push cushions slightly farther from the rails so they clear the wood trim
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.056; // pull cushions a touch farther toward centre so they no longer overlap the wood trim
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
