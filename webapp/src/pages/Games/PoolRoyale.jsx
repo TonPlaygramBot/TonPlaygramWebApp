@@ -202,15 +202,15 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 0.992; // trim the chrome width slightly so it eases back toward the rail edges
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.962; // pull the short-rail chrome in a touch more to match the tightened rail cuts
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.985; // narrow the notch further so the chrome corner cut mirrors the smaller rail opening
+const CHROME_CORNER_EXPANSION_SCALE = 0.986; // trim the chrome width slightly further so it eases back toward the rail edges
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.948; // pull the short-rail chrome in a touch more to match the tightened rail cuts
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.978; // narrow the notch further so the chrome corner cut mirrors the smaller rail opening
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.012; // shave a sliver off the field side so the chrome sits cleanly against the rail
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.02;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.905; // open the side chrome throat a touch more to mirror the larger middle rail cuts
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // use the standard rounding to mirror the snooker side pocket arches
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0; // remove the extra rounding so only the pocket radius shapes the cutout
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
 const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.28; // carve a deeper wedge so no chrome lingers on the field side of the pocket
@@ -441,7 +441,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.74; // lower the rails slightly so the trim meets the skirts without a visible gap
+const RAIL_HEIGHT = TABLE.THICK * 1.72; // drop the rails a touch more so the trim sits flush with the skirts
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -3754,7 +3754,7 @@ function Table3D(
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0044; // extend the cloth slightly more so rails meet the cloth with no gaps
+    Math.min(PLAY_W, PLAY_H) * 0.0062; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
   const pocketPositions = pocketCenters();
