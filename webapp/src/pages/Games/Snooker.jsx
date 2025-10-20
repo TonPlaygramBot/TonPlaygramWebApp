@@ -6953,7 +6953,13 @@ function SnookerGame() {
             if (!unit) return;
             if (unit.slider) {
               const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
-              const targetX = 0;
+              const limit = Math.max(
+                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
+                0
+              );
+              const targetX = lookAt
+                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
+                : 0;
               unit.slider.position.x = THREE.MathUtils.lerp(
                 unit.slider.position.x,
                 targetX,
@@ -7600,13 +7606,9 @@ function SnookerGame() {
           camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
           const surfaceMarginWorld = Math.max(0, CAMERA_SURFACE_STOP_MARGIN) *
             (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE);
-          const cueHeightWorld =
-            (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) *
-            (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE);
           const surfaceClampY = baseSurfaceWorldY + surfaceMarginWorld;
-          const minCameraY = Math.max(surfaceClampY, cueHeightWorld);
-          if (camera.position.y < minCameraY) {
-            camera.position.y = minCameraY;
+          if (camera.position.y < surfaceClampY) {
+            camera.position.y = surfaceClampY;
             TMP_VEC3_A.copy(camera.position).sub(lookTarget);
             const limitedRadius = TMP_VEC3_A.length();
             if (limitedRadius > 1e-6) {
@@ -7896,8 +7898,6 @@ function SnookerGame() {
             }
           }
           if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
-          const securedPot = bestScore >= POCKET_GUARANTEED_ALIGNMENT;
-          if (!securedPot) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
@@ -8001,8 +8001,7 @@ function SnookerGame() {
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly,
-            securedPot
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -9332,32 +9331,25 @@ function SnookerGame() {
           }
           let pocketViewActivated = false;
           if (earlyPocketView) {
-            const movingNow = balls.some(
-              (b) => b.active && b.vel.lengthSq() > STOP_EPS * STOP_EPS
-            );
-            if (!movingNow) {
-              suspendedActionView = actionView ?? null;
-            } else {
-              const now = performance.now();
-              earlyPocketView.lastUpdate = now;
-              if (cameraRef.current) {
-                const cam = cameraRef.current;
-                earlyPocketView.smoothedPos = cam.position.clone();
-                const storedTarget = lastCameraTargetRef.current?.clone();
-                if (storedTarget) {
-                  earlyPocketView.smoothedTarget = storedTarget;
-                }
+            const now = performance.now();
+            earlyPocketView.lastUpdate = now;
+            if (cameraRef.current) {
+              const cam = cameraRef.current;
+              earlyPocketView.smoothedPos = cam.position.clone();
+              const storedTarget = lastCameraTargetRef.current?.clone();
+              if (storedTarget) {
+                earlyPocketView.smoothedTarget = storedTarget;
               }
-              if (actionView) {
-                earlyPocketView.resumeAction = actionView;
-                suspendedActionView = actionView;
-              } else {
-                suspendedActionView = null;
-              }
-              updatePocketCameraState(true);
-              activeShotView = earlyPocketView;
-              pocketViewActivated = true;
             }
+            if (actionView) {
+              earlyPocketView.resumeAction = actionView;
+              suspendedActionView = actionView;
+            } else {
+              suspendedActionView = null;
+            }
+            updatePocketCameraState(true);
+            activeShotView = earlyPocketView;
+            pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
             if (isLongShot) {
@@ -10607,17 +10599,6 @@ function SnookerGame() {
               forceEarly: matchesIntent && pocketIntent?.allowEarly
             });
             if (!candidate) continue;
-            if (!candidate.securedPot) continue;
-            if (movingCount === 0) continue;
-            if (movingCount > 2) continue;
-            if (
-              movingCount === 1 &&
-              movingBalls[0] &&
-              movingBalls[0].id !== candidate.ballId &&
-              movingBalls[0].id !== 'cue'
-            ) {
-              continue;
-            }
             const matchesPrediction = shotPrediction?.ballId === ball.id;
             const predictedAlignment = candidate.predictedAlignment ?? candidate.score ?? 0;
             const isDirectPrediction =
@@ -10625,9 +10606,7 @@ function SnookerGame() {
               (shotPrediction?.railNormal === null ||
                 shotPrediction?.railNormal === undefined);
             const qualifiesAsGuaranteed =
-              candidate.securedPot &&
-              isDirectPrediction &&
-              predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+              isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
             const allowDuringChaos =
               movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
               matchesIntent ||
