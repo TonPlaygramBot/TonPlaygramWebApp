@@ -573,7 +573,19 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.02; // lower the cushion lip so it f
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
-const RAIL_POCKET_COVER_THICKNESS = TABLE.THICK * 0.08; // thin plastic inserts to blanket the rounded rail cutouts
+const RAIL_POCKET_COVER_MIN_THICKNESS = TABLE.THICK * 0.08; // ensure pocket liners stay substantial even when rail height is low
+const RAIL_POCKET_COVER_STYLES = Object.freeze({
+  corner: Object.freeze({
+    keepFrontDepthRatio: 0.8,
+    innerScale: 0.58,
+    sideGapRatio: 0.14
+  }),
+  side: Object.freeze({
+    keepFrontDepthRatio: 0.68,
+    innerScale: 0.6,
+    sideGapRatio: 0.34
+  })
+});
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -4296,8 +4308,12 @@ function Table3D(
   const chromePlateShapeSegments = 128;
   const pocketCovers = new THREE.Group();
   pocketCovers.name = 'railPocketCovers';
-  const pocketCoverThickness = Math.max(MICRO_EPS, RAIL_POCKET_COVER_THICKNESS);
   const pocketCoverShapeSegments = 128;
+  const pocketCoverBottomTarget = clothPlaneLocal - CLOTH_DROP - MICRO_EPS * 2;
+  const pocketCoverThickness = Math.max(
+    RAIL_POCKET_COVER_MIN_THICKNESS,
+    railsTopY - pocketCoverBottomTarget
+  );
   const pocketCoverYOffset = railsTopY - pocketCoverThickness - MICRO_EPS;
   const convertPocketCutToLocal = (mp, centerX, centerZ) => {
     if (!Array.isArray(mp)) return [];
@@ -4321,9 +4337,124 @@ function Table3D(
       )
       .filter((poly) => poly.length > 0);
   };
-  const buildPocketCoverMesh = (localMP, centerX, centerZ) => {
+  const rectToMultiPolygon = (minX, minY, maxX, maxY) => {
+    if (minX >= maxX || minY >= maxY) {
+      return null;
+    }
+    return [
+      [
+        [
+          [minX, minY],
+          [maxX, minY],
+          [maxX, maxY],
+          [minX, maxY],
+          [minX, minY]
+        ]
+      ]
+    ];
+  };
+  const computeMPBounds = (mp) => {
+    if (!Array.isArray(mp)) return null;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    mp.forEach((poly) => {
+      if (!Array.isArray(poly)) return;
+      poly.forEach((ring) => {
+        if (!Array.isArray(ring)) return;
+        ring.forEach((pt) => {
+          if (!Array.isArray(pt) || pt.length < 2) return;
+          const [x, y] = pt;
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+        });
+      });
+    });
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return null;
+    }
+    return { minX, maxX, minY, maxY };
+  };
+  const booleanMP = (op, ...args) => {
+    const fn = polygonClipping?.[op];
+    if (typeof fn !== 'function') {
+      return null;
+    }
+    if (args.some((mp) => !Array.isArray(mp) || !mp.length)) {
+      return null;
+    }
+    try {
+      const result = fn(...args);
+      return Array.isArray(result) && result.length ? result : null;
+    } catch (err) {
+      console.warn('Pocket cover polygon op failed', op, err);
+      return null;
+    }
+  };
+  const buildPocketCoverMesh = (localMP, centerX, centerZ, styleKey) => {
     if (!Array.isArray(localMP) || !localMP.length) return null;
-    const shapes = multiPolygonToShapes(localMP);
+    const bounds = computeMPBounds(localMP);
+    if (!bounds) return null;
+    const width = bounds.maxX - bounds.minX;
+    const depth = bounds.maxY - bounds.minY;
+    if (!(width > MICRO_EPS && depth > MICRO_EPS)) {
+      return null;
+    }
+    const style =
+      (styleKey && RAIL_POCKET_COVER_STYLES?.[styleKey]) ||
+      RAIL_POCKET_COVER_STYLES.corner;
+    const keepFrontDepthRatio = THREE.MathUtils.clamp(
+      style.keepFrontDepthRatio ?? 1,
+      0,
+      1
+    );
+    let workingMP = localMP;
+    if (keepFrontDepthRatio < 1) {
+      const minFrontY = bounds.maxY - depth * keepFrontDepthRatio;
+      const backClip = rectToMultiPolygon(
+        bounds.minX - width,
+        bounds.minY - depth * 2,
+        bounds.maxX + width,
+        minFrontY
+      );
+      const clipped = backClip
+        ? booleanMP('difference', workingMP, backClip)
+        : null;
+      if (clipped?.length) {
+        workingMP = clipped;
+      }
+    }
+    const innerScale = Math.max(0, style.innerScale ?? 0.6);
+    if (innerScale > 0 && innerScale < 1) {
+      const innerMP = scaleMultiPolygon(localMP, innerScale);
+      const overlap = booleanMP('intersection', workingMP, innerMP);
+      if (overlap?.length) {
+        const trimmed = booleanMP('difference', workingMP, overlap);
+        if (trimmed?.length) {
+          workingMP = trimmed;
+        }
+      }
+    }
+    const sideGapRatio = Math.max(0, Math.min(1, style.sideGapRatio ?? 0));
+    if (sideGapRatio > 0) {
+      const gapHalfWidth = (width * sideGapRatio) / 2;
+      const gap = rectToMultiPolygon(
+        -gapHalfWidth,
+        bounds.minY - depth * 2,
+        gapHalfWidth,
+        bounds.maxY + depth * 2
+      );
+      const trimmed = gap ? booleanMP('difference', workingMP, gap) : null;
+      if (trimmed?.length) {
+        workingMP = trimmed;
+      }
+    }
+    const shapes = multiPolygonToShapes(workingMP);
     if (!shapes.length) return null;
     let coverGeom = new THREE.ExtrudeGeometry(shapes, {
       depth: pocketCoverThickness,
@@ -4397,7 +4528,8 @@ function Table3D(
     const cornerCover = buildPocketCoverMesh(
       cornerCoverMP,
       coverCenterX,
-      coverCenterZ
+      coverCenterZ,
+      'corner'
     );
     if (cornerCover) {
       pocketCovers.add(cornerCover);
@@ -4442,7 +4574,8 @@ function Table3D(
     const sideCover = buildPocketCoverMesh(
       sideCoverMP,
       coverCenterX,
-      coverCenterZ
+      coverCenterZ,
+      'side'
     );
     if (sideCover) {
       pocketCovers.add(sideCover);
