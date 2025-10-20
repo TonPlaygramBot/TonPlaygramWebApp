@@ -173,6 +173,119 @@ function translateMultiPolygon(mp, dx = 0, dz = 0) {
   );
 }
 
+function transformMultiPolygonPoints(mp, transform) {
+  if (!Array.isArray(mp) || typeof transform !== 'function') {
+    return Array.isArray(mp) ? mp : [];
+  }
+  return mp
+    .map((poly) => {
+      if (!Array.isArray(poly) || !poly.length) return null;
+      const transformedPoly = poly
+        .map((ring) => {
+          if (!Array.isArray(ring) || ring.length < 2) return null;
+          const updated = ring
+            .map((pt) => {
+              if (!Array.isArray(pt) || pt.length < 2) return null;
+              const res = transform(pt);
+              if (!Array.isArray(res) || res.length < 2) return pt;
+              return res;
+            })
+            .filter(Boolean);
+          if (!updated.length) return null;
+          const first = updated[0];
+          const last = updated[updated.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) {
+            updated.push([first[0], first[1]]);
+          }
+          return updated;
+        })
+        .filter((ring) => Array.isArray(ring) && ring.length >= 4);
+      if (!transformedPoly.length) return null;
+      return transformedPoly;
+    })
+    .filter((poly) => Array.isArray(poly) && poly.length > 0);
+}
+
+function applyPocketCoverTaper(mp, clip, { innerHalfW, innerHalfH, outerHalfW, outerHalfH }) {
+  if (!Array.isArray(mp) || !clip || typeof clip !== 'object') {
+    return Array.isArray(mp) ? mp : [];
+  }
+
+  const { clamp, lerp } = THREE.MathUtils;
+
+  if (clip.type === 'side') {
+    const sx = clip.sx || Math.sign(clip.centerX || 0) || 1;
+    const centerX = clip.centerX ?? 0;
+    const centerZ = clip.centerZ ?? 0;
+    const baseAbsZ = Math.abs(centerZ);
+    const taperStartZ = lerp(baseAbsZ, innerHalfH, POCKET_COVER_SIDE_TAPER_START_RATIO);
+    const rangeZ = Math.max(MICRO_EPS, innerHalfH - taperStartZ);
+    const cushionAbsX = Math.abs(innerHalfW);
+    const outerAbsX = Math.abs(outerHalfW);
+
+    return transformMultiPolygonPoints(mp, ([x, z]) => {
+      const absZ = Math.abs(z);
+      let progress = 0;
+      if (absZ > taperStartZ + MICRO_EPS) {
+        progress = clamp((absZ - taperStartZ) / rangeZ, 0, 1);
+      }
+      const absX = Math.abs(x);
+      const targetAbsX = lerp(absX, cushionAbsX, progress);
+      const limitedAbsX = clamp(targetAbsX, Math.min(Math.abs(centerX), cushionAbsX), outerAbsX);
+      const signedX = (sx >= 0 ? 1 : -1) * limitedAbsX;
+      const finalX = x === 0 ? signedX : Math.sign(x) * limitedAbsX;
+      const cappedZ = Math.sign(z) * Math.min(absZ, innerHalfH);
+      return [finalX, cappedZ];
+    });
+  }
+
+  if (clip.type === 'corner') {
+    const sx = clip.sx || Math.sign(clip.centerX || 0) || 1;
+    const sz = clip.sz || Math.sign(clip.centerZ || 0) || 1;
+    const centerX = clip.centerX ?? 0;
+    const centerZ = clip.centerZ ?? 0;
+    const baseAbsX = Math.abs(centerX);
+    const baseAbsZ = Math.abs(centerZ);
+    const taperStartX = lerp(baseAbsX, Math.abs(innerHalfW), POCKET_COVER_CORNER_TAPER_START_RATIO);
+    const taperStartZ = lerp(baseAbsZ, Math.abs(innerHalfH), POCKET_COVER_CORNER_TAPER_START_RATIO);
+    const rangeX = Math.max(MICRO_EPS, Math.abs(innerHalfW) - taperStartX);
+    const rangeZ = Math.max(MICRO_EPS, Math.abs(innerHalfH) - taperStartZ);
+    const cushionAbsX = Math.abs(innerHalfW);
+    const cushionAbsZ = Math.abs(innerHalfH);
+    const outerAbsX = Math.abs(outerHalfW);
+    const outerAbsZ = Math.abs(outerHalfH);
+
+    return transformMultiPolygonPoints(mp, ([x, z]) => {
+      const absX = Math.abs(x);
+      const absZ = Math.abs(z);
+      let newAbsX = absX;
+      let newAbsZ = absZ;
+
+      if (absX > taperStartX + MICRO_EPS) {
+        const progressX = clamp((absX - taperStartX) / rangeX, 0, 1);
+        const targetZ = lerp(absZ, cushionAbsZ, progressX);
+        newAbsZ = Math.min(targetZ, cushionAbsZ);
+      }
+
+      if (absZ > taperStartZ + MICRO_EPS) {
+        const progressZ = clamp((absZ - taperStartZ) / rangeZ, 0, 1);
+        const targetX = lerp(absX, cushionAbsX, progressZ);
+        newAbsX = Math.min(targetX, cushionAbsX);
+      }
+
+      newAbsX = clamp(newAbsX, Math.min(baseAbsX, cushionAbsX), outerAbsX);
+      newAbsZ = clamp(newAbsZ, Math.min(baseAbsZ, cushionAbsZ), outerAbsZ);
+
+      const finalX = x === 0 ? (sx >= 0 ? newAbsX : -newAbsX) : Math.sign(x) * newAbsX;
+      const finalZ = z === 0 ? (sz >= 0 ? newAbsZ : -newAbsZ) : Math.sign(z) * newAbsZ;
+
+      return [finalX, finalZ];
+    });
+  }
+
+  return mp;
+}
+
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -243,12 +356,12 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
-const CORNER_POCKET_COVER_SIZE_SCALE =
-  RAIL_SIDE_POCKET_CUT_SCALE / RAIL_CORNER_POCKET_CUT_SCALE; // swap liner widths so the corner covers inherit the previous side-pocket footprint
-const SIDE_POCKET_COVER_SIZE_SCALE =
-  RAIL_CORNER_POCKET_CUT_SCALE / RAIL_SIDE_POCKET_CUT_SCALE; // swap liner widths so the side covers inherit the previous corner-pocket footprint
+const CORNER_POCKET_COVER_SIZE_SCALE = 1; // keep the corner plastic liners aligned with the chrome notch footprint
+const SIDE_POCKET_COVER_SIZE_SCALE = 1; // keep the middle pocket liners matched to the chrome throat shape
 const POCKET_COVER_INNER_SCALE = 0.86; // shrink interior mask so the plastic liner stays thin while matching the rail cut edge
 const POCKET_COVER_DEPTH_SCALE = 0.962; // sink the liners slightly so they sit flush with the rail tops without protruding
+const POCKET_COVER_CORNER_TAPER_START_RATIO = 0.38; // begin tapering the corner liners a little past the arch midpoint so they thin out toward the cushions
+const POCKET_COVER_SIDE_TAPER_START_RATIO = 0.42; // start tapering the side liners shortly after the pocket centre so they land flush with the cushions
 
 function buildChromePlateGeometry({
   width,
@@ -4546,7 +4659,13 @@ function Table3D(
         }
       }
     }
-    const clipped = clipPocketCoverMPToArch(coverMP, clip);
+    const tapered = applyPocketCoverTaper(coverMP, clip, {
+      innerHalfW,
+      innerHalfH,
+      outerHalfW,
+      outerHalfH
+    });
+    const clipped = clipPocketCoverMPToArch(tapered, clip);
     return multiPolygonToShapes(clipped);
   };
 
