@@ -558,7 +558,7 @@ const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of c
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
+const CLOTH_THICKNESS = TABLE.THICK * 0.18; // render a thicker carpeted cloth for a plush playing surface
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint while staying invisible via colorWrite=false
@@ -1046,9 +1046,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.48;
-const CLOTH_HAIR_INTENSITY = 0.26;
-const CLOTH_BUMP_INTENSITY = 0.42;
+const CLOTH_TEXTURE_INTENSITY = 0.52;
+const CLOTH_HAIR_INTENSITY = 0.38;
+const CLOTH_BUMP_INTENSITY = 0.58;
 const CLOTH_SOFT_BLEND = 0.52;
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
@@ -1275,7 +1275,7 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = 4096;
-const CLOTH_THREAD_PITCH = 12 * 0.8;
+const CLOTH_THREAD_PITCH = 12 * 0.92;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -1360,8 +1360,8 @@ const createClothTextures = (() => {
             (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
             (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
             (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
-            (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.2 * CLOTH_TEXTURE_INTENSITY +
             (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
             (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
           0,
@@ -1386,7 +1386,7 @@ const createClothTextures = (() => {
         const accentMix = THREE.MathUtils.clamp(
           0.48 +
             (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
             (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
           0,
           1
@@ -1456,9 +1456,9 @@ const createClothTextures = (() => {
             (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
             (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
             (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
-            (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
-            (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
-            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.2 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.22 * CLOTH_BUMP_INTENSITY +
             (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
           0,
           1
@@ -3627,25 +3627,26 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.88,
-    sheen: 0.94,
+    roughness: 0.94,
+    sheen: 0.92,
     sheenColor,
-    sheenRoughness: 0.48,
-    clearcoat: 0.01,
-    clearcoatRoughness: 0.7,
-    envMapIntensity: 0.16,
+    sheenRoughness: 0.58,
+    clearcoat: 0,
+    clearcoatRoughness: 0.86,
+    envMapIntensity: 0.12,
     emissive: clothColor.clone().multiplyScalar(0.05),
-    emissiveIntensity: 0.46
+    emissiveIntensity: 0.5
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // denser weave so the wool fibres read smaller and sharper
-  const clothTextureScale = 0.032 * 1.35 * 1.56; // let the cloth weave breathe slightly so the pattern reads a touch larger
+  const clothTextureScale =
+    0.032 * 1.35 * 1.56 * 1.12; // stretch the weave a touch so the pattern reads larger while staying taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = 0.64 * 1.35 * 1.18;
+  const baseBumpScale = 0.64 * 1.52 * 1.34;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
