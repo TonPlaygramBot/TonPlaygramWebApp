@@ -569,6 +569,7 @@ const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cov
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.02; // lower the cushion lip so it finishes flush with the rail surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
@@ -677,9 +678,10 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const SPIN_STRENGTH = BALL_R * 0.03125;
+const SPIN_VERTICAL_EFFECT_BOOST = 1.3; // increase perceived top/back spin strength by 30%
+const SPIN_STRENGTH = BALL_R * 0.03125 * SPIN_VERTICAL_EFFECT_BOOST;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * SPIN_VERTICAL_EFFECT_BOOST;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
@@ -737,11 +739,11 @@ const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-// Match the 2D aiming configuration: tip offset max = 0.85R and side/top spin amounts = 0.35R.
+// Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
-const MAX_SPIN_FORWARD = BALL_R * 0.35;
+const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = Math.min(BALL_R * 0.35, MAX_SPIN_CONTACT_OFFSET);
+const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const SPIN_BOX_FILL_RATIO =
   BALL_R > 0
     ? THREE.MathUtils.clamp(
@@ -753,8 +755,8 @@ const SPIN_BOX_FILL_RATIO =
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
-const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
-const TOPSPIN_MULTIPLIER = 1.3;
+const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5 * SPIN_VERTICAL_EFFECT_BOOST;
+const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
 // angle for cushion cuts guiding balls into pockets (WPA K-55 profile ≈32°)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -1721,7 +1723,7 @@ function enhanceChromeMaterial(material) {
   material.needsUpdate = true;
 }
 
-function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25) {
+function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = {}) {
   if (!geometry || typeof depth !== 'number' || depth <= 0) return geometry;
   const target = geometry.toNonIndexed ? geometry.toNonIndexed() : geometry;
   const position = target.attributes.position;
@@ -1729,6 +1731,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25) {
   if (!position || !normal) return target;
   const depthSafe = depth <= 0 ? 1 : depth;
   const radius = Math.max(0, depthSafe * radiusRatio);
+  const innerBounds = options?.innerBounds;
   const pos = new THREE.Vector3();
   const norm = new THREE.Vector3();
   const planarNormal = new THREE.Vector2();
@@ -1740,6 +1743,22 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25) {
     planarNormal.set(norm.x, norm.y);
     if (planarNormal.lengthSq() < 1e-5) continue;
     planarPos.set(pos.x, pos.y);
+    if (innerBounds) {
+      const padding = Number.isFinite(innerBounds.padding)
+        ? innerBounds.padding
+        : 0;
+      const limitX = Number.isFinite(innerBounds.halfWidth)
+        ? innerBounds.halfWidth + padding
+        : null;
+      const limitY = Number.isFinite(innerBounds.halfHeight)
+        ? innerBounds.halfHeight + padding
+        : null;
+      const insideX =
+        limitX == null || Math.abs(planarPos.x) <= limitX + MICRO_EPS * 4;
+      const insideY =
+        limitY == null || Math.abs(planarPos.y) <= limitY + MICRO_EPS * 4;
+      if (insideX && insideY) continue;
+    }
     const dot = planarNormal.dot(planarPos);
     if (dot <= 0) continue;
     const heightT = THREE.MathUtils.clamp(pos.z / depthSafe, 0, 1);
@@ -3621,25 +3640,25 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.82,
-    sheen: 0.92,
+    roughness: 0.86,
+    sheen: 0.94,
     sheenColor,
-    sheenRoughness: 0.52,
-    clearcoat: 0.015,
-    clearcoatRoughness: 0.62,
-    envMapIntensity: 0.18,
-    emissive: clothColor.clone().multiplyScalar(0.08),
-    emissiveIntensity: 0.58
+    sheenRoughness: 0.48,
+    clearcoat: 0.01,
+    clearcoatRoughness: 0.7,
+    envMapIntensity: 0.16,
+    emissive: clothColor.clone().multiplyScalar(0.05),
+    emissiveIntensity: 0.46
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
-  const clothTextureScale = 0.032 * 1.35 * 1.1; // enlarge the cloth pattern so the weave is easier to read
+  const threadsPerBallTarget = 14; // denser weave so the wool fibres read smaller and sharper
+  const clothTextureScale = 0.032 * 1.35 * 1.65; // shrink the cloth pattern so the tighter weave stays visible on mobile
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
-  const repeatRatio = 3.25;
-  const baseBumpScale = 0.64 * 1.35;
+  const repeatRatio = 3.45;
+  const baseBumpScale = 0.64 * 1.35 * 1.12;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -3657,8 +3676,8 @@ function Table3D(
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.18,
-    farRepeat: baseRepeat * 0.5,
+    nearRepeat: baseRepeat * 1.12,
+    farRepeat: baseRepeat * 0.44,
     bumpScale: clothMat.bumpScale,
     baseBumpScale: clothMat.bumpScale
   };
@@ -4525,7 +4544,13 @@ function Table3D(
     bevelEnabled: false,
     curveSegments: 96
   });
-  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO);
+  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO, {
+    innerBounds: {
+      halfWidth: Math.max(cushionInnerX, 0),
+      halfHeight: Math.max(cushionInnerZ, 0),
+      padding: TABLE.THICK * 0.04
+    }
+  });
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
@@ -4624,8 +4649,10 @@ function Table3D(
   const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
-  const cushionHeightTarget = railsTopY - cushionBaseY;
-  const cushionScaleY = Math.max(0.001, cushionHeightTarget / railH);
+  const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
+  const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
+  const cushionHeightTarget = rawCushionHeight - cushionDrop;
+  const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
 
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
@@ -4685,7 +4712,9 @@ function Table3D(
     const geo = cushionProfileAdvanced(len, horizontal);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.scale.y = cushionScaleY * (horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1);
+    const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
+    const heightScale = Math.max(0.001, cushionScaleBase / orientationScale);
+    mesh.scale.y = heightScale * orientationScale;
     mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
@@ -10139,7 +10168,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const lateral = THREE.MathUtils.clamp(perp.dot(nextDir), -1, 1);
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
             const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
-            const spinY = THREE.MathUtils.clamp(-forward * 0.35, -0.6, 0.6);
+            const spinY = THREE.MathUtils.clamp(
+              -forward * (MAX_SPIN_FORWARD / BALL_R),
+              -1,
+              1
+            );
             return { x: spinX, y: spinY };
           } catch (err) {
             console.warn('spin prediction failed', err);
@@ -10683,7 +10716,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               spinLegalityRef.current?.blocked &&
               Math.hypot(side, vert) < 1e-6
             ) {
-              vert = Math.min(maxContactOffset * 0.25, CUE_TIP_RADIUS * 0.35);
+              vert = Math.min(maxContactOffset * 0.35, CUE_TIP_RADIUS * 0.6);
             }
           }
           const spinWorld = new THREE.Vector3(
