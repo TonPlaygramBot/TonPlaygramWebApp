@@ -207,7 +207,7 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.958; // trim the short-rail chrome 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.99; // ease the chrome corner notch inward so the rounded cut looks smaller
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.014; // leave a bit more chrome on the field side so the plate stretches outward cleanly
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.22;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.22; // keep the side chrome throat shallow so the cut stays centered above the pocket
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.948; // pinch the middle chrome rounding so the side cuts read slightly smaller
@@ -572,7 +572,7 @@ const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the clot
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion lip perfectly level with the surrounding rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with straight edges
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -3627,7 +3627,7 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.86,
+    roughness: 0.88,
     sheen: 0.94,
     sheenColor,
     sheenRoughness: 0.48,
@@ -3640,12 +3640,12 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // denser weave so the wool fibres read smaller and sharper
-  const clothTextureScale = 0.032 * 1.35 * 1.65; // shrink the cloth pattern so the tighter weave stays visible on mobile
+  const clothTextureScale = 0.032 * 1.35 * 1.56; // let the cloth weave breathe slightly so the pattern reads a touch larger
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = 0.64 * 1.35 * 1.12;
+  const baseBumpScale = 0.64 * 1.35 * 1.18;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -8001,11 +8001,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
             }
             camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-            const surfaceMarginWorld = Math.max(
-              0,
-              CAMERA_SURFACE_STOP_MARGIN
-            ) * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE);
-            const surfaceClampY = baseSurfaceWorldY + surfaceMarginWorld;
+            const scaleFactor = Number.isFinite(worldScaleFactor)
+              ? worldScaleFactor
+              : WORLD_SCALE;
+            const surfaceMarginWorld = Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
+            const cueLevelWorldY = (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
+            const surfaceClampY = Math.max(
+              baseSurfaceWorldY + surfaceMarginWorld,
+              cueLevelWorldY
+            );
             if (camera.position.y < surfaceClampY) {
               camera.position.y = surfaceClampY;
               TMP_VEC3_A.copy(camera.position).sub(lookTarget);
