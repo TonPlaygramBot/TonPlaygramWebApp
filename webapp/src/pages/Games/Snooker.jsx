@@ -427,6 +427,8 @@ const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
 const WIDTH_REF = 3569;
+const POOL_TABLE_WIDTH_MM = 2540; // 9ft pool playing surface width for camera parity
+const POOL_TO_SNOOKER_WIDTH_RATIO = POOL_TABLE_WIDTH_MM / WIDTH_REF;
 const HEIGHT_REF = 1778;
 const BALL_D_REF = 52.5;
 const BAULK_FROM_BAULK_REF = 737;
@@ -2337,7 +2339,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // ease the player camera slightly closer to the table
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405 * POOL_TO_SNOOKER_WIDTH_RATIO; // match Pool Royale's rail proximity on the larger snooker surface
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
@@ -2496,8 +2498,8 @@ const fitRadius = (camera, margin = 1.1) => {
     halfH = (TABLE.H / 2) * margin;
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
-  // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
+  // Match Pool Royale's framing while compensating for the longer snooker surface so the table fills the view similarly
+  const r = Math.max(dzH, dzW) * (0.62 * POOL_TO_SNOOKER_WIDTH_RATIO) * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
