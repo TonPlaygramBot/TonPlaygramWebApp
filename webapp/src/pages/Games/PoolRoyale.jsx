@@ -4550,9 +4550,13 @@ function Table3D(
 
   const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
-  const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
+  const NOSE_REDUCTION = 0.82; // extend the nose so the cushion top leans farther toward the cloth
+  const CUSHION_HEIGHT_SCALE = 0.94; // drop cushions slightly so their lip sits just under the rail cap
+  const CUSHION_TOP_INWARD_RATIO = 0.12; // widen the top edge toward the playfield centre
+  const CUSHION_BASE_TAPER_RATIO = 0.22; // pinch the base so the cloth contact is slimmer (larger undercut)
+  const CUSHION_BACK_FLATTEN_EPS = 1e-4; // keep the rear face perfectly flush with the wooden rails
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.46;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.82;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
@@ -4598,15 +4602,31 @@ function Table3D(
     }
     const depth = maxZ - minZ;
     const frontSpan = backY - frontY;
+    const topPush = baseThickness * CUSHION_TOP_INWARD_RATIO;
+    const baseTaper = baseThickness * CUSHION_BASE_TAPER_RATIO;
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
       const z = arr[i + 2];
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
-      if (frontFactor <= 0) continue;
+      if (frontFactor <= 0) {
+        // Keep the cushion back perfectly straight so it mates flush with the rails.
+        arr[i + 1] = backY;
+        continue;
+      }
       const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
       const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
       const minAllowedZ = minZ + depth * lift;
       if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
+      const heightFactor = depth > 0 ? THREE.MathUtils.clamp((z - minZ) / depth, 0, 1) : 0;
+      let nextY = arr[i + 1];
+      const topInfluence = Math.pow(heightFactor, 1.8) * frontFactor;
+      if (topInfluence > 0) nextY -= topPush * topInfluence;
+      const bottomInfluence = Math.pow(1 - heightFactor, 1.6) * frontFactor;
+      if (bottomInfluence > 0) nextY += baseTaper * bottomInfluence;
+      if (backY - nextY < CUSHION_BACK_FLATTEN_EPS) {
+        nextY = backY;
+      }
+      arr[i + 1] = Math.min(nextY, backY);
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
@@ -4618,7 +4638,7 @@ function Table3D(
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
-    const heightScale = Math.max(0.001, cushionScaleBase / orientationScale);
+    const heightScale = Math.max(0.001, (cushionScaleBase * CUSHION_HEIGHT_SCALE) / orientationScale);
     mesh.scale.y = heightScale * orientationScale;
     mesh.renderOrder = 2;
     const group = new THREE.Group();
