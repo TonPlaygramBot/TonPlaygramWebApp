@@ -1932,6 +1932,8 @@ function createBroadcastCameras({
 
     const slider = new THREE.Group();
     slider.userData.slideLimit = Math.max(slideLimit ?? 0, 0);
+    slider.userData.lateral = 0;
+    slider.userData.depth = 0;
     base.add(slider);
     slider.scale.setScalar(cameraScale);
 
@@ -2347,6 +2349,9 @@ const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
+const BROADCAST_CAMERA_MIN_SETTLE = 0.35;
+const BROADCAST_CAMERA_HEAD_LERP = 0.85;
+const BROADCAST_CAMERA_DEPTH_LERP = 0.6;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -2483,6 +2488,7 @@ const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
+const TMP_VEC3_BROADCAST = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -6942,49 +6948,118 @@ function SnookerGame() {
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
+          if (rig.group?.updateWorldMatrix) {
+            rig.group.updateWorldMatrix(true, false);
+          }
           const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
+          const normalizedRailDir =
+            Number.isFinite(railDir) && Math.abs(railDir) > 1e-3
+              ? Math.sign(railDir)
+              : 1;
           const focusTarget =
             focusWorld ??
             targetWorld ??
             rig.defaultFocusWorld ??
             rig.defaultFocus ??
             null;
-          const applyFocus = (unit, lookAt, t) => {
+          const followTarget = targetWorld ?? focusTarget;
+          const applyFocus = (unit, lookAt, follow, t) => {
             if (!unit) return;
-            if (unit.slider) {
-              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
+            const slider = unit.slider ?? null;
+            const base = unit.base ?? slider?.parent ?? null;
+            const settle = Math.max(
+              BROADCAST_CAMERA_MIN_SETTLE,
+              THREE.MathUtils.clamp(t ?? 0, 0, 1)
+            );
+            const effectiveFollow =
+              follow ??
+              lookAt ??
+              rig.defaultFocusWorld ??
+              rig.defaultFocus ??
+              null;
+            if (slider && base && effectiveFollow) {
+              base.updateWorldMatrix(true, false);
+              TMP_VEC3_BROADCAST.copy(effectiveFollow);
+              base.worldToLocal(TMP_VEC3_BROADCAST);
               const limit = Math.max(
-                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
+                slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
                 0
               );
-              const targetX = lookAt
-                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
-                : 0;
-              unit.slider.position.x = THREE.MathUtils.lerp(
-                unit.slider.position.x,
-                targetX,
-                settle
+              let desiredX = THREE.MathUtils.clamp(
+                TMP_VEC3_BROADCAST.x,
+                -limit,
+                limit
               );
-              unit.slider.position.z = THREE.MathUtils.lerp(
-                unit.slider.position.z,
-                0,
-                settle
+              if (!Number.isFinite(desiredX)) desiredX = 0;
+              const store = slider.userData ?? (slider.userData = {});
+              const prevX =
+                Number.isFinite(store.lateral) && Math.abs(store.lateral) < 1e6
+                  ? store.lateral
+                  : slider.position.x;
+              const slideLerp = THREE.MathUtils.clamp(settle * 0.7, 0.15, 0.9);
+              const nextX = THREE.MathUtils.lerp(prevX, desiredX, slideLerp);
+              store.lateral = nextX;
+              slider.position.x = nextX;
+
+              const prevZ =
+                Number.isFinite(store.depth) && Math.abs(store.depth) < 1e6
+                  ? store.depth
+                  : slider.position.z;
+              const depthLerp = THREE.MathUtils.clamp(
+                settle * BROADCAST_CAMERA_DEPTH_LERP,
+                0.2,
+                0.85
               );
+              const nextZ = THREE.MathUtils.lerp(prevZ, 0, depthLerp);
+              store.depth = nextZ;
+              slider.position.z = nextZ;
             }
-            if (lookAt && unit.head) {
-              unit.head.lookAt(lookAt);
+            const head = unit.head ?? null;
+            if (head) {
+              const focus =
+                lookAt ??
+                rig.defaultFocusWorld ??
+                rig.defaultFocus ??
+                effectiveFollow;
+              if (focus) {
+                head.up.set(0, 1, 0);
+                const store = head.userData ?? (head.userData = {});
+                const target =
+                  store.focus instanceof THREE.Vector3
+                    ? store.focus
+                    : (store.focus = new THREE.Vector3());
+                if (!store.focusInitialized) {
+                  target.copy(focus);
+                  store.focusInitialized = true;
+                } else {
+                  const headLerp = THREE.MathUtils.clamp(
+                    settle * BROADCAST_CAMERA_HEAD_LERP,
+                    0.2,
+                    0.92
+                  );
+                  target.lerp(focus, headLerp);
+                }
+                head.lookAt(target);
+              }
             }
           };
           const frontUnits = [rig.cameras.front].filter(Boolean);
           const backUnits = [rig.cameras.back].filter(Boolean);
-          const activeUnits = railDir >= 0 ? backUnits : frontUnits;
-          const idleUnits = railDir >= 0 ? frontUnits : backUnits;
+          const activeUnits = normalizedRailDir >= 0 ? backUnits : frontUnits;
+          const idleUnits = normalizedRailDir >= 0 ? frontUnits : backUnits;
           activeUnits.forEach((unit) =>
-            applyFocus(unit, focusTarget, lerpFactor)
+            applyFocus(unit, focusTarget, followTarget, lerpFactor)
           );
-          const idleFocus = rig.defaultFocusWorld ?? focusTarget;
+          const idleFocus =
+            rig.defaultFocusWorld ?? focusTarget ?? followTarget;
+          const idleFollow = rig.defaultFocusWorld ?? followTarget ?? focusTarget;
           idleUnits.forEach((unit) =>
-            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
+            applyFocus(
+              unit,
+              idleFocus,
+              idleFollow,
+              Math.min(1, lerpFactor * 0.6)
+            )
           );
         };
 
@@ -7043,9 +7118,11 @@ function SnookerGame() {
             camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
             renderCamera = camera;
-            broadcastArgs.focusWorld =
+            const topFocus =
               broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = null;
+            broadcastArgs.focusWorld = topFocus;
+            broadcastArgs.targetWorld = lookTarget;
+            broadcastArgs.lerp = Math.max(broadcastArgs.lerp ?? 0, 0.22);
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -7343,12 +7420,6 @@ function SnookerGame() {
             } else {
               railDir = activeShotView.railDir;
             }
-            broadcastArgs = {
-              railDir,
-              targetWorld: null,
-              focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
-              lerp: 0.25
-            };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
             let approachDir = activeShotView.approach
@@ -7538,6 +7609,20 @@ function SnookerGame() {
             } else {
               activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
             }
+            const focusForRig =
+              activeShotView.smoothedTarget ?? focusTarget ?? null;
+            const targetForRig =
+              activeShotView.smoothedPos ?? desiredPosition ?? null;
+            broadcastArgs = {
+              railDir,
+              focusWorld:
+                focusForRig ??
+                broadcastCamerasRef.current?.defaultFocusWorld ??
+                focusTarget ??
+                null,
+              targetWorld: targetForRig ?? focusForRig ?? null,
+              lerp: Math.max(0.2, Math.min(1, lerpT * 1.35))
+            };
             if (pocketCamera) {
               pocketCamera.position.copy(activeShotView.smoothedPos);
               pocketCamera.lookAt(activeShotView.smoothedTarget);
@@ -7630,10 +7715,11 @@ function SnookerGame() {
           }
           camera.lookAt(lookTarget);
           renderCamera = camera;
-          broadcastArgs.focusWorld =
+          const defaultFocusTarget =
             broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-          broadcastArgs.targetWorld = null;
-          broadcastArgs.lerp = 0.22;
+          broadcastArgs.focusWorld = defaultFocusTarget;
+          broadcastArgs.targetWorld = lookTarget;
+          broadcastArgs.lerp = Math.max(broadcastArgs.lerp ?? 0, 0.22);
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
