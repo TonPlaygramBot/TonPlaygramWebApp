@@ -1046,10 +1046,11 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.48;
-const CLOTH_HAIR_INTENSITY = 0.26;
-const CLOTH_BUMP_INTENSITY = 0.42;
-const CLOTH_SOFT_BLEND = 0.52;
+const CLOTH_TEXTURE_INTENSITY = 0.62;
+const CLOTH_HAIR_INTENSITY = 0.38;
+const CLOTH_BUMP_INTENSITY = 0.54;
+const CLOTH_SOFT_BLEND = 0.44;
+const CLOTH_THREAD_VOLUME_INTENSITY = 0.58;
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   cloth,
@@ -1275,7 +1276,8 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = 4096;
-const CLOTH_THREAD_PITCH = 12 * 0.8;
+// Widen thread spacing slightly so fibres read thicker without altering the weave pattern cadence
+const CLOTH_THREAD_PITCH = 12 * 0.92;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -1350,6 +1352,15 @@ const createClothTextures = (() => {
         const weave = Math.pow((warp + weft) * 0.5, 1.68);
         const cross = Math.pow(warp * weft, 0.9);
         const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.6);
+        const threadBulge = Math.pow((warp + weft) * 0.5, 2.25);
+        const threadLift = Math.pow(Math.max(warp, weft), 3.5);
+        const plush = THREE.MathUtils.clamp(
+          0.5 +
+            (threadBulge - 0.5) * CLOTH_THREAD_VOLUME_INTENSITY +
+            (threadLift - 0.5) * CLOTH_THREAD_VOLUME_INTENSITY * 0.6,
+          0,
+          1
+        );
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
@@ -1363,14 +1374,16 @@ const createClothTextures = (() => {
             (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
             (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
             (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
+            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY +
+            (plush - 0.5) * 0.44 * CLOTH_THREAD_VOLUME_INTENSITY,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
           0.5 +
             (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
+            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY +
+            (plush - 0.5) * 0.32 * CLOTH_THREAD_VOLUME_INTENSITY,
           0,
           1
         );
@@ -1379,7 +1392,8 @@ const createClothTextures = (() => {
             (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
             (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
             (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
+            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY +
+            (plush - 0.5) * 0.28 * CLOTH_THREAD_VOLUME_INTENSITY,
           0,
           1
         );
@@ -1387,14 +1401,16 @@ const createClothTextures = (() => {
           0.48 +
             (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
             (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
+            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY +
+            (plush - 0.5) * 0.36 * CLOTH_THREAD_VOLUME_INTENSITY,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
           0.38 +
             (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
+            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY +
+            (plush - 0.5) * 0.3 * CLOTH_THREAD_VOLUME_INTENSITY,
           0,
           1
         );
@@ -1447,6 +1463,15 @@ const createClothTextures = (() => {
         const weave = Math.pow((warp + weft) * 0.5, 1.58);
         const cross = Math.pow(warp * weft, 0.94);
         const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
+        const threadBulge = Math.pow((warp + weft) * 0.5, 2.25);
+        const threadLift = Math.pow(Math.max(warp, weft), 3.5);
+        const plush = THREE.MathUtils.clamp(
+          0.5 +
+            (threadBulge - 0.5) * CLOTH_THREAD_VOLUME_INTENSITY +
+            (threadLift - 0.5) * CLOTH_THREAD_VOLUME_INTENSITY * 0.6,
+          0,
+          1
+        );
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const fuzz = Math.pow(fiber, 1.22);
@@ -1459,7 +1484,8 @@ const createClothTextures = (() => {
             (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
             (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
             (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY +
-            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
+            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY +
+            (plush - 0.5) * 0.54 * CLOTH_THREAD_VOLUME_INTENSITY,
           0,
           1
         );
