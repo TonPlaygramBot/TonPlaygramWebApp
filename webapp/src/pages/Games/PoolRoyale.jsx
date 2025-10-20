@@ -153,60 +153,6 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
-function sculptClothPocketLips(
-  geometry,
-  pockets,
-  {
-    outerRadius = POCKET_CLOTH_TOP_RADIUS,
-    innerRadius = POCKET_CLOTH_BOTTOM_RADIUS,
-    maxDrop = Math.min(POCKET_CLOTH_DEPTH * 0.55, CLOTH_THICKNESS * 2.4),
-    falloffPower = 1.6
-  } = {}
-) {
-  if (!geometry?.attributes?.position || !Array.isArray(pockets) || !pockets.length) {
-    return;
-  }
-  const pos = geometry.attributes.position;
-  const arr = pos.array;
-  const dropOuter = Math.max(outerRadius, innerRadius);
-  const dropInner = Math.max(0, Math.min(outerRadius, innerRadius));
-  const maxDropDepth = -Math.abs(maxDrop);
-  if (!(dropOuter > dropInner && Number.isFinite(maxDropDepth))) {
-    return;
-  }
-  for (let i = 0; i < arr.length; i += 3) {
-    const vx = arr[i];
-    const vy = arr[i + 1];
-    const vz = arr[i + 2];
-    if (!Number.isFinite(vx) || !Number.isFinite(vy) || !Number.isFinite(vz)) {
-      continue;
-    }
-    // skip vertices that already sit well below the visible cloth volume
-    if (vz < maxDropDepth - CLOTH_THICKNESS * 0.5) continue;
-    let updated = vz;
-    for (let pIndex = 0; pIndex < pockets.length; pIndex++) {
-      const pocket = pockets[pIndex];
-      if (!pocket) continue;
-      const dx = vx - pocket.x;
-      const dy = vy - pocket.y;
-      const dist = Math.hypot(dx, dy);
-      if (!Number.isFinite(dist) || dist > dropOuter + MICRO_EPS * 4) continue;
-      const tRaw = 1 - THREE.MathUtils.smoothstep(dist, dropInner, dropOuter);
-      if (tRaw <= 0) continue;
-      const eased = Math.pow(THREE.MathUtils.clamp(tRaw, 0, 1), falloffPower);
-      const target = maxDropDepth * eased;
-      if (target < updated) {
-        updated = target;
-      }
-    }
-    if (updated !== vz) {
-      arr[i + 2] = updated;
-    }
-  }
-  pos.needsUpdate = true;
-  geometry.computeVertexNormals();
-}
-
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -459,7 +405,6 @@ function buildChromePlateGeometry({
     curveSegments: 64
   });
   geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
-  geo.translate(0, 0, -thickness);
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
   return geo;
@@ -613,7 +558,7 @@ const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of c
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const CLOTH_THICKNESS = TABLE.THICK * 0.16; // thicken the cloth so the felt reads fuller and more substantial
+const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint while staying invisible via colorWrite=false
@@ -1266,11 +1211,11 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     id: 'chrome',
     label: 'Chrome',
     color: 0xc0c9d5,
-    metalness: 0.94,
-    roughness: 0.08,
-    clearcoat: 0.88,
-    clearcoatRoughness: 0.14,
-    envMapIntensity: 1.28
+    metalness: 0.78,
+    roughness: 0.36,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.28,
+    envMapIntensity: 0.6
   },
   {
     id: 'gold',
@@ -1753,12 +1698,12 @@ function enhanceChromeMaterial(material) {
       material[key] = value;
     }
   };
-  ensure('metalness', 0.96, (current, target) => Math.max(current, target));
-  ensure('roughness', 0.06, (current, target) => Math.min(current, target));
-  ensure('clearcoat', 0.85, (current, target) => Math.max(current, target));
-  ensure('clearcoatRoughness', 0.12, (current, target) => Math.min(current, target));
-  ensure('envMapIntensity', 1.35, (current, target) =>
-    THREE.MathUtils.clamp(Math.max(current, target), 0.95, target)
+  ensure('metalness', 0.9, (current, target) => Math.max(current, target));
+  ensure('roughness', 0.1, (current, target) => Math.min(current, target));
+  ensure('clearcoat', 0.72, (current, target) => Math.max(current, target));
+  ensure('clearcoatRoughness', 0.16, (current, target) => Math.max(current, target));
+  ensure('envMapIntensity', 1.02, (current, target) =>
+    THREE.MathUtils.clamp(current, 0.92, target)
   );
   if (material.side !== THREE.DoubleSide) {
     material.side = THREE.DoubleSide;
@@ -3202,18 +3147,14 @@ function reflectRails(ball) {
   const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const pocketGuard =
-    POCKET_VIS_R * 1.08 * POCKET_VISUAL_EXPANSION + BALL_R * 0.25;
+  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
   const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
-  const cornerPenetrationTolerance = BALL_R * 0.08;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cos, -sy * sin);
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
-    const penetration = BALL_R - distNormal;
-    if (penetration <= cornerPenetrationTolerance) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
     if (lateral < pocketGuard) continue;
@@ -3244,9 +3185,8 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.35;
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.6;
   const sideDepthLimit = POCKET_VIS_R * 1.2 * POCKET_VISUAL_EXPANSION;
-  const sidePenetrationTolerance = BALL_R * 0.06;
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
     TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
@@ -3255,8 +3195,6 @@ function reflectRails(ball) {
     TMP_VEC2_B.set(-sx * cos, -sy * sin);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
-    const penetration = BALL_R - distNormal;
-    if (penetration <= sidePenetrationTolerance) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
     if (lateral > sideSpan) continue;
@@ -3689,38 +3627,34 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.93,
-    sheen: 0.97,
+    roughness: 0.88,
+    sheen: 0.94,
     sheenColor,
-    sheenRoughness: 0.52,
-    clearcoat: 0.012,
-    clearcoatRoughness: 0.64,
-    envMapIntensity: 0.12,
+    sheenRoughness: 0.48,
+    clearcoat: 0.01,
+    clearcoatRoughness: 0.7,
+    envMapIntensity: 0.16,
     emissive: clothColor.clone().multiplyScalar(0.05),
-    emissiveIntensity: 0.38
+    emissiveIntensity: 0.46
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // denser weave so the wool fibres read smaller and sharper
-  const clothTextureScale = 0.032 * 1.35 * 1.56 * 1.12; // let the cloth weave breathe slightly so the pattern reads a touch larger
+  const clothTextureScale = 0.032 * 1.35 * 1.56; // let the cloth weave breathe slightly so the pattern reads a touch larger
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = 0.64 * 1.35 * 1.18 * 1.3;
+  const baseBumpScale = 0.64 * 1.35 * 1.18;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.map.anisotropy = Math.max(clothMat.map.anisotropy ?? 0, 16);
     clothMat.map.needsUpdate = true;
   }
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpScale = baseBumpScale;
-    if ('anisotropy' in clothMat.bumpMap) {
-      clothMat.bumpMap.anisotropy = Math.max(clothMat.bumpMap.anisotropy ?? 0, 12);
-    }
     clothMat.bumpMap.needsUpdate = true;
   } else {
     clothMat.bumpScale = baseBumpScale;
@@ -3869,12 +3803,6 @@ function Table3D(
     steps: 1
   });
   clothGeo.translate(0, 0, -CLOTH_THICKNESS);
-  sculptClothPocketLips(clothGeo, pocketPositions, {
-    outerRadius: POCKET_VIS_R * 1.08 * POCKET_VISUAL_EXPANSION,
-    innerRadius: POCKET_CLOTH_BOTTOM_RADIUS,
-    maxDrop: Math.min(POCKET_CLOTH_DEPTH * 0.5, CLOTH_THICKNESS * 2.1),
-    falloffPower: 1.85
-  });
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
@@ -4002,32 +3930,26 @@ function Table3D(
     spots: spotMeshes
   };
 
-  const POCKET_TOP_R = POCKET_CLOTH_TOP_RADIUS * 0.98;
-  const POCKET_BOTTOM_R = POCKET_TOP_R * 0.64;
-  const pocketHeight = Math.max(TABLE.THICK * 1.08, POCKET_CLOTH_DEPTH * 1.4);
-  const pocketSurfaceOffset = TABLE.THICK * 0.04;
+  const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
+  const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+  const pocketSurfaceOffset = TABLE.THICK * 0.06;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
-    pocketHeight,
-    64,
-    1,
-    true
+    TABLE.THICK,
+    48
   );
-  const pocketMat = new THREE.MeshPhysicalMaterial({
-    color: 0x050505,
-    metalness: 0.08,
-    roughness: 0.82,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.48,
-    side: THREE.DoubleSide
+  const pocketMat = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    metalness: 0.45,
+    roughness: 0.6
   });
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(
       p.x,
-      clothPlaneLocal - pocketHeight / 2 - pocketSurfaceOffset,
+      clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
       p.y
     );
     pocket.receiveShadow = true;
@@ -4108,10 +4030,10 @@ function Table3D(
     0,
     railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
   ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = railH * 0.22; // deepen the corner chrome so it blankets the rail sides and pocket cuts
+  const chromePlateThickness = railH * 0.17; // deepen the corner chrome so it blankets the rail sides and pocket cuts
   const sideChromePlateThickness = Math.min(
-    railH * 1.05,
-    Math.max(chromePlateThickness * 1.12, chromePocketCoverageDepth + TABLE.THICK * 0.08)
+    railH * 0.92,
+    Math.max(chromePlateThickness, chromePocketCoverageDepth)
   );
   const chromePlateInset = TABLE.THICK * 0.02;
   const sideChromePlateInset = TABLE.THICK * CHROME_SIDE_PLATE_RAIL_INSET_SCALE;
@@ -4155,8 +4077,10 @@ function Table3D(
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
-  const chromePlateY = railsTopY + MICRO_EPS * 0.5;
-  const sideChromePlateY = railsTopY + MICRO_EPS * 0.5;
+  const chromePlateY =
+    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const sideChromePlateY =
+    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
