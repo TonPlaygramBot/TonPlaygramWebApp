@@ -435,7 +435,7 @@ const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.09; // expand Pool Royale table ~17% without altering proportions
+const TABLE_SCALE = 1.17; // expand Pool Royale table ~17% without altering proportions
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
