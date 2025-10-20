@@ -415,7 +415,7 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 2.42; // ~18% increase over the previous build to uniformly enlarge the snooker table within the requested 15–20% range
+const TABLE_SCALE = 2.85; // ~18% larger than the prior layout so the snooker table grows uniformly within the requested 15–20% window
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
