@@ -443,8 +443,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_INNER_SCALE = 0.88; // keep the wider liners hugging the corner chamfers so the jaws track the cushion gap
-const POCKET_JAW_SIDE_INNER_SCALE = 0.84; // tuck the slimmer liners back into the tighter side pocket openings
+const POCKET_JAW_CORNER_INNER_SCALE = 0.84; // tuck the slimmer liners back into the tighter corner pocket openings
+const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
 const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
 const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
