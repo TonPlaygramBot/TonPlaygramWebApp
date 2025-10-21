@@ -15,14 +15,16 @@ const SNAKE_BOARD_TILES = 10;
 const SNAKE_BOARD_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
 
 const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
-const CAMERA_INITIAL_PHI_LERP = 0.42;
+// Start higher so the default framing feels closer to a seated player's eye level.
+const CAMERA_INITIAL_PHI_LERP = 0.18;
 const CAM = {
   fov: DOMINO_CAMERA_CONFIG.fov,
   near: DOMINO_CAMERA_CONFIG.near,
   far: DOMINO_CAMERA_CONFIG.far,
   minR: DOMINO_CAMERA_CONFIG.minRadius,
   maxR: DOMINO_CAMERA_CONFIG.maxRadius,
-  phiMin: Math.PI * 0.38,
+  // Allow the orbit controls to sit higher above the board for a more natural perspective.
+  phiMin: Math.PI * 0.32,
   phiMax: DOMINO_CAMERA_CONFIG.maxPolarAngle
 };
 const TILE_GAP = 0.015;
