@@ -9,6 +9,7 @@ import {
   applyTableMaterials,
   TABLE_SHAPE_OPTIONS
 } from '../../utils/murlanTable.js';
+import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
@@ -62,22 +63,19 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 
-const DEFAULT_PLAYER_COUNT = 6;
+const DEFAULT_PLAYER_COUNT = 4;
+const CUSTOM_CHAIR_ANGLES = [
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(270),
+  THREE.MathUtils.degToRad(225)
+];
 
-const CAMERA_FOV = 52;
-const CAMERA_NEAR = 0.1;
-const CAMERA_FAR = 5000;
-const CAMERA_DOLLY_FACTOR = 0.2;
+const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
+const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
+const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
+const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
-const CAM = {
-  fov: CAMERA_FOV,
-  near: CAMERA_NEAR,
-  far: CAMERA_FAR,
-  minR: TABLE_RADIUS * 1.6,
-  maxR: TABLE_RADIUS * 4.2,
-  phiMin: Math.PI * 0.26,
-  phiMax: Math.PI * 0.58
-};
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
@@ -348,6 +346,17 @@ const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
 const BOARD_SCALE = 2.7;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
+const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
+const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
+const CAM = {
+  fov: CAMERA_FOV,
+  near: CAMERA_NEAR,
+  far: CAMERA_FAR,
+  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor,
+  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor,
+  phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
+  phiMax: ARENA_CAMERA_DEFAULTS.phiMax
+};
 const RING_STEPS = 52;
 const HOME_STEPS = 4;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
@@ -423,7 +432,7 @@ function makeDice() {
     0,
     Math.PI * 2,
     0,
-    Math.PI / 2
+    Math.PI
   );
   pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
@@ -992,7 +1001,18 @@ function Ludo3D({ avatar, username }) {
     scene.background = new THREE.Color('#030712');
 
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    camera.position.set(0, TABLE_HEIGHT * 2.85, TABLE_RADIUS * 3.9);
+    const isPortrait = host.clientHeight > host.clientWidth;
+    const cameraSeatAngle = Math.PI / 2;
+    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+    const chairRadius = AI_CHAIR_RADIUS;
+    const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius,
+      TABLE_HEIGHT + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius
+    );
 
     const ambient = new THREE.AmbientLight(0xffffff, 1.08);
     scene.add(ambient);
@@ -1064,7 +1084,11 @@ function Ludo3D({ avatar, username }) {
     boardGroup.scale.setScalar(BOARD_SCALE);
     tableInfo.group.add(boardGroup);
 
-    const boardLookTarget = new THREE.Vector3(0, tableInfo.surfaceY + CAMERA_TARGET_LIFT, 0);
+    const boardLookTarget = new THREE.Vector3(
+      0,
+      tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
+      0
+    );
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -1120,7 +1144,8 @@ function Ludo3D({ avatar, username }) {
 
     const chairs = [];
     for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
-      const angle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
+      const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
+      const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
       const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
       const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS);
       seatPos.y = CHAIR_BASE_HEIGHT;
@@ -1763,22 +1788,11 @@ function buildLudoBoard(boardGroup) {
 
   const dice = makeDice();
   const clothHalf = BOARD_CLOTH_HALF;
-  const railDistance = clothHalf + 0.09;
-  const railHeight = DICE_BASE_HEIGHT + 0.024;
-  const rollRadius = clothHalf * 0.45;
-  const railPositions = [
-    new THREE.Vector3(0, railHeight, -railDistance),
-    new THREE.Vector3(railDistance, railHeight, 0),
-    new THREE.Vector3(0, railHeight, railDistance),
-    new THREE.Vector3(-railDistance, railHeight, 0)
-  ];
-  const rollTargets = [
-    new THREE.Vector3(0, DICE_BASE_HEIGHT, -rollRadius),
-    new THREE.Vector3(rollRadius, DICE_BASE_HEIGHT, 0),
-    new THREE.Vector3(0, DICE_BASE_HEIGHT, rollRadius),
-    new THREE.Vector3(-rollRadius, DICE_BASE_HEIGHT, 0)
-  ];
-  dice.position.copy(railPositions[0]);
+  const railHeight = DICE_BASE_HEIGHT;
+  const diceAnchor = new THREE.Vector3(0, railHeight, 0);
+  const railPositions = Array.from({ length: 4 }, () => diceAnchor.clone());
+  const rollTargets = railPositions.map((pos) => pos.clone());
+  dice.position.copy(diceAnchor);
   dice.userData.railPositions = railPositions.map((pos) => pos.clone());
   dice.userData.rollTargets = rollTargets.map((pos) => pos.clone());
   dice.userData.baseHeight = DICE_BASE_HEIGHT;
