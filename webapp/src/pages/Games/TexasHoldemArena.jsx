@@ -30,7 +30,8 @@ import {
   createDeck,
   shuffle,
   dealHoleCards,
-  estimateWinProbability
+  estimateWinProbability,
+  bestHand
 } from '../../../../lib/texasHoldem.js';
 import {
   buildSidePotsFromBets,
@@ -202,6 +203,11 @@ const CHIP_RAIL_LAYOUT = Object.freeze({
   lift: 0
 });
 
+const SHOWDOWN_RESET_DELAY = 6500;
+const CARD_HIGHLIGHT_COLOR = '#facc15';
+const CARD_HIGHLIGHT = new THREE.Color(CARD_HIGHLIGHT_COLOR);
+const CARD_EMISSIVE_OFF = new THREE.Color(0x000000);
+
 const POT_SCATTER_LAYOUT = Object.freeze({
   perRow: 6,
   spacing: CARD_W * 0.58,
@@ -229,6 +235,56 @@ const DEFAULT_PITCH_LIMITS = Object.freeze({ min: -CAMERA_HEAD_PITCH_UP, max: CA
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
+
+function cardKey(card) {
+  if (!card || typeof card !== 'object') return '';
+  return `${card.rank ?? ''}${card.suit ?? ''}`;
+}
+
+function setCardHighlight(mesh, highlighted) {
+  if (!mesh?.userData) return;
+  const desired = Boolean(highlighted);
+  const current = Boolean(mesh.userData.isHighlighted);
+  if (desired === current) {
+    return;
+  }
+  const { frontMaterial, backMaterial, edgeMaterials } = mesh.userData;
+  if (desired) {
+    if (frontMaterial) {
+      frontMaterial.emissive.copy(CARD_HIGHLIGHT);
+      frontMaterial.emissiveIntensity = 0.65;
+    }
+    if (backMaterial) {
+      backMaterial.emissive.copy(CARD_HIGHLIGHT);
+      backMaterial.emissiveIntensity = 0.35;
+    }
+    if (Array.isArray(edgeMaterials)) {
+      edgeMaterials.forEach((material) => {
+        if (!material) return;
+        material.emissive.copy(CARD_HIGHLIGHT);
+        material.emissiveIntensity = 0.4;
+      });
+    }
+    mesh.userData.isHighlighted = true;
+  } else {
+    if (frontMaterial) {
+      frontMaterial.emissive.copy(CARD_EMISSIVE_OFF);
+      frontMaterial.emissiveIntensity = 0;
+    }
+    if (backMaterial) {
+      backMaterial.emissive.copy(CARD_EMISSIVE_OFF);
+      backMaterial.emissiveIntensity = 0;
+    }
+    if (Array.isArray(edgeMaterials)) {
+      edgeMaterials.forEach((material) => {
+        if (!material) return;
+        material.emissive.copy(CARD_EMISSIVE_OFF);
+        material.emissiveIntensity = 0;
+      });
+    }
+    mesh.userData.isHighlighted = false;
+  }
+}
 
 const APPEARANCE_STORAGE_KEY = 'texasHoldemArenaAppearance';
 const DEFAULT_APPEARANCE = {
@@ -946,7 +1002,9 @@ function buildInitialState(players, token, stake) {
       folded: false,
       allIn: false,
       actedInRound: false,
-      status: ''
+      status: '',
+      winnings: 0,
+      winningCards: []
     })),
     token,
     stake,
@@ -961,7 +1019,9 @@ function buildInitialState(players, token, stake) {
     winners: [],
     awaitingInput: false,
     handId: 0,
-    showdown: false
+    showdown: false,
+    winningCommunityCards: [],
+    winnerFocusIndex: null
   };
 }
 
@@ -976,6 +1036,8 @@ function resetForNextHand(state) {
   next.currentBet = 0;
   next.minRaise = BIG_BLIND;
   next.dealerIndex = (state.dealerIndex + 1) % state.players.length;
+  next.winningCommunityCards = [];
+  next.winnerFocusIndex = null;
   next.players = state.players.map((p, idx) => ({
     ...p,
     seatIndex: p.seatIndex ?? idx,
@@ -985,7 +1047,9 @@ function resetForNextHand(state) {
     folded: p.chips <= 0,
     allIn: p.chips <= 0,
     actedInRound: false,
-    status: p.chips <= 0 ? 'Out' : ''
+    status: p.chips <= 0 ? 'Out' : '',
+    winnings: 0,
+    winningCards: []
   }));
   const active = next.players.filter((p) => p.chips > 0);
   if (active.length < 2) {
@@ -1105,19 +1169,59 @@ function goToShowdown(state) {
   }
   const pots = buildSidePotsFromBets(state.players);
   const results = [];
+  const communityWinning = new Set();
+  state.players.forEach((player) => {
+    player.winnings = 0;
+    player.winningCards = [];
+    player.bet = 0;
+  });
+  const communityKeys = new Set(state.community.map((card) => cardKey(card)));
+  let focusIndex = null;
   pots.forEach((pot) => {
     const eligible = pot.players.filter((idx) => !state.players[idx].folded);
     if (!eligible.length) return;
-    const winners = determineWinnersFromHands(state.players, state.community, eligible);
-    const share = pot.amount / winners.length;
-    winners.forEach((idx) => {
-      state.players[idx].chips += share;
-      state.players[idx].status = `Win ${Math.round(share)}`;
+    const winnerIndices = determineWinnersFromHands(state.players, state.community, eligible);
+    if (!winnerIndices.length) return;
+    const baseShare = Math.floor(pot.amount / winnerIndices.length);
+    let remainder = pot.amount - baseShare * winnerIndices.length;
+    const potWinners = winnerIndices.map((idx, position) => {
+      const player = state.players[idx];
+      const share = baseShare + (position < remainder ? 1 : 0);
+      if (share > 0) {
+        player.chips += share;
+        player.winnings = (player.winnings ?? 0) + share;
+        player.status = `Win ${Math.round(player.winnings)}`;
+      }
+      const best = bestHand([...(player.hand ?? []), ...state.community]);
+      const bestCards = Array.isArray(best?.cards) ? best.cards : [];
+      const bestKeys = new Set(bestCards.map((card) => cardKey(card)));
+      const holeKeys = (player.hand ?? [])
+        .map((card) => cardKey(card))
+        .filter((key) => bestKeys.has(key));
+      const existing = new Set(player.winningCards ?? []);
+      holeKeys.forEach((key) => existing.add(key));
+      player.winningCards = Array.from(existing);
+      bestCards.forEach((card) => {
+        const key = cardKey(card);
+        if (communityKeys.has(key)) {
+          communityWinning.add(key);
+        }
+      });
+      if (focusIndex == null) {
+        focusIndex = idx;
+      }
+      return {
+        index: idx,
+        share,
+        cards: bestCards.map((card) => ({ ...card }))
+      };
     });
-    results.push({ amount: pot.amount, winners });
+    results.push({ amount: pot.amount, winners: potWinners });
   });
   state.pot = 0;
   state.winners = results;
+  state.winningCommunityCards = Array.from(communityWinning);
+  state.winnerFocusIndex = focusIndex;
   state.stage = 'showdown';
   state.showdown = true;
   state.awaitingInput = false;
@@ -1344,6 +1448,13 @@ function TexasHoldemArena({ search }) {
   const potDisplayRef = useRef(0);
   const potTargetRef = useRef(0);
   const lastFrameRef = useRef(null);
+  const showdownAnimationRef = useRef({
+    handId: null,
+    active: false,
+    pendingValue: 0,
+    seatPending: {},
+    startingChips: {}
+  });
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -1438,6 +1549,37 @@ function TexasHoldemArena({ search }) {
     camera.lookAt(basis.position.clone().add(finalForward));
     three.orientHumanCards?.();
   }, []);
+
+  const focusCameraOnSeat = useCallback(
+    (seatIndex, immediate = false) => {
+      if (typeof seatIndex !== 'number' || seatIndex < 0) return;
+      const three = threeRef.current;
+      const basis = cameraBasisRef.current;
+      if (!three || !basis) return;
+      const seat = three.seatGroups?.[seatIndex];
+      if (!seat) return;
+      const focusPoint = seat.stoolAnchor.clone();
+      focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
+      const toTarget = focusPoint.sub(basis.position);
+      if (toTarget.lengthSq() === 0) return;
+      const projected = toTarget.clone().projectOnPlane(basis.baseUp);
+      if (projected.lengthSq() === 0) return;
+      projected.normalize();
+      const baseForward = basis.baseForward.clone().projectOnPlane(basis.baseUp).normalize();
+      const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
+      const yaw = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
+      const clampedYaw = THREE.MathUtils.clamp(yaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
+      if (immediate) {
+        headAnglesRef.current.yaw = clampedYaw;
+        headAnglesRef.current.pitch = 0;
+        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
+        applyHeadOrientation();
+      } else {
+        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
+      }
+    },
+    [applyHeadOrientation]
+  );
 
   const updateCameraAutoTarget = useCallback((actionIndex) => {
     if (typeof actionIndex !== 'number' || actionIndex < 0) {
@@ -2405,6 +2547,9 @@ function TexasHoldemArena({ search }) {
     const previous = prevStateRef.current;
     potTargetRef.current = Math.max(0, Math.round(state.pot ?? 0));
 
+    const showdownState = showdownAnimationRef.current;
+    const winningCommunity = new Set(state.winningCommunityCards ?? []);
+
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
       if (!seat) return;
@@ -2416,6 +2561,8 @@ function TexasHoldemArena({ search }) {
       seat.folded = player.folded;
       seat.lastStatus = player.status || '';
 
+      const winningCardSet = new Set(player.winningCards ?? []);
+
       seat.cardMeshes.forEach((mesh, cardIdx) => {
         let card = player.hand[cardIdx];
         if (!card && player.folded) {
@@ -2424,12 +2571,14 @@ function TexasHoldemArena({ search }) {
         if (!card) {
           mesh.visible = false;
           mesh.position.copy(deckAnchor);
+          setCardHighlight(mesh, false);
           return;
         }
         mesh.visible = true;
         applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
         if (player.isHuman && !player.folded && !state.showdown) {
           setCardFace(mesh, 'front');
+          setCardHighlight(mesh, false);
           return;
         }
         if (player.folded && !state.showdown) {
@@ -2440,6 +2589,7 @@ function TexasHoldemArena({ search }) {
           const lookTarget = position.clone().add(seat.forward.clone());
           orientCard(mesh, lookTarget, { face: 'back', flat: true });
           setCardFace(mesh, 'back');
+          setCardHighlight(mesh, false);
           return;
         }
         const position = baseAnchor
@@ -2454,10 +2604,19 @@ function TexasHoldemArena({ search }) {
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY));
         orientCard(mesh, lookTarget, { face: state.showdown ? 'front' : 'back', flat: false });
         setCardFace(mesh, state.showdown ? 'front' : 'back');
+        const key = cardKey(card);
+        setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
 
       const chipsAmount = Math.max(0, Math.round(player.chips));
-      chipFactory.setAmount(seat.chipStack, chipsAmount, { mode: 'scatter', layout: seat.tableLayout });
+      const seatPendingValue = Math.max(0, showdownState?.seatPending?.[idx] ?? 0);
+      const storedStarting = showdownState?.startingChips?.[idx];
+      const baseStarting = Math.max(0, Math.round((player.chips ?? 0) - (player.winnings ?? 0)));
+      const effectiveStarting = Number.isFinite(storedStarting) ? storedStarting : baseStarting;
+      const shouldHoldChips =
+        state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
+      const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
+      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.tableLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
       const prevBet = seat.lastBet ?? 0;
@@ -2535,6 +2694,7 @@ function TexasHoldemArena({ search }) {
       if (!card) {
         mesh.position.copy(deckAnchor);
         mesh.visible = false;
+        setCardHighlight(mesh, false);
         return;
       }
       mesh.visible = true;
@@ -2544,6 +2704,8 @@ function TexasHoldemArena({ search }) {
       mesh.position.copy(position);
       orientCard(mesh, position.clone().add(new THREE.Vector3(0, 0, 1)), { face: 'front', flat: true });
       setCardFace(mesh, 'front');
+      const communityKey = cardKey(card);
+      setCardHighlight(mesh, state.showdown && winningCommunity.has(communityKey));
       if (!previous?.community?.[idx]) {
         playSound('flip');
       }
@@ -2558,9 +2720,11 @@ function TexasHoldemArena({ search }) {
       });
     });
 
-    if (potDisplayRef.current > potTargetRef.current || potTargetRef.current === 0) {
-      potDisplayRef.current = potTargetRef.current;
-      chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+    if (!showdownState?.active) {
+      if (potDisplayRef.current > potTargetRef.current || potTargetRef.current === 0) {
+        potDisplayRef.current = potTargetRef.current;
+        chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+      }
     }
 
     prevStateRef.current = {
@@ -2598,6 +2762,122 @@ function TexasHoldemArena({ search }) {
   }, [currentActionIndex, currentStage, updateCameraAutoTarget, applyHeadOrientation, playSound]);
 
   useEffect(() => {
+    if (!gameState) return;
+    if (gameState.stage !== 'showdown') {
+      showdownAnimationRef.current.active = false;
+      return;
+    }
+    const handId = gameState.handId;
+    const previousHandId = showdownAnimationRef.current.handId;
+    showdownAnimationRef.current.handId = handId;
+
+    const focusIndex = gameState.winnerFocusIndex;
+    if (typeof focusIndex === 'number') {
+      focusCameraOnSeat(focusIndex, false);
+    }
+
+    if (previousHandId === handId) {
+      return;
+    }
+
+    const three = threeRef.current;
+    if (!three) return;
+    const { seatGroups, chipFactory, potStack, potLayout, arenaGroup } = three;
+    const results = Array.isArray(gameState.winners) ? gameState.winners : [];
+    const totalPot = results.reduce((sum, entry) => sum + Math.max(0, Math.round(entry?.amount ?? 0)), 0);
+
+    const startingChips = {};
+    gameState.players.forEach((player, idx) => {
+      startingChips[idx] = Math.max(0, Math.round((player.chips ?? 0) - (player.winnings ?? 0)));
+    });
+
+    const seatPending = {};
+    const seatTargets = {};
+    results.forEach((potEntry) => {
+      const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
+      winners.forEach((winnerInfo) => {
+        const seatIndex = winnerInfo?.index;
+        if (typeof seatIndex !== 'number' || seatIndex < 0) return;
+        const shareAmount = Math.max(0, Math.round(winnerInfo?.share ?? 0));
+        if (shareAmount <= 0) return;
+        seatPending[seatIndex] = (seatPending[seatIndex] ?? 0) + shareAmount;
+        seatTargets[seatIndex] = Math.max(0, Math.round(gameState.players?.[seatIndex]?.chips ?? 0));
+      });
+    });
+
+    showdownAnimationRef.current.active = totalPot > 0;
+    showdownAnimationRef.current.pendingValue = totalPot;
+    showdownAnimationRef.current.seatPending = seatPending;
+    showdownAnimationRef.current.startingChips = startingChips;
+
+    if (totalPot <= 0) {
+      potDisplayRef.current = 0;
+      chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+      return;
+    }
+
+    potDisplayRef.current = Math.max(potDisplayRef.current, totalPot);
+    chipFactory.setAmount(potStack, Math.round(potDisplayRef.current), { mode: 'scatter', layout: potLayout });
+
+    results.forEach((potEntry) => {
+      const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
+      winners.forEach((winnerInfo) => {
+        const seatIndex = winnerInfo?.index;
+        if (typeof seatIndex !== 'number' || seatIndex < 0) return;
+        const shareAmount = Math.max(0, Math.round(winnerInfo?.share ?? 0));
+        if (shareAmount <= 0) return;
+        const seat = seatGroups?.[seatIndex];
+        if (!seat) return;
+        const start = potStack.position.clone();
+        const end = seat.chipAnchor.clone();
+        const mid = start.clone().lerp(end, 0.5);
+        mid.y += CARD_SURFACE_OFFSET * 6;
+        const targetChips = seatTargets[seatIndex] ?? Math.max(0, Math.round(gameState.players?.[seatIndex]?.chips ?? 0));
+        chipFactory.animateTransfer(shareAmount, {
+          scene: arenaGroup,
+          start,
+          mid,
+          end,
+          startLayout: potLayout,
+          midLayout: seat.tableLayout,
+          endLayout: seat.tableLayout,
+          startLift: CARD_SURFACE_OFFSET,
+          midLift: CARD_SURFACE_OFFSET * 4,
+          endLift: CARD_SURFACE_OFFSET,
+          onComplete: (value) => {
+            showdownAnimationRef.current.pendingValue = Math.max(
+              0,
+              showdownAnimationRef.current.pendingValue - value
+            );
+            potDisplayRef.current = Math.max(0, potDisplayRef.current - value);
+            chipFactory.setAmount(potStack, Math.max(0, Math.round(potDisplayRef.current)), {
+              mode: 'scatter',
+              layout: potLayout
+            });
+            if (showdownAnimationRef.current.seatPending) {
+              showdownAnimationRef.current.seatPending[seatIndex] = Math.max(
+                0,
+                (showdownAnimationRef.current.seatPending[seatIndex] ?? 0) - value
+              );
+              if (showdownAnimationRef.current.seatPending[seatIndex] <= 0) {
+                chipFactory.setAmount(seat.chipStack, targetChips, {
+                  mode: 'scatter',
+                  layout: seat.tableLayout
+                });
+              }
+            }
+            if (showdownAnimationRef.current.pendingValue <= 0) {
+              showdownAnimationRef.current.active = false;
+              potDisplayRef.current = 0;
+              chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+            }
+          }
+        });
+      });
+    });
+  }, [gameState, focusCameraOnSeat]);
+
+  useEffect(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -2606,7 +2886,7 @@ function TexasHoldemArena({ search }) {
     if (gameState.stage === 'showdown') {
       timerRef.current = setTimeout(() => {
         setGameState((prev) => resetForNextHand(cloneState(prev)));
-      }, 4000);
+      }, SHOWDOWN_RESET_DELAY);
       return () => {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
