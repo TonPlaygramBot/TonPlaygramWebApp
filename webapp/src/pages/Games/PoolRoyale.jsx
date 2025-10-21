@@ -218,8 +218,6 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.18; // run the trim farther down 
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
 const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward so they clear the rail caps on mobile
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
-const CORNER_COVER_CUSHION_CLEARANCE = TABLE.THICK * 0.05; // trim plastic liners back so they stop shy of the cushion noses
-const CORNER_COVER_DIAGONAL_SCALE = 1.35; // extend the diagonal relief cut deep enough to mirror the angled cushions
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
@@ -4301,47 +4299,6 @@ function Table3D(
     return adjustSideNotchDepth(union);
   };
 
-  const clipCornerPocketCoverMP = (mp, sx = 1, sz = 1) => {
-    if (!Array.isArray(mp) || !mp.length) {
-      return mp;
-    }
-    const signX = sx >= 0 ? 1 : -1;
-    const signZ = sz >= 0 ? 1 : -1;
-    const clearance = CORNER_COVER_CUSHION_CLEARANCE;
-    const verticalThreshold = signX * (cushionInnerX - clearance);
-    const horizontalThreshold = signZ * (cushionInnerZ - clearance);
-    const span = Math.max(innerHalfW, innerHalfH) * 4;
-    const rectX = boxPoly(
-      signX > 0 ? verticalThreshold : -span,
-      -span,
-      signX > 0 ? span : verticalThreshold,
-      span
-    );
-    const rectZ = boxPoly(
-      -span,
-      signZ > 0 ? horizontalThreshold : -span,
-      span,
-      signZ > 0 ? span : horizontalThreshold
-    );
-    const keepRegion = polygonClipping.union(rectX, rectZ);
-    let clipped =
-      Array.isArray(keepRegion) && keepRegion.length
-        ? polygonClipping.intersection(mp, keepRegion)
-        : mp;
-    if (!Array.isArray(clipped) || !clipped.length) {
-      clipped = mp;
-    }
-    const diagReach = cornerChamfer * CORNER_COVER_DIAGONAL_SCALE;
-    if (diagReach <= MICRO_EPS) {
-      return clipped;
-    }
-    const v0 = [verticalThreshold, horizontalThreshold];
-    const v1 = [verticalThreshold - signX * diagReach, horizontalThreshold];
-    const v2 = [verticalThreshold, horizontalThreshold - signZ * diagReach];
-    const trim = polygonClipping.difference(clipped, [[[v0, v1, v2, v0]]]);
-    return Array.isArray(trim) && trim.length ? trim : clipped;
-  };
-
   const scalePocketCutMP = (mp, scale) => {
     if (!Array.isArray(mp)) {
       return mp;
@@ -4465,19 +4422,10 @@ function Table3D(
     finishParts.pocketCoverMeshes.push(mesh);
   };
 
-  [
-    { sx: 1, sz: 1 },
-    { sx: -1, sz: 1 },
-    { sx: -1, sz: -1 },
-    { sx: 1, sz: -1 }
-  ].forEach(({ sx, sz }) => {
-    const coverMP = clipCornerPocketCoverMP(
-      scaleCornerPocketCut(cornerNotchMP(sx, sz)),
-      sx,
-      sz
-    );
-    addPocketCover(coverMP, POCKET_COVER_CORNER_INNER_SCALE);
-  });
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(1, 1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(-1, 1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(-1, -1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(1, -1)), POCKET_COVER_CORNER_INNER_SCALE);
   addPocketCover(scaleSidePocketCut(sideNotchMP(-1)), POCKET_COVER_SIDE_INNER_SCALE);
   addPocketCover(scaleSidePocketCut(sideNotchMP(1)), POCKET_COVER_SIDE_INNER_SCALE);
 
