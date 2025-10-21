@@ -73,11 +73,15 @@ const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
 const MAX_PLAYER_COUNT = 6;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
-const SMALL_BLIND = 10;
-const BIG_BLIND = 20;
-const COMMUNITY_SPACING = CARD_W * 0.85;
-const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * -0.6;
-const COMMUNITY_CARD_LIFT = CARD_D * 12;
+// Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
+const CLASSIC_ANTE = 10;
+const SMALL_BLIND = CLASSIC_ANTE / 2;
+const BIG_BLIND = CLASSIC_ANTE;
+const COMMUNITY_SPACING = CARD_W * 0.75;
+const COMMUNITY_CARD_FORWARD_OFFSET = 0;
+const COMMUNITY_CARD_LIFT = CARD_D * 18;
+const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
+const COMMUNITY_CARD_TILT = THREE.MathUtils.degToRad(6);
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
@@ -1461,6 +1465,20 @@ function TexasHoldemArena({ search }) {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  useEffect(() => {
+    const activeIndex = cameraAutoTargetRef.current?.activeIndex;
+    if (typeof activeIndex !== 'number') {
+      return;
+    }
+    const player = gameState?.players?.[activeIndex];
+    if (!player || player.folded || player.chips <= 0) {
+      cameraAutoTargetRef.current = {
+        yaw: headAnglesRef.current.yaw,
+        activeIndex: null
+      };
+    }
+  }, [gameState]);
+
   const playSound = useCallback((name) => {
     const audio = soundsRef.current?.[name];
     if (!audio || isGameMuted()) return;
@@ -2177,6 +2195,7 @@ function TexasHoldemArena({ search }) {
       const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
       mesh.position.copy(deckAnchor);
       mesh.castShadow = true;
+      mesh.renderOrder = 10;
       arenaGroup.add(mesh);
       return mesh;
     });
@@ -2702,14 +2721,17 @@ function TexasHoldemArena({ search }) {
       mesh.visible = true;
       applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
       const offset = (idx - 2) * COMMUNITY_SPACING;
-      const position = new THREE.Vector3(
+      const baseY = TABLE_HEIGHT + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT;
+      mesh.position.set(offset, baseY, COMMUNITY_CARD_FORWARD_OFFSET);
+      const lookTarget = new THREE.Vector3(
         offset,
-        TABLE_HEIGHT + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
-        COMMUNITY_CARD_FORWARD_OFFSET
+        baseY + COMMUNITY_CARD_LOOK_LIFT,
+        COMMUNITY_CARD_FORWARD_OFFSET + 1
       );
-      mesh.position.copy(position);
-      const lookTarget = position.clone().add(new THREE.Vector3(0, 0, 1));
       orientCard(mesh, lookTarget, { face: 'front', flat: true });
+      if (COMMUNITY_CARD_TILT) {
+        mesh.rotateX(COMMUNITY_CARD_TILT);
+      }
       setCardFace(mesh, 'front');
       const communityKey = cardKey(card);
       setCardHighlight(mesh, state.showdown && winningCommunity.has(communityKey));
