@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
@@ -111,6 +111,46 @@ function shuffle(arr) {
   }
   return copy;
 }
+
+const FALLBACK_SEAT_POSITIONS = [
+  { left: '50%', top: '82%' },
+  { left: '78%', top: '54%' },
+  { left: '48%', top: '22%' },
+  { left: '22%', top: '55%' }
+];
+
+const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
+
+function parseHexColor(hex) {
+  if (typeof hex !== 'string') return null;
+  const trimmed = hex.trim();
+  const match = trimmed.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return null;
+  let value = match[1];
+  if (value.length === 3) {
+    value = value.split('').map((ch) => ch + ch).join('');
+  }
+  const intVal = parseInt(value, 16);
+  return [
+    (intVal >> 16) & 255,
+    (intVal >> 8) & 255,
+    intVal & 255
+  ];
+}
+
+function mixHexColor(base, target, amount) {
+  const from = parseHexColor(base);
+  const to = parseHexColor(target);
+  if (!from || !to) return base;
+  const ratio = clampValue(amount, 0, 1);
+  const mixed = from.map((component, idx) =>
+    Math.round(component + (to[idx] - component) * ratio)
+  );
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+const lightenHex = (hex, amount = 0.25) => mixHexColor(hex, '#ffffff', amount);
+const darkenHex = (hex, amount = 0.25) => mixHexColor(hex, '#000000', amount);
 
 function generateBoardLocal() {
   const boardSize = FINAL_TILE - 1;
@@ -278,23 +318,44 @@ export default function SnakeAndLadder() {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
-  const diceRef = useRef(null);
   const diceRollerDivRef = useRef(null);
-  const [diceStyle, setDiceStyle] = useState({ display: 'none' });
   const slideStateRef = useRef(null);
   const slideIdRef = useRef(0);
   const [slideAnimation, setSlideAnimation] = useState(null);
   const diceRollIdRef = useRef(0);
   const [diceBoardEvent, setDiceBoardEvent] = useState(null);
-  const [showTrail, setShowTrail] = useState(false);
-  const trailTimeoutRef = useRef(null);
-  const DICE_SMALL_SCALE = 0.44;
-  // Duration for each leg of the dice travel animation (ms)
-  // Slightly slower so the movement matches the NFT gift animation
-  const DICE_ANIM_DURATION = 1800;
-  useEffect(() => {
-    prepareDiceAnimation(0);
-  }, []);
+  const [seatAnchors, setSeatAnchors] = useState([]);
+  const [diceAnchor, setDiceAnchor] = useState(null);
+
+  const seatAnchorMap = useMemo(() => {
+    const map = new Map();
+    seatAnchors.forEach((anchor) => {
+      if (anchor && typeof anchor.index === 'number') map.set(anchor.index, anchor);
+    });
+    return map;
+  }, [seatAnchors]);
+
+  const diceAnchorStyle = useMemo(() => {
+    if (diceAnchor && Number.isFinite(diceAnchor.x) && Number.isFinite(diceAnchor.y)) {
+      return {
+        position: 'absolute',
+        left: `${diceAnchor.x}%`,
+        top: `${diceAnchor.y}%`,
+        transform: 'translate(-50%, -50%)'
+      };
+    }
+    return {
+      position: 'absolute',
+      left: '50%',
+      top: '74%',
+      transform: 'translate(-50%, -50%)'
+    };
+  }, [diceAnchor]);
+
+  const diceAnchorScale = useMemo(() => {
+    if (!diceAnchor || !Number.isFinite(diceAnchor.depth)) return 1;
+    return clampValue(1.25 - (diceAnchor.depth - 2.5) * 0.22, 0.85, 1.18);
+  }, [diceAnchor]);
 
   const requestSlideAnimation = useCallback(
     ({ playerIndex, from, to, type, onComplete }) => {
@@ -329,10 +390,6 @@ export default function SnakeAndLadder() {
     setDiceBoardEvent(phase);
   }, []);
 
-
-  useEffect(() => {
-    return () => clearTimeout(trailTimeoutRef.current);
-  }, []);
 
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
@@ -421,113 +478,6 @@ export default function SnakeAndLadder() {
         }, 1000);
       });
     }
-  };
-
-  const getDiceCenter = () => {
-    const boardEl = document.querySelector('[data-snake-board-root]');
-    if (boardEl) {
-      const rect = boardEl.getBoundingClientRect();
-      return {
-        cx: rect.left + rect.width / 2,
-        cy: rect.top + rect.height / 2,
-      };
-    }
-    return { cx: window.innerWidth / 2, cy: window.innerHeight / 2 };
-  };
-
-  const prepareDiceAnimation = (startIdx) => {
-    if (startIdx == null) {
-      const { cx, cy } = getDiceCenter();
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
-        transition: 'none',
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-      return;
-    }
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
-    if (!startEl) return;
-    const s = startEl.getBoundingClientRect();
-    const targetX = s.left + s.width / 2;
-    // Center the dice on the avatar when it appears
-    const targetY = s.top + s.height / 2;
-    setDiceStyle({
-      display: 'block',
-      position: 'fixed',
-      left: '0px',
-      top: '0px',
-      transform: `translate(${targetX}px, ${targetY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
-      transition: 'none',
-      pointerEvents: 'none',
-      zIndex: 50,
-    });
-  };
-
-  const animateDiceToCenter = (startIdx) => {
-    const dice = diceRef.current;
-    const startEl = document.querySelector(`[data-player-index="${startIdx}"] img`);
-    if (!dice || !startEl) return;
-    const s = startEl.getBoundingClientRect();
-    const startX = s.left + s.width / 2;
-    // Begin animation from the avatar centre
-    const startY = s.top + s.height / 2;
-    const { cx, cy } = getDiceCenter();
-    dice.style.display = 'block';
-    dice.style.position = 'fixed';
-    dice.style.left = '0px';
-    dice.style.top = '0px';
-    dice.style.pointerEvents = 'none';
-    dice.style.zIndex = '50';
-    dice.animate(
-      [
-        { transform: `translate(${startX}px, ${startY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
-      ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
-  };
-
-  const animateDiceToPlayer = (idx) => {
-    const dice = diceRef.current;
-    const endEl = document.querySelector(`[data-player-index="${idx}"] img`);
-    if (!dice || !endEl) return;
-    const e = endEl.getBoundingClientRect();
-    // Land slightly to the right of the avatar centre
-    const endX = e.left + e.width / 2 + 10;
-    const endY = e.top + e.height / 2;
-    const { cx, cy } = getDiceCenter();
-    dice.animate(
-      [
-        { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(1)` },
-        { transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})` },
-      ],
-      { duration: DICE_ANIM_DURATION, easing: 'ease-in-out' },
-    ).onfinish = () => {
-      setDiceStyle({
-        display: 'block',
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        transform: `translate(${endX}px, ${endY}px) translate(-50%, -50%) scale(${DICE_SMALL_SCALE})`,
-        pointerEvents: 'none',
-        zIndex: 50,
-      });
-    };
   };
 
   const moveSoundRef = useRef(null);
@@ -1281,7 +1231,6 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
           setTimeout(() => {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1299,7 +1248,6 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = (currentTurn + 1) % (ai + 1);
-          animateDiceToPlayer(next);
           setTimeout(() => {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1315,7 +1263,6 @@ export default function SnakeAndLadder() {
         setTurnMessage("");
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1333,7 +1280,6 @@ export default function SnakeAndLadder() {
       }
       const extraPred = diceCells[predicted] || doubleSix;
       const nextPlayer = extraPred ? currentTurn : (currentTurn + 1) % (ai + 1);
-      animateDiceToPlayer(nextPlayer);
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -1516,7 +1462,6 @@ export default function SnakeAndLadder() {
         setTurnMessage(`${getPlayerName(index)} needs a 6`);
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1530,7 +1475,6 @@ export default function SnakeAndLadder() {
         setTurnMessage('');
         setDiceVisible(false);
         const next = (currentTurn + 1) % (ai + 1);
-        animateDiceToPlayer(next);
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1550,7 +1494,6 @@ export default function SnakeAndLadder() {
     }
     const extraPred = diceCells[predicted] || doubleSix;
     const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
-    animateDiceToPlayer(nextPlayer);
 
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -1843,6 +1786,10 @@ export default function SnakeAndLadder() {
     ? 'Your turn'
     : null;
 
+  const diceRingSize = Math.max(72, Math.round(96 * diceAnchorScale));
+  const diceButtonSize = Math.max(60, Math.round(86 * diceAnchorScale));
+  const diceVisibilityClass = diceVisible ? 'opacity-100' : 'opacity-0 pointer-events-none';
+
   const handleRollButtonClick = () => {
     diceRollerDivRef.current?.click();
   };
@@ -1876,6 +1823,8 @@ export default function SnakeAndLadder() {
           slide={slideAnimation}
           onSlideComplete={handleSlideComplete}
           diceEvent={diceBoardEvent}
+          onSeatPositionsChange={setSeatAnchors}
+          onDiceAnchorChange={setDiceAnchor}
         />
       </div>
       <div className="absolute top-3 right-3 z-30 pointer-events-auto">
@@ -1949,17 +1898,30 @@ export default function SnakeAndLadder() {
         <div className="absolute inset-0 z-20 pointer-events-none">
           {players.map((player, seat) => {
             const p = { ...player, index: seat };
-            const seatClasses = [
-              'absolute bottom-6 left-1/2 -translate-x-1/2',
-              'absolute top-1/2 right-6 -translate-y-1/2',
-              'absolute top-6 left-1/2 -translate-x-1/2',
-              'absolute top-1/2 left-6 -translate-y-1/2'
-            ];
-            const className = seatClasses[seat] || seatClasses[seatClasses.length - 1];
+            const anchor = seatAnchorMap.get(seat);
+            const fallback = FALLBACK_SEAT_POSITIONS[seat] || FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
+            const positionStyle = anchor
+              ? {
+                  position: 'absolute',
+                  left: `${anchor.x}%`,
+                  top: `${anchor.y}%`,
+                  transform: 'translate(-50%, -50%)'
+                }
+              : {
+                  position: 'absolute',
+                  left: fallback.left,
+                  top: fallback.top,
+                  transform: 'translate(-50%, -50%)'
+                };
+            const avatarSize = anchor ? clampValue(1.32 - (anchor.depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            const tokenColor = p.color || playerColors[seat] || '#f97316';
+            const tokenHighlight = lightenHex(tokenColor, 0.35);
+            const tokenShadow = darkenHex(tokenColor, 0.45);
             return (
               <div
                 key={`player-${p.index}`}
-                className={`${className} pointer-events-auto flex flex-col items-center`}
+                className="absolute pointer-events-auto flex flex-col items-center"
+                style={positionStyle}
               >
                 <AvatarTimer
                   index={p.index}
@@ -1970,6 +1932,7 @@ export default function SnakeAndLadder() {
                   isTurn={p.index === currentTurn}
                   timerPct={p.index === currentTurn ? timeLeft / TURN_TIME : 1}
                   color={p.color}
+                  size={avatarSize}
                   onClick={() => {
                     const myIdx = isMultiplayer
                       ? mpPlayers.findIndex((pl) => pl.id === getPlayerId())
@@ -1977,6 +1940,20 @@ export default function SnakeAndLadder() {
                     if (p.index !== myIdx) setPlayerPopup(p);
                   }}
                 />
+                <div className="flex flex-col items-center gap-1 mt-2">
+                  <div
+                    className="relative w-5 h-5 rounded-full border border-white/40 shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+                    style={{
+                      background: `radial-gradient(circle at 30% 30%, ${tokenHighlight}, ${tokenColor})`,
+                      boxShadow: `0 4px 8px ${tokenShadow}55`
+                    }}
+                  >
+                    <span className="absolute inset-[28%] rounded-full bg-white/80 opacity-80 mix-blend-screen" />
+                  </div>
+                  <span className="text-[0.55rem] font-semibold uppercase tracking-widest text-slate-100/85">
+                    Token
+                  </span>
+                </div>
               </div>
             );
           })}
@@ -2142,93 +2119,109 @@ export default function SnakeAndLadder() {
           ))}
         </div>
       )}
-      {!isMultiplayer && (
-        <div ref={diceRef} style={diceStyle} className="dice-travel flex flex-col items-center relative pointer-events-auto">
-          {showTrail && (
-            <img
-              src="/assets/icons/throwing_hand_down.webp"
-              alt=""
-              className="dice-trail-img"
-            />
-          )}
-          <div className="scale-90">
-            <DiceRoller
-              divRef={diceRollerDivRef}
-              onRollEnd={(vals) => {
-                startDiceBoardAnimation({
-                  id: diceRollIdRef.current,
-                  phase: 'end',
-                  values: vals
-                });
-                if (aiRollingIndex) {
-                  handleAIRoll(aiRollingIndex, vals);
-                  setAiRollingIndex(null);
-                } else {
-                handleRoll(vals);
-                setBonusDice(0);
-              }
-              setRollingIndex(null);
-              setPlayerAutoRolling(false);
-            }}
-            onRollStart={() => {
-                diceRollIdRef.current += 1;
-                startDiceBoardAnimation({
-                  id: diceRollIdRef.current,
-                  phase: 'start',
-                  count: diceCount + bonusDice
-                });
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerSoundRef.current?.pause();
-                setRollingIndex(aiRollingIndex || 0);
-                const idx = aiRollingIndex != null ? aiRollingIndex : 0;
-                prepareDiceAnimation(idx);
-                animateDiceToCenter(idx);
-                setShowTrail(true);
-                clearTimeout(trailTimeoutRef.current);
-                trailTimeoutRef.current = setTimeout(
-                  () => setShowTrail(false),
-                  DICE_ANIM_DURATION,
-                );
-                if (aiRollingIndex)
-                  return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
-                if (playerAutoRolling) return setTurnMessage('Rolling...');
-                return setTurnMessage("Rolling...");
-              }
-            }
-            clickable={
-              !aiRollingIndex &&
-              !playerAutoRolling &&
-              rollCooldown === 0 &&
-              currentTurn === 0 &&
-              !moving
-            }
-            numDice={diceCount + bonusDice}
-            trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
-            showButton={false}
-            muted={muted}
-            diceTransparent
+      <div className={`absolute inset-0 pointer-events-none z-10 transition-opacity duration-300 ${diceVisibilityClass}`}>
+        <div style={{ ...diceAnchorStyle, pointerEvents: 'none' }} className="flex items-center justify-center">
+          <div
+            className={`rounded-full border-2 transition-all duration-300 ${canRoll ? 'border-amber-300/70 bg-amber-200/12 animate-pulse' : 'border-white/12 bg-slate-900/35'}`}
+            style={{ width: `${diceRingSize}px`, height: `${diceRingSize}px` }}
           />
+        </div>
+      </div>
+      {!isMultiplayer && (
+        <div className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-300 ${diceVisibilityClass}`}>
+          <div style={{ ...diceAnchorStyle, pointerEvents: 'none' }}>
+            <div
+              className="pointer-events-auto flex items-center justify-center"
+              style={{ width: `${diceButtonSize}px`, height: `${diceButtonSize}px` }}
+            >
+              <DiceRoller
+                divRef={diceRollerDivRef}
+                onRollEnd={(vals) => {
+                  startDiceBoardAnimation({
+                    id: diceRollIdRef.current,
+                    phase: 'end',
+                    values: vals
+                  });
+                  if (aiRollingIndex) {
+                    handleAIRoll(aiRollingIndex, vals);
+                    setAiRollingIndex(null);
+                  } else {
+                    handleRoll(vals);
+                    setBonusDice(0);
+                  }
+                  setRollingIndex(null);
+                  setPlayerAutoRolling(false);
+                }}
+                onRollStart={() => {
+                  diceRollIdRef.current += 1;
+                  startDiceBoardAnimation({
+                    id: diceRollIdRef.current,
+                    phase: 'start',
+                    count: diceCount + bonusDice
+                  });
+                  if (timerRef.current) clearInterval(timerRef.current);
+                  timerSoundRef.current?.pause();
+                  setRollingIndex(aiRollingIndex || 0);
+                  if (aiRollingIndex)
+                    return setTurnMessage(<>{playerName(aiRollingIndex)} rolling...</>);
+                  if (playerAutoRolling) return setTurnMessage('Rolling...');
+                  return setTurnMessage('Rolling...');
+                }}
+                clickable={
+                  !aiRollingIndex &&
+                  !playerAutoRolling &&
+                  rollCooldown === 0 &&
+                  currentTurn === 0 &&
+                  !moving
+                }
+                numDice={diceCount + bonusDice}
+                trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
+                showButton={false}
+                muted={muted}
+                renderVisual={false}
+                placeholder={
+                  <span
+                    className={`text-[0.65rem] font-semibold uppercase tracking-widest ${canRoll ? 'text-amber-200' : 'text-slate-300/70'}`}
+                  >
+                    {canRoll ? 'Tap Dice' : ''}
+                  </span>
+                }
+                diceWrapperClassName={`w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.25)] ${
+                  canRoll ? 'border-amber-300/80 bg-amber-200/15 animate-pulse' : 'border-white/15 bg-slate-900/45'
+                }`}
+                className="pointer-events-auto w-full h-full space-y-0"
+              />
+            </div>
           </div>
         </div>
       )}
-      {isMultiplayer && (
-        <div
-          className="fixed bottom-24 inset-x-0 flex flex-col items-center z-20 cursor-pointer pointer-events-auto"
-          style={{ transform: 'translateX(2rem)' }}
-          onClick={() => diceRollerDivRef.current?.click()}
-        >
-          <div className="scale-90">
-          {(() => {
-            if (myPlayerIndex === null) return null;
-            if (currentTurn === myPlayerIndex && !moving) {
-              return (
+      {isMultiplayer && myPlayerIndex !== null && (
+        <div className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-300 ${diceVisibilityClass}`}>
+          <div style={{ ...diceAnchorStyle, pointerEvents: 'none' }}>
+            <div
+              className="pointer-events-auto flex items-center justify-center"
+              style={{ width: `${diceButtonSize}px`, height: `${diceButtonSize}px` }}
+              onClick={() => {
+                if (canRoll) diceRollerDivRef.current?.click();
+              }}
+            >
+              {currentTurn === myPlayerIndex && !moving ? (
                 <DiceRoller
                   clickable
                   showButton={false}
                   muted={muted}
                   emitRollEvent
                   divRef={diceRollerDivRef}
-                  diceTransparent
+                  renderVisual={false}
+                  placeholder={
+                    <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-amber-200">
+                      Tap Dice
+                    </span>
+                  }
+                  diceWrapperClassName={`w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.25)] ${
+                    canRoll ? 'border-amber-300/80 bg-amber-200/15 animate-pulse' : 'border-white/15 bg-slate-900/45'
+                  }`}
+                  className="pointer-events-auto w-full h-full space-y-0"
                   onRollStart={() => {
                     diceRollIdRef.current += 1;
                     startDiceBoardAnimation({
@@ -2245,10 +2238,10 @@ export default function SnakeAndLadder() {
                     });
                   }}
                 />
-              );
-            }
-            return null;
-          })()}
+              ) : (
+                <div className="w-full h-full rounded-full border-2 border-white/12 bg-slate-900/35" />
+              )}
+            </div>
           </div>
         </div>
       )}

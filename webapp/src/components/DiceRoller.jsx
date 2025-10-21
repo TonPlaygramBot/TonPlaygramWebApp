@@ -16,6 +16,9 @@ export default function DiceRoller({
   divRef,
   className = '',
   diceTransparent = false,
+  renderVisual = true,
+  placeholder = null,
+  diceWrapperClassName = 'flex space-x-4 items-center justify-center',
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -99,16 +102,32 @@ export default function DiceRoller({
   return (
     <div className={`flex flex-col items-center space-y-4 ${className}`}>
       <div
-        className={`flex space-x-4 ${clickable ? 'cursor-pointer' : ''}`}
+        className={`${diceWrapperClassName} ${clickable ? 'cursor-pointer' : ''}`}
         onClick={clickable ? rollDice : undefined}
         ref={divRef}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : -1}
+        onKeyDown={
+          clickable
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  rollDice();
+                }
+              }
+            : undefined
+        }
       >
-        <Dice
-          values={values}
-          rolling={rolling}
-          startValues={startValuesRef.current}
-          transparent={diceTransparent}
-        />
+        {renderVisual ? (
+          <Dice
+            values={values}
+            rolling={rolling}
+            startValues={startValuesRef.current}
+            transparent={diceTransparent}
+          />
+        ) : (
+          placeholder || <span className="sr-only">Roll dice</span>
+        )}
       </div>
       {!clickable && showButton && (
         <button

@@ -64,7 +64,7 @@ const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
 const SNAKE_BOARD_TILES = 10;
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7;
+const BOARD_SCALE = 2.7 * 0.8; // shrink board by 20% to better fit the arena
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -109,6 +109,12 @@ const HIGHLIGHT_COLORS = {
 const TOKEN_RADIUS = TILE_SIZE * 0.2;
 const TOKEN_HEIGHT = TILE_SIZE * 0.32;
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
+
+const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
+
+const TEMP_SEAT_VECTOR = new THREE.Vector3();
+const TEMP_NDC_VECTOR = new THREE.Vector3();
+const DICE_CENTER_VECTOR = new THREE.Vector3();
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
@@ -288,23 +294,67 @@ function setDiceOrientation(dice, val) {
 function makeDice() {
   const dice = new THREE.Group();
 
+  const createDiceTexture = () => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+
+    const bodyGradient = ctx.createLinearGradient(0, 0, size, size);
+    bodyGradient.addColorStop(0, '#fef9eb');
+    bodyGradient.addColorStop(0.45, '#f3dfb1');
+    bodyGradient.addColorStop(1, '#e1c18b');
+    ctx.fillStyle = bodyGradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const highlight = ctx.createRadialGradient(size * 0.3, size * 0.3, size * 0.15, size * 0.3, size * 0.3, size * 0.65);
+    highlight.addColorStop(0, 'rgba(255,255,255,0.85)');
+    highlight.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = highlight;
+    ctx.fillRect(0, 0, size, size);
+
+    const vignette = ctx.createRadialGradient(size * 0.7, size * 0.7, size * 0.1, size * 0.7, size * 0.7, size * 0.75);
+    vignette.addColorStop(0, 'rgba(255, 214, 145, 0)');
+    vignette.addColorStop(1, 'rgba(192, 147, 82, 0.45)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, size, size);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 8;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  const dieTexture = createDiceTexture();
   const dieMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    metalness: 0.24,
-    roughness: 0.36,
-    clearcoat: 1,
+    map: dieTexture,
+    color: new THREE.Color('#f7e5bd'),
+    metalness: 0.18,
+    roughness: 0.32,
+    clearcoat: 0.95,
     clearcoatRoughness: 0.18,
-    reflectivity: 0.72,
-    envMapIntensity: 1.2
+    reflectivity: 0.68,
+    sheen: 0.22,
+    sheenColor: new THREE.Color('#fff7dd'),
+    sheenRoughness: 0.58,
+    envMapIntensity: 1.1,
+    emissive: new THREE.Color('#d1b37a'),
+    emissiveIntensity: 0.08
   });
 
   const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x111111,
-    roughness: 0.06,
-    metalness: 0.5,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 1
+    color: 0x3b2614,
+    roughness: 0.25,
+    metalness: 0.35,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.12,
+    envMapIntensity: 0.9,
+    sheen: 0.1,
+    sheenColor: new THREE.Color('#ffe6b8'),
+    emissive: new THREE.Color('#1a0d06'),
+    emissiveIntensity: 0.12
   });
 
   const body = new THREE.Mesh(
@@ -782,8 +832,12 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     legBase.receiveShadow = true;
     group.add(legBase);
 
+    const avatarAnchor = new THREE.Object3D();
+    avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
+    group.add(avatarAnchor);
+
     arenaGroup.add(group);
-    chairs.push({ group, meshes: [seatMesh, backMesh, ...armLeft.meshes, ...armRight.meshes], legMesh: legBase });
+    chairs.push({ group, anchor: avatarAnchor, meshes: [seatMesh, backMesh, ...armLeft.meshes, ...armRight.meshes], legMesh: legBase });
   }
 
   const updateCameraTarget = () => {
@@ -813,7 +867,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     arenaGroup.parent?.remove(arenaGroup);
   });
 
-  return { boardGroup, boardLookTarget, fit, updateCameraTarget, controls };
+  return { boardGroup, boardLookTarget, fit, updateCameraTarget, controls, seatAnchors: chairs.map(({ anchor }) => anchor) };
 }
 
 function buildSnakeBoard(
@@ -955,12 +1009,12 @@ function buildSnakeBoard(
   diceLightTarget.position.set(0, diceBaseY, diceAnchorZ);
   boardRoot.add(diceLightTarget);
 
-  const diceAccent = new THREE.SpotLight(0xffffff, 2.1, RAW_BOARD_SIZE * 1.2, Math.PI / 5, 0.42, 1.25);
+  const diceAccent = new THREE.SpotLight(0xfff1c1, 2.25, RAW_BOARD_SIZE * 1.2, Math.PI / 5, 0.42, 1.25);
   diceAccent.userData.offset = new THREE.Vector3(DICE_SIZE * 2.6, DICE_SIZE * 7.5, DICE_SIZE * 3.4);
   diceAccent.target = diceLightTarget;
   boardRoot.add(diceAccent);
 
-  const diceFill = new THREE.PointLight(0xfff8e1, 1.05, RAW_BOARD_SIZE * 0.9, 2.2);
+  const diceFill = new THREE.PointLight(0xffe4a3, 1.18, RAW_BOARD_SIZE * 0.9, 2.2);
   diceFill.userData.offset = new THREE.Vector3(-DICE_SIZE * 3.2, DICE_SIZE * 6.2, -DICE_SIZE * 3.6);
   boardRoot.add(diceFill);
 
@@ -1350,7 +1404,9 @@ export default function SnakeBoard3D({
   burning = [],
   slide,
   onSlideComplete,
-  diceEvent
+  diceEvent,
+  onSeatPositionsChange,
+  onDiceAnchorChange
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -1361,6 +1417,26 @@ export default function SnakeBoard3D({
   const snakeTextureRef = useRef(null);
   const animationsRef = useRef([]);
   const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
+  const seatCallbackRef = useRef(null);
+  const diceAnchorCallbackRef = useRef(null);
+  const lastSeatPositionsRef = useRef([]);
+  const lastDiceAnchorRef = useRef(null);
+
+  useEffect(() => {
+    seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
+    return () => {
+      if (!onSeatPositionsChange) return;
+      seatCallbackRef.current = null;
+    };
+  }, [onSeatPositionsChange]);
+
+  useEffect(() => {
+    diceAnchorCallbackRef.current = typeof onDiceAnchorChange === 'function' ? onDiceAnchorChange : null;
+    return () => {
+      if (!onDiceAnchorChange) return;
+      diceAnchorCallbackRef.current = null;
+    };
+  }, [onDiceAnchorChange]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -1395,7 +1471,8 @@ export default function SnakeBoard3D({
     boardRef.current = {
       ...board,
       boardLookTarget: arena.boardLookTarget,
-      controls: arena.controls
+      controls: arena.controls,
+      seatAnchors: arena.seatAnchors ?? []
     };
 
     railTextureRef.current = makeRailTexture();
@@ -1422,29 +1499,86 @@ export default function SnakeBoard3D({
         }
       }
       const board = boardRef.current;
+      let hasDiceCenter = false;
       if (board?.diceLights && board?.diceSet?.length) {
-        const center = new THREE.Vector3();
+        DICE_CENTER_VECTOR.set(0, 0, 0);
         let visibleCount = 0;
         board.diceSet.forEach((die) => {
           if (!die.visible) return;
-          center.add(die.position);
+          DICE_CENTER_VECTOR.add(die.position);
           visibleCount += 1;
         });
         if (visibleCount > 0) {
-          center.multiplyScalar(1 / visibleCount);
+          DICE_CENTER_VECTOR.multiplyScalar(1 / visibleCount);
+          hasDiceCenter = true;
           const { accent, fill, target } = board.diceLights;
-          if (target) target.position.copy(center);
+          if (target) target.position.copy(DICE_CENTER_VECTOR);
           if (accent?.userData?.offset) {
-            accent.position.copy(center).add(accent.userData.offset);
+            accent.position.copy(DICE_CENTER_VECTOR).add(accent.userData.offset);
           }
           if (fill?.userData?.offset) {
-            fill.position.copy(center).add(fill.userData.offset);
+            fill.position.copy(DICE_CENTER_VECTOR).add(fill.userData.offset);
           }
         }
       }
       arena.controls?.update?.();
-      if (cameraRef.current) {
-        renderer.render(scene, cameraRef.current);
+      const camera = cameraRef.current;
+      if (camera) {
+        if (board?.seatAnchors?.length && seatCallbackRef.current) {
+          const positions = board.seatAnchors.map((anchor, index) => {
+            anchor.getWorldPosition(TEMP_SEAT_VECTOR);
+            TEMP_NDC_VECTOR.copy(TEMP_SEAT_VECTOR).project(camera);
+            const x = clamp((TEMP_NDC_VECTOR.x * 0.5 + 0.5) * 100, -25, 125);
+            const y = clamp((0.5 - TEMP_NDC_VECTOR.y * 0.5) * 100, -25, 125);
+            const depth = camera.position.distanceTo(TEMP_SEAT_VECTOR);
+            return { index, x, y, depth };
+          });
+          const prev = lastSeatPositionsRef.current;
+          let changed = positions.length !== prev.length;
+          if (!changed) {
+            for (let i = 0; i < positions.length; i += 1) {
+              const current = positions[i];
+              const before = prev[i];
+              if (
+                !before ||
+                Math.abs(before.x - current.x) > 0.2 ||
+                Math.abs(before.y - current.y) > 0.2 ||
+                Math.abs((before.depth ?? 0) - current.depth) > 0.02
+              ) {
+                changed = true;
+                break;
+              }
+            }
+          }
+          if (changed) {
+            const clones = positions.map((p) => ({ ...p }));
+            lastSeatPositionsRef.current = clones;
+            seatCallbackRef.current?.(clones);
+          }
+        }
+        if (diceAnchorCallbackRef.current) {
+          if (hasDiceCenter) {
+            TEMP_NDC_VECTOR.copy(DICE_CENTER_VECTOR).project(camera);
+            const x = clamp((TEMP_NDC_VECTOR.x * 0.5 + 0.5) * 100, -25, 125);
+            const y = clamp((0.5 - TEMP_NDC_VECTOR.y * 0.5) * 100, -25, 125);
+            const depth = camera.position.distanceTo(DICE_CENTER_VECTOR);
+            const anchor = { x, y, depth };
+            const prevAnchor = lastDiceAnchorRef.current;
+            if (
+              !prevAnchor ||
+              Math.abs(prevAnchor.x - anchor.x) > 0.2 ||
+              Math.abs(prevAnchor.y - anchor.y) > 0.2 ||
+              Math.abs((prevAnchor.depth ?? 0) - depth) > 0.02
+            ) {
+              lastDiceAnchorRef.current = anchor;
+              diceAnchorCallbackRef.current(anchor);
+            }
+          } else if (lastDiceAnchorRef.current) {
+            lastDiceAnchorRef.current = null;
+            diceAnchorCallbackRef.current(null);
+          }
+        }
+        renderer.render(scene, camera);
       }
     });
 
@@ -1455,6 +1589,11 @@ export default function SnakeBoard3D({
       resizeObserver.disconnect();
       renderer.setAnimationLoop(null);
       handlers.forEach((fn) => fn());
+      lastSeatPositionsRef.current = [];
+      seatCallbackRef.current?.([]);
+      lastDiceAnchorRef.current = null;
+      diceAnchorCallbackRef.current?.(null);
+      boardRef.current = null;
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
       }
