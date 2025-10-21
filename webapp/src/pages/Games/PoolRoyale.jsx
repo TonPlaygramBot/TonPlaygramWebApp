@@ -444,10 +444,12 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.9; // keep the corner jaw cut aligned with the chrome plate radius
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.58; // portion of the corner chamfer reserved for the jaw before yielding to the chrome arches
 const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
 const POCKET_RIM_INNER_SCALE = 1.05; // bias the rim toward the rail side so it caps the jaw from the outside
+const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.035; // squeeze the side pocket rims so the metal trim appears lighter against the rails
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
 const POCKET_RIM_LIP = TABLE.THICK * 0.028; // lift the rim a touch higher so it floats just above the chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
@@ -507,6 +509,8 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
+const POCKET_JAW_SIDE_OUTWARD_OFFSET =
+  POCKET_VIS_R * 0.052 * POCKET_VISUAL_EXPANSION; // tiny offset that pushes the middle jaws until they kiss the wooden rails
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
@@ -4569,7 +4573,12 @@ function Table3D(
     return shapes.length ? shapes : [];
   };
 
-  const createPocketJawAssembly = (outerMP, innerScale, clipConfig = null) => {
+  const createPocketJawAssembly = (
+    outerMP,
+    innerScale,
+    clipConfig = null,
+    options = null
+  ) => {
     const jawShapes = buildPocketRingShapes(outerMP, innerScale, clipConfig, 1);
     if (!jawShapes.length) {
       return null;
@@ -4590,7 +4599,12 @@ function Table3D(
     jawMesh.receiveShadow = true;
 
     const rimOuterScale = THREE.MathUtils.lerp(1, innerScale, POCKET_RIM_OUTER_BLEND);
-    const rimInnerScale = innerScale * POCKET_RIM_INNER_SCALE;
+    const rimInnerScaleMultiplier =
+      options && Number.isFinite(options.rimInnerScaleMultiplier)
+        ? options.rimInnerScaleMultiplier
+        : 1;
+    const rimInnerScale =
+      innerScale * POCKET_RIM_INNER_SCALE * rimInnerScaleMultiplier;
     const rimShapes = buildPocketRingShapes(
       outerMP,
       rimInnerScale,
@@ -4623,8 +4637,13 @@ function Table3D(
     return { group, jawMesh, rimMesh };
   };
 
-  const addPocketJaw = (outerMP, innerScale, clipConfig) => {
-    const assembly = createPocketJawAssembly(outerMP, innerScale, clipConfig);
+  const addPocketJaw = (outerMP, innerScale, clipConfig, options = null) => {
+    const assembly = createPocketJawAssembly(
+      outerMP,
+      innerScale,
+      clipConfig,
+      options
+    );
     if (!assembly) return;
     pocketJawGroup.add(assembly.group);
     finishParts.pocketJawMeshes.push(assembly.jawMesh);
@@ -4668,10 +4687,28 @@ function Table3D(
       centroid.y,
       RAIL_CORNER_POCKET_CUT_SCALE
     );
+    const chamferTargetX = computeScaledCoordinate(
+      sx * (innerHalfW - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO),
+      centroid.x,
+      RAIL_CORNER_POCKET_CUT_SCALE
+    );
+    const chamferTargetZ = computeScaledCoordinate(
+      sz * (innerHalfH - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO),
+      centroid.y,
+      RAIL_CORNER_POCKET_CUT_SCALE
+    );
+    const trimmedCenterX =
+      sx > 0
+        ? Math.max(scaledCenterX, chamferTargetX)
+        : Math.min(scaledCenterX, chamferTargetX);
+    const trimmedCenterZ =
+      sz > 0
+        ? Math.max(scaledCenterZ, chamferTargetZ)
+        : Math.min(scaledCenterZ, chamferTargetZ);
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
       combine: 'union',
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
-      z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
+      x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
+      z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
     });
   });
 
@@ -4689,11 +4726,32 @@ function Table3D(
       centroid.x,
       RAIL_SIDE_POCKET_CUT_SCALE
     );
+    const scaledOuterRing =
+      Array.isArray(scaledMP) && scaledMP.length && Array.isArray(scaledMP[0]) && scaledMP[0].length
+        ? scaledMP[0][0]
+        : null;
+    let extremeX = scaledCenterX;
+    if (Array.isArray(scaledOuterRing)) {
+      for (const pt of scaledOuterRing) {
+        if (!Array.isArray(pt) || pt.length < 2) continue;
+        extremeX = sx > 0 ? Math.max(extremeX, pt[0]) : Math.min(extremeX, pt[0]);
+      }
+    }
+    const desiredThreshold = scaledCenterX + sx * POCKET_JAW_SIDE_OUTWARD_OFFSET;
+    const adjustedCenterX =
+      sx > 0
+        ? Math.max(scaledCenterX, Math.min(desiredThreshold, extremeX - MICRO_EPS * 8))
+        : Math.min(scaledCenterX, Math.max(desiredThreshold, extremeX + MICRO_EPS * 8));
     const zLimit = Math.max(MICRO_EPS, sideChromeMeetZ);
-    addPocketJaw(scaledMP, POCKET_JAW_SIDE_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
-      zRange: { min: -zLimit, max: zLimit }
-    });
+    addPocketJaw(
+      scaledMP,
+      POCKET_JAW_SIDE_INNER_SCALE,
+      {
+        x: { threshold: adjustedCenterX, keepGreater: sx > 0 },
+        zRange: { min: -zLimit, max: zLimit }
+      },
+      { rimInnerScaleMultiplier: POCKET_RIM_SIDE_INNER_MULTIPLIER }
+    );
   });
 
   if (pocketJawGroup.children.length) {
