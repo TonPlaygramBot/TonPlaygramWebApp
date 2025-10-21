@@ -444,13 +444,13 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.9; // keep the corner jaw cut aligned with the chrome plate radius
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.58; // portion of the corner chamfer reserved for the jaw before yielding to the chrome arches
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.6; // carve a touch more of the corner jaw into the chamfer before yielding to the chrome arches
 const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
-const POCKET_RIM_INNER_SCALE = 1.05; // bias the rim toward the rail side so it caps the jaw from the outside
-const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.035; // squeeze the side pocket rims so the metal trim appears lighter against the rails
-const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
+const POCKET_RIM_INNER_SCALE = 1.035; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
+const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.02; // squeeze the side pocket rims slightly while keeping the thicker trim balanced across the table
+const POCKET_RIM_DEPTH_SCALE = 0.24; // deepen the rim extrusion a touch so the thicker band reads clearly above the jaw
 const POCKET_RIM_LIP = TABLE.THICK * 0.028; // lift the rim a touch higher so it floats just above the chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
@@ -510,7 +510,9 @@ const POCKET_CORNER_MOUTH =
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
-  POCKET_VIS_R * 0.052 * POCKET_VISUAL_EXPANSION; // tiny offset that pushes the middle jaws until they kiss the wooden rails
+  POCKET_VIS_R * 0.058 * POCKET_VISUAL_EXPANSION; // gently nudge the middle jaws farther toward the rails to pull them away from centre
+const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
+  POCKET_VIS_R * 0.014 * POCKET_VISUAL_EXPANSION; // slide the corner jaw clip planes outward so the side chamfers open up further
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
@@ -4687,16 +4689,16 @@ function Table3D(
       centroid.y,
       RAIL_CORNER_POCKET_CUT_SCALE
     );
-    const chamferTargetX = computeScaledCoordinate(
-      sx * (innerHalfW - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO),
-      centroid.x,
-      RAIL_CORNER_POCKET_CUT_SCALE
-    );
-    const chamferTargetZ = computeScaledCoordinate(
-      sz * (innerHalfH - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO),
-      centroid.y,
-      RAIL_CORNER_POCKET_CUT_SCALE
-    );
+    const chamferBaseX =
+      sx * (innerHalfW - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO);
+    const chamferBaseZ =
+      sz * (innerHalfH - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO);
+    const chamferTargetX =
+      computeScaledCoordinate(chamferBaseX, centroid.x, RAIL_CORNER_POCKET_CUT_SCALE) +
+      sx * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
+    const chamferTargetZ =
+      computeScaledCoordinate(chamferBaseZ, centroid.y, RAIL_CORNER_POCKET_CUT_SCALE) +
+      sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
     const trimmedCenterX =
       sx > 0
         ? Math.max(scaledCenterX, chamferTargetX)
