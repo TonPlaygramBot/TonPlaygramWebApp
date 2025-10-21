@@ -42,6 +42,12 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
+const CUSTOM_SEAT_ANGLES = [
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(270),
+  THREE.MathUtils.degToRad(225)
+];
 
 const FLAG_EMOJIS = ['🇦🇱', '🇺🇸', '🇫🇷', '🇬🇧', '🇮🇹', '🇩🇪', '🇯🇵', '🇨🇦'];
 
@@ -164,6 +170,7 @@ const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_DEFAULT_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 const CAMERA_FOCUS_CENTER_LIFT = -0.16 * MODEL_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
@@ -171,6 +178,7 @@ const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
 const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
+const CAMERA_CARD_TARGET_BLEND = 0.35;
 const AI_TURN_DELAY = 2000;
 const TURN_FOCUS_HOLD_MS = AI_TURN_DELAY;
 
@@ -348,11 +356,48 @@ export default function MurlanRoyaleArena({ search }) {
     texture.needsUpdate = true;
   }, []);
 
-  const moveCameraToTheta = useCallback((theta, immediate = false) => {
+  const moveCameraToTheta = useCallback((theta, immediateOrOptions = false) => {
+    const options =
+      typeof immediateOrOptions === 'boolean'
+        ? { immediate: immediateOrOptions }
+        : immediateOrOptions ?? {};
+    const { immediate = false, target = null } = options;
+
     const three = threeStateRef.current;
-    const { camera, controls, cameraTarget } = three;
+    const { camera, controls } = three;
+    let cameraTarget = three.cameraTarget;
     const spherical = three.cameraSpherical;
-    if (!camera || !controls || !cameraTarget || !spherical) return;
+    if (!camera || !controls || !spherical) return;
+
+    if (target) {
+      let nextTarget = null;
+      if (target.isVector3) {
+        nextTarget = target;
+      } else if (
+        typeof target === 'object' &&
+        target !== null &&
+        Number.isFinite(target.x) &&
+        Number.isFinite(target.y) &&
+        Number.isFinite(target.z)
+      ) {
+        nextTarget = new THREE.Vector3(target.x, target.y, target.z);
+      }
+      if (nextTarget) {
+        if (cameraTarget) {
+          cameraTarget.copy(nextTarget);
+        } else {
+          cameraTarget = nextTarget.clone();
+          three.cameraTarget = cameraTarget;
+        }
+        controls.target.copy(cameraTarget);
+      }
+    }
+
+    if (!cameraTarget) {
+      cameraTarget = CAMERA_DEFAULT_TARGET.clone();
+      three.cameraTarget = cameraTarget;
+      controls.target.copy(cameraTarget);
+    }
 
     const idealRadius = three.cameraIdealRadius ?? spherical.radius;
     const basePhi = three.cameraPhi ?? spherical.phi;
@@ -432,7 +477,20 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seat) return;
       const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
       const desiredTheta = Math.PI / 2 - seatAngle;
-      moveCameraToTheta(desiredTheta, immediate);
+      let focusTarget = null;
+      if (seat.focus) {
+        focusTarget = seat.focus.clone();
+        const blend = THREE.MathUtils.clamp(CAMERA_CARD_TARGET_BLEND, 0, 1);
+        if (blend > 0) {
+          const baseTarget = three.cameraTarget ?? CAMERA_DEFAULT_TARGET;
+          focusTarget.lerp(baseTarget, blend);
+        }
+        const minFocusHeight = TABLE_HEIGHT + CARD_H * 0.45;
+        if (focusTarget.y < minFocusHeight) {
+          focusTarget.y = minFocusHeight;
+        }
+      }
+      moveCameraToTheta(desiredTheta, { immediate, target: focusTarget });
     },
     [moveCameraToTheta]
   );
@@ -442,7 +500,14 @@ export default function MurlanRoyaleArena({ search }) {
       if (!state) return;
       const activeIdx = state.activePlayer;
       if (typeof activeIdx !== 'number') return;
-      focusCameraOnPlayer(activeIdx, immediate);
+      const playersList = Array.isArray(state.players) ? state.players : [];
+      if (!playersList.length) {
+        focusCameraOnPlayer(activeIdx, immediate);
+        return;
+      }
+      const nextIdx = getNextAlive(playersList, activeIdx);
+      const focusIdx = typeof nextIdx === 'number' && nextIdx !== activeIdx ? nextIdx : activeIdx;
+      focusCameraOnPlayer(focusIdx, immediate);
     },
     [focusCameraOnPlayer]
   );
@@ -1074,7 +1139,7 @@ export default function MurlanRoyaleArena({ search }) {
       occupant.add(collar);
       chair.add(occupant);
 
-      const angle = Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
+      const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
       const x = Math.cos(angle) * chairRadius;
       const z = Math.sin(angle) * chairRadius;
       const chairBaseHeight = CHAIR_BASE_HEIGHT;
