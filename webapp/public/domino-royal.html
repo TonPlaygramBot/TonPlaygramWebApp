@@ -137,10 +137,23 @@ const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const COLUMN_RADIUS_TOP = 0.2 * MODEL_SCALE;
+const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
+const BASE_RADIUS = 0.72 * MODEL_SCALE;
+const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
+const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
+const CHAIR_GAP = 0.12 * MODEL_SCALE;
+const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -155,7 +168,14 @@ const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
 const CAMERA_FOV = 52;
 const CAMERA_NEAR = 0.1;
 const CAMERA_FAR = 5000;
-const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
+const CAMERA_MIN_POLAR = 0.92;
+const CAMERA_MAX_POLAR = 1.22;
+const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(CAMERA_MIN_POLAR, CAMERA_MAX_POLAR, 0.35);
+const CAMERA_BASE_RADIUS = TABLE_RADIUS;
+const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.95;
+const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.4;
+const CAMERA_INITIAL_RADIUS = CAMERA_BASE_RADIUS * 1.35;
+const CAMERA_DEFAULT_AZIMUTH = Math.PI / 2;
 const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
 
 const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
@@ -167,45 +187,61 @@ fitCamera();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.enableZoom = false;
+controls.dampingFactor = 0.08;
+controls.enableZoom = true;
 controls.enablePan = false;
-controls.enableRotate = false;
-controls.touches.ONE = THREE.TOUCH.NONE;
-controls.touches.TWO = THREE.TOUCH.NONE;
-controls.touches.THREE = THREE.TOUCH.NONE;
+controls.enableRotate = true;
+controls.minDistance = CAMERA_MIN_RADIUS;
+controls.maxDistance = CAMERA_MAX_RADIUS;
+controls.minPolarAngle = CAMERA_MIN_POLAR;
+controls.maxPolarAngle = CAMERA_MAX_POLAR;
+controls.touches.ONE = THREE.TOUCH.ROTATE;
+controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+controls.touches.THREE = THREE.TOUCH.PAN;
+controls.target.copy(CAMERA_TARGET);
 
-function positionCameraForViewport() {
+let cameraHasUserControl = false;
+controls.addEventListener('start', () => {
+  cameraHasUserControl = true;
+});
+renderer.domElement.addEventListener(
+  'wheel',
+  () => {
+    cameraHasUserControl = true;
+  },
+  { passive: true }
+);
+
+function positionCameraForViewport({ force = false } = {}) {
+  fitCamera();
   const dom = renderer.domElement;
   const width = dom?.clientWidth || window.innerWidth || 1;
   const height = dom?.clientHeight || window.innerHeight || 1;
   const isPortrait = height >= width;
-  const forward = new THREE.Vector3(0, 0, 1);
-  const right = new THREE.Vector3(1, 0, 0);
-  const stoolAnchor = new THREE.Vector3(0, TABLE_HEIGHT, CHAIR_RADIUS);
-  const stoolHeight = TABLE_HEIGHT + SEAT_THICKNESS / 2;
-  const retreatOffset = isPortrait ? 1.85 : 1.35;
-  const lateralOffset = isPortrait ? 0.55 : 0.42;
-  const elevation = isPortrait ? 1.95 : 1.58;
-  const position = stoolAnchor
-    .clone()
-    .addScaledVector(forward, -retreatOffset)
-    .addScaledVector(right, lateralOffset);
-  position.y = stoolHeight + elevation;
-  camera.position.copy(position);
+  const portraitBoost = isPortrait ? 1.08 : 1;
+  const desiredRadius = THREE.MathUtils.clamp(
+    CAMERA_INITIAL_RADIUS * portraitBoost,
+    CAMERA_MIN_RADIUS,
+    CAMERA_MAX_RADIUS
+  );
+
+  if (!cameraHasUserControl || force) {
+    const spherical = new THREE.Spherical(desiredRadius, CAMERA_INITIAL_PHI, CAMERA_DEFAULT_AZIMUTH);
+    const offset = new THREE.Vector3().setFromSpherical(spherical);
+    camera.position.copy(CAMERA_TARGET).add(offset);
+  } else {
+    const offset = camera.position.clone().sub(CAMERA_TARGET);
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+    spherical.radius = THREE.MathUtils.clamp(spherical.radius, CAMERA_MIN_RADIUS, CAMERA_MAX_RADIUS);
+    spherical.phi = THREE.MathUtils.clamp(spherical.phi, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
+    const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
+    camera.position.copy(CAMERA_TARGET).add(clampedOffset);
+  }
+
   controls.target.copy(CAMERA_TARGET);
-  const offset = camera.position.clone().sub(CAMERA_TARGET);
-  const spherical = new THREE.Spherical().setFromVector3(offset);
-  const radius = Math.max(0.01, spherical.radius);
-  controls.minDistance = radius;
-  controls.maxDistance = radius;
-  controls.minPolarAngle = spherical.phi;
-  controls.maxPolarAngle = spherical.phi;
-  controls.minAzimuthAngle = spherical.theta - CAMERA_HEAD_LIMIT;
-  controls.maxAzimuthAngle = spherical.theta + CAMERA_HEAD_LIMIT;
   controls.update();
 }
 
-positionCameraForViewport();
 
 /* ---------- Lights ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
@@ -566,21 +602,21 @@ function createChairFabricMaterial(option, renderer) {
 }
 
 const CHAIR_DIMENSIONS = Object.freeze({
-  seatWidth: 0.9 * MODEL_SCALE * STOOL_SCALE,
-  seatDepth: 0.95 * MODEL_SCALE * STOOL_SCALE,
-  seatThickness: 0.09 * MODEL_SCALE * STOOL_SCALE,
-  backHeight: 0.68 * MODEL_SCALE * STOOL_SCALE,
-  backThickness: 0.08 * MODEL_SCALE * STOOL_SCALE,
-  armHeight: 0.3 * MODEL_SCALE * STOOL_SCALE,
-  armThickness: 0.125 * MODEL_SCALE * STOOL_SCALE,
-  armDepth: 0.95 * MODEL_SCALE * STOOL_SCALE * 0.75,
-  columnHeight: 0.5 * MODEL_SCALE * STOOL_SCALE,
-  baseThickness: 0.08 * MODEL_SCALE * STOOL_SCALE,
-  columnRadiusTop: 0.2 * MODEL_SCALE,
-  columnRadiusBottom: 0.26 * MODEL_SCALE,
-  baseRadius: 0.72 * MODEL_SCALE,
-  footRingRadius: 0.52 * MODEL_SCALE,
-  footRingTube: 0.04 * MODEL_SCALE
+  seatWidth: SEAT_WIDTH,
+  seatDepth: SEAT_DEPTH,
+  seatThickness: SEAT_THICKNESS,
+  backHeight: BACK_HEIGHT,
+  backThickness: BACK_THICKNESS,
+  armHeight: ARM_HEIGHT,
+  armThickness: ARM_THICKNESS,
+  armDepth: ARM_DEPTH,
+  columnHeight: COLUMN_HEIGHT,
+  baseThickness: BASE_THICKNESS,
+  columnRadiusTop: COLUMN_RADIUS_TOP,
+  columnRadiusBottom: COLUMN_RADIUS_BOTTOM,
+  baseRadius: BASE_RADIUS,
+  footRingRadius: FOOT_RING_RADIUS,
+  footRingTube: FOOT_RING_TUBE
 });
 
 function createDominoChair(option, renderer, sharedMaterials = null) {
@@ -1137,6 +1173,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 applyAppearanceChange({ refresh: false });
+refreshConfigUI();
 
 
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
@@ -1186,7 +1223,6 @@ function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFA
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
-  const chairHeight = CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
   const sharedMaterials = {
     fabric: createChairFabricMaterial(option, renderer),
     leg: new THREE.MeshStandardMaterial({
@@ -1201,14 +1237,20 @@ function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFA
     })
   };
   const angles = Array.from({ length: 6 }, (_, i) => Math.PI / 2 - (i * (Math.PI * 2)) / 6);
-  const lookTarget = new THREE.Vector3(0, chairHeight, 0);
+  const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
+  const seatBottomOffset = CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
   angles.forEach((angle) => {
+    const wrapper = new THREE.Group();
+    wrapper.position.set(Math.cos(angle) * CHAIR_RADIUS, CHAIR_BASE_HEIGHT, Math.sin(angle) * CHAIR_RADIUS);
+    wrapper.lookAt(lookTarget);
+    wrapper.rotateY(Math.PI);
+
     const chair = createDominoChair(option, renderer, sharedMaterials);
-    chair.position.set(Math.cos(angle) * CHAIR_RADIUS, 0, Math.sin(angle) * CHAIR_RADIUS);
-    chair.lookAt(lookTarget);
-    chair.rotateY(Math.PI);
-    tableG.add(chair);
-    chairs.push(chair);
+    chair.position.y = -seatBottomOffset;
+    wrapper.add(chair);
+
+    tableG.add(wrapper);
+    chairs.push(wrapper);
   });
 }
 
@@ -1928,10 +1970,10 @@ function updateDrawAnimations(now){
 /* ---------- Loop & Resize ---------- */
 function tick(now){ updateDrawAnimations(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
-function onResize(){ fitCamera(); positionCameraForViewport(); }
+function onResize(){ positionCameraForViewport(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
 
-positionCameraForViewport();
+positionCameraForViewport({ force: true });
 </script>
 </body>
 </html>
