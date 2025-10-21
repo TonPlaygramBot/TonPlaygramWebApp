@@ -444,7 +444,7 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.935; // slim the corner jaw walls so the chrome arches remain fully open
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.74; // stop the corner jaw exactly where the chrome arch transitions across the chamfer
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.64; // trim corner jaws sooner so they end right where the cushions begin
 const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
@@ -512,7 +512,7 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.066 * POCKET_VISUAL_EXPANSION; // push the middle jaws snug against the wooden rails so the pocket mouth clears fully
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.024 * POCKET_VISUAL_EXPANSION; // align the corner jaw trims with the chrome arches' start/stop points
+  POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // keep the chrome trims from stretching past the cushion edge
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -557,7 +557,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = 1.18; // widen cloth openings further so the cloth never overlaps the pocket visuals
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
