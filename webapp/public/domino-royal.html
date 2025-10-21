@@ -56,7 +56,14 @@
     />
   </svg>
 </button>
-<div id="configPanel" role="dialog" aria-modal="true" aria-labelledby="configTitle">
+<div
+  id="configPanel"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="configTitle"
+  tabindex="-1"
+  aria-hidden="true"
+>
   <div class="config-close">
     <button id="configClose" type="button" aria-label="Close table setup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -166,6 +173,9 @@ controls.maxDistance = CAMERA_MAX_DISTANCE;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
 controls.enablePan = false;
+controls.touches.ONE = THREE.TOUCH.NONE;
+controls.touches.TWO = THREE.TOUCH.ROTATE;
+controls.touches.THREE = THREE.TOUCH.PAN;
 
 /* ---------- Lights ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
@@ -949,10 +959,14 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
+const DOMINO_LENGTH = SCALE * (0.016 / 0.22) * 2;
+const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.08;
+const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.04;
 const TILE_UP_H = 0.2 * SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
-const XMAX = CLOTH_RADIUS - 0.32;
-const ZMAX = CLOTH_RADIUS - 0.32;
+const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
+const ZMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
 
 /* ---------- Materials ---------- */
@@ -1003,6 +1017,13 @@ const configButtonEl = document.getElementById('configButton');
 const configPanelEl = document.getElementById('configPanel');
 const configSectionsEl = document.getElementById('configSections');
 const configCloseEl = document.getElementById('configClose');
+if (configButtonEl) {
+  configButtonEl.setAttribute('aria-controls', 'configPanel');
+  configButtonEl.setAttribute('aria-expanded', 'false');
+}
+if (configPanelEl) {
+  configPanelEl.setAttribute('aria-hidden', 'true');
+}
 
 function saveAppearance() {
   try {
@@ -1091,12 +1112,23 @@ function refreshConfigUI() {
 
 function closeConfigPanel() {
   configPanelEl?.classList.remove('active');
+  configPanelEl?.setAttribute('aria-hidden', 'true');
+  configButtonEl?.setAttribute('aria-expanded', 'false');
 }
 
 configButtonEl?.addEventListener('click', () => {
   const isOpen = configPanelEl?.classList.toggle('active');
-  if (isOpen) {
-    refreshConfigUI();
+  if (typeof isOpen === 'boolean') {
+    configPanelEl?.setAttribute('aria-hidden', String(!isOpen));
+    configButtonEl?.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      refreshConfigUI();
+      window.requestAnimationFrame(() => {
+        try {
+          configPanelEl?.focus?.();
+        } catch {}
+      });
+    }
   }
 });
 configCloseEl?.addEventListener('click', () => closeConfigPanel());
@@ -1104,6 +1136,11 @@ document.addEventListener('click', (event) => {
   if (!configPanelEl?.classList.contains('active')) return;
   if (configPanelEl.contains(event.target) || event.target === configButtonEl) return;
   closeConfigPanel();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeConfigPanel();
+  }
 });
 
 applyAppearanceChange({ refresh: false });
@@ -1353,18 +1390,30 @@ function layoutSeat(idx){
 function renderHands(){
   players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
 
-  const EDGE_SPAN = CLOTH_RADIUS - 0.28; const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
-  const GAP = .092; const HOLE = 0; // equal gap for all, no special case
+  const EDGE_SPAN = CLOTH_RADIUS - 0.28;
+  const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+  const BASE_GAP = DOMINO_HAND_GAP;
+  const MIN_GAP = DOMINO_LENGTH * 0.98;
+  const MAX_SPAN = EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6;
+  const HOLE = 0; // equal gap for all, no special case
 
   players.forEach((p,pi)=>{
     const [x0,z0] = layoutSeat(pi);
     const faceUp = (pi===human);
-    const start = -((p.hand.length-1)*(GAP))/2; // symmetric layout, same gap
+    const count = p.hand.length;
+    const desiredSpan = count>1 ? BASE_GAP * (count-1) : 0;
+    let span = desiredSpan;
+    if(count>1){
+      span = Math.min(desiredSpan, MAX_SPAN);
+      span = Math.max(span, MIN_GAP * (count-1));
+    }
+    const gap = count>1 ? span/(count-1 || 1) : BASE_GAP; // safe division when count>1
+    const start = -span/2; // symmetric layout
     const isSide = (pi===1 || pi===3);
 
     p.hand.forEach((h,hi)=>{
       const m = makeDomino(h.a,h.b,{flat:false, faceUp});
-      let offset = start + GAP*hi;
+      let offset = start + gap*hi;
       if(isSide){ const zLine = clamp(z0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(x0, HAND_Y, zLine); }
       else      { const xLine = clamp(x0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(xLine, HAND_Y, z0); }
       const yawTowardCenter = Math.atan2(-x0, -z0);
@@ -1634,7 +1683,6 @@ function startGame(){
 }
 
 /* ---------- Placement & Snake ---------- */
-const STEP=SCALE * (0.016/0.22) * 2;
 function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
 function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
 
@@ -1695,12 +1743,17 @@ function showMarkersFor(tile){
 
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
+const activePointers = new Set();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
 }
 function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
 
 renderer.domElement.addEventListener('pointerdown',ev=>{
+  activePointers.add(ev.pointerId);
+  if(ev.pointerType==='touch' && activePointers.size>1){
+    return;
+  }
   // FIX: përdor madhësinë e saktë të canvas-it (rect) për koordinatat NDC
   const rect = renderer.domElement.getBoundingClientRect();
   const x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
@@ -1717,6 +1770,9 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
     selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
   }
 });
+renderer.domElement.addEventListener('pointerup',ev=>{ activePointers.delete(ev.pointerId); });
+renderer.domElement.addEventListener('pointercancel',ev=>{ activePointers.delete(ev.pointerId); });
+renderer.domElement.addEventListener('pointerleave',ev=>{ activePointers.delete(ev.pointerId); });
 
 btnDraw.addEventListener('click',()=>{ if(current!==human) return; let drewTile=false;
   while(boneyard.length){
