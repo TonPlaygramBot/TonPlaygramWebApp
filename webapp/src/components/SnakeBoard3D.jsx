@@ -15,16 +15,16 @@ const SNAKE_BOARD_TILES = 10;
 const SNAKE_BOARD_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
 
 const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
-// Start higher so the default framing feels closer to a seated player's eye level.
-const CAMERA_INITIAL_PHI_LERP = 0.18;
+// Match the Ludo Battle Royal camera elevation for a consistent perspective.
+const CAMERA_INITIAL_PHI_LERP = 0.42;
 const CAM = {
   fov: DOMINO_CAMERA_CONFIG.fov,
   near: DOMINO_CAMERA_CONFIG.near,
   far: DOMINO_CAMERA_CONFIG.far,
   minR: DOMINO_CAMERA_CONFIG.minRadius,
   maxR: DOMINO_CAMERA_CONFIG.maxRadius,
-  // Allow the orbit controls to sit higher above the board for a more natural perspective.
-  phiMin: Math.PI * 0.32,
+  // Match the Ludo Battle Royal camera constraints for identical behaviour.
+  phiMin: Math.PI * 0.38,
   phiMax: DOMINO_CAMERA_CONFIG.maxPolarAngle
 };
 const TILE_GAP = 0.015;
@@ -41,6 +41,7 @@ const DICE_SETTLE_DURATION = 360;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const BOARD_BASE_EXTRA = SNAKE_BOARD_SIZE * (0.28 / 3.4);
 const BOARD_BASE_HEIGHT = SNAKE_BOARD_SIZE * (0.22 / 3.4);
+const BOARD_DISPLAY_SIZE = SNAKE_BOARD_SIZE + BOARD_BASE_EXTRA;
 
 const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
 const TILE_COLOR_B = new THREE.Color(0x776a5a);
@@ -430,6 +431,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   );
 
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+  const initialRadius = Math.max(BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR, CAM.minR);
+  const initialSpherical = new THREE.Spherical(
+    initialRadius,
+    THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
+    Math.PI * 0.25
+  );
+  const cameraOffset = new THREE.Vector3().setFromSpherical(initialSpherical);
+
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -437,35 +446,16 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   controls.enableZoom = true;
   controls.minPolarAngle = CAM.phiMin;
   controls.maxPolarAngle = CAM.phiMax;
-
-  const cameraOffset = new THREE.Vector3().setFromSpherical(
-    new THREE.Spherical(
-      Math.max(SNAKE_BOARD_SIZE * CAMERA_INITIAL_RADIUS_FACTOR, CAM.minR),
-      THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
-      Math.PI * 0.25
-    )
-  );
-
-  camera.position.copy(boardLookTarget).add(cameraOffset);
-  controls.target.copy(boardLookTarget);
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
+
+  camera.position.copy(boardLookTarget).add(cameraOffset);
+  camera.lookAt(boardLookTarget);
+  controls.target.copy(boardLookTarget);
   controls.update();
 
-  const ensureMinDistance = () => {
-    const needed =
-      SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-    const minDistance = clamp(Math.max(needed, CAM.minR), CAM.minR, CAM.maxR);
-    controls.minDistance = minDistance;
-    controls.maxDistance = CAM.maxR;
-    const currentOffset = camera.position.clone().sub(boardLookTarget);
-    const currentDistance = currentOffset.length();
-    if (currentDistance < minDistance) {
-      currentOffset.normalize().multiplyScalar(minDistance);
-      camera.position.copy(boardLookTarget).add(currentOffset);
-      controls.update();
-      cameraOffset.copy(currentOffset);
-    }
+  const updateCameraOffset = () => {
+    cameraOffset.copy(camera.position).sub(boardLookTarget);
   };
 
   const fit = () => {
@@ -474,24 +464,18 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
-    ensureMinDistance();
-    const needed =
-      SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-    const minDistance = controls.minDistance;
+    const boardSize = BOARD_DISPLAY_SIZE;
+    const needed = boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
     const currentRadius = camera.position.distanceTo(boardLookTarget);
-    const radius = clamp(Math.max(needed, currentRadius), minDistance, CAM.maxR);
+    const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
     controls.update();
+    updateCameraOffset();
   };
 
   fit();
 
-  const updateCameraOffset = () => {
-    cameraOffset.copy(camera.position).sub(boardLookTarget);
-  };
-
-  updateCameraOffset();
   controls.addEventListener('change', updateCameraOffset);
 
   cameraRef.current = camera;
@@ -503,9 +487,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
 
   const updateCameraTarget = () => {
     camera.position.copy(boardLookTarget).add(cameraOffset);
+    camera.lookAt(boardLookTarget);
     controls.target.copy(boardLookTarget);
-    ensureMinDistance();
-    controls.update();
+    fit();
     updateCameraOffset();
   };
 
@@ -673,7 +657,7 @@ function buildSnakeBoard(
     const bounds = new THREE.Box3().setFromObject(boardRoot);
     const center = new THREE.Vector3();
     bounds.getCenter(center);
-    center.y = bounds.max.y + 0.12;
+    center.y = DOMINO_CAMERA_CONFIG.targetY;
     boardLookTarget.copy(center);
     onTargetChange?.();
   }
