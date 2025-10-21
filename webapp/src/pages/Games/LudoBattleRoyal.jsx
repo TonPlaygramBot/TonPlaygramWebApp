@@ -45,12 +45,6 @@ const BOARD_SCALE_MULTIPLIER = 1.25;
 const BASE_BOARD_DISPLAY_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
 const BOARD_DISPLAY_SIZE = BASE_BOARD_DISPLAY_SIZE * BOARD_SCALE_MULTIPLIER;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
-const CHESS_TILE_LIGHT = 0xe7e2d3;
-const CHESS_TILE_DARK = 0x776a5a;
-const CHESS_TILE_WORLD_HEIGHT =
-  0.1 * (3.4 / (8 * 4.2 + 2 * 2.2));
-const LUDO_TILE_HEIGHT = CHESS_TILE_WORLD_HEIGHT / BOARD_SCALE;
-const TOKEN_LIFT = LUDO_TILE_HEIGHT / 2 + 0.007;
 const RING_STEPS = 52;
 const HOME_STEPS = 4;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
@@ -60,61 +54,14 @@ const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
 
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
-const DICE_FACE_INSET = DICE_SIZE * 0.04;
-const DICE_FACE_SIZE = DICE_SIZE - DICE_FACE_INSET * 2;
+const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
+const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
+const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
+const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
+const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
+const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
+const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
-const DICE_FACE_TEXTURE_CACHE = new Map();
-const DICE_FACE_MATERIAL_CACHE = new Map();
-
-function getDiceFaceTexture(value) {
-  if (DICE_FACE_TEXTURE_CACHE.has(value)) {
-    return DICE_FACE_TEXTURE_CACHE.get(value);
-  }
-  if (typeof document === 'undefined') {
-    const placeholder = new THREE.Texture();
-    placeholder.needsUpdate = true;
-    DICE_FACE_TEXTURE_CACHE.set(value, placeholder);
-    return placeholder;
-  }
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, size, size);
-  const label = String(value);
-  ctx.font = `bold ${Math.floor(size * 0.62)}px "Poppins", "Segoe UI", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = size * 0.08;
-  ctx.strokeText(label, size / 2, size / 2);
-  ctx.fillStyle = '#0b0f1a';
-  ctx.fillText(label, size / 2, size / 2);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  DICE_FACE_TEXTURE_CACHE.set(value, texture);
-  return texture;
-}
-
-function getDiceFaceMaterial(value) {
-  if (DICE_FACE_MATERIAL_CACHE.has(value)) {
-    return DICE_FACE_MATERIAL_CACHE.get(value);
-  }
-  const texture = getDiceFaceTexture(value);
-  const material = new THREE.MeshStandardMaterial({
-    map: texture,
-    transparent: true,
-    roughness: 0.42,
-    metalness: 0.2,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
-  DICE_FACE_MATERIAL_CACHE.set(value, material);
-  return material;
-}
 
 function makeDice() {
   const dice = new THREE.Group();
@@ -127,6 +74,29 @@ function makeDice() {
     clearcoatRoughness: 0.15,
     reflectivity: 0.75,
     envMapIntensity: 1.4
+  });
+
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1
+  });
+
+  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    emissive: 0x3a2a00,
+    emissiveIntensity: 0.55,
+    metalness: 1,
+    roughness: 0.18,
+    reflectivity: 1,
+    envMapIntensity: 1.35,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
   });
 
   const body = new THREE.Mesh(
@@ -143,47 +113,96 @@ function makeDice() {
   body.receiveShadow = true;
   dice.add(body);
 
+  const pipGeo = new THREE.SphereGeometry(
+    DICE_PIP_RADIUS,
+    36,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2
+  );
+  pipGeo.rotateX(Math.PI);
+  pipGeo.computeVertexNormals();
+  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const halfSize = DICE_SIZE / 2;
-  const faceDepth = halfSize - DICE_FACE_INSET;
-  const faceGeo = new THREE.PlaneGeometry(DICE_FACE_SIZE, DICE_FACE_SIZE);
-  const baseNormal = new THREE.Vector3(0, 0, 1);
-  const baseUp = new THREE.Vector3(0, 1, 0);
-  const faceDefinitions = [
+  const faceDepth = halfSize - DICE_FACE_INSET * 0.6;
+  const spread = DICE_PIP_SPREAD;
+  const faces = [
+    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
-      value: 1,
-      normal: new THREE.Vector3(0, 1, 0),
-      up: new THREE.Vector3(0, 0, -1)
+      normal: new THREE.Vector3(0, 0, 1),
+      points: [
+        [-spread, -spread],
+        [spread, spread]
+      ]
     },
-    { value: 2, normal: new THREE.Vector3(0, 0, 1), up: new THREE.Vector3(0, 1, 0) },
-    { value: 3, normal: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
-    { value: 4, normal: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
-    { value: 5, normal: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
     {
-      value: 6,
+      normal: new THREE.Vector3(1, 0, 0),
+      points: [
+        [-spread, -spread],
+        [0, 0],
+        [spread, spread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(-1, 0, 0),
+      points: [
+        [-spread, -spread],
+        [-spread, spread],
+        [spread, -spread],
+        [spread, spread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(0, 0, -1),
+      points: [
+        [-spread, -spread],
+        [-spread, spread],
+        [0, 0],
+        [spread, -spread],
+        [spread, spread]
+      ]
+    },
+    {
       normal: new THREE.Vector3(0, -1, 0),
-      up: new THREE.Vector3(0, 0, 1)
+      points: [
+        [-spread, -spread],
+        [-spread, 0],
+        [-spread, spread],
+        [spread, -spread],
+        [spread, 0],
+        [spread, spread]
+      ]
     }
   ];
 
-  faceDefinitions.forEach(({ value, normal, up }) => {
-    const face = new THREE.Mesh(faceGeo, getDiceFaceMaterial(value));
-    face.renderOrder = 6;
-    const alignedNormal = normal.clone().normalize();
-    const targetUp = up.clone().normalize();
-    const initialQuat = new THREE.Quaternion().setFromUnitVectors(baseNormal, alignedNormal);
-    const currentUp = baseUp.clone().applyQuaternion(initialQuat).normalize();
-    const cross = new THREE.Vector3().crossVectors(currentUp, targetUp);
-    const dot = THREE.MathUtils.clamp(currentUp.dot(targetUp), -1, 1);
-    let twist = 0;
-    if (cross.lengthSq() > 1e-6) {
-      twist = Math.atan2(cross.dot(alignedNormal), dot);
-    } else if (dot < 0) {
-      twist = Math.PI;
-    }
-    const twistQuat = new THREE.Quaternion().setFromAxisAngle(alignedNormal, twist);
-    face.quaternion.copy(initialQuat.multiply(twistQuat));
-    face.position.copy(alignedNormal.multiplyScalar(faceDepth));
-    dice.add(face);
+  faces.forEach(({ normal, points }) => {
+    const n = normal.clone().normalize();
+    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
+    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
+
+    points.forEach(([gx, gy]) => {
+      const base = new THREE.Vector3()
+        .addScaledVector(xAxis, gx)
+        .addScaledVector(yAxis, gy)
+        .addScaledVector(n, faceDepth - DICE_PIP_DEPTH * 0.5);
+
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.castShadow = true;
+      pip.receiveShadow = true;
+      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      dice.add(pip);
+
+      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
+      rim.receiveShadow = true;
+      rim.renderOrder = 6;
+      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      dice.add(rim);
+    });
   });
 
   dice.userData.setValue = (val) => {
@@ -725,21 +744,21 @@ function Ludo3D({ avatar, username }) {
     if (progress < 0) {
       return state.startPads[player][tokenIndex]
         .clone()
-        .add(new THREE.Vector3(0, TOKEN_LIFT, 0));
+        .add(new THREE.Vector3(0, 0.012, 0));
     }
     if (progress < RING_STEPS) {
       const idx = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
-      return state.paths[idx].clone().add(new THREE.Vector3(0, TOKEN_LIFT, 0));
+      return state.paths[idx].clone().add(new THREE.Vector3(0, 0.012, 0));
     }
     if (progress < RING_STEPS + HOME_STEPS) {
       const homeStep = progress - RING_STEPS;
       return state.homeColumns[player][homeStep]
         .clone()
-        .add(new THREE.Vector3(0, TOKEN_LIFT, 0));
+        .add(new THREE.Vector3(0, 0.012, 0));
     }
     return state.goalSlots[player][tokenIndex]
       .clone()
-      .add(new THREE.Vector3(0, TOKEN_LIFT, 0));
+      .add(new THREE.Vector3(0, 0.012, 0));
   };
 
   const scheduleMove = (player, tokenIndex, targetProgress, onComplete) => {
@@ -801,7 +820,7 @@ function Ludo3D({ avatar, username }) {
           const token = state.tokens[p][t];
           const pos = state.startPads[p][t]
             .clone()
-            .add(new THREE.Vector3(0, TOKEN_LIFT, 0));
+            .add(new THREE.Vector3(0, 0.012, 0));
           token.position.copy(pos);
           token.rotation.set(0, 0, 0);
           playCapture();
@@ -1012,53 +1031,34 @@ function Ludo3D({ avatar, username }) {
 function buildLudoBoard(boardGroup) {
   const scene = boardGroup;
   const plateMat = new THREE.MeshStandardMaterial({
-    color: 0x3a2d23,
-    roughness: 0.84,
-    metalness: 0.18
+    color: 0x11172a,
+    roughness: 0.92
   });
-  const tileLightMat = new THREE.MeshStandardMaterial({
-    color: CHESS_TILE_LIGHT,
-    roughness: 0.86,
-    metalness: 0.12
+  const tileMat = new THREE.MeshStandardMaterial({
+    color: 0xf3f4f6,
+    roughness: 0.9
   });
-  const tileDarkMat = new THREE.MeshStandardMaterial({
-    color: CHESS_TILE_DARK,
-    roughness: 0.8,
-    metalness: 0.18
-  });
-  const safeColor = new THREE.Color(CHESS_TILE_LIGHT).lerp(
-    new THREE.Color(CHESS_TILE_DARK),
-    0.35
-  );
   const safeMat = new THREE.MeshStandardMaterial({
-    color: safeColor,
-    roughness: 0.78,
-    metalness: 0.15
+    color: 0xcbd5e1,
+    roughness: 0.85
   });
   const centerMat = new THREE.MeshStandardMaterial({
-    color: CHESS_TILE_DARK,
-    roughness: 0.82,
-    metalness: 0.22
+    color: 0x1f2937,
+    roughness: 0.9
   });
 
-  const plateThickness = LUDO_TILE_HEIGHT * 2.4;
   const plate = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      RAW_BOARD_SIZE + 0.04,
-      plateThickness,
-      RAW_BOARD_SIZE + 0.04
-    ),
+    new THREE.BoxGeometry(RAW_BOARD_SIZE + 0.04, 0.02, RAW_BOARD_SIZE + 0.04),
     plateMat
   );
-  plate.position.y = -plateThickness / 2;
+  plate.position.y = -0.011;
   scene.add(plate);
 
   const half = (LUDO_GRID * LUDO_TILE) / 2;
-  const tileCenterY = LUDO_TILE_HEIGHT / 2;
   const cellToWorld = (r, c) => {
     const x = -half + (c + 0.5) * LUDO_TILE;
     const z = -half + (r + 0.5) * LUDO_TILE;
-    return new THREE.Vector3(x, tileCenterY, z);
+    return new THREE.Vector3(x, 0.005, z);
   };
 
   const startPads = getHomeStartPads(half);
@@ -1066,32 +1066,13 @@ function buildLudoBoard(boardGroup) {
   const goalSlots = getGoalSlots(half);
   const ringPath = buildRingFromGrid(cellToWorld);
 
-  const tileGeo = new THREE.BoxGeometry(
-    LUDO_TILE * 0.96,
-    LUDO_TILE_HEIGHT,
-    LUDO_TILE * 0.96
-  );
+  const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
   const homeBaseMats = PLAYER_COLORS.map((color) => {
-    const mix = new THREE.Color(CHESS_TILE_LIGHT).lerp(
-      new THREE.Color(color),
-      0.25
-    );
-    return new THREE.MeshStandardMaterial({
-      color: mix,
-      roughness: 0.85,
-      metalness: 0.12
-    });
+    const darker = new THREE.Color(color).multiplyScalar(0.72);
+    return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
   });
   const pathMats = PLAYER_COLORS.map(
-    (color) =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(CHESS_TILE_DARK).lerp(
-          new THREE.Color(color),
-          0.4
-        ),
-        roughness: 0.82,
-        metalness: 0.15
-      })
+    (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
   const safeSet = new Set(['6,0', '0,8', '8,14', '14,6']);
   const center = cellToWorld(7, 7);
@@ -1125,12 +1106,7 @@ function buildLudoBoard(boardGroup) {
         continue;
       }
       if (inCross) {
-        let mat;
-        if (safeSet.has(key)) {
-          mat = safeMat;
-        } else {
-          mat = (r + c) % 2 === 0 ? tileLightMat : tileDarkMat;
-        }
+        const mat = safeSet.has(key) ? safeMat : tileMat;
         const mesh = new THREE.Mesh(tileGeo, mat);
         mesh.position.copy(pos);
         scene.add(mesh);
@@ -1147,9 +1123,7 @@ function buildLudoBoard(boardGroup) {
   const tokens = PLAYER_COLORS.map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const rook = makeRook(makeTokenMaterial(color));
-      rook.position.copy(
-        startPads[playerIdx][i].clone().add(new THREE.Vector3(0, TOKEN_LIFT, 0))
-      );
+      rook.position.copy(startPads[playerIdx][i].clone().add(new THREE.Vector3(0, 0.012, 0)));
       scene.add(rook);
       return rook;
     });
@@ -1282,10 +1256,10 @@ function getHomeStartPads(half) {
     const cx = sx * off;
     const cz = sz * off;
     return [
-      new THREE.Vector3(cx - 0.8 * TILE, LUDO_TILE_HEIGHT / 2, cz - 0.8 * TILE),
-      new THREE.Vector3(cx + 0.8 * TILE, LUDO_TILE_HEIGHT / 2, cz - 0.8 * TILE),
-      new THREE.Vector3(cx - 0.8 * TILE, LUDO_TILE_HEIGHT / 2, cz + 0.8 * TILE),
-      new THREE.Vector3(cx + 0.8 * TILE, LUDO_TILE_HEIGHT / 2, cz + 0.8 * TILE)
+      new THREE.Vector3(cx - 0.8 * TILE, 0, cz - 0.8 * TILE),
+      new THREE.Vector3(cx + 0.8 * TILE, 0, cz - 0.8 * TILE),
+      new THREE.Vector3(cx - 0.8 * TILE, 0, cz + 0.8 * TILE),
+      new THREE.Vector3(cx + 0.8 * TILE, 0, cz + 0.8 * TILE)
     ];
   });
 }
@@ -1299,9 +1273,7 @@ function getGoalSlots(half) {
     [TILE * 0.3, TILE * 0.3]
   ];
   return Array.from({ length: 4 }, (_, player) =>
-    offsets.map(
-      ([ox, oz]) => new THREE.Vector3(ox, LUDO_TILE_HEIGHT / 2, oz)
-    )
+    offsets.map(([ox, oz]) => new THREE.Vector3(ox, 0.01, oz))
   );
 }
 
