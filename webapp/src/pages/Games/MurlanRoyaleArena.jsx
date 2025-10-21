@@ -13,12 +13,11 @@ import {
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
-  DEFAULT_WOOD_GRAIN_ID,
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID,
-  applyWoodTextures,
   hslToHexNumber
 } from '../../utils/woodMaterials.js';
 import {
@@ -41,9 +40,7 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 
-const ARENA_COLOR = 0x0c1020;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 
 const FLAG_EMOJIS = ['🇦🇱', '🇺🇸', '🇫🇷', '🇬🇧', '🇮🇹', '🇩🇪', '🇯🇵', '🇨🇦'];
@@ -138,14 +135,40 @@ function normalizeAppearance(value = {}) {
   return normalized;
 }
 
-const CARD_SCALE = 0.95; // slightly larger cards for better readability
+const STOOL_SCALE = 1.5 * 1.3;
+const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const CARD_SURFACE_OFFSET = CARD_D * 4;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
+const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
+const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
+const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
+const ARENA_WALL_HEIGHT = 3.6 * 1.3;
+const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
+const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.16 * MODEL_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
-const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(38);
+const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
 const AI_TURN_DELAY = 2000;
@@ -171,7 +194,7 @@ export default function MurlanRoyaleArena({ search }) {
     }
   });
   const appearanceRef = useRef(appearance);
-  const [showCustomizer, setShowCustomizer] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
 
   const [gameState, setGameState] = useState(() => initializeGame(players));
   const [selectedIds, setSelectedIds] = useState([]);
@@ -210,10 +233,10 @@ export default function MurlanRoyaleArena({ search }) {
     selectionTargets: [],
     animations: [],
     raycaster: new THREE.Raycaster(),
-    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
-    discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE),
+    tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
+    discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
     scoreboard: null,
-    tableParts: null,
+    tableInfo: null,
     chairMaterials: null,
     outfitParts: null,
     cardThemeId: '',
@@ -562,7 +585,9 @@ export default function MurlanRoyaleArena({ search }) {
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
 
-      applyTableMaterials(three, { woodOption, clothOption, baseOption });
+      if (three.tableInfo?.materials) {
+        applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
+      }
       applyChairThemeMaterials(three, stoolTheme);
       applyOutfitThemeMaterials(three, outfitTheme);
 
@@ -833,26 +858,23 @@ export default function MurlanRoyaleArena({ search }) {
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(ARENA_COLOR);
+    scene.background = new THREE.Color('#030712');
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(1.8, 2.8, 1.8);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.55);
-    fill.position.set(-1.6, 2.2, -2.2);
-    const rim = new THREE.PointLight(0xff7373, 0.42, 14, 2.0);
-    rim.position.set(0, 2.2, 0);
-    const spot = new THREE.SpotLight(0xffffff, 1.05, 0, Math.PI / 4, 0.35, 1.1);
-    spot.position.set(0, 4.5, 4.8);
-    scene.add(ambient, hemi, key, fill, rim, spot);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+    spot.position.set(3, 7, 3);
+    spot.castShadow = true;
+    const rim = new THREE.PointLight(0x33ccff, 1.728);
+    rim.position.set(-4, 3, -4);
+    scene.add(ambient, spot, rim);
 
     const spotTarget = new THREE.Object3D();
+    spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
     scene.add(spotTarget);
     spot.target = spotTarget;
 
-    const arena = new THREE.Group();
-    scene.add(arena);
+    const arenaGroup = new THREE.Group();
+    scene.add(arenaGroup);
 
     const currentAppearance = normalizeAppearance(appearanceRef.current);
     const woodOption =
@@ -868,85 +890,48 @@ export default function MurlanRoyaleArena({ search }) {
     const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
     const camConfig = buildArenaCameraConfig(boardSize);
 
-    const arenaHalfWidth = boardSize * 1.35;
-    const arenaHalfDepth = boardSize * 1.2;
-    const wallInset = 0.5;
-    const wallProximity = 0.62;
-    const wallHeight = 6.0;
-
-    const halfRoomX = (arenaHalfWidth - wallInset) * wallProximity;
-    const halfRoomZ = (arenaHalfDepth - wallInset) * wallProximity;
-    const roomHalfWidth = halfRoomX + wallInset;
-    const roomHalfDepth = halfRoomZ + wallInset;
-
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
-      new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 })
+      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
+      new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
     );
     floor.rotation.x = -Math.PI / 2;
-    arena.add(floor);
+    floor.receiveShadow = true;
+    arenaGroup.add(floor);
 
     const carpet = new THREE.Mesh(
-      new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
-      createArenaCarpetMaterial()
+      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
     );
     carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.002;
-    arena.add(carpet);
+    carpet.position.y = 0.01;
+    carpet.receiveShadow = true;
+    arenaGroup.add(carpet);
 
-    const wallMat = createArenaWallMaterial();
-    const wallT = 0.1;
-    const buildBound = (half) => {
-      const min = -half + wallT / 2 + CAMERA_WALL_PADDING;
-      const max = half - wallT / 2 - CAMERA_WALL_PADDING;
-      if (min > max) {
-        const center = (min + max) / 2;
-        return { min: center, max: center };
-      }
-      return { min, max };
-    };
-    const boundX = buildBound(halfRoomX);
-    const boundZ = buildBound(halfRoomZ);
-    threeStateRef.current.cameraBounds = {
-      minX: boundX.min,
-      maxX: boundX.max,
-      minZ: boundZ.min,
-      maxZ: boundZ.max
-    };
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(halfRoomX * 2, wallHeight, wallT), wallMat);
-    backWall.position.set(0, wallHeight / 2, halfRoomZ);
-    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(halfRoomX * 2, wallHeight, wallT), wallMat);
-    frontWall.position.set(0, wallHeight / 2, -halfRoomZ);
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallHeight, halfRoomZ * 2), wallMat);
-    leftWall.position.set(-halfRoomX, wallHeight / 2, 0);
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallHeight, halfRoomZ * 2), wallMat);
-    rightWall.position.set(halfRoomX, wallHeight / 2, 0);
-    arena.add(backWall, frontWall, leftWall, rightWall);
-
-    const trim = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, 0.02, halfRoomZ * 2),
-      new THREE.MeshStandardMaterial({ color: 0x1a233f, roughness: 0.9, metalness: 0.02, side: THREE.DoubleSide })
+    const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        wallInnerRadius,
+        TABLE_RADIUS * ARENA_GROWTH * 2.6,
+        ARENA_WALL_HEIGHT,
+        48,
+        1,
+        true
+      ),
+      createArenaWallMaterial('#0b1120', '#1e293b')
     );
-    trim.position.set(0, wallHeight - 0.02, 0);
-    arena.add(trim);
+    wall.position.y = ARENA_WALL_CENTER_Y;
+    wall.receiveShadow = false;
+    arenaGroup.add(wall);
 
-    const ledMat = new THREE.MeshStandardMaterial({
-      color: 0x00f7ff,
-      emissive: 0x0099aa,
-      emissiveIntensity: 0.45,
-      roughness: 0.6,
-      metalness: 0.2,
-      side: THREE.DoubleSide
-    });
-    const stripBack = new THREE.Mesh(new THREE.BoxGeometry(halfRoomX * 2, 0.02, 0.01), ledMat);
-    stripBack.position.set(0, 0.05, halfRoomZ - wallT / 2);
-    const stripFront = stripBack.clone();
-    stripFront.position.set(0, 0.05, -halfRoomZ + wallT / 2);
-    const stripLeft = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.02, halfRoomZ * 2), ledMat);
-    stripLeft.position.set(-halfRoomX + wallT / 2, 0.05, 0);
-    const stripRight = stripLeft.clone();
-    stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
-    arena.add(stripBack, stripFront, stripLeft, stripRight);
+    const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
+    threeStateRef.current.cameraBounds = {
+      minX: -cameraBoundRadius,
+      maxX: cameraBoundRadius,
+      minZ: -cameraBoundRadius,
+      maxZ: cameraBoundRadius,
+      minY: CHAIR_BASE_HEIGHT * 0.5,
+      maxY: ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN
+    };
 
     const scoreboardCanvas = document.createElement('canvas');
     scoreboardCanvas.width = 1024;
@@ -962,14 +947,15 @@ export default function MurlanRoyaleArena({ search }) {
         toneMapped: false,
         depthWrite: false
       });
-      const scoreboardWidth = Math.min(halfRoomX * 0.72, 4.4 * MODEL_SCALE);
+      const scoreboardWidth = Math.min(wallInnerRadius * 0.7, 4.4 * MODEL_SCALE);
       const scoreboardHeight = scoreboardWidth * 0.42;
       const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
       const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-      scoreboardMesh.position.set(0, wallHeight * 0.6, wallT / 2 + 0.02);
+      scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -wallInnerRadius + 0.12);
+      scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
       scoreboardMesh.renderOrder = 2;
       scoreboardMesh.visible = false;
-      frontWall.add(scoreboardMesh);
+      arenaGroup.add(scoreboardMesh);
       threeStateRef.current.scoreboard = {
         canvas: scoreboardCanvas,
         context: scoreboardContext,
@@ -984,131 +970,23 @@ export default function MurlanRoyaleArena({ search }) {
 
     updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-    const scaleFactor = TABLE_RADIUS / 0.9;
-    const woodDepth = 0.04 * scaleFactor;
-    const rimDepth = 0.06 * scaleFactor;
-    const trimHeight = 0.08 * scaleFactor;
-    const trimOffset = 0.06 * scaleFactor;
-    const clothRise = 0.07 * scaleFactor;
-    const baseHeight = 0.62 * scaleFactor;
-    const tableY = TABLE_HEIGHT - clothRise;
-
-    const baseMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(baseOption.baseColor),
-      metalness: baseOption.metalness ?? 0.74,
-      roughness: baseOption.roughness ?? 0.34,
-      clearcoat: 0.62,
-      clearcoatRoughness: 0.22
+    const tableInfo = createMurlanStyleTable({
+      arena: arenaGroup,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT,
+      woodOption,
+      clothOption,
+      baseOption
     });
-    const columnMat = null;
-    const trimMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(baseOption.trimColor ?? baseOption.baseColor),
-      metalness: Math.min(1, (baseOption.metalness ?? 0.74) + 0.08),
-      roughness: Math.max(0.2, (baseOption.roughness ?? 0.34) - 0.1),
-      clearcoat: 0.58,
-      clearcoatRoughness: 0.18
-    });
-
-    const topWoodMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      roughness: 0.42,
-      metalness: 0.32,
-      clearcoat: 0.68,
-      clearcoatRoughness: 0.22,
-      sheen: 0.18,
-      sheenRoughness: 0.48
-    });
-    const rimWoodMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      roughness: 0.45,
-      metalness: 0.28,
-      clearcoat: 0.64,
-      clearcoatRoughness: 0.24,
-      sheen: 0.16,
-      sheenRoughness: 0.5
-    });
-
-    const surfaceMat = new THREE.MeshStandardMaterial({
-      roughness: 0.82,
-      metalness: 0.04,
-      color: '#ffffff',
-      emissive: '#000000',
-      emissiveIntensity: 0.08
-    });
-
-    const tableGroup = new THREE.Group();
-
-    const topGeometry = new THREE.ExtrudeGeometry(createRegularPolygonShape(8, TABLE_RADIUS), {
-      depth: woodDepth,
-      bevelEnabled: true,
-      bevelThickness: woodDepth * 0.45,
-      bevelSize: woodDepth * 0.45,
-      bevelSegments: 2,
-      curveSegments: 1
-    });
-    topGeometry.rotateX(-Math.PI / 2);
-    const topMesh = new THREE.Mesh(topGeometry, topWoodMat);
-    topMesh.position.y = tableY;
-    topMesh.castShadow = true;
-    topMesh.receiveShadow = true;
-    tableGroup.add(topMesh);
-
-    const feltGeometry = new THREE.CircleGeometry(TABLE_RADIUS * (0.72 / 0.9), 64);
-    feltGeometry.rotateX(-Math.PI / 2);
-    const feltMesh = new THREE.Mesh(feltGeometry, surfaceMat);
-    feltMesh.position.y = tableY + clothRise;
-    feltMesh.receiveShadow = true;
-    tableGroup.add(feltMesh);
-
-    const rimOuter = createRegularPolygonShape(8, TABLE_RADIUS);
-    const rimInner = createRegularPolygonShape(8, TABLE_RADIUS * (0.72 / 0.9) * 0.97);
-    rimOuter.holes.push(rimInner);
-    const rimGeometry = new THREE.ExtrudeGeometry(rimOuter, {
-      depth: rimDepth,
-      bevelEnabled: true,
-      bevelThickness: rimDepth * 0.32,
-      bevelSize: rimDepth * 0.32,
-      bevelSegments: 2,
-      curveSegments: 1
-    });
-    rimGeometry.rotateX(-Math.PI / 2);
-    const rimMesh = new THREE.Mesh(rimGeometry, rimWoodMat);
-    rimMesh.position.y = tableY + clothRise * 0.36;
-    rimMesh.castShadow = true;
-    rimMesh.receiveShadow = true;
-    tableGroup.add(rimMesh);
-
-    const baseGeometry = new THREE.CylinderGeometry(0.68 * scaleFactor, 0.95 * scaleFactor, baseHeight, 8, 1, false);
-    const baseMesh = new THREE.Mesh(baseGeometry, baseMat);
-    baseMesh.position.y = tableY - baseHeight / 2;
-    baseMesh.castShadow = true;
-    baseMesh.receiveShadow = true;
-    tableGroup.add(baseMesh);
-
-    const trimGeometry = new THREE.CylinderGeometry(TABLE_RADIUS * 0.985, TABLE_RADIUS, trimHeight, 8, 1, false);
-    const trimMesh = new THREE.Mesh(trimGeometry, trimMat);
-    trimMesh.position.y = tableY - trimOffset;
-    trimMesh.castShadow = true;
-    trimMesh.receiveShadow = true;
-    tableGroup.add(trimMesh);
-
-    tableGroup.position.y = 0;
-    arena.add(tableGroup);
-
-    threeStateRef.current.tableParts = {
-      baseMat,
-      columnMat,
-      trimMat,
-      surfaceMat,
-      velvetTexture: null,
-      topWoodMat,
-      rimWoodMat,
-      group: tableGroup
-    };
-
-    applyTableMaterials(threeStateRef.current, { woodOption, clothOption, baseOption });
-
-
+    applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+    threeStateRef.current.tableInfo = tableInfo;
+    threeStateRef.current.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
+    threeStateRef.current.discardAnchor = new THREE.Vector3(
+      -TABLE_RADIUS * 0.76,
+      tableInfo.surfaceY - CARD_H * 0.3,
+      -TABLE_RADIUS * 0.62
+    );
     const chairMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(stoolTheme.seatColor),
       roughness: 0.35,
@@ -1141,17 +1019,16 @@ export default function MurlanRoyaleArena({ search }) {
       accentMaterial: outfitAccentMat,
       headMaterial: headMat
     };
-    const chairRadius = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-    const stoolScale = 1.5 * 1.3;
-    const seatWidth = 0.9 * MODEL_SCALE * stoolScale;
-    const seatDepth = 0.95 * MODEL_SCALE * stoolScale;
-    const seatThickness = 0.09 * MODEL_SCALE * stoolScale;
-    const backHeight = 0.68 * MODEL_SCALE * stoolScale;
-    const backThickness = 0.08 * MODEL_SCALE * stoolScale;
-    const armThickness = 0.05 * MODEL_SCALE * stoolScale;
-    const armHeight = 0.3 * MODEL_SCALE * stoolScale;
-    const armDepth = seatDepth * 0.75;
-    const baseColumnHeight = 0.5 * MODEL_SCALE * stoolScale;
+    const chairRadius = CHAIR_RADIUS;
+    const seatWidth = SEAT_WIDTH;
+    const seatDepth = SEAT_DEPTH;
+    const seatThickness = SEAT_THICKNESS;
+    const backHeight = BACK_HEIGHT;
+    const backThickness = BACK_THICKNESS;
+    const armThickness = ARM_THICKNESS;
+    const armHeight = ARM_HEIGHT;
+    const armDepth = ARM_DEPTH;
+    const baseColumnHeight = BASE_COLUMN_HEIGHT;
 
     const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
     const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
@@ -1173,8 +1050,8 @@ export default function MurlanRoyaleArena({ search }) {
       armRight.position.x = armOffsetX;
       const legBase = new THREE.Mesh(
         new THREE.CylinderGeometry(
-          0.16 * MODEL_SCALE * stoolScale,
-          0.2 * MODEL_SCALE * stoolScale,
+          0.16 * MODEL_SCALE * STOOL_SCALE,
+          0.2 * MODEL_SCALE * STOOL_SCALE,
           baseColumnHeight,
           16
         ),
@@ -1200,10 +1077,10 @@ export default function MurlanRoyaleArena({ search }) {
       const angle = Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
       const x = Math.cos(angle) * chairRadius;
       const z = Math.sin(angle) * chairRadius;
-      const chairBaseHeight = TABLE_HEIGHT - seatThickness * 0.85;
+      const chairBaseHeight = CHAIR_BASE_HEIGHT;
       chair.position.set(x, chairBaseHeight, z);
       chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
-      arena.add(chair);
+      arenaGroup.add(chair);
 
       const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
       const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
@@ -1213,8 +1090,8 @@ export default function MurlanRoyaleArena({ search }) {
         .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
       focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
       const stoolPosition = forward.clone().multiplyScalar(chairRadius);
-      stoolPosition.y = chairBaseHeight + seatThickness / 2;
-      const stoolHeight = chairBaseHeight + seatThickness;
+      stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
+      const stoolHeight = STOOL_HEIGHT;
       seatConfigs.push({
         forward,
         right,
@@ -1291,7 +1168,7 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const initialOffset = initialCameraPosition.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    const maxHorizontalReach = Math.min(halfRoomX, halfRoomZ) - wallInset * 0.6;
+    const maxHorizontalReach = cameraBoundRadius;
     const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, maxHorizontalReach);
     const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
     const minOrbitRadius = Math.max(2.6 * MODEL_SCALE, maxOrbitRadius * 0.7);
@@ -1410,7 +1287,7 @@ export default function MurlanRoyaleArena({ search }) {
     threeStateRef.current.scene = scene;
     threeStateRef.current.camera = camera;
     threeStateRef.current.controls = controls;
-    threeStateRef.current.arena = arena;
+    threeStateRef.current.arena = arenaGroup;
     threeStateRef.current.cardGeometry = cardGeometry;
     threeStateRef.current.seatConfigs = seatConfigs;
 
@@ -1482,22 +1359,9 @@ export default function MurlanRoyaleArena({ search }) {
         texture?.dispose?.();
         store.scoreboard = null;
       }
-      if (store.tableParts) {
-        store.tableParts.velvetTexture?.dispose?.();
-        [
-          store.tableParts.baseMat,
-          store.tableParts.columnMat,
-          store.tableParts.trimMat,
-          store.tableParts.surfaceMat,
-          store.tableParts.topWoodMat,
-          store.tableParts.rimWoodMat
-        ].forEach((mat) => {
-          if (mat && typeof mat.dispose === 'function') mat.dispose();
-        });
-        if (store.tableParts.group?.parent) {
-          store.tableParts.group.parent.remove(store.tableParts.group);
-        }
-        store.tableParts = null;
+      if (store.tableInfo) {
+        store.tableInfo.dispose?.();
+        store.tableInfo = null;
       }
       if (store.chairMaterials) {
         [store.chairMaterials.seat, store.chairMaterials.leg].forEach((mat) => {
@@ -1542,10 +1406,10 @@ export default function MurlanRoyaleArena({ search }) {
         selectionTargets: [],
         animations: [],
         raycaster: new THREE.Raycaster(),
-        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_H * 0.65, 0),
-        discardAnchor: new THREE.Vector3(-2.6 * MODEL_SCALE, TABLE_HEIGHT - 0.4 * MODEL_SCALE, -2.1 * MODEL_SCALE),
+        tableAnchor: new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0),
+        discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
         scoreboard: null,
-        tableParts: null,
+        tableInfo: null,
         chairMaterials: null,
         outfitParts: null,
         cardThemeId: '',
@@ -1626,72 +1490,101 @@ export default function MurlanRoyaleArena({ search }) {
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
-        <div className="pointer-events-none relative flex items-start justify-end p-4">
-          {uiState.scoreboard?.length ? (
-            <div className="sr-only" aria-live="polite">
-              <p>Rezultati aktual:</p>
-              <ul>
-                {uiState.scoreboard.map((entry) => (
-                  <li key={entry.id}>
-                    {entry.name}
-                    {entry.isActive ? ' (radha)' : ''}
-                    {entry.finished ? ' - e përfundoi lojën' : ` - ${entry.cardsLeft} letra`}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            aria-label="Hap personalizimin"
-            onClick={() => setShowCustomizer((prev) => !prev)}
-            className="pointer-events-auto absolute right-4 top-4 rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur-md transition hover:bg-black/60"
-          >
-            ⚙️
-          </button>
-          {showCustomizer && (
-            <div className="pointer-events-auto absolute right-4 top-16 z-20 w-[min(18rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-black/80 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-100">Personalizo arenën</h3>
-                <button
-                  type="button"
-                  onClick={() => setShowCustomizer(false)}
-                  className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
-                  aria-label="Mbyll personalizimin"
-                >
-                  ✕
-                </button>
-              </div>
-              <p className="mt-1 text-[0.65rem] text-gray-400">
-                Zgjidh kombinimet e preferuara të drurit, rrobës së fushës, bazës dhe letrave për përvojën tënde.
-              </p>
-              {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                <div key={key} className="mt-4 space-y-2">
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-gray-300">{label}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {options.map((option, idx) => {
-                      const selected = appearance[key] === idx;
-                      return (
-                        <button
-                          type="button"
-                          key={option.id}
-                          onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
-                          className={`flex flex-col items-center rounded-2xl border p-2 transition ${
-                            selected
-                              ? 'border-emerald-400/80 bg-emerald-400/10'
-                              : 'border-white/10 bg-white/5 hover:border-white/20'
-                          }`}
-                        >
-                          {renderPreview(key, option)}
-                          <p className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+        {uiState.scoreboard?.length ? (
+          <div className="sr-only" aria-live="polite">
+            <p>Rezultati aktual:</p>
+            <ul>
+              {uiState.scoreboard.map((entry) => (
+                <li key={entry.id}>
+                  {entry.name}
+                  {entry.isActive ? ' (radha)' : ''}
+                  {entry.finished ? ' - e përfundoi lojën' : ` - ${entry.cardsLeft} letra`}
+                </li>
               ))}
-            </div>
-          )}
+            </ul>
+          </div>
+        ) : null}
+        <div className="pointer-events-none flex items-start justify-start px-4 pt-4">
+          <div className="pointer-events-none flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={() => setConfigOpen((prev) => !prev)}
+              aria-expanded={configOpen}
+              className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+                />
+              </svg>
+              <span className="sr-only">Hap personalizimin e tavolinës</span>
+            </button>
+            {configOpen && (
+              <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigOpen(false)}
+                    className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    aria-label="Mbyll personalizimin"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="h-4 w-4"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+                  {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                    <div key={key} className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {options.map((option, idx) => {
+                          const selected = appearance[key] === idx;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                              aria-pressed={selected}
+                              className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                selected
+                                  ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                  : 'border-white/10 bg-white/5 hover:border-white/20'
+                              }`}
+                            >
+                              {renderPreview(key, option)}
+                              <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="mt-auto px-4 pb-6 pointer-events-none">
           <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
@@ -2312,164 +2205,6 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   applySRGBColorSpace(texture);
   texture.anisotropy = 8;
   return texture;
-}
-
-function adjustHexColor(hex, amount) {
-  const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
-  base.lerp(target, Math.min(Math.abs(amount), 1));
-  return `#${base.getHexString()}`;
-}
-
-function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, size);
-  gradient.addColorStop(0, topHex);
-  gradient.addColorStop(1, bottomHex ?? topHex);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  const highlight = adjustHexColor(topHex, 0.12);
-  const shadow = adjustHexColor(bottomHex ?? topHex, -0.12);
-
-  for (let y = 0; y < size; y += 2) {
-    for (let x = 0; x < size; x += 2) {
-      ctx.globalAlpha = 0.04 + Math.random() * 0.04;
-      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-
-  const centerGradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.6);
-  centerGradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
-  centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = centerGradient;
-  ctx.fillRect(0, 0, size, size);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 12;
-  const scaledRepeat = baseRepeat * 10; // shrink the cloth weave by repeating the texture 10x more densely
-  texture.repeat.set(scaledRepeat, scaledRepeat);
-  texture.anisotropy = anisotropy;
-  applySRGBColorSpace(texture);
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function resolveWoodComponents(option) {
-  const fallbackPreset = WOOD_PRESETS_BY_ID.walnut || WOOD_FINISH_PRESETS[0];
-  const preset = (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
-  const fallbackGrain =
-    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] || WOOD_GRAIN_OPTIONS[0];
-  const grain =
-    (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || fallbackGrain;
-  return { preset, grain };
-}
-
-function applyWoodSelectionToMaterials(topMat, rimMat, option) {
-  const { preset, grain } = resolveWoodComponents(option);
-  const sharedOptions = {
-    hue: preset.hue,
-    sat: preset.sat,
-    light: preset.light,
-    contrast: preset.contrast,
-    roughnessBase: 0.16,
-    roughnessVariance: 0.28
-  };
-  const sharedKey = `murlan-wood-${option?.id ?? preset.id}`;
-  if (topMat) {
-    applyWoodTextures(topMat, {
-      ...sharedOptions,
-      repeat: grain.frame?.repeat ?? grain.rail?.repeat ?? { x: 0.24, y: 0.38 },
-      rotation: grain.frame?.rotation ?? 0,
-      textureSize: grain.frame?.textureSize,
-      sharedKey
-    });
-  }
-  if (rimMat) {
-    applyWoodTextures(rimMat, {
-      ...sharedOptions,
-      repeat: grain.rail?.repeat ?? grain.frame?.repeat ?? { x: 0.12, y: 0.62 },
-      rotation: grain.rail?.rotation ?? 0,
-      textureSize: grain.rail?.textureSize,
-      sharedKey
-    });
-  }
-}
-
-function applyTableMaterials(three, { woodOption, clothOption, baseOption }) {
-  const parts = three?.tableParts;
-  if (!parts) return;
-
-  if (baseOption) {
-    if (parts.baseMat?.color) {
-      parts.baseMat.color.set(baseOption.baseColor);
-      if ('metalness' in parts.baseMat && Number.isFinite(baseOption.metalness)) {
-        parts.baseMat.metalness = baseOption.metalness;
-      }
-      if ('roughness' in parts.baseMat && Number.isFinite(baseOption.roughness)) {
-        parts.baseMat.roughness = baseOption.roughness;
-      }
-      parts.baseMat.needsUpdate = true;
-    }
-    if (parts.columnMat?.color) {
-      parts.columnMat.color.set(baseOption.columnColor || '#111111');
-      parts.columnMat.needsUpdate = true;
-    }
-    if (parts.trimMat?.color) {
-      parts.trimMat.color.set(baseOption.trimColor ?? baseOption.baseColor);
-      if ('metalness' in parts.trimMat && Number.isFinite(baseOption.metalness)) {
-        parts.trimMat.metalness = Math.min(1, (baseOption.metalness ?? 0.74) + 0.08);
-      }
-      if ('roughness' in parts.trimMat && Number.isFinite(baseOption.roughness)) {
-        parts.trimMat.roughness = Math.max(0.2, (baseOption.roughness ?? 0.34) - 0.1);
-      }
-      if ('clearcoat' in parts.trimMat) {
-        parts.trimMat.clearcoat = 0.58;
-      }
-      if ('clearcoatRoughness' in parts.trimMat) {
-        parts.trimMat.clearcoatRoughness = 0.18;
-      }
-      parts.trimMat.needsUpdate = true;
-    }
-  }
-
-  applyWoodSelectionToMaterials(parts.topWoodMat, parts.rimWoodMat, woodOption);
-
-  if (parts.surfaceMat && clothOption) {
-    parts.velvetTexture?.dispose?.();
-    const tex = makeRoughClothTexture(
-      1024,
-      clothOption.feltTop,
-      clothOption.feltBottom,
-      three?.renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-    );
-    parts.surfaceMat.map = tex;
-    parts.surfaceMat.color?.set?.('#ffffff');
-    if (typeof clothOption.roughness === 'number') {
-      parts.surfaceMat.roughness = clothOption.roughness;
-    }
-    if (typeof clothOption.metalness === 'number') {
-      parts.surfaceMat.metalness = clothOption.metalness;
-    }
-    if ('emissive' in parts.surfaceMat) {
-      const emissive = clothOption.emissive ?? '#000000';
-      parts.surfaceMat.emissive?.set?.(emissive);
-    }
-    if ('emissiveIntensity' in parts.surfaceMat) {
-      const intensity = Number.isFinite(clothOption.emissiveIntensity)
-        ? clothOption.emissiveIntensity
-        : 0.08;
-      parts.surfaceMat.emissiveIntensity = intensity;
-    }
-    parts.surfaceMat.needsUpdate = true;
-    parts.velvetTexture = tex;
-  }
 }
 
 function applyChairThemeMaterials(three, theme) {
