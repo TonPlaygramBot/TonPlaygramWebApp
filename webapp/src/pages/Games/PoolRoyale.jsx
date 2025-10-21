@@ -223,6 +223,8 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
 const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const CHROME_CORNER_CUSHION_CLEARANCE =
+  TABLE.THICK * 0.02; // keep the chrome notch shy of the cushion line so the cut sits flush
 
 function buildChromePlateGeometry({
   width,
@@ -4252,13 +4254,31 @@ function Table3D(
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
     let union = polygonClipping.union(notchCircle, boxX, boxZ);
-    const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
-    const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    const baseFieldClipWidth =
+      cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
+    const baseFieldClipDepth =
+      cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    const limitX = Math.max(
+      0,
+      Number.isFinite(RAIL_LIMIT_X) ? RAIL_LIMIT_X : DEFAULT_RAIL_LIMIT_X
+    );
+    const limitZ = Math.max(
+      0,
+      Number.isFinite(RAIL_LIMIT_Y) ? RAIL_LIMIT_Y : DEFAULT_RAIL_LIMIT_Y
+    );
+    const cushionTargetX =
+      sx * (limitX - CHROME_CORNER_CUSHION_CLEARANCE);
+    const cushionTargetZ =
+      sz * (limitZ - CHROME_CORNER_CUSHION_CLEARANCE);
+    const widthToLimit = Math.max(0, sx * (cx - cushionTargetX));
+    const depthToLimit = Math.max(0, sz * (cz - cushionTargetZ));
+    const fieldClipWidth = Math.max(baseFieldClipWidth, widthToLimit);
+    const fieldClipDepth = Math.max(baseFieldClipDepth, depthToLimit);
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
       const fieldClip = [[[
         [cx, cz],
-        [cx + sx * fieldClipWidth, cz],
-        [cx, cz + sz * fieldClipDepth],
+        [cx - sx * fieldClipWidth, cz],
+        [cx, cz - sz * fieldClipDepth],
         [cx, cz]
       ]]];
       union = polygonClipping.union(union, fieldClip);
