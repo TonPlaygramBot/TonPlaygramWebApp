@@ -443,8 +443,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_COVER_CORNER_INNER_SCALE = 0.9; // keep the plastic liners thin so the corner pockets stay wide open
-const POCKET_COVER_SIDE_INNER_SCALE = 0.86; // preserve side pocket width while covering the exposed wood jaws
+const POCKET_COVER_CORNER_INNER_SCALE = 0.86; // move the slimmer middle-pocket liners to the corners so the mouths stay wide open
+const POCKET_COVER_SIDE_INNER_SCALE = 0.9; // relocate the beefier corner liners to the side pockets to better hide the rail cuts
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4565,8 +4565,8 @@ function Table3D(
       RAIL_CORNER_POCKET_CUT_SCALE
     );
     addPocketCover(scaledMP, POCKET_COVER_CORNER_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx < 0 },
-      z: { threshold: scaledCenterZ, keepGreater: sz < 0 }
+      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
+      z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
     });
   });
 
@@ -4585,7 +4585,7 @@ function Table3D(
       RAIL_SIDE_POCKET_CUT_SCALE
     );
     addPocketCover(scaledMP, POCKET_COVER_SIDE_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx < 0 }
+      x: { threshold: scaledCenterX, keepGreater: sx > 0 }
     });
   });
 
