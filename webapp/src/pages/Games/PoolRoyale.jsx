@@ -4502,23 +4502,48 @@ function Table3D(
               .filter(Boolean)
           : [];
 
-      if (clipConfig.x && ringMP.length) {
-        ringMP = applyHalfPlaneClip(
-          ringMP,
-          'x',
-          clipConfig.x.threshold,
-          !!clipConfig.x.keepGreater
-        );
-        ringMP = pruneSmallPolys(ringMP);
+      const clipEntries = [];
+      if (clipConfig.x) {
+        clipEntries.push({ axis: 'x', ...clipConfig.x });
       }
-      if (clipConfig.z && ringMP.length) {
-        ringMP = applyHalfPlaneClip(
-          ringMP,
-          'z',
-          clipConfig.z.threshold,
-          !!clipConfig.z.keepGreater
-        );
-        ringMP = pruneSmallPolys(ringMP);
+      if (clipConfig.z) {
+        clipEntries.push({ axis: 'z', ...clipConfig.z });
+      }
+
+      const combineMode = clipConfig.combine === 'union' ? 'union' : 'intersection';
+      if (combineMode === 'union' && clipEntries.length > 1) {
+        const baseMP = ringMP;
+        const clippedPieces = clipEntries
+          .map((entry) =>
+            pruneSmallPolys(
+              applyHalfPlaneClip(
+                baseMP,
+                entry.axis,
+                entry.threshold,
+                !!entry.keepGreater
+              )
+            )
+          )
+          .filter((mp) => Array.isArray(mp) && mp.length);
+        if (!clippedPieces.length) {
+          return [];
+        }
+        let unioned = clippedPieces[0];
+        for (let i = 1; i < clippedPieces.length; i++) {
+          unioned = polygonClipping.union(unioned, clippedPieces[i]);
+        }
+        ringMP = pruneSmallPolys(unioned);
+      } else {
+        for (const entry of clipEntries) {
+          if (!ringMP.length) break;
+          ringMP = applyHalfPlaneClip(
+            ringMP,
+            entry.axis,
+            entry.threshold,
+            !!entry.keepGreater
+          );
+          ringMP = pruneSmallPolys(ringMP);
+        }
       }
 
       if (!Array.isArray(ringMP) || !ringMP.length) {
@@ -4630,6 +4655,7 @@ function Table3D(
       RAIL_CORNER_POCKET_CUT_SCALE
     );
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
+      combine: 'union',
       x: { threshold: scaledCenterX, keepGreater: sx > 0 },
       z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
     });
