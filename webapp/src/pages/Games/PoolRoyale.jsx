@@ -4489,6 +4489,43 @@ function Table3D(
         return polygonClipping.intersection(mp, poly);
       };
 
+      const applyObliquePlaneClip = (
+        mp,
+        normal,
+        threshold,
+        keepGreater,
+        extentOverride
+      ) => {
+        if (!Array.isArray(mp) || !mp.length) return [];
+        if (!normal) return mp;
+        const nx = Number(normal.x) || 0;
+        const nz = Number(normal.z) || 0;
+        const len = Math.hypot(nx, nz);
+        if (!(len > MICRO_EPS)) {
+          return mp;
+        }
+        const baseExtent = Math.max(TABLE.W, TABLE.H) * 4;
+        const extent =
+          Number.isFinite(extentOverride) && extentOverride > MICRO_EPS
+            ? extentOverride
+            : baseExtent;
+        const invLenSq = 1 / (nx * nx + nz * nz);
+        const baseX = nx * threshold * invLenSq;
+        const baseZ = nz * threshold * invLenSq;
+        const alongX = (-nz / len) * extent;
+        const alongZ = (nx / len) * extent;
+        const extrude = extent * 4;
+        const dirSign = keepGreater ? 1 : -1;
+        const dirX = (nx / len) * extrude * dirSign;
+        const dirZ = (nz / len) * extrude * dirSign;
+        const p1 = [baseX + alongX, baseZ + alongZ];
+        const p2 = [baseX - alongX, baseZ - alongZ];
+        const p3 = [p2[0] + dirX, p2[1] + dirZ];
+        const p4 = [p1[0] + dirX, p1[1] + dirZ];
+        const poly = [[[p1, p2, p3, p4, p1]]];
+        return polygonClipping.intersection(mp, poly);
+      };
+
       const MIN_RING_AREA = MICRO_EPS * MICRO_EPS;
       const pruneSmallPolys = (mp) =>
         Array.isArray(mp)
@@ -4511,7 +4548,9 @@ function Table3D(
       const clipEntries = [];
       const addClipEntry = (axis, entry) => {
         if (!entry) return;
-        if (Number.isFinite(entry.threshold)) {
+        if (entry.normal && Number.isFinite(entry.threshold)) {
+          clipEntries.push({ axis: 'oblique', ...entry });
+        } else if (Number.isFinite(entry.threshold)) {
           clipEntries.push({ axis, ...entry });
         }
       };
@@ -4525,25 +4564,61 @@ function Table3D(
           clipEntries.push({ axis, threshold: max, keepGreater: false });
         }
       };
+      const addObliqueEntries = (entryOrList) => {
+        if (!entryOrList) return;
+        const list = Array.isArray(entryOrList)
+          ? entryOrList
+          : [entryOrList];
+        list.forEach((entry) => {
+          if (!entry) return;
+          const normal = entry.normal || entry.direction;
+          const threshold = entry.threshold;
+          if (
+            !normal ||
+            !Number.isFinite(normal.x) ||
+            !Number.isFinite(normal.z) ||
+            !Number.isFinite(threshold)
+          ) {
+            return;
+          }
+          clipEntries.push({
+            axis: 'oblique',
+            normal,
+            threshold,
+            keepGreater: entry.keepGreater !== false,
+            extent: entry.extent
+          });
+        });
+      };
+
       addClipEntry('x', clipConfig.x);
       addClipEntry('z', clipConfig.z);
       addRangeEntries('x', clipConfig.xRange);
       addRangeEntries('z', clipConfig.zRange);
+      addObliqueEntries(clipConfig.oblique);
 
       const combineMode = clipConfig.combine === 'union' ? 'union' : 'intersection';
       if (combineMode === 'union' && clipEntries.length > 1) {
         const baseMP = ringMP;
         const clippedPieces = clipEntries
-          .map((entry) =>
-            pruneSmallPolys(
-              applyHalfPlaneClip(
-                baseMP,
-                entry.axis,
-                entry.threshold,
-                !!entry.keepGreater
-              )
-            )
-          )
+          .map((entry) => {
+            const clipped =
+              entry.axis === 'oblique'
+                ? applyObliquePlaneClip(
+                    baseMP,
+                    entry.normal,
+                    entry.threshold,
+                    !!entry.keepGreater,
+                    entry.extent
+                  )
+                : applyHalfPlaneClip(
+                    baseMP,
+                    entry.axis,
+                    entry.threshold,
+                    !!entry.keepGreater
+                  );
+            return pruneSmallPolys(clipped);
+          })
           .filter((mp) => Array.isArray(mp) && mp.length);
         if (!clippedPieces.length) {
           return [];
@@ -4556,14 +4631,78 @@ function Table3D(
       } else {
         for (const entry of clipEntries) {
           if (!ringMP.length) break;
-          ringMP = applyHalfPlaneClip(
-            ringMP,
-            entry.axis,
-            entry.threshold,
-            !!entry.keepGreater
-          );
+          if (entry.axis === 'oblique') {
+            ringMP = applyObliquePlaneClip(
+              ringMP,
+              entry.normal,
+              entry.threshold,
+              !!entry.keepGreater,
+              entry.extent
+            );
+          } else {
+            ringMP = applyHalfPlaneClip(
+              ringMP,
+              entry.axis,
+              entry.threshold,
+              !!entry.keepGreater
+            );
+          }
           ringMP = pruneSmallPolys(ringMP);
         }
+      }
+
+      const sectorEntries = Array.isArray(clipConfig.sector)
+        ? clipConfig.sector
+        : clipConfig.sector
+          ? [clipConfig.sector]
+          : [];
+      for (const sector of sectorEntries) {
+        if (!ringMP.length) break;
+        if (!sector) continue;
+        const center = sector.center || sector.centroid;
+        const radius = sector.radius;
+        const startAngle = sector.startAngle;
+        const endAngle = sector.endAngle;
+        if (
+          !center ||
+          !Number.isFinite(center.x) ||
+          !Number.isFinite(center.z) ||
+          !(radius > MICRO_EPS) ||
+          !Number.isFinite(startAngle) ||
+          !Number.isFinite(endAngle)
+        ) {
+          continue;
+        }
+        const sweep = endAngle - startAngle;
+        if (!(Math.abs(sweep) > MICRO_EPS)) {
+          continue;
+        }
+        const segCount = Math.max(
+          8,
+          Number.isFinite(sector.segments)
+            ? Math.floor(sector.segments)
+            : Math.ceil((Math.abs(sweep) / (Math.PI / 2)) * 32)
+        );
+        const pts = [];
+        pts.push([center.x, center.z]);
+        for (let i = 0; i <= segCount; i++) {
+          const t = startAngle + (sweep * i) / segCount;
+          const x = center.x + Math.cos(t) * radius;
+          const z = center.z + Math.sin(t) * radius;
+          pts.push([x, z]);
+        }
+        if (pts.length >= 2) {
+          const first = pts[0];
+          const last = pts[pts.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) {
+            pts.push([first[0], first[1]]);
+          }
+        }
+        const sectorMP = [[pts]];
+        const mode = sector.mode === 'subtract' ? 'difference' : 'intersection';
+        ringMP = pruneSmallPolys(
+          polygonClipping[mode](ringMP, sectorMP)
+        );
       }
 
       if (!Array.isArray(ringMP) || !ringMP.length) {
@@ -4676,6 +4815,10 @@ function Table3D(
       Array.isArray(baseMP) && baseMP.length && Array.isArray(baseMP[0]) && baseMP[0].length
         ? baseMP[0][0]
         : null;
+    const scaledOuterRing =
+      Array.isArray(scaledMP) && scaledMP.length && Array.isArray(scaledMP[0]) && scaledMP[0].length
+        ? scaledMP[0][0]
+        : null;
     const centroid = centroidFromRing(Array.isArray(outerRing) ? outerRing : []);
     const baseCenterX = sx * (innerHalfW - cornerInset);
     const baseCenterZ = sz * (innerHalfH - cornerInset);
@@ -4707,10 +4850,42 @@ function Table3D(
       sz > 0
         ? Math.max(scaledCenterZ, chamferTargetZ)
         : Math.min(scaledCenterZ, chamferTargetZ);
+    let jawRadius = 0;
+    if (Array.isArray(scaledOuterRing)) {
+      for (const pt of scaledOuterRing) {
+        if (!Array.isArray(pt) || pt.length < 2) continue;
+        const dx = pt[0] - trimmedCenterX;
+        const dz = pt[1] - trimmedCenterZ;
+        const dist = Math.hypot(dx, dz);
+        if (dist > jawRadius) jawRadius = dist;
+      }
+    }
+    if (!(jawRadius > MICRO_EPS)) {
+      jawRadius = POCKET_VIS_R;
+    }
+    const diagonalNormal = { x: -sx, z: -sz };
+    const diagonalThreshold =
+      diagonalNormal.x * trimmedCenterX + diagonalNormal.z * trimmedCenterZ;
+    const diagonalAngle = Math.atan2(-sz, -sx);
+    const halfSweep = Math.PI / 2;
+    const sectorStart = diagonalAngle - halfSweep;
+    const sectorEnd = diagonalAngle + halfSweep;
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
-      combine: 'union',
+      combine: 'intersection',
       x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
-      z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
+      z: { threshold: trimmedCenterZ, keepGreater: sz > 0 },
+      oblique: {
+        normal: diagonalNormal,
+        threshold: diagonalThreshold,
+        keepGreater: true
+      },
+      sector: {
+        center: { x: trimmedCenterX, z: trimmedCenterZ },
+        radius: jawRadius * 1.02,
+        startAngle: sectorStart,
+        endAngle: sectorEnd,
+        segments: 128
+      }
     });
   });
 
