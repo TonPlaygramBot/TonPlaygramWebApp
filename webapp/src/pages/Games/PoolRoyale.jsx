@@ -443,6 +443,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
+const POCKET_COVER_CORNER_INNER_SCALE = 0.9; // keep the plastic liners thin so the corner pockets stay wide open
+const POCKET_COVER_SIDE_INNER_SCALE = 0.86; // preserve side pocket width while covering the exposed wood jaws
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -1186,11 +1188,25 @@ const TABLE_FINISHES = Object.freeze(
           clearcoatRoughness: 0.1,
           envMapIntensity: 1.38
         });
+        const pocketCover = new THREE.MeshPhysicalMaterial({
+          color: 0x111111,
+          metalness: 0.18,
+          roughness: 0.46,
+          clearcoat: 0.26,
+          clearcoatRoughness: 0.38,
+          sheen: 0.12,
+          sheenRoughness: 0.48,
+          envMapIntensity: 0.42
+        });
+        pocketCover.polygonOffset = true;
+        pocketCover.polygonOffsetUnits = 1;
+        pocketCover.polygonOffsetFactor = -0.5;
         return {
           frame,
           rail,
           leg,
           trim,
+          pocketCover,
           accent: null
         };
       }
@@ -3565,6 +3581,7 @@ function Table3D(
     legMeshes: [],
     railMeshes: [],
     trimMeshes: [],
+    pocketCoverMeshes: [],
     accentParent: null,
     accentMesh: null,
     dimensions: null,
@@ -3610,11 +3627,13 @@ function Table3D(
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
   const legMat = rawMaterials.leg ?? frameMat;
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
+  const pocketCoverMat = rawMaterials.pocketCover ?? getFallbackMaterial('pocketCover');
   const accentConfig = rawMaterials.accent ?? null;
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
+  pocketCoverMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
@@ -3758,6 +3777,7 @@ function Table3D(
       rail: railMat,
       leg: legMat,
       trim: trimMat,
+      pocketCover: pocketCoverMat,
       accent: accentConfig
     },
     clothMat,
@@ -4360,6 +4380,59 @@ function Table3D(
   });
   railsGroup.add(chromePlates);
 
+  const pocketCovers = new THREE.Group();
+  const createPocketCoverMesh = (outerMP, innerScale) => {
+    if (!Array.isArray(outerMP) || !outerMP.length) {
+      return null;
+    }
+    const clamped = THREE.MathUtils.clamp(
+      Number.isFinite(innerScale) ? innerScale : 0.9,
+      0.4,
+      0.98
+    );
+    const innerMP = scaleMultiPolygon(outerMP, clamped);
+    if (!Array.isArray(innerMP) || !innerMP.length) {
+      return null;
+    }
+    const ringMP = polygonClipping.difference(outerMP, innerMP);
+    const shapes = multiPolygonToShapes(ringMP);
+    if (!shapes.length) {
+      return null;
+    }
+    const coverGeom = new THREE.ExtrudeGeometry(shapes, {
+      depth: railH,
+      bevelEnabled: false,
+      curveSegments: 96,
+      steps: 1
+    });
+    coverGeom.rotateX(-Math.PI / 2);
+    coverGeom.computeVertexNormals();
+    const mesh = new THREE.Mesh(coverGeom, pocketCoverMat);
+    mesh.position.y = frameTopY;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.renderOrder = 1;
+    return mesh;
+  };
+
+  const addPocketCover = (outerMP, scale) => {
+    const mesh = createPocketCoverMesh(outerMP, scale);
+    if (!mesh) return;
+    pocketCovers.add(mesh);
+    finishParts.pocketCoverMeshes.push(mesh);
+  };
+
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(1, 1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(-1, 1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(-1, -1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleCornerPocketCut(cornerNotchMP(1, -1)), POCKET_COVER_CORNER_INNER_SCALE);
+  addPocketCover(scaleSidePocketCut(sideNotchMP(-1)), POCKET_COVER_SIDE_INNER_SCALE);
+  addPocketCover(scaleSidePocketCut(sideNotchMP(1)), POCKET_COVER_SIDE_INNER_SCALE);
+
+  if (pocketCovers.children.length) {
+    railsGroup.add(pocketCovers);
+  }
+
   if (accentConfig && finishParts.dimensions) {
     const accentMesh = createAccentMesh(accentConfig, finishParts.dimensions);
     if (accentMesh) {
@@ -4930,11 +5003,13 @@ function applyTableFinishToTable(table, finish) {
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
   const legMat = rawMaterials.leg ?? frameMat;
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
+  const pocketCoverMat = rawMaterials.pocketCover ?? getFallbackMaterial('pocketCover');
   const accentConfig = rawMaterials.accent ?? null;
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
+  pocketCoverMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
@@ -4958,6 +5033,7 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
+  finishInfo.parts.pocketCoverMeshes.forEach((mesh) => swapMaterial(mesh, pocketCoverMat));
 
   const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
     frame: null,
@@ -5052,6 +5128,7 @@ function applyTableFinishToTable(table, finish) {
     rail: railMat,
     leg: legMat,
     trim: trimMat,
+    pocketCover: pocketCoverMat,
     accent: accentConfig
   };
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
