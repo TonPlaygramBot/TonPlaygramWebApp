@@ -4630,8 +4630,8 @@ function Table3D(
       RAIL_CORNER_POCKET_CUT_SCALE
     );
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
-      z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
+      x: { threshold: scaledCenterX, keepGreater: sx < 0 },
+      z: { threshold: scaledCenterZ, keepGreater: sz < 0 }
     });
   });
 
@@ -4650,7 +4650,7 @@ function Table3D(
       RAIL_SIDE_POCKET_CUT_SCALE
     );
     addPocketJaw(scaledMP, POCKET_JAW_SIDE_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 }
+      x: { threshold: scaledCenterX, keepGreater: sx < 0 }
     });
   });
 
