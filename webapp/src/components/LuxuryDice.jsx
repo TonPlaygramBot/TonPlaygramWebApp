@@ -8,7 +8,7 @@ const DPR_CAP = 1.75;
 const DIE_SIZE = 1;
 const DICE_RADIUS = 0.12;
 const DICE_SEGMENTS = 6;
-const GOLD_COLOR = 0xffd700;
+const DIE_COLOR = 0xf3f4f6;
 const BACKGROUND_COLOR = 0x0b0f1a;
 
 const orientationMap = (() => {
@@ -206,19 +206,19 @@ export default function LuxuryDice({
     scene.add(key);
 
     const dieMaterial = new THREE.MeshPhysicalMaterial({
-      color: GOLD_COLOR,
-      metalness: 1.0,
-      roughness: 0.05,
+      color: DIE_COLOR,
+      metalness: 0.35,
+      roughness: 0.35,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.1,
-      reflectivity: 1.0,
-      envMapIntensity: 2.0
+      clearcoatRoughness: 0.12,
+      reflectivity: 0.65,
+      envMapIntensity: 1.35
     });
     const pipMaterial = new THREE.MeshStandardMaterial({
-      color: 0x030303,
-      metalness: 0.2,
-      roughness: 0.4,
-      envMapIntensity: 0.2,
+      color: 0x111111,
+      metalness: 0.55,
+      roughness: 0.3,
+      envMapIntensity: 0.6,
       side: THREE.BackSide
     });
 

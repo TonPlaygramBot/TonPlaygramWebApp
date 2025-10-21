@@ -9,34 +9,29 @@ import {
   DOMINO_CAMERA_CONFIG
 } from '../utils/dominoArena.js';
 import { applyRendererSRGB } from '../utils/colorSpace.js';
-import { ARENA_CAMERA_DEFAULTS } from '../utils/arenaCameraConfig.js';
-
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const SNAKE_BOARD_TILES = 10;
 const SNAKE_BOARD_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
 
-const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
-const CAMERA_INITIAL_PHI_LERP = ARENA_CAMERA_DEFAULTS.initialPhiLerp;
+const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
+const CAMERA_INITIAL_PHI_LERP = 0.42;
 const CAM = {
   fov: DOMINO_CAMERA_CONFIG.fov,
   near: DOMINO_CAMERA_CONFIG.near,
   far: DOMINO_CAMERA_CONFIG.far,
   minR: DOMINO_CAMERA_CONFIG.minRadius,
   maxR: DOMINO_CAMERA_CONFIG.maxRadius,
-  phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
+  phiMin: Math.PI * 0.38,
   phiMax: DOMINO_CAMERA_CONFIG.maxPolarAngle
 };
 const TILE_GAP = 0.015;
 const TILE_SIZE = SNAKE_BOARD_SIZE / SNAKE_BOARD_TILES;
-const MAX_DICE = 3;
+const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.45;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
-const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
-const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
-const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
@@ -90,26 +85,12 @@ function makeDice() {
   });
 
   const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x0a0a0a,
-    roughness: 0.05,
-    metalness: 0.55,
-    clearcoat: 0.85,
-    clearcoatRoughness: 0.05,
-    envMapIntensity: 1.1
-  });
-
-  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffd700,
-    emissive: 0x3a2a00,
-    emissiveIntensity: 0.48,
-    metalness: 1,
-    roughness: 0.2,
-    reflectivity: 1,
-    envMapIntensity: 1.25,
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1
+    color: 0x111111,
+    roughness: 0.06,
+    metalness: 0.5,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.06,
+    envMapIntensity: 1
   });
 
   const body = new THREE.Mesh(
@@ -131,8 +112,6 @@ function makeDice() {
   );
   pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
-
-  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const half = DICE_SIZE / 2;
   const faceDepth = half - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
@@ -204,13 +183,6 @@ function makeDice() {
       pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
       pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
       dice.add(pip);
-
-      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
-      rim.receiveShadow = true;
-      rim.renderOrder = 5;
-      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
-      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
-      dice.add(rim);
     });
   });
 
@@ -458,15 +430,16 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.enableZoom = true;
+  controls.minPolarAngle = CAM.phiMin;
   controls.maxPolarAngle = CAM.phiMax;
-  controls.enablePan = true;
 
   const cameraOffset = new THREE.Vector3().setFromSpherical(
     new THREE.Spherical(
       Math.max(SNAKE_BOARD_SIZE * CAMERA_INITIAL_RADIUS_FACTOR, CAM.minR),
-      THREE.MathUtils.lerp(ARENA_CAMERA_DEFAULTS.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
+      THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
       Math.PI * 0.25
     )
   );
@@ -480,9 +453,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   const ensureMinDistance = () => {
     const needed =
       SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-    const minDistance = clamp(needed, CAM.minR, CAM.maxR);
+    const minDistance = clamp(Math.max(needed, CAM.minR), CAM.minR, CAM.maxR);
     controls.minDistance = minDistance;
-    controls.maxDistance = Math.max(minDistance + 0.01, CAM.maxR);
+    controls.maxDistance = CAM.maxR;
     const currentOffset = camera.position.clone().sub(boardLookTarget);
     const currentDistance = currentOffset.length();
     if (currentDistance < minDistance) {
@@ -500,6 +473,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
     ensureMinDistance();
+    const needed =
+      SNAKE_BOARD_SIZE / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+    const minDistance = controls.minDistance;
+    const currentRadius = camera.position.distanceTo(boardLookTarget);
+    const radius = clamp(Math.max(needed, currentRadius), minDistance, CAM.maxR);
+    const dir = camera.position.clone().sub(boardLookTarget).normalize();
+    camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+    controls.update();
   };
 
   fit();
@@ -521,8 +502,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   const updateCameraTarget = () => {
     camera.position.copy(boardLookTarget).add(cameraOffset);
     controls.target.copy(boardLookTarget);
-    controls.update();
     ensureMinDistance();
+    controls.update();
     updateCameraOffset();
   };
 
@@ -651,18 +632,31 @@ function buildSnakeBoard(
 
   const diceGroup = new THREE.Group();
   const diceBaseY = tileGroup.position.y + tileHeight + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
-  const diceAnchorZ = -half - TILE_SIZE * 0.65;
+  const diceAnchorZ = -half + TILE_SIZE * 1.25;
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
     const die = makeDice();
-    die.visible = i < 2;
+    die.visible = true;
     const offsetX = (i - (MAX_DICE - 1) / 2) * diceSpacing;
     die.position.set(offsetX, diceBaseY, diceAnchorZ);
     diceGroup.add(die);
     diceSet.push(die);
   }
   boardRoot.add(diceGroup);
+
+  const diceLightTarget = new THREE.Object3D();
+  diceLightTarget.position.set(0, diceBaseY, diceAnchorZ);
+  boardRoot.add(diceLightTarget);
+
+  const diceAccent = new THREE.SpotLight(0xffffff, 2.1, SNAKE_BOARD_SIZE * 1.2, Math.PI / 5, 0.42, 1.25);
+  diceAccent.userData.offset = new THREE.Vector3(DICE_SIZE * 2.6, DICE_SIZE * 7.5, DICE_SIZE * 3.4);
+  diceAccent.target = diceLightTarget;
+  boardRoot.add(diceAccent);
+
+  const diceFill = new THREE.PointLight(0xfff8e1, 1.05, SNAKE_BOARD_SIZE * 0.9, 2.2);
+  diceFill.userData.offset = new THREE.Vector3(-DICE_SIZE * 3.2, DICE_SIZE * 6.2, -DICE_SIZE * 3.6);
+  boardRoot.add(diceFill);
 
   disposeHandlers.push(() => {
     labelGroup.children.forEach((sprite) => {
@@ -695,7 +689,12 @@ function buildSnakeBoard(
     diceGroup,
     diceSet,
     diceBaseY,
-    diceAnchorZ
+    diceAnchorZ,
+    diceLights: {
+      accent: diceAccent,
+      fill: diceFill,
+      target: diceLightTarget
+    }
   };
 }
 
@@ -1112,6 +1111,27 @@ export default function SnakeBoard3D({
         } catch (error) {
           console.warn('Snake animation error', error);
           active.splice(i, 1);
+        }
+      }
+      const board = boardRef.current;
+      if (board?.diceLights && board?.diceSet?.length) {
+        const center = new THREE.Vector3();
+        let visibleCount = 0;
+        board.diceSet.forEach((die) => {
+          if (!die.visible) return;
+          center.add(die.position);
+          visibleCount += 1;
+        });
+        if (visibleCount > 0) {
+          center.multiplyScalar(1 / visibleCount);
+          const { accent, fill, target } = board.diceLights;
+          if (target) target.position.copy(center);
+          if (accent?.userData?.offset) {
+            accent.position.copy(center).add(accent.userData.offset);
+          }
+          if (fill?.userData?.offset) {
+            fill.position.copy(center).add(fill.userData.offset);
+          }
         }
       }
       arena.controls?.update?.();
