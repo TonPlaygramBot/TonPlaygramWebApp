@@ -416,6 +416,127 @@ function addPocketCuts(parent, clothPlane) {
   return [];
 }
 
+const POCKET_JAW_TEMPLATE_DEPTH = 0.06;
+
+function createPocketJawsTemplate() {
+  const pocketMat = new THREE.MeshPhysicalMaterial({
+    color: 0xb0b0b0,
+    metalness: 0.25,
+    roughness: 0.5,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.3,
+    envMapIntensity: 0.6
+  });
+
+  const rimMat = new THREE.MeshPhysicalMaterial({
+    color: 0x111111,
+    metalness: 0.4,
+    roughness: 0.35,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.25
+  });
+
+  const jaws = new THREE.Group();
+
+  const frameTopY = 0.25;
+  const outerW = 2.1;
+  const outerH = 1.1;
+  const pr = 0.11;
+
+  const halfW = outerW / 2 - 0.15 * 0.5;
+  const halfH = outerH / 2 - 0.15 * 0.5;
+
+  const pocketPositions = [
+    { pos: new THREE.Vector2(-halfW, -halfH), angle: (-3 * Math.PI) / 4, wide: true },
+    { pos: new THREE.Vector2(halfW, -halfH), angle: -Math.PI / 4, wide: true },
+    { pos: new THREE.Vector2(-halfW, halfH), angle: (3 * Math.PI) / 4, wide: true },
+    { pos: new THREE.Vector2(halfW, halfH), angle: Math.PI / 4, wide: true },
+    { pos: new THREE.Vector2(0, -halfH), angle: -Math.PI / 2, wide: false },
+    { pos: new THREE.Vector2(0, halfH), angle: Math.PI / 2, wide: false }
+  ];
+
+  const createPocketJaw = (center, radius, angle, wide, isMiddle) => {
+    const shape = new THREE.Shape();
+    const jawAngle = wide ? Math.PI / 2.1 : Math.PI / 3.4;
+    const startAngle = angle - jawAngle / 2;
+    const endAngle = angle + jawAngle / 2;
+
+    const innerRadius = radius * (wide ? 1.15 : 1.0);
+    const outerRadius = radius * (wide ? 1.3 : 1.18);
+
+    const midAngle = (startAngle + endAngle) / 2;
+    const baseThickness = outerRadius - innerRadius;
+    const sideThinFactor = 0.15;
+    const middleThinFactor = 0.8;
+
+    const curvePointsOuter = [];
+    const curvePointsInner = [];
+    const steps = 40;
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const theta = startAngle + t * (endAngle - startAngle);
+      const distFromMid = Math.abs(theta - midAngle) / ((endAngle - startAngle) / 2);
+      let thicknessScale = 1 - distFromMid * (1 - sideThinFactor);
+      if (distFromMid < 0.3) thicknessScale *= middleThinFactor;
+
+      const currentOuter = innerRadius + baseThickness * thicknessScale;
+
+      curvePointsOuter.push(
+        new THREE.Vector2(
+          center.x + Math.cos(theta) * currentOuter,
+          center.y + Math.sin(theta) * currentOuter
+        )
+      );
+      curvePointsInner.unshift(
+        new THREE.Vector2(
+          center.x + Math.cos(theta) * innerRadius,
+          center.y + Math.sin(theta) * innerRadius
+        )
+      );
+    }
+
+    const pathPoints = [...curvePointsOuter, ...curvePointsInner];
+    shape.setFromPoints(pathPoints);
+
+    const geom = new THREE.ExtrudeGeometry(shape, { depth: 0.06, bevelEnabled: false });
+    geom.rotateX(-Math.PI / 2);
+
+    const mesh = new THREE.Mesh(geom, pocketMat);
+    mesh.position.y = frameTopY;
+
+    const rimShape = shape.clone();
+    const rimGeom = new THREE.ExtrudeGeometry(rimShape, { depth: 0.01, bevelEnabled: false });
+    rimGeom.rotateX(-Math.PI / 2);
+
+    if (!isMiddle) {
+      rimGeom.scale(0.98, 0.98, 1);
+    }
+
+    const rim = new THREE.Mesh(rimGeom, rimMat);
+    rim.position.set(0, frameTopY + 0.058, 0);
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(rim);
+
+    return group;
+  };
+
+  pocketPositions.forEach(({ pos, angle, wide }, index) => {
+    const isMiddle = index === 4 || index === 5;
+    const jaw = createPocketJaw(pos, pr, angle, wide, isMiddle);
+    if (jaw) jaws.add(jaw);
+  });
+
+  return {
+    group: jaws,
+    frameTopY,
+    outerW,
+    outerH
+  };
+}
+
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
  * Per kërkesën tënde:
@@ -443,8 +564,6 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_COVER_CORNER_INNER_SCALE = 0.9; // keep the wider covers on the corner chamfers so they span the cushion gap
-const POCKET_COVER_SIDE_INNER_SCALE = 0.86; // move the slimmer liners back to the side pockets where the opening is tighter
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4380,217 +4499,22 @@ function Table3D(
   });
   railsGroup.add(chromePlates);
 
-  const pocketCovers = new THREE.Group();
-  const createPocketCoverMesh = (outerMP, innerScale, clipConfig = null) => {
-    if (!Array.isArray(outerMP) || !outerMP.length) {
-      return null;
-    }
-    const clamped = THREE.MathUtils.clamp(
-      Number.isFinite(innerScale) ? innerScale : 0.9,
-      0.4,
-      0.98
-    );
-    const innerMP = scaleMultiPolygon(outerMP, clamped);
-    if (!Array.isArray(innerMP) || !innerMP.length) {
-      return null;
-    }
-    let ringMP = polygonClipping.difference(outerMP, innerMP);
-    if (!Array.isArray(ringMP) || !ringMP.length) {
-      return null;
-    }
-
-    if (clipConfig) {
-      const extentBase = Math.max(TABLE.W, TABLE.H) * 4;
-      const extent =
-        Number.isFinite(clipConfig.extent) && clipConfig.extent > 0
-          ? clipConfig.extent
-          : extentBase;
-      const applyHalfPlaneClip = (mp, axis, threshold, keepGreater) => {
-        if (!Array.isArray(mp) || !mp.length) return [];
-        if (!Number.isFinite(threshold)) return mp;
-        const min = -extent;
-        const max = extent;
-        let poly = null;
-        if (axis === 'x') {
-          if (keepGreater) {
-            poly = [
-              [[
-                [threshold, min],
-                [max, min],
-                [max, max],
-                [threshold, max],
-                [threshold, min]
-              ]]
-            ];
-          } else {
-            poly = [
-              [[
-                [min, min],
-                [threshold, min],
-                [threshold, max],
-                [min, max],
-                [min, min]
-              ]]
-            ];
-          }
-        } else {
-          if (keepGreater) {
-            poly = [
-              [[
-                [min, threshold],
-                [max, threshold],
-                [max, max],
-                [min, max],
-                [min, threshold]
-              ]]
-            ];
-          } else {
-            poly = [
-              [[
-                [min, min],
-                [max, min],
-                [max, threshold],
-                [min, threshold],
-                [min, min]
-              ]]
-            ];
-          }
-        }
-        return polygonClipping.intersection(mp, poly);
-      };
-
-      const MIN_RING_AREA = MICRO_EPS * MICRO_EPS;
-      const pruneSmallPolys = (mp) =>
-        Array.isArray(mp)
-          ? mp
-              .map((poly) => {
-                if (!Array.isArray(poly) || !poly.length) return null;
-                const outerRing = poly[0];
-                if (!Array.isArray(outerRing) || outerRing.length < 4) {
-                  return null;
-                }
-                const area = Math.abs(ringArea(outerRing));
-                if (!(area > MIN_RING_AREA)) {
-                  return null;
-                }
-                return poly;
-              })
-              .filter(Boolean)
-          : [];
-
-      if (clipConfig.x && ringMP.length) {
-        ringMP = applyHalfPlaneClip(
-          ringMP,
-          'x',
-          clipConfig.x.threshold,
-          !!clipConfig.x.keepGreater
-        );
-        ringMP = pruneSmallPolys(ringMP);
+  const pocketJawTemplate = createPocketJawsTemplate();
+  if (pocketJawTemplate?.group) {
+    const { group: pocketJaws, frameTopY: jawFrameTopY, outerW: jawOuterW, outerH: jawOuterH } =
+      pocketJawTemplate;
+    const scaleX = jawOuterW ? (outerHalfW * 2) / jawOuterW : 1;
+    const scaleZ = jawOuterH ? (outerHalfH * 2) / jawOuterH : 1;
+    const scaleY = POCKET_JAW_TEMPLATE_DEPTH > 0 ? railH / POCKET_JAW_TEMPLATE_DEPTH : 1;
+    pocketJaws.scale.set(scaleX, scaleY, scaleZ);
+    pocketJaws.position.y = frameTopY - jawFrameTopY * scaleY;
+    pocketJaws.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
       }
-      if (clipConfig.z && ringMP.length) {
-        ringMP = applyHalfPlaneClip(
-          ringMP,
-          'z',
-          clipConfig.z.threshold,
-          !!clipConfig.z.keepGreater
-        );
-        ringMP = pruneSmallPolys(ringMP);
-      }
-
-      if (!Array.isArray(ringMP) || !ringMP.length) {
-        return null;
-      }
-    }
-
-    const shapes = multiPolygonToShapes(ringMP);
-    if (!shapes.length) {
-      return null;
-    }
-    const coverGeom = new THREE.ExtrudeGeometry(shapes, {
-      depth: railH,
-      bevelEnabled: false,
-      curveSegments: 96,
-      steps: 1
     });
-    coverGeom.rotateX(-Math.PI / 2);
-    coverGeom.computeVertexNormals();
-    const mesh = new THREE.Mesh(coverGeom, pocketCoverMat);
-    mesh.position.y = frameTopY;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.renderOrder = 1;
-    return mesh;
-  };
-
-  const addPocketCover = (outerMP, scale, clipConfig) => {
-    const mesh = createPocketCoverMesh(outerMP, scale, clipConfig);
-    if (!mesh) return;
-    pocketCovers.add(mesh);
-    finishParts.pocketCoverMeshes.push(mesh);
-  };
-
-  const computeScaledCoordinate = (baseValue, centroidValue, scale) => {
-    if (!Number.isFinite(baseValue) || !Number.isFinite(scale)) {
-      return baseValue;
-    }
-    if (!Number.isFinite(centroidValue)) {
-      return baseValue;
-    }
-    return centroidValue + (baseValue - centroidValue) * scale;
-  };
-
-  [
-    { sx: 1, sz: 1 },
-    { sx: -1, sz: 1 },
-    { sx: -1, sz: -1 },
-    { sx: 1, sz: -1 }
-  ].forEach(({ sx, sz }) => {
-    const baseMP = cornerNotchMP(sx, sz);
-    const scaledMP = scaleCornerPocketCut(baseMP);
-    const outerRing =
-      Array.isArray(baseMP) && baseMP.length && Array.isArray(baseMP[0]) && baseMP[0].length
-        ? baseMP[0][0]
-        : null;
-    const centroid = centroidFromRing(Array.isArray(outerRing) ? outerRing : []);
-    const baseCenterX = sx * (innerHalfW - cornerInset);
-    const baseCenterZ = sz * (innerHalfH - cornerInset);
-    const scaledCenterX = computeScaledCoordinate(
-      baseCenterX,
-      centroid.x,
-      RAIL_CORNER_POCKET_CUT_SCALE
-    );
-    const scaledCenterZ = computeScaledCoordinate(
-      baseCenterZ,
-      centroid.y,
-      RAIL_CORNER_POCKET_CUT_SCALE
-    );
-    addPocketCover(scaledMP, POCKET_COVER_CORNER_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
-      z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
-    });
-  });
-
-  [-1, 1].forEach((sx) => {
-    const baseMP = sideNotchMP(sx);
-    const scaledMP = scaleSidePocketCut(baseMP);
-    const outerRing =
-      Array.isArray(baseMP) && baseMP.length && Array.isArray(baseMP[0]) && baseMP[0].length
-        ? baseMP[0][0]
-        : null;
-    const centroid = centroidFromRing(Array.isArray(outerRing) ? outerRing : []);
-    const baseCenterX = sx * (innerHalfW - sideInset);
-    const scaledCenterX = computeScaledCoordinate(
-      baseCenterX,
-      centroid.x,
-      RAIL_SIDE_POCKET_CUT_SCALE
-    );
-    addPocketCover(scaledMP, POCKET_COVER_SIDE_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 }
-    });
-  });
-
-  if (pocketCovers.children.length) {
-    railsGroup.add(pocketCovers);
+    railsGroup.add(pocketJaws);
   }
 
   if (accentConfig && finishParts.dimensions) {
