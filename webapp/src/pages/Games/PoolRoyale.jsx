@@ -446,11 +446,11 @@ const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top
 const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
 const POCKET_JAW_CORNER_TRIM_RATIO = 0.68; // shorten the corner jaw wings so they finish exactly at the cushion break
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
-const POCKET_JAW_DEPTH_SCALE = 0.6; // proportion of the rail height the jaw liner drops into the pocket cut (taller so the rims clear the chrome plate)
+const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
-const POCKET_RIM_INNER_SCALE = 1.012; // bias the rim toward the rail side while leaving a noticeably thicker metal band above the jaw
+const POCKET_RIM_INNER_SCALE = 1.018; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
 const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.012; // shave a little more material from the side pocket rims so they don't crowd the jaws
-const POCKET_RIM_DEPTH_SCALE = 0.38; // deepen the rim extrusion so the beefier band reads clearly above the jaw
+const POCKET_RIM_DEPTH_SCALE = 0.34; // deepen the rim extrusion a touch so the thicker band reads clearly above the jaw
 const POCKET_RIM_LIP = TABLE.THICK * 0.056; // lift the rim a touch higher so it floats just above the chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
@@ -1215,7 +1215,7 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0x080808,
+          color: 0xb3b3b3,
           metalness: 0.28,
           roughness: 0.48,
           clearcoat: 0.42,
