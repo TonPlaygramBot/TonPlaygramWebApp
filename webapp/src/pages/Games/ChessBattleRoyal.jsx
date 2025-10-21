@@ -1,17 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
-import {
-  createMurlanStyleTable,
-  applyTableMaterials,
-  TABLE_SHAPE_OPTIONS
-} from '../../utils/murlanTable.js';
+import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
@@ -21,16 +16,6 @@ import {
 import { bombSound } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import {
-  TABLE_WOOD_OPTIONS,
-  TABLE_CLOTH_OPTIONS,
-  TABLE_BASE_OPTIONS,
-  DEFAULT_TABLE_CUSTOMIZATION,
-  WOOD_PRESETS_BY_ID,
-  WOOD_GRAIN_OPTIONS,
-  WOOD_GRAIN_OPTIONS_BY_ID
-} from '../../utils/tableCustomizationOptions.js';
-import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -47,93 +32,6 @@ import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.j
 
 // ========================= Config =========================
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-
-const DEFAULT_PLAYER_COUNT = 2;
-
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'midnightNavy',
-    label: 'Blu Mesnate',
-    primary: '#1a2745',
-    accent: '#111a30',
-    highlight: '#3b4c82',
-    legColor: '#0b0d14'
-  },
-  {
-    id: 'emeraldVelvet',
-    label: 'Kadife Smerald',
-    primary: '#0f6a2f',
-    accent: '#08401c',
-    highlight: '#48b26a',
-    legColor: '#132416'
-  },
-  {
-    id: 'crimsonLuxe',
-    label: 'Luksi Kaltër',
-    primary: '#7a132c',
-    accent: '#4a0b1c',
-    highlight: '#d35a7a',
-    legColor: '#1c090d'
-  },
-  {
-    id: 'onyxShadow',
-    label: 'Hije Oniks',
-    primary: '#1f1f1f',
-    accent: '#101010',
-    highlight: '#6f6f6f',
-    legColor: '#050505'
-  }
-]);
-
-const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalArenaAppearance';
-const DEFAULT_APPEARANCE = {
-  ...DEFAULT_TABLE_CUSTOMIZATION,
-  chairColor: 0,
-  tableShape: 0
-};
-
-const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Ngjyra e Karrigeve', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_OPTIONS }
-];
-
-const DIAMOND_SHAPE_ID = 'diamondEdge';
-const NON_DIAMOND_SHAPE_INDEX = (() => {
-  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
-  return index >= 0 ? index : 0;
-})();
-
-function normalizeAppearance(value = {}) {
-  const normalized = { ...DEFAULT_APPEARANCE };
-  const entries = [
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
-    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
-    ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length]
-  ];
-  entries.forEach(([key, max]) => {
-    const raw = Number(value?.[key]);
-    if (Number.isFinite(raw)) {
-      const clamped = Math.min(Math.max(0, Math.round(raw)), Math.max(0, max - 1));
-      normalized[key] = clamped;
-    }
-  });
-  return normalized;
-}
-
-function getEffectiveShapeConfig(shapeIndex, playerCount) {
-  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
-  const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
-  if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
-    return { option: fallback, rotationY: 0, forced: true };
-  }
-  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
-  return { option: requested ?? fallback, rotationY, forced: false };
-}
 
 const COLORS = Object.freeze({
   woodDark: 0x3a2d23,
@@ -163,97 +61,11 @@ const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
-const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-
-function createChessChair(option) {
-  const primary = new THREE.Color(option?.primary ?? '#2b314e');
-  const accent = new THREE.Color(option?.accent ?? '#1f2438');
-  const highlight = new THREE.Color(option?.highlight ?? '#4d74d8');
-  const legColor = new THREE.Color(option?.legColor ?? '#0f121a');
-
-  const group = new THREE.Group();
-
-  const seat = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.06, 0.5),
-    new THREE.MeshStandardMaterial({ color: primary, roughness: 0.6, metalness: 0.1 })
-  );
-  seat.position.y = 0.48;
-  seat.castShadow = true;
-  seat.receiveShadow = true;
-  group.add(seat);
-
-  const cushion = new THREE.Mesh(
-    new THREE.BoxGeometry(0.46, 0.02, 0.46),
-    new THREE.MeshStandardMaterial({ color: highlight, roughness: 0.55, metalness: 0.18 })
-  );
-  cushion.position.y = 0.52;
-  cushion.castShadow = true;
-  cushion.receiveShadow = true;
-  group.add(cushion);
-
-  const back = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.5, 0.06),
-    new THREE.MeshStandardMaterial({ color: accent, roughness: 0.6, metalness: 0.08 })
-  );
-  back.position.set(0, 0.78, -0.22);
-  back.castShadow = true;
-  back.receiveShadow = true;
-  group.add(back);
-
-  const trim = new THREE.Mesh(
-    new THREE.BoxGeometry(0.46, 0.5, 0.015),
-    new THREE.MeshStandardMaterial({ color: highlight, roughness: 0.5, metalness: 0.2 })
-  );
-  trim.position.set(0, 0.78, -0.24);
-  trim.castShadow = true;
-  trim.receiveShadow = true;
-  group.add(trim);
-
-  const legGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.46, 12);
-  const legMaterial = new THREE.MeshStandardMaterial({ color: legColor, roughness: 0.7 });
-  [
-    [-0.2, 0.23, -0.2],
-    [0.2, 0.23, -0.2],
-    [-0.2, 0.23, 0.2],
-    [0.2, 0.23, 0.2]
-  ].forEach(([x, y, z]) => {
-    const leg = new THREE.Mesh(legGeometry, legMaterial);
-    leg.position.set(x, y, z);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
-    group.add(leg);
-  });
-
-  group.scale.setScalar(CHAIR_SCALE);
-  return group;
-}
-
-function disposeChairGroup(group) {
-  if (!group) return;
-  const materials = new Set();
-  group.traverse((obj) => {
-    if (obj.isMesh) {
-      if (Array.isArray(obj.material)) {
-        obj.material.forEach((mat) => mat && materials.add(mat));
-      } else if (obj.material) {
-        materials.add(obj.material);
-      }
-      obj.geometry?.dispose?.();
-    }
-  });
-  materials.forEach((mat) => mat?.dispose?.());
-}
-
-function buildChairSet(option, tableRadius) {
-  const chairA = createChessChair(option);
-  const chairB = createChessChair(option);
-  const seatHalfDepth = 0.25 * CHAIR_SCALE;
-  const distance = (tableRadius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
-  chairA.position.set(0, 0, -distance);
-  chairB.position.set(0, 0, distance);
-  chairB.rotation.y = Math.PI;
-  return { chairs: [chairA, chairB], radius: distance };
-}
+const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
+const CAMERA_INITIAL_PHI_LERP = ARENA_CAMERA_DEFAULTS.initialPhiLerp;
+const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
+const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
+const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -679,27 +491,12 @@ function Chess3D({ avatar, username }) {
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
   const zoomRef = useRef({});
-  const fitRef = useRef(() => {});
-  const arenaRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const settingsRef = useRef({ showHighlights: true });
   const [whiteTime, setWhiteTime] = useState(60);
   const [blackTime, setBlackTime] = useState(5);
-  const [configOpen, setConfigOpen] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const [showHighlights, setShowHighlights] = useState(true);
-  const [appearance, setAppearance] = useState(() => {
-    if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
-    try {
-      const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
-      if (!stored) return { ...DEFAULT_APPEARANCE };
-      const parsed = JSON.parse(stored);
-      return normalizeAppearance(parsed);
-    } catch (error) {
-      console.warn('Failed to load chess table appearance', error);
-      return { ...DEFAULT_APPEARANCE };
-    }
-  });
-  const appearanceRef = useRef(appearance);
 
   const [ui, setUi] = useState({
     turnWhite: true,
@@ -720,225 +517,10 @@ function Chess3D({ avatar, username }) {
   }, [showHighlights]);
 
   useEffect(() => {
-    appearanceRef.current = appearance;
-  }, [appearance]);
-
-  const renderPreview = useCallback((type, option) => {
-    switch (type) {
-      case 'tableWood': {
-        const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
-        const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
-        const presetRef = preset || WOOD_FINISH_PRESETS?.[0];
-        const baseHex = presetRef
-          ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light)
-              .toString(16)
-              .padStart(6, '0')}`
-          : '#8b5a2b';
-        const accentHex = presetRef
-          ? `#${hslToHexNumber(
-              presetRef.hue,
-              Math.min(1, presetRef.sat + 0.12),
-              Math.max(0, presetRef.light - 0.18)
-            )
-              .toString(16)
-              .padStart(6, '0')}`
-          : '#5a3820';
-        const grainLabel = grain?.label ?? WOOD_GRAIN_OPTIONS?.[0]?.label ?? '';
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
-            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
-              {grainLabel.slice(0, 12)}
-            </div>
-          </div>
-        );
-      }
-      case 'tableCloth':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-[999px] border border-white/10"
-                style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
-              />
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
-          </div>
-        );
-      case 'chairColor':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-3xl border border-white/10"
-                style={{
-                  background: `linear-gradient(135deg, ${option.primary}, ${option.accent})`,
-                  boxShadow: 'inset 0 0 12px rgba(0,0,0,0.35)'
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
-          </div>
-        );
-      case 'tableBase':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-10 w-24 rounded-full border border-white/10"
-                style={{
-                  background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor ?? option.baseColor})`,
-                  boxShadow: 'inset 0 0 10px rgba(0,0,0,0.35)'
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-          </div>
-        );
-      case 'tableShape': {
-        const previewStyle = option?.preview || {};
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-24 bg-gradient-to-br from-slate-300/70 via-slate-100/90 to-slate-400/60 shadow-inner"
-                style={{
-                  borderRadius: previewStyle.borderRadius ?? '999px',
-                  clipPath: previewStyle.clipPath,
-                  WebkitClipPath: previewStyle.clipPath
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-          </div>
-        );
-      }
-      default:
-        return null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
-      } catch (error) {
-        console.warn('Failed to persist chess table appearance', error);
-      }
-    }
-
-    const current = arenaRef.current;
-    if (!current || !current.renderer || !current.arenaGroup) return;
-
-    const normalized = normalizeAppearance(appearance);
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape, DEFAULT_PLAYER_COUNT);
-    const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-
-    const rendererInstance = current.renderer;
-    const arenaGroup = current.arenaGroup;
-    const boardGroup = current.boardGroup;
-    const prevTable = current.tableInfo;
-
-    const shapeChanged = shapeOption?.id !== current.tableShapeId;
-    const rotationChanged = Math.abs((current.tableRotationY ?? 0) - rotationY) > 1e-3;
-
-    if (shapeChanged || rotationChanged) {
-      if (boardGroup && prevTable?.group) {
-        prevTable.group.remove(boardGroup);
-      }
-      prevTable?.dispose?.();
-      const nextTable = createMurlanStyleTable({
-        arena: arenaGroup,
-        renderer: rendererInstance,
-        tableRadius: TABLE_RADIUS,
-        tableHeight: TABLE_HEIGHT,
-        woodOption,
-        clothOption,
-        baseOption,
-        shapeOption,
-        rotationY
-      });
-      applyTableMaterials(nextTable?.materials, { woodOption, clothOption, baseOption }, rendererInstance);
-      if (boardGroup && nextTable?.group) {
-        nextTable.group.add(boardGroup);
-      }
-      current.tableInfo = nextTable;
-      current.tableShapeId = nextTable?.shapeId ?? shapeOption?.id ?? null;
-      current.tableRotationY = nextTable?.rotationY ?? rotationY ?? 0;
-      current.tableRadius = nextTable?.radius ?? TABLE_RADIUS;
-      current.tableSurfaceY = nextTable?.surfaceY ?? TABLE_HEIGHT;
-    } else if (prevTable?.materials) {
-      applyTableMaterials(prevTable.materials, { woodOption, clothOption, baseOption }, rendererInstance);
-    }
-
-    if (boardGroup) {
-      const surfaceY = (current.tableInfo?.surfaceY ?? TABLE_HEIGHT) + 0.01;
-      boardGroup.position.set(0, surfaceY, 0);
-    }
-
-    if (!current.boardLookTarget) {
-      current.boardLookTarget = new THREE.Vector3();
-    }
-    current.boardLookTarget.set(
-      0,
-      (current.tableInfo?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE,
-      0
-    );
-
-    if (current.spotTarget) {
-      current.spotTarget.position.copy(current.boardLookTarget);
-      current.spotTarget.updateMatrixWorld();
-    }
-    if (Array.isArray(current.studioCams)) {
-      current.studioCams.forEach((cam) => {
-        cam?.lookAt?.(current.boardLookTarget);
-      });
-    }
-
-    const nextChairId = chairOption?.id ?? 'default';
-    const chairNeedsRefresh = shapeChanged || rotationChanged || current.chairOptionId !== nextChairId;
-    if (chairNeedsRefresh) {
-      const existingChairs = current.chairs ?? [];
-      existingChairs.forEach((chair) => {
-        if (chair.parent) {
-          chair.parent.remove(chair);
-        }
-        disposeChairGroup(chair);
-      });
-      const { chairs: newChairs, radius } = buildChairSet(
-        chairOption,
-        current.tableInfo?.radius ?? TABLE_RADIUS
-      );
-      newChairs.forEach((chair) => arenaGroup.add(chair));
-      current.chairs = newChairs;
-      current.chairRadius = radius;
-      current.chairOptionId = nextChairId;
-    }
-
-    current.controls?.target.copy(current.boardLookTarget);
-    current.controls?.update();
-    current.fit = current.fit || (() => {});
-    fitRef.current = current.fit;
-    fitRef.current?.();
-  }, [appearance]);
-
-  useEffect(() => {
     const host = wrapRef.current;
     if (!host) return;
-    let scene = null;
-    let camera = null;
-    let renderer = null;
-    let controls = null;
-    let ray = null;
+    let scene, camera, renderer, ray, sph;
+    let last = performance.now();
     const capturedByWhite = [];
     const capturedByBlack = [];
 
@@ -953,8 +535,6 @@ function Chess3D({ avatar, username }) {
       alpha: false,
       powerPreference: 'high-performance'
     });
-    renderer.localClippingEnabled = true;
-    renderer.shadowMap.enabled = true;
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -965,8 +545,6 @@ function Chess3D({ avatar, username }) {
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.zIndex = '0';
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.style.cursor = 'grab';
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
@@ -988,40 +566,9 @@ function Chess3D({ avatar, username }) {
     const spotTarget = new THREE.Object3D();
     scene.add(spotTarget);
     spot.target = spotTarget;
-    state.spotTarget = spotTarget;
 
     const arena = new THREE.Group();
     scene.add(arena);
-
-    const appearanceState = normalizeAppearance(appearanceRef.current);
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
-      appearanceState.tableShape,
-      DEFAULT_PLAYER_COUNT
-    );
-    const woodOption = TABLE_WOOD_OPTIONS[appearanceState.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[appearanceState.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[appearanceState.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[appearanceState.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-
-    const state = {
-      renderer,
-      camera: null,
-      controls: null,
-      arenaGroup: arena,
-      boardGroup: null,
-      boardLookTarget: null,
-      tableInfo: null,
-      tableShapeId: null,
-      tableRotationY: 0,
-      tableRadius: TABLE_RADIUS,
-      tableSurfaceY: TABLE_HEIGHT,
-      chairs: [],
-      chairOptionId: chairOption?.id ?? 'default',
-      chairRadius: TABLE_RADIUS + 1,
-      host,
-      fit: () => {}
-    };
-    arenaRef.current = state;
 
     const arenaHalfWidth = CHESS_ARENA.width / 2;
     const arenaHalfDepth = CHESS_ARENA.depth / 2;
@@ -1123,44 +670,67 @@ function Chess3D({ avatar, username }) {
       arena,
       renderer,
       tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption,
-      clothOption,
-      baseOption,
-      shapeOption,
-      rotationY
+      tableHeight: TABLE_HEIGHT
     });
-    applyTableMaterials(tableInfo?.materials, { woodOption, clothOption, baseOption }, renderer);
     if (tableInfo?.dispose) {
       disposers.push(() => {
         try {
-          const activeTable = arenaRef.current?.tableInfo ?? tableInfo;
-          activeTable?.dispose?.();
+          tableInfo.dispose();
         } catch (error) {
           console.warn('Failed to dispose chess table', error);
         }
       });
     }
-    state.tableInfo = tableInfo;
-    state.tableShapeId = tableInfo?.shapeId ?? null;
-    state.tableRotationY = tableInfo?.rotationY ?? 0;
-    state.tableRadius = tableInfo?.radius ?? TABLE_RADIUS;
-    state.tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
 
-    const { chairs, radius: chairRadius } = buildChairSet(chairOption, tableInfo?.radius ?? TABLE_RADIUS);
-    chairs.forEach((chair) => arena.add(chair));
-    state.chairs = chairs;
-    state.chairRadius = chairRadius;
-    state.chairOptionId = chairOption?.id ?? 'default';
-    disposers.push(() => {
-      const currentChairs = arenaRef.current?.chairs ?? chairs;
-      currentChairs.forEach((chair) => {
-        if (chair.parent) {
-          chair.parent.remove(chair);
-        }
-        disposeChairGroup(chair);
+    function makeChair() {
+      const g = new THREE.Group();
+      const seat = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.06, 0.5),
+        new THREE.MeshStandardMaterial({
+          color: 0x2b314e,
+          roughness: 0.6,
+          metalness: 0.1
+        })
+      );
+      seat.position.y = 0.48;
+      g.add(seat);
+      const back = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.5, 0.06),
+        new THREE.MeshStandardMaterial({
+          color: 0x32395c,
+          roughness: 0.6
+        })
+      );
+      back.position.set(0, 0.78, -0.22);
+      g.add(back);
+      const legG = new THREE.CylinderGeometry(0.03, 0.03, 0.46, 12);
+      const legM = new THREE.MeshStandardMaterial({
+        color: 0x444444,
+        roughness: 0.7
       });
-    });
+      [
+        [-0.2, 0.23, -0.2],
+        [0.2, 0.23, -0.2],
+        [-0.2, 0.23, 0.2],
+        [0.2, 0.23, 0.2]
+      ].forEach(([x, y, z]) => {
+        const leg = new THREE.Mesh(legG, legM);
+        leg.position.set(x, y, z);
+        g.add(leg);
+      });
+      g.scale.setScalar(CHAIR_SCALE);
+      return g;
+    }
+
+    const chairA = makeChair();
+    const seatHalfDepth = 0.25 * CHAIR_SCALE;
+    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
+    chairA.position.set(0, 0, -chairDistance);
+    arena.add(chairA);
+    const chairB = makeChair();
+    chairB.position.set(0, 0, chairDistance);
+    chairB.rotation.y = Math.PI;
+    arena.add(chairB);
 
     function makeStudioCamera() {
       const cam = new THREE.Group();
@@ -1232,19 +802,17 @@ function Chess3D({ avatar, username }) {
     const studioCamB = makeStudioCamera();
     studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
     arena.add(studioCamB);
-    state.studioCams = [studioCamA, studioCamB];
 
+    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, (tableInfo?.surfaceY ?? TABLE_HEIGHT) + 0.01, 0);
+    boardGroup.position.y = tableSurfaceY + 0.01;
     boardGroup.scale.setScalar(BOARD_SCALE);
-    tableInfo?.group?.add(boardGroup);
+    arena.add(boardGroup);
     const boardLookTarget = new THREE.Vector3(
       0,
-      (tableInfo?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE,
+      boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
       0
     );
-    state.boardGroup = boardGroup;
-    state.boardLookTarget = boardLookTarget;
     spotTarget.position.copy(boardLookTarget);
     spot.target.updateMatrixWorld();
     studioCamA.lookAt(boardLookTarget);
@@ -1252,76 +820,41 @@ function Chess3D({ avatar, username }) {
 
     // Camera orbit
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    state.camera = camera;
-
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.enablePan = false;
-    controls.enableZoom = true;
-    controls.minDistance = CAM.minR;
-    controls.maxDistance = CAM.maxR;
-    controls.minPolarAngle = CAM.phiMin;
-    controls.maxPolarAngle = CAM.phiMax;
-    controls.target.copy(boardLookTarget);
-    state.controls = controls;
-
+    const initialRadius = Math.max(
+      BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
+      CAM.minR + 0.6
+    );
+    sph = new THREE.Spherical(
+      initialRadius,
+      THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP),
+      Math.PI * 0.25
+    );
     const fit = () => {
-      const current = arenaRef.current;
-      const mount = current?.host || host;
-      const cam = current?.camera;
-      const r = current?.renderer;
-      const target = current?.boardLookTarget;
-      if (!mount || !cam || !r || !target) return;
-      const tbl = current.tableInfo;
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      r.setSize(w, h, false);
-      cam.aspect = w / h;
-      cam.updateProjectionMatrix();
-
-      const isPortrait = h > w;
-      const cameraSeatAngle = Math.PI / 2;
-      const backOffset = isPortrait ? 1.65 : 1.05;
-      const forwardOffset = isPortrait ? 0.18 : 0.35;
-      const heightOffset = isPortrait ? 1.46 : 1.12;
-      const seatRadius = current.chairRadius ?? (tbl?.radius ?? TABLE_RADIUS) + 1;
-      const tableHeightForCamera = tbl?.tableHeight ?? TABLE_HEIGHT;
-      const baseRadius = seatRadius + backOffset - forwardOffset;
-
-      cam.position.set(
-        Math.cos(cameraSeatAngle) * baseRadius,
-        tableHeightForCamera + heightOffset,
-        Math.sin(cameraSeatAngle) * baseRadius
-      );
-
-      const tableSpan = (tbl?.radius ?? TABLE_RADIUS) * 2.6;
-      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
-      const span = Math.max(tableSpan, boardSpan);
-      const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      const currentRadius = cam.position.distanceTo(target);
-      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
-      const dir = cam.position.clone().sub(target).normalize();
-      cam.position.copy(target).addScaledVector(dir, radius);
-      controls.target.copy(target);
-      controls.update();
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      const boardSize = RAW_BOARD_SIZE * BOARD_SCALE;
+      const needed =
+        boardSize / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+      sph.radius = clamp(Math.max(needed, sph.radius), CAM.minR, CAM.maxR);
+      const offset = new THREE.Vector3().setFromSpherical(sph);
+      camera.position.copy(boardLookTarget).add(offset);
+      camera.lookAt(boardLookTarget);
     };
-
-    state.fit = fit;
-    fitRef.current = fit;
     fit();
 
-    const dollyScale = 1 + CAMERA_DOLLY_FACTOR;
     zoomRef.current = {
       zoomIn: () => {
-        if (!state.controls) return;
-        state.controls.dollyIn(dollyScale);
-        state.controls.update();
+        const r = sph.radius || initialRadius;
+        sph.radius = clamp(r - 1.2, CAM.minR, CAM.maxR);
+        fit();
       },
       zoomOut: () => {
-        if (!state.controls) return;
-        state.controls.dollyOut(dollyScale);
-        state.controls.update();
+        const r = sph.radius || initialRadius;
+        sph.radius = clamp(r + 1.2, CAM.minR, CAM.maxR);
+        fit();
       }
     };
 
@@ -1640,9 +1173,50 @@ function Chess3D({ avatar, username }) {
     renderer.domElement.addEventListener('click', onClick);
     renderer.domElement.addEventListener('touchend', onClick);
 
+    // Orbit controls minimal
+    const drag = { on: false, x: 0, y: 0 };
+    const onDown = (e) => {
+      drag.on = true;
+      drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
+      drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
+    };
+    const onMove = (e) => {
+      if (!drag.on) return;
+      const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
+      const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
+      const dx = x - drag.x,
+        dy = y - drag.y;
+      drag.x = x;
+      drag.y = y;
+      sph.theta -= dx * 0.004;
+      const phiDelta = -dy * CAMERA_VERTICAL_SENSITIVITY;
+      sph.phi = clamp(sph.phi + phiDelta, CAM.phiMin, CAM.phiMax);
+      const leanDelta = dy * CAMERA_LEAN_STRENGTH;
+      sph.radius = clamp(sph.radius - leanDelta, CAM.minR, CAM.maxR);
+      fit();
+    };
+    const onUp = () => {
+      drag.on = false;
+    };
+    const onWheel = (e) => {
+      const r = sph.radius || 88;
+      sph.radius = clamp(r + e.deltaY * CAMERA_WHEEL_FACTOR, CAM.minR, CAM.maxR);
+      fit();
+    };
+    renderer.domElement.addEventListener('mousedown', onDown);
+    renderer.domElement.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    renderer.domElement.addEventListener('touchstart', onDown, {
+      passive: true
+    });
+    renderer.domElement.addEventListener('touchmove', onMove, {
+      passive: true
+    });
+    window.addEventListener('touchend', onUp);
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: true });
+
     // Loop
     const step = () => {
-      controls?.update?.();
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(step);
     };
@@ -1650,7 +1224,7 @@ function Chess3D({ avatar, username }) {
 
     // Resize
     const onResize = () => {
-      fitRef.current?.();
+      fit();
     };
     window.addEventListener('resize', onResize);
 
@@ -1673,9 +1247,7 @@ function Chess3D({ avatar, username }) {
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
-      controls?.dispose?.();
       bombSoundRef.current?.pause();
-      arenaRef.current = null;
     };
   }, []);
 
@@ -1684,97 +1256,6 @@ function Chess3D({ avatar, username }) {
       ref={wrapRef}
       className="w-screen h-dvh bg-black text-white overflow-hidden select-none relative"
     >
-      <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setConfigOpen((prev) => !prev)}
-          aria-expanded={configOpen}
-          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-            configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-          }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-6 w-6"
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-            />
-          </svg>
-          <span className="sr-only">Hap personalizimin e tavolinës</span>
-        </button>
-        {configOpen && (
-          <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
-              <button
-                type="button"
-                onClick={() => setConfigOpen(false)}
-                className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                aria-label="Mbyll personalizimin"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                <div key={key} className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {options.map((option, idx) => {
-                      const selected = appearance[key] === idx;
-                      return (
-                        <button
-                          key={option.id ?? `${key}-${idx}`}
-                          type="button"
-                          onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
-                          aria-pressed={selected}
-                          className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            selected
-                              ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                              : 'border-white/10 bg-white/5 hover:border-white/20'
-                          }`}
-                        >
-                          {renderPreview(key, option)}
-                          <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 space-y-3 border-t border-white/10 pt-3">
-              <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                <span>Shfaq lëvizjet e lejueshme</span>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                  checked={showHighlights}
-                  onChange={(event) => setShowHighlights(event.target.checked)}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-              >
-                Rifillo ndeshjen
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
       <div className="absolute top-2 right-2 flex items-center space-x-2 z-20">
         {avatar && (
           <img
@@ -1789,6 +1270,49 @@ function Chess3D({ avatar, username }) {
             <p className="text-xs text-white/70">Grandmaster</p>
           </div>
         )}
+        <div className="relative pointer-events-auto">
+          <button
+            type="button"
+            aria-label={showConfig ? 'Mbyll konfigurimet e lojës' : 'Hap konfigurimet e lojës'}
+            onClick={() => setShowConfig((prev) => !prev)}
+            className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur transition hover:bg-black/60"
+          >
+            ⚙️
+          </button>
+          {showConfig && (
+            <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-black/80 p-3 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-300">
+                  Konfigurime
+                </span>
+                <button
+                  type="button"
+                  aria-label="Mbyll konfigurimet"
+                  onClick={() => setShowConfig(false)}
+                  className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                >
+                  ✕
+                </button>
+              </div>
+              <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
+                <span>Shfaq lëvizjet e lejueshme</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                  checked={showHighlights}
+                  onChange={(event) => setShowHighlights(event.target.checked)}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-3 w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+              >
+                Rifillo ndeshjen
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       {/* player turn indicators */}
       <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
