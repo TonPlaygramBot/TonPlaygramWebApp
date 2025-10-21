@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
@@ -281,6 +281,11 @@ export default function SnakeAndLadder() {
   const diceRef = useRef(null);
   const diceRollerDivRef = useRef(null);
   const [diceStyle, setDiceStyle] = useState({ display: 'none' });
+  const slideStateRef = useRef(null);
+  const slideIdRef = useRef(0);
+  const [slideAnimation, setSlideAnimation] = useState(null);
+  const diceRollIdRef = useRef(0);
+  const [diceBoardEvent, setDiceBoardEvent] = useState(null);
   const [showTrail, setShowTrail] = useState(false);
   const trailTimeoutRef = useRef(null);
   const DICE_SMALL_SCALE = 0.44;
@@ -289,6 +294,39 @@ export default function SnakeAndLadder() {
   const DICE_ANIM_DURATION = 1800;
   useEffect(() => {
     prepareDiceAnimation(0);
+  }, []);
+
+  const requestSlideAnimation = useCallback(
+    ({ playerIndex, from, to, type, onComplete }) => {
+      if (slideStateRef.current) return false;
+      slideIdRef.current += 1;
+      const payload = {
+        id: slideIdRef.current,
+        playerIndex,
+        from,
+        to,
+        type,
+        onComplete
+      };
+      slideStateRef.current = payload;
+      setSlideAnimation(payload);
+      return true;
+    },
+    []
+  );
+
+  const handleSlideComplete = useCallback((id) => {
+    setSlideAnimation((current) => {
+      if (!current || current.id !== id) return current;
+      const finalize = current.onComplete;
+      slideStateRef.current = null;
+      if (typeof finalize === 'function') finalize();
+      return null;
+    });
+  }, []);
+
+  const startDiceBoardAnimation = useCallback((phase) => {
+    setDiceBoardEvent(phase);
   }, []);
 
 
@@ -1316,6 +1354,15 @@ export default function SnakeAndLadder() {
         badLuckSoundRef,
         muted,
         FINAL_TILE,
+        playerIndex: 0,
+        startSlide: ({ from, to, type, onComplete }) =>
+          requestSlideAnimation({
+            playerIndex: 0,
+            from,
+            to,
+            type,
+            onComplete
+          })
       };
 
       const applyEffect = (startPos) =>
@@ -1527,6 +1574,15 @@ export default function SnakeAndLadder() {
       badLuckSoundRef,
       muted,
       FINAL_TILE,
+      playerIndex: index,
+      startSlide: ({ from, to, type, onComplete }) =>
+        requestSlideAnimation({
+          playerIndex: index,
+          from,
+          to,
+          type,
+          onComplete
+        })
     };
 
     const finalizeMove = async (finalPos, type) => {
@@ -1817,6 +1873,9 @@ export default function SnakeAndLadder() {
           rollingIndex={rollingIndex}
           currentTurn={currentTurn}
           burning={burning}
+          slide={slideAnimation}
+          onSlideComplete={handleSlideComplete}
+          diceEvent={diceBoardEvent}
         />
       </div>
       <div className="absolute top-3 right-3 z-30 pointer-events-auto">
@@ -1887,32 +1946,40 @@ export default function SnakeAndLadder() {
           />
         </div>
         {/* Player photos stacked vertically */}
-        <div className="fixed left-0 top-[45%] -translate-x-1 -translate-y-1/2 flex flex-col space-y-5 z-20 pointer-events-auto">
-          {players
-            .map((p, i) => ({ ...p, index: i }))
-            .map((p) => (
-              <AvatarTimer
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          {players.map((player, seat) => {
+            const p = { ...player, index: seat };
+            const seatClasses = [
+              'absolute bottom-6 left-1/2 -translate-x-1/2',
+              'absolute top-1/2 right-6 -translate-y-1/2',
+              'absolute top-6 left-1/2 -translate-x-1/2',
+              'absolute top-1/2 left-6 -translate-y-1/2'
+            ];
+            const className = seatClasses[seat] || seatClasses[seatClasses.length - 1];
+            return (
+              <div
                 key={`player-${p.index}`}
-                index={p.index}
-                photoUrl={p.photoUrl}
-                active={p.index === currentTurn}
-                rank={rankMap[p.index]}
-                name={getPlayerName(p.index)}
-                isTurn={p.index === currentTurn}
-                timerPct={
-                  p.index === currentTurn
-                    ? timeLeft / TURN_TIME
-                    : 1
-                }
-                color={p.color}
-                onClick={() => {
-                  const myIdx = isMultiplayer
-                    ? mpPlayers.findIndex(pl => pl.id === getPlayerId())
-                    : 0;
-                  if (p.index !== myIdx) setPlayerPopup(p);
-                }}
-              />
-            ))}
+                className={`${className} pointer-events-auto flex flex-col items-center`}
+              >
+                <AvatarTimer
+                  index={p.index}
+                  photoUrl={p.photoUrl}
+                  active={p.index === currentTurn}
+                  rank={rankMap[p.index]}
+                  name={getPlayerName(p.index)}
+                  isTurn={p.index === currentTurn}
+                  timerPct={p.index === currentTurn ? timeLeft / TURN_TIME : 1}
+                  color={p.color}
+                  onClick={() => {
+                    const myIdx = isMultiplayer
+                      ? mpPlayers.findIndex((pl) => pl.id === getPlayerId())
+                      : 0;
+                    if (p.index !== myIdx) setPlayerPopup(p);
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
@@ -2088,6 +2155,11 @@ export default function SnakeAndLadder() {
             <DiceRoller
               divRef={diceRollerDivRef}
               onRollEnd={(vals) => {
+                startDiceBoardAnimation({
+                  id: diceRollIdRef.current,
+                  phase: 'end',
+                  values: vals
+                });
                 if (aiRollingIndex) {
                   handleAIRoll(aiRollingIndex, vals);
                   setAiRollingIndex(null);
@@ -2099,6 +2171,12 @@ export default function SnakeAndLadder() {
               setPlayerAutoRolling(false);
             }}
             onRollStart={() => {
+                diceRollIdRef.current += 1;
+                startDiceBoardAnimation({
+                  id: diceRollIdRef.current,
+                  phase: 'start',
+                  count: diceCount + bonusDice
+                });
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerSoundRef.current?.pause();
                 setRollingIndex(aiRollingIndex || 0);
@@ -2151,6 +2229,21 @@ export default function SnakeAndLadder() {
                   emitRollEvent
                   divRef={diceRollerDivRef}
                   diceTransparent
+                  onRollStart={() => {
+                    diceRollIdRef.current += 1;
+                    startDiceBoardAnimation({
+                      id: diceRollIdRef.current,
+                      phase: 'start',
+                      count: diceCount + bonusDice
+                    });
+                  }}
+                  onRollEnd={(vals) => {
+                    startDiceBoardAnimation({
+                      id: diceRollIdRef.current,
+                      phase: 'end',
+                      values: vals
+                    });
+                  }}
                 />
               );
             }

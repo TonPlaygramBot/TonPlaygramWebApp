@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 import {
   buildDominoArena,
@@ -28,11 +29,24 @@ const CAM = {
 };
 const TILE_GAP = 0.015;
 const TILE_SIZE = SNAKE_BOARD_SIZE / SNAKE_BOARD_TILES;
+const MAX_DICE = 3;
+const DICE_SIZE = TILE_SIZE * 0.45;
+const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
+const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
+const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
+const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
+const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
+const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
+const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
+const DICE_FACE_INSET = DICE_SIZE * 0.064;
+const DICE_ROLL_DURATION = 900;
+const DICE_SETTLE_DURATION = 360;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const BOARD_BASE_EXTRA = SNAKE_BOARD_SIZE * (0.28 / 3.4);
 const BOARD_BASE_HEIGHT = SNAKE_BOARD_SIZE * (0.22 / 3.4);
 
-const TILE_COLOR_A = new THREE.Color(0x1e293b);
-const TILE_COLOR_B = new THREE.Color(0x0ea5e9);
+const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
+const TILE_COLOR_B = new THREE.Color(0x776a5a);
 const HIGHLIGHT_COLORS = {
   normal: new THREE.Color(0xf59e0b),
   snake: new THREE.Color(0xdc2626),
@@ -41,11 +55,240 @@ const HIGHLIGHT_COLORS = {
 
 const TOKEN_RADIUS = TILE_SIZE * 0.2;
 const TOKEN_HEIGHT = TILE_SIZE * 0.32;
+const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
+const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+function setDiceOrientation(dice, val) {
+  const orientations = {
+    1: new THREE.Euler(0, 0, 0),
+    2: new THREE.Euler(-Math.PI / 2, 0, 0),
+    3: new THREE.Euler(0, 0, -Math.PI / 2),
+    4: new THREE.Euler(0, 0, Math.PI / 2),
+    5: new THREE.Euler(Math.PI / 2, 0, 0),
+    6: new THREE.Euler(Math.PI, 0, 0)
+  };
+  const euler = orientations[val] || orientations[1];
+  const q = new THREE.Quaternion().setFromEuler(euler);
+  dice.setRotationFromQuaternion(q);
+}
+
+function makeDice() {
+  const dice = new THREE.Group();
+
+  const dieMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0.24,
+    roughness: 0.36,
+    clearcoat: 1,
+    clearcoatRoughness: 0.18,
+    reflectivity: 0.72,
+    envMapIntensity: 1.2
+  });
+
+  const pipMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.55,
+    clearcoat: 0.85,
+    clearcoatRoughness: 0.05,
+    envMapIntensity: 1.1
+  });
+
+  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    emissive: 0x3a2a00,
+    emissiveIntensity: 0.48,
+    metalness: 1,
+    roughness: 0.2,
+    reflectivity: 1,
+    envMapIntensity: 1.25,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  });
+
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, DICE_CORNER_RADIUS),
+    dieMaterial
+  );
+  body.castShadow = true;
+  body.receiveShadow = true;
+  dice.add(body);
+
+  const pipGeo = new THREE.SphereGeometry(
+    DICE_PIP_RADIUS,
+    36,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2
+  );
+  pipGeo.rotateX(Math.PI);
+  pipGeo.computeVertexNormals();
+
+  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
+  const half = DICE_SIZE / 2;
+  const faceDepth = half - DICE_FACE_INSET * 0.6;
+  const spread = DICE_PIP_SPREAD;
+
+  const faces = [
+    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
+    {
+      normal: new THREE.Vector3(0, 0, 1),
+      points: [
+        [-spread, -spread],
+        [spread, spread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(1, 0, 0),
+      points: [
+        [-spread, -spread],
+        [0, 0],
+        [spread, spread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(-1, 0, 0),
+      points: [
+        [-spread, -spread],
+        [-spread, spread],
+        [spread, -spread],
+        [spread, spread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(0, 0, -1),
+      points: [
+        [-spread, -spread],
+        [-spread, spread],
+        [0, 0],
+        [spread, -spread],
+        [spread, spread]
+      ]
+    },
+    {
+      normal: new THREE.Vector3(0, -1, 0),
+      points: [
+        [-spread, -spread],
+        [-spread, 0],
+        [-spread, spread],
+        [spread, -spread],
+        [spread, 0],
+        [spread, spread]
+      ]
+    }
+  ];
+
+  faces.forEach(({ normal, points }) => {
+    const n = normal.clone().normalize();
+    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
+    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
+
+    points.forEach(([gx, gy]) => {
+      const base = new THREE.Vector3()
+        .addScaledVector(xAxis, gx)
+        .addScaledVector(yAxis, gy)
+        .addScaledVector(n, faceDepth - DICE_PIP_DEPTH * 0.5);
+
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.castShadow = true;
+      pip.receiveShadow = true;
+      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      dice.add(pip);
+
+      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
+      rim.receiveShadow = true;
+      rim.renderOrder = 5;
+      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      dice.add(rim);
+    });
+  });
+
+  dice.userData.setValue = (val) => {
+    dice.userData.currentValue = val;
+    setDiceOrientation(dice, val);
+  };
+  dice.userData.currentValue = 1;
+  return dice;
+}
+
+function createDiceRollAnimation(diceArray, { basePositions, baseY }) {
+  const start = performance.now();
+  const offsets = diceArray.map(() =>
+    new THREE.Vector3((Math.random() - 0.5) * DICE_SIZE * 0.35, 0, (Math.random() - 0.5) * DICE_SIZE * 0.35)
+  );
+  const spinVecs = diceArray.map(
+    () =>
+      new THREE.Vector3(
+        0.45 + Math.random() * 0.55,
+        0.6 + Math.random() * 0.65,
+        0.4 + Math.random() * 0.55
+      )
+  );
+  return {
+    update: (now) => {
+      const t = Math.min((now - start) / DICE_ROLL_DURATION, 1);
+      const bounce = Math.sin(t * Math.PI) * DICE_BOUNCE_HEIGHT;
+      diceArray.forEach((die, index) => {
+        const base = basePositions[index];
+        if (!base) return;
+        die.position.x = base.x + offsets[index].x * Math.sin(t * Math.PI * 0.6);
+        die.position.z = base.z + offsets[index].z * Math.sin(t * Math.PI * 0.6);
+        die.position.y = baseY + bounce;
+        die.rotation.x += spinVecs[index].x;
+        die.rotation.y += spinVecs[index].y;
+        die.rotation.z += spinVecs[index].z;
+      });
+      if (t >= 1) {
+        diceArray.forEach((die, index) => {
+          const base = basePositions[index];
+          if (!base) return;
+          die.position.set(base.x, baseY, base.z);
+        });
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
+function createDiceSettleAnimation(diceArray, { basePositions, baseY }) {
+  const start = performance.now();
+  return {
+    update: (now) => {
+      const t = Math.min((now - start) / DICE_SETTLE_DURATION, 1);
+      const ease = easeOutCubic(t);
+      diceArray.forEach((die, index) => {
+        const base = basePositions[index];
+        if (!base) return;
+        const wobble = Math.sin((1 - ease) * Math.PI) * (DICE_BOUNCE_HEIGHT * 0.18);
+        die.position.set(base.x, baseY + wobble, base.z);
+      });
+      if (t >= 1) {
+        diceArray.forEach((die, index) => {
+          const base = basePositions[index];
+          if (!base) return;
+          die.position.set(base.x, baseY, base.z);
+        });
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
 function createTileLabel(number) {
-  const size = 128;
+  const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -64,12 +307,22 @@ function createTileLabel(number) {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.anisotropy = 4;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  const scale = TILE_SIZE * 0.45;
-  sprite.scale.set(scale, scale, 1);
-  sprite.userData = { texture };
-  return sprite;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  });
+  const planeSize = TILE_SIZE * 0.58;
+  const geometry = new THREE.PlaneGeometry(planeSize, planeSize);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 10;
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.userData = { texture, geometry };
+  return mesh;
 }
 
 function makeRailTexture() {
@@ -306,7 +559,7 @@ function buildSnakeBoard(
 
   const tileMeshes = new Map();
   const indexToPosition = new Map();
-  const tileHeight = 0.08;
+  const tileHeight = TILE_SIZE * 0.024;
   const tileGeo = new THREE.BoxGeometry(
     TILE_SIZE - TILE_GAP,
     tileHeight,
@@ -314,7 +567,7 @@ function buildSnakeBoard(
   );
 
   const labelGroup = new THREE.Group();
-  labelGroup.position.y = tileGroup.position.y + tileHeight + 0.001;
+  labelGroup.position.y = tileGroup.position.y + tileHeight + TILE_LABEL_OFFSET;
   boardRoot.add(labelGroup);
 
   const half = (SNAKE_BOARD_TILES * TILE_SIZE) / 2;
@@ -396,10 +649,26 @@ function buildSnakeBoard(
   potGroup.position.set(potPos.x, tileGroup.position.y + tileHeight + TILE_SIZE * 0.1, potPos.z);
   boardRoot.add(potGroup);
 
+  const diceGroup = new THREE.Group();
+  const diceBaseY = tileGroup.position.y + tileHeight + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
+  const diceAnchorZ = -half - TILE_SIZE * 0.65;
+  const diceSpacing = DICE_SIZE * 1.35;
+  const diceSet = [];
+  for (let i = 0; i < MAX_DICE; i += 1) {
+    const die = makeDice();
+    die.visible = i < 2;
+    const offsetX = (i - (MAX_DICE - 1) / 2) * diceSpacing;
+    die.position.set(offsetX, diceBaseY, diceAnchorZ);
+    diceGroup.add(die);
+    diceSet.push(die);
+  }
+  boardRoot.add(diceGroup);
+
   disposeHandlers.push(() => {
     labelGroup.children.forEach((sprite) => {
       if (sprite.material?.map) sprite.material.map.dispose();
       sprite.material?.dispose?.();
+      sprite.geometry?.dispose?.();
     });
   });
 
@@ -422,7 +691,11 @@ function buildSnakeBoard(
     tokensGroup,
     serpentineIndexToXZ,
     potGroup,
-    labelGroup
+    labelGroup,
+    diceGroup,
+    diceSet,
+    diceBaseY,
+    diceAnchorZ
   };
 }
 
@@ -491,7 +764,7 @@ function updateTokens(
       const head = new THREE.Mesh(new THREE.SphereGeometry(TOKEN_RADIUS * 0.9, 18, 14), material);
       head.position.y = TOKEN_HEIGHT * 0.95;
       token.add(head);
-      token.userData = { playerIndex: index, material };
+      token.userData = { playerIndex: index, material, isSliding: false };
       tokensGroup.add(token);
     }
     const mat = token.userData.material;
@@ -519,11 +792,12 @@ function updateTokens(
     const worldPos = basePos
       ? basePos.clone()
       : serpentineIndexToXZ(positionIndex).clone().setY(tokensGroup.position.y);
-    worldPos.x += offsetX;
-    worldPos.z += offsetZ;
-    worldPos.y += TOKEN_HEIGHT * 0.02;
-
-    token.position.copy(worldPos);
+    if (!token.userData.isSliding) {
+      worldPos.x += offsetX;
+      worldPos.z += offsetZ;
+      worldPos.y += TOKEN_HEIGHT * 0.02;
+      token.position.copy(worldPos);
+    }
   });
 
   existing.forEach((group, index) => {
@@ -568,6 +842,8 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     metalness: 0.05
   });
 
+  group.userData.paths = new Map();
+
   parseJumpMap(ladders)
     .filter(([a, b]) => b > a)
     .forEach(([start, end]) => {
@@ -607,6 +883,16 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
         rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), right.clone());
         group.add(rung);
       }
+
+      const ladderCurve = new THREE.LineCurve3(
+        A.clone().add(new THREE.Vector3(0, TILE_SIZE * 0.1, 0)),
+        B.clone().add(new THREE.Vector3(0, TILE_SIZE * 0.1, 0))
+      );
+      group.userData.paths.set(start, {
+        curve: ladderCurve,
+        start: A.clone(),
+        end: B.clone()
+      });
     });
 }
 
@@ -652,6 +938,8 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
 
   const entries = parseJumpMap(snakes).filter(([a, b]) => b < a);
 
+  group.userData.paths = new Map();
+
   entries.forEach(([start, end]) => {
     const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
     const B = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
@@ -672,6 +960,12 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const mainLen = A.distanceTo(fullCurve.getPoint(0.75));
     bodyMain.material.map.repeat.set(Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))), 2);
     group.add(bodyMain);
+
+    group.userData.paths.set(start, {
+      curve: fullCurve.clone(),
+      start: A.clone(),
+      end: B.clone()
+    });
 
     const tailSegments = [
       [0.75, 0.87, bodyRadius * 0.9],
@@ -747,7 +1041,10 @@ export default function SnakeBoard3D({
   tokenType,
   rollingIndex,
   currentTurn,
-  burning = []
+  burning = [],
+  slide,
+  onSlideComplete,
+  diceEvent
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -756,6 +1053,8 @@ export default function SnakeBoard3D({
   const disposeHandlers = useRef([]);
   const railTextureRef = useRef(null);
   const snakeTextureRef = useRef(null);
+  const animationsRef = useRef([]);
+  const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -798,7 +1097,23 @@ export default function SnakeBoard3D({
     fitRef.current = arena.fit;
     arena.fit();
 
-    renderer.setAnimationLoop(() => {
+    renderer.setAnimationLoop((time) => {
+      const now = typeof time === 'number' ? time : performance.now();
+      const active = animationsRef.current;
+      for (let i = active.length - 1; i >= 0; i -= 1) {
+        const anim = active[i];
+        if (!anim || typeof anim.update !== 'function') {
+          active.splice(i, 1);
+          continue;
+        }
+        try {
+          const done = anim.update(now);
+          if (done) active.splice(i, 1);
+        } catch (error) {
+          console.warn('Snake animation error', error);
+          active.splice(i, 1);
+        }
+      }
       arena.controls?.update?.();
       if (cameraRef.current) {
         renderer.render(scene, cameraRef.current);
@@ -872,6 +1187,121 @@ export default function SnakeBoard3D({
       snakeTextureRef.current
     );
   }, [snakes, snakeOffsets]);
+
+  useEffect(() => {
+    if (!slide || !boardRef.current) return;
+    const board = boardRef.current;
+    const tokensGroup = board.tokensGroup;
+    if (!tokensGroup) {
+      onSlideComplete?.(slide.id, false);
+      return;
+    }
+    const token = tokensGroup.children.find((child) => child.userData?.playerIndex === slide.playerIndex);
+    if (!token) {
+      onSlideComplete?.(slide.id, false);
+      return;
+    }
+    const pathMap =
+      slide.type === 'ladder'
+        ? board.laddersGroup?.userData?.paths
+        : board.snakesGroup?.userData?.paths;
+    const startBase = (board.indexToPosition.get(slide.from) || board.serpentineIndexToXZ(slide.from)).clone();
+    const endBase = (board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)).clone();
+    startBase.y = startBase.y ?? tokensGroup.position.y;
+    endBase.y = endBase.y ?? tokensGroup.position.y;
+    let pathInfo = pathMap?.get(slide.from);
+    if (!pathInfo) {
+      const fallbackCurve = new THREE.LineCurve3(startBase.clone(), endBase.clone());
+      pathInfo = { curve: fallbackCurve, start: startBase.clone(), end: endBase.clone() };
+    }
+    const curve = pathInfo.curve;
+    token.userData.isSliding = true;
+    const duration = 1100;
+    const startTime = performance.now();
+    const lift = TOKEN_HEIGHT * 0.6;
+    animationsRef.current.push({
+      update: (now) => {
+        const t = Math.min((now - startTime) / duration, 1);
+        let pos;
+        if (t < 0.18) {
+          const local = easeInOut(t / 0.18);
+          const target = curve.getPoint(0).clone().add(new THREE.Vector3(0, lift, 0));
+          pos = startBase.clone().lerp(target, local);
+        } else if (t < 0.9) {
+          const local = easeInOut((t - 0.18) / 0.72);
+          pos = curve.getPoint(local).clone().add(new THREE.Vector3(0, lift * 0.4, 0));
+        } else {
+          const local = easeOutCubic((t - 0.9) / 0.1);
+          const from = curve.getPoint(1).clone().add(new THREE.Vector3(0, lift * 0.25, 0));
+          pos = from.lerp(endBase, Math.min(1, local));
+        }
+        token.position.copy(pos);
+        if (t >= 1) {
+          token.userData.isSliding = false;
+          token.position.copy(endBase);
+          onSlideComplete?.(slide.id, true);
+          return true;
+        }
+        return false;
+      }
+    });
+  }, [slide, onSlideComplete]);
+
+  useEffect(() => {
+    if (!diceEvent || !boardRef.current) return;
+    const board = boardRef.current;
+    const diceSet = board.diceSet || [];
+    if (!diceSet.length) return;
+    const diceBaseY = board.diceBaseY ?? 0;
+    const diceAnchorZ = board.diceAnchorZ ?? 0;
+    if (diceEvent.phase === 'start') {
+      const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
+      const spacing = DICE_SIZE * 1.35;
+      const centerOffset = (count - 1) / 2;
+      const basePositions = [];
+      diceSet.forEach((die, index) => {
+        const visible = index < count;
+        die.visible = visible;
+        if (visible) {
+          const offsetX = (index - centerOffset) * spacing;
+          die.position.set(offsetX, diceBaseY, diceAnchorZ);
+          basePositions.push(die.position.clone());
+        }
+      });
+      diceStateRef.current = {
+        currentId: diceEvent.id,
+        basePositions,
+        baseY: diceBaseY,
+        count
+      };
+      const active = diceSet.filter((_, idx) => idx < count);
+      if (active.length) {
+        animationsRef.current.push(
+          createDiceRollAnimation(active, {
+            basePositions: active.map((die) => die.position.clone()),
+            baseY: diceBaseY
+          })
+        );
+      }
+    } else if (diceEvent.phase === 'end') {
+      if (diceStateRef.current.currentId !== diceEvent.id) return;
+      const values = diceEvent.values || [];
+      const active = diceSet.filter((die) => die.visible);
+      if (active.length) {
+        active.forEach((die, index) => {
+          const value = values[index] ?? values[values.length - 1] ?? 1;
+          die.userData.setValue?.(value);
+        });
+        animationsRef.current.push(
+          createDiceSettleAnimation(active, {
+            basePositions: active.map((die) => die.position.clone()),
+            baseY: diceBaseY
+          })
+        );
+      }
+      diceStateRef.current = { currentId: null, basePositions: [], baseY: diceBaseY, count: 0 };
+    }
+  }, [diceEvent]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
