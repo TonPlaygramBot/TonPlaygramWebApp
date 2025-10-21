@@ -443,8 +443,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_INNER_SCALE = 0.962; // thin the corner jaw walls so they no longer crowd the pocket mouth
-const POCKET_JAW_CORNER_TRIM_RATIO = 1.256; // trim the corner jaw back to the chrome arch start/stop span along both rails
+const POCKET_JAW_CORNER_INNER_SCALE = 0.935; // slim the corner jaw walls so the chrome arches remain fully open
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.74; // stop the corner jaw exactly where the chrome arch transitions across the chamfer
 const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
