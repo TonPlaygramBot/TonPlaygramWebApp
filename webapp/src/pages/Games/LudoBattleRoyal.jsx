@@ -357,12 +357,124 @@ const CAM = {
   phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
-const RING_STEPS = 52;
-const HOME_STEPS = 4;
+const TRACK_COORDS = Object.freeze([
+  [6, 1],
+  [6, 2],
+  [6, 3],
+  [6, 4],
+  [6, 5],
+  [5, 6],
+  [4, 6],
+  [3, 6],
+  [2, 6],
+  [1, 6],
+  [0, 6],
+  [0, 7],
+  [0, 8],
+  [1, 8],
+  [2, 8],
+  [3, 8],
+  [4, 8],
+  [5, 8],
+  [6, 9],
+  [6, 10],
+  [6, 11],
+  [6, 12],
+  [6, 13],
+  [6, 14],
+  [7, 14],
+  [8, 14],
+  [8, 13],
+  [8, 12],
+  [8, 11],
+  [8, 10],
+  [8, 9],
+  [9, 8],
+  [10, 8],
+  [11, 8],
+  [12, 8],
+  [13, 8],
+  [14, 8],
+  [14, 7],
+  [14, 6],
+  [13, 6],
+  [12, 6],
+  [11, 6],
+  [10, 6],
+  [9, 6],
+  [8, 5],
+  [8, 4],
+  [8, 3],
+  [8, 2],
+  [8, 1],
+  [8, 0],
+  [7, 0],
+  [6, 0]
+]);
+const PLAYER_START_INDEX = Object.freeze([0, 13, 26, 39]);
+const HOME_COLUMN_COORDS = Object.freeze([
+  Object.freeze([
+    [7, 1],
+    [7, 2],
+    [7, 3],
+    [7, 4],
+    [7, 5],
+    [7, 6]
+  ]),
+  Object.freeze([
+    [1, 7],
+    [2, 7],
+    [3, 7],
+    [4, 7],
+    [5, 7],
+    [6, 7]
+  ]),
+  Object.freeze([
+    [7, 13],
+    [7, 12],
+    [7, 11],
+    [7, 10],
+    [7, 9],
+    [7, 8]
+  ]),
+  Object.freeze([
+    [13, 7],
+    [12, 7],
+    [11, 7],
+    [10, 7],
+    [9, 7],
+    [8, 7]
+  ])
+]);
+const RING_STEPS = TRACK_COORDS.length;
+const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const PLAYER_START_INDEX = [0, 13, 26, 39];
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
 const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
+const TOKEN_MOVE_SPEED = 1.85;
+const keyFor = (r, c) => `${r},${c}`;
+const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
+const START_KEY_TO_PLAYER = new Map(
+  PLAYER_START_INDEX.map((index, player) => {
+    const [r, c] = TRACK_COORDS[index];
+    return [keyFor(r, c), player];
+  })
+);
+const SAFE_TRACK_INDEXES = new Set(
+  PLAYER_START_INDEX.flatMap((index) => [index, (index + 8) % RING_STEPS])
+);
+const SAFE_TRACK_KEY_SET = new Set(
+  [...SAFE_TRACK_INDEXES].map((index) => {
+    const [r, c] = TRACK_COORDS[index];
+    return keyFor(r, c);
+  })
+);
+const HOME_COLUMN_KEY_TO_PLAYER = new Map();
+HOME_COLUMN_COORDS.forEach((coords, player) => {
+  coords.forEach(([r, c]) => {
+    HOME_COLUMN_KEY_TO_PLAYER.set(keyFor(r, c), player);
+  });
+});
 
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
@@ -625,6 +737,7 @@ function Ludo3D({ avatar, username }) {
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
+  const aiTimeoutRef = useRef(null);
   const fitRef = useRef(() => {});
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1226,6 +1339,7 @@ function Ludo3D({ avatar, username }) {
         !dice ||
         !rollFn ||
         !state ||
+        state.turn !== 0 ||
         state.winner ||
         state.animation ||
         dice.userData?.isRolling
@@ -1264,7 +1378,51 @@ function Ludo3D({ avatar, username }) {
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
+    let lastFrameTime = performance.now();
+    const animTemp = new THREE.Vector3();
+    const animDir = new THREE.Vector3();
+    const animLook = new THREE.Vector3();
+
     const step = () => {
+      const now = performance.now();
+      const delta = Math.min(0.12, (now - lastFrameTime) / 1000);
+      lastFrameTime = now;
+
+      const state = stateRef.current;
+      if (state?.animation?.active) {
+        const anim = state.animation;
+        const seg = anim.segments?.[anim.segment];
+        if (!seg) {
+          const done = anim.onComplete;
+          state.animation = null;
+          if (typeof done === 'function') done();
+        } else {
+          anim.elapsed += delta;
+          const duration = Math.max(seg.duration, 1e-4);
+          const t = Math.min(1, anim.elapsed / duration);
+          animTemp.copy(seg.from).lerp(seg.to, t);
+          const lift = Math.sin(t * Math.PI) * 0.01;
+          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, t) + lift;
+          anim.token.position.copy(animTemp);
+          animDir.copy(seg.to).sub(seg.from);
+          animDir.y = 0;
+          if (animDir.lengthSq() > 1e-6) {
+            animDir.normalize();
+            animLook.copy(anim.token.position).add(animDir);
+            anim.token.lookAt(animLook);
+          }
+          if (t >= 0.999) {
+            anim.segment += 1;
+            anim.elapsed = 0;
+            if (anim.segment >= anim.segments.length) {
+              const done = anim.onComplete;
+              state.animation = null;
+              if (typeof done === 'function') done();
+            }
+          }
+        }
+      }
+
       if (diceRef.current) {
         const lights = diceRef.current.userData?.lights;
         if (lights?.accent) {
@@ -1285,6 +1443,10 @@ function Ludo3D({ avatar, username }) {
 
     return () => {
       cancelAnimationFrame(animationId);
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+        aiTimeoutRef.current = null;
+      }
       stateRef.current = null;
       turnIndicatorRef.current = null;
       window.removeEventListener('resize', onResize);
@@ -1381,14 +1543,129 @@ function Ludo3D({ avatar, username }) {
       }
     }
     const token = state.tokens[player][tokenIndex];
+    const segments = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      const from = path[i];
+      const to = path[i + 1];
+      const distance = from.distanceTo(to);
+      const duration = Math.max(0.12, distance / TOKEN_MOVE_SPEED);
+      segments.push({ from, to, distance, duration });
+    }
+    if (!segments.length) {
+      state.animation = null;
+      if (typeof onComplete === 'function') onComplete();
+      return;
+    }
     state.animation = {
       active: true,
       token,
-      path,
+      segments,
       segment: 0,
-      t: 0,
-      onComplete
+      elapsed: 0,
+      onComplete,
+      player,
+      tokenIndex
     };
+  };
+
+  const getTrackIndexForProgress = (player, progress) => {
+    if (progress < 0 || progress >= RING_STEPS) return null;
+    return (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
+  };
+
+  const countCapturesForTarget = (state, player, targetProgress) => {
+    if (targetProgress < 0 || targetProgress >= RING_STEPS) return 0;
+    const landingIdx = getTrackIndexForProgress(player, targetProgress);
+    if (landingIdx == null || SAFE_TRACK_INDEXES.has(landingIdx)) return 0;
+    let captures = 0;
+    for (let opponent = 0; opponent < 4; opponent += 1) {
+      if (opponent === player) continue;
+      for (let t = 0; t < 4; t += 1) {
+        const prog = state.progress[opponent][t];
+        if (prog < 0 || prog >= RING_STEPS) continue;
+        const idx = getTrackIndexForProgress(opponent, prog);
+        if (idx === landingIdx) captures += 1;
+      }
+    }
+    return captures;
+  };
+
+  const countOwnStacking = (state, player, targetProgress, ignoreToken) => {
+    if (targetProgress < 0 || targetProgress >= RING_STEPS) return 0;
+    const landingIdx = getTrackIndexForProgress(player, targetProgress);
+    if (landingIdx == null) return 0;
+    let stack = 0;
+    for (let i = 0; i < 4; i += 1) {
+      if (i === ignoreToken) continue;
+      const prog = state.progress[player][i];
+      if (prog < 0 || prog >= RING_STEPS) continue;
+      const idx = getTrackIndexForProgress(player, prog);
+      if (idx === landingIdx) stack += 1;
+    }
+    return stack;
+  };
+
+  const evaluateMoveOption = (state, player, option, roll) => {
+    if (!state) return -Infinity;
+    const current = state.progress[player][option.token];
+    const target = option.entering ? 0 : current + roll;
+    if (target > GOAL_PROGRESS) return -Infinity;
+    if (target >= GOAL_PROGRESS) {
+      return 10000 + roll * 10;
+    }
+    let score = 0;
+    if (option.entering) {
+      score += 180;
+      if (state.progress[player].every((p) => p < 0)) {
+        score += 50;
+      }
+    }
+    if (target >= RING_STEPS) {
+      const stepsIntoHome = target - RING_STEPS + 1;
+      score += 600 + stepsIntoHome * 45;
+      return score + Math.random() * 0.01;
+    }
+    const captureCount = countCapturesForTarget(state, player, target);
+    if (captureCount > 0) {
+      score += 450 + captureCount * 60;
+    }
+    const landingIdx = getTrackIndexForProgress(player, target);
+    if (landingIdx != null) {
+      if (SAFE_TRACK_INDEXES.has(landingIdx)) {
+        score += 80;
+      }
+      const ownStack = countOwnStacking(state, player, target, option.token);
+      if (ownStack > 0) {
+        score += 60 + ownStack * 25;
+      }
+    }
+    if (!option.entering && current >= 0 && current < RING_STEPS) {
+      const fromIdx = getTrackIndexForProgress(player, current);
+      if (
+        fromIdx != null &&
+        SAFE_TRACK_INDEXES.has(fromIdx) &&
+        !(landingIdx != null && SAFE_TRACK_INDEXES.has(landingIdx))
+      ) {
+        score -= 40;
+      }
+    }
+    score += target * 6;
+    score += Math.max(0, (RING_STEPS - target) * 0.4);
+    return score + Math.random() * 0.01;
+  };
+
+  const chooseMoveOption = (state, player, roll, options) => {
+    if (!state || !options.length) return null;
+    let best = null;
+    let bestScore = -Infinity;
+    for (const option of options) {
+      const score = evaluateMoveOption(state, player, option, roll);
+      if (score > bestScore) {
+        bestScore = score;
+        best = option;
+      }
+    }
+    return best ?? options[0] ?? null;
   };
 
   const advanceTurn = (extraTurn) => {
@@ -1413,8 +1690,7 @@ function Ludo3D({ avatar, username }) {
     const prog = state.progress[player][tokenIndex];
     if (prog < 0 || prog >= RING_STEPS) return;
     const landingIdx = (PLAYER_START_INDEX[player] + prog) % RING_STEPS;
-    const safeStarts = [0, 8, 16, 24];
-    if (safeStarts.includes(landingIdx)) return;
+    if (SAFE_TRACK_INDEXES.has(landingIdx)) return;
     for (let p = 0; p < 4; p++) {
       if (p === player) continue;
       for (let t = 0; t < 4; t++) {
@@ -1516,17 +1792,59 @@ function Ludo3D({ avatar, username }) {
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
-    setUi((s) => ({ ...s, dice: value }));
+    setUi((s) => ({
+      ...s,
+      dice: value,
+      status: player === 0 ? `You rolled ${value}` : `${COLOR_NAMES[player]} rolled ${value}`
+    }));
     const options = getMovableTokens(player, value);
     if (!options.length) {
       advanceTurn(value === 6);
       return;
     }
-    const choice = options[0];
+    const choice = chooseMoveOption(state, player, value, options);
+    if (!choice) {
+      advanceTurn(value === 6);
+      return;
+    }
     moveToken(player, choice.token, value);
   };
 
   rollDiceRef.current = rollDice;
+
+  useEffect(() => {
+    const state = stateRef.current;
+    if (ui.winner) return undefined;
+    if (!state) return undefined;
+    if (ui.turn === 0) return undefined;
+    if (state.turn !== ui.turn) return undefined;
+    if (state.animation) return undefined;
+    if (ui.dice != null) return undefined;
+    const dice = diceRef.current;
+    if (!dice || dice.userData?.isRolling) return undefined;
+
+    if (aiTimeoutRef.current) {
+      clearTimeout(aiTimeoutRef.current);
+    }
+
+    aiTimeoutRef.current = window.setTimeout(() => {
+      aiTimeoutRef.current = null;
+      const nextState = stateRef.current;
+      if (!nextState || nextState.winner) return;
+      if (nextState.turn === 0) return;
+      if (nextState.animation) return;
+      const diceObj = diceRef.current;
+      if (diceObj?.userData?.isRolling) return;
+      rollDiceRef.current?.();
+    }, 650);
+
+    return () => {
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+        aiTimeoutRef.current = null;
+      }
+    };
+  }, [ui.turn, ui.dice, ui.winner]);
 
   return (
     <div
@@ -1719,9 +2037,11 @@ function buildLudoBoard(boardGroup) {
   };
 
   const startPads = getHomeStartPads(half);
-  const homeColumns = [[], [], [], []];
   const goalSlots = getGoalSlots(half);
   const ringPath = buildRingFromGrid(cellToWorld);
+  const homeColumnPositions = HOME_COLUMN_COORDS.map((coords) =>
+    coords.map(([r, c]) => cellToWorld(r, c))
+  );
 
   const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
   const homeBaseMats = PLAYER_COLORS.map((color) => {
@@ -1731,9 +2051,6 @@ function buildLudoBoard(boardGroup) {
   const pathMats = PLAYER_COLORS.map(
     (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
-  const safeSet = new Set(['6,0', '0,8', '8,14', '14,6']);
-  const center = cellToWorld(7, 7);
-
   for (let r = 0; r < LUDO_GRID; r++) {
     for (let c = 0; c < LUDO_GRID; c++) {
       const pos = cellToWorld(r, c);
@@ -1741,7 +2058,7 @@ function buildLudoBoard(boardGroup) {
       const homeIndex = getHomeIndex(r, c);
       const columnIndex = getHomeColumnIndex(r, c);
       const inCenter = r >= 6 && r <= 8 && c >= 6 && c <= 8;
-      const inCross = r >= 6 && r <= 8 || c >= 6 && c <= 8;
+      const inCross = (r >= 6 && r <= 8) || (c >= 6 && c <= 8);
       if (homeIndex !== -1) {
         const mesh = new THREE.Mesh(tileGeo, homeBaseMats[homeIndex]);
         mesh.position.copy(pos);
@@ -1758,24 +2075,28 @@ function buildLudoBoard(boardGroup) {
         const mesh = new THREE.Mesh(tileGeo, pathMats[columnIndex]);
         mesh.position.copy(pos);
         scene.add(mesh);
-        const dist = pos.distanceTo(center);
-        homeColumns[columnIndex].push({ dist, pos });
+        continue;
+      }
+      if (TRACK_KEY_SET.has(key)) {
+        const startOwner = START_KEY_TO_PLAYER.get(key);
+        const mat =
+          startOwner != null
+            ? pathMats[startOwner]
+            : SAFE_TRACK_KEY_SET.has(key)
+            ? safeMat
+            : tileMat;
+        const mesh = new THREE.Mesh(tileGeo, mat);
+        mesh.position.copy(pos);
+        scene.add(mesh);
         continue;
       }
       if (inCross) {
-        const mat = safeSet.has(key) ? safeMat : tileMat;
-        const mesh = new THREE.Mesh(tileGeo, mat);
+        const mesh = new THREE.Mesh(tileGeo, tileMat);
         mesh.position.copy(pos);
         scene.add(mesh);
       }
     }
   }
-
-  const sortedColumns = homeColumns.map((list) =>
-    list
-      .sort((a, b) => b.dist - a.dist)
-      .map((item) => item.pos.clone())
-  );
 
   const tokens = PLAYER_COLORS.map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
@@ -1839,7 +2160,7 @@ function buildLudoBoard(boardGroup) {
   return {
     paths: ringPath,
     startPads,
-    homeColumns: sortedColumns,
+    homeColumns: homeColumnPositions,
     goalSlots,
     tokens,
     dice,
@@ -1856,37 +2177,12 @@ function getHomeIndex(r, c) {
 }
 
 function getHomeColumnIndex(r, c) {
-  if (c === 7 && r >= 3 && r <= 6) return 0;
-  if (r === 7 && c >= 8 && c <= 11) return 1;
-  if (c === 7 && r >= 8 && r <= 11) return 3;
-  if (r === 7 && c >= 3 && c <= 6) return 2;
-  return -1;
+  const value = HOME_COLUMN_KEY_TO_PLAYER.get(keyFor(r, c));
+  return value == null ? -1 : value;
 }
 
 function buildRingFromGrid(cellToWorld) {
-  const pts = [];
-  for (let c = 0; c < 15; c++) pts.push(cellToWorld(6, c));
-  for (let r = 7; r < 15; r++) pts.push(cellToWorld(r, 8));
-  for (let c = 14; c >= 0; c--) pts.push(cellToWorld(8, c));
-  for (let r = 7; r >= 1; r--) pts.push(cellToWorld(r, 6));
-  const dedup = [];
-  const keySet = new Set();
-  for (const p of pts) {
-    const key = `${p.x.toFixed(3)},${p.z.toFixed(3)}`;
-    if (!keySet.has(key)) {
-      keySet.add(key);
-      dedup.push(p.clone());
-    }
-  }
-  if (dedup.length > 52) {
-    const out = [];
-    const step = (dedup.length - 1) / 52;
-    for (let i = 0; i < 52; i++) {
-      out.push(dedup[Math.round(i * step)].clone());
-    }
-    return out;
-  }
-  return dedup;
+  return TRACK_COORDS.map(([r, c]) => cellToWorld(r, c));
 }
 
 function getHomeStartPads(half) {
