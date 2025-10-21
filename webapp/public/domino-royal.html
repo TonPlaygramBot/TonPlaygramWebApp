@@ -17,6 +17,25 @@
   #pass{background:rgba(255,210,74,.22);color:#f8e6b5;border:2px solid rgba(255,210,74,.55);}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
+  #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
+  #configButton:hover{background:rgba(0,0,0,.6);border-color:rgba(148,197,255,.45);}
+  #configButton svg{width:1.4rem;height:1.4rem;}
+  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));max-width:min(320px, 84vw);background:rgba(3,7,18,.92);color:#fff;border-radius:1.25rem;box-shadow:0 24px 40px rgba(2,6,23,.55);padding:1rem;border:1px solid rgba(148,197,255,.2);z-index:3;backdrop-filter:blur(10px);display:none;flex-direction:column;gap:0.75rem;}
+  #configPanel.active{display:flex;}
+  #configPanel h3{margin:0;font-size:.65rem;text-transform:uppercase;letter-spacing:.3rem;color:rgba(148,197,255,.75);}
+  .config-section{display:flex;flex-direction:column;gap:.35rem;}
+  .config-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;}
+  .config-option{border-radius:0.9rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.45rem .55rem;display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;font-size:.75rem;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
+  .config-option span{font-size:.62rem;text-transform:uppercase;letter-spacing:.28rem;color:rgba(148,197,255,.7);}
+  .config-option.active{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.15);box-shadow:0 0 0 1px rgba(56,189,248,.35),0 12px 24px rgba(8,145,178,.28);}
+  .config-option:disabled{opacity:.45;cursor:not-allowed;}
+  .config-option:not(.active):hover{border-color:rgba(255,255,255,.32);transform:translateY(-1px);}
+  .config-close{display:flex;justify-content:flex-end;}
+  .config-close button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);color:#f1f5f9;border-radius:999px;padding:.35rem;display:grid;place-items:center;transition:background .2s ease, border-color .2s ease;}
+  .config-close button:hover{background:rgba(248,250,252,.16);border-color:rgba(248,250,252,.38);}
+  @media (max-width:640px){
+    #configPanel{left:50%;transform:translateX(-50%);top:calc(4.75rem + env(safe-area-inset-top,0px));}
+  }
   #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3}
   #rules .card{max-width:720px;background:#fff;color:#222;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:16px 18px}
   #rules h2{margin:0 0 6px 0;font-size:18px}
@@ -27,6 +46,27 @@
 <body>
 <div id="app"></div>
 <div id="status" role="status">Ready</div>
+<button id="configButton" type="button" aria-label="Table setup">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+    />
+  </svg>
+</button>
+<div id="configPanel" role="dialog" aria-modal="true" aria-labelledby="configTitle">
+  <div class="config-close">
+    <button id="configClose" type="button" aria-label="Close table setup">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12M18 6 6 18" />
+      </svg>
+    </button>
+  </div>
+  <h3 id="configTitle">Table Setup</h3>
+  <div id="configSections"></div>
+</div>
 <button id="btnRules" type="button" aria-label="Rules" title="Rules">
   <span aria-hidden="true">ℹ️</span>
 </button>
@@ -84,6 +124,32 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = envTex;
 
+const MODEL_SCALE = 0.75;
+const ARENA_GROWTH = 1.45;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const STOOL_SCALE = 1.5 * 1.3;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
+const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
+const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
+const ARENA_WALL_HEIGHT = 3.6 * 1.3;
+const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+const CARPET_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.2;
+const FLOOR_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 3.2;
+const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_MIN_DISTANCE = TABLE_RADIUS * 1.4;
+const CAMERA_MAX_DISTANCE = TABLE_RADIUS * 4.2;
+const CAMERA_MIN_POLAR = THREE.MathUtils.degToRad(18);
+const CAMERA_MAX_POLAR = THREE.MathUtils.degToRad(78);
+const CAMERA_Y = TABLE_HEIGHT * 2.85;
+const CAMERA_Z = TABLE_RADIUS * 3.9;
+
 const camera = new THREE.PerspectiveCamera(56, 1, 0.05, 100);
 function fitCamera(){
   const vv = window.visualViewport; const w= vv?vv.width:innerWidth; const h= vv?vv.height:innerHeight;
@@ -93,8 +159,13 @@ fitCamera();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.target.set(0, 0.64, 0);
-controls.minDistance = 1.1; controls.maxDistance = 4; controls.maxPolarAngle = Math.PI*0.49;
+camera.position.set(0, CAMERA_Y, CAMERA_Z);
+controls.target.set(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
+controls.minDistance = CAMERA_MIN_DISTANCE;
+controls.maxDistance = CAMERA_MAX_DISTANCE;
+controls.minPolarAngle = CAMERA_MIN_POLAR;
+controls.maxPolarAngle = CAMERA_MAX_POLAR;
+controls.enablePan = false;
 
 /* ---------- Lights ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
@@ -138,16 +209,16 @@ const getPoolCarpetTextures = (() => {
     const ctx = canvas.getContext("2d");
 
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, "#7c242f");
-    gradient.addColorStop(1, "#9d3642");
+    gradient.addColorStop(0, "#0f172a");
+    gradient.addColorStop(1, "#1e3a8a");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
 
     const rand = prng(987654321);
     const image = ctx.getImageData(0, 0, size, size);
     const data = image.data;
-    const baseColor = { r: 112, g: 28, b: 34 };
-    const highlightColor = { r: 196, g: 72, b: 82 };
+    const baseColor = { r: 15, g: 23, b: 42 };
+    const highlightColor = { r: 30, g: 58, b: 138 };
     const toChannel = (component) => Math.round(clamp01(component / 255) * 255);
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
@@ -166,7 +237,7 @@ const getPoolCarpetTextures = (() => {
     ctx.putImageData(image, 0, 0);
 
     ctx.globalAlpha = 0.04;
-    ctx.fillStyle = "#4f1119";
+  ctx.fillStyle = "#0b1a38";
     for (let row = 0; row < size; row += 3) {
       ctx.fillRect(0, row, size, 1);
     }
@@ -232,6 +303,132 @@ const DEFAULT_CHAIR_OPTION = Object.freeze({
   highlight: "#d35a7a",
   legColor: "#1f1f1f"
 });
+
+const CHAIR_COLOR_OPTIONS = Object.freeze([
+  DEFAULT_CHAIR_OPTION,
+  {
+    id: "midnightNavy",
+    primary: "#153a8b",
+    accent: "#0c214f",
+    highlight: "#4d74d8",
+    legColor: "#10131c"
+  },
+  {
+    id: "emeraldWave",
+    primary: "#0f6a2f",
+    accent: "#063d1b",
+    highlight: "#48b26a",
+    legColor: "#142318"
+  },
+  {
+    id: "onyxShadow",
+    primary: "#202020",
+    accent: "#101010",
+    highlight: "#6f6f6f",
+    legColor: "#080808"
+  },
+  {
+    id: "goldenHour",
+    primary: "#8b5a1a",
+    accent: "#4a2f0b",
+    highlight: "#d8a85f",
+    legColor: "#2a1a09"
+  }
+]);
+
+const TABLE_WOOD_OPTIONS = Object.freeze([
+  {
+    id: "walnutHeritage",
+    label: "Arre",
+    top: "#5b3920",
+    rim: "#3b2514",
+    accent: "#cfa67a"
+  },
+  {
+    id: "mahoganyLuxe",
+    label: "Mahogany",
+    top: "#4f1f1f",
+    rim: "#321314",
+    accent: "#d18468"
+  },
+  {
+    id: "obsidianOnyx",
+    label: "Oniks",
+    top: "#1f232a",
+    rim: "#10151d",
+    accent: "#cdd5f3"
+  }
+]);
+
+const TABLE_CLOTH_OPTIONS = Object.freeze([
+  {
+    id: "emerald",
+    label: "Smerald",
+    feltTop: "#0f6a2f",
+    feltBottom: "#054d24",
+    border: "#032414"
+  },
+  {
+    id: "royalBlue",
+    label: "Blu Mbretëror",
+    feltTop: "#0f3d6a",
+    feltBottom: "#072046",
+    border: "#04152d"
+  },
+  {
+    id: "crimson",
+    label: "E Kuqe",
+    feltTop: "#6a101f",
+    feltBottom: "#3d0710",
+    border: "#24040a"
+  }
+]);
+
+const TABLE_BASE_OPTIONS = Object.freeze([
+  {
+    id: "obsidian",
+    label: "Bazë Obsidian",
+    base: "#141414",
+    column: "#0b0d10",
+    trim: "#1f232a"
+  },
+  {
+    id: "champagne",
+    label: "Krem",
+    base: "#b49c7a",
+    column: "#8c7a5d",
+    trim: "#f3d4a4"
+  },
+  {
+    id: "ice",
+    label: "Akull",
+    base: "#1f2a40",
+    column: "#101828",
+    trim: "#7dd3fc"
+  }
+]);
+
+const TABLE_SETUP_SECTIONS = [
+  { key: "tableWood", label: "Dru i Tavolinës", options: TABLE_WOOD_OPTIONS },
+  { key: "tableCloth", label: "Rroba", options: TABLE_CLOTH_OPTIONS },
+  { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
+  { key: "chairColor", label: "Karriget", options: CHAIR_COLOR_OPTIONS }
+];
+
+const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 0, tableBase: 0, chairColor: 0 };
+const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearance";
+let appearance = { ...DEFAULT_APPEARANCE };
+try {
+  const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    if (parsed && typeof parsed === "object") {
+      appearance = { ...appearance, ...parsed };
+    }
+  }
+} catch (error) {
+  console.warn("Failed to load Domino Royal appearance", error);
+}
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
@@ -494,79 +691,269 @@ scene.add(arenaG);
 
 const tableG = new THREE.Group();
 arenaG.add(tableG);
-tableG.rotation.y = 0.10; // pak rrotullim për perspektivë
+tableG.rotation.y = 0;
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
 
 /* ---------- Arena Dressings (Carpet & Walls) ---------- */
-const roomWidth = 6.2;
-const roomDepth = 6.2;
-const wallThickness = 0.45;
-const wallHeight = 3.4;
-const carpetThickness = 0.12;
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(FLOOR_RADIUS, 96),
+  new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.92, metalness: 0.12 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = 0;
+floor.receiveShadow = true;
+arenaG.add(floor);
+
 const carpetTextures = getPoolCarpetTextures(renderer);
 const carpetMat = new THREE.MeshStandardMaterial({
-  color: 0x8c2a2e,
-  roughness: 0.9,
-  metalness: 0.025
+  color: 0x0f172a,
+  roughness: 0.92,
+  metalness: 0.04
 });
 if (carpetTextures.map) {
   carpetMat.map = carpetTextures.map;
   carpetMat.map.needsUpdate = true;
+  carpetMat.map.repeat.set(1, 1);
 }
 if (carpetTextures.bump) {
   carpetMat.bumpMap = carpetTextures.bump;
-  carpetMat.bumpScale = 0.18;
+  carpetMat.bumpScale = 0.22;
   carpetMat.bumpMap.needsUpdate = true;
+  carpetMat.bumpMap.repeat.set(1, 1);
 }
-const carpet = new THREE.Mesh(
-  new THREE.BoxGeometry(roomWidth - wallThickness, carpetThickness, roomDepth - wallThickness),
-  carpetMat
-);
-carpet.position.y = -carpetThickness / 2;
+const carpet = new THREE.Mesh(new THREE.CircleGeometry(CARPET_RADIUS, 96), carpetMat);
+carpet.rotation.x = -Math.PI / 2;
+carpet.position.y = 0.01;
 carpet.receiveShadow = true;
 arenaG.add(carpet);
 
-const wallMat = new THREE.MeshStandardMaterial({
-  color: 0xb9ddff,
-  roughness: 0.88,
-  metalness: 0.06
+const wallMaterial = new THREE.MeshStandardMaterial({
+  color: 0x1e293b,
+  emissive: 0x0b1120,
+  emissiveIntensity: 0.25,
+  roughness: 0.9,
+  metalness: 0.08,
+  side: THREE.DoubleSide
 });
+const wall = new THREE.Mesh(
+  new THREE.CylinderGeometry(
+    ARENA_WALL_INNER_RADIUS,
+    ARENA_WALL_INNER_RADIUS * 1.02,
+    ARENA_WALL_HEIGHT,
+    80,
+    1,
+    true
+  ),
+  wallMaterial
+);
+wall.position.y = ARENA_WALL_CENTER_Y;
+wall.receiveShadow = false;
+wall.castShadow = false;
+arenaG.add(wall);
 
-const makeWall = (width, height, depth) => {
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
-  wall.position.y = height / 2;
-  wall.receiveShadow = true;
-  wall.castShadow = false;
-  arenaG.add(wall);
-  return wall;
+/* ---------- Shapes & Table Build ---------- */
+function createRegularPolygonShape(sides = 8, radius = 1) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < sides; i += 1) {
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+  return shape;
+}
+
+function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, top);
+  gradient.addColorStop(1, bottom);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = size * 0.012;
+  ctx.strokeRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
+
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < size; i += 6) {
+    ctx.fillRect(i, 0, 1, size);
+    ctx.fillRect(0, i, size, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(5, 5);
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function roundedRectAbs(width, height, radius) {
+  const hw = width / 2;
+  const hh = height / 2;
+  const r = Math.min(Math.max(radius, 0), Math.min(hw, hh));
+  const shape = new THREE.Shape();
+  shape.moveTo(-hw + r, -hh);
+  shape.lineTo(hw - r, -hh);
+  shape.quadraticCurveTo(hw, -hh, hw, -hh + r);
+  shape.lineTo(hw, hh - r);
+  shape.quadraticCurveTo(hw, hh, hw - r, hh);
+  shape.lineTo(-hw + r, hh);
+  shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
+  shape.lineTo(-hw, -hh + r);
+  shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+  shape.closePath();
+  return shape;
+}
+
+const tableMaterials = {
+  top: new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.12 }),
+  rim: new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.14 }),
+  accent: new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.32 }),
+  felt: new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 }),
+  base: new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.65 }),
+  column: new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0.72 }),
+  trim: new THREE.MeshStandardMaterial({ roughness: 0.22, metalness: 0.85 })
 };
 
-const backWall = makeWall(roomWidth, wallHeight, wallThickness);
-backWall.position.z = roomDepth / 2 - wallThickness / 2;
+function updateTableMaterials() {
+  const wood = TABLE_WOOD_OPTIONS[appearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+  tableMaterials.top.color.set(wood.top);
+  tableMaterials.rim.color.set(wood.rim);
+  tableMaterials.accent.color.set(wood.accent);
 
-const frontWall = makeWall(roomWidth, wallHeight, wallThickness);
-frontWall.position.z = -roomDepth / 2 + wallThickness / 2;
+  const cloth = TABLE_CLOTH_OPTIONS[appearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+  tableMaterials.felt.color.set(cloth.feltTop);
+  if (tableMaterials.felt.map) {
+    tableMaterials.felt.map.dispose();
+  }
+  tableMaterials.felt.map = makeClothTexture({ top: cloth.feltTop, bottom: cloth.feltBottom, border: cloth.border });
+  tableMaterials.felt.map.needsUpdate = true;
 
-const leftWall = makeWall(wallThickness, wallHeight, roomDepth);
-leftWall.position.x = -roomWidth / 2 + wallThickness / 2;
-
-const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
-rightWall.position.x = roomWidth / 2 - wallThickness / 2;
-
-/* ---------- Shapes ---------- */
-function roundedRectShape(hw=0.95, hh=0.95, r=0.06){
-  const w=hw*2, h=hh*2; const s=new THREE.Shape();
-  s.moveTo(-hw+r,-hh);
-  s.lineTo(hw-r,-hh); s.quadraticCurveTo(hw,-hh,hw,-hh+r);
-  s.lineTo(hw,hh-r); s.quadraticCurveTo(hw,hh,hw-r,hh);
-  s.lineTo(-hw+r,hh); s.quadraticCurveTo(-hw,hh,-hw,hh-r);
-  s.lineTo(-hw,-hh+r); s.quadraticCurveTo(-hw,-hh,-hw+r,-hh);
-  return s;
+  const base = TABLE_BASE_OPTIONS[appearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+  tableMaterials.base.color.set(base.base);
+  tableMaterials.column.color.set(base.column);
+  tableMaterials.trim.color.set(base.trim);
 }
-function roundedRectAbs(w, h, r){ return roundedRectShape(w*0.5, h*0.5, r); }
-function makeClothTexture(hex="#155c2a"){ const c=document.createElement("canvas"),S=512; c.width=c.height=S; const g=c.getContext("2d"); g.fillStyle=hex; g.fillRect(0,0,S,S); g.globalAlpha=.08; g.fillStyle="#fff"; for(let i=0;i<S;i+=6){ g.fillRect(i,0,1,S); g.fillRect(0,i,S,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(5,5); t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; }
-function makeSpeckle(size=256, density=0.08){ const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); g.fillStyle='#808080'; g.fillRect(0,0,size,size); g.globalAlpha=0.25; g.fillStyle='#9a9a9a'; const dots = Math.floor(size*size*density*0.002); for(let i=0;i<dots;i++){ const x=Math.random()*size, y=Math.random()*size, r=0.5+Math.random()*1.2; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); } const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.anisotropy=renderer.capabilities.getMaxAnisotropy(); return tex; }
+updateTableMaterials();
+
+const tableParts = {};
+const chairs = [];
+const TABLE_OUTER_RADIUS = TABLE_RADIUS;
+const TABLE_INNER_RADIUS = TABLE_OUTER_RADIUS * 0.84;
+const CLOTH_RADIUS = TABLE_OUTER_RADIUS * 0.72;
+const TABLE_TOP_DEPTH = 0.06 * MODEL_SCALE;
+const RIM_THICK = 0.08 * MODEL_SCALE;
+const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
+const CLOTH_TOP = TABLE_HEIGHT;
+const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
+
+(function buildTable() {
+  const sides = 8;
+  const topShape = createRegularPolygonShape(sides, TABLE_OUTER_RADIUS);
+  const feltShape = createRegularPolygonShape(sides, CLOTH_RADIUS);
+  const rimInnerShape = createRegularPolygonShape(sides, TABLE_INNER_RADIUS);
+
+  const topGeo = new THREE.ExtrudeGeometry(topShape, {
+    depth: TABLE_TOP_DEPTH,
+    bevelEnabled: true,
+    bevelThickness: TABLE_TOP_DEPTH * 0.55,
+    bevelSize: TABLE_TOP_DEPTH * 0.5,
+    bevelSegments: 8
+  });
+  topGeo.rotateX(-Math.PI / 2);
+  const topMesh = new THREE.Mesh(topGeo, tableMaterials.top);
+  topMesh.position.y = TABLE_BASE_Y;
+  topMesh.castShadow = true;
+  topMesh.receiveShadow = true;
+  tableG.add(topMesh);
+  tableParts.top = topMesh;
+
+  const feltGeo = new THREE.ExtrudeGeometry(feltShape, { depth: 0.01, bevelEnabled: false });
+  feltGeo.rotateX(-Math.PI / 2);
+  const feltMesh = new THREE.Mesh(feltGeo, tableMaterials.felt);
+  feltMesh.position.y = CLOTH_TOP;
+  feltMesh.receiveShadow = true;
+  tableG.add(feltMesh);
+  tableParts.felt = feltMesh;
+
+  const rimShape = topShape.clone();
+  rimShape.holes.push(rimInnerShape);
+  const rimGeo = new THREE.ExtrudeGeometry(rimShape, {
+    depth: RIM_THICK,
+    bevelEnabled: true,
+    bevelThickness: RIM_THICK * 0.45,
+    bevelSize: RIM_THICK * 0.42,
+    bevelSegments: 6
+  });
+  rimGeo.rotateX(-Math.PI / 2);
+  const rimMesh = new THREE.Mesh(rimGeo, tableMaterials.rim);
+  rimMesh.position.y = TABLE_BASE_Y + TABLE_TOP_DEPTH * 0.55;
+  rimMesh.castShadow = true;
+  rimMesh.receiveShadow = true;
+  tableG.add(rimMesh);
+  tableParts.rim = rimMesh;
+
+  const accentShape = rimInnerShape.clone();
+  accentShape.holes.push(feltShape);
+  const accentGeo = new THREE.ExtrudeGeometry(accentShape, { depth: 0.012, bevelEnabled: false });
+  accentGeo.rotateX(-Math.PI / 2);
+  const accentMesh = new THREE.Mesh(accentGeo, tableMaterials.accent);
+  accentMesh.position.y = CLOTH_TOP - 0.003;
+  tableG.add(accentMesh);
+  tableParts.accent = accentMesh;
+
+  const columnHeight = TABLE_HEIGHT + 0.25;
+  const column = new THREE.Mesh(
+    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.34, TABLE_OUTER_RADIUS * 0.48, columnHeight, 48),
+    tableMaterials.column
+  );
+  column.position.y = TABLE_BASE_Y - columnHeight / 2;
+  column.castShadow = true;
+  column.receiveShadow = true;
+  tableG.add(column);
+  tableParts.column = column;
+
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.86, TABLE_OUTER_RADIUS * 0.96, 0.16, 64),
+    tableMaterials.base
+  );
+  base.position.y = column.position.y - columnHeight / 2 - 0.08;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  tableG.add(base);
+  tableParts.base = base;
+
+  const trim = new THREE.Mesh(
+    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 0.9, 0.035, 16, 64),
+    tableMaterials.trim
+  );
+  trim.rotation.x = Math.PI / 2;
+  trim.position.y = base.position.y + 0.08;
+  tableG.add(trim);
+  tableParts.trim = trim;
+})();
+
+const SCALE = MODEL_SCALE * 0.92;
+const TILE_UP_H = 0.2 * SCALE;
+const TILE_UP_HALF = TILE_UP_H / 2;
+const XMAX = CLOTH_RADIUS - 0.32;
+const ZMAX = CLOTH_RADIUS - 0.32;
+const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
 
 /* ---------- Materials ---------- */
 const porcelainMat = new THREE.MeshPhysicalMaterial({
@@ -598,34 +985,10 @@ const goldMat = new THREE.MeshPhysicalMaterial({
   polygonOffsetFactor: -1,
   polygonOffsetUnits: -1,
 });
-const wood = new THREE.MeshStandardMaterial({ color:"#5a3a19", roughness:.55, metalness:.08 });
-const woodDark = new THREE.MeshStandardMaterial({ color:"#4a3115", roughness:.7, metalness:.05 });
-const felt = new THREE.MeshStandardMaterial({ color:"#155c2a", map:makeClothTexture("#155c2a"), roughness:1, metalness:0 });
-const baseGreen = new THREE.MeshStandardMaterial({ color:"#0f3e2d", roughness:.85, metalness:.05});
 const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
 
-/* ---------- Dimensions (Square Table) ---------- */
-const Y=0.64;
-const OUT_HW = 0.95;              // gjysmë-gjerësi e bordit të jashtëm
-const RIM_THICK = 0.07;           // trashësia e rim-it
-const IN_HW  = 0.76;              // brenda rim-it (buzë e brendshme)
-const CLOTH_HW = 0.70;            // fushë jeshile (gjysmë-gjerësi)
-const RIM_H = 0.07;
-const CLOTH_TOP = Y + 0.022;
-
-// Kufijtë e zinxhirit mbi rrobë
-const XMAX = CLOTH_HW - 0.06;
-const ZMAX = CLOTH_HW - 0.06;
-
-// Domino scale — pak më e vogël se më parë
-const SCALE=0.68;
-const TILE_UP_H = 0.20 * SCALE;
-const TILE_UP_HALF = TILE_UP_H * 0.5;
-const RAIL_TOP = Y + 0.02 + RIM_H;
-const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0011;
-
 const boneyardStackG = new THREE.Group();
-const BONEYARD_STACK_POSITION = new THREE.Vector3(0, CLOTH_TOP + 0.0075, CLOTH_HW - 0.18);
+const BONEYARD_STACK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, CLOTH_TOP + 0.0075, TABLE_RADIUS * 0.55);
 boneyardStackG.position.copy(BONEYARD_STACK_POSITION);
 piecesG.add(boneyardStackG);
 const BONEYARD_STACK_STEP = SCALE * 0.22 * 0.1 * 1.02;
@@ -636,41 +999,168 @@ let boneyardStackTopLocal = 0;
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
 
-/* ---------- Table (Square Poker Style) ---------- */
-{
-  // baza druri (pak bevel)
-  const g = new THREE.ExtrudeGeometry(roundedRectShape(OUT_HW, OUT_HW, 0.06), {depth:.02, bevelEnabled:true, bevelThickness:.012, bevelSize:.012});
-  g.rotateX(-Math.PI/2);
-  const m = new THREE.Mesh(g, wood); m.position.y=Y; m.castShadow=true; tableG.add(m);
-}
-{
-  // fusha jeshile (rrobë)
-  const g = new THREE.ExtrudeGeometry(roundedRectShape(CLOTH_HW, CLOTH_HW, 0.04), {depth:.012, bevelEnabled:false});
-  g.rotateX(-Math.PI/2);
-  const m = new THREE.Mesh(g, felt); m.position.y=Y+.022; m.receiveShadow=true; tableG.add(m);
-}
-{
-  // rim katror me hapje brenda
-  const outer = roundedRectShape(OUT_HW, OUT_HW, 0.06);
-  const inner = roundedRectShape(IN_HW, IN_HW, 0.05); outer.holes.push(inner);
-  const g = new THREE.ExtrudeGeometry(outer, {depth:RIM_H, bevelEnabled:true, bevelThickness:.02, bevelSize:.02});
-  g.rotateX(-Math.PI/2);
-  const rim = new THREE.Mesh(g, woodDark); rim.position.y=Y+.02; rim.castShadow=true; tableG.add(rim);
-}
-{
-  // skirti poshtë si bazament
-  const skirtH=.60; const skirt = new THREE.Mesh(new THREE.BoxGeometry((OUT_HW+0.05)*2, skirtH, (OUT_HW+0.05)*2), baseGreen);
-  skirt.position.y=Y - skirtH/2 + 0.01; skirt.castShadow=true; skirt.receiveShadow=true; tableG.add(skirt);
+const configButtonEl = document.getElementById('configButton');
+const configPanelEl = document.getElementById('configPanel');
+const configSectionsEl = document.getElementById('configSections');
+const configCloseEl = document.getElementById('configClose');
+
+function saveAppearance() {
+  try {
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+  } catch (error) {
+    console.warn('Failed to persist Domino appearance', error);
+  }
 }
 
+function applyAppearanceChange({ refresh = true } = {}) {
+  updateTableMaterials();
+  Object.values(tableMaterials).forEach((material) => {
+    if (material && typeof material.needsUpdate === 'boolean') {
+      material.needsUpdate = true;
+    }
+    if (material?.map) {
+      material.map.needsUpdate = true;
+    }
+  });
+  buildChairs(CHAIR_COLOR_OPTIONS[appearance.chairColor] ?? DEFAULT_CHAIR_OPTION);
+  saveAppearance();
+  if (refresh) {
+    refreshConfigUI();
+  }
+}
+
+function createOptionPreview(key, option) {
+  const swatch = document.createElement('div');
+  swatch.style.width = '100%';
+  swatch.style.height = '1.5rem';
+  swatch.style.borderRadius = '0.75rem';
+  swatch.style.border = '1px solid rgba(255,255,255,0.12)';
+  switch (key) {
+    case 'tableWood':
+      swatch.style.background = `linear-gradient(135deg, ${option.top}, ${option.rim})`;
+      break;
+    case 'tableCloth':
+      swatch.style.background = `linear-gradient(135deg, ${option.feltTop}, ${option.feltBottom})`;
+      break;
+    case 'tableBase':
+      swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
+      break;
+    case 'chairColor':
+      swatch.style.background = option.primary;
+      break;
+    default:
+      swatch.style.background = '#1f2937';
+  }
+  return swatch;
+}
+
+function refreshConfigUI() {
+  if (!configSectionsEl) return;
+  configSectionsEl.replaceChildren();
+  TABLE_SETUP_SECTIONS.forEach((section) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'config-section';
+    const label = document.createElement('h4');
+    label.textContent = section.label;
+    wrapper.appendChild(label);
+    const optionsGrid = document.createElement('div');
+    optionsGrid.className = 'config-options';
+    section.options.forEach((option, idx) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'config-option';
+      if (appearance[section.key] === idx) {
+        button.classList.add('active');
+      }
+      button.appendChild(createOptionPreview(section.key, option));
+      const name = document.createElement('span');
+      name.textContent = option.label ?? option.id;
+      button.appendChild(name);
+      button.addEventListener('click', () => {
+        if (appearance[section.key] === idx) return;
+        appearance[section.key] = idx;
+        applyAppearanceChange({ refresh: false });
+        refreshConfigUI();
+      });
+      optionsGrid.appendChild(button);
+    });
+    wrapper.appendChild(optionsGrid);
+    configSectionsEl.appendChild(wrapper);
+  });
+}
+
+function closeConfigPanel() {
+  configPanelEl?.classList.remove('active');
+}
+
+configButtonEl?.addEventListener('click', () => {
+  const isOpen = configPanelEl?.classList.toggle('active');
+  if (isOpen) {
+    refreshConfigUI();
+  }
+});
+configCloseEl?.addEventListener('click', () => closeConfigPanel());
+document.addEventListener('click', (event) => {
+  if (!configPanelEl?.classList.contains('active')) return;
+  if (configPanelEl.contains(event.target) || event.target === configButtonEl) return;
+  closeConfigPanel();
+});
+
+applyAppearanceChange({ refresh: false });
+
+
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
-{
-  const chairRadius = OUT_HW + 0.55;
+const CHAIR_TEXTURE_PROPS = Object.freeze([
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'aoMap',
+  'alphaMap',
+  'emissiveMap',
+  'bumpMap',
+  'displacementMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+  'specularMap',
+  'sheenColorMap',
+  'sheenRoughnessMap'
+]);
+
+function disposeChairResources(root) {
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    if (child.geometry?.dispose) {
+      child.geometry.dispose();
+    }
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      CHAIR_TEXTURE_PROPS.forEach((prop) => {
+        const texture = material[prop];
+        if (texture?.isTexture) {
+          texture.dispose();
+        }
+      });
+      if (material.dispose) {
+        material.dispose();
+      }
+    });
+  });
+}
+
+function buildChairs(option = CHAIR_COLOR_OPTIONS[appearance.chairColor] ?? DEFAULT_CHAIR_OPTION) {
+  while (chairs.length) {
+    const chair = chairs.pop();
+    chair.parent?.remove(chair);
+    disposeChairResources(chair);
+  }
   const chairHeight = CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
   const sharedMaterials = {
-    fabric: createChairFabricMaterial(DEFAULT_CHAIR_OPTION, renderer),
+    fabric: createChairFabricMaterial(option, renderer),
     leg: new THREE.MeshStandardMaterial({
-      color: new THREE.Color(DEFAULT_CHAIR_OPTION.legColor ?? "#1f1f1f"),
+      color: new THREE.Color(option.legColor ?? "#1f1f1f"),
       metalness: 0.6,
       roughness: 0.35
     }),
@@ -680,21 +1170,15 @@ const DRAW_ANIM_DURATION = 480;
       roughness: 0.32
     })
   };
-  const chairPositions = [
-    new THREE.Vector3(0, 0, chairRadius),
-    new THREE.Vector3(chairRadius, 0, 0),
-    new THREE.Vector3(0, 0, -chairRadius),
-    new THREE.Vector3(-chairRadius, 0, 0)
-  ];
-  tableG.updateWorldMatrix(true, false);
-  const lookTargetWorld = new THREE.Vector3(0, chairHeight, 0);
-  tableG.localToWorld(lookTargetWorld);
-  chairPositions.forEach((pos) => {
-    const chair = createDominoChair(DEFAULT_CHAIR_OPTION, renderer, sharedMaterials);
-    chair.position.copy(pos);
-    tableG.add(chair);
-    chair.lookAt(lookTargetWorld);
+  const angles = Array.from({ length: 6 }, (_, i) => Math.PI / 2 - (i * (Math.PI * 2)) / 6);
+  const lookTarget = new THREE.Vector3(0, chairHeight, 0);
+  angles.forEach((angle) => {
+    const chair = createDominoChair(option, renderer, sharedMaterials);
+    chair.position.set(Math.cos(angle) * CHAIR_RADIUS, 0, Math.sin(angle) * CHAIR_RADIUS);
+    chair.lookAt(lookTarget);
     chair.rotateY(Math.PI);
+    tableG.add(chair);
+    chairs.push(chair);
   });
 }
 
@@ -856,11 +1340,12 @@ if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
 }
 
 function layoutSeat(idx){
-  const EDGE = IN_HW;  const MARGIN = 0.04;
-  const south = [ 0.00,  (EDGE - MARGIN), 0        ];
-  const east  = [ (EDGE - MARGIN), 0.00,  Math.PI/2];
-  const north = [ 0.00, -(EDGE - MARGIN), Math.PI  ];
-  const west  = [-(EDGE - MARGIN), 0.00, -Math.PI/2];
+  const EDGE = CLOTH_RADIUS;
+  const MARGIN = EDGE * 0.16;
+  const south = [0, EDGE - MARGIN, 0];
+  const east = [EDGE - MARGIN, 0, Math.PI / 2];
+  const north = [0, -(EDGE - MARGIN), Math.PI];
+  const west = [-(EDGE - MARGIN), 0, -Math.PI / 2];
   const seats = [south, east, north, west];
   return seats[idx % seats.length];
 }
@@ -868,7 +1353,7 @@ function layoutSeat(idx){
 function renderHands(){
   players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
 
-  const EDGE_SPAN = CLOTH_HW - 0.08; const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+  const EDGE_SPAN = CLOTH_RADIUS - 0.28; const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
   const GAP = .092; const HOLE = 0; // equal gap for all, no special case
 
   players.forEach((p,pi)=>{
@@ -1200,7 +1685,7 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.085, .014, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=Y+.031; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.085, .014, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
