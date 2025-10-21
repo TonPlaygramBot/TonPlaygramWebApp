@@ -443,8 +443,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_COVER_CORNER_INNER_SCALE = 0.9; // restore the beefier corner liners on the rounded corner cuts so the larger covers sit where they belong
-const POCKET_COVER_SIDE_INNER_SCALE = 0.86; // shift the slimmer middle-pocket liners back to the side cuts while keeping their current orientation
+const POCKET_COVER_CORNER_INNER_SCALE = 0.86; // move the slimmer middle-pocket liners to the corners so the mouths stay wide open
+const POCKET_COVER_SIDE_INNER_SCALE = 0.9; // relocate the beefier corner liners to the side pockets to better hide the rail cuts
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
