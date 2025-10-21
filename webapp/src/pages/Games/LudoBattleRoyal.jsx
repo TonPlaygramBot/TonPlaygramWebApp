@@ -344,11 +344,10 @@ function createStraightArmrest(side, material) {
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-const BOARD_SCALE_MULTIPLIER = 1.25;
-const BASE_BOARD_DISPLAY_SIZE = 0.7;
-const BOARD_DISPLAY_SIZE = BASE_BOARD_DISPLAY_SIZE * BOARD_SCALE_MULTIPLIER;
-const BOARD_CLOTH_HALF = BASE_BOARD_DISPLAY_SIZE;
-const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
+// Enlarge the Ludo board so it spans 2.7x the classic footprint.
+const BOARD_SCALE = 2.7;
+const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
+const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const RING_STEPS = 52;
 const HOME_STEPS = 4;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
@@ -1510,41 +1509,39 @@ function Ludo3D({ avatar, username }) {
       className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-3 left-3 flex flex-col gap-3 pointer-events-none">
-          <div className="bg-white/10 rounded px-3 py-2 text-xs">
+        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+          <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
             {ui.dice != null && (
               <div className="mt-1 text-[10px]">Rolled: {ui.dice}</div>
             )}
           </div>
-          <div className="pointer-events-auto">
-            <button
-              type="button"
-              onClick={() => setConfigOpen((prev) => !prev)}
-              aria-expanded={configOpen}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-              }`}
+          <button
+            type="button"
+            onClick={() => setConfigOpen((prev) => !prev)}
+            aria-expanded={configOpen}
+            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-6 w-6"
+              aria-hidden="true"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-6 w-6"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-                />
-              </svg>
-              <span className="sr-only">Hap personalizimin e tavolinës</span>
-            </button>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+              />
+            </svg>
+            <span className="sr-only">Hap personalizimin e tavolinës</span>
+          </button>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <div className="flex items-center justify-between gap-3">
