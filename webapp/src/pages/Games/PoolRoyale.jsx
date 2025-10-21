@@ -4381,7 +4381,7 @@ function Table3D(
   railsGroup.add(chromePlates);
 
   const pocketCovers = new THREE.Group();
-  const createPocketCoverMesh = (outerMP, innerScale) => {
+  const createPocketCoverMesh = (outerMP, innerScale, clipConfig = null) => {
     if (!Array.isArray(outerMP) || !outerMP.length) {
       return null;
     }
@@ -4394,7 +4394,114 @@ function Table3D(
     if (!Array.isArray(innerMP) || !innerMP.length) {
       return null;
     }
-    const ringMP = polygonClipping.difference(outerMP, innerMP);
+    let ringMP = polygonClipping.difference(outerMP, innerMP);
+    if (!Array.isArray(ringMP) || !ringMP.length) {
+      return null;
+    }
+
+    if (clipConfig) {
+      const extentBase = Math.max(TABLE.W, TABLE.H) * 4;
+      const extent =
+        Number.isFinite(clipConfig.extent) && clipConfig.extent > 0
+          ? clipConfig.extent
+          : extentBase;
+      const applyHalfPlaneClip = (mp, axis, threshold, keepGreater) => {
+        if (!Array.isArray(mp) || !mp.length) return [];
+        if (!Number.isFinite(threshold)) return mp;
+        const min = -extent;
+        const max = extent;
+        let poly = null;
+        if (axis === 'x') {
+          if (keepGreater) {
+            poly = [
+              [[
+                [threshold, min],
+                [max, min],
+                [max, max],
+                [threshold, max],
+                [threshold, min]
+              ]]
+            ];
+          } else {
+            poly = [
+              [[
+                [min, min],
+                [threshold, min],
+                [threshold, max],
+                [min, max],
+                [min, min]
+              ]]
+            ];
+          }
+        } else {
+          if (keepGreater) {
+            poly = [
+              [[
+                [min, threshold],
+                [max, threshold],
+                [max, max],
+                [min, max],
+                [min, threshold]
+              ]]
+            ];
+          } else {
+            poly = [
+              [[
+                [min, min],
+                [max, min],
+                [max, threshold],
+                [min, threshold],
+                [min, min]
+              ]]
+            ];
+          }
+        }
+        return polygonClipping.intersection(mp, poly);
+      };
+
+      const MIN_RING_AREA = MICRO_EPS * MICRO_EPS;
+      const pruneSmallPolys = (mp) =>
+        Array.isArray(mp)
+          ? mp
+              .map((poly) => {
+                if (!Array.isArray(poly) || !poly.length) return null;
+                const outerRing = poly[0];
+                if (!Array.isArray(outerRing) || outerRing.length < 4) {
+                  return null;
+                }
+                const area = Math.abs(ringArea(outerRing));
+                if (!(area > MIN_RING_AREA)) {
+                  return null;
+                }
+                return poly;
+              })
+              .filter(Boolean)
+          : [];
+
+      if (clipConfig.x && ringMP.length) {
+        ringMP = applyHalfPlaneClip(
+          ringMP,
+          'x',
+          clipConfig.x.threshold,
+          !!clipConfig.x.keepGreater
+        );
+        ringMP = pruneSmallPolys(ringMP);
+      }
+      if (clipConfig.z && ringMP.length) {
+        ringMP = applyHalfPlaneClip(
+          ringMP,
+          'z',
+          clipConfig.z.threshold,
+          !!clipConfig.z.keepGreater
+        );
+        ringMP = pruneSmallPolys(ringMP);
+      }
+
+      if (!Array.isArray(ringMP) || !ringMP.length) {
+        return null;
+      }
+    }
+
     const shapes = multiPolygonToShapes(ringMP);
     if (!shapes.length) {
       return null;
@@ -4415,19 +4522,72 @@ function Table3D(
     return mesh;
   };
 
-  const addPocketCover = (outerMP, scale) => {
-    const mesh = createPocketCoverMesh(outerMP, scale);
+  const addPocketCover = (outerMP, scale, clipConfig) => {
+    const mesh = createPocketCoverMesh(outerMP, scale, clipConfig);
     if (!mesh) return;
     pocketCovers.add(mesh);
     finishParts.pocketCoverMeshes.push(mesh);
   };
 
-  addPocketCover(scaleCornerPocketCut(cornerNotchMP(1, 1)), POCKET_COVER_CORNER_INNER_SCALE);
-  addPocketCover(scaleCornerPocketCut(cornerNotchMP(-1, 1)), POCKET_COVER_CORNER_INNER_SCALE);
-  addPocketCover(scaleCornerPocketCut(cornerNotchMP(-1, -1)), POCKET_COVER_CORNER_INNER_SCALE);
-  addPocketCover(scaleCornerPocketCut(cornerNotchMP(1, -1)), POCKET_COVER_CORNER_INNER_SCALE);
-  addPocketCover(scaleSidePocketCut(sideNotchMP(-1)), POCKET_COVER_SIDE_INNER_SCALE);
-  addPocketCover(scaleSidePocketCut(sideNotchMP(1)), POCKET_COVER_SIDE_INNER_SCALE);
+  const computeScaledCoordinate = (baseValue, centroidValue, scale) => {
+    if (!Number.isFinite(baseValue) || !Number.isFinite(scale)) {
+      return baseValue;
+    }
+    if (!Number.isFinite(centroidValue)) {
+      return baseValue;
+    }
+    return centroidValue + (baseValue - centroidValue) * scale;
+  };
+
+  [
+    { sx: 1, sz: 1 },
+    { sx: -1, sz: 1 },
+    { sx: -1, sz: -1 },
+    { sx: 1, sz: -1 }
+  ].forEach(({ sx, sz }) => {
+    const baseMP = cornerNotchMP(sx, sz);
+    const scaledMP = scaleCornerPocketCut(baseMP);
+    const outerRing =
+      Array.isArray(baseMP) && baseMP.length && Array.isArray(baseMP[0]) && baseMP[0].length
+        ? baseMP[0][0]
+        : null;
+    const centroid = centroidFromRing(Array.isArray(outerRing) ? outerRing : []);
+    const baseCenterX = sx * (innerHalfW - cornerInset);
+    const baseCenterZ = sz * (innerHalfH - cornerInset);
+    const scaledCenterX = computeScaledCoordinate(
+      baseCenterX,
+      centroid.x,
+      RAIL_CORNER_POCKET_CUT_SCALE
+    );
+    const scaledCenterZ = computeScaledCoordinate(
+      baseCenterZ,
+      centroid.y,
+      RAIL_CORNER_POCKET_CUT_SCALE
+    );
+    addPocketCover(scaledMP, POCKET_COVER_CORNER_INNER_SCALE, {
+      x: { threshold: scaledCenterX, keepGreater: sx < 0 },
+      z: { threshold: scaledCenterZ, keepGreater: sz < 0 }
+    });
+  });
+
+  [-1, 1].forEach((sx) => {
+    const baseMP = sideNotchMP(sx);
+    const scaledMP = scaleSidePocketCut(baseMP);
+    const outerRing =
+      Array.isArray(baseMP) && baseMP.length && Array.isArray(baseMP[0]) && baseMP[0].length
+        ? baseMP[0][0]
+        : null;
+    const centroid = centroidFromRing(Array.isArray(outerRing) ? outerRing : []);
+    const baseCenterX = sx * (innerHalfW - sideInset);
+    const scaledCenterX = computeScaledCoordinate(
+      baseCenterX,
+      centroid.x,
+      RAIL_SIDE_POCKET_CUT_SCALE
+    );
+    addPocketCover(scaledMP, POCKET_COVER_SIDE_INNER_SCALE, {
+      x: { threshold: scaledCenterX, keepGreater: sx < 0 }
+    });
+  });
 
   if (pocketCovers.children.length) {
     railsGroup.add(pocketCovers);
