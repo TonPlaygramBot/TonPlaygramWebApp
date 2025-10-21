@@ -172,13 +172,19 @@ const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_DEFAULT_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 const CAMERA_FOCUS_CENTER_LIFT = -0.16 * MODEL_SCALE;
+const CAMERA_CENTER_TARGET = new THREE.Vector3(
+  0,
+  TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_FOCUS_CENTER_LIFT,
+  0
+);
+const CAMERA_SIDE_SWING_FACTOR = 0.8;
+const CAMERA_SIDE_THRESHOLD = 0.45;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
 const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const CAMERA_TRANSITION_DURATION = 520;
-const CAMERA_CARD_TARGET_BLEND = 0.35;
 const AI_TURN_DELAY = 2000;
 const TURN_FOCUS_HOLD_MS = AI_TURN_DELAY;
 
@@ -476,20 +482,23 @@ export default function MurlanRoyaleArena({ search }) {
       const seat = seatConfigs[playerIndex];
       if (!seat) return;
       const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
-      const desiredTheta = Math.PI / 2 - seatAngle;
-      let focusTarget = null;
-      if (seat.focus) {
-        focusTarget = seat.focus.clone();
-        const blend = THREE.MathUtils.clamp(CAMERA_CARD_TARGET_BLEND, 0, 1);
-        if (blend > 0) {
-          const baseTarget = three.cameraTarget ?? CAMERA_DEFAULT_TARGET;
-          focusTarget.lerp(baseTarget, blend);
-        }
-        const minFocusHeight = TABLE_HEIGHT + CARD_H * 0.45;
-        if (focusTarget.y < minFocusHeight) {
-          focusTarget.y = minFocusHeight;
-        }
+      const playerTheta = Math.PI / 2 - seatAngle;
+      const baseTheta =
+        typeof three.cameraHomeTheta === 'number'
+          ? three.cameraHomeTheta
+          : typeof three.cameraSpherical?.theta === 'number'
+            ? three.cameraSpherical.theta
+            : playerTheta;
+      const forward = seat.forward ?? new THREE.Vector3();
+      const isSideSeat = Math.abs(forward.x) >= CAMERA_SIDE_THRESHOLD;
+      let desiredTheta = baseTheta;
+      if (isSideSeat) {
+        const delta = shortestAngleDifference(baseTheta, playerTheta);
+        const swingLimit = three.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
+        const limited = THREE.MathUtils.clamp(delta, -swingLimit, swingLimit);
+        desiredTheta = baseTheta + limited * CAMERA_SIDE_SWING_FACTOR;
       }
+      const focusTarget = CAMERA_CENTER_TARGET.clone();
       moveCameraToTheta(desiredTheta, { immediate, target: focusTarget });
     },
     [moveCameraToTheta]
