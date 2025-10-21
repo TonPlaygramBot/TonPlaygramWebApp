@@ -42,8 +42,22 @@ export function applyEffect(startPos, ctx, finalizeMove) {
     }
     const seq = [];
     for (let i = 1; i <= offset && startPos - i >= 0; i++) seq.push(startPos - i);
-    const move = () =>
-      moveSeq(seq, 'snake', ctx, () => finalizeMove(Math.max(0, snakeEnd), 'snake'), 'back');
+    const target = Math.max(0, snakeEnd);
+    const move = () => {
+      if (
+        ctx.startSlide &&
+        ctx.startSlide({
+          playerIndex: ctx.playerIndex ?? 0,
+          from: startPos,
+          to: target,
+          type: 'snake',
+          onComplete: () => finalizeMove(target, 'snake')
+        })
+      ) {
+        return;
+      }
+      moveSeq(seq, 'snake', ctx, () => finalizeMove(target, 'snake'), 'back');
+    };
     flashHighlight(startPos, 'snake', ctx, 2, move);
   } else if (ladderEnd != null) {
     const offset = ladderEnd - startPos;
@@ -53,8 +67,22 @@ export function applyEffect(startPos, ctx, finalizeMove) {
     if (!ctx.muted) ctx.ladderSoundRef?.current?.play().catch(() => {});
     const seq = [];
     for (let i = 1; i <= offset && startPos + i <= ctx.FINAL_TILE; i++) seq.push(startPos + i);
-    const move = () =>
-      moveSeq(seq, 'ladder', ctx, () => finalizeMove(Math.min(ctx.FINAL_TILE, ladderEnd), 'ladder'), 'forward');
+    const target = Math.min(ctx.FINAL_TILE, ladderEnd);
+    const move = () => {
+      if (
+        ctx.startSlide &&
+        ctx.startSlide({
+          playerIndex: ctx.playerIndex ?? 0,
+          from: startPos,
+          to: target,
+          type: 'ladder',
+          onComplete: () => finalizeMove(target, 'ladder')
+        })
+      ) {
+        return;
+      }
+      moveSeq(seq, 'ladder', ctx, () => finalizeMove(target, 'ladder'), 'forward');
+    };
     flashHighlight(startPos, 'ladder', ctx, 2, move);
   } else {
     finalizeMove(startPos, 'normal');
