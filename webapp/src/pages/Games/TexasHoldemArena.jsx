@@ -76,6 +76,8 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 const COMMUNITY_SPACING = CARD_W * 0.85;
+const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * -0.6;
+const COMMUNITY_CARD_LIFT = CARD_D * 12;
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
@@ -103,7 +105,7 @@ const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.64;
-const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
+const HUMAN_CARD_INWARD_SHIFT = CARD_W * -1.2;
 const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.92;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
@@ -2700,9 +2702,14 @@ function TexasHoldemArena({ search }) {
       mesh.visible = true;
       applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
       const offset = (idx - 2) * COMMUNITY_SPACING;
-      const position = new THREE.Vector3(offset, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
+      const position = new THREE.Vector3(
+        offset,
+        TABLE_HEIGHT + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
+        COMMUNITY_CARD_FORWARD_OFFSET
+      );
       mesh.position.copy(position);
-      orientCard(mesh, position.clone().add(new THREE.Vector3(0, 0, 1)), { face: 'front', flat: true });
+      const lookTarget = position.clone().add(new THREE.Vector3(0, 0, 1));
+      orientCard(mesh, lookTarget, { face: 'front', flat: true });
       setCardFace(mesh, 'front');
       const communityKey = cardKey(card);
       setCardHighlight(mesh, state.showdown && winningCommunity.has(communityKey));
