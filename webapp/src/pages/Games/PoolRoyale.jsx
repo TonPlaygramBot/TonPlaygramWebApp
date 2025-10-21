@@ -443,8 +443,13 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_COVER_CORNER_INNER_SCALE = 0.9; // keep the wider covers on the corner chamfers so they span the cushion gap
-const POCKET_COVER_SIDE_INNER_SCALE = 0.86; // move the slimmer liners back to the side pockets where the opening is tighter
+const POCKET_JAW_CORNER_INNER_SCALE = 0.88; // keep the wider liners hugging the corner chamfers so the jaws track the cushion gap
+const POCKET_JAW_SIDE_INNER_SCALE = 0.84; // tuck the slimmer liners back into the tighter side pocket openings
+const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
+const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
+const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
+const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
+const POCKET_RIM_LIP = TABLE.THICK * 0.012; // slight lift so the rim sits proud of the jaw insert
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -1188,25 +1193,33 @@ const TABLE_FINISHES = Object.freeze(
           clearcoatRoughness: 0.1,
           envMapIntensity: 1.38
         });
-        const pocketCover = new THREE.MeshPhysicalMaterial({
-          color: 0x111111,
-          metalness: 0.18,
-          roughness: 0.46,
-          clearcoat: 0.26,
-          clearcoatRoughness: 0.38,
-          sheen: 0.12,
-          sheenRoughness: 0.48,
-          envMapIntensity: 0.42
+        const pocketJaw = new THREE.MeshPhysicalMaterial({
+          color: 0xb3b3b3,
+          metalness: 0.28,
+          roughness: 0.48,
+          clearcoat: 0.42,
+          clearcoatRoughness: 0.32,
+          sheen: 0.16,
+          sheenRoughness: 0.42,
+          envMapIntensity: 0.58
         });
-        pocketCover.polygonOffset = true;
-        pocketCover.polygonOffsetUnits = 1;
-        pocketCover.polygonOffsetFactor = -0.5;
+        const pocketRim = new THREE.MeshPhysicalMaterial({
+          color: 0x101010,
+          metalness: 0.44,
+          roughness: 0.36,
+          clearcoat: 0.62,
+          clearcoatRoughness: 0.22,
+          sheen: 0.22,
+          sheenRoughness: 0.46,
+          envMapIntensity: 0.5
+        });
         return {
           frame,
           rail,
           leg,
           trim,
-          pocketCover,
+          pocketJaw,
+          pocketRim,
           accent: null
         };
       }
@@ -3581,7 +3594,8 @@ function Table3D(
     legMeshes: [],
     railMeshes: [],
     trimMeshes: [],
-    pocketCoverMeshes: [],
+    pocketJawMeshes: [],
+    pocketRimMeshes: [],
     accentParent: null,
     accentMesh: null,
     dimensions: null,
@@ -3627,13 +3641,15 @@ function Table3D(
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
   const legMat = rawMaterials.leg ?? frameMat;
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
-  const pocketCoverMat = rawMaterials.pocketCover ?? getFallbackMaterial('pocketCover');
+  const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
+  const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const accentConfig = rawMaterials.accent ?? null;
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
-  pocketCoverMat.needsUpdate = true;
+  pocketJawMat.needsUpdate = true;
+  pocketRimMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
@@ -3777,7 +3793,8 @@ function Table3D(
       rail: railMat,
       leg: legMat,
       trim: trimMat,
-      pocketCover: pocketCoverMat,
+      pocketJaw: pocketJawMat,
+      pocketRim: pocketRimMat,
       accent: accentConfig
     },
     clothMat,
@@ -4380,23 +4397,30 @@ function Table3D(
   });
   railsGroup.add(chromePlates);
 
-  const pocketCovers = new THREE.Group();
-  const createPocketCoverMesh = (outerMP, innerScale, clipConfig = null) => {
+  const pocketJawGroup = new THREE.Group();
+  const buildPocketRingShapes = (
+    outerMP,
+    innerScale,
+    clipConfig = null,
+    outerScale = 1
+  ) => {
     if (!Array.isArray(outerMP) || !outerMP.length) {
-      return null;
+      return [];
     }
-    const clamped = THREE.MathUtils.clamp(
+    const clampedInner = THREE.MathUtils.clamp(
       Number.isFinite(innerScale) ? innerScale : 0.9,
-      0.4,
-      0.98
+      0.35,
+      0.99
     );
-    const innerMP = scaleMultiPolygon(outerMP, clamped);
+    const scaledOuter =
+      outerScale === 1 ? outerMP : scaleMultiPolygon(outerMP, outerScale);
+    const innerMP = scaleMultiPolygon(outerMP, clampedInner);
     if (!Array.isArray(innerMP) || !innerMP.length) {
-      return null;
+      return [];
     }
-    let ringMP = polygonClipping.difference(outerMP, innerMP);
+    let ringMP = polygonClipping.difference(scaledOuter, innerMP);
     if (!Array.isArray(ringMP) || !ringMP.length) {
-      return null;
+      return [];
     }
 
     if (clipConfig) {
@@ -4498,35 +4522,76 @@ function Table3D(
       }
 
       if (!Array.isArray(ringMP) || !ringMP.length) {
-        return null;
+        return [];
       }
     }
 
     const shapes = multiPolygonToShapes(ringMP);
-    if (!shapes.length) {
+    return shapes.length ? shapes : [];
+  };
+
+  const createPocketJawAssembly = (outerMP, innerScale, clipConfig = null) => {
+    const jawShapes = buildPocketRingShapes(outerMP, innerScale, clipConfig, 1);
+    if (!jawShapes.length) {
       return null;
     }
-    const coverGeom = new THREE.ExtrudeGeometry(shapes, {
-      depth: railH,
+    const jawDepth = Math.max(MICRO_EPS, railH * POCKET_JAW_DEPTH_SCALE);
+    const jawGeom = new THREE.ExtrudeGeometry(jawShapes, {
+      depth: jawDepth,
       bevelEnabled: false,
       curveSegments: 96,
       steps: 1
     });
-    coverGeom.rotateX(-Math.PI / 2);
-    coverGeom.computeVertexNormals();
-    const mesh = new THREE.Mesh(coverGeom, pocketCoverMat);
-    mesh.position.y = frameTopY;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.renderOrder = 1;
-    return mesh;
+    jawGeom.rotateX(-Math.PI / 2);
+    jawGeom.translate(0, -jawDepth, 0);
+    jawGeom.computeVertexNormals();
+    const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
+    jawMesh.position.y = railsTopY;
+    jawMesh.castShadow = false;
+    jawMesh.receiveShadow = true;
+
+    const rimOuterScale = THREE.MathUtils.lerp(1, innerScale, POCKET_RIM_OUTER_BLEND);
+    const rimInnerScale = innerScale * POCKET_RIM_INNER_SCALE;
+    const rimShapes = buildPocketRingShapes(
+      outerMP,
+      rimInnerScale,
+      clipConfig,
+      rimOuterScale
+    );
+    let rimMesh = null;
+    if (rimShapes.length) {
+      const rimDepth = Math.max(MICRO_EPS, jawDepth * POCKET_RIM_DEPTH_SCALE);
+      const rimGeom = new THREE.ExtrudeGeometry(rimShapes, {
+        depth: rimDepth,
+        bevelEnabled: false,
+        curveSegments: 64,
+        steps: 1
+      });
+      rimGeom.rotateX(-Math.PI / 2);
+      rimGeom.translate(0, -rimDepth, 0);
+      rimGeom.computeVertexNormals();
+      rimMesh = new THREE.Mesh(rimGeom, pocketRimMat);
+      rimMesh.position.y = railsTopY + POCKET_RIM_LIP;
+      rimMesh.castShadow = false;
+      rimMesh.receiveShadow = true;
+    }
+
+    const group = new THREE.Group();
+    group.add(jawMesh);
+    if (rimMesh) {
+      group.add(rimMesh);
+    }
+    return { group, jawMesh, rimMesh };
   };
 
-  const addPocketCover = (outerMP, scale, clipConfig) => {
-    const mesh = createPocketCoverMesh(outerMP, scale, clipConfig);
-    if (!mesh) return;
-    pocketCovers.add(mesh);
-    finishParts.pocketCoverMeshes.push(mesh);
+  const addPocketJaw = (outerMP, innerScale, clipConfig) => {
+    const assembly = createPocketJawAssembly(outerMP, innerScale, clipConfig);
+    if (!assembly) return;
+    pocketJawGroup.add(assembly.group);
+    finishParts.pocketJawMeshes.push(assembly.jawMesh);
+    if (assembly.rimMesh) {
+      finishParts.pocketRimMeshes.push(assembly.rimMesh);
+    }
   };
 
   const computeScaledCoordinate = (baseValue, centroidValue, scale) => {
@@ -4564,7 +4629,7 @@ function Table3D(
       centroid.y,
       RAIL_CORNER_POCKET_CUT_SCALE
     );
-    addPocketCover(scaledMP, POCKET_COVER_CORNER_INNER_SCALE, {
+    addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
       x: { threshold: scaledCenterX, keepGreater: sx > 0 },
       z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
     });
@@ -4584,13 +4649,13 @@ function Table3D(
       centroid.x,
       RAIL_SIDE_POCKET_CUT_SCALE
     );
-    addPocketCover(scaledMP, POCKET_COVER_SIDE_INNER_SCALE, {
+    addPocketJaw(scaledMP, POCKET_JAW_SIDE_INNER_SCALE, {
       x: { threshold: scaledCenterX, keepGreater: sx > 0 }
     });
   });
 
-  if (pocketCovers.children.length) {
-    railsGroup.add(pocketCovers);
+  if (pocketJawGroup.children.length) {
+    railsGroup.add(pocketJawGroup);
   }
 
   if (accentConfig && finishParts.dimensions) {
@@ -5163,13 +5228,15 @@ function applyTableFinishToTable(table, finish) {
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
   const legMat = rawMaterials.leg ?? frameMat;
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
-  const pocketCoverMat = rawMaterials.pocketCover ?? getFallbackMaterial('pocketCover');
+  const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
+  const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const accentConfig = rawMaterials.accent ?? null;
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
   trimMat.needsUpdate = true;
-  pocketCoverMat.needsUpdate = true;
+  pocketJawMat.needsUpdate = true;
+  pocketRimMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
@@ -5193,7 +5260,8 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
-  finishInfo.parts.pocketCoverMeshes.forEach((mesh) => swapMaterial(mesh, pocketCoverMat));
+  finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
+  finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
 
   const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
     frame: null,
@@ -5288,7 +5356,8 @@ function applyTableFinishToTable(table, finish) {
     rail: railMat,
     leg: legMat,
     trim: trimMat,
-    pocketCover: pocketCoverMat,
+    pocketJaw: pocketJawMat,
+    pocketRim: pocketRimMat,
     accent: accentConfig
   };
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
