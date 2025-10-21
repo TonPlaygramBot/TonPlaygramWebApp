@@ -4,6 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pool Royale Demo</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.155.0/examples/jsm/"
+        }
+      }
+    </script>
     <style>
       :root {
         --pocket-r: 54;
@@ -12,9 +20,46 @@
       body {
         margin: 0;
         background: #0c1020;
-        display: grid;
-        place-items: center;
-        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        gap: 26px;
+        padding: 24px 12px;
+      }
+      .jaw-preview {
+        position: relative;
+        width: min(92vw, 720px);
+        aspect-ratio: 3 / 4;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+        background: #151515;
+      }
+      .jaw-preview canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .jaw-preview .view-label {
+        position: absolute;
+        left: 18px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        background: rgba(15, 18, 24, 0.78);
+        color: rgba(255, 255, 255, 0.85);
+        text-transform: uppercase;
+        backdrop-filter: blur(4px);
+      }
+      .jaw-preview .view-label.top {
+        top: 16px;
+      }
+      .jaw-preview .view-label.angled {
+        bottom: 18px;
       }
       .stage {
         position: relative;
@@ -138,6 +183,11 @@
     </style>
   </head>
   <body>
+    <div class="jaw-preview">
+      <canvas id="jaw-canvas" aria-label="3D pocket jaw visualization"></canvas>
+      <span class="view-label top">Top-Down</span>
+      <span class="view-label angled">Angled Perspective</span>
+    </div>
     <div class="stage">
       <img
         class="bg"
@@ -395,6 +445,331 @@
       window.showDebugMarkers = () => setDebugVisible(true);
       window.hideDebugMarkers = () => setDebugVisible(false);
       setDebugVisible(true);
+    </script>
+    <script type="module">
+      import * as THREE from 'three';
+      import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+      const preview = document.querySelector('.jaw-preview');
+      const canvas = document.getElementById('jaw-canvas');
+      if (preview && canvas) {
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: false
+        });
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.setClearColor(0x161616, 1);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.autoClear = false;
+
+        const scene = new THREE.Scene();
+        scene.background = null;
+
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        const envTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
+        scene.environment = envTarget.texture;
+
+        const root = new THREE.Group();
+        scene.add(root);
+
+        const clothLevel = 0.0;
+        const jawHeight = 0.11;
+        const pocketRadius = 0.095;
+        const jawDepth = 0.26;
+        const jawWidth = 0.13;
+        const seamCoord = pocketRadius * (1 - Math.SQRT1_2);
+        const seamGap = 0.006;
+
+        const feltMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0x0c5a2e,
+          roughness: 0.62,
+          metalness: 0.03,
+          sheen: 0.85,
+          sheenRoughness: 0.55,
+          clearcoat: 0.08,
+          clearcoatRoughness: 0.9
+        });
+
+        const cushionMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0x1f3e2d,
+          roughness: 0.32,
+          metalness: 0.08,
+          sheen: 0.35,
+          sheenColor: new THREE.Color(0x2f5a3a),
+          sheenRoughness: 0.65,
+          clearcoat: 0.25,
+          clearcoatRoughness: 0.45
+        });
+
+        const railMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0x3a2819,
+          roughness: 0.65,
+          metalness: 0.05
+        });
+
+        const linerMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0x1b1b1b,
+          roughness: 0.35,
+          metalness: 0.3,
+          clearcoat: 0.2,
+          clearcoatRoughness: 0.4
+        });
+
+        const shadowMaterial = new THREE.MeshStandardMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: 0.3
+        });
+
+        function buildJawGeometry() {
+          const shape = new THREE.Shape();
+          shape.moveTo(seamCoord, seamCoord);
+          shape.absarc(
+            pocketRadius,
+            pocketRadius,
+            pocketRadius,
+            Math.PI * 1.25,
+            Math.PI * 1.5,
+            false
+          );
+          shape.lineTo(pocketRadius + jawDepth, 0);
+          shape.quadraticCurveTo(
+            pocketRadius + jawDepth * 0.94,
+            -jawWidth * 0.22,
+            pocketRadius + jawDepth * 0.84,
+            -jawWidth * 0.55
+          );
+          shape.quadraticCurveTo(
+            pocketRadius + jawDepth * 0.52,
+            -jawWidth * 1.02,
+            seamCoord + jawWidth * 0.34,
+            -jawWidth * 1.08
+          );
+          shape.lineTo(seamCoord - 0.01, -jawWidth * 0.92);
+          shape.quadraticCurveTo(
+            seamCoord * 0.35,
+            -jawWidth * 0.54,
+            seamCoord,
+            seamCoord
+          );
+
+          const geometry = new THREE.ExtrudeGeometry(shape, {
+            depth: jawHeight,
+            bevelEnabled: true,
+            bevelSegments: 4,
+            bevelSize: 0.01,
+            bevelThickness: 0.012,
+            curveSegments: 28,
+            steps: 1
+          });
+          geometry.rotateX(-Math.PI / 2);
+          geometry.translate(0, clothLevel, 0);
+          return geometry.toNonIndexed();
+        }
+
+        const jawGeometryX = buildJawGeometry();
+        const jawGeometryZ = jawGeometryX.clone();
+        jawGeometryZ.applyMatrix4(
+          new THREE.Matrix4().set(
+            0, 0, 1, 0,
+            0, 1, 0, 0,
+            1, 0, 0, 0,
+            0, 0, 0, 1
+          )
+        );
+        jawGeometryZ.computeVertexNormals();
+
+        function createJawMeshes() {
+          const group = new THREE.Group();
+
+          const jawX = new THREE.Mesh(jawGeometryX, cushionMaterial);
+          jawX.castShadow = true;
+          jawX.receiveShadow = true;
+          jawX.position.set(0, clothLevel, -seamGap * 0.5);
+
+          const jawZ = new THREE.Mesh(jawGeometryZ, cushionMaterial);
+          jawZ.castShadow = true;
+          jawZ.receiveShadow = true;
+          jawZ.position.set(seamGap * 0.5, clothLevel, 0);
+
+          group.add(jawX, jawZ);
+          return group;
+        }
+
+        const pocketGroup = createJawMeshes();
+        root.add(pocketGroup);
+
+        const felt = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.82, 0.82, 1, 1),
+          feltMaterial
+        );
+        felt.rotation.x = -Math.PI / 2;
+        felt.position.set(0.41, clothLevel - 0.0005, 0.41);
+        felt.receiveShadow = true;
+        felt.castShadow = false;
+        root.add(felt);
+
+        const rail = new THREE.Mesh(
+          new THREE.BoxGeometry(0.9, 0.07, 0.2, 1, 1, 1),
+          railMaterial
+        );
+        rail.position.set(0.45, clothLevel + 0.035, -0.1);
+        rail.castShadow = true;
+        rail.receiveShadow = true;
+        root.add(rail);
+
+        const railSide = new THREE.Mesh(
+          new THREE.BoxGeometry(0.2, 0.07, 0.9, 1, 1, 1),
+          railMaterial
+        );
+        railSide.position.set(-0.1, clothLevel + 0.035, 0.45);
+        railSide.castShadow = true;
+        railSide.receiveShadow = true;
+        root.add(railSide);
+
+        const basePedestal = new THREE.Mesh(
+          new THREE.BoxGeometry(0.96, 0.08, 0.96, 1, 1, 1),
+          new THREE.MeshPhysicalMaterial({ color: 0x0e0f12, roughness: 0.9 })
+        );
+        basePedestal.position.set(0.48, clothLevel - 0.09, 0.48);
+        basePedestal.receiveShadow = true;
+        basePedestal.castShadow = false;
+        root.add(basePedestal);
+
+        const pocketLiner = new THREE.Mesh(
+          new THREE.CylinderGeometry(pocketRadius + 0.014, pocketRadius + 0.02, 0.08, 32, 1, true),
+          linerMaterial
+        );
+        pocketLiner.rotation.x = Math.PI / 2;
+        pocketLiner.position.set(0.001, clothLevel - 0.001, 0.001);
+        pocketLiner.castShadow = true;
+        pocketLiner.receiveShadow = true;
+        root.add(pocketLiner);
+
+        const pocketDrop = new THREE.Mesh(
+          new THREE.CylinderGeometry(pocketRadius * 0.62, pocketRadius * 0.8, 0.28, 24, 1, true),
+          new THREE.MeshPhysicalMaterial({
+            color: 0x0a0a0a,
+            roughness: 0.55,
+            metalness: 0.2
+          })
+        );
+        pocketDrop.rotation.x = Math.PI / 2;
+        pocketDrop.position.set(0.001, clothLevel - 0.14, 0.001);
+        pocketDrop.castShadow = true;
+        pocketDrop.receiveShadow = true;
+        root.add(pocketDrop);
+
+        const shadowPlane = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.6, 1.6, 1, 1),
+          shadowMaterial
+        );
+        shadowPlane.rotation.x = -Math.PI / 2;
+        shadowPlane.position.y = clothLevel - 0.16;
+        shadowPlane.receiveShadow = false;
+        root.add(shadowPlane);
+
+        const hemi = new THREE.HemisphereLight(0xdce9ff, 0x0b0d13, 0.55);
+        hemi.position.set(0, 1, 0);
+        scene.add(hemi);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.25);
+        keyLight.position.set(0.9, 1.6, 0.7);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(1024, 1024);
+        keyLight.shadow.camera.near = 0.2;
+        keyLight.shadow.camera.far = 4;
+        keyLight.shadow.camera.left = -0.8;
+        keyLight.shadow.camera.right = 0.8;
+        keyLight.shadow.camera.top = 0.8;
+        keyLight.shadow.camera.bottom = -0.8;
+        scene.add(keyLight);
+
+        const fill = new THREE.DirectionalLight(0xe5f3ff, 0.35);
+        fill.position.set(-0.6, 1.2, -0.4);
+        scene.add(fill);
+
+        const rim = new THREE.SpotLight(0xfff2cf, 0.32, 4.5, Math.PI * 0.35, 0.45, 1.2);
+        rim.position.set(0.3, 0.95, -0.9);
+        rim.target.position.set(0.2, clothLevel + 0.02, 0.2);
+        rim.castShadow = false;
+        scene.add(rim, rim.target);
+
+        const cameraTop = new THREE.OrthographicCamera(-0.45, 0.45, 0.45, -0.45, 0.01, 4);
+        cameraTop.position.set(0.32, 2.5, 0.32);
+        cameraTop.lookAt(new THREE.Vector3(0.32, clothLevel + 0.02, 0.32));
+        cameraTop.up.set(0, 0, -1);
+
+        const cameraAngled = new THREE.PerspectiveCamera(42, 1, 0.05, 8);
+        cameraAngled.position.set(0.88, 0.62, 0.88);
+        cameraAngled.lookAt(new THREE.Vector3(0.28, clothLevel + 0.05, 0.28));
+
+        renderer.setScissorTest(true);
+
+        function resize() {
+          const width = preview.clientWidth;
+          const height = preview.clientHeight;
+          if (width === 0 || height === 0) return;
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          renderer.setSize(width, height, false);
+
+          const viewportHeight = height * 0.5;
+          const aspect = width / viewportHeight;
+          cameraAngled.aspect = aspect;
+          cameraAngled.updateProjectionMatrix();
+
+          const orthoHeight = 0.38;
+          const orthoWidth = orthoHeight * aspect;
+          cameraTop.left = -orthoWidth;
+          cameraTop.right = orthoWidth;
+          cameraTop.top = orthoHeight;
+          cameraTop.bottom = -orthoHeight;
+          cameraTop.updateProjectionMatrix();
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        const focus = new THREE.Vector3(0.28, clothLevel + 0.045, 0.28);
+        const clock = new THREE.Clock();
+
+        function renderLoop() {
+          requestAnimationFrame(renderLoop);
+          const t = clock.getElapsedTime();
+          const radius = 0.88;
+          const oscillate = Math.sin(t * 0.45) * 0.08;
+          cameraAngled.position.x = focus.x + Math.cos(t * 0.35) * radius;
+          cameraAngled.position.z = focus.z + Math.sin(t * 0.35) * (radius * 0.78);
+          cameraAngled.position.y = 0.55 + Math.sin(t * 0.52) * 0.06;
+          cameraAngled.lookAt(focus.x + oscillate * 0.25, focus.y, focus.z);
+
+          const renderCanvas = renderer.domElement;
+          const width = renderCanvas.width;
+          const height = renderCanvas.height;
+          const halfHeight = height / 2;
+
+          renderer.clear();
+
+          renderer.setViewport(0, halfHeight, width, halfHeight);
+          renderer.setScissor(0, halfHeight, width, halfHeight);
+          renderer.render(scene, cameraTop);
+
+          renderer.setViewport(0, 0, width, halfHeight);
+          renderer.setScissor(0, 0, width, halfHeight);
+          renderer.render(scene, cameraAngled);
+        }
+
+        renderLoop();
+
+        window.addEventListener('beforeunload', () => {
+          pmrem.dispose();
+          envTarget.dispose();
+          renderer.dispose();
+        });
+      }
     </script>
     <script type="module" src="./royale-physics.js"></script>
   </body>
