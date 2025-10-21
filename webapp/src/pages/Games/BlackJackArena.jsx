@@ -97,8 +97,6 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
-const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
-
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonVelvet',
@@ -775,65 +773,6 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
-  if (!arena || !seat || !chipFactory || !tableInfo) return null;
-  const group = new THREE.Group();
-  group.visible = false;
-  arena.add(group);
-  const forward = seat.forward.clone().normalize();
-  const axis = seat.right.clone().normalize();
-  const anchorY = seat.cardRailAnchor?.y ?? seat.chipRailAnchor?.y ?? tableInfo.surfaceY + RAIL_HEIGHT_OFFSET + RAIL_SURFACE_LIFT;
-  const fallbackAnchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
-  fallbackAnchor.y = anchorY;
-  const cardRailAnchor = seat.cardRailAnchor
-    ? seat.cardRailAnchor.clone()
-    : fallbackAnchor.clone().addScaledVector(forward, CARD_RAIL_FORWARD_SHIFT).addScaledVector(axis, -CARD_RAIL_LATERAL_SHIFT);
-  cardRailAnchor.y = anchorY;
-  const chipCenter = seat.chipRailAnchor
-    ? seat.chipRailAnchor.clone()
-    : fallbackAnchor.clone().addScaledVector(axis, CARD_RAIL_LATERAL_SHIFT + CHIP_RAIL_LATERAL_SHIFT);
-  chipCenter.y = anchorY;
-  const columns = 3;
-  const rows = Math.max(1, Math.ceil(CHIP_VALUES.length / columns));
-  const colOffset = (columns - 1) / 2;
-  const rowOffset = (rows - 1) / 2;
-  const chipButtons = CHIP_VALUES.map((value, index) => {
-    const chip = chipFactory.createStack(value, { mode: 'stack' });
-    const baseScale = RAIL_CHIP_SCALE;
-    chip.position.copy(chipCenter);
-    chip.position.y = anchorY + CARD_D * 2.2;
-    const row = Math.floor(index / columns);
-    const col = index % columns;
-    chip.position.addScaledVector(axis, (col - colOffset) * RAIL_CHIP_SPACING);
-    chip.position.addScaledVector(forward, -(row - rowOffset) * RAIL_CHIP_ROW_SPACING);
-    chip.scale.setScalar(baseScale);
-    chip.userData = { type: 'chip-button', value, baseScale };
-    group.add(chip);
-    return chip;
-  });
-
-  const interactables = [...chipButtons];
-
-  const dispose = () => {
-    chipButtons.forEach((chip) => {
-      chipFactory.disposeStack(chip);
-      if (chip.parent) {
-        chip.parent.remove(chip);
-      }
-    });
-    if (group.parent) {
-      group.parent.remove(group);
-    }
-  };
-
-  return {
-    group,
-    chipButtons,
-    interactables,
-    dispose
-  };
-}
-
 function applyCardToMesh(mesh, card, geometry, cache, theme) {
   if (!mesh || !card) return;
   const prev = mesh.userData?.card;
@@ -894,27 +833,15 @@ function resetForNextRound(state) {
   return next;
 }
 
-function computeBaseWager(state) {
-  return Math.max(20, Math.round(state.stake * 0.2));
-}
-
-function placeInitialBets(state, humanOverride = null) {
-  const baseWager = computeBaseWager(state);
-  state.pot = 0;
-  state.players.forEach((player) => {
-    if (player.isDealer) {
-      player.bet = 0;
-      return;
-    }
-    const desired = player.isHuman && humanOverride !== null && humanOverride !== undefined ? humanOverride : baseWager;
-    const wager = Math.min(player.chips, Math.max(0, Math.round(desired)));
+function placeInitialBets(state) {
+  state.players.forEach((player, idx) => {
+    if (player.isDealer) return;
+    const wager = Math.min(player.chips, Math.max(20, Math.round(state.stake * 0.2)));
     player.chips -= wager;
-    if (player.chips <= 0) {
-      player.chips = 0;
-    }
     player.bet = wager;
-    player.result = wager > 0 ? `Bet ${wager}` : 'Check';
     state.pot += wager;
+    player.result = `Bet ${wager}`;
+    if (player.chips <= 0) player.chips = 0;
   });
 }
 
@@ -1038,23 +965,20 @@ function BlackJackArena({ search }) {
   const pointerStateRef = useRef({
     active: false,
     pointerId: null,
-    mode: null,
     startX: 0,
     startY: 0,
     startYaw: 0,
     startPitch: 0
   });
-  const hoverTargetRef = useRef(null);
-  const pointerVectorRef = useRef(new THREE.Vector2());
-  const interactionsRef = useRef({ onChip: null });
   const searchOptions = useMemo(() => parseSearch(search), [search]);
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(searchOptions);
     const base = buildInitialState(players, searchOptions.token, searchOptions.stake);
-    return resetForNextRound(base);
+    const prepared = resetForNextRound(base);
+    placeInitialBets(prepared);
+    dealInitialCards(prepared);
+    return prepared;
   });
-  const [chipSelection, setChipSelection] = useState([]);
-  const [sliderValue, setSliderValue] = useState(0);
   const [uiState, setUiState] = useState({ actions: [] });
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
@@ -1420,16 +1344,6 @@ function BlackJackArena({ search }) {
         return mesh;
       });
 
-      const tableLayout = {
-        perRow: CHIP_SCATTER_LAYOUT.perRow,
-        spacing: CHIP_SCATTER_LAYOUT.spacing,
-        rowSpacing: CHIP_SCATTER_LAYOUT.rowSpacing,
-        jitter: CHIP_SCATTER_LAYOUT.jitter,
-        lift: CHIP_SCATTER_LAYOUT.lift,
-        right: seat.right.clone(),
-        forward: seat.forward.clone()
-      };
-
       const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
       chipStack.position.copy(seat.chipAnchor);
       arenaGroup.add(chipStack);
@@ -1437,12 +1351,6 @@ function BlackJackArena({ search }) {
       const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
       betStack.position.copy(seat.betAnchor);
       arenaGroup.add(betStack);
-
-      const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
-      previewStack.position.copy(seat.previewAnchor);
-      previewStack.visible = false;
-      previewStack.scale.setScalar(HUMAN_CHIP_SCALE);
-      arenaGroup.add(previewStack);
 
       const nameplate = makeNameplate('Player', 0, renderer);
       nameplate.position.set(0, seat.labelOffset.height, seat.labelOffset.forward);
@@ -1455,7 +1363,6 @@ function BlackJackArena({ search }) {
         cardMeshes,
         chipStack,
         betStack,
-        previewStack,
         nameplate,
         forward: seat.forward.clone(),
         right: seat.right.clone(),
@@ -1464,7 +1371,6 @@ function BlackJackArena({ search }) {
         cardRailAnchor: seat.cardRailAnchor.clone(),
         chipRailAnchor: seat.chipRailAnchor.clone(),
         betAnchor: seat.betAnchor.clone(),
-        tableLayout,
         stoolAnchor: seat.stoolAnchor.clone(),
         stoolHeight: seat.stoolHeight,
         labelOffset: { ...seat.labelOffset },
@@ -1489,12 +1395,6 @@ function BlackJackArena({ search }) {
     potStack.position.copy(POT_OFFSET);
     arenaGroup.add(potStack);
 
-    const humanSeatGroup = seatGroups.find((s) => s.isHuman) ?? null;
-    const raiseControls = humanSeatGroup
-      ? createRaiseControls({ arena: arenaGroup, seat: humanSeatGroup, chipFactory, tableInfo })
-      : null;
-    const raycaster = new THREE.Raycaster();
-
     threeRef.current = {
       renderer,
       scene,
@@ -1508,8 +1408,6 @@ function BlackJackArena({ search }) {
       seatGroups,
       potStack,
       deckAnchor,
-      raiseControls,
-      raycaster,
       sharedMaterials: { chair: chairMaterial, leg: legMaterial },
       cardTheme,
       orientHumanCards: () => {
@@ -1535,7 +1433,6 @@ function BlackJackArena({ search }) {
     };
 
     const element = renderer.domElement;
-    element.style.cursor = 'grab';
 
     const updateCameraAngles = () => {
       const basis = cameraBasisRef.current;
@@ -1553,63 +1450,11 @@ function BlackJackArena({ search }) {
       applyHeadOrientation();
     };
 
-    const getRaiseControls = () => threeRef.current?.raiseControls || null;
-
-    const applyHoverTarget = (target) => {
-      const prev = hoverTargetRef.current;
-      if (prev && prev !== target && prev.userData?.baseScale) {
-        prev.scale.setScalar(prev.userData.baseScale);
-      }
-      hoverTargetRef.current = target || null;
-      if (target?.userData?.baseScale) {
-        target.scale.setScalar(target.userData.baseScale * 1.12);
-      }
-    };
-
-    const pickChip = (event) => {
-      const controls = getRaiseControls();
-      if (!controls?.group?.visible) return null;
-      const rect = element.getBoundingClientRect();
-      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      const three = threeRef.current;
-      if (!three) return null;
-      three.raycaster.setFromCamera(pointerVectorRef.current, camera);
-      const intersects = three.raycaster.intersectObjects(controls.interactables, true);
-      if (!intersects.length) return null;
-      let target = intersects[0].object;
-      while (target && !target.userData?.type && target.parent) {
-        target = target.parent;
-      }
-      if (!target?.userData || target.userData.type !== 'chip-button') return null;
-      return target;
-    };
-
-    const resetPointerState = () => {
-      pointerStateRef.current = {
-        active: false,
-        pointerId: null,
-        mode: null,
-        startX: 0,
-        startY: 0,
-        startYaw: 0,
-        startPitch: 0
-      };
-    };
-
     const handlePointerDown = (event) => {
       event.preventDefault();
-      const chip = pickChip(event);
-      if (chip) {
-        interactionsRef.current.onChip?.(chip.userData.value);
-        applyHoverTarget(chip);
-        element.style.cursor = 'pointer';
-        return;
-      }
       pointerStateRef.current = {
         active: true,
         pointerId: event.pointerId,
-        mode: 'camera',
         startX: event.clientX,
         startY: event.clientY,
         startYaw: headAnglesRef.current.yaw,
@@ -1621,65 +1466,46 @@ function BlackJackArena({ search }) {
 
     const handlePointerMove = (event) => {
       const state = pointerStateRef.current;
-      if (!state.active || state.pointerId !== event.pointerId) {
-        const chip = pickChip(event);
-        applyHoverTarget(chip);
-        element.style.cursor = chip ? 'pointer' : 'grab';
-        return;
-      }
-      if (state.mode === 'camera') {
-        const dx = event.clientX - state.startX;
-        const dy = event.clientY - state.startY;
-        const basis = cameraBasisRef.current;
-        const pitchLimits = basis?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
-        headAnglesRef.current.yaw = THREE.MathUtils.clamp(
-          state.startYaw - dx * HEAD_YAW_SENSITIVITY,
-          -CAMERA_HEAD_TURN_LIMIT,
-          CAMERA_HEAD_TURN_LIMIT
-        );
-        headAnglesRef.current.pitch = THREE.MathUtils.clamp(
-          state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
-          pitchLimits.min,
-          pitchLimits.max
-        );
-        applyHeadOrientation();
-      }
+      if (!state.active || state.pointerId !== event.pointerId) return;
+      const dx = event.clientX - state.startX;
+      const dy = event.clientY - state.startY;
+      const basis = cameraBasisRef.current;
+      const pitchLimits = basis?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+        state.startYaw - dx * HEAD_YAW_SENSITIVITY,
+        -CAMERA_HEAD_TURN_LIMIT,
+        CAMERA_HEAD_TURN_LIMIT
+      );
+      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+        state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
+        pitchLimits.min,
+        pitchLimits.max
+      );
+      applyHeadOrientation();
     };
 
     const handlePointerUp = (event) => {
       const state = pointerStateRef.current;
       if (state.pointerId === event.pointerId) {
-        if (state.mode === 'camera') {
-          element.releasePointerCapture(event.pointerId);
-        }
-        resetPointerState();
-        const chip = pickChip(event);
-        applyHoverTarget(chip);
-        element.style.cursor = chip ? 'pointer' : 'grab';
-        updateCameraAngles();
-        return;
-      }
-      const chip = pickChip(event);
-      applyHoverTarget(chip);
-      element.style.cursor = chip ? 'pointer' : 'grab';
-    };
-
-    const handlePointerCancel = (event) => {
-      const state = pointerStateRef.current;
-      if (state.pointerId === event.pointerId && state.mode === 'camera') {
         element.releasePointerCapture(event.pointerId);
+        pointerStateRef.current = {
+          active: false,
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          startYaw: 0,
+          startPitch: 0
+        };
+        element.style.cursor = 'grab';
+        updateCameraAngles();
       }
-      resetPointerState();
-      applyHoverTarget(null);
-      element.style.cursor = 'grab';
-      updateCameraAngles();
     };
 
     element.addEventListener('pointerdown', handlePointerDown);
     element.addEventListener('pointermove', handlePointerMove);
     element.addEventListener('pointerup', handlePointerUp);
-    element.addEventListener('pointercancel', handlePointerCancel);
-    element.addEventListener('pointerleave', handlePointerCancel);
+    element.addEventListener('pointercancel', handlePointerUp);
+    element.addEventListener('pointerleave', handlePointerUp);
 
     const handleResize = () => {
       if (!threeRef.current) return;
@@ -1706,8 +1532,8 @@ function BlackJackArena({ search }) {
       element.removeEventListener('pointerdown', handlePointerDown);
       element.removeEventListener('pointermove', handlePointerMove);
       element.removeEventListener('pointerup', handlePointerUp);
-      element.removeEventListener('pointercancel', handlePointerCancel);
-      element.removeEventListener('pointerleave', handlePointerCancel);
+      element.removeEventListener('pointercancel', handlePointerUp);
+      element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
         const { renderer: r, scene: s, chipFactory: factory, seatGroups: seats, potStack: pot, tableInfo: info } =
           threeRef.current;
@@ -1723,16 +1549,12 @@ function BlackJackArena({ search }) {
           });
           factory.disposeStack(seat.chipStack);
           factory.disposeStack(seat.betStack);
-          if (seat.previewStack) {
-            factory.disposeStack(seat.previewStack);
-          }
           if (seat.nameplate) {
             seat.nameplate.material?.map?.dispose?.();
             seat.nameplate.material?.dispose?.();
             s.remove(seat.nameplate);
           }
         });
-        threeRef.current.raiseControls?.dispose?.();
         factory.disposeStack(pot);
         factory.dispose();
         info?.dispose?.();
@@ -1791,41 +1613,6 @@ function BlackJackArena({ search }) {
           updatedDeckAnchor.applyAxisAngle(WORLD_UP, nextTable.rotationY);
         }
         three.deckAnchor.copy(updatedDeckAnchor);
-        three.seatGroups?.forEach((seat) => {
-          seat.cardMeshes.forEach((mesh) => {
-            if (!mesh.userData?.card) {
-              mesh.position.copy(updatedDeckAnchor);
-            }
-          });
-        });
-      }
-      const humanSeat = three.seatGroups?.find((seat) => seat.isHuman) ?? null;
-      const previousControls = three.raiseControls || null;
-      const previousVisible = Boolean(previousControls?.group?.visible);
-      previousControls?.dispose?.();
-      three.raiseControls = null;
-      if (hoverTargetRef.current?.userData?.type === 'chip-button') {
-        hoverTargetRef.current = null;
-      }
-      if (humanSeat) {
-        const nextControls = createRaiseControls({
-          arena: three.arenaGroup,
-          seat: humanSeat,
-          chipFactory: three.chipFactory,
-          tableInfo: nextTable
-        });
-        if (nextControls) {
-          if (previousVisible) {
-            nextControls.group.visible = true;
-            nextControls.chipButtons.forEach((chip) => {
-              chip.visible = true;
-              if (chip.userData?.baseScale) {
-                chip.scale.setScalar(chip.userData.baseScale);
-              }
-            });
-          }
-          three.raiseControls = nextControls;
-        }
       }
     } else if (three.tableInfo?.materials) {
       applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
@@ -1908,10 +1695,6 @@ function BlackJackArena({ search }) {
       });
       chipFactory.setAmount(seat.chipStack, player.chips);
       chipFactory.setAmount(seat.betStack, player.bet);
-      if (seat.previewStack && state.stage !== 'betting') {
-        chipFactory.setAmount(seat.previewStack, 0, { mode: 'scatter', layout: seat.tableLayout });
-        seat.previewStack.visible = false;
-      }
       if (seat.nameplate?.userData?.update) {
         const active = state.currentIndex === idx && state.stage === 'player-turns';
         seat.nameplate.userData.update(player.name, Math.round(player.chips), active, player.result || '');
@@ -1930,18 +1713,12 @@ function BlackJackArena({ search }) {
     if (gameState.stage === 'round-end') {
       timerRef.current = setTimeout(() => {
         setGameState((prev) => {
-          return resetForNextRound(cloneState(prev));
+          const next = resetForNextRound(cloneState(prev));
+          placeInitialBets(next);
+          dealInitialCards(next);
+          return next;
         });
       }, 3000);
-      setUiState({ actions: [] });
-      return () => {
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-      };
-    }
-    if (gameState.stage === 'betting') {
       setUiState({ actions: [] });
       return () => {
         if (timerRef.current) {
@@ -2000,127 +1777,6 @@ function BlackJackArena({ search }) {
   };
 
   const dealer = gameState.players[DEALER_INDEX];
-  const actor = gameState.players[gameState.currentIndex] || null;
-  const bettingStage = gameState.stage === 'betting';
-  const sliderMax = bettingStage && actor ? Math.max(0, actor.chips) : 0;
-  const defaultBet = bettingStage && actor ? (sliderMax <= 0 ? 0 : Math.min(sliderMax, computeBaseWager(gameState))) : 0;
-  const chipTotal = useMemo(
-    () => chipSelection.reduce((sum, chip) => sum + chip, 0),
-    [chipSelection]
-  );
-  const effectiveBet = chipTotal > 0 ? chipTotal : sliderValue;
-  const finalBet = sliderMax > 0 ? Math.min(sliderMax, Math.max(effectiveBet, defaultBet)) : 0;
-  const sliderEnabled = Boolean(bettingStage && actor?.isHuman);
-  const betPreview = sliderEnabled ? Math.min(sliderMax, Math.max(effectiveBet, defaultBet)) : 0;
-  const overlaySelected = Math.round(betPreview);
-  const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && overlaySelected <= 0);
-  const allInDisabled = !sliderEnabled || sliderMax <= 0;
-  const undoDisabled = !sliderEnabled || chipSelection.length === 0;
-  const sliderLabel = 'Bet';
-  const remainingChips = actor ? Math.max(0, Math.round(actor.chips - overlaySelected)) : 0;
-
-  useEffect(() => {
-    if (!sliderEnabled) {
-      setChipSelection([]);
-      setSliderValue(0);
-      return;
-    }
-    setChipSelection([]);
-    setSliderValue(defaultBet);
-  }, [sliderEnabled, actor?.id, defaultBet]);
-
-  useEffect(() => {
-    if (!sliderEnabled) return;
-    setSliderValue((prev) => {
-      if (prev <= sliderMax) return prev;
-      return sliderMax;
-    });
-  }, [sliderEnabled, sliderMax]);
-
-  useEffect(() => {
-    const three = threeRef.current;
-    if (!three) return;
-    const controls = three.raiseControls;
-    if (!controls) return;
-    const visible = sliderEnabled && sliderMax > 0;
-    controls.group.visible = visible;
-    controls.chipButtons.forEach((chip) => {
-      chip.visible = visible;
-      if (chip.userData?.baseScale) {
-        chip.scale.setScalar(chip.userData.baseScale);
-      }
-    });
-    if (!visible && hoverTargetRef.current?.userData?.type === 'chip-button') {
-      hoverTargetRef.current = null;
-    }
-  }, [sliderEnabled, sliderMax]);
-
-  useEffect(() => {
-    const three = threeRef.current;
-    if (!three) return;
-    const seat = three.seatGroups?.find((s) => s.isHuman);
-    if (!seat?.previewStack) return;
-    const amount = sliderEnabled ? Math.round(betPreview) : 0;
-    three.chipFactory.setAmount(seat.previewStack, amount, { mode: 'scatter', layout: seat.tableLayout });
-    seat.previewStack.visible = amount > 0;
-  }, [sliderEnabled, betPreview]);
-
-  const handleChipClick = useCallback(
-    (value) => {
-      if (!sliderEnabled || sliderMax <= 0) return;
-      setChipSelection((prev) => {
-        const currentTotal = prev.reduce((sum, chip) => sum + chip, 0);
-        const nextTotal = currentTotal + value;
-        if (nextTotal > sliderMax) return prev;
-        setSliderValue(nextTotal);
-        return [...prev, value];
-      });
-    },
-    [sliderEnabled, sliderMax]
-  );
-
-  const handleUndoChip = useCallback(() => {
-    if (!sliderEnabled) return;
-    setChipSelection((prev) => {
-      if (!prev.length) return prev;
-      const updated = prev.slice(0, -1);
-      const nextTotal = updated.reduce((sum, chip) => sum + chip, 0);
-      setSliderValue(nextTotal > 0 ? nextTotal : defaultBet);
-      return updated;
-    });
-  }, [sliderEnabled, defaultBet]);
-
-  const submitBet = useCallback(
-    (amount) => {
-      setGameState((prev) => {
-        const next = cloneState(prev);
-        if (next.stage !== 'betting') return next;
-        const currentActor = next.players[next.currentIndex];
-        if (!currentActor?.isHuman) return next;
-        const wager = Math.max(0, Math.min(currentActor.chips, Math.round(amount)));
-        placeInitialBets(next, wager);
-        dealInitialCards(next);
-        return next;
-      });
-    },
-    [setGameState]
-  );
-
-  const handleBetConfirm = useCallback(() => {
-    if (!sliderEnabled || !actor?.isHuman) return;
-    submitBet(finalBet);
-  }, [sliderEnabled, actor?.isHuman, finalBet, submitBet]);
-
-  const handleAllIn = useCallback(() => {
-    if (!sliderEnabled || !actor?.isHuman) return;
-    submitBet(sliderMax);
-  }, [sliderEnabled, actor?.isHuman, sliderMax, submitBet]);
-
-  useEffect(() => {
-    interactionsRef.current = {
-      onChip: (value) => handleChipClick(value)
-    };
-  }, [handleChipClick]);
 
   return (
     <div className="relative w-full h-full">
@@ -2214,77 +1870,6 @@ function BlackJackArena({ search }) {
       {gameState.stage === 'round-end' && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-lg text-sm">
           Round complete
-        </div>
-      )}
-      {bettingStage && actor?.isHuman && (
-        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
-            <span className="text-2xl font-semibold drop-shadow-md">
-              {overlaySelected} {gameState.token}
-            </span>
-            {sliderMax > 0 && (
-              <span className="text-[0.7rem] text-white/60">Minimum {Math.round(defaultBet)} {gameState.token}</span>
-            )}
-            <span className="text-[0.7rem] text-white/70">Remaining {remainingChips} {gameState.token}</span>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <input
-              type="range"
-              min={0}
-              max={Math.round(Math.max(0, sliderMax))}
-              step={1}
-              value={Math.round(Math.min(sliderValue, Math.max(0, sliderMax)))}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setChipSelection([]);
-                setSliderValue(next);
-              }}
-              disabled={!sliderEnabled || sliderMax <= 0}
-              className="h-64 w-10 cursor-pointer appearance-none bg-transparent"
-              style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
-            />
-            <button
-              type="button"
-              onClick={handleBetConfirm}
-              disabled={overlayConfirmDisabled}
-              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
-                overlayConfirmDisabled
-                  ? 'bg-blue-900/50 text-white/40 shadow-none'
-                  : 'bg-blue-600/90 hover:bg-blue-500'
-              }`}
-            >
-              Place Bet
-            </button>
-          </div>
-        </div>
-      )}
-      {bettingStage && actor?.isHuman && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={handleUndoChip}
-            disabled={undoDisabled}
-            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
-              undoDisabled
-                ? 'bg-amber-900/40 text-white/40 shadow-none'
-                : 'bg-amber-500/90 hover:bg-amber-400'
-            }`}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            onClick={handleAllIn}
-            disabled={allInDisabled}
-            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 ${
-              allInDisabled
-                ? 'bg-rose-900/40 text-white/40 shadow-none'
-                : 'bg-rose-600/90 hover:bg-rose-500'
-            }`}
-          >
-            All In
-          </button>
         </div>
       )}
       {gameState.stage === 'player-turns' && gameState.players[gameState.currentIndex]?.isHuman && (
