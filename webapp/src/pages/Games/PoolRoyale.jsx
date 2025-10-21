@@ -445,11 +445,11 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.84; // tuck the slimmer liners back into the tighter corner pocket openings
 const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
-const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
+const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
 const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
-const POCKET_RIM_LIP = TABLE.THICK * 0.012; // slight lift so the rim sits proud of the jaw insert
+const POCKET_RIM_LIP = TABLE.THICK * 0.02; // taller lift so the rim clearly sits above the surrounding chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4503,12 +4503,26 @@ function Table3D(
           : [];
 
       const clipEntries = [];
-      if (clipConfig.x) {
-        clipEntries.push({ axis: 'x', ...clipConfig.x });
-      }
-      if (clipConfig.z) {
-        clipEntries.push({ axis: 'z', ...clipConfig.z });
-      }
+      const addClipEntry = (axis, entry) => {
+        if (!entry) return;
+        if (Number.isFinite(entry.threshold)) {
+          clipEntries.push({ axis, ...entry });
+        }
+      };
+      const addRangeEntries = (axis, range) => {
+        if (!range) return;
+        const { min, max } = range;
+        if (Number.isFinite(min)) {
+          clipEntries.push({ axis, threshold: min, keepGreater: true });
+        }
+        if (Number.isFinite(max)) {
+          clipEntries.push({ axis, threshold: max, keepGreater: false });
+        }
+      };
+      addClipEntry('x', clipConfig.x);
+      addClipEntry('z', clipConfig.z);
+      addRangeEntries('x', clipConfig.xRange);
+      addRangeEntries('z', clipConfig.zRange);
 
       const combineMode = clipConfig.combine === 'union' ? 'union' : 'intersection';
       if (combineMode === 'union' && clipEntries.length > 1) {
@@ -4675,8 +4689,10 @@ function Table3D(
       centroid.x,
       RAIL_SIDE_POCKET_CUT_SCALE
     );
+    const zLimit = Math.max(MICRO_EPS, sideChromeMeetZ);
     addPocketJaw(scaledMP, POCKET_JAW_SIDE_INNER_SCALE, {
-      x: { threshold: scaledCenterX, keepGreater: sx > 0 }
+      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
+      zRange: { min: -zLimit, max: zLimit }
     });
   });
 
