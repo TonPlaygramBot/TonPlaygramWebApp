@@ -6,13 +6,12 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
-import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import { buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
   WOOD_FINISH_PRESETS,
@@ -162,15 +161,14 @@ const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
-const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.16 * MODEL_SCALE;
+const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
+const CAMERA_TURN_FOCUS_LIFT = 0.6 * MODEL_SCALE;
+const CAMERA_TRANSITION_DURATION = 520;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
-const CAMERA_AZIMUTH_SWING = THREE.MathUtils.degToRad(15);
-const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
-const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
-const CAMERA_TRANSITION_DURATION = 520;
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const AI_TURN_DELAY = 2000;
 const TURN_FOCUS_HOLD_MS = AI_TURN_DELAY;
 
@@ -210,19 +208,7 @@ export default function MurlanRoyaleArena({ search }) {
     renderer: null,
     scene: null,
     camera: null,
-    controls: null,
-    cameraTarget: null,
-    cameraSpherical: null,
-    cameraRadius: null,
-    cameraIdealRadius: null,
-    cameraPhi: null,
-    cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
-    cameraHomeTheta: null,
-    cameraHeadLimit: CAMERA_HEAD_LIMIT,
     cameraAnimationId: null,
-    cameraChangeHandler: null,
-    cameraBounds: null,
-    cameraAdjusting: false,
     arena: null,
     cardGeometry: null,
     cardMap: new Map(),
@@ -242,6 +228,8 @@ export default function MurlanRoyaleArena({ search }) {
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
   });
+  const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
+  const cameraBasisRef = useRef(null);
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
@@ -348,79 +336,77 @@ export default function MurlanRoyaleArena({ search }) {
     texture.needsUpdate = true;
   }, []);
 
-  const moveCameraToTheta = useCallback((theta, immediate = false) => {
-    const three = threeStateRef.current;
-    const { camera, controls, cameraTarget } = three;
-    const spherical = three.cameraSpherical;
-    if (!camera || !controls || !cameraTarget || !spherical) return;
+  const applyHeadOrientation = useCallback(() => {
+    const store = threeStateRef.current;
+    const camera = store.camera;
+    const basis = cameraBasisRef.current;
+    if (!camera || !basis) return;
+    const { yaw, pitch } = headAnglesRef.current;
 
-    const idealRadius = three.cameraIdealRadius ?? spherical.radius;
-    const basePhi = three.cameraPhi ?? spherical.phi;
-    const homeTheta = three.cameraHomeTheta ?? spherical.theta;
-    const headLimit = three.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
-    const minBound = homeTheta - headLimit;
-    const maxBound = homeTheta + headLimit;
+    const yawQuat = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
+    const rotatedForward = basis.baseForward.clone().applyQuaternion(yawQuat).normalize();
+    const rotatedUp = basis.baseUp.clone().applyQuaternion(yawQuat).normalize();
+    const rightAxis = basis.baseRight.clone().applyQuaternion(yawQuat).normalize();
+    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightAxis, pitch);
+    const finalForward = rotatedForward.applyQuaternion(pitchQuat).normalize();
+    const finalUp = rotatedUp.applyQuaternion(pitchQuat).normalize();
 
-    const clampToHeadLimit = (rawTheta) => {
-      const normalized = normalizeAngle(rawTheta);
-      const offset = shortestAngleDifference(homeTheta, normalized);
-      const clampedOffset = THREE.MathUtils.clamp(offset, -headLimit, headLimit);
-      return normalizeAngle(homeTheta + clampedOffset);
-    };
-
-    const applyTheta = (value) => {
-      const constrained = clampToHeadLimit(value);
-      spherical.theta = constrained;
-      spherical.radius = idealRadius;
-      spherical.phi = basePhi;
-      three.cameraAdjusting = true;
-      try {
-        updateCameraFromSpherical(camera, spherical, cameraTarget, three);
-        const actualRadius = three.cameraRadius ?? spherical.radius;
-        controls.target.copy(cameraTarget);
-        controls.minPolarAngle = basePhi;
-        controls.maxPolarAngle = basePhi;
-        controls.minAzimuthAngle = minBound;
-        controls.maxAzimuthAngle = maxBound;
-        controls.minDistance = actualRadius;
-        controls.maxDistance = actualRadius;
-        controls.update();
-      } finally {
-        three.cameraAdjusting = false;
-      }
-    };
-
-    if (three.cameraAnimationId) {
-      cancelAnimationFrame(three.cameraAnimationId);
-      three.cameraAnimationId = null;
-    }
-
-    const startTheta = spherical.theta;
-    const targetTheta = clampToHeadLimit(theta);
-    const delta = shortestAngleDifference(startTheta, targetTheta);
-    const finalTheta = startTheta + delta;
-
-    if (immediate || Math.abs(delta) < 1e-4) {
-      applyTheta(finalTheta);
-      return;
-    }
-
-    const start = performance.now();
-
-    const step = (time) => {
-      const progress = Math.min(1, (time - start) / CAMERA_TRANSITION_DURATION);
-      const eased = easeOutCubic(progress);
-      const value = startTheta + delta * eased;
-      applyTheta(value);
-      if (progress < 1) {
-        three.cameraAnimationId = requestAnimationFrame(step);
-      } else {
-        three.cameraAnimationId = null;
-      }
-    };
-
-    three.cameraAnimationId = requestAnimationFrame(step);
+    camera.position.copy(basis.position);
+    camera.up.copy(finalUp);
+    camera.lookAt(basis.position.clone().add(finalForward));
   }, []);
+
+  const moveCameraToTheta = useCallback(
+    (theta, immediate = false) => {
+      const store = threeStateRef.current;
+      const camera = store.camera;
+      const basis = cameraBasisRef.current;
+      if (!camera || !basis) return;
+
+      const clampToHeadLimit = (rawTheta) => {
+        return THREE.MathUtils.clamp(rawTheta, -CAMERA_HEAD_LIMIT, CAMERA_HEAD_LIMIT);
+      };
+
+      const applyTheta = (value) => {
+        const constrained = clampToHeadLimit(value);
+        headAnglesRef.current.yaw = constrained;
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+      };
+
+      if (store.cameraAnimationId) {
+        cancelAnimationFrame(store.cameraAnimationId);
+        store.cameraAnimationId = null;
+      }
+
+      const startTheta = headAnglesRef.current.yaw;
+      const targetTheta = clampToHeadLimit(theta);
+      const delta = shortestAngleDifference(startTheta, targetTheta);
+      const finalTheta = startTheta + delta;
+
+      if (immediate || Math.abs(delta) < 1e-4) {
+        applyTheta(finalTheta);
+        return;
+      }
+
+      const start = performance.now();
+
+      const step = (time) => {
+        const progress = Math.min(1, (time - start) / CAMERA_TRANSITION_DURATION);
+        const eased = easeOutCubic(progress);
+        const value = startTheta + delta * eased;
+        applyTheta(value);
+        if (progress < 1) {
+          store.cameraAnimationId = requestAnimationFrame(step);
+        } else {
+          store.cameraAnimationId = null;
+        }
+      };
+
+      store.cameraAnimationId = requestAnimationFrame(step);
+    },
+    [applyHeadOrientation]
+  );
 
   const focusCameraOnPlayer = useCallback(
     (playerIndex, immediate = false) => {
@@ -430,8 +416,21 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seatConfigs?.length) return;
       const seat = seatConfigs[playerIndex];
       if (!seat) return;
-      const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
-      const desiredTheta = Math.PI / 2 - seatAngle;
+      const basis = cameraBasisRef.current;
+      if (!basis) return;
+      const stoolAnchor = seat.stoolPosition
+        ? seat.stoolPosition.clone()
+        : seat.forward.clone().multiplyScalar(seat.radius ?? CHAIR_RADIUS).setY(CHAIR_BASE_HEIGHT);
+      const stoolHeight = seat.stoolHeight ?? CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
+      stoolAnchor.y = stoolHeight + CAMERA_TURN_FOCUS_LIFT;
+      const toTarget = stoolAnchor.sub(basis.position);
+      if (toTarget.lengthSq() < 1e-6) return;
+      const projected = toTarget.clone().projectOnPlane(basis.baseUp);
+      if (projected.lengthSq() < 1e-6) return;
+      projected.normalize();
+      const baseForward = basis.baseForward.clone().projectOnPlane(basis.baseUp).normalize();
+      const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
+      const desiredTheta = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
       moveCameraToTheta(desiredTheta, immediate);
     },
     [moveCameraToTheta]
@@ -923,16 +922,6 @@ export default function MurlanRoyaleArena({ search }) {
     wall.receiveShadow = false;
     arenaGroup.add(wall);
 
-    const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
-    threeStateRef.current.cameraBounds = {
-      minX: -cameraBoundRadius,
-      maxX: cameraBoundRadius,
-      minZ: -cameraBoundRadius,
-      maxZ: cameraBoundRadius,
-      minY: CHAIR_BASE_HEIGHT * 0.5,
-      maxY: ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN
-    };
-
     const scoreboardCanvas = document.createElement('canvas');
     scoreboardCanvas.width = 1024;
     scoreboardCanvas.height = 512;
@@ -1135,8 +1124,8 @@ export default function MurlanRoyaleArena({ search }) {
       camConfig.near,
       camConfig.far
     );
-    const targetHeightOffset = 0.08 * MODEL_SCALE;
-    let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
+    const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
+    const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
     let initialCameraPosition;
     if (humanSeatConfig) {
       const humanSeatAngle = Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x);
@@ -1154,7 +1143,6 @@ export default function MurlanRoyaleArena({ search }) {
         .addScaledVector(humanSeatConfig.forward, -retreatOffset)
         .addScaledVector(humanSeatConfig.right, lateralOffset);
       initialCameraPosition.y = stoolHeight + elevation;
-      target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
     } else {
       const humanSeatAngle = Math.PI / 2;
       const cameraBackOffset = isPortrait ? 1.65 : 1.05;
@@ -1166,81 +1154,25 @@ export default function MurlanRoyaleArena({ search }) {
         Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
       );
     }
-    const initialOffset = initialCameraPosition.clone().sub(target);
-    const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    const maxHorizontalReach = cameraBoundRadius;
-    const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, maxHorizontalReach);
-    const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
-    const minOrbitRadius = Math.max(2.6 * MODEL_SCALE, maxOrbitRadius * 0.7);
-    const desiredRadius = THREE.MathUtils.clamp(
-      spherical.radius * 1.18,
-      minOrbitRadius + 0.05 * MODEL_SCALE,
-      maxOrbitRadius * 1.02
-    );
-    spherical.radius = desiredRadius;
-    spherical.phi = THREE.MathUtils.clamp(
-      spherical.phi,
-      ARENA_CAMERA_DEFAULTS.phiMin,
-      ARENA_CAMERA_DEFAULTS.phiMax
-    );
-    threeStateRef.current.cameraIdealRadius = spherical.radius;
-    threeStateRef.current.cameraRadius = spherical.radius;
-    threeStateRef.current.cameraAdjusting = true;
-    updateCameraFromSpherical(camera, spherical, target, threeStateRef.current);
-    threeStateRef.current.cameraAdjusting = false;
 
-    const storedSpherical = spherical.clone();
-    storedSpherical.theta = normalizeAngle(storedSpherical.theta);
-    const homeTheta = storedSpherical.theta;
-    const headLimit = threeStateRef.current.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
+    camera.position.copy(initialCameraPosition);
+    camera.lookAt(focusBase);
+    camera.updateMatrixWorld();
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.target.copy(target);
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.enableRotate = false;
-    controls.minPolarAngle = storedSpherical.phi;
-    controls.maxPolarAngle = storedSpherical.phi;
-    controls.minAzimuthAngle = homeTheta - headLimit;
-    controls.maxAzimuthAngle = homeTheta + headLimit;
-    controls.minDistance = storedSpherical.radius;
-    controls.maxDistance = storedSpherical.radius;
-    controls.rotateSpeed = 0.38;
+    const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+    const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+    const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
 
-    threeStateRef.current.cameraTarget = target.clone();
-    threeStateRef.current.cameraSpherical = storedSpherical;
-    threeStateRef.current.cameraRadius = storedSpherical.radius;
-    threeStateRef.current.cameraIdealRadius = storedSpherical.radius;
-    threeStateRef.current.cameraPhi = storedSpherical.phi;
-    threeStateRef.current.cameraAzimuthSwing = CAMERA_AZIMUTH_SWING;
-    threeStateRef.current.cameraHomeTheta = homeTheta;
-    threeStateRef.current.cameraHeadLimit = headLimit;
-
-    const handleControlChange = () => {
-      const store = threeStateRef.current;
-      if (!store.cameraTarget || !store.cameraSpherical || store.cameraAdjusting) return;
-      store.cameraAdjusting = true;
-      try {
-        const offset = camera.position.clone().sub(store.cameraTarget);
-        const current = new THREE.Spherical().setFromVector3(offset);
-        updateCameraFromSpherical(camera, current, store.cameraTarget, store);
-        store.cameraSpherical.theta = normalizeAngle(current.theta);
-        store.cameraSpherical.phi = current.phi;
-        store.cameraSpherical.radius = current.radius;
-        if (typeof store.cameraIdealRadius !== 'number') {
-          store.cameraIdealRadius = current.radius;
-        }
-        const actualRadius = store.cameraRadius ?? current.radius;
-        controls.minDistance = actualRadius;
-        controls.maxDistance = actualRadius;
-        controls.update();
-      } finally {
-        store.cameraAdjusting = false;
-      }
+    threeStateRef.current.camera = camera;
+    cameraBasisRef.current = {
+      position: initialCameraPosition.clone(),
+      baseForward,
+      baseUp,
+      baseRight
     };
-    controls.addEventListener('change', handleControlChange);
-    threeStateRef.current.cameraChangeHandler = handleControlChange;
+    headAnglesRef.current = { yaw: 0, pitch: 0 };
+    applyHeadOrientation();
+
     threeStateRef.current.cameraAnimationId = null;
 
     const resize = () => {
@@ -1248,6 +1180,7 @@ export default function MurlanRoyaleArena({ search }) {
       renderer.setSize(clientWidth, clientHeight, false);
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
+      applyHeadOrientation();
     };
 
     const observer = new ResizeObserver(resize);
@@ -1276,7 +1209,6 @@ export default function MurlanRoyaleArena({ search }) {
 
     const animate = (time) => {
       stepAnimations(time);
-      controls.update();
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
@@ -1286,7 +1218,6 @@ export default function MurlanRoyaleArena({ search }) {
     threeStateRef.current.renderer = renderer;
     threeStateRef.current.scene = scene;
     threeStateRef.current.camera = camera;
-    threeStateRef.current.controls = controls;
     threeStateRef.current.arena = arenaGroup;
     threeStateRef.current.cardGeometry = cardGeometry;
     threeStateRef.current.seatConfigs = seatConfigs;
@@ -1318,12 +1249,8 @@ export default function MurlanRoyaleArena({ search }) {
       if (store.cameraAnimationId) {
         cancelAnimationFrame(store.cameraAnimationId);
       }
-      if (store.cameraChangeHandler) {
-        controls.removeEventListener('change', store.cameraChangeHandler);
-      }
       cancelAnimationFrame(frameId);
       observer.disconnect();
-      controls.dispose();
       dom.removeEventListener('pointerdown', handlePointerDown);
       mount.removeChild(dom);
       renderer.dispose();
@@ -1383,19 +1310,7 @@ export default function MurlanRoyaleArena({ search }) {
         renderer: null,
         scene: null,
         camera: null,
-        controls: null,
-        cameraTarget: null,
-        cameraSpherical: null,
-        cameraRadius: null,
-        cameraIdealRadius: null,
-        cameraPhi: null,
-        cameraAzimuthSwing: CAMERA_AZIMUTH_SWING,
-        cameraHomeTheta: null,
-        cameraHeadLimit: CAMERA_HEAD_LIMIT,
         cameraAnimationId: null,
-        cameraChangeHandler: null,
-        cameraBounds: null,
-        cameraAdjusting: false,
         arena: null,
         cardGeometry: null,
         cardMap: new Map(),
@@ -1415,6 +1330,8 @@ export default function MurlanRoyaleArena({ search }) {
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
       };
+      cameraBasisRef.current = null;
+      headAnglesRef.current = { yaw: 0, pitch: 0 };
       setThreeReady(false);
     };
   }, [applyStateToScene, ensureCardMeshes, focusCameraOnActivePlayer, players, toggleSelection, updateScoreboardDisplay]);
@@ -2030,58 +1947,15 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-function normalizeAngle(angle) {
-  const twoPi = Math.PI * 2;
-  let value = angle % twoPi;
-  if (value > Math.PI) {
-    value -= twoPi;
-  } else if (value <= -Math.PI) {
-    value += twoPi;
-  }
-  return value;
-}
-
 function shortestAngleDifference(from, to) {
-  return normalizeAngle(to - from);
-}
-
-function updateCameraFromSpherical(camera, spherical, target, store) {
-  const offset = new THREE.Vector3().setFromSpherical(spherical);
-  const position = offset.clone().add(target);
-
-  if (store?.cameraBounds) {
-    const { cameraBounds } = store;
-    const clamped = position.clone();
-    if (typeof cameraBounds.minX === 'number' && typeof cameraBounds.maxX === 'number') {
-      clamped.x = THREE.MathUtils.clamp(clamped.x, cameraBounds.minX, cameraBounds.maxX);
-    }
-    if (typeof cameraBounds.minY === 'number' || typeof cameraBounds.maxY === 'number') {
-      const lower = typeof cameraBounds.minY === 'number' ? cameraBounds.minY : clamped.y;
-      const upper = typeof cameraBounds.maxY === 'number' ? cameraBounds.maxY : clamped.y;
-      clamped.y = THREE.MathUtils.clamp(clamped.y, lower, upper);
-    }
-    if (typeof cameraBounds.minZ === 'number' && typeof cameraBounds.maxZ === 'number') {
-      clamped.z = THREE.MathUtils.clamp(clamped.z, cameraBounds.minZ, cameraBounds.maxZ);
-    }
-    if (!clamped.equals(position)) {
-      const correctedOffset = clamped.clone().sub(target);
-      const corrected = new THREE.Spherical().setFromVector3(correctedOffset);
-      spherical.radius = corrected.radius;
-      spherical.theta = corrected.theta;
-      spherical.phi = corrected.phi;
-      camera.position.copy(clamped);
-    } else {
-      camera.position.copy(position);
-    }
-    store.cameraRadius = spherical.radius;
-  } else {
-    camera.position.copy(position);
-    if (store) {
-      store.cameraRadius = spherical.radius;
-    }
+  const twoPi = Math.PI * 2;
+  let delta = (to - from) % twoPi;
+  if (delta > Math.PI) {
+    delta -= twoPi;
+  } else if (delta <= -Math.PI) {
+    delta += twoPi;
   }
-
-  camera.lookAt(target);
+  return delta;
 }
 
 function createCardMesh(card, geometry, cache, theme) {
