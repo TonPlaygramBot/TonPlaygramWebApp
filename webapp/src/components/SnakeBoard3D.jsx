@@ -12,7 +12,9 @@ import { applyRendererSRGB } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const SNAKE_BOARD_TILES = 10;
-const SNAKE_BOARD_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
+const BASE_BOARD_DISPLAY_SIZE = DOMINO_TABLE_DIMENSIONS.playfieldSize * 0.5;
+const BOARD_SCALE_MULTIPLIER = 1.25;
+const SNAKE_BOARD_SIZE = BASE_BOARD_DISPLAY_SIZE * BOARD_SCALE_MULTIPLIER;
 
 const CAMERA_INITIAL_RADIUS_FACTOR = 1.35;
 // Match the Ludo Battle Royal camera elevation for a consistent perspective.
@@ -39,8 +41,10 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 360;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
-const BOARD_BASE_EXTRA = SNAKE_BOARD_SIZE * (0.28 / 3.4);
-const BOARD_BASE_HEIGHT = SNAKE_BOARD_SIZE * (0.22 / 3.4);
+// Mirror the Ludo Battle Royal board footprint and plinth proportions.
+const LUDO_RAW_BOARD_SIZE = 15 * 0.075; // Matches the raw Ludo grid (15 tiles @ 0.075u).
+const BOARD_BASE_EXTRA = SNAKE_BOARD_SIZE * (0.04 / LUDO_RAW_BOARD_SIZE);
+const BOARD_BASE_HEIGHT = SNAKE_BOARD_SIZE * (0.02 / LUDO_RAW_BOARD_SIZE);
 const BOARD_DISPLAY_SIZE = SNAKE_BOARD_SIZE + BOARD_BASE_EXTRA;
 
 const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
