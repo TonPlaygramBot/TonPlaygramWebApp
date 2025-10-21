@@ -443,15 +443,15 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_INNER_SCALE = 0.935; // slim the corner jaw walls so the chrome arches remain fully open
+const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
 const POCKET_JAW_CORNER_TRIM_RATIO = 0.54; // trim corner jaws sooner so they end precisely where the cushions start
-const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
+const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
-const POCKET_RIM_INNER_SCALE = 1.035; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
-const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.035; // shave a little more material from the side pocket rims so they don't crowd the jaws
-const POCKET_RIM_DEPTH_SCALE = 0.24; // deepen the rim extrusion a touch so the thicker band reads clearly above the jaw
-const POCKET_RIM_LIP = TABLE.THICK * 0.028; // lift the rim a touch higher so it floats just above the chrome plates
+const POCKET_RIM_INNER_SCALE = 1.018; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
+const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.012; // shave a little more material from the side pocket rims so they don't crowd the jaws
+const POCKET_RIM_DEPTH_SCALE = 0.34; // deepen the rim extrusion a touch so the thicker band reads clearly above the jaw
+const POCKET_RIM_LIP = TABLE.THICK * 0.056; // lift the rim a touch higher so it floats just above the chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -510,9 +510,9 @@ const POCKET_CORNER_MOUTH =
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
-  POCKET_VIS_R * 0.066 * POCKET_VISUAL_EXPANSION; // push the middle jaws snug against the wooden rails so the pocket mouth clears fully
+  POCKET_VIS_R * 0.038 * POCKET_VISUAL_EXPANSION; // push the middle jaws snug against the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.006 * POCKET_VISUAL_EXPANSION; // tighten the chrome trims so the corner jaws stop at the cushion edge
+  POCKET_VIS_R * 0.003 * POCKET_VISUAL_EXPANSION; // tighten the chrome trims so the corner jaws stop at the cushion edge
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -557,7 +557,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.26; // widen cloth openings further so the cloth never overlaps the pocket visuals
+const POCKET_CUT_EXPANSION = 1.4; // widen cloth openings further so the cloth never overlaps or obscures the pocket visuals
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
