@@ -443,13 +443,13 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_INNER_SCALE = 0.84; // tuck the slimmer liners back into the tighter corner pocket openings
+const POCKET_JAW_CORNER_INNER_SCALE = 0.865; // widen the corner liners so their rounded cut mirrors the chrome trim
 const POCKET_JAW_SIDE_INNER_SCALE = 0.88; // keep the wider liners hugging the side pocket chamfers so the jaws track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
-const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
-const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
-const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
-const POCKET_RIM_LIP = TABLE.THICK * 0.02; // taller lift so the rim clearly sits above the surrounding chrome plates
+const POCKET_RIM_OUTER_FLARE = 0.32; // fraction of the jaw width the rim should flare beyond the chrome notch
+const POCKET_RIM_INNER_TARGET = 1; // align the rim's inner edge with the jaw's outer edge so it wraps the chrome from the outside
+const POCKET_RIM_DEPTH_SCALE = 0.3; // depth of the rim extrusion relative to the jaw depth
+const POCKET_RIM_LIP = TABLE.THICK * 0.028; // taller lift so the rim clearly sits above the surrounding chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4407,11 +4407,8 @@ function Table3D(
     if (!Array.isArray(outerMP) || !outerMP.length) {
       return [];
     }
-    const clampedInner = THREE.MathUtils.clamp(
-      Number.isFinite(innerScale) ? innerScale : 0.9,
-      0.35,
-      0.99
-    );
+    const targetInner = Number.isFinite(innerScale) ? innerScale : 0.9;
+    const clampedInner = Math.max(0.35, targetInner);
     const scaledOuter =
       outerScale === 1 ? outerMP : scaleMultiPolygon(outerMP, outerScale);
     const innerMP = scaleMultiPolygon(outerMP, clampedInner);
@@ -4589,8 +4586,12 @@ function Table3D(
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
-    const rimOuterScale = THREE.MathUtils.lerp(1, innerScale, POCKET_RIM_OUTER_BLEND);
-    const rimInnerScale = innerScale * POCKET_RIM_INNER_SCALE;
+    const rimOuterScale = Math.max(
+      1 + (1 - innerScale) * POCKET_RIM_OUTER_FLARE,
+      1 + MICRO_EPS
+    );
+    const rimInnerTarget = Math.max(innerScale, POCKET_RIM_INNER_TARGET);
+    const rimInnerScale = Math.min(rimOuterScale - MICRO_EPS, rimInnerTarget);
     const rimShapes = buildPocketRingShapes(
       outerMP,
       rimInnerScale,
