@@ -125,6 +125,7 @@ function setRendererSize(){
 }
 setRendererSize();
 app.appendChild(renderer.domElement);
+renderer.domElement.style.touchAction = 'none';
 
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -149,15 +150,15 @@ const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
 const CARPET_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.2;
 const FLOOR_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 3.2;
-const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
-const CAMERA_MIN_DISTANCE = TABLE_RADIUS * 1.4;
-const CAMERA_MAX_DISTANCE = TABLE_RADIUS * 4.2;
-const CAMERA_MIN_POLAR = THREE.MathUtils.degToRad(18);
-const CAMERA_MAX_POLAR = THREE.MathUtils.degToRad(78);
-const CAMERA_Y = TABLE_HEIGHT * 2.85;
-const CAMERA_Z = TABLE_RADIUS * 3.9;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
+const CAMERA_FOV = 52;
+const CAMERA_NEAR = 0.1;
+const CAMERA_FAR = 5000;
+const CAMERA_HEAD_LIMIT = THREE.MathUtils.degToRad(175);
+const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
 
-const camera = new THREE.PerspectiveCamera(56, 1, 0.05, 100);
+const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
 function fitCamera(){
   const vv = window.visualViewport; const w= vv?vv.width:innerWidth; const h= vv?vv.height:innerHeight;
   camera.aspect = w/h; camera.updateProjectionMatrix(); setRendererSize();
@@ -166,16 +167,45 @@ fitCamera();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-camera.position.set(0, CAMERA_Y, CAMERA_Z);
-controls.target.set(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
-controls.minDistance = CAMERA_MIN_DISTANCE;
-controls.maxDistance = CAMERA_MAX_DISTANCE;
-controls.minPolarAngle = CAMERA_MIN_POLAR;
-controls.maxPolarAngle = CAMERA_MAX_POLAR;
+controls.enableZoom = false;
 controls.enablePan = false;
+controls.enableRotate = false;
 controls.touches.ONE = THREE.TOUCH.NONE;
-controls.touches.TWO = THREE.TOUCH.ROTATE;
-controls.touches.THREE = THREE.TOUCH.PAN;
+controls.touches.TWO = THREE.TOUCH.NONE;
+controls.touches.THREE = THREE.TOUCH.NONE;
+
+function positionCameraForViewport() {
+  const dom = renderer.domElement;
+  const width = dom?.clientWidth || window.innerWidth || 1;
+  const height = dom?.clientHeight || window.innerHeight || 1;
+  const isPortrait = height >= width;
+  const forward = new THREE.Vector3(0, 0, 1);
+  const right = new THREE.Vector3(1, 0, 0);
+  const stoolAnchor = new THREE.Vector3(0, TABLE_HEIGHT, CHAIR_RADIUS);
+  const stoolHeight = TABLE_HEIGHT + SEAT_THICKNESS / 2;
+  const retreatOffset = isPortrait ? 1.85 : 1.35;
+  const lateralOffset = isPortrait ? 0.55 : 0.42;
+  const elevation = isPortrait ? 1.95 : 1.58;
+  const position = stoolAnchor
+    .clone()
+    .addScaledVector(forward, -retreatOffset)
+    .addScaledVector(right, lateralOffset);
+  position.y = stoolHeight + elevation;
+  camera.position.copy(position);
+  controls.target.copy(CAMERA_TARGET);
+  const offset = camera.position.clone().sub(CAMERA_TARGET);
+  const spherical = new THREE.Spherical().setFromVector3(offset);
+  const radius = Math.max(0.01, spherical.radius);
+  controls.minDistance = radius;
+  controls.maxDistance = radius;
+  controls.minPolarAngle = spherical.phi;
+  controls.maxPolarAngle = spherical.phi;
+  controls.minAzimuthAngle = spherical.theta - CAMERA_HEAD_LIMIT;
+  controls.maxAzimuthAngle = spherical.theta + CAMERA_HEAD_LIMIT;
+  controls.update();
+}
+
+positionCameraForViewport();
 
 /* ---------- Lights ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
@@ -306,138 +336,98 @@ const getPoolCarpetTextures = (() => {
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 4;
-const DEFAULT_CHAIR_OPTION = Object.freeze({
-  id: "crimsonVelvet",
-  primary: "#8b1538",
-  accent: "#5c0f26",
-  highlight: "#d35a7a",
-  legColor: "#1f1f1f"
+const DEFAULT_CHAIR_THEME = Object.freeze({
+  id: "ruby",
+  label: "Rubi",
+  seatColor: "#8b0000",
+  legColor: "#1f1f1f",
+  highlight: "#d46a6a"
 });
 
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  DEFAULT_CHAIR_OPTION,
-  {
-    id: "midnightNavy",
-    primary: "#153a8b",
-    accent: "#0c214f",
-    highlight: "#4d74d8",
-    legColor: "#10131c"
-  },
-  {
-    id: "emeraldWave",
-    primary: "#0f6a2f",
-    accent: "#063d1b",
-    highlight: "#48b26a",
-    legColor: "#142318"
-  },
-  {
-    id: "onyxShadow",
-    primary: "#202020",
-    accent: "#101010",
-    highlight: "#6f6f6f",
-    legColor: "#080808"
-  },
-  {
-    id: "goldenHour",
-    primary: "#8b5a1a",
-    accent: "#4a2f0b",
-    highlight: "#d8a85f",
-    legColor: "#2a1a09"
-  }
+const CHAIR_THEME_OPTIONS = Object.freeze([
+  DEFAULT_CHAIR_THEME,
+  { id: "slate", label: "Guri", seatColor: "#374151", legColor: "#0f172a", highlight: "#9ca3af" },
+  { id: "teal", label: "Bruz", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#34d399" },
+  { id: "amber", label: "Qelibari", seatColor: "#b45309", legColor: "#2f2410", highlight: "#fbbf24" },
+  { id: "violet", label: "Vjollcë", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#d8b4fe" },
+  { id: "frost", label: "Akull", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#94a3b8" }
 ]);
 
 const TABLE_WOOD_OPTIONS = Object.freeze([
-  {
-    id: "walnutHeritage",
-    label: "Arre",
-    top: "#5b3920",
-    rim: "#3b2514",
-    accent: "#cfa67a"
-  },
-  {
-    id: "mahoganyLuxe",
-    label: "Mahogany",
-    top: "#4f1f1f",
-    rim: "#321314",
-    accent: "#d18468"
-  },
-  {
-    id: "obsidianOnyx",
-    label: "Oniks",
-    top: "#1f232a",
-    rim: "#10151d",
-    accent: "#cdd5f3"
-  }
+  { id: "walnutHeritage", label: "Arre Heritage", top: "#5b3a1f", rim: "#3b2414", accent: "#d4b07a" },
+  { id: "mapleChevron", label: "Panjo Chevron", top: "#c48c56", rim: "#8a5d32", accent: "#f2d4a5" },
+  { id: "oakEstate", label: "Lis Estate", top: "#8b5a2b", rim: "#59381c", accent: "#ddb88a" },
+  { id: "teakStudio", label: "Tik Studio", top: "#754c28", rim: "#4a2e17", accent: "#c99a6b" },
+  { id: "wengeShadow", label: "Wenge Hije", top: "#2b1b13", rim: "#160d08", accent: "#c5a37a" },
+  { id: "ebonyClassic", label: "Eben Klasik", top: "#1a1a1c", rim: "#0f0f12", accent: "#c7c9d1" }
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  {
-    id: "emerald",
-    label: "Smerald",
-    feltTop: "#0f6a2f",
-    feltBottom: "#054d24",
-    border: "#032414"
-  },
-  {
-    id: "royalBlue",
-    label: "Blu Mbretëror",
-    feltTop: "#0f3d6a",
-    feltBottom: "#072046",
-    border: "#04152d"
-  },
-  {
-    id: "crimson",
-    label: "E Kuqe",
-    feltTop: "#6a101f",
-    feltBottom: "#3d0710",
-    border: "#24040a"
-  }
+  { id: "crimson", label: "Rrobë e Kuqe", feltTop: "#960019", feltBottom: "#4a0012", border: "#210308" },
+  { id: "emerald", label: "Rrobë Smerald", feltTop: "#0f6a2f", feltBottom: "#054d24", border: "#021a0b" },
+  { id: "arctic", label: "Rrobë Akull", feltTop: "#2563eb", feltBottom: "#1d4ed8", border: "#071a42" },
+  { id: "sunset", label: "Rrobë Perëndim", feltTop: "#ea580c", feltBottom: "#c2410c", border: "#320e03" },
+  { id: "violet", label: "Rrobë Vjollcë", feltTop: "#7c3aed", feltBottom: "#5b21b6", border: "#1f0a47" },
+  { id: "amber", label: "Rrobë Qelibari", feltTop: "#b7791f", feltBottom: "#92571a", border: "#2b1402" }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
-  {
-    id: "obsidian",
-    label: "Bazë Obsidian",
-    base: "#141414",
-    column: "#0b0d10",
-    trim: "#1f232a"
-  },
-  {
-    id: "champagne",
-    label: "Krem",
-    base: "#b49c7a",
-    column: "#8c7a5d",
-    trim: "#f3d4a4"
-  },
-  {
-    id: "ice",
-    label: "Akull",
-    base: "#1f2a40",
-    column: "#101828",
-    trim: "#7dd3fc"
-  }
+  { id: "obsidian", label: "Bazë Obsidian", base: "#141414", column: "#0b0d10", trim: "#1f232a" },
+  { id: "forestBronze", label: "Bazë Pylli", base: "#101714", column: "#0a0f0c", trim: "#1f2d24" },
+  { id: "midnightChrome", label: "Bazë Mesnate", base: "#0f172a", column: "#0a1020", trim: "#1e2f4a" },
+  { id: "emberCopper", label: "Bazë Bakri", base: "#231312", column: "#140707", trim: "#5c2d1b" },
+  { id: "violetShadow", label: "Bazë Hije Vjollcë", base: "#1f1130", column: "#130622", trim: "#3f1b5b" },
+  { id: "desertGold", label: "Bazë Shkretëtirë", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
 ]);
 
 const TABLE_SETUP_SECTIONS = [
   { key: "tableWood", label: "Dru i Tavolinës", options: TABLE_WOOD_OPTIONS },
-  { key: "tableCloth", label: "Rroba", options: TABLE_CLOTH_OPTIONS },
+  { key: "tableCloth", label: "Rroba e Tavolinës", options: TABLE_CLOTH_OPTIONS },
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
-  { key: "chairColor", label: "Karriget", options: CHAIR_COLOR_OPTIONS }
+  { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
 ];
 
-const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 0, tableBase: 0, chairColor: 0 };
-const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearance";
+const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, chairTheme: 0 };
+const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
+const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
 let appearance = { ...DEFAULT_APPEARANCE };
+
+function normalizeAppearance(raw) {
+  const normalized = { ...DEFAULT_APPEARANCE };
+  const source = raw && typeof raw === "object" ? raw : {};
+  const limits = [
+    ["tableWood", TABLE_WOOD_OPTIONS.length],
+    ["tableCloth", TABLE_CLOTH_OPTIONS.length],
+    ["tableBase", TABLE_BASE_OPTIONS.length],
+    ["chairTheme", CHAIR_THEME_OPTIONS.length]
+  ];
+  limits.forEach(([key, max]) => {
+    const value = Number(source[key]);
+    if (Number.isFinite(value)) {
+      normalized[key] = Math.min(Math.max(0, Math.round(value)), Math.max(0, max - 1));
+    }
+  });
+  return normalized;
+}
+
 try {
-  const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
-  if (stored) {
+  const keysToCheck = [APPEARANCE_STORAGE_KEY, ...LEGACY_APPEARANCE_KEYS];
+  for (const key of keysToCheck) {
+    const stored = window.localStorage?.getItem(key);
+    if (!stored) continue;
     const parsed = JSON.parse(stored);
     if (parsed && typeof parsed === "object") {
-      appearance = { ...appearance, ...parsed };
+      appearance = normalizeAppearance({ ...appearance, ...parsed });
+      if (key !== APPEARANCE_STORAGE_KEY) {
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+      }
+      break;
     }
   }
+  appearance = normalizeAppearance(appearance);
 } catch (error) {
   console.warn("Failed to load Domino Royal appearance", error);
+  appearance = normalizeAppearance(appearance);
 }
 
 function adjustHexColor(hex, amount) {
@@ -451,8 +441,8 @@ function createChairClothTexture(option, renderer) {
   if (typeof document === "undefined") {
     return null;
   }
-  const primary = option?.primary ?? "#0f6a2f";
-  const accent = option?.accent ?? adjustHexColor(primary, -0.28);
+  const primary = option?.seatColor ?? "#8b0000";
+  const accent = adjustHexColor(primary, -0.28);
   const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
@@ -552,7 +542,7 @@ function createChairClothTexture(option, renderer) {
 
 function createChairFabricMaterial(option, renderer) {
   const texture = createChairClothTexture(option, renderer);
-  const primary = option?.primary ?? "#0f6a2f";
+  const primary = option?.seatColor ?? "#8b0000";
   const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.2);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(adjustHexColor(primary, 0.04)),
@@ -576,21 +566,21 @@ function createChairFabricMaterial(option, renderer) {
 }
 
 const CHAIR_DIMENSIONS = Object.freeze({
-  seatWidth: 0.72,
-  seatDepth: 0.72,
-  seatThickness: 0.12,
-  backHeight: 0.62,
-  backThickness: 0.08,
-  armHeight: 0.3,
-  armThickness: 0.1,
-  armDepth: 0.76,
-  columnHeight: 0.38,
-  baseThickness: 0.08,
-  columnRadiusTop: 0.11,
-  columnRadiusBottom: 0.15,
-  baseRadius: 0.46,
-  footRingRadius: 0.34,
-  footRingTube: 0.03
+  seatWidth: 0.9 * MODEL_SCALE * STOOL_SCALE,
+  seatDepth: 0.95 * MODEL_SCALE * STOOL_SCALE,
+  seatThickness: 0.09 * MODEL_SCALE * STOOL_SCALE,
+  backHeight: 0.68 * MODEL_SCALE * STOOL_SCALE,
+  backThickness: 0.08 * MODEL_SCALE * STOOL_SCALE,
+  armHeight: 0.3 * MODEL_SCALE * STOOL_SCALE,
+  armThickness: 0.125 * MODEL_SCALE * STOOL_SCALE,
+  armDepth: 0.95 * MODEL_SCALE * STOOL_SCALE * 0.75,
+  columnHeight: 0.5 * MODEL_SCALE * STOOL_SCALE,
+  baseThickness: 0.08 * MODEL_SCALE * STOOL_SCALE,
+  columnRadiusTop: 0.2 * MODEL_SCALE,
+  columnRadiusBottom: 0.26 * MODEL_SCALE,
+  baseRadius: 0.72 * MODEL_SCALE,
+  footRingRadius: 0.52 * MODEL_SCALE,
+  footRingTube: 0.04 * MODEL_SCALE
 });
 
 function createDominoChair(option, renderer, sharedMaterials = null) {
@@ -962,7 +952,7 @@ const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_LENGTH = SCALE * (0.016 / 0.22) * 2;
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.08;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.04;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.12;
 const TILE_UP_H = 0.2 * SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -1027,13 +1017,16 @@ if (configPanelEl) {
 
 function saveAppearance() {
   try {
-    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+    const normalized = normalizeAppearance(appearance);
+    appearance = normalized;
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.warn('Failed to persist Domino appearance', error);
   }
 }
 
 function applyAppearanceChange({ refresh = true } = {}) {
+  appearance = normalizeAppearance(appearance);
   updateTableMaterials();
   Object.values(tableMaterials).forEach((material) => {
     if (material && typeof material.needsUpdate === 'boolean') {
@@ -1043,7 +1036,7 @@ function applyAppearanceChange({ refresh = true } = {}) {
       material.map.needsUpdate = true;
     }
   });
-  buildChairs(CHAIR_COLOR_OPTIONS[appearance.chairColor] ?? DEFAULT_CHAIR_OPTION);
+  buildChairs(CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME);
   saveAppearance();
   if (refresh) {
     refreshConfigUI();
@@ -1066,8 +1059,8 @@ function createOptionPreview(key, option) {
     case 'tableBase':
       swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
       break;
-    case 'chairColor':
-      swatch.style.background = option.primary;
+    case 'chairTheme':
+      swatch.style.background = option.seatColor;
       break;
     default:
       swatch.style.background = '#1f2937';
@@ -1187,7 +1180,7 @@ function disposeChairResources(root) {
   });
 }
 
-function buildChairs(option = CHAIR_COLOR_OPTIONS[appearance.chairColor] ?? DEFAULT_CHAIR_OPTION) {
+function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -1202,7 +1195,7 @@ function buildChairs(option = CHAIR_COLOR_OPTIONS[appearance.chairColor] ?? DEFA
       roughness: 0.35
     }),
     accent: new THREE.MeshStandardMaterial({
-      color: new THREE.Color("#2a2a2a"),
+      color: new THREE.Color(adjustHexColor(option.legColor ?? "#1f1f1f", 0.15)),
       metalness: 0.75,
       roughness: 0.32
     })
@@ -1318,7 +1311,7 @@ function makeDomino(a,b,{flat=true, faceUp=true}={}){
   group.add(body);
 
   // Invisible collider to make touch / pick detection more forgiving on mobile
-  const colliderGeo = new THREE.BoxGeometry(1.6, faceUp ? 0.65 : 1.2, 1.6);
+  const colliderGeo = new THREE.BoxGeometry(1.85, faceUp ? 0.82 : 1.4, 1.85);
   const colliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   const collider = new THREE.Mesh(colliderGeo, colliderMat);
   collider.name = 'touchCollider';
@@ -1619,6 +1612,31 @@ function scoreMove(player, move){
       // avoid stranding ourselves with no follow-up on that end unless it is a blocking move
       score -= 2;
     }
+    const probeEnd = side < 0 ? ends.L : ends.R;
+    if (probeEnd) {
+      const projection = nextCandidate(probeEnd);
+      if (Math.abs(projection.nx) > XMAX * 0.92 || Math.abs(projection.nz) > ZMAX * 0.92) {
+        score += 1.1; // reward steering the snake before it hits the rails
+      }
+    }
+  }
+
+  const futureHand = [];
+  player.hand.forEach((t, i) => { if (i !== index && isValidTile(t)) futureHand.push(t); });
+  const futurePipSum = futureHand.reduce((s, t) => s + t.a + t.b, 0);
+  score += (42 - futurePipSum) * 0.12; // bias toward lighter remaining hand
+
+  const futureValues = new Set();
+  futureHand.forEach((t) => { futureValues.add(t.a); futureValues.add(t.b); });
+  if (!futureValues.has(other) && remainingElsewhere === 0) {
+    score += 8; // we lock that value completely
+  }
+
+  const futureDoubleCount = futureHand.filter((t) => t.a === t.b).length;
+  if (tile.a === tile.b) {
+    score += 2 + futureDoubleCount * 0.75; // chain strong doubles back-to-back
+  } else if (futureDoubleCount === 0 && remainingElsewhere <= 2) {
+    score += 1.5; // keep variety when low on doubles
   }
 
   score += Math.random() * 0.25; // tiny randomness to avoid deterministic loops
@@ -1733,7 +1751,7 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.085, .014, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.098, .02, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -1910,10 +1928,10 @@ function updateDrawAnimations(now){
 /* ---------- Loop & Resize ---------- */
 function tick(now){ updateDrawAnimations(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
-function onResize(){ fitCamera(); }
+function onResize(){ fitCamera(); positionCameraForViewport(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
 
-camera.position.set(2.0, 1.7, 2.05);
+positionCameraForViewport();
 </script>
 </body>
 </html>
