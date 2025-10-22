@@ -447,7 +447,6 @@ const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the
 const POCKET_JAW_CORNER_TRIM_RATIO = 0.68; // shorten the corner jaw wings so they finish exactly at the cushion break
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
-const POCKET_JAW_EDGE_SOFTEN_RATIO = 0.56; // round jaw shoulders so trims blend cleanly into the chrome pocket arches
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
 const POCKET_JAW_SIDE_FLUSH_EPS = 0; // clamp the side jaws to the cushion break, preventing any lip from entering the playfield
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
@@ -514,8 +513,10 @@ const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.038 * POCKET_VISUAL_EXPANSION; // push the middle jaws snug against the wooden rails while keeping their faces straight with the cushions
-const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET = 0; // align the corner jaw trims directly with the chrome cut so widths stay consistent
-const POCKET_JAW_CORNER_LIMIT_OFFSET = 0; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
+const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
+  POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // push the diagonal cut deeper so the corner jaws clear the cloth fully
+const POCKET_JAW_CORNER_LIMIT_OFFSET =
+  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -4722,7 +4723,7 @@ function Table3D(
       return null;
     }
     const jawDepth = Math.max(MICRO_EPS, railH * POCKET_JAW_DEPTH_SCALE);
-    let jawGeom = new THREE.ExtrudeGeometry(jawShapes, {
+    const jawGeom = new THREE.ExtrudeGeometry(jawShapes, {
       depth: jawDepth,
       bevelEnabled: false,
       curveSegments: 96,
@@ -4730,12 +4731,6 @@ function Table3D(
     });
     jawGeom.rotateX(-Math.PI / 2);
     jawGeom.translate(0, -jawDepth, 0);
-    jawGeom =
-      softenOuterExtrudeEdges(
-        jawGeom,
-        jawDepth,
-        POCKET_JAW_EDGE_SOFTEN_RATIO
-      ) || jawGeom;
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
     jawMesh.position.y = railsTopY;
@@ -4854,8 +4849,10 @@ function Table3D(
     const chamferTargetZ =
       computeScaledCoordinate(chamferBaseZ, centroid.y, RAIL_CORNER_POCKET_CUT_SCALE) +
       sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
-    const cushionEdgeX = sx * (cushionRailReachX + MICRO_EPS * 4);
-    const cushionEdgeZ = sz * (cushionRailReachZ + MICRO_EPS * 4);
+    const cushionEdgeX =
+      sx * (cushionRailReachX + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
+    const cushionEdgeZ =
+      sz * (cushionRailReachZ + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
     const chamferCandidateX =
       sx > 0
         ? Math.max(scaledCenterX, chamferTargetX)
@@ -4887,8 +4884,7 @@ function Table3D(
       POCKET_JAW_CORNER_FLUSH_EPS
     );
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
-      combine: 'intersection',
-      extent: cornerPocketRadius * 3,
+      combine: 'union',
       x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
       z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
     });
