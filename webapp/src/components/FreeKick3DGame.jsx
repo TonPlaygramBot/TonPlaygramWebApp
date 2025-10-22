@@ -674,6 +674,11 @@ export default function FreeKick3DGame({ config }) {
       { text: 'GRAM ARENA', color: '#22c55e' },
       { text: 'FREE KICK LIVE', color: '#f97316' }
     ];
+    const billboardHeight = 1.1;
+    const billboardWidth = goalWidth / 2.4;
+    const billboardSpacing = billboardWidth * 1.05;
+    const billboardBaseY = billboardHeight / 2 + 0.02;
+    const billboardZ = goalZ - goalDepth - 1.35;
     const billboardGroup = new THREE.Group();
     const billboardAnimations = [];
     billboardConfigs.forEach((config, index) => {
@@ -685,8 +690,12 @@ export default function FreeKick3DGame({ config }) {
         roughness: 0.5,
         metalness: 0.2
       });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth / 2.2, 1.1), material);
-      mesh.position.set((index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6), 1.2, goalZ - goalDepth - 1.6);
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(billboardWidth, billboardHeight), material);
+      mesh.position.set(
+        (index - (billboardConfigs.length - 1) / 2) * billboardSpacing,
+        billboardBaseY,
+        billboardZ
+      );
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       billboardGroup.add(mesh);
@@ -720,6 +729,7 @@ export default function FreeKick3DGame({ config }) {
     const standBackGeo = new THREE.BoxGeometry(1.4, 0.8, 0.1);
     const standLegGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
     const standStepGeo = new THREE.BoxGeometry(32, 0.4, 1.8);
+    const walkwayGeo = new THREE.BoxGeometry(8, 0.4, 20);
 
     function createStandSection(offsetX = 0, baseY = 0, depthOffset = 0) {
       const section = new THREE.Group();
@@ -755,19 +765,21 @@ export default function FreeKick3DGame({ config }) {
     }
 
     const standsGroup = new THREE.Group();
-    const lowerLeftStand = createStandSection(-15, 0, 0);
-    const lowerRightStand = createStandSection(15, 0, 0);
-    const middleWalkway = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 20), standConcreteMaterial);
-    middleWalkway.position.set(0, -0.4, -6);
-    standsGroup.add(lowerLeftStand, lowerRightStand, middleWalkway);
-
-    const upperBaseY = 6;
-    const upperDepthOffset = -15;
-    const upperLeftStand = createStandSection(-15, upperBaseY, upperDepthOffset);
-    const upperRightStand = createStandSection(15, upperBaseY, upperDepthOffset);
-    const upperWalkway = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 20), standConcreteMaterial);
-    upperWalkway.position.set(0, upperBaseY - 0.4, -6 + upperDepthOffset);
-    standsGroup.add(upperLeftStand, upperRightStand, upperWalkway);
+    const tierConfigs = [
+      { baseY: 0, depthOffset: 0 },
+      { baseY: 6, depthOffset: -15 },
+      { baseY: 12, depthOffset: -30 },
+      { baseY: 18, depthOffset: -45 }
+    ];
+    tierConfigs.forEach(({ baseY, depthOffset }) => {
+      const leftStand = createStandSection(-15, baseY, depthOffset);
+      const rightStand = createStandSection(15, baseY, depthOffset);
+      const walkway = new THREE.Mesh(walkwayGeo, standConcreteMaterial);
+      walkway.position.set(0, baseY - 0.4, -6 + depthOffset);
+      walkway.castShadow = false;
+      walkway.receiveShadow = true;
+      standsGroup.add(leftStand, rightStand, walkway);
+    });
 
     const netPoleGeo = new THREE.CylinderGeometry(0.15, 0.15, 10, 12);
     const protectiveNetGeo = new THREE.PlaneGeometry(40, 12);
@@ -794,7 +806,7 @@ export default function FreeKick3DGame({ config }) {
     scene.add(standsGroup);
 
     const billboardColliders = billboardGroup.children.map((mesh) => {
-      const { width = goalWidth / 2.2, height = 1.1 } = mesh.geometry.parameters || {};
+      const { width = billboardWidth, height = billboardHeight } = mesh.geometry.parameters || {};
       return {
         mesh,
         center: new THREE.Vector3(),
