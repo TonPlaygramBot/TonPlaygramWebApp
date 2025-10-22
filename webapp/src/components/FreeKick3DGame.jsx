@@ -288,7 +288,9 @@ function makeBumpFromColor(texture) {
 const GOAL_CONFIG = {
   width: 7.32,
   height: 2.44,
-  depth: 2.4,
+  depthTop: 0.8,
+  depthBottom: 2.0,
+  postDiameter: 0.12,
   z: -10.2
 };
 
@@ -478,19 +480,42 @@ export default function FreeKick3DGame({ config }) {
     scene.add(sun);
 
     const pitchTexture = makePitchGreenTexture();
-    const field = new THREE.Mesh(
+
+    const fieldGroup = new THREE.Group();
+
+    const apron = new THREE.Mesh(
+      new THREE.PlaneGeometry(21, 32),
+      new THREE.MeshStandardMaterial({ color: 0x0b2012, roughness: 0.98, metalness: 0.02 })
+    );
+    apron.rotation.x = -Math.PI / 2;
+    apron.receiveShadow = true;
+    apron.position.y = -0.018;
+    fieldGroup.add(apron);
+
+    const surround = new THREE.Mesh(
+      new THREE.PlaneGeometry(16.5, 28.5),
+      new THREE.MeshStandardMaterial({ color: 0x14522a, roughness: 0.95, metalness: 0.04 })
+    );
+    surround.rotation.x = -Math.PI / 2;
+    surround.receiveShadow = true;
+    surround.position.y = -0.009;
+    fieldGroup.add(surround);
+
+    const pitch = new THREE.Mesh(
       new THREE.PlaneGeometry(14, 26),
       new THREE.MeshPhysicalMaterial({
         map: pitchTexture,
-        roughness: 0.96,
-        metalness: 0,
-        clearcoat: 0.04,
-        clearcoatRoughness: 0.9
+        roughness: 0.92,
+        metalness: 0.02,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.78
       })
     );
-    field.rotation.x = -Math.PI / 2;
-    field.receiveShadow = true;
-    scene.add(field);
+    pitch.rotation.x = -Math.PI / 2;
+    pitch.receiveShadow = true;
+    fieldGroup.add(pitch);
+
+    scene.add(fieldGroup);
 
     const lines = new THREE.Group();
     const lineMat = makeFieldLineMaterial();
@@ -511,8 +536,16 @@ export default function FreeKick3DGame({ config }) {
     };
     const goalWidth = GOAL_CONFIG.width;
     const goalHeight = GOAL_CONFIG.height;
-    const goalDepth = GOAL_CONFIG.depth;
+    const goalDepthTop = GOAL_CONFIG.depthTop;
+    const goalDepthBottom = GOAL_CONFIG.depthBottom;
     const goalZ = GOAL_CONFIG.z;
+    const postDiameter = GOAL_CONFIG.postDiameter ?? 0.12;
+    const postRadius = postDiameter / 2;
+
+    const depthAtHeight = (height) => {
+      const clamped = THREE.MathUtils.clamp((height - postRadius) / Math.max(0.0001, goalHeight - postRadius), 0, 1);
+      return THREE.MathUtils.lerp(goalDepthBottom, goalDepthTop, clamped);
+    };
     addLine(0.08, 26, -7, 0);
     addLine(0.08, 26, 7, 0);
     addLine(14, 0.08, 0, 13);
@@ -535,8 +568,7 @@ export default function FreeKick3DGame({ config }) {
       clearcoat: 0.3
     });
     const goal = new THREE.Group();
-    const postRadius = 0.06;
-    const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalHeight, 20), postMaterial);
+    const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalHeight, 32), postMaterial);
     leftPost.castShadow = true;
     leftPost.receiveShadow = true;
     leftPost.position.set(-goalWidth / 2, goalHeight / 2, goalZ);
@@ -544,41 +576,83 @@ export default function FreeKick3DGame({ config }) {
     const rightPost = leftPost.clone();
     rightPost.position.x = goalWidth / 2;
     goal.add(rightPost);
-    const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 20), postMaterial);
+    const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 32), postMaterial);
     crossbar.rotation.z = Math.PI / 2;
     crossbar.position.set(0, goalHeight, goalZ);
     crossbar.castShadow = true;
     crossbar.receiveShadow = true;
     goal.add(crossbar);
 
+    const makeTubeBetween = (start, end, radius, material) => {
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+      if (length <= 1e-6) return null;
+      const geometry = new THREE.CylinderGeometry(radius, radius, length, 24);
+      const mesh = new THREE.Mesh(geometry, material);
+      const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+      mesh.position.copy(midpoint);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    };
+
+    const frontLeftTop = new THREE.Vector3(-goalWidth / 2, goalHeight, goalZ);
+    const frontRightTop = new THREE.Vector3(goalWidth / 2, goalHeight, goalZ);
+    const frontLeftBottom = new THREE.Vector3(-goalWidth / 2, postRadius, goalZ);
+    const frontRightBottom = new THREE.Vector3(goalWidth / 2, postRadius, goalZ);
+    const rearLeftTop = new THREE.Vector3(-goalWidth / 2, goalHeight, goalZ - goalDepthTop);
+    const rearRightTop = new THREE.Vector3(goalWidth / 2, goalHeight, goalZ - goalDepthTop);
+    const rearLeftBottom = new THREE.Vector3(-goalWidth / 2, postRadius, goalZ - goalDepthBottom);
+    const rearRightBottom = new THREE.Vector3(goalWidth / 2, postRadius, goalZ - goalDepthBottom);
+
+    [
+      makeTubeBetween(frontLeftBottom, rearLeftBottom, postRadius * 0.9, postMaterial),
+      makeTubeBetween(frontRightBottom, rearRightBottom, postRadius * 0.9, postMaterial),
+      makeTubeBetween(rearLeftBottom, rearRightBottom, postRadius * 0.9, postMaterial),
+      makeTubeBetween(frontLeftTop, rearLeftTop, postRadius * 0.85, postMaterial),
+      makeTubeBetween(frontRightTop, rearRightTop, postRadius * 0.85, postMaterial),
+      makeTubeBetween(rearLeftTop, rearRightTop, postRadius * 0.85, postMaterial),
+      makeTubeBetween(rearLeftTop, rearLeftBottom, postRadius * 0.8, postMaterial),
+      makeTubeBetween(rearRightTop, rearRightBottom, postRadius * 0.8, postMaterial)
+    ]
+      .filter(Boolean)
+      .forEach((mesh) => goal.add(mesh));
+
+    const createFrameCollider = (start, end, radius, overrides = {}) => ({
+      start: start.clone(),
+      end: end.clone(),
+      radius,
+      restitution: 1.12,
+      velocityDamping: 0.8,
+      spinDamping: 0.72,
+      slop: 0.0025,
+      ...overrides
+    });
+
     const structureColliders = [
-      {
-        start: new THREE.Vector3(-goalWidth / 2, GROUND_Y, goalZ),
-        end: new THREE.Vector3(-goalWidth / 2, goalHeight, goalZ),
-        radius: postRadius,
+      createFrameCollider(new THREE.Vector3(-goalWidth / 2, GROUND_Y, goalZ), new THREE.Vector3(-goalWidth / 2, goalHeight, goalZ), postRadius, {
         restitution: 1.28,
-        velocityDamping: 0.82,
-        spinDamping: 0.72,
         slop: 0.002
-      },
-      {
-        start: new THREE.Vector3(goalWidth / 2, GROUND_Y, goalZ),
-        end: new THREE.Vector3(goalWidth / 2, goalHeight, goalZ),
-        radius: postRadius,
+      }),
+      createFrameCollider(new THREE.Vector3(goalWidth / 2, GROUND_Y, goalZ), new THREE.Vector3(goalWidth / 2, goalHeight, goalZ), postRadius, {
         restitution: 1.28,
-        velocityDamping: 0.82,
-        spinDamping: 0.72,
         slop: 0.002
-      },
-      {
-        start: new THREE.Vector3(-goalWidth / 2 + postRadius * 0.9, goalHeight, goalZ),
-        end: new THREE.Vector3(goalWidth / 2 - postRadius * 0.9, goalHeight, goalZ),
-        radius: postRadius,
-        restitution: 1.22,
-        velocityDamping: 0.82,
-        spinDamping: 0.7,
-        slop: 0.0025
-      }
+      }),
+      createFrameCollider(
+        new THREE.Vector3(-goalWidth / 2 + postRadius * 0.9, goalHeight, goalZ),
+        new THREE.Vector3(goalWidth / 2 - postRadius * 0.9, goalHeight, goalZ),
+        postRadius,
+        { restitution: 1.22 }
+      ),
+      createFrameCollider(frontLeftBottom, rearLeftBottom, postRadius * 0.9, { restitution: 0.92 }),
+      createFrameCollider(frontRightBottom, rearRightBottom, postRadius * 0.9, { restitution: 0.92 }),
+      createFrameCollider(rearLeftBottom, rearRightBottom, postRadius * 0.9, { restitution: 0.95 }),
+      createFrameCollider(frontLeftTop, rearLeftTop, postRadius * 0.85, { restitution: 1.05 }),
+      createFrameCollider(frontRightTop, rearRightTop, postRadius * 0.85, { restitution: 1.05 }),
+      createFrameCollider(rearLeftTop, rearRightTop, postRadius * 0.85, { restitution: 1.05 }),
+      createFrameCollider(rearLeftTop, rearLeftBottom, postRadius * 0.8, { restitution: 0.98 }),
+      createFrameCollider(rearRightTop, rearRightBottom, postRadius * 0.8, { restitution: 0.98 })
     ];
 
     const netTexture = (() => {
@@ -588,8 +662,8 @@ export default function FreeKick3DGame({ config }) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
       ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-      ctx.lineWidth = 2;
-      const radius = 18;
+      ctx.lineWidth = 3;
+      const radius = 20;
       const width = radius * 3;
       const height = Math.sqrt(3) * radius;
       const drawHex = (cx, cy) => {
@@ -621,7 +695,7 @@ export default function FreeKick3DGame({ config }) {
       ctx.putImageData(data, 0, 0);
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(4, 3);
+      texture.repeat.set(3, 3);
       texture.anisotropy = 4;
       return texture;
     })();
@@ -634,20 +708,144 @@ export default function FreeKick3DGame({ config }) {
       roughness: 0.95
     });
 
-    const backNetGeometry = new THREE.PlaneGeometry(goalWidth, goalHeight, 20, 14);
-    const backNet = new THREE.Mesh(backNetGeometry, netMaterial);
-    const sideNetGeometry = new THREE.PlaneGeometry(goalDepth, goalHeight, 12, 14);
-    const roofNetGeometry = new THREE.PlaneGeometry(goalWidth, goalDepth, 20, 6);
-    const leftNet = new THREE.Mesh(sideNetGeometry, netMaterial);
-    const rightNet = leftNet.clone();
-    const roofNet = new THREE.Mesh(roofNetGeometry, netMaterial);
-    backNet.position.set(0, goalHeight / 2, goalZ - goalDepth);
-    leftNet.position.set(-goalWidth / 2, goalHeight / 2, goalZ - goalDepth / 2);
-    leftNet.rotation.y = Math.PI / 2;
-    rightNet.position.set(goalWidth / 2, goalHeight / 2, goalZ - goalDepth / 2);
-    rightNet.rotation.y = -Math.PI / 2;
-    roofNet.position.set(0, goalHeight, goalZ - goalDepth / 2);
-    roofNet.rotation.x = Math.PI / 2;
+    const buildBackNetGeometry = () => {
+      const segmentsX = 32;
+      const segmentsY = 20;
+      const vertexCount = (segmentsX + 1) * (segmentsY + 1);
+      const positions = new Float32Array(vertexCount * 3);
+      const uvs = new Float32Array(vertexCount * 2);
+      let index = 0;
+      let uvIndex = 0;
+      for (let y = 0; y <= segmentsY; y += 1) {
+        const v = y / segmentsY;
+        const heightY = THREE.MathUtils.lerp(postRadius, goalHeight, v);
+        const depth = depthAtHeight(heightY);
+        for (let x = 0; x <= segmentsX; x += 1) {
+          const u = x / segmentsX;
+          const posX = THREE.MathUtils.lerp(-goalWidth / 2, goalWidth / 2, u);
+          positions[index] = posX;
+          positions[index + 1] = heightY;
+          positions[index + 2] = goalZ - depth;
+          uvs[uvIndex] = u;
+          uvs[uvIndex + 1] = v;
+          index += 3;
+          uvIndex += 2;
+        }
+      }
+      const indices = [];
+      for (let y = 0; y < segmentsY; y += 1) {
+        for (let x = 0; x < segmentsX; x += 1) {
+          const a = y * (segmentsX + 1) + x;
+          const b = a + 1;
+          const c = (y + 1) * (segmentsX + 1) + x;
+          const d = c + 1;
+          indices.push(a, c, b, b, c, d);
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+
+    const buildSideNetGeometry = (isLeft) => {
+      const segmentsDepth = 24;
+      const segmentsHeight = 20;
+      const vertexCount = (segmentsDepth + 1) * (segmentsHeight + 1);
+      const positions = new Float32Array(vertexCount * 3);
+      const uvs = new Float32Array(vertexCount * 2);
+      let index = 0;
+      let uvIndex = 0;
+      for (let y = 0; y <= segmentsHeight; y += 1) {
+        const v = y / segmentsHeight;
+        const heightY = THREE.MathUtils.lerp(postRadius, goalHeight, v);
+        const depth = depthAtHeight(heightY);
+        for (let x = 0; x <= segmentsDepth; x += 1) {
+          const u = x / segmentsDepth;
+          const dir = isLeft ? -1 : 1;
+          const worldX = dir * goalWidth * 0.5;
+          positions[index] = worldX;
+          positions[index + 1] = heightY;
+          positions[index + 2] = goalZ - depth * u;
+          uvs[uvIndex] = isLeft ? u : 1 - u;
+          uvs[uvIndex + 1] = v;
+          index += 3;
+          uvIndex += 2;
+        }
+      }
+      const indices = [];
+      for (let y = 0; y < segmentsHeight; y += 1) {
+        for (let x = 0; x < segmentsDepth; x += 1) {
+          const a = y * (segmentsDepth + 1) + x;
+          const b = a + 1;
+          const c = (y + 1) * (segmentsDepth + 1) + x;
+          const d = c + 1;
+          if (isLeft) {
+            indices.push(a, c, b, b, c, d);
+          } else {
+            indices.push(a, b, c, b, d, c);
+          }
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+
+    const buildRoofNetGeometry = () => {
+      const segmentsDepth = 20;
+      const segmentsWidth = 32;
+      const vertexCount = (segmentsDepth + 1) * (segmentsWidth + 1);
+      const positions = new Float32Array(vertexCount * 3);
+      const uvs = new Float32Array(vertexCount * 2);
+      const sag = 0.12;
+      let index = 0;
+      let uvIndex = 0;
+      for (let zStep = 0; zStep <= segmentsDepth; zStep += 1) {
+        const u = zStep / segmentsDepth;
+        const depth = THREE.MathUtils.lerp(0, goalDepthTop, u);
+        const sagFactorDepth = 1 - Math.pow(u, 2);
+        for (let xStep = 0; xStep <= segmentsWidth; xStep += 1) {
+          const v = xStep / segmentsWidth;
+          const widthPos = THREE.MathUtils.lerp(-goalWidth / 2, goalWidth / 2, v);
+          const sagAcross = 1 - Math.pow(2 * v - 1, 2);
+          const drop = sag * sagFactorDepth * sagAcross;
+          positions[index] = widthPos;
+          positions[index + 1] = goalHeight - drop;
+          positions[index + 2] = goalZ - depth;
+          uvs[uvIndex] = v;
+          uvs[uvIndex + 1] = u;
+          index += 3;
+          uvIndex += 2;
+        }
+      }
+      const indices = [];
+      for (let zStep = 0; zStep < segmentsDepth; zStep += 1) {
+        for (let xStep = 0; xStep < segmentsWidth; xStep += 1) {
+          const a = zStep * (segmentsWidth + 1) + xStep;
+          const b = a + 1;
+          const c = (zStep + 1) * (segmentsWidth + 1) + xStep;
+          const d = c + 1;
+          indices.push(a, c, b, b, c, d);
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+
+    const backNet = new THREE.Mesh(buildBackNetGeometry(), netMaterial);
+    const leftNet = new THREE.Mesh(buildSideNetGeometry(true), netMaterial);
+    const rightNet = new THREE.Mesh(buildSideNetGeometry(false), netMaterial);
+    const roofNet = new THREE.Mesh(buildRoofNetGeometry(), netMaterial);
     goal.add(backNet, leftNet, rightNet, roofNet);
 
     const netSim = createNetSimulation(backNet);
@@ -661,7 +859,7 @@ export default function FreeKick3DGame({ config }) {
     const billboardWidth = goalWidth / 2.4;
     const billboardSpacing = billboardWidth * 1.05;
     const billboardBaseY = billboardHeight / 2 + 0.02;
-    const billboardZ = goalZ - goalDepth - 1.35;
+    const billboardZ = goalZ - goalDepthBottom - 1.35;
     const billboardGroup = new THREE.Group();
     const billboardAnimations = [];
     billboardConfigs.forEach((config, index) => {
@@ -784,7 +982,7 @@ export default function FreeKick3DGame({ config }) {
 
     const standScale = 0.36; // 20% larger seating tiers for better presence
     standsGroup.scale.set(standScale, standScale, standScale);
-    const standsOffsetZ = goalZ - goalDepth - 3.3;
+    const standsOffsetZ = goalZ - goalDepthBottom - 3.3;
     standsGroup.position.set(0, 0.12, standsOffsetZ);
     scene.add(standsGroup);
 
@@ -980,7 +1178,7 @@ export default function FreeKick3DGame({ config }) {
     })();
 
     const cameraOffset = goalWidth / 2 + 1.6;
-    const cameraZ = goalZ - goalDepth - 1.1;
+    const cameraZ = goalZ - goalDepthBottom - 1.1;
     const broadcastFocus = new THREE.Vector3(0, goalHeight * 0.55, goalZ + 2.4);
     const tripodTilt = THREE.MathUtils.degToRad(-8);
 
@@ -1051,7 +1249,7 @@ export default function FreeKick3DGame({ config }) {
     const supportScale = 0.9;
     const supportWidth = goalWidth * supportScale;
     const supportHeight = goalHeight * supportScale;
-    const supportZ = goalZ - goalDepth - 0.25;
+    const supportZ = goalZ - goalDepthBottom - 0.25;
     const supportPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 0.75, postRadius * 0.75, supportHeight, 16), postMaterial);
     supportPost.position.set(-supportWidth / 2, supportHeight / 2, supportZ);
     goal.add(supportPost);
@@ -1361,39 +1559,40 @@ export default function FreeKick3DGame({ config }) {
           applyGoalCelebration();
         }
 
-        const netPlaneZ = goalZ - goalDepth;
         const netMesh = state.netSim?.mesh;
         if (
           netMesh &&
-          ball.position.z <= netPlaneZ + BALL_RADIUS * 0.45 &&
           Math.abs(ball.position.x) <= goalWidth / 2 + BALL_RADIUS &&
           ball.position.y >= BALL_RADIUS * 0.3 &&
           ball.position.y <= goalHeight + BALL_RADIUS
         ) {
-          if (state.netCooldown <= 0 && state.velocity.z < 0) {
+          const depthAtBall = depthAtHeight(ball.position.y);
+          const netPlaneZ = goalZ - depthAtBall;
+          if (ball.position.z <= netPlaneZ + BALL_RADIUS * 0.45 && state.velocity.z < 0) {
             const impactX = THREE.MathUtils.clamp(ball.position.x, -goalWidth / 2, goalWidth / 2);
             const impactY = THREE.MathUtils.clamp(ball.position.y, BALL_RADIUS * 0.6, goalHeight);
-            tmp3.set(impactX, impactY, netPlaneZ);
-            localImpact.copy(tmp3);
-            netMesh.worldToLocal(localImpact);
-            const impactForce = Math.min(6, state.velocity.length() + 1.2);
-            applyNetImpulse(state.netSim, localImpact, impactForce);
-            if (ball.position.z < netPlaneZ - BALL_RADIUS * 0.45) {
-              ball.position.z = netPlaneZ - BALL_RADIUS * 0.45;
+            const impactDepth = depthAtHeight(impactY);
+            tmp3.set(impactX, impactY, goalZ - impactDepth);
+            if (state.netCooldown <= 0) {
+              localImpact.copy(tmp3);
+              netMesh.worldToLocal(localImpact);
+              const impactForce = Math.min(6, state.velocity.length() + 1.2);
+              applyNetImpulse(state.netSim, localImpact, impactForce);
+              tmp.set(impactX, impactY, goalZ).sub(tmp3).normalize();
+              ball.position.copy(tmp3).addScaledVector(tmp, BALL_RADIUS * 0.45);
+              const approach = state.velocity.dot(tmp);
+              if (approach < 0) {
+                state.velocity.addScaledVector(tmp, -approach * (1.3 + impactForce * 0.12));
+              }
+              state.velocity.multiplyScalar(0.45);
+              state.spin.multiplyScalar(0.6);
+              state.netCooldown = 0.35;
             }
-            tmp.set(0, 0, 1);
-            const approach = state.velocity.dot(tmp);
-            if (approach < 0) {
-              state.velocity.addScaledVector(tmp, -approach * (1.3 + impactForce * 0.12));
-            }
-            state.velocity.multiplyScalar(0.45);
-            state.spin.multiplyScalar(0.6);
-            state.netCooldown = 0.35;
           }
         }
 
         if (
-          ball.position.z < goalZ - goalDepth - 4 ||
+          ball.position.z < goalZ - goalDepthBottom - 4 ||
           ball.position.z > START_Z + 2 ||
           (state.velocity.length() < 0.18 && ball.position.y <= BALL_RADIUS + 0.002)
         ) {
