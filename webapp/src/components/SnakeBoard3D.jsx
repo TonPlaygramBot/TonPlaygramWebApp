@@ -64,7 +64,7 @@ const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
 const SNAKE_BOARD_TILES = 10;
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.8; // shrink board by 20% to better fit the arena
+const BOARD_SCALE = 2.7 * 0.68; // overall ~32% reduction (15% smaller than the previous setup)
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -75,6 +75,9 @@ const DICE_SIZE = TILE_SIZE * 0.45;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
+const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
+const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
+const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
@@ -294,67 +297,37 @@ function setDiceOrientation(dice, val) {
 function makeDice() {
   const dice = new THREE.Group();
 
-  const createDiceTexture = () => {
-    const size = 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, size, size);
-
-    const bodyGradient = ctx.createLinearGradient(0, 0, size, size);
-    bodyGradient.addColorStop(0, '#fef9eb');
-    bodyGradient.addColorStop(0.45, '#f3dfb1');
-    bodyGradient.addColorStop(1, '#e1c18b');
-    ctx.fillStyle = bodyGradient;
-    ctx.fillRect(0, 0, size, size);
-
-    const highlight = ctx.createRadialGradient(size * 0.3, size * 0.3, size * 0.15, size * 0.3, size * 0.3, size * 0.65);
-    highlight.addColorStop(0, 'rgba(255,255,255,0.85)');
-    highlight.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = highlight;
-    ctx.fillRect(0, 0, size, size);
-
-    const vignette = ctx.createRadialGradient(size * 0.7, size * 0.7, size * 0.1, size * 0.7, size * 0.7, size * 0.75);
-    vignette.addColorStop(0, 'rgba(255, 214, 145, 0)');
-    vignette.addColorStop(1, 'rgba(192, 147, 82, 0.45)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, size, size);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 8;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-    return texture;
-  };
-
-  const dieTexture = createDiceTexture();
   const dieMaterial = new THREE.MeshPhysicalMaterial({
-    map: dieTexture,
-    color: new THREE.Color('#f7e5bd'),
-    metalness: 0.18,
-    roughness: 0.32,
-    clearcoat: 0.95,
-    clearcoatRoughness: 0.18,
-    reflectivity: 0.68,
-    sheen: 0.22,
-    sheenColor: new THREE.Color('#fff7dd'),
-    sheenRoughness: 0.58,
-    envMapIntensity: 1.1,
-    emissive: new THREE.Color('#d1b37a'),
-    emissiveIntensity: 0.08
+    color: 0xffffff,
+    metalness: 0.25,
+    roughness: 0.35,
+    clearcoat: 1,
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.75,
+    envMapIntensity: 1.4
   });
 
   const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x3b2614,
-    roughness: 0.25,
-    metalness: 0.35,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.12,
-    envMapIntensity: 0.9,
-    sheen: 0.1,
-    sheenColor: new THREE.Color('#ffe6b8'),
-    emissive: new THREE.Color('#1a0d06'),
-    emissiveIntensity: 0.12
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1
+  });
+
+  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700,
+    emissive: 0x3a2a00,
+    emissiveIntensity: 0.55,
+    metalness: 1,
+    roughness: 0.18,
+    reflectivity: 1,
+    envMapIntensity: 1.35,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
   });
 
   const body = new THREE.Mesh(
@@ -372,10 +345,11 @@ function makeDice() {
     0,
     Math.PI * 2,
     0,
-    Math.PI / 2
+    Math.PI
   );
   pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
+  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const half = DICE_SIZE / 2;
   const faceDepth = half - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
@@ -447,6 +421,13 @@ function makeDice() {
       pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
       pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
       dice.add(pip);
+
+      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
+      rim.receiveShadow = true;
+      rim.renderOrder = 6;
+      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      dice.add(rim);
     });
   });
 
