@@ -458,16 +458,16 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.78; // shorten the corner jaw wings so they finish before the chrome arch begins
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.624; // trim the corner jaw wings ~20% more so they sit tighter beneath the chrome arch
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
-const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
+const POCKET_JAW_DEPTH_SCALE = 0.66; // deepen the jaw liner so the taller black jaws clear the chrome finish cleanly
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
 const POCKET_JAW_SIDE_FLUSH_EPS = 0; // clamp the side jaws to the cushion break, preventing any lip from entering the playfield
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
-const POCKET_RIM_INNER_SCALE = 1.018; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
+const POCKET_RIM_INNER_SCALE = 0.982; // pull the rim's inner edge in so the band reads thicker above the jaw
 const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.012; // shave a little more material from the side pocket rims so they don't crowd the jaws
-const POCKET_RIM_DEPTH_SCALE = 0.34; // deepen the rim extrusion a touch so the thicker band reads clearly above the jaw
-const POCKET_RIM_LIP = TABLE.THICK * 0.056; // lift the rim a touch higher so it floats just above the chrome plates
+const POCKET_RIM_DEPTH_SCALE = 0.46; // deepen the rim extrusion so the thicker band stands out above the jaw
+const POCKET_RIM_LIP = TABLE.THICK * 0.072; // lift the rim higher so the taller profile clears the chrome plates
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -528,7 +528,7 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // keep the diagonal trim tucked in so the corner jaws align with the chrome opening
+  POCKET_VIS_R * 0.0096 * POCKET_VISUAL_EXPANSION; // reduce the diagonal trim width ~20% so the corner jaws stay compact under the chrome
 const POCKET_JAW_CORNER_LIMIT_OFFSET =
   POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
 const POCKET_JAW_CORNER_OUTWARD_BIAS = 0; // lock the corner jaws directly beneath the chrome arches without any outward drift
@@ -1234,14 +1234,14 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0xb3b3b3,
-          metalness: 0.28,
-          roughness: 0.48,
-          clearcoat: 0.42,
-          clearcoatRoughness: 0.32,
-          sheen: 0.16,
-          sheenRoughness: 0.42,
-          envMapIntensity: 0.58
+          color: 0x050505,
+          metalness: 0.34,
+          roughness: 0.44,
+          clearcoat: 0.46,
+          clearcoatRoughness: 0.28,
+          sheen: 0.18,
+          sheenRoughness: 0.4,
+          envMapIntensity: 0.6
         });
         const pocketRim = new THREE.MeshPhysicalMaterial({
           color: 0x101010,
