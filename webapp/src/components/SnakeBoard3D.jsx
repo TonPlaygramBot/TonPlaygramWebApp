@@ -86,6 +86,8 @@ const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 0.9;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 2.35;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.25;
+const BOARD_EDGE_BUFFER = TILE_SIZE * 0.08;
+const DICE_RETREAT_EXTRA = DICE_SIZE * 0.55;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.28 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.22 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -444,7 +446,14 @@ function makeDice() {
 }
 
 function computeDiceThrowLayout(board, seatIndex, count) {
-  const result = { basePositions: [], startPositions: [], travelVectors: [] };
+  const result = {
+    basePositions: [],
+    startPositions: [],
+    travelVectors: [],
+    bouncePoints: [],
+    retreatVectors: [],
+    edgeNormals: []
+  };
   if (!board?.root || !Array.isArray(board?.seatAnchors)) return result;
   if (typeof seatIndex !== 'number' || seatIndex < 0) return result;
   const anchor = board.seatAnchors[seatIndex];
@@ -464,39 +473,63 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const direction = centerLocal.clone().sub(seatLocal).setY(0);
   if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
   direction.normalize();
+  const awayFromBoard = direction.clone().multiplyScalar(-1);
 
   const lateral = new THREE.Vector3(-direction.z, 0, direction.x);
   if (lateral.lengthSq() < 1e-6) lateral.set(1, 0, 0);
   lateral.normalize();
 
   const boardHalf = (SNAKE_BOARD_TILES * TILE_SIZE) / 2;
-  const landingDistance = boardHalf + DICE_THROW_LANDING_MARGIN;
-  const startDistance = boardHalf + DICE_THROW_START_EXTRA;
-
-  const landingCenter = centerLocal.clone().addScaledVector(direction, -landingDistance);
-  landingCenter.y = diceBaseY;
-  const startCenter = centerLocal.clone().addScaledVector(direction, -startDistance);
-  startCenter.y = diceBaseY + DICE_THROW_HEIGHT;
+  const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
+  const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
+  const settleBaseDistance = boardHalf + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA;
 
   const spacing = DICE_SIZE * 1.35;
   const centerOffset = (count - 1) / 2;
 
   for (let i = 0; i < count; i += 1) {
     const offset = (i - centerOffset) * spacing;
-    const base = landingCenter.clone().addScaledVector(lateral, offset);
-    const start = startCenter.clone().addScaledVector(lateral, offset * 0.92);
+    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.75;
+    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.35;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.5;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.6;
 
-    const jitterForward = (Math.random() - 0.5) * DICE_SIZE * 0.45;
-    const jitterSide = (Math.random() - 0.5) * DICE_SIZE * 0.35;
+    const startDistance = baseStartDistance + Math.random() * DICE_SIZE * 0.6;
+    const bounceDistance = boardEdgeDistance + (Math.random() - 0.5) * DICE_SIZE * 0.12;
+    const settleDistance = Math.max(
+      bounceDistance + DICE_SIZE * 0.25,
+      settleBaseDistance + (Math.random() - 0.2) * DICE_SIZE * 0.45
+    );
 
-    base.addScaledVector(direction, -jitterForward * 0.25);
-    base.addScaledVector(lateral, jitterSide * 0.15);
-    start.addScaledVector(direction, -Math.abs(jitterForward) * 0.25);
-    start.addScaledVector(lateral, jitterSide);
+    const start = centerLocal
+      .clone()
+      .addScaledVector(awayFromBoard, startDistance)
+      .addScaledVector(lateral, offset * 0.9 + lateralJitter);
+    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
 
-    result.basePositions.push(base);
+    const bounce = centerLocal
+      .clone()
+      .addScaledVector(awayFromBoard, bounceDistance)
+      .addScaledVector(lateral, offset * 0.35 + bounceJitter);
+    bounce.y = diceBaseY + DICE_SIZE * (0.12 + Math.random() * 0.12);
+
+    const base = centerLocal
+      .clone()
+      .addScaledVector(awayFromBoard, settleDistance + retreatExtra)
+      .addScaledVector(lateral, offset + lateralJitter * 0.45);
+    base.addScaledVector(awayFromBoard, outwardJitter);
+    base.y = diceBaseY;
+
+    const bouncePoint = bounce.clone();
+
     result.startPositions.push(start);
-    result.travelVectors.push(base.clone().sub(start));
+    result.bouncePoints.push(bouncePoint);
+    result.basePositions.push(base);
+    const approach = bouncePoint.clone().sub(start);
+    const retreat = base.clone().sub(bouncePoint);
+    result.travelVectors.push(approach);
+    result.retreatVectors.push(retreat);
+    result.edgeNormals.push(awayFromBoard.clone());
   }
 
   result.direction = direction;
@@ -507,13 +540,28 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
 function createDiceRollAnimation(
   diceArray,
-  { basePositions, baseY, startPositions = [], travelVectors = [] }
+  {
+    basePositions,
+    baseY,
+    startPositions = [],
+    travelVectors = [],
+    bouncePoints = [],
+    retreatVectors = [],
+    edgeNormals = []
+  }
 ) {
   const start = performance.now();
-  const spinSpeeds = diceArray.map(() => 0.18 + Math.random() * 0.12);
-  const yawSpeeds = diceArray.map(() => (Math.random() - 0.5) * 0.1);
+  const spinSpeeds = diceArray.map(() => 0.22 + Math.random() * 0.16);
+  const impactPhases = diceArray.map(() => 0.42 + Math.random() * 0.18);
+  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.85 + Math.random() * 0.55));
+  const settleHeights = bounceHeights.map((height) => height * (0.35 + Math.random() * 0.3));
+  const yawSpeeds = diceArray.map(() => (Math.random() - 0.5) * 0.14);
+  const postYawSpeeds = yawSpeeds.map((speed) => -speed * (0.35 + Math.random() * 0.35));
   const swayOffsets = diceArray.map(() => Math.random() * Math.PI * 2);
-  const rollAxes = diceArray.map((_, index) => {
+  const swayMagnitudes = diceArray.map(() => DICE_SIZE * (0.09 + Math.random() * 0.12));
+  const slideMagnitudes = diceArray.map(() => DICE_SIZE * (0.18 + Math.random() * 0.25));
+
+  const approachAxes = diceArray.map((_, index) => {
     const travel = travelVectors[index];
     if (travel && travel.lengthSq() > 1e-6) {
       const axis = new THREE.Vector3(travel.z, 0, -travel.x);
@@ -521,37 +569,71 @@ function createDiceRollAnimation(
     }
     return new THREE.Vector3(Math.random() * 0.6 + 0.2, Math.random() * 0.3 + 0.1, Math.random() * 0.6 + 0.2).normalize();
   });
+
+  const retreatAxes = diceArray.map((_, index) => {
+    const travel = retreatVectors[index];
+    if (travel && travel.lengthSq() > 1e-6) {
+      const axis = new THREE.Vector3(travel.z, 0, -travel.x);
+      if (axis.lengthSq() > 1e-6) return axis.normalize();
+    }
+    return approachAxes[index].clone();
+  });
+
   const lateralVectors = diceArray.map((_, index) => {
     const travel = travelVectors[index];
     if (travel && travel.lengthSq() > 1e-6) {
       const lateral = new THREE.Vector3(-travel.z, 0, travel.x);
       if (lateral.lengthSq() > 1e-6) return lateral.normalize();
     }
-    return null;
+    const fallback = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5);
+    if (fallback.lengthSq() < 1e-6) fallback.set(1, 0, 0);
+    return fallback.normalize();
+  });
+
+  const retreatDirections = diceArray.map((_, index) => {
+    const retreat = retreatVectors[index];
+    if (retreat && retreat.lengthSq() > 1e-6) return retreat.clone().setY(0).normalize();
+    const normal = edgeNormals[index];
+    if (normal && normal.lengthSq() > 1e-6) return normal.clone().setY(0).normalize();
+    return new THREE.Vector3(0, 0, 0);
   });
 
   return {
     update: (now) => {
       const t = Math.min((now - start) / DICE_ROLL_DURATION, 1);
-      const travelEase = easeOutCubic(t);
-      const bounce = Math.sin(Math.min(1, t * 1.45) * Math.PI) * DICE_BOUNCE_HEIGHT;
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
-        const origin = startPositions[index] ?? base;
-        const travel = travelVectors[index];
-        die.position.copy(origin);
-        if (travel && travel.lengthSq() > 1e-6) {
-          die.position.addScaledVector(travel, travelEase);
+        const startPos = startPositions[index] ?? base;
+        const bounce = bouncePoints[index] ?? base;
+        const impactPhase = impactPhases[index];
+
+        if (t < impactPhase) {
+          const local = impactPhase > 1e-3 ? Math.min(t / impactPhase, 1) : 1;
+          const ease = easeOutCubic(local);
+          die.position.copy(startPos).lerp(bounce, ease);
+          const lift = Math.sin(local * Math.PI) * bounceHeights[index];
+          die.position.y = baseY + lift;
+          const sway = Math.sin(local * Math.PI * 2.1 + swayOffsets[index]) * swayMagnitudes[index];
+          die.position.addScaledVector(lateralVectors[index], sway);
+          die.rotateOnAxis(approachAxes[index], spinSpeeds[index] * 1.25);
+          die.rotateOnWorldAxis(WORLD_UP, yawSpeeds[index]);
+        } else {
+          const remaining = Math.max(1 - impactPhase, 1e-3);
+          const local = Math.min((t - impactPhase) / remaining, 1);
+          const ease = easeOutCubic(local);
+          die.position.copy(bounce).lerp(base, ease);
+          const rebound = Math.sin(local * Math.PI) * settleHeights[index] * (1 - ease * 0.65);
+          die.position.y = baseY + rebound;
+          const sway = Math.sin((local + 0.35) * Math.PI * 2 + swayOffsets[index]) * swayMagnitudes[index] * 0.6;
+          die.position.addScaledVector(lateralVectors[index], sway);
+          const slide = Math.sin(local * Math.PI) * slideMagnitudes[index] * (1 - ease * 0.35);
+          if (retreatDirections[index].lengthSq() > 1e-6) {
+            die.position.addScaledVector(retreatDirections[index], slide);
+          }
+          die.rotateOnAxis(retreatAxes[index], spinSpeeds[index] * 0.6);
+          die.rotateOnWorldAxis(WORLD_UP, postYawSpeeds[index]);
         }
-        const lateral = lateralVectors[index];
-        if (lateral) {
-          const sway = Math.sin(t * Math.PI * 2.2 + swayOffsets[index]) * DICE_SIZE * 0.18 * (1 - travelEase * 0.35);
-          die.position.addScaledVector(lateral, sway);
-        }
-        die.position.y = baseY + bounce;
-        die.rotateOnAxis(rollAxes[index], spinSpeeds[index]);
-        die.rotateOnWorldAxis(WORLD_UP, yawSpeeds[index]);
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -1809,6 +1891,9 @@ export default function SnakeBoard3D({
       const basePositions = [];
       const startPositions = [];
       const travelVectors = [];
+      const bouncePoints = [];
+      const retreatVectors = [];
+      const edgeNormals = [];
       let visibleIndex = 0;
       diceSet.forEach((die, index) => {
         const visible = index < count;
@@ -1818,11 +1903,19 @@ export default function SnakeBoard3D({
         const base = layout.basePositions?.[visibleIndex] ?? fallbackBase;
         const start = layout.startPositions?.[visibleIndex] ?? base.clone();
         const travel = layout.travelVectors?.[visibleIndex] ?? base.clone().sub(start);
+        const bounce = layout.bouncePoints?.[visibleIndex] ?? base.clone();
+        const retreat = layout.retreatVectors?.[visibleIndex] ?? base.clone().sub(bounce);
+        const normal = layout.edgeNormals?.[visibleIndex]
+          ? layout.edgeNormals[visibleIndex].clone()
+          : new THREE.Vector3(0, 0, 0);
         die.position.copy(start);
         die.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
         basePositions.push(base.clone());
         startPositions.push(start.clone());
         travelVectors.push(travel.clone());
+        bouncePoints.push(bounce.clone());
+        retreatVectors.push(retreat.clone());
+        edgeNormals.push(normal);
         visibleIndex += 1;
       });
       diceStateRef.current = {
@@ -1840,7 +1933,10 @@ export default function SnakeBoard3D({
             basePositions,
             baseY: diceBaseY,
             startPositions,
-            travelVectors
+            travelVectors,
+            bouncePoints,
+            retreatVectors,
+            edgeNormals
           })
         );
       }
