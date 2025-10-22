@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import AvatarTimer from '../../components/AvatarTimer.jsx';
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import {
   createMurlanStyleTable,
@@ -24,6 +25,8 @@ import {
   cheerSound
 } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { avatarToName } from '../../utils/avatarUtils.js';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
@@ -70,6 +73,16 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(225)
 ];
+const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
+
+const FALLBACK_SEAT_POSITIONS = [
+  { left: '50%', top: '84%' },
+  { left: '80%', top: '56%' },
+  { left: '52%', top: '24%' },
+  { left: '20%', top: '56%' }
+];
+
+const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
@@ -724,7 +737,7 @@ function ease(t) {
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-function Ludo3D({ avatar, username }) {
+function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const zoomRef = useRef({});
@@ -756,12 +769,61 @@ function Ludo3D({ avatar, username }) {
   });
   const appearanceRef = useRef(appearance);
   const arenaRef = useRef(null);
+  const [seatAnchors, setSeatAnchors] = useState([]);
+  const seatPositionsRef = useRef([]);
   const [ui, setUi] = useState({
     turn: 0,
     status: 'Red to roll',
     dice: null,
     winner: null
   });
+
+  const playerColorsHex = useMemo(
+    () => PLAYER_COLORS.map((value) => colorNumberToHex(value)),
+    []
+  );
+
+  const aiFlags = useMemo(() => {
+    const base = Array.isArray(aiFlagOverrides) ? aiFlagOverrides.filter(Boolean) : [];
+    const pool = [...base];
+    while (pool.length < DEFAULT_PLAYER_COUNT - 1) {
+      pool.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
+    }
+    return pool.slice(0, DEFAULT_PLAYER_COUNT - 1);
+  }, [aiFlagOverrides]);
+
+  const players = useMemo(() => {
+    return Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, index) => {
+      if (index === 0) {
+        return {
+          index,
+          photoUrl: avatar || '🙂',
+          name: username || 'You',
+          color: playerColorsHex[index] ?? '#ffffff',
+          isAI: false
+        };
+      }
+      const flag = aiFlags[index - 1] || '🏁';
+      const name = avatarToName(flag) || 'AI Player';
+      return {
+        index,
+        photoUrl: flag,
+        name,
+        color: playerColorsHex[index] ?? '#ffffff',
+        isAI: true
+      };
+    });
+  }, [aiFlags, avatar, username, playerColorsHex]);
+
+  const seatAnchorMap = useMemo(() => {
+    const map = new Map();
+    seatAnchors.forEach((anchor) => {
+      if (anchor && typeof anchor.index === 'number') {
+        map.set(anchor.index, anchor);
+      }
+    });
+    return map;
+  }, [seatAnchors]);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -1292,9 +1354,13 @@ function Ludo3D({ avatar, username }) {
       legBase.receiveShadow = true;
       group.add(legBase);
 
+      const avatarAnchor = new THREE.Object3D();
+      avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
+      group.add(avatarAnchor);
+
       arenaGroup.add(group);
       const armMeshes = [...armLeft.meshes, ...armRight.meshes];
-      chairs.push({ group, meshes: [seatMesh, backMesh, ...armMeshes], legMesh: legBase });
+      chairs.push({ group, anchor: avatarAnchor, meshes: [seatMesh, backMesh, ...armMeshes], legMesh: legBase });
     }
 
     const boardData = buildLudoBoard(boardGroup);
@@ -1328,7 +1394,8 @@ function Ludo3D({ avatar, username }) {
       boardLookTarget,
       chairMaterial,
       legMaterial,
-      chairs
+      chairs,
+      seatAnchors: chairs.map((chair) => chair.anchor)
     };
 
     const attemptDiceRoll = (clientX, clientY) => {
@@ -1382,6 +1449,8 @@ function Ludo3D({ avatar, username }) {
     const animTemp = new THREE.Vector3();
     const animDir = new THREE.Vector3();
     const animLook = new THREE.Vector3();
+    const seatWorld = new THREE.Vector3();
+    const seatNdc = new THREE.Vector3();
 
     const step = () => {
       const now = performance.now();
@@ -1432,6 +1501,41 @@ function Ludo3D({ avatar, username }) {
           lights.target.position.copy(pos);
         }
       }
+
+      const arenaState = arenaRef.current;
+      if (arenaState?.seatAnchors?.length && camera) {
+        const positions = arenaState.seatAnchors.map((anchor, index) => {
+          anchor.getWorldPosition(seatWorld);
+          seatNdc.copy(seatWorld).project(camera);
+          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+          const depth = camera.position.distanceTo(seatWorld);
+          return { index, x, y, depth };
+        });
+        let changed = positions.length !== seatPositionsRef.current.length;
+        if (!changed) {
+          for (let i = 0; i < positions.length; i += 1) {
+            const prev = seatPositionsRef.current[i];
+            const curr = positions[i];
+            if (
+              !prev ||
+              Math.abs(prev.x - curr.x) > 0.2 ||
+              Math.abs(prev.y - curr.y) > 0.2 ||
+              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+            ) {
+              changed = true;
+              break;
+            }
+          }
+        }
+        if (changed) {
+          seatPositionsRef.current = positions;
+          setSeatAnchors(positions);
+        }
+      } else if (seatPositionsRef.current.length) {
+        seatPositionsRef.current = [];
+        setSeatAnchors([]);
+      }
       controls?.update();
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
@@ -1447,6 +1551,8 @@ function Ludo3D({ avatar, username }) {
         clearTimeout(aiTimeoutRef.current);
         aiTimeoutRef.current = null;
       }
+      seatPositionsRef.current = [];
+      setSeatAnchors([]);
       stateRef.current = null;
       turnIndicatorRef.current = null;
       window.removeEventListener('resize', onResize);
@@ -1967,6 +2073,51 @@ function Ludo3D({ avatar, username }) {
             </div>
           )}
         </div>
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {players.map((player) => {
+            const anchor = seatAnchorMap.get(player.index);
+            const fallback =
+              FALLBACK_SEAT_POSITIONS[player.index] ||
+              FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
+            const positionStyle = anchor
+              ? {
+                  position: 'absolute',
+                  left: `${anchor.x}%`,
+                  top: `${anchor.y}%`,
+                  transform: 'translate(-50%, -50%)'
+                }
+              : {
+                  position: 'absolute',
+                  left: fallback.left,
+                  top: fallback.top,
+                  transform: 'translate(-50%, -50%)'
+                };
+            const depth = anchor?.depth ?? 3;
+            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            const isTurn = ui.turn === player.index;
+            return (
+              <div
+                key={`ludo-seat-${player.index}`}
+                className="absolute pointer-events-auto flex flex-col items-center"
+                style={positionStyle}
+              >
+                <AvatarTimer
+                  index={player.index}
+                  photoUrl={player.photoUrl}
+                  active={isTurn}
+                  isTurn={isTurn}
+                  timerPct={1}
+                  name={player.name}
+                  color={player.color}
+                  size={avatarSize}
+                />
+                <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
+                  {player.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
         <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
           <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs">
             {avatar && (
@@ -2171,8 +2322,8 @@ function buildLudoBoard(boardGroup) {
 function getHomeIndex(r, c) {
   if (r < 6 && c < 6) return 0;
   if (r < 6 && c > 8) return 1;
-  if (r > 8 && c < 6) return 2;
-  if (r > 8 && c > 8) return 3;
+  if (r > 8 && c < 6) return 3;
+  if (r > 8 && c > 8) return 2;
   return -1;
 }
 
@@ -2191,8 +2342,8 @@ function getHomeStartPads(half) {
   const layout = [
     [-1, -1],
     [1, -1],
-    [-1, 1],
-    [1, 1]
+    [1, 1],
+    [-1, 1]
   ];
   return layout.map(([sx, sz]) => {
     const cx = sx * off;
@@ -2229,5 +2380,15 @@ export default function LudoBattleRoyal() {
     params.get('name') ||
     getTelegramFirstName() ||
     getTelegramUsername();
-  return <Ludo3D avatar={avatar} username={username} />;
+  const flagsParam = params.get('flags');
+  const aiFlagOverrides = useMemo(() => {
+    if (!flagsParam) return null;
+    const indices = flagsParam
+      .split(',')
+      .map((value) => parseInt(value, 10))
+      .filter((idx) => Number.isFinite(idx) && idx >= 0 && idx < FLAG_EMOJIS.length);
+    if (!indices.length) return null;
+    return indices.map((idx) => FLAG_EMOJIS[idx]);
+  }, [flagsParam]);
+  return <Ludo3D avatar={avatar} username={username} aiFlagOverrides={aiFlagOverrides} />;
 }
