@@ -512,11 +512,13 @@ const POCKET_CORNER_MOUTH =
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
-  POCKET_VIS_R * 0.038 * POCKET_VISUAL_EXPANSION; // push the middle jaws snug against the wooden rails while keeping their faces straight with the cushions
+  POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
   POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // push the diagonal cut deeper so the corner jaws clear the cloth fully
 const POCKET_JAW_CORNER_LIMIT_OFFSET =
   POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
+const POCKET_JAW_CORNER_OUTWARD_BIAS =
+  POCKET_VIS_R * 0.006 * POCKET_VISUAL_EXPANSION; // gently shift the corner jaws away from the table centre so the chrome openings breathe a bit more
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -4871,14 +4873,34 @@ function Table3D(
       sz > 0
         ? Math.max(chamferCandidateZ, flushTargetZ)
         : Math.min(chamferCandidateZ, flushTargetZ);
+    const biasedCandidateX =
+      sx > 0
+        ? Math.max(
+            trimmedCandidateX + sx * POCKET_JAW_CORNER_OUTWARD_BIAS,
+            flushTargetX
+          )
+        : Math.min(
+            trimmedCandidateX + sx * POCKET_JAW_CORNER_OUTWARD_BIAS,
+            flushTargetX
+          );
+    const biasedCandidateZ =
+      sz > 0
+        ? Math.max(
+            trimmedCandidateZ + sz * POCKET_JAW_CORNER_OUTWARD_BIAS,
+            flushTargetZ
+          )
+        : Math.min(
+            trimmedCandidateZ + sz * POCKET_JAW_CORNER_OUTWARD_BIAS,
+            flushTargetZ
+          );
     const trimmedCenterX = clampToCushionLimit(
-      trimmedCandidateX,
+      biasedCandidateX,
       cushionEdgeX,
       sx > 0,
       POCKET_JAW_CORNER_FLUSH_EPS
     );
     const trimmedCenterZ = clampToCushionLimit(
-      trimmedCandidateZ,
+      biasedCandidateZ,
       cushionEdgeZ,
       sz > 0,
       POCKET_JAW_CORNER_FLUSH_EPS
