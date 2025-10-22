@@ -300,7 +300,8 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
-const SHOOT_POWER_SCALE = 0.46875; // 50% stronger launch than the previous 0.3125 scale
+const SHOOT_POWER_SCALE = 0.5390625; // 15% stronger launch while keeping shot arc capped
+const SHOOT_VERTICAL_POWER_FACTOR = 0.4166666666666667; // preserves previous maximum launch height
 const BASE_SPIN_SCALE = 1.5;
 const SPIN_SCALE = BASE_SPIN_SCALE * 1.25;
 const CROSSBAR_HEIGHT_MARGIN = 0.25;
@@ -508,22 +509,6 @@ export default function FreeKick3DGame({ config }) {
       mesh.receiveShadow = true;
       lines.add(mesh);
     };
-    const addArc = (radius, thickness, segments, startAngle, angleLength, x, z) => {
-      const geometry = new THREE.RingGeometry(radius - thickness, radius, segments, 1, startAngle, angleLength);
-      const mesh = new THREE.Mesh(geometry, lineMat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, 0.003, z);
-      mesh.receiveShadow = true;
-      lines.add(mesh);
-    };
-    const addSpot = (radius, x, z) => {
-      const geometry = new THREE.CircleGeometry(radius, 24);
-      const mesh = new THREE.Mesh(geometry, lineMat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, 0.003, z);
-      mesh.receiveShadow = true;
-      lines.add(mesh);
-    };
     const goalWidth = GOAL_CONFIG.width;
     const goalHeight = GOAL_CONFIG.height;
     const goalDepth = GOAL_CONFIG.depth;
@@ -541,8 +526,6 @@ export default function FreeKick3DGame({ config }) {
     addLine(14, 0.06, 0, 0);
     addCircle(3.5, 0.08, 64, 0, goalZ + 7.5);
     addCircle(0.15, 0.15, 32, 0, goalZ + 7.5);
-    addSpot(0.15, 0, goalZ + 2.5);
-    addArc(8.9, 0.08, 64, Math.PI * 0.16, Math.PI - Math.PI * 0.32, 0, goalZ + 2.2);
     scene.add(lines);
 
     const postMaterial = new THREE.MeshPhysicalMaterial({
@@ -799,7 +782,7 @@ export default function FreeKick3DGame({ config }) {
       standsGroup.add(pole);
     }
 
-    const standScale = 0.3;
+    const standScale = 0.36; // 20% larger seating tiers for better presence
     standsGroup.scale.set(standScale, standScale, standScale);
     const standsOffsetZ = goalZ - goalDepth - 3.3;
     standsGroup.position.set(0, 0.12, standsOffsetZ);
@@ -876,7 +859,7 @@ export default function FreeKick3DGame({ config }) {
       const COLUMN_HEIGHT = 0.18;
       const HEAD_HEIGHT = HUB_HEIGHT + COLUMN_HEIGHT;
 
-      return (scale = 1.55) => {
+      return (scale = 1.25) => {
         const group = new THREE.Group();
         group.name = 'royalBroadcastCamera';
         const base = new THREE.Group();
@@ -1029,7 +1012,7 @@ export default function FreeKick3DGame({ config }) {
     const cameraColliders = [
       {
         anchor: leftCameraRig.bodyAnchor,
-        radius: 0.45,
+        radius: 0.36,
         restitution: 1.15,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1038,7 +1021,7 @@ export default function FreeKick3DGame({ config }) {
       },
       {
         anchor: leftCameraRig.baseAnchor,
-        radius: 0.36,
+        radius: 0.29,
         restitution: 1.1,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1047,7 +1030,7 @@ export default function FreeKick3DGame({ config }) {
       },
       {
         anchor: rightCameraRig.bodyAnchor,
-        radius: 0.45,
+        radius: 0.36,
         restitution: 1.15,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1056,7 +1039,7 @@ export default function FreeKick3DGame({ config }) {
       },
       {
         anchor: rightCameraRig.baseAnchor,
-        radius: 0.36,
+        radius: 0.29,
         restitution: 1.1,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1519,7 +1502,7 @@ export default function FreeKick3DGame({ config }) {
       }
       const direction = launchVector.normalize();
       state.velocity.copy(direction.multiplyScalar(power));
-      const maxVerticalSpeed = Math.min(power * 0.48, MAX_VERTICAL_LAUNCH_SPEED);
+      const maxVerticalSpeed = Math.min(power * SHOOT_VERTICAL_POWER_FACTOR, MAX_VERTICAL_LAUNCH_SPEED);
       if (state.velocity.y > maxVerticalSpeed) {
         state.velocity.y = maxVerticalSpeed;
       }
