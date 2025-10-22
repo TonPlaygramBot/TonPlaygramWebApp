@@ -1026,6 +1026,7 @@ export default function SnakeAndLadder() {
     let p = state.pos ?? 0;
     let aiPos = [...(state.aiPositions ?? Array(ai).fill(0))];
     let turn = state.currentTurn ?? 0;
+    const totalPlayers = ai + 1;
     let rank = [...(state.ranking ?? [])].map((r) =>
       typeof r === 'string' ? { name: r, photoUrl: '', amount: 0 } : r,
     );
@@ -1068,7 +1069,7 @@ export default function SnakeAndLadder() {
           if (rank.length === 1) over = true;
         }
       }
-      turn = (turn + 1) % (ai + 1);
+      turn = (turn - 1 + totalPlayers) % totalPlayers;
       elapsed -= 2500;
     }
     setPos(p);
@@ -1232,7 +1233,8 @@ export default function SnakeAndLadder() {
           setMessage("Need a 1 to win!");
           setTurnMessage("");
           setDiceVisible(false);
-          const next = (currentTurn + 1) % (ai + 1);
+          const totalPlayers = ai + 1;
+          const next = (currentTurn - 1 + totalPlayers) % totalPlayers;
           setTimeout(() => {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1249,7 +1251,8 @@ export default function SnakeAndLadder() {
           setMessage("");
           setTurnMessage("");
           setDiceVisible(false);
-          const next = (currentTurn + 1) % (ai + 1);
+          const totalPlayers = ai + 1;
+          const next = (currentTurn - 1 + totalPlayers) % totalPlayers;
           setTimeout(() => {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1264,7 +1267,8 @@ export default function SnakeAndLadder() {
         setShowExactHelp(true);
         setTurnMessage("");
         setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
+        const totalPlayers = ai + 1;
+        const next = (currentTurn - 1 + totalPlayers) % totalPlayers;
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1281,7 +1285,10 @@ export default function SnakeAndLadder() {
         predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
       }
       const extraPred = diceCells[predicted] || doubleSix;
-      const nextPlayer = extraPred ? currentTurn : (currentTurn + 1) % (ai + 1);
+      const totalPlayers = ai + 1;
+      const nextPlayer = extraPred
+        ? currentTurn
+        : (currentTurn - 1 + totalPlayers) % totalPlayers;
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -1382,7 +1389,10 @@ export default function SnakeAndLadder() {
         setDiceVisible(true);
         setMoving(false);
         if (!gameOver) {
-          const next = extraTurn ? currentTurn : (currentTurn + 1) % (ai + 1);
+          const totalPlayers = ai + 1;
+          const next = extraTurn
+            ? currentTurn
+            : (currentTurn - 1 + totalPlayers) % totalPlayers;
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
         }
@@ -1463,7 +1473,8 @@ export default function SnakeAndLadder() {
       } else {
         setTurnMessage(`${getPlayerName(index)} needs a 6`);
         setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
+        const totalPlayers = ai + 1;
+        const next = (currentTurn - 1 + totalPlayers) % totalPlayers;
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1476,7 +1487,8 @@ export default function SnakeAndLadder() {
       else {
         setTurnMessage('');
         setDiceVisible(false);
-        const next = (currentTurn + 1) % (ai + 1);
+        const totalPlayers = ai + 1;
+        const next = (currentTurn - 1 + totalPlayers) % totalPlayers;
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 2);
@@ -1495,7 +1507,10 @@ export default function SnakeAndLadder() {
       predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
     }
     const extraPred = diceCells[predicted] || doubleSix;
-    const nextPlayer = extraPred ? index : (index + 1) % (ai + 1);
+    const totalPlayers = ai + 1;
+    const nextPlayer = extraPred
+      ? index
+      : (index - 1 + totalPlayers) % totalPlayers;
 
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -1577,7 +1592,8 @@ export default function SnakeAndLadder() {
       } else if (doubleSix) {
         extraTurn = true;
       }
-      const next = extraTurn ? index : (index + 1) % (ai + 1);
+      const totalPlayers = ai + 1;
+      const next = extraTurn ? index : (index - 1 + totalPlayers) % totalPlayers;
       if (next === 0) setTurnMessage('Your turn');
       setCurrentTurn(next);
       setDiceCount(playerDiceCounts[next] ?? 2);

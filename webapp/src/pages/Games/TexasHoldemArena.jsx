@@ -1041,7 +1041,10 @@ function resetForNextHand(state) {
   next.pot = 0;
   next.currentBet = 0;
   next.minRaise = BIG_BLIND;
-  next.dealerIndex = (state.dealerIndex + 1) % state.players.length;
+  const totalPlayers = state.players.length;
+  next.dealerIndex = totalPlayers
+    ? (state.dealerIndex - 1 + totalPlayers) % totalPlayers
+    : 0;
   next.winningCommunityCards = [];
   next.winnerFocusIndex = null;
   next.players = state.players.map((p, idx) => ({
@@ -1112,8 +1115,9 @@ function payChips(player, amount, state) {
 
 function getNextActiveIndex(players, startIndex) {
   if (!players.length) return 0;
-  for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (startIndex + offset) % players.length;
+  const totalPlayers = players.length;
+  for (let offset = 1; offset <= totalPlayers; offset += 1) {
+    const idx = ((startIndex - offset) % totalPlayers + totalPlayers) % totalPlayers;
     const p = players[idx];
     if (!p) continue;
     if (!p.folded && p.chips > 0 && !p.allIn) {
