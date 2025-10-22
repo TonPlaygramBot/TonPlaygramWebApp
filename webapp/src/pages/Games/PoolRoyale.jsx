@@ -447,7 +447,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the
 const POCKET_JAW_CORNER_TRIM_RATIO = 0.68; // shorten the corner jaw wings so they finish exactly at the cushion break
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
-const POCKET_JAW_CORNER_FLUSH_EPS = TABLE.THICK * 0.0042; // clamp the corner jaw bases against the cushion line with a tiny outward allowance
+const POCKET_JAW_CORNER_FLUSH_EPS = TABLE.THICK * 0.0036; // match the side pocket clearance so the corner jaw bases finish flush with the cushions
 const POCKET_JAW_SIDE_FLUSH_EPS = TABLE.THICK * 0.0036; // keep the side pocket jaw bases flush with the cushion shoulders
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
 const POCKET_RIM_INNER_SCALE = 1.018; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
@@ -4849,14 +4849,24 @@ function Table3D(
       sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
     const cushionEdgeX = sx * (cushionRailReachX + MICRO_EPS * 4);
     const cushionEdgeZ = sz * (cushionRailReachZ + MICRO_EPS * 4);
-    const trimmedCandidateX =
+    const chamferCandidateX =
       sx > 0
         ? Math.max(scaledCenterX, chamferTargetX)
         : Math.min(scaledCenterX, chamferTargetX);
-    const trimmedCandidateZ =
+    const chamferCandidateZ =
       sz > 0
         ? Math.max(scaledCenterZ, chamferTargetZ)
         : Math.min(scaledCenterZ, chamferTargetZ);
+    const flushTargetX = cushionEdgeX + sx * POCKET_JAW_CORNER_FLUSH_EPS;
+    const flushTargetZ = cushionEdgeZ + sz * POCKET_JAW_CORNER_FLUSH_EPS;
+    const trimmedCandidateX =
+      sx > 0
+        ? Math.max(chamferCandidateX, flushTargetX)
+        : Math.min(chamferCandidateX, flushTargetX);
+    const trimmedCandidateZ =
+      sz > 0
+        ? Math.max(chamferCandidateZ, flushTargetZ)
+        : Math.min(chamferCandidateZ, flushTargetZ);
     const trimmedCenterX = clampToCushionLimit(
       trimmedCandidateX,
       cushionEdgeX,
