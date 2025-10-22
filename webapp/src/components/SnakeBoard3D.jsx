@@ -118,9 +118,11 @@ const HIGHLIGHT_COLORS = {
   ladder: new THREE.Color(0x22c55e)
 };
 
-const TOKEN_RADIUS = TILE_SIZE * 0.2;
-const TOKEN_HEIGHT = TILE_SIZE * 0.32;
+const TOKEN_RADIUS = TILE_SIZE * 0.3;
+const TOKEN_HEIGHT = TILE_SIZE * 0.48;
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
+
+const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.08;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -1209,20 +1211,32 @@ function buildSnakeBoard(
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
       const mat = (row + col) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
-      const x = -half + (col + 0.5) * TILE_SIZE;
-      const z = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
+      const baseX = -half + (col + 0.5) * TILE_SIZE;
+      const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
+      const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
+      if (levelIndex === 0) {
+        const outward = tilePosition.clone();
+        outward.y = 0;
+        if (outward.lengthSq() > 1e-6) {
+          outward.normalize().multiplyScalar(EDGE_TILE_OUTWARD_OFFSET);
+          tilePosition.add(outward);
+        }
+      }
       const tile = new THREE.Mesh(tileGeo, mat);
-      tile.position.set(x, tileCenterY, z);
+      tile.position.copy(tilePosition);
       tile.userData.index = idx;
       tile.userData.baseColor = tile.material.color.clone();
       tile.material.emissive = new THREE.Color(0x000000);
       tile.material.emissiveIntensity = 1.0;
       tileGroup.add(tile);
       tileMeshes.set(idx, tile);
-      indexToPosition.set(idx, new THREE.Vector3(x, tileTopY, z));
+
+      const topPosition = tilePosition.clone();
+      topPosition.y = tileTopY;
+      indexToPosition.set(idx, topPosition);
 
       const label = createTileLabel(idx);
-      label.position.set(x, tileTopY + TILE_LABEL_OFFSET, z);
+      label.position.set(tilePosition.x, tileTopY + TILE_LABEL_OFFSET, tilePosition.z);
       labelGroup.add(label);
     });
   });
@@ -1343,6 +1357,7 @@ function buildSnakeBoard(
     diceSet,
     diceBaseY,
     diceAnchorZ,
+    baseLevelTop,
     diceLights: {
       accent: diceAccent,
       fill: diceFill,
@@ -1378,7 +1393,14 @@ function updateTokens(
   players,
   indexToPosition,
   serpentineIndexToXZ,
-  { burning = [], rollingIndex = null, currentTurn = null } = {}
+  {
+    burning = [],
+    rollingIndex = null,
+    currentTurn = null,
+    boardRoot = null,
+    seatAnchors = [],
+    baseLevelTop = 0
+  } = {}
 ) {
   if (!tokensGroup) return;
   const existing = new Map();
@@ -1390,12 +1412,45 @@ function updateTokens(
 
   const occupancy = new Map();
   players.forEach((player, index) => {
-    const key = player.position || 0;
-    if (!occupancy.has(key)) occupancy.set(key, []);
-    occupancy.get(key).push(index);
+    const raw = Number(player.position);
+    if (!Number.isFinite(raw) || raw < 1) return;
+    if (!occupancy.has(raw)) occupancy.set(raw, []);
+    occupancy.get(raw).push(index);
   });
 
   const keep = new Set();
+
+  const seatHomes = [];
+  if (boardRoot && Array.isArray(seatAnchors) && seatAnchors.length) {
+    boardRoot.updateMatrixWorld(true);
+    const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
+    const baseY = Number.isFinite(baseLevelTop) ? baseLevelTop : 0;
+    const center = new THREE.Vector3(0, baseY, 0);
+    const forwardLift = TILE_SIZE * 0.45;
+    seatAnchors.forEach((anchor, index) => {
+      if (!anchor) {
+        seatHomes[index] = null;
+        return;
+      }
+      anchor.updateMatrixWorld?.(true);
+      const seatWorld = new THREE.Vector3();
+      anchor.getWorldPosition(seatWorld);
+      const seatLocal = seatWorld.clone();
+      boardRoot.worldToLocal(seatLocal);
+      const direction = seatLocal.clone().sub(center);
+      direction.y = 0;
+      if (direction.lengthSq() < 1e-6) {
+        direction.set(0, 0, 1);
+      } else {
+        direction.normalize();
+      }
+      const target = center
+        .clone()
+        .addScaledVector(direction, boardHalf + BOARD_EDGE_BUFFER + forwardLift);
+      target.y = baseY + TOKEN_HEIGHT * 0.02;
+      seatHomes[index] = { position: target, direction };
+    });
+  }
 
   players.forEach((player, index) => {
     keep.add(index);
@@ -1432,20 +1487,39 @@ function updateTokens(
       mat.emissive.setHex(0x000000);
     }
 
-    const positionIndex = player.position;
-    const tilePlayers = occupancy.get(positionIndex || 0) || [];
-    const offsetIndex = tilePlayers.indexOf(index);
-    const radius = TOKEN_RADIUS * 1.2;
-    const angle = (offsetIndex / Math.max(1, tilePlayers.length)) * Math.PI * 2;
-    const offsetX = Math.cos(angle) * radius;
-    const offsetZ = Math.sin(angle) * radius;
+    const rawPosition = Number(player.position);
+    const hasBoardPosition = Number.isFinite(rawPosition) && rawPosition >= 1;
+    let worldPos = null;
+    if (hasBoardPosition) {
+      const tilePlayers = occupancy.get(rawPosition) || [];
+      const offsetIndex = tilePlayers.indexOf(index);
+      const radius = TOKEN_RADIUS * 1.35;
+      const angle =
+        offsetIndex >= 0 && tilePlayers.length > 0
+          ? (offsetIndex / Math.max(1, tilePlayers.length)) * Math.PI * 2
+          : 0;
+      const offsetX = Math.cos(angle) * radius;
+      const offsetZ = Math.sin(angle) * radius;
+      const basePos = indexToPosition.get(rawPosition);
+      const baseVector = basePos ? basePos.clone() : serpentineIndexToXZ(rawPosition).clone();
+      baseVector.x += offsetX;
+      baseVector.z += offsetZ;
+      baseVector.y += TOKEN_HEIGHT * 0.02;
+      worldPos = baseVector;
+    } else {
+      const fallbackHomeIndex = seatHomes.length > 0 ? index % seatHomes.length : -1;
+      const home =
+        seatHomes[index] || (fallbackHomeIndex >= 0 ? seatHomes[fallbackHomeIndex] : null) || null;
+      if (home?.position) {
+        worldPos = home.position.clone();
+      } else {
+        const fallbackIndex = Number.isFinite(rawPosition) ? rawPosition : 0;
+        worldPos = serpentineIndexToXZ(fallbackIndex).clone();
+        worldPos.y = (Number.isFinite(baseLevelTop) ? baseLevelTop : worldPos.y) + TOKEN_HEIGHT * 0.02;
+      }
+    }
 
-    const basePos = indexToPosition.get(positionIndex);
-    const worldPos = basePos ? basePos.clone() : serpentineIndexToXZ(positionIndex).clone();
-    if (!token.userData.isSliding) {
-      worldPos.x += offsetX;
-      worldPos.z += offsetZ;
-      worldPos.y += TOKEN_HEIGHT * 0.02;
+    if (!token.userData.isSliding && worldPos) {
       token.position.copy(worldPos);
     }
   });
@@ -1502,58 +1576,78 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
       const dir = B.clone().sub(A);
       const len = dir.length();
       const up = new THREE.Vector3(0, 1, 0);
-      const right = new THREE.Vector3().crossVectors(dir.clone().normalize(), up).normalize();
+      const forward = dir.lengthSq() > 1e-6 ? dir.clone().normalize() : new THREE.Vector3(0, 0, 1);
+      const rightBase = new THREE.Vector3().crossVectors(forward, up);
+      if (rightBase.lengthSq() < 1e-6) {
+        rightBase.set(1, 0, 0);
+      } else {
+        rightBase.normalize();
+      }
       const railOffset = TILE_SIZE * 0.18;
 
-      const baseLift = TILE_SIZE * 0.1;
-      const archHeight = TILE_SIZE * 0.5 + len * 0.008;
-      const sway = right.clone().multiplyScalar(TILE_SIZE * 0.12);
+      const baseLift = TILE_SIZE * 0.12;
+      const archHeight = TILE_SIZE * 0.65 + len * 0.012;
+      const swayAmount = TILE_SIZE * 0.24 + len * 0.01;
 
-      const centerStart = A.clone().addScaledVector(up, baseLift);
-      const centerEnd = B.clone().addScaledVector(up, baseLift);
-      const centerMid = centerStart
+      const startPoint = A.clone().addScaledVector(up, baseLift);
+      const endPoint = B.clone().addScaledVector(up, baseLift);
+      const midPointA = startPoint
         .clone()
-        .lerp(centerEnd, 0.5)
+        .lerp(endPoint, 0.35)
+        .addScaledVector(up, archHeight * 0.6)
+        .addScaledVector(rightBase, swayAmount);
+      const midPointB = startPoint
+        .clone()
+        .lerp(endPoint, 0.7)
         .addScaledVector(up, archHeight)
-        .add(sway);
-      const centerCurve = new THREE.CatmullRomCurve3([centerStart, centerMid, centerEnd], false);
+        .addScaledVector(rightBase, -swayAmount * 0.85);
 
-      const lateralEase = 0.9;
-      const leftCurve = new THREE.CatmullRomCurve3(
-        [
-          centerStart.clone().addScaledVector(right, -railOffset),
-          centerMid.clone().addScaledVector(right, -railOffset * lateralEase),
-          centerEnd.clone().addScaledVector(right, -railOffset)
-        ],
-        false
-      );
-      const rightCurve = new THREE.CatmullRomCurve3(
-        [
-          centerStart.clone().addScaledVector(right, railOffset),
-          centerMid.clone().addScaledVector(right, railOffset * lateralEase),
-          centerEnd.clone().addScaledVector(right, railOffset)
-        ],
-        false
-      );
+      const centerPoints = [startPoint, midPointA, midPointB, endPoint];
+      const centerCurve = new THREE.CatmullRomCurve3(centerPoints, false, 'centripetal');
 
-      const railGeomA = new THREE.TubeGeometry(leftCurve, 48, TILE_SIZE * 0.05, 12, false);
-      const railGeomB = new THREE.TubeGeometry(rightCurve, 48, TILE_SIZE * 0.05, 12, false);
+      const leftPoints = [];
+      const rightPoints = [];
+      centerPoints.forEach((point, pointIndex) => {
+        const prev = centerPoints[pointIndex - 1] ?? centerPoints[pointIndex];
+        const next = centerPoints[pointIndex + 1] ?? centerPoints[pointIndex];
+        const tangent = next.clone().sub(prev);
+        if (tangent.lengthSq() < 1e-6) {
+          tangent.copy(forward);
+        } else {
+          tangent.normalize();
+        }
+        const localRight = new THREE.Vector3().crossVectors(tangent, up);
+        if (localRight.lengthSq() < 1e-6) {
+          localRight.copy(rightBase);
+        } else {
+          localRight.normalize();
+        }
+        const ease = pointIndex === 1 || pointIndex === centerPoints.length - 2 ? 0.82 : 1;
+        leftPoints.push(point.clone().addScaledVector(localRight, -railOffset * ease));
+        rightPoints.push(point.clone().addScaledVector(localRight, railOffset * ease));
+      });
+
+      const leftCurve = new THREE.CatmullRomCurve3(leftPoints, false, 'centripetal');
+      const rightCurve = new THREE.CatmullRomCurve3(rightPoints, false, 'centripetal');
+
+      const railGeomA = new THREE.TubeGeometry(leftCurve, 64, TILE_SIZE * 0.05, 12, false);
+      const railGeomB = new THREE.TubeGeometry(rightCurve, 64, TILE_SIZE * 0.05, 12, false);
       const railA = new THREE.Mesh(railGeomA, matRail.clone());
       const railB = new THREE.Mesh(railGeomB, matRail.clone());
-      const repeat = Math.max(3, len / (TILE_SIZE * 0.5));
+      const repeat = Math.max(3, len / (TILE_SIZE * 0.35));
       railA.material.map.repeat.x = repeat;
       railB.material.map.repeat.x = repeat;
       group.add(railA, railB);
 
       const rungStep = TILE_SIZE * 0.55;
-      const rungCount = Math.max(3, Math.floor(len / rungStep));
+      const rungCount = Math.max(4, Math.floor(len / rungStep));
       for (let i = 1; i < rungCount; i++) {
         const t = i / rungCount;
         const point = centerCurve.getPoint(t);
         const tangent = centerCurve.getTangent(t).normalize();
         const localRight = new THREE.Vector3().crossVectors(tangent, up);
         if (localRight.lengthSq() < 1e-6) {
-          localRight.copy(right);
+          localRight.copy(rightBase);
         } else {
           localRight.normalize();
         }
@@ -1946,7 +2040,14 @@ export default function SnakeBoard3D({
       players,
       boardRef.current.indexToPosition,
       boardRef.current.serpentineIndexToXZ,
-      { burning, rollingIndex, currentTurn }
+      {
+        burning,
+        rollingIndex,
+        currentTurn,
+        boardRoot: boardRef.current.root,
+        seatAnchors: boardRef.current.seatAnchors,
+        baseLevelTop: boardRef.current.baseLevelTop
+      }
     );
   }, [players, burning, rollingIndex, currentTurn, tokenType]);
 
