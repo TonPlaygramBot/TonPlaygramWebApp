@@ -458,7 +458,7 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.4125; // trim the corner jaw wings further so the liners stay clear of the playing field
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.345; // roll the corner jaw wings back to the slimmer profile from the earlier pocket layout
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.66; // deepen the jaw liner so the taller black jaws clear the chrome finish cleanly
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
@@ -528,9 +528,9 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.0095 * POCKET_VISUAL_EXPANSION; // pull the diagonal trims in tighter so the corner jaws no longer creep over the cloth
+  POCKET_VIS_R * 0.0065 * POCKET_VISUAL_EXPANSION; // restore the narrower diagonal trims so the corner jaws mirror yesterday's pocket cut
 const POCKET_JAW_CORNER_LIMIT_OFFSET =
-  POCKET_VIS_R * 0.01875 * POCKET_VISUAL_EXPANSION; // push the corner jaw lips back farther so the chrome openings remain unobstructed
+  POCKET_VIS_R * -0.3 * POCKET_VISUAL_EXPANSION; // pull the corner jaw lips away from the playfield so the liners stop short of the cloth along both rails
 const POCKET_JAW_CORNER_OUTWARD_BIAS = 0; // lock the corner jaws directly beneath the chrome arches without any outward drift
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
