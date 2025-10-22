@@ -2574,7 +2574,7 @@ function startGame(){
     }
   }
   renderChain();
-  current=(starter+N-1)%N;
+  current=(starter+1)%N;
   updateInteractivity();
   if(current!==human){
     scheduleCpuPlay();
@@ -2836,7 +2836,7 @@ function nextTurn(){
   if(checkForBlockedGame()){
     return;
   }
-  current=(current+N-1)%N;
+  current=(current+1)%N;
   if(checkForBlockedGame()){
     return;
   }
