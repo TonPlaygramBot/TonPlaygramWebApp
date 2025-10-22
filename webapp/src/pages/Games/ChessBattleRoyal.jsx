@@ -253,10 +253,14 @@ const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.42;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.72; // Pull the player chair further back to clear the camera path
+const CAMERA_PHI_OFFSET = 0.18; // Lower the camera to feel closer to a seated viewpoint
+const CAMERA_INITIAL_PHI_EXTRA = 0.32;
+const SEAT_LABEL_HEIGHT = 0.82;
+const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
 const CAMERA_INITIAL_PHI_LERP = clamp01(
-  ARENA_CAMERA_DEFAULTS.initialPhiLerp + 0.22,
+  ARENA_CAMERA_DEFAULTS.initialPhiLerp + CAMERA_INITIAL_PHI_EXTRA,
   ARENA_CAMERA_DEFAULTS.initialPhiLerp
 );
 const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
@@ -279,14 +283,24 @@ const CHESS_ARENA = Object.freeze({
 });
 
 const CAM_RANGE = buildArenaCameraConfig(BOARD_DISPLAY_SIZE);
+const cameraPhiMin = clamp(
+  ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET,
+  0,
+  Math.PI - 0.2
+);
+const cameraPhiMax = clamp(
+  ARENA_CAMERA_DEFAULTS.phiMax + CAMERA_PHI_OFFSET,
+  cameraPhiMin + 0.05,
+  Math.PI - 0.001
+);
 const CAM = {
   fov: CAM_RANGE.fov,
   near: CAM_RANGE.near,
   far: CAM_RANGE.far,
   minR: CAM_RANGE.minRadius,
   maxR: CAM_RANGE.maxRadius,
-  phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
-  phiMax: ARENA_CAMERA_DEFAULTS.phiMax
+  phiMin: cameraPhiMin,
+  phiMax: cameraPhiMax
 };
 
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
@@ -2106,7 +2120,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       initialPlayerLabel,
       accentColor
     );
-    playerSeatLabel.sprite.position.set(0, 0.96, -0.36);
+    playerSeatLabel.sprite.position.set(0, SEAT_LABEL_HEIGHT, SEAT_LABEL_FORWARD_OFFSET);
     playerSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
     chairA.group.add(playerSeatLabel.sprite);
 
@@ -2118,7 +2132,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       initialAiLabel,
       accentColor
     );
-    aiSeatLabel.sprite.position.set(0, 0.96, -0.36);
+    aiSeatLabel.sprite.position.set(0, SEAT_LABEL_HEIGHT, SEAT_LABEL_FORWARD_OFFSET);
     aiSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
     chairB.group.add(aiSeatLabel.sprite);
 
