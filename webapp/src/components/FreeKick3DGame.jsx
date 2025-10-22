@@ -676,6 +676,11 @@ export default function FreeKick3DGame({ config }) {
     ];
     const billboardGroup = new THREE.Group();
     const billboardAnimations = [];
+    const billboardDepthOffset = 1.6;
+    const billboardHeight = 1.1;
+    const billboardY = 1.2;
+    const billboardWidth = goalWidth / 2.2;
+    const billboardZ = goalZ - goalDepth - billboardDepthOffset;
     billboardConfigs.forEach((config, index) => {
       const texture = makeBillboardTexture(config.text, config.color);
       const material = new THREE.MeshStandardMaterial({
@@ -685,8 +690,8 @@ export default function FreeKick3DGame({ config }) {
         roughness: 0.5,
         metalness: 0.2
       });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth / 2.2, 1.4), material);
-      mesh.position.set((index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6), 1.5, goalZ - goalDepth - 1.6);
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(billboardWidth, billboardHeight), material);
+      mesh.position.set((index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6), billboardY, billboardZ);
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       billboardGroup.add(mesh);
@@ -696,7 +701,7 @@ export default function FreeKick3DGame({ config }) {
     scene.add(billboardGroup);
 
     const billboardColliders = billboardGroup.children.map((mesh) => {
-      const { width = goalWidth / 2.2, height = 1.4 } = mesh.geometry.parameters || {};
+      const { width = billboardWidth, height = billboardHeight } = mesh.geometry.parameters || {};
       return {
         mesh,
         center: new THREE.Vector3(),
@@ -706,6 +711,93 @@ export default function FreeKick3DGame({ config }) {
         spinDamping: 0.7
       };
     });
+
+    const standGroup = new THREE.Group();
+    const stepMaterial = new THREE.MeshStandardMaterial({ color: 0x5f6770, roughness: 0.92, metalness: 0.08 });
+    const seatMaterial = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.42, metalness: 0.18 });
+    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2933, roughness: 0.65, metalness: 0.25 });
+    const postMaterial = new THREE.MeshStandardMaterial({ color: 0xbfc9d4, roughness: 0.4, metalness: 0.6 });
+    const netMaterialBehind = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.28,
+      roughness: 0.85,
+      metalness: 0.05,
+      side: THREE.DoubleSide
+    });
+
+    const stepWidth = goalWidth * 1.6;
+    const stepDepth = 0.6;
+    const stepHeight = 0.25;
+    const stepCount = 3;
+    const stepBaseZ = billboardZ - 0.35;
+    for (let i = 0; i < stepCount; i += 1) {
+      const step = new THREE.Mesh(new THREE.BoxGeometry(stepWidth, stepHeight, stepDepth), stepMaterial);
+      step.position.set(0, stepHeight / 2 + i * stepHeight, stepBaseZ - i * stepDepth);
+      step.receiveShadow = true;
+      standGroup.add(step);
+    }
+
+    const seatGeo = new THREE.BoxGeometry(0.72, 0.12, 0.62);
+    const backGeo = new THREE.BoxGeometry(0.72, 0.52, 0.08);
+    const legGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.58, 10);
+    const seatsPerRow = 12;
+    const seatRowY = stepHeight * stepCount + 0.1;
+    const seatRowZ = stepBaseZ - (stepCount - 1) * stepDepth + stepDepth * 0.2;
+    for (let i = 0; i < seatsPerRow; i += 1) {
+      const x = (i - (seatsPerRow - 1) / 2) * 0.9;
+      const seat = new THREE.Mesh(seatGeo, seatMaterial);
+      seat.position.set(x, seatRowY, seatRowZ);
+      seat.castShadow = true;
+      seat.receiveShadow = true;
+      standGroup.add(seat);
+
+      const back = new THREE.Mesh(backGeo, seatMaterial);
+      back.position.set(x, seatRowY + 0.32, seatRowZ - 0.32);
+      back.castShadow = true;
+      back.receiveShadow = true;
+      standGroup.add(back);
+
+      const leftLeg = new THREE.Mesh(legGeo, frameMaterial);
+      leftLeg.position.set(x - 0.28, seatRowY - 0.35, seatRowZ + 0.2);
+      leftLeg.castShadow = true;
+      standGroup.add(leftLeg);
+
+      const rightLeg = leftLeg.clone();
+      rightLeg.position.x = x + 0.28;
+      standGroup.add(rightLeg);
+    }
+
+    const postHeight = 4.4;
+    const postBaseY = stepHeight * stepCount;
+    const postZ = stepBaseZ - stepCount * stepDepth - 0.25;
+    const postGeo = new THREE.CylinderGeometry(0.08, 0.08, postHeight, 14);
+    const postOffsets = [-0.68, -0.22, 0.22, 0.68];
+    postOffsets.forEach((offset) => {
+      const post = new THREE.Mesh(postGeo, postMaterial);
+      post.position.set(offset * (stepWidth / 2), postBaseY + postHeight / 2, postZ);
+      post.castShadow = true;
+      standGroup.add(post);
+    });
+
+    const crossbarGeo = new THREE.CylinderGeometry(0.05, 0.05, stepWidth * 0.88, 12);
+    const crossbar = new THREE.Mesh(crossbarGeo, postMaterial);
+    crossbar.rotation.z = Math.PI / 2;
+    crossbar.position.set(0, postBaseY + postHeight - 0.12, postZ);
+    crossbar.castShadow = true;
+    standGroup.add(crossbar);
+
+    const safetyNet = new THREE.Mesh(
+      new THREE.PlaneGeometry(stepWidth * 0.92, postHeight - 0.2, 16, 12),
+      netMaterialBehind
+    );
+    safetyNet.position.set(0, postBaseY + (postHeight - 0.2) / 2, postZ + 0.02);
+    safetyNet.rotation.y = Math.PI;
+    safetyNet.castShadow = false;
+    safetyNet.receiveShadow = false;
+    standGroup.add(safetyNet);
+
+    scene.add(standGroup);
 
     const createRoyalBroadcastCamera = (() => {
       const metalDark = new THREE.MeshStandardMaterial({
