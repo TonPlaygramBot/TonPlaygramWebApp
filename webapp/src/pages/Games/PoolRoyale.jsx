@@ -124,25 +124,39 @@ function centroidFromRing(ring) {
   return { x: sumX / count, y: sumY / count };
 }
 
-function scaleMultiPolygon(mp, scale) {
+function scaleMultiPolygon(mp, scale, origin = null) {
   if (!Array.isArray(mp) || typeof scale !== 'number') {
     return [];
   }
   const clampedScale = Math.max(0, scale);
+  const resolveOrigin = (fallback) => {
+    if (origin && typeof origin === 'object') {
+      if (Array.isArray(origin) && origin.length >= 2) {
+        const [ox, oy] = origin;
+        if (Number.isFinite(ox) && Number.isFinite(oy)) {
+          return { x: ox, y: oy };
+        }
+      } else if (Number.isFinite(origin.x) && Number.isFinite(origin.y)) {
+        return { x: origin.x, y: origin.y };
+      }
+    }
+    return fallback;
+  };
   return mp
     .map((poly) => {
       if (!Array.isArray(poly) || !poly.length) return null;
       const outerRing = poly[0];
-      const centroid = centroidFromRing(outerRing);
+      const baseCentroid = centroidFromRing(outerRing);
+      const { x: cx, y: cy } = resolveOrigin(baseCentroid);
       const scaledPoly = poly
         .map((ring) => {
           if (!Array.isArray(ring) || !ring.length) return null;
           return ring
             .map((pt) => {
               if (!Array.isArray(pt) || pt.length < 2) return null;
-              const dx = pt[0] - centroid.x;
-              const dy = pt[1] - centroid.y;
-              return [centroid.x + dx * clampedScale, centroid.y + dy * clampedScale];
+              const dx = pt[0] - cx;
+              const dy = pt[1] - cy;
+              return [cx + dx * clampedScale, cy + dy * clampedScale];
             })
             .filter(Boolean);
         })
@@ -444,7 +458,7 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.86; // pull the corner jaw wings even deeper behind the cushion break so the corner jaws present slimmer side walls
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.78; // shorten the corner jaw wings so they finish before the chrome arch begins
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
@@ -514,11 +528,10 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // drive the diagonal trim farther so the corner jaws narrow along the rails
+  POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // keep the diagonal trim tucked in so the corner jaws align with the chrome opening
 const POCKET_JAW_CORNER_LIMIT_OFFSET =
   POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
-const POCKET_JAW_CORNER_OUTWARD_BIAS =
-  POCKET_VIS_R * 0.003 * POCKET_VISUAL_EXPANSION; // ease the outward shift so the tightened jaws stay aligned with the chrome openings
+const POCKET_JAW_CORNER_OUTWARD_BIAS = 0; // lock the corner jaws directly beneath the chrome arches without any outward drift
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -4547,7 +4560,8 @@ function Table3D(
     outerMP,
     innerScale,
     clipConfig = null,
-    outerScale = 1
+    outerScale = 1,
+    scaleOrigin = null
   ) => {
     if (!Array.isArray(outerMP) || !outerMP.length) {
       return [];
@@ -4558,8 +4572,10 @@ function Table3D(
       0.99
     );
     const scaledOuter =
-      outerScale === 1 ? outerMP : scaleMultiPolygon(outerMP, outerScale);
-    const innerMP = scaleMultiPolygon(outerMP, clampedInner);
+      outerScale === 1
+        ? outerMP
+        : scaleMultiPolygon(outerMP, outerScale, scaleOrigin);
+    const innerMP = scaleMultiPolygon(outerMP, clampedInner, scaleOrigin);
     if (!Array.isArray(innerMP) || !innerMP.length) {
       return [];
     }
@@ -4720,7 +4736,15 @@ function Table3D(
     clipConfig = null,
     options = null
   ) => {
-    const jawShapes = buildPocketRingShapes(outerMP, innerScale, clipConfig, 1);
+    const scaleOrigin =
+      options && options.scaleOrigin ? options.scaleOrigin : null;
+    const jawShapes = buildPocketRingShapes(
+      outerMP,
+      innerScale,
+      clipConfig,
+      1,
+      scaleOrigin
+    );
     if (!jawShapes.length) {
       return null;
     }
@@ -4750,7 +4774,8 @@ function Table3D(
       outerMP,
       rimInnerScale,
       clipConfig,
-      rimOuterScale
+      rimOuterScale,
+      scaleOrigin
     );
     let rimMesh = null;
     if (rimShapes.length) {
@@ -4905,11 +4930,17 @@ function Table3D(
       sz > 0,
       POCKET_JAW_CORNER_FLUSH_EPS
     );
-    addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
-      combine: 'union',
-      x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
-      z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
-    });
+    const pocketOrigin = { x: scaledCenterX, y: scaledCenterZ };
+    addPocketJaw(
+      scaledMP,
+      POCKET_JAW_CORNER_INNER_SCALE,
+      {
+        combine: 'union',
+        x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
+        z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
+      },
+      { scaleOrigin: pocketOrigin }
+    );
   });
 
   [-1, 1].forEach((sx) => {
