@@ -112,7 +112,8 @@ export default function AirHockey3D({ player, ai }) {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
 
-    const TABLE_SCALE = 1.2;
+    // Expand the playable field by 50% to give more room on every side
+    const TABLE_SCALE = 1.8;
     const TABLE = {
       w: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE,
       h: POOL_ENVIRONMENT.tableLength * TABLE_SCALE,
