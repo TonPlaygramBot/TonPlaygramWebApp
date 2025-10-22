@@ -568,6 +568,36 @@ export default function FreeKick3DGame({ config }) {
     crossbar.receiveShadow = true;
     goal.add(crossbar);
 
+    const structureColliders = [
+      {
+        start: new THREE.Vector3(-goalWidth / 2, GROUND_Y, goalZ),
+        end: new THREE.Vector3(-goalWidth / 2, goalHeight, goalZ),
+        radius: postRadius,
+        restitution: 1.28,
+        velocityDamping: 0.82,
+        spinDamping: 0.72,
+        slop: 0.002
+      },
+      {
+        start: new THREE.Vector3(goalWidth / 2, GROUND_Y, goalZ),
+        end: new THREE.Vector3(goalWidth / 2, goalHeight, goalZ),
+        radius: postRadius,
+        restitution: 1.28,
+        velocityDamping: 0.82,
+        spinDamping: 0.72,
+        slop: 0.002
+      },
+      {
+        start: new THREE.Vector3(-goalWidth / 2 + postRadius * 0.9, goalHeight, goalZ),
+        end: new THREE.Vector3(goalWidth / 2 - postRadius * 0.9, goalHeight, goalZ),
+        radius: postRadius,
+        restitution: 1.22,
+        velocityDamping: 0.82,
+        spinDamping: 0.7,
+        slop: 0.0025
+      }
+    ];
+
     const netTexture = (() => {
       const size = 256;
       const canvas = document.createElement('canvas');
@@ -664,6 +694,18 @@ export default function FreeKick3DGame({ config }) {
       billboardAnimations.push({ texture, speed: 0.12 + index * 0.04 });
     });
     scene.add(billboardGroup);
+
+    const billboardColliders = billboardGroup.children.map((mesh) => {
+      const { width = goalWidth / 2.2, height = 1.4 } = mesh.geometry.parameters || {};
+      return {
+        mesh,
+        center: new THREE.Vector3(),
+        halfSize: new THREE.Vector3(width / 2, height / 2, 0.08),
+        restitution: 0.58,
+        velocityDamping: 0.76,
+        spinDamping: 0.7
+      };
+    });
 
     const createRoyalBroadcastCamera = (() => {
       const metalDark = new THREE.MeshStandardMaterial({
@@ -831,8 +873,16 @@ export default function FreeKick3DGame({ config }) {
         cable.castShadow = true;
         cameraAssembly.add(cable);
 
+        const bodyAnchor = new THREE.Object3D();
+        bodyAnchor.position.set(0, 0.22, 0.24);
+        cameraAssembly.add(bodyAnchor);
+
+        const baseAnchor = new THREE.Object3D();
+        baseAnchor.position.set(0, 0.32, 0);
+        base.add(baseAnchor);
+
         group.scale.setScalar(scale);
-        return { group, headPivot };
+        return { group, headPivot, bodyAnchor, baseAnchor };
       };
     })();
 
@@ -864,6 +914,46 @@ export default function FreeKick3DGame({ config }) {
     rightCameraRig.headPivot.lookAt(broadcastFocus);
     rightCameraRig.headPivot.rotateY(Math.PI);
     rightCameraRig.headPivot.rotateX(tripodTilt);
+
+    const broadcastCameras = [leftCameraRig, rightCameraRig];
+    const cameraColliders = [
+      {
+        anchor: leftCameraRig.bodyAnchor,
+        radius: 0.45,
+        restitution: 1.15,
+        velocityDamping: 0.78,
+        spinDamping: 0.72,
+        slop: 0.002,
+        center: new THREE.Vector3()
+      },
+      {
+        anchor: leftCameraRig.baseAnchor,
+        radius: 0.36,
+        restitution: 1.1,
+        velocityDamping: 0.78,
+        spinDamping: 0.72,
+        slop: 0.002,
+        center: new THREE.Vector3()
+      },
+      {
+        anchor: rightCameraRig.bodyAnchor,
+        radius: 0.45,
+        restitution: 1.15,
+        velocityDamping: 0.78,
+        spinDamping: 0.72,
+        slop: 0.002,
+        center: new THREE.Vector3()
+      },
+      {
+        anchor: rightCameraRig.baseAnchor,
+        radius: 0.36,
+        restitution: 1.1,
+        velocityDamping: 0.78,
+        spinDamping: 0.72,
+        slop: 0.002,
+        center: new THREE.Vector3()
+      }
+    ];
 
     const supportScale = 0.9;
     const supportWidth = goalWidth * supportScale;
@@ -948,6 +1038,7 @@ export default function FreeKick3DGame({ config }) {
     const segmentEnd = new THREE.Vector3();
     const localImpact = new THREE.Vector3();
     const defenderNormal = new THREE.Vector3();
+    const cameraTarget = new THREE.Vector3();
 
     const state = {
       renderer,
@@ -968,12 +1059,88 @@ export default function FreeKick3DGame({ config }) {
       netSim: null,
       billboards: [],
       defenders: [],
+      structureColliders: [],
+      cameraColliders: [],
+      broadcastCameraRigs: [],
+      billboardColliders: [],
       netCooldown: 0
     };
 
     state.netSim = netSim;
     state.billboards = billboardAnimations;
     state.defenders = defenders;
+    state.structureColliders = structureColliders;
+    state.cameraColliders = cameraColliders;
+    state.broadcastCameraRigs = broadcastCameras;
+    state.billboardColliders = billboardColliders;
+
+    const applyCapsuleCollision = (start, end, radius, options = {}) => {
+      tmp.copy(end).sub(start);
+      tmp2.copy(ball.position).sub(start);
+      const segLengthSq = tmp.lengthSq();
+      let t = 0;
+      if (segLengthSq > 0) {
+        t = THREE.MathUtils.clamp(tmp.dot(tmp2) / segLengthSq, 0, 1);
+      }
+      tmp3.copy(start).addScaledVector(tmp, t);
+      const combinedRadius = radius + BALL_RADIUS;
+      const distance = tmp3.distanceTo(ball.position);
+      if (distance >= combinedRadius - 0.001) return;
+      defenderNormal.copy(ball.position).sub(tmp3);
+      if (defenderNormal.lengthSq() <= 1e-6) return;
+      defenderNormal.normalize();
+      const penetration = combinedRadius - distance;
+      const slop = options.slop ?? 0.002;
+      ball.position.addScaledVector(defenderNormal, penetration + slop);
+      const restitution = options.restitution ?? 1.0;
+      const velocityDamping = options.velocityDamping ?? 1.0;
+      const spinDamping = options.spinDamping ?? 1.0;
+      const speedAlongNormal = state.velocity.dot(defenderNormal);
+      if (speedAlongNormal < 0) {
+        state.velocity.addScaledVector(defenderNormal, -speedAlongNormal * restitution);
+      }
+      state.velocity.multiplyScalar(velocityDamping);
+      state.spin.multiplyScalar(spinDamping);
+    };
+
+    const applySphereCollision = (collider) => {
+      const { center, radius, restitution = 1.0, velocityDamping = 1.0, spinDamping = 1.0, slop = 0.002 } = collider;
+      const combinedRadius = radius + BALL_RADIUS;
+      const distance = center.distanceTo(ball.position);
+      if (distance >= combinedRadius - 0.001) return;
+      defenderNormal.copy(ball.position).sub(center);
+      if (defenderNormal.lengthSq() <= 1e-6) return;
+      defenderNormal.normalize();
+      const penetration = combinedRadius - distance;
+      ball.position.addScaledVector(defenderNormal, penetration + slop);
+      const speedAlongNormal = state.velocity.dot(defenderNormal);
+      if (speedAlongNormal < 0) {
+        state.velocity.addScaledVector(defenderNormal, -speedAlongNormal * restitution);
+      }
+      state.velocity.multiplyScalar(velocityDamping);
+      state.spin.multiplyScalar(spinDamping);
+    };
+
+    const applyBillboardCollision = (collider) => {
+      const { center, halfSize, restitution = 1.0, velocityDamping = 1.0, spinDamping = 1.0 } = collider;
+      if (!center || !halfSize) return;
+      if (Math.abs(ball.position.x - center.x) > halfSize.x + BALL_RADIUS) return;
+      if (Math.abs(ball.position.y - center.y) > halfSize.y + BALL_RADIUS) return;
+      const frontZ = center.z + halfSize.z;
+      const backZ = center.z - halfSize.z;
+      if (ball.position.z < backZ - BALL_RADIUS) return;
+      if (ball.position.z - BALL_RADIUS > frontZ) return;
+      if (state.velocity.z < 0) {
+        const targetZ = frontZ + BALL_RADIUS;
+        if (ball.position.z < targetZ) {
+          ball.position.z = targetZ;
+        }
+        state.velocity.z *= -restitution;
+        state.velocity.x *= velocityDamping;
+        state.velocity.y *= velocityDamping;
+        state.spin.multiplyScalar(spinDamping);
+      }
+    };
 
     const resetBall = () => {
       if (resetTimeoutRef.current) {
@@ -1026,6 +1193,34 @@ export default function FreeKick3DGame({ config }) {
 
       state.netCooldown = Math.max(0, state.netCooldown - dt);
 
+      if (state.broadcastCameraRigs.length > 0) {
+        cameraTarget.copy(ball.position);
+        cameraTarget.y += 0.35;
+        state.broadcastCameraRigs.forEach((rig) => {
+          rig.headPivot.up.set(0, 1, 0);
+          rig.headPivot.lookAt(cameraTarget);
+          rig.headPivot.rotateY(Math.PI);
+          rig.headPivot.rotateX(tripodTilt);
+          rig.headPivot.updateWorldMatrix(true, true);
+        });
+      }
+
+      if (state.cameraColliders.length > 0) {
+        state.cameraColliders.forEach((collider) => {
+          if (!collider.anchor || !collider.center) return;
+          collider.anchor.updateWorldMatrix(true, false);
+          collider.anchor.getWorldPosition(collider.center);
+        });
+      }
+
+      if (state.billboardColliders.length > 0) {
+        state.billboardColliders.forEach((collider) => {
+          if (!collider.mesh || !collider.center) return;
+          collider.mesh.updateWorldMatrix(true, false);
+          collider.mesh.getWorldPosition(collider.center);
+        });
+      }
+
       if (!gameStateRef.current.gameOver && state.velocity.lengthSq() > 0.00001) {
         const speed = state.velocity.length();
         const dragFactor = 1 - AIR_DRAG * speed;
@@ -1048,30 +1243,24 @@ export default function FreeKick3DGame({ config }) {
           const { mesh, radius, halfHeight } = defender;
           segmentStart.set(mesh.position.x, mesh.position.y - halfHeight, mesh.position.z);
           segmentEnd.set(mesh.position.x, mesh.position.y + halfHeight, mesh.position.z);
-          tmp.copy(segmentEnd).sub(segmentStart);
-          tmp2.copy(ball.position).sub(segmentStart);
-          const segLengthSq = tmp.lengthSq();
-          let t = 0;
-          if (segLengthSq > 0) {
-            t = THREE.MathUtils.clamp(tmp.dot(tmp2) / segLengthSq, 0, 1);
-          }
-          tmp3.copy(segmentStart).addScaledVector(tmp, t);
-          const combinedRadius = radius + BALL_RADIUS;
-          const distance = tmp3.distanceTo(ball.position);
-          if (distance < combinedRadius - 0.001) {
-            defenderNormal.copy(ball.position).sub(tmp3);
-            if (defenderNormal.lengthSq() > 1e-6) {
-              defenderNormal.normalize();
-              const penetration = combinedRadius - distance;
-              ball.position.addScaledVector(defenderNormal, penetration + 0.002);
-              const speedAlongNormal = state.velocity.dot(defenderNormal);
-              if (speedAlongNormal < 0) {
-                state.velocity.addScaledVector(defenderNormal, -speedAlongNormal * 1.6);
-              }
-              state.velocity.multiplyScalar(0.78);
-              state.spin.multiplyScalar(0.7);
-            }
-          }
+          applyCapsuleCollision(segmentStart, segmentEnd, radius, {
+            restitution: 1.6,
+            velocityDamping: 0.78,
+            spinDamping: 0.7,
+            slop: 0.002
+          });
+        });
+
+        state.structureColliders.forEach((collider) => {
+          applyCapsuleCollision(collider.start, collider.end, collider.radius, collider);
+        });
+
+        state.cameraColliders.forEach((collider) => {
+          applySphereCollision(collider);
+        });
+
+        state.billboardColliders.forEach((collider) => {
+          applyBillboardCollision(collider);
         });
 
         if (!state.scored && state.velocity.z < 0 && state.goalAABB.containsPoint(ball.position)) {
