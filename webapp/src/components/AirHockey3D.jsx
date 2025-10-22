@@ -130,7 +130,7 @@ export default function AirHockey3D({ player, ai }) {
     const PUCK_HEIGHT = PUCK_RADIUS * (0.02 / 0.06);
 
     const camera = new THREE.PerspectiveCamera(
-      52,
+      56,
       host.clientWidth / host.clientHeight,
       0.1,
       1200
@@ -271,19 +271,22 @@ export default function AirHockey3D({ player, ai }) {
     skirtGroup.add(frontPanel, backPanel, leftPanel, rightPanel);
     tableGroup.add(skirtGroup);
 
-    const plinthHeight = SKIRT_HEIGHT * 0.22;
-    const plinth = new THREE.Mesh(
+    const baseClearance = TABLE.thickness * 0.18;
+    const cabinetHeight = TABLE.thickness * 1.8;
+    const cabinet = new THREE.Mesh(
       new THREE.BoxGeometry(
         outerHalfW * 2 - panelThickness * 0.6,
-        plinthHeight,
+        cabinetHeight,
         outerHalfH * 2 - panelThickness * 0.35
       ),
       darkWoodMaterial
     );
-    plinth.castShadow = true;
-    plinth.receiveShadow = true;
-    plinth.position.y = floorLocalY + plinthHeight / 2;
-    tableGroup.add(plinth);
+    cabinet.castShadow = true;
+    cabinet.receiveShadow = true;
+    const cabinetTopLocal = -TABLE.thickness - baseClearance;
+    cabinet.position.y = cabinetTopLocal - cabinetHeight / 2;
+    tableGroup.add(cabinet);
+    const cabinetBottomLocal = cabinet.position.y - cabinetHeight / 2;
 
     const legMaterial = new THREE.MeshStandardMaterial({
       color: 0x4a2918,
@@ -291,8 +294,7 @@ export default function AirHockey3D({ player, ai }) {
       metalness: 0.16
     });
     const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
-    const skirtBottomLocal = skirtTopLocal - SKIRT_HEIGHT;
-    const legTopLocal = skirtBottomLocal + SKIRT_HEIGHT * 0.2;
+    const legTopLocal = cabinetBottomLocal - TABLE.thickness * 0.08;
     const legHeight = Math.max(0.1, legTopLocal - floorLocalY);
     const legGeometry = new THREE.CylinderGeometry(
       legRadius * 0.92,
@@ -492,13 +494,13 @@ export default function AirHockey3D({ player, ai }) {
 
     const cameraFocus = new THREE.Vector3(
       0,
-      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.2,
-      0
+      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.18,
+      TABLE.h * 0.12
     );
     const cameraAnchor = new THREE.Vector3(
       0,
-      POOL_ENVIRONMENT.tableSurfaceY + TABLE.h * 0.24,
-      TABLE.h / 2 + TABLE.h * 0.36
+      POOL_ENVIRONMENT.tableSurfaceY + TABLE.h * 0.18,
+      TABLE.h / 2 + TABLE.h * 0.22
     );
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)
