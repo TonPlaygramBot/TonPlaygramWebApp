@@ -300,6 +300,16 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
+const SHOOT_POWER_SCALE = 0.46875; // 50% stronger launch than the previous 0.3125 scale
+const BASE_SPIN_SCALE = 1.5;
+const SPIN_SCALE = BASE_SPIN_SCALE * 1.25;
+const CROSSBAR_HEIGHT_MARGIN = 0.25;
+const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
+  Math.max(
+    0,
+    2 * Math.abs(GRAVITY.y) * Math.max(0, GOAL_CONFIG.height + CROSSBAR_HEIGHT_MARGIN - BALL_RADIUS)
+  )
+);
 const SOUND_SOURCES = {
   crowd: encodeURI('/assets/sounds/football-crowd-3-69245.mp3'),
   whistle: encodeURI('/assets/sounds/metal-whistle-6121.mp3'),
@@ -655,43 +665,205 @@ export default function FreeKick3DGame({ config }) {
     });
     scene.add(billboardGroup);
 
-    const cameraBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.35 });
-    const cameraLensMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1d4ed8,
-      emissive: new THREE.Color(0x1e3a8a),
-      emissiveIntensity: 1.8,
-      roughness: 0.3,
-      metalness: 0.5
-    });
-    const createBroadcastCamera = (x, y, z, yaw) => {
-      const group = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.32, 0.36), cameraBodyMaterial);
-      body.castShadow = true;
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.32, 24), cameraLensMaterial);
-      lens.rotation.x = Math.PI / 2;
-      lens.position.set(0, 0, -0.35);
-      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 12), cameraBodyMaterial);
-      handle.rotation.z = Math.PI / 2;
-      handle.position.set(0, -0.28, 0.05);
-      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 12), cameraBodyMaterial);
-      stand.position.set(0, -0.96, 0);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.18, 18), cameraBodyMaterial);
-      base.position.set(0, -1.45, 0);
-      [body, lens, handle, stand, base].forEach((part) => {
-        part.castShadow = true;
-        part.receiveShadow = true;
-        group.add(part);
+    const createRoyalBroadcastCamera = (() => {
+      const metalDark = new THREE.MeshStandardMaterial({
+        color: 0x1f2937,
+        metalness: 0.7,
+        roughness: 0.35
       });
-      group.position.set(x, y, z);
-      group.rotation.y = yaw;
-      return group;
-    };
+      const metalLite = new THREE.MeshStandardMaterial({
+        color: 0x374151,
+        metalness: 0.6,
+        roughness: 0.4
+      });
+      const plastic = new THREE.MeshStandardMaterial({
+        color: 0x0ea5e9,
+        metalness: 0.18,
+        roughness: 0.46,
+        emissive: new THREE.Color(0x1d4ed8).multiplyScalar(0.22),
+        emissiveIntensity: 1.0
+      });
+      const rubber = new THREE.MeshStandardMaterial({
+        color: 0x0b1220,
+        metalness: 0.0,
+        roughness: 0.96
+      });
+      const glass = new THREE.MeshStandardMaterial({
+        color: 0x9bd3ff,
+        metalness: 0.0,
+        roughness: 0.08,
+        transparent: true,
+        opacity: 0.38,
+        envMapIntensity: 1.3
+      });
+
+      const hubGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.06, 18);
+      const legGeo = new THREE.CylinderGeometry(0.032, 0.018, 1.18, 14);
+      const footGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.024, 14);
+      const braceGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.7, 10);
+      const columnGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.18, 16);
+      const bodyGeo = new THREE.BoxGeometry(0.44, 0.24, 0.24);
+      const lensTubeGeo = new THREE.CylinderGeometry(0.07, 0.075, 0.2, 24);
+      const lensGlassGeo = new THREE.CircleGeometry(0.064, 24);
+      const hoodGeo = new THREE.BoxGeometry(0.16, 0.12, 0.16);
+      const viewfinderGeo = new THREE.BoxGeometry(0.16, 0.1, 0.09);
+      const topHandleGeo = new THREE.CylinderGeometry(0.016, 0.016, 0.28, 12);
+      const panBarGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.36, 10);
+      const gripGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.14, 12);
+      const cableCurve = new THREE.CubicBezierCurve3(
+        new THREE.Vector3(-0.08, 0.36, 0.16),
+        new THREE.Vector3(-0.22, 0.28, 0.32),
+        new THREE.Vector3(-0.32, 0.12, 0.28),
+        new THREE.Vector3(-0.36, 0.02, 0.08)
+      );
+      const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.005, 8, false);
+
+      const LEG_SPREAD = 0.6;
+      const LEG_TILT = 0.42;
+      const HUB_HEIGHT = 0.95;
+      const COLUMN_HEIGHT = 0.18;
+      const HEAD_HEIGHT = HUB_HEIGHT + COLUMN_HEIGHT;
+
+      return (scale = 1.55) => {
+        const group = new THREE.Group();
+        group.name = 'royalBroadcastCamera';
+        const base = new THREE.Group();
+        group.add(base);
+
+        const hub = new THREE.Mesh(hubGeo, metalLite);
+        hub.position.y = HUB_HEIGHT;
+        hub.castShadow = true;
+        hub.receiveShadow = true;
+        base.add(hub);
+
+        const column = new THREE.Mesh(columnGeo, metalLite);
+        column.position.y = HUB_HEIGHT + COLUMN_HEIGHT / 2;
+        column.castShadow = true;
+        column.receiveShadow = true;
+        base.add(column);
+
+        const legAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+        legAngles.forEach((angle) => {
+          const leg = new THREE.Mesh(legGeo, metalDark);
+          leg.castShadow = true;
+          leg.receiveShadow = true;
+          const tiltAxis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
+          leg.position.set(Math.cos(angle) * LEG_SPREAD * 0.42, HUB_HEIGHT - 0.6, Math.sin(angle) * LEG_SPREAD * 0.42);
+          leg.quaternion.setFromAxisAngle(tiltAxis, LEG_TILT);
+          base.add(leg);
+
+          const foot = new THREE.Mesh(footGeo, rubber);
+          foot.position.set(Math.cos(angle) * LEG_SPREAD, 0.012, Math.sin(angle) * LEG_SPREAD);
+          foot.receiveShadow = true;
+          base.add(foot);
+
+          const from = new THREE.Vector3(0, HUB_HEIGHT, 0);
+          const to = new THREE.Vector3(Math.cos(angle) * LEG_SPREAD, 0.02, Math.sin(angle) * LEG_SPREAD);
+          const dir = new THREE.Vector3().subVectors(to, from);
+          const brace = new THREE.Mesh(braceGeo, metalLite);
+          brace.castShadow = true;
+          brace.receiveShadow = true;
+          brace.scale.set(1, dir.length() / 0.7, 1);
+          brace.position.copy(from.clone().add(to).multiplyScalar(0.5));
+          brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+          base.add(brace);
+        });
+
+        const headPivot = new THREE.Group();
+        headPivot.position.set(0, HEAD_HEIGHT + 0.02, 0);
+        base.add(headPivot);
+
+        const cameraAssembly = new THREE.Group();
+        headPivot.add(cameraAssembly);
+
+        const body = new THREE.Mesh(bodyGeo, plastic);
+        body.position.set(0, 0.2, 0);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        cameraAssembly.add(body);
+
+        const lensTube = new THREE.Mesh(lensTubeGeo, metalDark);
+        lensTube.rotation.x = Math.PI / 2;
+        lensTube.position.set(0, 0.22, 0.28);
+        lensTube.castShadow = true;
+        lensTube.receiveShadow = true;
+        cameraAssembly.add(lensTube);
+
+        const lensGlass = new THREE.Mesh(lensGlassGeo, glass);
+        lensGlass.rotation.x = Math.PI / 2;
+        lensGlass.position.set(0, 0.22, 0.38);
+        cameraAssembly.add(lensGlass);
+
+        const hood = new THREE.Mesh(hoodGeo, rubber);
+        hood.position.set(0, 0.22, 0.46);
+        hood.castShadow = true;
+        hood.receiveShadow = true;
+        cameraAssembly.add(hood);
+
+        const viewfinder = new THREE.Mesh(viewfinderGeo, metalLite);
+        viewfinder.position.set(-0.22, 0.3, -0.02);
+        viewfinder.castShadow = true;
+        viewfinder.receiveShadow = true;
+        cameraAssembly.add(viewfinder);
+
+        const topHandle = new THREE.Mesh(topHandleGeo, rubber);
+        topHandle.rotation.z = Math.PI / 2;
+        topHandle.position.set(0, 0.38, 0);
+        topHandle.castShadow = true;
+        topHandle.receiveShadow = true;
+        cameraAssembly.add(topHandle);
+
+        const panBar = new THREE.Mesh(panBarGeo, metalLite);
+        panBar.rotation.z = Math.PI / 2.4;
+        panBar.position.set(0.32, 0.16, 0.12);
+        panBar.castShadow = true;
+        panBar.receiveShadow = true;
+        headPivot.add(panBar);
+
+        const grip = new THREE.Mesh(gripGeo, rubber);
+        grip.rotation.z = Math.PI / 2.4;
+        grip.position.set(0.46, 0.08, 0.12);
+        grip.castShadow = true;
+        grip.receiveShadow = true;
+        headPivot.add(grip);
+
+        const cable = new THREE.Mesh(cableGeo, rubber);
+        cable.castShadow = true;
+        cameraAssembly.add(cable);
+
+        group.scale.setScalar(scale);
+        return { group, headPivot };
+      };
+    })();
 
     const cameraOffset = goalWidth / 2 + 1.6;
     const cameraZ = goalZ - goalDepth - 1.1;
-    const leftBroadcastCamera = createBroadcastCamera(-cameraOffset, 2.05, cameraZ, Math.PI * 0.06);
-    const rightBroadcastCamera = createBroadcastCamera(cameraOffset, 2.05, cameraZ, -Math.PI * 0.06);
-    scene.add(leftBroadcastCamera, rightBroadcastCamera);
+    const broadcastFocus = new THREE.Vector3(0, goalHeight * 0.55, goalZ + 2.4);
+    const tripodTilt = THREE.MathUtils.degToRad(-8);
+
+    const leftCameraRig = createRoyalBroadcastCamera();
+    leftCameraRig.group.position.set(-cameraOffset, GROUND_Y, cameraZ);
+    const toLeftTarget = new THREE.Vector3().subVectors(broadcastFocus, leftCameraRig.group.position);
+    const leftYaw = Math.atan2(toLeftTarget.x, toLeftTarget.z);
+    leftCameraRig.group.rotation.y = leftYaw;
+    scene.add(leftCameraRig.group);
+    leftCameraRig.group.updateWorldMatrix(true, false);
+    leftCameraRig.headPivot.up.set(0, 1, 0);
+    leftCameraRig.headPivot.lookAt(broadcastFocus);
+    leftCameraRig.headPivot.rotateY(Math.PI);
+    leftCameraRig.headPivot.rotateX(tripodTilt);
+
+    const rightCameraRig = createRoyalBroadcastCamera();
+    rightCameraRig.group.position.set(cameraOffset, GROUND_Y, cameraZ);
+    const toRightTarget = new THREE.Vector3().subVectors(broadcastFocus, rightCameraRig.group.position);
+    const rightYaw = Math.atan2(toRightTarget.x, toRightTarget.z);
+    rightCameraRig.group.rotation.y = rightYaw;
+    scene.add(rightCameraRig.group);
+    rightCameraRig.group.updateWorldMatrix(true, false);
+    rightCameraRig.headPivot.up.set(0, 1, 0);
+    rightCameraRig.headPivot.lookAt(broadcastFocus);
+    rightCameraRig.headPivot.rotateY(Math.PI);
+    rightCameraRig.headPivot.rotateX(tripodTilt);
 
     const supportScale = 0.9;
     const supportWidth = goalWidth * supportScale;
@@ -1040,7 +1212,7 @@ export default function FreeKick3DGame({ config }) {
       if (history.length === 1) history.push(end);
       const dtSeconds = dt / 1000;
       const basePower = THREE.MathUtils.clamp((distance * 22) / dtSeconds, 2.4, 30);
-      const power = basePower * 0.3125; // increase launch power by 25%
+      const power = basePower * SHOOT_POWER_SCALE;
       const launchVector = new THREE.Vector3(dx * 2.0, -dy * 1.1 + 0.45, -1);
       const maxElevation = 0.68;
       if (launchVector.y > maxElevation) {
@@ -1048,7 +1220,7 @@ export default function FreeKick3DGame({ config }) {
       }
       const direction = launchVector.normalize();
       state.velocity.copy(direction.multiplyScalar(power));
-      const maxVerticalSpeed = power * 0.48;
+      const maxVerticalSpeed = Math.min(power * 0.48, MAX_VERTICAL_LAUNCH_SPEED);
       if (state.velocity.y > maxVerticalSpeed) {
         state.velocity.y = maxVerticalSpeed;
       }
@@ -1088,7 +1260,7 @@ export default function FreeKick3DGame({ config }) {
         720
       );
       const spinZDeg = THREE.MathUtils.clamp(averageCurveRate * 120, -360, 360);
-      const spinScale = 1.5; // increase applied spin by 50%
+      const spinScale = SPIN_SCALE;
       state.spin.set(
         THREE.MathUtils.degToRad(spinXDeg * intensity * spinScale),
         THREE.MathUtils.degToRad(spinYDeg * intensity * spinScale),
