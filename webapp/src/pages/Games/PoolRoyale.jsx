@@ -445,7 +445,8 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
 const POCKET_JAW_CORNER_TRIM_RATIO = 0.6; // tuck the corner jaw wings further so they stay behind the cushion break
-const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
+const POCKET_JAW_SIDE_INNER_SCALE = 0.968; // slim down the middle pocket liners so the jaw faces pull tighter to the chamfers
+const POCKET_JAW_SIDE_SPAN_SCALE = 0.82; // trim the middle jaw wings along the rail direction to match the marked reduction
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
 const POCKET_JAW_SIDE_FLUSH_EPS = 0; // clamp the side jaws to the cushion break, preventing any lip from entering the playfield
@@ -4949,10 +4950,15 @@ function Table3D(
       sx > 0,
       POCKET_JAW_SIDE_FLUSH_EPS
     );
-    const zLimit = Math.max(
+    const rawZLimit = Math.max(
       MICRO_EPS,
       Math.min(sideChromeMeetZ, cushionRailReachZ + MICRO_EPS * 4)
     );
+    const spanScale = Math.min(
+      Math.max(POCKET_JAW_SIDE_SPAN_SCALE, 0.35),
+      1
+    );
+    const zLimit = rawZLimit * spanScale;
     addPocketJaw(
       scaledMP,
       POCKET_JAW_SIDE_INNER_SCALE,
