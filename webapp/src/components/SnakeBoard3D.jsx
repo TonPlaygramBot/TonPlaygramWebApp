@@ -1142,7 +1142,8 @@ function buildSnakeBoard(
 
   const diceGroup = new THREE.Group();
   const diceBaseY = tileGroup.position.y + tileHeight + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
-  const diceAnchorZ = -half + TILE_SIZE * 1.25;
+  // Keep the dice resting near the player-facing edge of the board
+  const diceAnchorZ = half + TILE_SIZE * 0.65;
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
