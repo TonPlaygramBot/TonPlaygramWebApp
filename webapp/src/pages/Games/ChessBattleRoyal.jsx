@@ -20,7 +20,7 @@ import {
 } from '../../utils/telegram.js';
 import { bombSound } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
-import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
+import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
@@ -243,63 +243,65 @@ const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const LUDO_BOARD_GRID = 15;
-const LUDO_BOARD_TILE = 0.075;
-const LUDO_BOARD_SCALE = 2.7;
-const BOARD_DISPLAY_SIZE = LUDO_BOARD_GRID * LUDO_BOARD_TILE * LUDO_BOARD_SCALE;
+const BOARD_DISPLAY_SIZE = 3.4;
 const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
-const MODEL_SCALE = 0.75;
-const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const STOOL_SCALE = 1.5 * 1.3;
-const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
-const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
-const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
-const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
-const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const CARD_SCALE = 0.95;
-const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
-const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
-const AI_CHAIR_GAP = CARD_W * 0.4;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
-const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
-const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
-const ARENA_WALL_HEIGHT = 3.6 * 1.3;
-const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
+const TABLE_RADIUS = 3.315; // 30% wider footprint to better fill the arena
+const TABLE_HEIGHT = 2.05; // Raised so the surface aligns with the oversized chairs
+const CAMERA_TABLE_SPAN_FACTOR = 2.05; // Slightly tighter framing so the orbit camera starts closer
 
-const DEFAULT_PLAYER_COUNT = 4;
-const CUSTOM_CHAIR_ANGLES = [
-  THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
-  THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
-];
+const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
+const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
+const CHAIR_SCALE = 4; // Chairs are 4x larger
+const CHAIR_CLEARANCE = 0.52;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.86; // Pull the player chair further back to clear the camera path
+const CAMERA_PHI_OFFSET = 0.12; // Raise the allowable camera angle for a slightly higher view
+const CAMERA_INITIAL_PHI_EXTRA = 0.18; // Bias the starting camera angle upward a touch
+const SEAT_LABEL_HEIGHT = 0.74; // Drop the floating seat label closer to the chair back
+const SEAT_LABEL_FORWARD_OFFSET = -0.32;
+const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
+const CAMERA_INITIAL_PHI_LERP = clamp01(
+  ARENA_CAMERA_DEFAULTS.initialPhiLerp + CAMERA_INITIAL_PHI_EXTRA,
+  ARENA_CAMERA_DEFAULTS.initialPhiLerp
+);
+const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
+const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
+const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 
-const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
+const SNOOKER_TABLE_SCALE = 1.3;
+const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
+const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
+const SNOOKER_ROOM_DEPTH = SNOOKER_TABLE_H * 3.6;
+const SNOOKER_SIDE_CLEARANCE = SNOOKER_ROOM_DEPTH / 2 - SNOOKER_TABLE_H / 2;
+const SNOOKER_ROOM_WIDTH = SNOOKER_TABLE_W + SNOOKER_SIDE_CLEARANCE * 2;
+const SNOOKER_SIZE_REDUCTION = 0.7;
+const SNOOKER_GLOBAL_SIZE_FACTOR = 0.85 * SNOOKER_SIZE_REDUCTION;
+const SNOOKER_WORLD_SCALE = 0.85 * SNOOKER_GLOBAL_SIZE_FACTOR * 0.7;
+// Match half of the scaled snooker arena footprint
+const CHESS_ARENA = Object.freeze({
+  width: (SNOOKER_ROOM_WIDTH * SNOOKER_WORLD_SCALE) / 2,
+  depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
+});
 
-const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
-const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
-const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
-const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
-
-const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
-const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
+const CAM_RANGE = buildArenaCameraConfig(BOARD_DISPLAY_SIZE);
+const cameraPhiMin = clamp(
+  ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET,
+  0,
+  Math.PI - 0.2
+);
+const cameraPhiMax = clamp(
+  ARENA_CAMERA_DEFAULTS.phiMax + CAMERA_PHI_OFFSET,
+  cameraPhiMin + 0.05,
+  Math.PI - 0.001
+);
 const CAM = {
-  fov: CAMERA_FOV,
-  near: CAMERA_NEAR,
-  far: CAMERA_FAR,
-  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor,
-  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor,
-  phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
-  phiMax: ARENA_CAMERA_DEFAULTS.phiMax
+  fov: CAM_RANGE.fov,
+  near: CAM_RANGE.near,
+  far: CAM_RANGE.far,
+  minR: CAM_RANGE.minRadius,
+  maxR: CAM_RANGE.maxRadius,
+  phiMin: cameraPhiMin,
+  phiMax: cameraPhiMax
 };
 
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
@@ -401,92 +403,17 @@ function getEffectiveShapeConfig(shapeIndex) {
 }
 
 const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
-const CHAIR_CLOTH_REPEAT = 6;
 
-function adjustHexColor(hex, amount) {
-  const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
-  base.lerp(target, Math.min(Math.abs(amount), 1));
-  return `#${base.getHexString()}`;
-}
-
-function createChairClothTexture(chairOption, renderer) {
-  const primary = chairOption?.primary ?? '#0f6a2f';
-  const accent = chairOption?.accent ?? adjustHexColor(primary, -0.28);
-  const highlight = chairOption?.highlight ?? adjustHexColor(primary, 0.22);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const shadow = adjustHexColor(accent, -0.22);
-  const seam = adjustHexColor(accent, -0.35);
-
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, adjustHexColor(primary, 0.2));
-  gradient.addColorStop(0.5, primary);
-  gradient.addColorStop(1, accent);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const spacing = canvas.width / CHAIR_CLOTH_REPEAT;
-  const halfSpacing = spacing / 2;
-  const lineWidth = Math.max(1.6, spacing * 0.06);
-
-  ctx.strokeStyle = seam;
-  ctx.lineWidth = lineWidth;
-  ctx.globalAlpha = 0.9;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset - canvas.height, canvas.height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset + canvas.height, canvas.height);
-    ctx.stroke();
-  }
-
-  ctx.globalAlpha = 0.55;
-  ctx.strokeStyle = highlight;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(offset + halfSpacing, 0);
-    ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
-    ctx.stroke();
-  }
-
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-  texture.repeat.set(2.5, 2.5);
-  texture.needsUpdate = true;
-  applySRGBColorSpace(texture);
-  return texture;
-}
-
-function createChessChairMaterials(chairOption, renderer) {
-  const clothTexture = createChairClothTexture(chairOption, renderer);
-  const fabricMaterial = new THREE.MeshPhysicalMaterial({
-    map: clothTexture,
-    color: new THREE.Color('#ffffff'),
-    roughness: 0.72,
-    metalness: 0.08,
-    clearcoat: 0.24,
-    clearcoatRoughness: 0.38,
-    sheen: 0.35,
-    sheenColor: new THREE.Color('#ffffff'),
-    sheenRoughness: 0.6
+function createChessChairMaterials(chairOption) {
+  const fabricColor = new THREE.Color(chairOption?.primary ?? '#2b314e');
+  const accent = new THREE.Color(chairOption?.highlight ?? '#465086');
+  const fabricMaterial = new THREE.MeshStandardMaterial({
+    color: fabricColor,
+    roughness: 0.6,
+    metalness: 0.15,
+    emissive: accent.clone().multiplyScalar(0.05)
   });
-  fabricMaterial.userData = {
-    ...(fabricMaterial.userData || {}),
-    chairId: chairOption?.id ?? 'default',
-    clothTexture
-  };
+  fabricMaterial.userData = { chairId: chairOption?.id ?? 'default' };
 
   const legMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor),
@@ -498,66 +425,8 @@ function createChessChairMaterials(chairOption, renderer) {
   return { fabricMaterial, legMaterial };
 }
 
-function createStraightArmrest(side, material) {
-  const sideSign = side === 'right' ? 1 : -1;
-  const group = new THREE.Group();
-
-  const baseHeight = SEAT_THICKNESS / 2;
-  const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
-  const topLength = ARM_DEPTH * 1.1;
-  const topThickness = ARM_THICKNESS * 0.65;
-
-  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
-  top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
-  top.castShadow = true;
-  top.receiveShadow = true;
-  group.add(top);
-
-  const createSupport = (zOffset) => {
-    const support = new THREE.Mesh(
-      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
-      material
-    );
-    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
-    support.castShadow = true;
-    support.receiveShadow = true;
-    return support;
-  };
-
-  const frontSupport = createSupport(ARM_DEPTH * 0.4);
-  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
-  group.add(frontSupport, rearSupport);
-
-  const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
-    material
-  );
-  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
-  sidePanel.castShadow = true;
-  sidePanel.receiveShadow = true;
-  group.add(sidePanel);
-
-  const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
-    material
-  );
-  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
-  handRest.castShadow = true;
-  handRest.receiveShadow = true;
-  group.add(handRest);
-
-  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
-
-  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
-}
-
 function disposeChessChairMaterials(materials) {
   if (!materials) return;
-  const cloth = materials.fabricMaterial?.userData?.clothTexture;
-  cloth?.dispose?.();
-  if (materials.fabricMaterial && materials.fabricMaterial.map && materials.fabricMaterial.map !== cloth) {
-    materials.fabricMaterial.map.dispose?.();
-  }
   materials.fabricMaterial?.dispose?.();
   materials.legMaterial?.dispose?.();
 }
@@ -1775,14 +1644,16 @@ function Chess3D({ avatar, username, initialFlag }) {
         });
         applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
         if (boardGroup) {
-          boardGroup.position.set(0, nextTable.surfaceY + 0.004, 0);
+          boardGroup.position.set(0, nextTable.surfaceY + 0.01, 0);
           nextTable.group.add(boardGroup);
         }
         arena.tableInfo?.dispose?.();
         arena.tableInfo = nextTable;
         arena.tableShapeId = nextTable.shapeId;
         if (arena.boardLookTarget) {
-          const targetY = nextTable.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE;
+          const targetY = boardGroup
+            ? boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE
+            : nextTable.surfaceY + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
         arena.spotTarget?.position.copy(arena.boardLookTarget ?? new THREE.Vector3());
@@ -1801,7 +1672,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       const currentId = currentMaterials?.fabricMaterial?.userData?.chairId ?? 'default';
       const nextId = chairOption.id ?? 'default';
       if (currentId !== nextId) {
-        const nextMaterials = createChessChairMaterials(chairOption, arena.renderer);
+        const nextMaterials = createChessChairMaterials(chairOption);
         arena.chairs?.forEach((chair) => {
           chair.seatMeshes.forEach((mesh) => {
             mesh.material = nextMaterials.fabricMaterial;
@@ -1932,7 +1803,7 @@ function Chess3D({ avatar, username, initialFlag }) {
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color('#030712');
+    scene.background = new THREE.Color(0x0c1020);
     const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
     scene.add(hemi);
     const key = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -1954,50 +1825,100 @@ function Chess3D({ avatar, username, initialFlag }) {
     const arena = new THREE.Group();
     scene.add(arena);
 
+    const arenaHalfWidth = CHESS_ARENA.width / 2;
+    const arenaHalfDepth = CHESS_ARENA.depth / 2;
+    const wallInset = 0.5;
+    const halfRoomX = (arenaHalfWidth - wallInset) * WALL_PROXIMITY_FACTOR;
+    const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
+    const roomHalfWidth = halfRoomX + wallInset;
+    const roomHalfDepth = halfRoomZ + wallInset;
+
     const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
+      new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f1222,
+        roughness: 0.95,
+        metalness: 0.05
+      })
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
     arena.add(floor);
 
+    const carpetMat = createArenaCarpetMaterial();
     const carpet = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
-      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+      new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
+      carpetMat
     );
     carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.01;
-    carpet.receiveShadow = true;
+    carpet.position.y = 0.002;
     arena.add(carpet);
 
-    const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        TABLE_RADIUS * ARENA_GROWTH * 2.4,
-        TABLE_RADIUS * ARENA_GROWTH * 2.6,
-        ARENA_WALL_HEIGHT,
-        32,
-        1,
-        true
-      ),
-      createArenaWallMaterial('#0b1120', '#1e293b')
+    const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
+    const wallT = 0.1;
+    const wallMat = createArenaWallMaterial();
+    const backWall = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
+      wallMat
     );
-    wall.position.y = ARENA_WALL_CENTER_Y;
-    arena.add(wall);
+    backWall.position.set(0, wallH / 2, halfRoomZ);
+    arena.add(backWall);
+    const frontWall = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
+      wallMat
+    );
+    frontWall.position.set(0, wallH / 2, -halfRoomZ);
+    arena.add(frontWall);
+    const leftWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
+      wallMat
+    );
+    leftWall.position.set(-halfRoomX, wallH / 2, 0);
+    arena.add(leftWall);
+    const rightWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
+      wallMat
+    );
+    rightWall.position.set(halfRoomX, wallH / 2, 0);
+    arena.add(rightWall);
 
-    camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const isPortrait = host.clientHeight > host.clientWidth;
-    const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
-    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
-    const chairRadius = AI_CHAIR_RADIUS;
-    const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
-    camera.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius,
-      TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius
+    const ceilTrim = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoomX * 2, 0.02, halfRoomZ * 2),
+      new THREE.MeshStandardMaterial({
+        color: 0x1a233f,
+        roughness: 0.9,
+        metalness: 0.02,
+        side: THREE.DoubleSide
+      })
     );
+    ceilTrim.position.set(0, wallH - 0.02, 0);
+    arena.add(ceilTrim);
+
+    const ledMat = new THREE.MeshStandardMaterial({
+      color: 0x00f7ff,
+      emissive: 0x0099aa,
+      emissiveIntensity: 0.4,
+      roughness: 0.6,
+      metalness: 0.2,
+      side: THREE.DoubleSide
+    });
+    const stripBack = new THREE.Mesh(
+      new THREE.BoxGeometry(halfRoomX * 2, 0.02, 0.01),
+      ledMat
+    );
+    stripBack.position.set(0, 0.05, halfRoomZ - wallT / 2);
+    arena.add(stripBack);
+    const stripFront = stripBack.clone();
+    stripFront.position.set(0, 0.05, -halfRoomZ + wallT / 2);
+    arena.add(stripFront);
+    const stripLeft = new THREE.Mesh(
+      new THREE.BoxGeometry(0.01, 0.02, halfRoomZ * 2),
+      ledMat
+    );
+    stripLeft.position.set(-halfRoomX + wallT / 2, 0.05, 0);
+    arena.add(stripLeft);
+    const stripRight = stripLeft.clone();
+    stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
+    arena.add(stripRight);
 
     const tableInfo = createMurlanStyleTable({
       arena,
@@ -2021,57 +1942,46 @@ function Chess3D({ avatar, username, initialFlag }) {
       });
     }
 
-    const chairMaterials = createChessChairMaterials(chairOption, renderer);
+    const chairMaterials = createChessChairMaterials(chairOption);
     disposers.push(() => {
       disposeChessChairMaterials(chairMaterials);
     });
 
     function makeChair() {
-      const group = new THREE.Group();
-      const seatMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
+      const g = new THREE.Group();
+      const seat = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.06, 0.5),
         chairMaterials.fabricMaterial
       );
-      seatMesh.position.y = SEAT_THICKNESS / 2;
-      seatMesh.castShadow = true;
-      seatMesh.receiveShadow = true;
-      group.add(seatMesh);
-
-      const backMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
+      seat.position.y = 0.48;
+      seat.castShadow = true;
+      seat.receiveShadow = true;
+      g.add(seat);
+      const back = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.5, 0.06),
         chairMaterials.fabricMaterial
       );
-      backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
-      backMesh.castShadow = true;
-      backMesh.receiveShadow = true;
-      group.add(backMesh);
-
-      const armLeft = createStraightArmrest('left', chairMaterials.fabricMaterial);
-      group.add(armLeft.group);
-      const armRight = createStraightArmrest('right', chairMaterials.fabricMaterial);
-      group.add(armRight.group);
-
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          0.16 * MODEL_SCALE * STOOL_SCALE,
-          0.2 * MODEL_SCALE * STOOL_SCALE,
-          BASE_COLUMN_HEIGHT,
-          16
-        ),
-        chairMaterials.legMaterial
-      );
-      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
-      legBase.castShadow = true;
-      legBase.receiveShadow = true;
-      group.add(legBase);
-
-      const avatarAnchor = new THREE.Object3D();
-      avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
-      group.add(avatarAnchor);
-
-      const seatMeshes = [seatMesh, backMesh, ...armLeft.meshes, ...armRight.meshes];
-      const legMeshes = [legBase];
-      return { group, seatMeshes, legMeshes, anchor: avatarAnchor };
+      back.position.set(0, 0.78, -0.22);
+      back.castShadow = true;
+      back.receiveShadow = true;
+      g.add(back);
+      const legG = new THREE.CylinderGeometry(0.03, 0.03, 0.46, 12);
+      const legMeshes = [];
+      [
+        [-0.2, 0.23, -0.2],
+        [0.2, 0.23, -0.2],
+        [-0.2, 0.23, 0.2],
+        [0.2, 0.23, 0.2]
+      ].forEach(([x, y, z]) => {
+        const leg = new THREE.Mesh(legG, chairMaterials.legMaterial);
+        leg.position.set(x, y, z);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        g.add(leg);
+        legMeshes.push(leg);
+      });
+      g.scale.setScalar(CHAIR_SCALE);
+      return { group: g, seatMeshes: [seat, back], legMeshes };
     }
 
     function createSeatLabelSprite(flagValue, labelValue, accentColor) {
@@ -2184,19 +2094,17 @@ function Chess3D({ avatar, username, initialFlag }) {
     }
 
     const chairs = [];
-    for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
-      const fallbackAngle =
-        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
-      const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
-      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS);
-      seatPos.y = CHAIR_BASE_HEIGHT;
-      const chair = makeChair();
-      chair.group.position.copy(seatPos);
-      chair.group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
-      arena.add(chair.group);
-      chairs.push(chair);
-    }
+    const chairA = makeChair();
+    const seatHalfDepth = 0.25 * CHAIR_SCALE;
+    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
+    chairA.group.position.set(0, 0, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
+    arena.add(chairA.group);
+    chairs.push(chairA);
+    const chairB = makeChair();
+    chairB.group.position.set(0, 0, chairDistance);
+    chairB.group.rotation.y = Math.PI;
+    arena.add(chairB.group);
+    chairs.push(chairB);
 
     const accentColor = palette.accent ?? '#4ce0c3';
     const initialPlayerFlag =
@@ -2213,20 +2121,9 @@ function Chess3D({ avatar, username, initialFlag }) {
       initialPlayerLabel,
       accentColor
     );
-    const playerChair = chairs.reduce((best, chair) => {
-      if (!best) return chair;
-      return chair.group.position.z > best.group.position.z ? chair : best;
-    }, null);
-    const aiChair = chairs.reduce((best, chair) => {
-      if (!best) return chair;
-      return chair.group.position.z < best.group.position.z ? chair : best;
-    }, null);
-
-    const labelHeight = AVATAR_ANCHOR_HEIGHT + 0.05;
-    const labelOffsetZ = -SEAT_DEPTH * 0.45;
-    playerSeatLabel.sprite.position.set(0, labelHeight, labelOffsetZ);
-    playerSeatLabel.sprite.scale.set(SEAT_WIDTH * 0.85, BACK_HEIGHT * 0.4, 1);
-    playerChair?.group.add(playerSeatLabel.sprite);
+    playerSeatLabel.sprite.position.set(0, SEAT_LABEL_HEIGHT, SEAT_LABEL_FORWARD_OFFSET);
+    playerSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
+    chairA.group.add(playerSeatLabel.sprite);
 
     const initialAiFlag =
       aiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
@@ -2236,9 +2133,9 @@ function Chess3D({ avatar, username, initialFlag }) {
       initialAiLabel,
       accentColor
     );
-    aiSeatLabel.sprite.position.set(0, labelHeight, labelOffsetZ);
-    aiSeatLabel.sprite.scale.set(SEAT_WIDTH * 0.85, BACK_HEIGHT * 0.4, 1);
-    aiChair?.group.add(aiSeatLabel.sprite);
+    aiSeatLabel.sprite.position.set(0, SEAT_LABEL_HEIGHT, SEAT_LABEL_FORWARD_OFFSET);
+    aiSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
+    chairB.group.add(aiSeatLabel.sprite);
 
     const seatLabels = { player: playerSeatLabel, ai: aiSeatLabel };
     seatLabelsRef.current = seatLabels;
@@ -2327,12 +2224,12 @@ function Chess3D({ avatar, username, initialFlag }) {
 
     const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, tableSurfaceY + 0.004, 0);
+    boardGroup.position.set(0, tableSurfaceY + 0.01, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
     tableInfo.group.add(boardGroup);
     const boardLookTarget = new THREE.Vector3(
       0,
-      tableSurfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
+      boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
       0
     );
     spotTarget.position.copy(boardLookTarget);
@@ -2340,6 +2237,18 @@ function Chess3D({ avatar, username, initialFlag }) {
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
+    // Camera orbit via OrbitControls
+    camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+    const initialRadius = Math.max(
+      BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
+      CAM.minR + 0.6
+    );
+    const initialPhi = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP);
+    const initialTheta = Math.PI * 0.25;
+    const initialOffset = new THREE.Vector3().setFromSpherical(
+      new THREE.Spherical(initialRadius, initialPhi, initialTheta)
+    );
+    camera.position.copy(boardLookTarget).add(initialOffset);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -2360,7 +2269,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const tableSpan = TABLE_RADIUS * 2.6;
+      const tableSpan = (tableInfo?.radius ?? TABLE_RADIUS) * CAMERA_TABLE_SPAN_FACTOR;
       const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
@@ -2373,7 +2282,7 @@ function Chess3D({ avatar, username, initialFlag }) {
     fitRef.current = fit;
     fit();
 
-    const dollyScale = 1 + CAMERA_DOLLY_FACTOR;
+    const dollyScale = 1 + CAMERA_WHEEL_FACTOR;
     zoomRef.current = {
       zoomIn: () => {
         if (!controls) return;
@@ -2540,7 +2449,6 @@ function Chess3D({ avatar, username, initialFlag }) {
       boardLookTarget,
       chairMaterials,
       chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor),
       seatLabels,
       spotLight: spot,
       spotTarget,
