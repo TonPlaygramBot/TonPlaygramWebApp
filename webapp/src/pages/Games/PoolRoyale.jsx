@@ -4626,7 +4626,7 @@ function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
-      const orientationAngle = Math.atan2(-sz, -sx);
+      const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
         baseRadius: cornerBaseRadius,
@@ -4645,7 +4645,7 @@ function Table3D(
       const scaledMP = scaleSidePocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
-      const orientationAngle = Math.atan2(0, -sx);
+      const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
         baseRadius: sideBaseRadius,
