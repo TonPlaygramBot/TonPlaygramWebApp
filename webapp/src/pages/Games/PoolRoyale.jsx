@@ -4870,10 +4870,7 @@ function Table3D(
       POCKET_JAW_CORNER_FLUSH_EPS
     );
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
-      // Force both half-plane clips to apply together so each jaw wing stops flush
-      // with the corresponding cushion edge instead of leaving a slight overhang
-      // into the playfield when the planes are unioned.
-      combine: 'intersection',
+      combine: 'union',
       x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
       z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
     });
