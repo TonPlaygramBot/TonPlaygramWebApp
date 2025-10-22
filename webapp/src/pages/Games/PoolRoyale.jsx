@@ -444,7 +444,7 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.6; // tuck the corner jaw wings further so they stay behind the cushion break
+const POCKET_JAW_CORNER_TRIM_RATIO = 0.72; // pull the corner jaw wings deeper behind the cushion break so less liner remains visible
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
@@ -514,11 +514,11 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // push the diagonal cut deeper so the corner jaws clear the cloth fully
+  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // drive the diagonal trim farther so the corner jaws narrow along the rails
 const POCKET_JAW_CORNER_LIMIT_OFFSET =
   POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
 const POCKET_JAW_CORNER_OUTWARD_BIAS =
-  POCKET_VIS_R * 0.006 * POCKET_VISUAL_EXPANSION; // gently shift the corner jaws away from the table centre so the chrome openings breathe a bit more
+  POCKET_VIS_R * 0.003 * POCKET_VISUAL_EXPANSION; // ease the outward shift so the tightened jaws stay aligned with the chrome openings
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
