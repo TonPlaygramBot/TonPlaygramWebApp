@@ -253,8 +253,12 @@ const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.42;
 const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
-const CAMERA_INITIAL_PHI_LERP = ARENA_CAMERA_DEFAULTS.initialPhiLerp;
+const CAMERA_INITIAL_PHI_LERP = clamp01(
+  ARENA_CAMERA_DEFAULTS.initialPhiLerp + 0.22,
+  ARENA_CAMERA_DEFAULTS.initialPhiLerp
+);
 const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
 const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -2078,7 +2082,7 @@ function Chess3D({ avatar, username, initialFlag }) {
     const chairA = makeChair();
     const seatHalfDepth = 0.25 * CHAIR_SCALE;
     const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
-    chairA.group.position.set(0, 0, -chairDistance);
+    chairA.group.position.set(0, 0, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
     arena.add(chairA.group);
     chairs.push(chairA);
     const chairB = makeChair();
@@ -2102,7 +2106,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       initialPlayerLabel,
       accentColor
     );
-    playerSeatLabel.sprite.position.set(0, 1.08, -0.36);
+    playerSeatLabel.sprite.position.set(0, 0.96, -0.36);
     playerSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
     chairA.group.add(playerSeatLabel.sprite);
 
@@ -2114,7 +2118,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       initialAiLabel,
       accentColor
     );
-    aiSeatLabel.sprite.position.set(0, 1.08, -0.36);
+    aiSeatLabel.sprite.position.set(0, 0.96, -0.36);
     aiSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
     chairB.group.add(aiSeatLabel.sprite);
 
