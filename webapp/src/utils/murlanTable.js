@@ -26,7 +26,7 @@ const DEFAULT_TABLE_WOOD_OPTION = Object.freeze({
   grainId: 'heritagePlanks'
 });
 
-const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
+export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
   id: 'emerald',
   label: 'Rrobë Smerald',
   feltTop: '#0f6a2f',
@@ -198,7 +198,7 @@ function adjustHexColor(hex, amount) {
   return `#${base.getHexString()}`;
 }
 
-function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
+export function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
