@@ -1192,13 +1192,13 @@ const carpetMat = new THREE.MeshStandardMaterial({
 if (carpetTextures.map) {
   carpetMat.map = carpetTextures.map;
   carpetMat.map.needsUpdate = true;
-  carpetMat.map.repeat.set(1, 1);
+  carpetMat.map.repeat.set(5, 5);
 }
 if (carpetTextures.bump) {
   carpetMat.bumpMap = carpetTextures.bump;
   carpetMat.bumpScale = 0.22;
   carpetMat.bumpMap.needsUpdate = true;
-  carpetMat.bumpMap.repeat.set(1, 1);
+  carpetMat.bumpMap.repeat.set(5, 5);
 }
 const carpet = new THREE.Mesh(new THREE.CircleGeometry(CARPET_RADIUS, 96), carpetMat);
 carpet.rotation.x = -Math.PI / 2;
@@ -1494,7 +1494,9 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SCALE = 1.5; // enlarge domino tiles by 50%
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
+const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
+const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
 const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.25;
@@ -1552,6 +1554,7 @@ const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
 const PLACE_ANIM_DURATION = 640;
 const PLACE_ANIM_ARC = 0.05;
+const CPU_PLAY_DELAY = 2000;
 
 const TMP_WORLD_POS = new THREE.Vector3();
 const TMP_WORLD_QUAT = new THREE.Quaternion();
@@ -1999,6 +2002,12 @@ let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
 let flipDir = false; // alterno drejtimin e zinxhirit pas çdo loje
 const usedTileKeys = new Set();
+let gameFinished = false;
+let winnerIndex = null;
+let revealAllHands = false;
+let winnerHighlight = null;
+let winnerHighlightStart = 0;
+let cpuMoveTimeout = null;
 
 function tileKey(tile){
   const ct = canonTile(tile);
@@ -2043,7 +2052,7 @@ function renderHands(){
 
   players.forEach((p,pi)=>{
     const [x0,z0] = layoutSeat(pi);
-    const faceUp = (pi===human);
+    const faceUp = revealAllHands || pi === human || (gameFinished && pi === winnerIndex);
     const count = p.hand.length;
     const isSide = (pi===1 || pi===3);
 
@@ -2191,6 +2200,46 @@ function spawnDrawAnimation(startWorld, seatIndex = human){
     duration: DRAW_ANIM_DURATION,
     arc: 0.05
   });
+}
+
+function clearWinnerHighlight(){
+  if(!winnerHighlight){
+    return;
+  }
+  if(winnerHighlight.parent){
+    winnerHighlight.parent.remove(winnerHighlight);
+  }
+  try{
+    winnerHighlight.geometry?.dispose?.();
+  }catch{}
+  const mat = winnerHighlight.material;
+  try{
+    mat?.dispose?.();
+  }catch{}
+  winnerHighlight = null;
+  winnerHighlightStart = 0;
+}
+
+function showWinnerHighlight(index){
+  clearWinnerHighlight();
+  if(!Number.isInteger(index) || index < 0 || index >= chairs.length){
+    return;
+  }
+  const seat = chairs[index];
+  if(!seat){
+    return;
+  }
+  const radius = SEAT_WIDTH * 0.72;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(radius, 0.028, 32, 96),
+    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.6 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(seat.position.x, 0.04, seat.position.z);
+  ring.renderOrder = 2;
+  tableG.add(ring);
+  winnerHighlight = ring;
+  winnerHighlightStart = performance.now();
 }
 
 function attachMeshPreserveWorld(mesh){
@@ -2463,6 +2512,14 @@ function startGame(){
   chain=[];
   ends=null;
   usedTileKeys.clear();
+  gameFinished = false;
+  winnerIndex = null;
+  revealAllHands = false;
+  clearWinnerHighlight();
+  if(cpuMoveTimeout){
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
@@ -2488,24 +2545,38 @@ function startGame(){
   chain.push({tile:firstTile,x:0,z:0,rot:firstRot,double:firstTile.a===firstTile.b});
   usedTileKeys.add(tileKey(firstTile));
   const step=STEP;
+  const isDoubleStart = firstTile.a === firstTile.b;
   if(!flipDir){
-    ends={
-      L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
-      R:{v:firstTile.b,x: step,z:0,dir:[ 1,0],orient:0}
-    };
+    if(isDoubleStart){
+      ends={
+        L:{v:firstTile.a,x: DOUBLE_END_SHIFT,z:0,dir:[-1,0],orient:Math.PI},
+        R:{v:firstTile.b,x:-DOUBLE_END_SHIFT,z:0,dir:[ 1,0],orient:0}
+      };
+    } else {
+      ends={
+        L:{v:firstTile.a,x:-step,z:0,dir:[-1,0],orient:Math.PI},
+        R:{v:firstTile.b,x: step,z:0,dir:[ 1,0],orient:0}
+      };
+    }
   }
   else{
-    ends={
-      L:{v:firstTile.a,x: step,z:0,dir:[ 1,0],orient:0},
-      R:{v:firstTile.b,x:-step,z:0,dir:[-1,0],orient:Math.PI}
-    };
+    if(isDoubleStart){
+      ends={
+        L:{v:firstTile.a,x:-DOUBLE_END_SHIFT,z:0,dir:[ 1,0],orient:0},
+        R:{v:firstTile.b,x: DOUBLE_END_SHIFT,z:0,dir:[-1,0],orient:Math.PI}
+      };
+    } else {
+      ends={
+        L:{v:firstTile.a,x: step,z:0,dir:[ 1,0],orient:0},
+        R:{v:firstTile.b,x:-step,z:0,dir:[-1,0],orient:Math.PI}
+      };
+    }
   }
   renderChain();
   current=(starter+1)%N;
-  setStatus(`Turn: Player ${current+1}`);
   updateInteractivity();
   if(current!==human){
-    setTimeout(cpuPlay, 450);
+    scheduleCpuPlay();
   }
 }
 
@@ -2614,6 +2685,9 @@ function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile
 
 renderer.domElement.addEventListener('pointerdown',ev=>{
   activePointers.add(ev.pointerId);
+  if(gameFinished){
+    return;
+  }
   if(ev.pointerType==='touch' && activePointers.size>1){
     return;
   }
@@ -2649,7 +2723,7 @@ renderer.domElement.addEventListener('pointerup',ev=>{ activePointers.delete(ev.
 renderer.domElement.addEventListener('pointercancel',ev=>{ activePointers.delete(ev.pointerId); });
 renderer.domElement.addEventListener('pointerleave',ev=>{ activePointers.delete(ev.pointerId); });
 
-btnDraw.addEventListener('click',()=>{ if(current!==human) return; let drewTile=false;
+btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) return; let drewTile=false;
   while(boneyard.length){
     const startWorld = getBoneyardTopWorld();
     const t=drawTileFromStock();
@@ -2662,7 +2736,7 @@ btnDraw.addEventListener('click',()=>{ if(current!==human) return; let drewTile=
   }
   clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw.currentTime=0; SFX.draw.play(); }
 });
-btnPass.addEventListener('click',()=>{ if(current===human){ clearMarkers(); selectedTile=null; nextTurn(); }});
+btnPass.addEventListener('click',()=>{ if(current===human && !gameFinished){ clearMarkers(); selectedTile=null; nextTurn(); }});
 
 startGame();
 
@@ -2676,17 +2750,107 @@ function blockedAndWinner(){
   return null;
 }
 
+function scheduleCpuPlay(delay = CPU_PLAY_DELAY){
+  if(cpuMoveTimeout){
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
+  if(gameFinished){
+    return;
+  }
+  const safeDelay = Math.max(0, Number.isFinite(delay) ? delay : CPU_PLAY_DELAY);
+  cpuMoveTimeout = setTimeout(()=>{
+    cpuMoveTimeout = null;
+    if(!gameFinished){
+      cpuPlay();
+    }
+  }, safeDelay);
+}
+
+function finishGame({ winner = null, reason = '', revealAll = false } = {}){
+  if(gameFinished){
+    return;
+  }
+  gameFinished = true;
+  winnerIndex = Number.isInteger(winner) ? winner : null;
+  revealAllHands = !!revealAll;
+  if(cpuMoveTimeout){
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
+  if(revealAllHands === false && Number.isInteger(winnerIndex) && winnerIndex >= 0){
+    showWinnerHighlight(winnerIndex);
+  } else if(revealAllHands){
+    if(Number.isInteger(winnerIndex) && winnerIndex >= 0){
+      showWinnerHighlight(winnerIndex);
+    } else {
+      clearWinnerHighlight();
+    }
+  } else {
+    clearWinnerHighlight();
+  }
+  clearMarkers();
+  selectedTile = null;
+  renderHands();
+  renderChain();
+  if(reason){
+    setStatus(reason);
+  } else if(winnerIndex !== null){
+    setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
+  } else {
+    setStatus('Game over');
+  }
+}
+
+function checkForBlockedGame(){
+  if(gameFinished){
+    return true;
+  }
+  const blk = blockedAndWinner();
+  if(blk){
+    finishGame({ winner: blk.winner, reason: blk.reason, revealAll: true });
+    return true;
+  }
+  return false;
+}
+
 function updateInteractivity(){
-  const blk = blockedAndWinner(); if(blk){ setStatus(blk.reason); return; }
+  if(gameFinished){
+    renderHands();
+    renderChain();
+    return;
+  }
   setStatus(`Turn: Player ${current+1}`);
   renderHands(); renderChain();
 }
 function nextTurn(){
-  if(players[human].hand.length===0){ setStatus('You won!'); return; }
-  current=(current+1)%N; const blk = blockedAndWinner(); if(blk){ setStatus(blk.reason); return; }
-  updateInteractivity(); if(current!==human) setTimeout(cpuPlay,450);
+  if(gameFinished){
+    return;
+  }
+  const player = players[current];
+  if(player && player.hand.length === 0){
+    finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
+    return;
+  }
+  if(checkForBlockedGame()){
+    return;
+  }
+  current=(current+1)%N;
+  if(checkForBlockedGame()){
+    return;
+  }
+  updateInteractivity();
+  if(gameFinished){
+    return;
+  }
+  if(current!==human){
+    scheduleCpuPlay();
+  }
 }
 function cpuPlay(){
+  if(gameFinished){
+    return;
+  }
   const player = players[current];
   if(!player){ nextTurn(); return; }
 
@@ -2699,7 +2863,7 @@ function cpuPlay(){
       renderHands();
       SFX.draw.currentTime = 0; SFX.draw.play();
       if(canPlayAny(player.hand)){
-        setTimeout(cpuPlay, 350);
+        scheduleCpuPlay();
       } else {
         nextTurn();
       }
@@ -2717,7 +2881,7 @@ function cpuPlay(){
     if(placement.success){
       renderHands();
       if(player.hand.length===0){
-        setStatus(`Player ${current+1} won!`);
+        finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
         return;
       }
       nextTurn();
@@ -2732,7 +2896,7 @@ function cpuPlay(){
     renderHands();
     SFX.draw.currentTime = 0; SFX.draw.play();
     if(canPlayAny(player.hand)){
-      setTimeout(cpuPlay, 350);
+      scheduleCpuPlay();
     } else {
       nextTurn();
     }
@@ -2818,8 +2982,24 @@ function updatePlacementAnimations(now){
   }
 }
 
+function updateWinnerHighlight(now){
+  if(!winnerHighlight){
+    return;
+  }
+  const mat = winnerHighlight.material;
+  if(!mat){
+    return;
+  }
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  const elapsed = Math.max(0, (timestamp - winnerHighlightStart) / 1000);
+  const pulse = 0.55 + Math.sin(elapsed * 3.2) * 0.35;
+  mat.opacity = Math.min(0.95, Math.max(0.25, pulse));
+  const scale = 1 + Math.sin(elapsed * 1.6) * 0.06;
+  winnerHighlight.scale.setScalar(scale);
+}
+
 /* ---------- Loop & Resize ---------- */
-function tick(now){ updateDrawAnimations(now); updatePlacementAnimations(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
+function tick(now){ updateDrawAnimations(now); updatePlacementAnimations(now); updateWinnerHighlight(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
 function onResize(){ positionCameraForViewport(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
