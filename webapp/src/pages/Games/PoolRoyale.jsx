@@ -4492,9 +4492,9 @@ function Table3D(
       innerScale: wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE,
       outerScale: wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE,
       steps: wide ? 88 : 68,
-      sideThinFactor: wide ? 0.18 : 0.24,
-      middleThinFactor: wide ? 0.78 : 0.88,
-      centerEase: wide ? 0.32 : 0.42,
+      sideThinFactor: wide ? 0.26 : 0.32,
+      middleThinFactor: wide ? 0.8 : 0.9,
+      centerEase: wide ? 0.3 : 0.38,
       clampOuter
     });
     if (!jawShape) {
@@ -4571,26 +4571,29 @@ function Table3D(
     }
   };
 
-  const computeBaseRadius = (mouthWidth, jawAngle, innerScale) => {
-    if (!Number.isFinite(mouthWidth) || mouthWidth <= MICRO_EPS) return null;
-    const halfAngle = jawAngle / 2;
-    const sinHalf = Math.sin(halfAngle);
-    if (Math.abs(sinHalf) < MICRO_EPS) return null;
-    return mouthWidth / (2 * sinHalf * innerScale);
-  };
-
   const CORNER_JAW_ANGLE = Math.PI / 2.1;
   const SIDE_JAW_ANGLE = Math.PI / 3.4;
 
-  const cornerBaseRadius = computeBaseRadius(
-    POCKET_CORNER_MOUTH,
-    CORNER_JAW_ANGLE,
-    POCKET_JAW_CORNER_INNER_SCALE
+  const cornerJawOuterLimit = cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE;
+  const sideJawOuterLimit = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
+
+  const resolveBaseRadius = (outerLimit, outerScale) => {
+    if (!Number.isFinite(outerLimit) || outerLimit <= MICRO_EPS) {
+      return null;
+    }
+    if (!Number.isFinite(outerScale) || outerScale <= MICRO_EPS) {
+      return null;
+    }
+    return outerLimit / outerScale;
+  };
+
+  const cornerBaseRadius = resolveBaseRadius(
+    cornerJawOuterLimit,
+    POCKET_JAW_CORNER_OUTER_SCALE
   );
-  const sideBaseRadius = computeBaseRadius(
-    POCKET_SIDE_MOUTH,
-    SIDE_JAW_ANGLE,
-    POCKET_JAW_SIDE_INNER_SCALE
+  const sideBaseRadius = resolveBaseRadius(
+    sideJawOuterLimit,
+    POCKET_JAW_SIDE_OUTER_SCALE
   );
 
   const resolvePocketCenter = (mp, fallbackX, fallbackZ) => {
@@ -4631,7 +4634,7 @@ function Table3D(
         orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: cornerPocketRadius * 1.02
+        clampOuter: cornerJawOuterLimit
       });
     });
   }
@@ -4650,7 +4653,7 @@ function Table3D(
         orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: sidePocketRadius * 1.03
+        clampOuter: sideJawOuterLimit
       });
     });
   }
