@@ -112,11 +112,12 @@ export default function AirHockey3D({ player, ai }) {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
 
+    const TABLE_SCALE = 1.2;
     const TABLE = {
-      w: POOL_ENVIRONMENT.tableWidth,
-      h: POOL_ENVIRONMENT.tableLength,
+      w: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE,
+      h: POOL_ENVIRONMENT.tableLength * TABLE_SCALE,
       thickness: POOL_ENVIRONMENT.tableThickness,
-      goalW: POOL_ENVIRONMENT.tableWidth * 0.45454545454545453
+      goalW: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE * 0.45454545454545453
     };
     const SCALE_WIDTH = TABLE.w / 2.2;
     const SCALE_LENGTH = TABLE.h / (4.8 * 1.2);
@@ -214,6 +215,122 @@ export default function AirHockey3D({ player, ai }) {
     );
     tableSurface.position.y = -TABLE.thickness / 2;
     tableGroup.add(tableSurface);
+
+    const floorLocalY = POOL_ENVIRONMENT.floorY - POOL_ENVIRONMENT.tableSurfaceY;
+    const woodMaterial = new THREE.MeshStandardMaterial({
+      color: 0x5d3725,
+      roughness: 0.55,
+      metalness: 0.18
+    });
+    const darkWoodMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2c1a11,
+      roughness: 0.7,
+      metalness: 0.12
+    });
+
+    const SKIRT_OVERHANG = Math.max(TABLE.w, TABLE.h) * 0.08;
+    const SKIRT_TOP_GAP = TABLE.thickness * 0.05;
+    const SKIRT_HEIGHT = TABLE.thickness * 3.6;
+    const skirtTopLocal = -TABLE.thickness - SKIRT_TOP_GAP;
+    const outerHalfW = TABLE.w / 2 + SKIRT_OVERHANG / 2;
+    const outerHalfH = TABLE.h / 2 + SKIRT_OVERHANG / 2;
+    const panelThickness = TABLE.thickness * 0.7;
+    const panelHeight = SKIRT_HEIGHT;
+    const panelY = skirtTopLocal - panelHeight / 2;
+    const createSkirtPanel = (width, depth) => {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(width, panelHeight, depth),
+        woodMaterial
+      );
+      panel.castShadow = true;
+      panel.receiveShadow = true;
+      panel.position.y = panelY;
+      return panel;
+    };
+    const skirtGroup = new THREE.Group();
+    const frontPanel = createSkirtPanel(
+      outerHalfW * 2,
+      panelThickness
+    );
+    frontPanel.position.z = -outerHalfH + panelThickness / 2;
+    const backPanel = createSkirtPanel(
+      outerHalfW * 2,
+      panelThickness
+    );
+    backPanel.position.z = outerHalfH - panelThickness / 2;
+    const leftPanel = createSkirtPanel(
+      panelThickness,
+      outerHalfH * 2
+    );
+    leftPanel.position.x = -outerHalfW + panelThickness / 2;
+    const rightPanel = createSkirtPanel(
+      panelThickness,
+      outerHalfH * 2
+    );
+    rightPanel.position.x = outerHalfW - panelThickness / 2;
+    skirtGroup.add(frontPanel, backPanel, leftPanel, rightPanel);
+    tableGroup.add(skirtGroup);
+
+    const plinthHeight = SKIRT_HEIGHT * 0.22;
+    const plinth = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        outerHalfW * 2 - panelThickness * 0.6,
+        plinthHeight,
+        outerHalfH * 2 - panelThickness * 0.35
+      ),
+      darkWoodMaterial
+    );
+    plinth.castShadow = true;
+    plinth.receiveShadow = true;
+    plinth.position.y = floorLocalY + plinthHeight / 2;
+    tableGroup.add(plinth);
+
+    const legMaterial = new THREE.MeshStandardMaterial({
+      color: 0x4a2918,
+      roughness: 0.5,
+      metalness: 0.16
+    });
+    const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
+    const skirtBottomLocal = skirtTopLocal - SKIRT_HEIGHT;
+    const legTopLocal = skirtBottomLocal + SKIRT_HEIGHT * 0.2;
+    const legHeight = Math.max(0.1, legTopLocal - floorLocalY);
+    const legGeometry = new THREE.CylinderGeometry(
+      legRadius * 0.92,
+      legRadius,
+      legHeight,
+      32
+    );
+    const legCenterY = (legTopLocal + floorLocalY) / 2;
+    const legInset = Math.max(SKIRT_OVERHANG * 0.3, legRadius * 1.6);
+    const legPositions = [
+      [-outerHalfW + legInset, -outerHalfH + legInset],
+      [outerHalfW - legInset, -outerHalfH + legInset],
+      [-outerHalfW + legInset, 0],
+      [outerHalfW - legInset, 0],
+      [-outerHalfW + legInset, outerHalfH - legInset],
+      [outerHalfW - legInset, outerHalfH - legInset]
+    ];
+    const footHeight = legRadius * 0.4;
+    const footGeometry = new THREE.CylinderGeometry(
+      legRadius * 1.08,
+      legRadius * 1.2,
+      footHeight,
+      32
+    );
+    const footY = floorLocalY + footHeight / 2;
+    legPositions.forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(legGeometry, legMaterial);
+      leg.position.set(lx, legCenterY, lz);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      tableGroup.add(leg);
+
+      const foot = new THREE.Mesh(footGeometry, darkWoodMaterial);
+      foot.position.set(lx, footY, lz);
+      foot.castShadow = true;
+      foot.receiveShadow = true;
+      tableGroup.add(foot);
+    });
 
     const railMat = new THREE.MeshStandardMaterial({
       color: 0xdbe9ff,
