@@ -1076,6 +1076,7 @@ const pipMat = new THREE.MeshPhysicalMaterial({
   clearcoat: 0.9,
   clearcoatRoughness: 0.04,
 });
+const SHARED_DOMINO_MATERIALS = new Set([pipMat]);
 const goldMat = new THREE.MeshPhysicalMaterial({
   color: 0xFFD700,                 // brighter gold
   emissive: 0x3a2a00,              // warm self-light so it never looks black
@@ -1103,6 +1104,56 @@ let boneyardStackTopLocal = 0;
 
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
+
+function disposeDominoMesh(mesh){
+  if(!mesh) return;
+  piecesG.remove(mesh);
+  try{
+    mesh.traverse((child)=>{
+      if(!child.isMesh) return;
+      if(child.geometry?.dispose){
+        try{ child.geometry.dispose(); }catch{}
+      }
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material)=>{
+        if(!material || SHARED_DOMINO_MATERIALS.has(material)) return;
+        if(material.dispose){
+          try{ material.dispose(); }catch{}
+        }
+      });
+    });
+  }catch{}
+}
+
+function clearExistingDominoMeshes(){
+  if(Array.isArray(players)){
+    players.forEach((player)=>{
+      player?.hand?.forEach((tile)=>{
+        if(tile?.mesh){
+          disposeDominoMesh(tile.mesh);
+          tile.mesh = null;
+        }
+      });
+    });
+  }
+  if(Array.isArray(chain)){
+    chain.forEach((segment)=>{
+      if(segment?.mesh){
+        disposeDominoMesh(segment.mesh);
+        segment.mesh = null;
+      }
+    });
+  }
+  drawAnimations.forEach((anim)=>{
+    if(anim?.mesh){
+      disposeDominoMesh(anim.mesh);
+    }
+  });
+  drawAnimations.length = 0;
+  boneyardStackG.clear();
+  boneyardStackVisible = 0;
+  boneyardStackTopLocal = 0;
+}
 
 const configButtonEl = document.getElementById('configButton');
 const configPanelEl = document.getElementById('configPanel');
@@ -1830,7 +1881,11 @@ function cpuDrawUntilPlayable(player){
 }
 
 function startGame(){
-  chain=[]; ends=null; selectedTile=null; clearMarkers();
+  clearMarkers();
+  clearExistingDominoMeshes();
+  selectedTile=null;
+  chain=[];
+  ends=null;
   usedTileKeys.clear();
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
