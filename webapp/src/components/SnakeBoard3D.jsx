@@ -71,7 +71,7 @@ const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / SNAKE_BOARD_TILES;
 const MAX_DICE = 2;
-const DICE_SIZE = TILE_SIZE * 0.45;
+const DICE_SIZE = TILE_SIZE * 0.675;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -83,11 +83,11 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 360;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
-const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 0.9;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 2.35;
+const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.35;
+const DICE_THROW_START_EXTRA = TILE_SIZE * 3.0;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.25;
-const BOARD_EDGE_BUFFER = TILE_SIZE * 0.08;
-const DICE_RETREAT_EXTRA = DICE_SIZE * 0.55;
+const BOARD_EDGE_BUFFER = TILE_SIZE * 0.12;
+const DICE_RETREAT_EXTRA = DICE_SIZE * 0.75;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.28 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.22 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -564,14 +564,14 @@ function computeDiceThrowLayout(board, seatIndex, count) {
     const offset = (i - centerOffset) * spacing;
     const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.75;
     const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.35;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.5;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.6;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.8;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.9;
 
-    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.6;
+    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.9;
     const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.12;
     const settleDistance = Math.max(
-      bounceDistance + DICE_SIZE * 0.25,
-      settleDistanceBase + (Math.random() - 0.2) * DICE_SIZE * 0.45
+      bounceDistance + DICE_SIZE * 0.35,
+      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.6
     );
 
     const start = centerLocal
@@ -1218,8 +1218,8 @@ function buildSnakeBoard(
 
   const diceGroup = new THREE.Group();
   const diceBaseY = tileGroup.position.y + tileHeight + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
-  // Keep the dice resting near the player-facing edge of the board
-  const diceAnchorZ = half + TILE_SIZE * 0.65;
+  // Keep the dice resting near the player-facing edge of the board, closer to the rails
+  const diceAnchorZ = half + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA + DICE_SIZE * 0.35;
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
