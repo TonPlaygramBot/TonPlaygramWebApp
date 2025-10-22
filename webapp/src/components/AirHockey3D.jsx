@@ -3,10 +3,79 @@ import * as THREE from 'three';
 import { getGameVolume } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
+const POOL_ENVIRONMENT = (() => {
+  const TABLE_SCALE = 1.17;
+  const SIZE_REDUCTION = 0.7;
+  const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
+  const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+
+  const TABLE_WIDTH_RAW = 66 * TABLE_SCALE;
+  const TABLE_LENGTH_RAW = 132 * TABLE_SCALE;
+  const TABLE_THICKNESS_RAW = 1.8 * TABLE_SCALE;
+  const FRAME_TOP_Y = -TABLE_THICKNESS_RAW + 0.01 - TABLE_THICKNESS_RAW * 0.012;
+
+  const LEG_SCALE = 6.2;
+  const LEG_HEIGHT_FACTOR = 4;
+  const LEG_HEIGHT_MULTIPLIER = 2.25;
+  const TABLE_HEIGHT_REDUCTION = 0.8;
+  const TABLE_DROP = 0.4;
+  const BASE_TABLE_LIFT = 3.6;
+  const TABLE_H_RAW = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION;
+  const TABLE_LIFT_RAW = BASE_TABLE_LIFT + TABLE_H_RAW * (LEG_HEIGHT_FACTOR - 1);
+  const BASE_LEG_HEIGHT_RAW =
+    TABLE_THICKNESS_RAW * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
+  const BASE_LEG_LENGTH_SCALE = 0.72;
+  const LEG_ELEVATION_SCALE = 0.96;
+  const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
+  const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3;
+  const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT_RAW + TABLE_LIFT_RAW;
+  const BASE_LEG_ROOM_HEIGHT_RAW =
+    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE -
+    LEG_HEIGHT_OFFSET;
+  const LEG_ROOM_HEIGHT =
+    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE -
+    LEG_HEIGHT_OFFSET;
+  const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT_RAW;
+
+  const BASE_TABLE_Y =
+    -2 + (TABLE_H_RAW - 0.75) + TABLE_H_RAW + TABLE_LIFT_RAW - TABLE_DROP;
+  const TABLE_Y_RAW = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
+  const TABLE_SURFACE_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW + 0.01;
+  const FLOOR_Y_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW - LEG_ROOM_HEIGHT + 0.3;
+
+  const ROOM_DEPTH_RAW = TABLE_LENGTH_RAW * 3.6;
+  const SIDE_CLEARANCE_RAW = ROOM_DEPTH_RAW / 2 - TABLE_LENGTH_RAW / 2;
+  const ROOM_WIDTH_RAW = TABLE_WIDTH_RAW + SIDE_CLEARANCE_RAW * 2;
+  const WALL_THICKNESS_RAW = 1.2;
+  const WALL_HEIGHT_BASE_RAW = LEG_ROOM_HEIGHT + TABLE_THICKNESS_RAW + 40;
+  const WALL_HEIGHT_RAW = WALL_HEIGHT_BASE_RAW * 1.3 * 1.3;
+  const CARPET_THICKNESS_RAW = 1.2;
+  const CARPET_INSET_RAW = WALL_THICKNESS_RAW * 0.02;
+  const CARPET_WIDTH_RAW = ROOM_WIDTH_RAW - WALL_THICKNESS_RAW + CARPET_INSET_RAW;
+  const CARPET_DEPTH_RAW = ROOM_DEPTH_RAW - WALL_THICKNESS_RAW + CARPET_INSET_RAW;
+
+  return Object.freeze({
+    WORLD_SCALE,
+    tableWidth: TABLE_WIDTH_RAW * WORLD_SCALE,
+    tableLength: TABLE_LENGTH_RAW * WORLD_SCALE,
+    tableThickness: TABLE_THICKNESS_RAW * WORLD_SCALE,
+    tableSurfaceY: TABLE_SURFACE_RAW * WORLD_SCALE,
+    floorY: FLOOR_Y_RAW * WORLD_SCALE,
+    roomWidth: ROOM_WIDTH_RAW * WORLD_SCALE,
+    roomDepth: ROOM_DEPTH_RAW * WORLD_SCALE,
+    wallThickness: WALL_THICKNESS_RAW * WORLD_SCALE,
+    wallHeight: WALL_HEIGHT_RAW * WORLD_SCALE,
+    carpetThickness: CARPET_THICKNESS_RAW * WORLD_SCALE,
+    carpetWidth: CARPET_WIDTH_RAW * WORLD_SCALE,
+    carpetDepth: CARPET_DEPTH_RAW * WORLD_SCALE
+  });
+})();
+
 /**
  * AIR HOCKEY 3D — Mobile Portrait
  * -------------------------------
- * • Top‑down 3D air hockey table that fits portrait screens
+ * • Full Pool Royale arena replica (walls, carpet, lighting, table footprint)
+ * • Player-edge camera for an at-table perspective suited to portrait play
  * • Controls: drag bottom half to move mallet
  * • AI opponent on top half with simple tracking logic
  * • Scoreboard with avatars
@@ -32,182 +101,331 @@ export default function AirHockey3D({ player, ai }) {
       a.play().catch(() => {});
     };
 
-    // renderer
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    // ensure canvas CSS size matches the host container
     renderer.setSize(host.clientWidth, host.clientHeight);
     host.appendChild(renderer.domElement);
 
-    // scene & lights
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b0e13);
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a2330, 0.9);
-    scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir.position.set(-10, 20, 10);
-    scene.add(dir);
+    scene.background = new THREE.Color(0x050505);
 
-    // table dims (slightly bigger for mobile screens)
-    // expanded 20% toward the top for more play space
-    const TABLE = { w: 2.2, h: 4.8 * 1.2, rim: 0.06, goalW: 1 };
+    const TABLE = {
+      w: POOL_ENVIRONMENT.tableWidth,
+      h: POOL_ENVIRONMENT.tableLength,
+      thickness: POOL_ENVIRONMENT.tableThickness,
+      goalW: POOL_ENVIRONMENT.tableWidth * 0.45454545454545453
+    };
+    const SCALE_WIDTH = TABLE.w / 2.2;
+    const SCALE_LENGTH = TABLE.h / (4.8 * 1.2);
+    const SPEED_SCALE = (SCALE_WIDTH + SCALE_LENGTH) / 2;
+    const MALLET_RADIUS = TABLE.w * 0.054545454545454536;
+    const MALLET_HEIGHT = MALLET_RADIUS * (0.05 / 0.12);
+    const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.06 / 0.12);
+    const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.08 / 0.12);
+    const PUCK_RADIUS = TABLE.w * 0.027272727272727268;
+    const PUCK_HEIGHT = PUCK_RADIUS * (0.02 / 0.06);
 
-    // camera
     const camera = new THREE.PerspectiveCamera(
-      58,
+      52,
       host.clientWidth / host.clientHeight,
-      0.05,
-      100
+      0.1,
+      1200
     );
-    const cam = {
-      y: 4.5,
-      z: 3.8,
-      x: 0,
-      tiltTarget: new THREE.Vector3(0, 0, 0)
-    };
-    const fitCam = () => {
-      camera.aspect = host.clientWidth / host.clientHeight;
-      camera.position.set(cam.x, cam.y, cam.z);
-      camera.lookAt(cam.tiltTarget);
-      camera.updateProjectionMatrix();
-      // keep canvas sized with the host on layout changes
-      renderer.setSize(host.clientWidth, host.clientHeight);
-    };
 
-    // build table
-    const group = new THREE.Group();
-    // shift table slightly upward so the bottom edge stays visible on mobile screens
-    group.position.z = -0.2;
-    scene.add(group);
+    const world = new THREE.Group();
+    scene.add(world);
 
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.w, 0.08, TABLE.h),
-      new THREE.MeshStandardMaterial({ color: 0x1d6fb8, roughness: 0.9 })
+    const tableGroup = new THREE.Group();
+    tableGroup.position.y = POOL_ENVIRONMENT.tableSurfaceY;
+    world.add(tableGroup);
+
+    const carpet = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        POOL_ENVIRONMENT.carpetWidth,
+        POOL_ENVIRONMENT.carpetThickness,
+        POOL_ENVIRONMENT.carpetDepth
+      ),
+      new THREE.MeshStandardMaterial({
+        color: 0x8c2a2e,
+        roughness: 0.9,
+        metalness: 0.025
+      })
     );
-    floor.position.y = -0.04;
-    group.add(floor);
+    carpet.castShadow = false;
+    carpet.receiveShadow = true;
+    carpet.position.set(
+      0,
+      POOL_ENVIRONMENT.floorY - POOL_ENVIRONMENT.carpetThickness / 2,
+      0
+    );
+    world.add(carpet);
 
-    // walls
-    const wallMat = new THREE.MeshStandardMaterial({
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb9ddff,
+      roughness: 0.88,
+      metalness: 0.06
+    });
+    const makeArenaWall = (width, height, depth) => {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(width, height, depth),
+        wallMaterial
+      );
+      wall.castShadow = false;
+      wall.receiveShadow = true;
+      wall.position.y = POOL_ENVIRONMENT.floorY + height / 2;
+      world.add(wall);
+      return wall;
+    };
+
+    const halfRoomDepth = POOL_ENVIRONMENT.roomDepth / 2;
+    const halfRoomWidth = POOL_ENVIRONMENT.roomWidth / 2;
+    const arenaWallThickness = POOL_ENVIRONMENT.wallThickness;
+    makeArenaWall(
+      POOL_ENVIRONMENT.roomWidth,
+      POOL_ENVIRONMENT.wallHeight,
+      arenaWallThickness
+    ).position.z = -halfRoomDepth;
+    makeArenaWall(
+      POOL_ENVIRONMENT.roomWidth,
+      POOL_ENVIRONMENT.wallHeight,
+      arenaWallThickness
+    ).position.z = halfRoomDepth;
+    makeArenaWall(
+      arenaWallThickness,
+      POOL_ENVIRONMENT.wallHeight,
+      POOL_ENVIRONMENT.roomDepth
+    ).position.x = -halfRoomWidth;
+    makeArenaWall(
+      arenaWallThickness,
+      POOL_ENVIRONMENT.wallHeight,
+      POOL_ENVIRONMENT.roomDepth
+    ).position.x = halfRoomWidth;
+
+    const tableSurface = new THREE.Mesh(
+      new THREE.BoxGeometry(TABLE.w, TABLE.thickness, TABLE.h),
+      new THREE.MeshStandardMaterial({
+        color: 0x0b64b4,
+        roughness: 0.85,
+        metalness: 0.1
+      })
+    );
+    tableSurface.position.y = -TABLE.thickness / 2;
+    tableGroup.add(tableSurface);
+
+    const railMat = new THREE.MeshStandardMaterial({
       color: 0xdbe9ff,
       transparent: true,
-      opacity: 0.3,
-      roughness: 0.2,
+      opacity: 0.32,
+      roughness: 0.18,
       metalness: 0.1
     });
-    const wallH = 0.25;
-    const wallT = 0.04;
-    const wallTop = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.w, wallH, wallT),
-      wallMat
-    );
-    wallTop.position.set(0, wallH / 2, -TABLE.h / 2 - wallT / 2);
-    group.add(wallTop);
-    const wallBot = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.w, wallH, wallT),
-      wallMat
-    );
-    wallBot.position.set(0, wallH / 2, TABLE.h / 2 + wallT / 2);
-    group.add(wallBot);
-    const wallL = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, TABLE.h),
-      wallMat
-    );
-    wallL.position.set(-TABLE.w / 2 - wallT / 2, wallH / 2, 0);
-    group.add(wallL);
-    const wallR = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, TABLE.h),
-      wallMat
-    );
-    wallR.position.set(TABLE.w / 2 + wallT / 2, wallH / 2, 0);
-    group.add(wallR);
+    const railHeight = 0.25 * SCALE_WIDTH;
+    const railThickness = 0.04 * SCALE_WIDTH;
+    const buildRail = (w, h, d) =>
+      new THREE.Mesh(new THREE.BoxGeometry(w, h, d), railMat);
 
-    // center line & circles
+    const northRail = buildRail(TABLE.w, railHeight, railThickness);
+    northRail.position.set(0, railHeight / 2, -TABLE.h / 2 - railThickness / 2);
+    tableGroup.add(northRail);
+    const southRail = buildRail(TABLE.w, railHeight, railThickness);
+    southRail.position.set(0, railHeight / 2, TABLE.h / 2 + railThickness / 2);
+    tableGroup.add(southRail);
+    const westRail = buildRail(railThickness, railHeight, TABLE.h);
+    westRail.position.set(-TABLE.w / 2 - railThickness / 2, railHeight / 2, 0);
+    tableGroup.add(westRail);
+    const eastRail = buildRail(railThickness, railHeight, TABLE.h);
+    eastRail.position.set(TABLE.w / 2 + railThickness / 2, railHeight / 2, 0);
+    tableGroup.add(eastRail);
+
     const lineMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.6
     });
+    const lineThickness = 0.02 * SCALE_WIDTH;
     const midLine = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.w, 0.01, 0.02),
+      new THREE.BoxGeometry(TABLE.w, lineThickness * 0.5, lineThickness),
       lineMat
     );
-    midLine.position.y = 0.005;
-    group.add(midLine);
+    midLine.position.y = lineThickness * 0.25;
+    tableGroup.add(midLine);
 
-    const ring = (r, thick, z) => {
-      const g = new THREE.TorusGeometry(r, thick, 16, 60);
-      const m = new THREE.Mesh(
-        g,
+    const ring = (radius, tubeRadius, z) => {
+      const torus = new THREE.TorusGeometry(radius, tubeRadius, 16, 60);
+      const mesh = new THREE.Mesh(
+        torus,
         new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
       );
-      m.rotation.x = Math.PI / 2;
-      m.position.set(0, 0.01, z);
-      group.add(m);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.set(0, lineThickness * 0.5, z);
+      tableGroup.add(mesh);
     };
-    ring(0.18, 0.008, -TABLE.h * 0.33);
-    ring(0.18, 0.008, TABLE.h * 0.33);
+    const ringRadius = 0.18 * SCALE_WIDTH;
+    const ringTube = 0.008 * SCALE_WIDTH;
+    ring(ringRadius, ringTube, -TABLE.h * 0.33);
+    ring(ringRadius, ringTube, TABLE.h * 0.33);
 
-    // goals
-    const goalGeom = new THREE.BoxGeometry(TABLE.goalW, 0.11, wallT * 0.6);
-    const goalMat = new THREE.MeshStandardMaterial({
+    const goalGeometry = new THREE.BoxGeometry(
+      TABLE.goalW,
+      0.11 * SCALE_WIDTH,
+      railThickness * 0.6
+    );
+    const goalMaterial = new THREE.MeshStandardMaterial({
       color: 0x99ffd6,
       emissive: 0x003322,
       emissiveIntensity: 0.6
     });
-    const goalTop = new THREE.Mesh(goalGeom, goalMat);
-    goalTop.position.set(0, 0.05, -TABLE.h / 2 - wallT * 0.7);
-    group.add(goalTop);
-    const goalBot = new THREE.Mesh(goalGeom, goalMat);
-    goalBot.position.set(0, 0.05, TABLE.h / 2 + wallT * 0.7);
-    group.add(goalBot);
+    const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
+    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -TABLE.h / 2 - railThickness * 0.7);
+    tableGroup.add(northGoal);
+    const southGoal = new THREE.Mesh(goalGeometry, goalMaterial);
+    southGoal.position.set(0, 0.055 * SCALE_WIDTH, TABLE.h / 2 + railThickness * 0.7);
+    tableGroup.add(southGoal);
 
-    // mallets
-    const makeMallet = c => {
-      const g = new THREE.Group();
+    const makeMallet = (color) => {
+      const mallet = new THREE.Group();
       const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12, 0.12, 0.05, 24),
-        new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.2 })
+        new THREE.CylinderGeometry(MALLET_RADIUS, MALLET_RADIUS, MALLET_HEIGHT, 32),
+        new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.4,
+          metalness: 0.2
+        })
       );
+      base.position.y = MALLET_HEIGHT / 2;
       const knob = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 0.08, 24),
+        new THREE.CylinderGeometry(
+          MALLET_KNOB_RADIUS,
+          MALLET_KNOB_RADIUS,
+          MALLET_KNOB_HEIGHT,
+          32
+        ),
         new THREE.MeshStandardMaterial({ color: 0x222222 })
       );
-      base.position.y = 0.025;
-      knob.position.y = 0.115;
-      g.add(base, knob);
-      return g;
+      knob.position.y = MALLET_HEIGHT + MALLET_KNOB_HEIGHT / 2;
+      mallet.add(base, knob);
+      return mallet;
     };
+
     const you = makeMallet(0xff5577);
     you.position.set(0, 0, TABLE.h * 0.36);
-    group.add(you);
+    tableGroup.add(you);
+
     const aiMallet = makeMallet(0x66ddff);
     aiMallet.position.set(0, 0, -TABLE.h * 0.36);
-    group.add(aiMallet);
+    tableGroup.add(aiMallet);
 
-    // puck
     const puck = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.06, 0.02, 24),
+      new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
       new THREE.MeshStandardMaterial({ color: 0x111111 })
     );
-    puck.position.y = 0.01;
-    group.add(puck);
+    puck.position.y = PUCK_HEIGHT / 2;
+    tableGroup.add(puck);
 
-    // physics state
+    const hemisphereKey = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
+    const lightLift = TABLE.h * 0.32;
+    hemisphereKey.position.set(
+      0,
+      POOL_ENVIRONMENT.tableSurfaceY + lightLift,
+      -TABLE.h * 0.18
+    );
+    scene.add(hemisphereKey);
+
+    const hemisphereFill = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
+    hemisphereFill.position.set(0, POOL_ENVIRONMENT.tableSurfaceY + lightLift, 0);
+    scene.add(hemisphereFill);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
+    dirLight.position.set(
+      -TABLE.w * 0.28,
+      POOL_ENVIRONMENT.tableSurfaceY + lightLift,
+      TABLE.h * 0.18
+    );
+    dirLight.target.position.set(
+      0,
+      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.1,
+      0
+    );
+    scene.add(dirLight);
+    scene.add(dirLight.target);
+
+    const spotLight = new THREE.SpotLight(
+      0xffffff,
+      12.7449,
+      0,
+      Math.PI * 0.36,
+      0.42,
+      1
+    );
+    spotLight.position.set(
+      TABLE.w * 0.32,
+      POOL_ENVIRONMENT.tableSurfaceY + lightLift * 1.3,
+      TABLE.h * 0.26
+    );
+    spotLight.target.position.set(
+      0,
+      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.4,
+      0
+    );
+    spotLight.decay = 1.0;
+    scene.add(spotLight);
+    scene.add(spotLight.target);
+
+    const cameraFocus = new THREE.Vector3(
+      0,
+      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.2,
+      0
+    );
+    const cameraAnchor = new THREE.Vector3(
+      0,
+      POOL_ENVIRONMENT.tableSurfaceY + TABLE.h * 0.24,
+      TABLE.h / 2 + TABLE.h * 0.36
+    );
+    const cameraDirection = new THREE.Vector3()
+      .subVectors(cameraAnchor, cameraFocus)
+      .normalize();
+
+    const tableCorners = [
+      new THREE.Vector3(-TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, -TABLE.h / 2),
+      new THREE.Vector3(TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, -TABLE.h / 2),
+      new THREE.Vector3(-TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, TABLE.h / 2),
+      new THREE.Vector3(TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, TABLE.h / 2)
+    ];
+
+    const fitCameraToTable = () => {
+      camera.aspect = host.clientWidth / host.clientHeight;
+      camera.position.copy(cameraAnchor);
+      camera.lookAt(cameraFocus);
+      camera.updateProjectionMatrix();
+      renderer.setSize(host.clientWidth, host.clientHeight);
+      for (let i = 0; i < 20; i++) {
+        const needsRetreat = tableCorners.some((corner) => {
+          const sample = corner.clone();
+          const ndc = sample.project(camera);
+          return Math.abs(ndc.x) > 0.92 || ndc.y < -0.97 || ndc.y > 0.97;
+        });
+        if (!needsRetreat) break;
+        camera.position.addScaledVector(cameraDirection, 2.4);
+        camera.lookAt(cameraFocus);
+        camera.updateProjectionMatrix();
+      }
+    };
+
     const S = {
       vel: new THREE.Vector3(0, 0, 0),
-      friction: 0.94,
-      lastTouch: 0
+      friction: 0.94
     };
 
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-    // input mapping
     const ray = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const plane = new THREE.Plane(
+      new THREE.Vector3(0, 1, 0),
+      -POOL_ENVIRONMENT.tableSurfaceY
+    );
     const hit = new THREE.Vector3();
 
     const touchToXZ = (clientX, clientY) => {
@@ -215,16 +433,16 @@ export default function AirHockey3D({ player, ai }) {
       ndc.x = ((clientX - r.left) / r.width) * 2 - 1;
       ndc.y = -((clientY - r.top) / r.height) * 2 + 1;
       ray.setFromCamera(ndc, camera);
-      ray.ray.intersectPlane(plane, hit);
-      const localX = hit.x - group.position.x;
-      const localZ = hit.z - group.position.z;
+      if (!ray.ray.intersectPlane(plane, hit)) {
+        return { x: you.position.x, z: you.position.z };
+      }
       return {
-        x: clamp(localX, -TABLE.w / 2 + 0.12, TABLE.w / 2 - 0.12),
-        z: clamp(localZ, 0, TABLE.h / 2 - 0.12)
+        x: clamp(hit.x, -TABLE.w / 2 + MALLET_RADIUS, TABLE.w / 2 - MALLET_RADIUS),
+        z: clamp(hit.z, 0, TABLE.h / 2 - MALLET_RADIUS)
       };
     };
 
-    const onMove = e => {
+    const onMove = (e) => {
       const t = e.touches ? e.touches[0] : e;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
@@ -238,70 +456,54 @@ export default function AirHockey3D({ player, ai }) {
     });
     renderer.domElement.addEventListener('mousemove', onMove);
 
-    const handleCollision = mallet => {
+    const HIT_FORCE = 0.5 * SPEED_SCALE;
+    const MAX_SPEED = 0.08 * SPEED_SCALE;
+    const SERVE_SPEED = 0.05 * SPEED_SCALE;
+
+    const handleCollision = (mallet) => {
       const dx = puck.position.x - mallet.position.x;
       const dz = puck.position.z - mallet.position.z;
       const d2 = dx * dx + dz * dz;
-      if (d2 < 0.12 * 0.12) {
-        const HIT_FORCE = 0.5;
+      const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.3;
+      if (d2 < collideRadius * collideRadius) {
         S.vel.x += dx * HIT_FORCE;
         S.vel.z += dz * HIT_FORCE;
-        S.lastTouch = 0.15;
         playHit();
       }
     };
 
-    // AI logic (movement only; collisions handled in tick)
-    const aiUpdate = dt => {
+    const aiUpdate = (dt) => {
+      const guardLine = -MALLET_RADIUS;
+      const defensiveZ = -TABLE.h * 0.36;
       const targetZ =
-        puck.position.z < 0
-          ? clamp(puck.position.z + 0.15, -TABLE.h / 2 + 0.12, 0 - 0.12)
-          : -TABLE.h * 0.36;
+        puck.position.z < guardLine
+          ? clamp(
+              puck.position.z + MALLET_RADIUS * 0.8,
+              -TABLE.h / 2 + MALLET_RADIUS,
+              guardLine - MALLET_RADIUS
+            )
+          : defensiveZ;
       const targetX = clamp(
         puck.position.x,
-        -TABLE.w / 2 + 0.12,
-        TABLE.w / 2 - 0.12
+        -TABLE.w / 2 + MALLET_RADIUS,
+        TABLE.w / 2 - MALLET_RADIUS
       );
-      const k = 3.4;
-      aiMallet.position.x += (targetX - aiMallet.position.x) * k * dt;
-      aiMallet.position.z += (targetZ - aiMallet.position.z) * k * dt;
+      const chaseSpeed = 3.4;
+      aiMallet.position.x += (targetX - aiMallet.position.x) * chaseSpeed * dt;
+      aiMallet.position.z += (targetZ - aiMallet.position.z) * chaseSpeed * dt;
     };
 
-    const reset = towardTop => {
-      puck.position.set(0, 0.01, 0);
-      S.vel.set(0, 0, towardTop ? -0.05 : 0.05);
+    const reset = (towardTop = false) => {
+      puck.position.set(0, PUCK_HEIGHT / 2, 0);
+      S.vel.set(0, 0, towardTop ? -SERVE_SPEED : SERVE_SPEED);
       you.position.set(0, 0, TABLE.h * 0.36);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
-    };
-
-    // ensure table fits view
-    const corners = [
-      new THREE.Vector3(-TABLE.w / 2, 0, -TABLE.h / 2),
-      new THREE.Vector3(TABLE.w / 2, 0, -TABLE.h / 2),
-      new THREE.Vector3(-TABLE.w / 2, 0, TABLE.h / 2),
-      new THREE.Vector3(TABLE.w / 2, 0, TABLE.h / 2)
-    ];
-    const toNDC = v => v.clone().project(camera);
-    const ensureFit = () => {
-      camera.position.set(0, cam.y, cam.z);
-      camera.lookAt(0, 0, 0);
-      for (let i = 0; i < 16; i++) {
-        const over = corners.some(c => {
-          const p = toNDC(c);
-          return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
-        });
-        if (!over) break;
-        cam.z += 0.18;
-        camera.position.z = cam.z;
-        camera.updateProjectionMatrix();
-      }
     };
 
     // loop
     const clock = new THREE.Clock();
     reset();
-    fitCam();
-    ensureFit();
+    fitCameraToTable();
 
     const tick = () => {
       const dt = Math.min(0.033, clock.getDelta());
@@ -310,24 +512,24 @@ export default function AirHockey3D({ player, ai }) {
       puck.position.z += S.vel.z;
       S.vel.multiplyScalar(S.friction);
       // keep puck speed manageable
-      S.vel.clampLength(0, 0.08);
+      S.vel.clampLength(0, MAX_SPEED);
 
-      if (Math.abs(puck.position.x) > TABLE.w / 2 - 0.06) {
+      if (Math.abs(puck.position.x) > TABLE.w / 2 - PUCK_RADIUS) {
         puck.position.x = clamp(
           puck.position.x,
-          -TABLE.w / 2 + 0.06,
-          TABLE.w / 2 - 0.06
+          -TABLE.w / 2 + PUCK_RADIUS,
+          TABLE.w / 2 - PUCK_RADIUS
         );
         S.vel.x = -S.vel.x;
         playHit();
       }
 
       const goalHalf = TABLE.goalW / 2;
-      const atTop = puck.position.z < -TABLE.h / 2 + 0.06;
-      const atBot = puck.position.z > TABLE.h / 2 - 0.06;
+      const atTop = puck.position.z < -TABLE.h / 2 + PUCK_RADIUS;
+      const atBot = puck.position.z > TABLE.h / 2 - PUCK_RADIUS;
       if (atTop || atBot) {
         if (Math.abs(puck.position.x) <= goalHalf) {
-          setUi(s => ({
+          setUi((s) => ({
             left: s.left + (atBot ? 1 : 0),
             right: s.right + (atTop ? 1 : 0)
           }));
@@ -337,8 +539,8 @@ export default function AirHockey3D({ player, ai }) {
           S.vel.z = -S.vel.z;
           puck.position.z = clamp(
             puck.position.z,
-            -TABLE.h / 2 + 0.06,
-            TABLE.h / 2 - 0.06
+            -TABLE.h / 2 + PUCK_RADIUS,
+            TABLE.h / 2 - PUCK_RADIUS
           );
           playHit();
         }
@@ -354,14 +556,16 @@ export default function AirHockey3D({ player, ai }) {
     tick();
 
     const onResize = () => {
-      fitCam();
-      ensureFit();
+      fitCameraToTable();
     };
     window.addEventListener('resize', onResize);
 
     return () => {
       cancelAnimationFrame(raf.current);
       window.removeEventListener('resize', onResize);
+      renderer.domElement.removeEventListener('touchstart', onMove);
+      renderer.domElement.removeEventListener('touchmove', onMove);
+      renderer.domElement.removeEventListener('mousemove', onMove);
       try {
         host.removeChild(renderer.domElement);
       } catch {}
