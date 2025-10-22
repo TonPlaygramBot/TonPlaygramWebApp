@@ -62,9 +62,10 @@ const DEFAULT_CHAIR_OPTION = Object.freeze({
 });
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
-const PYRAMID_LEVELS = [7, 5, 4, 3, 1];
+const PYRAMID_LEVELS = [11, 9, 6, 3];
+const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4 - 4));
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
-const TOTAL_BOARD_TILES = PYRAMID_LEVELS.reduce((sum, size) => sum + size * size, 0);
+const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
 const BOARD_SCALE = 2.7 * 0.68 * 0.85; // reduce board footprint by an additional 15%
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
@@ -187,6 +188,26 @@ function adjustHexColor(hex, amount) {
   const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
+}
+
+function buildPerimeterSequence(size) {
+  if (size <= 1) {
+    return [{ row: 0, col: 0 }];
+  }
+  const sequence = [];
+  for (let col = 0; col < size; col += 1) {
+    sequence.push({ row: 0, col });
+  }
+  for (let row = 1; row < size; row += 1) {
+    sequence.push({ row, col: size - 1 });
+  }
+  for (let col = size - 2; col >= 0; col -= 1) {
+    sequence.push({ row: size - 1, col });
+  }
+  for (let row = size - 2; row >= 1; row -= 1) {
+    sequence.push({ row, col: 0 });
+  }
+  return sequence;
 }
 
 function createChairClothTexture(chairOption, renderer) {
@@ -1178,34 +1199,32 @@ function buildSnakeBoard(
   let accumulated = 0;
   PYRAMID_LEVELS.forEach((size, idx) => {
     levelOffsets[idx] = accumulated;
-    accumulated += size * size;
+    accumulated += LEVEL_TILE_COUNTS[idx];
   });
 
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const offset = levelOffsets[levelIndex];
     const { half, tileCenterY, tileTopY } = levelPlacements[levelIndex];
-    for (let row = 0; row < size; row++) {
-      for (let col = 0; col < size; col++) {
-        const serpCol = row % 2 === 0 ? col : size - 1 - col;
-        const idx = offset + row * size + serpCol + 1;
-        const mat = (row + col) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
-        const x = -half + (col + 0.5) * TILE_SIZE;
-        const z = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
-        const tile = new THREE.Mesh(tileGeo, mat);
-        tile.position.set(x, tileCenterY, z);
-        tile.userData.index = idx;
-        tile.userData.baseColor = tile.material.color.clone();
-        tile.material.emissive = new THREE.Color(0x000000);
-        tile.material.emissiveIntensity = 1.0;
-        tileGroup.add(tile);
-        tileMeshes.set(idx, tile);
-        indexToPosition.set(idx, new THREE.Vector3(x, tileTopY, z));
+    const perimeter = buildPerimeterSequence(size);
+    perimeter.forEach(({ row, col }, seqIndex) => {
+      const idx = offset + seqIndex + 1;
+      const mat = (row + col) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
+      const x = -half + (col + 0.5) * TILE_SIZE;
+      const z = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
+      const tile = new THREE.Mesh(tileGeo, mat);
+      tile.position.set(x, tileCenterY, z);
+      tile.userData.index = idx;
+      tile.userData.baseColor = tile.material.color.clone();
+      tile.material.emissive = new THREE.Color(0x000000);
+      tile.material.emissiveIntensity = 1.0;
+      tileGroup.add(tile);
+      tileMeshes.set(idx, tile);
+      indexToPosition.set(idx, new THREE.Vector3(x, tileTopY, z));
 
-        const label = createTileLabel(idx);
-        label.position.set(x, tileTopY + TILE_LABEL_OFFSET, z);
-        labelGroup.add(label);
-      }
-    }
+      const label = createTileLabel(idx);
+      label.position.set(x, tileTopY + TILE_LABEL_OFFSET, z);
+      labelGroup.add(label);
+    });
   });
 
   const baseHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
