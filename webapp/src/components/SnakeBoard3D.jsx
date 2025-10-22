@@ -65,11 +65,20 @@ const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const SNAKE_BOARD_TILES = 10;
 const RAW_BOARD_SIZE = 1.125;
 const BOARD_SCALE = 2.7 * 0.68 * 0.85; // reduce board footprint by an additional 15%
-const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / SNAKE_BOARD_TILES;
+const PYRAMID_ROW_LENGTHS = Object.freeze([19, 17, 15, 13, 11, 9, 7, 5, 3, 1]);
+const PYRAMID_TOTAL_ROWS = PYRAMID_ROW_LENGTHS.length;
+const PYRAMID_TOTAL_CELLS = PYRAMID_ROW_LENGTHS.reduce((sum, len) => sum + len, 0);
+const MAX_ROW_LENGTH = PYRAMID_ROW_LENGTHS.reduce((max, len) => Math.max(max, len), 0);
+const BOARD_RAW_WIDTH = MAX_ROW_LENGTH * TILE_SIZE;
+const BOARD_RAW_DEPTH = PYRAMID_TOTAL_ROWS * TILE_SIZE;
+const BOARD_RAW_SPAN = Math.max(BOARD_RAW_WIDTH, BOARD_RAW_DEPTH);
+const BOARD_HALF_WIDTH = BOARD_RAW_WIDTH / 2;
+const BOARD_HALF_DEPTH = BOARD_RAW_DEPTH / 2;
+const BOARD_DISPLAY_SIZE = BOARD_RAW_SPAN * BOARD_SCALE;
+const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -532,7 +541,7 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   if (lateral.lengthSq() < 1e-6) lateral.set(1, 0, 0);
   lateral.normalize();
 
-  const boardHalf = (SNAKE_BOARD_TILES * TILE_SIZE) / 2;
+  const boardHalf = Math.max(BOARD_HALF_WIDTH, BOARD_HALF_DEPTH);
   const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
   const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
   const settleBaseDistance = boardHalf + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA;
@@ -999,7 +1008,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
     const tableSpan = TABLE_RADIUS * 2.6;
-    const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
+    const boardSpan = BOARD_RAW_SPAN * BOARD_SCALE * 1.6;
     const span = Math.max(tableSpan, boardSpan);
     const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
     const currentRadius = camera.position.distanceTo(boardLookTarget);
@@ -1107,9 +1116,9 @@ function buildSnakeBoard(
 
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(
-      RAW_BOARD_SIZE + BOARD_BASE_EXTRA,
+      BOARD_RAW_WIDTH + BOARD_BASE_EXTRA,
       BOARD_BASE_HEIGHT,
-      RAW_BOARD_SIZE + BOARD_BASE_EXTRA
+      BOARD_RAW_DEPTH + BOARD_BASE_EXTRA
     ),
     new THREE.MeshStandardMaterial({
       color: 0x11172a,
@@ -1137,8 +1146,6 @@ function buildSnakeBoard(
   labelGroup.position.y = tileGroup.position.y + tileHeight + TILE_LABEL_OFFSET;
   boardRoot.add(labelGroup);
 
-  const half = (SNAKE_BOARD_TILES * TILE_SIZE) / 2;
-
   const mats = {
     even: new THREE.MeshStandardMaterial({
       color: TILE_COLOR_A,
@@ -1152,24 +1159,49 @@ function buildSnakeBoard(
     })
   };
 
+  const rowStartIndices = [];
+  let rollingIndex = 1;
+  for (let i = 0; i < PYRAMID_TOTAL_ROWS; i += 1) {
+    rowStartIndices.push(rollingIndex);
+    rollingIndex += PYRAMID_ROW_LENGTHS[i];
+  }
+
   const serpentineIndexToXZ = (index) => {
     if (index < 1) {
-      return new THREE.Vector3(-half - TILE_SIZE * 0.8, 0, -half - TILE_SIZE * 0.6);
+      return new THREE.Vector3(
+        -BOARD_HALF_WIDTH - TILE_SIZE * 0.8,
+        0,
+        BOARD_HALF_DEPTH + TILE_SIZE * 0.6
+      );
     }
-    const n = Math.min(index, SNAKE_BOARD_TILES * SNAKE_BOARD_TILES);
-    const r = Math.floor((n - 1) / SNAKE_BOARD_TILES);
-    const rr = SNAKE_BOARD_TILES - 1 - r;
-    const inRow = (n - 1) % SNAKE_BOARD_TILES;
-    const c = r % 2 === 0 ? inRow : SNAKE_BOARD_TILES - 1 - inRow;
-    const x = -half + (c + 0.5) * TILE_SIZE;
-    const z = -half + (rr + 0.5) * TILE_SIZE;
+    const clamped = Math.min(index, PYRAMID_TOTAL_CELLS);
+    let rowIndex = PYRAMID_TOTAL_ROWS - 1;
+    for (let i = 0; i < PYRAMID_TOTAL_ROWS; i += 1) {
+      const start = rowStartIndices[i];
+      const length = PYRAMID_ROW_LENGTHS[i];
+      if (clamped >= start && clamped < start + length) {
+        rowIndex = i;
+        break;
+      }
+    }
+    const rowLength = PYRAMID_ROW_LENGTHS[rowIndex];
+    const start = rowStartIndices[rowIndex];
+    const offset = clamped - start;
+    const leftToRight = rowIndex % 2 === 0;
+    const column = leftToRight ? offset : rowLength - 1 - offset;
+    const rowHalfWidth = (rowLength * TILE_SIZE) / 2;
+    const x = -rowHalfWidth + (column + 0.5) * TILE_SIZE;
+    const z = BOARD_HALF_DEPTH - (rowIndex + 0.5) * TILE_SIZE;
     return new THREE.Vector3(x, 0, z);
   };
 
-  for (let r = 0; r < SNAKE_BOARD_TILES; r++) {
-    for (let c = 0; c < SNAKE_BOARD_TILES; c++) {
-      const idx = r * SNAKE_BOARD_TILES + c + 1;
-      const mat = (r + c) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
+  PYRAMID_ROW_LENGTHS.forEach((rowLength, rowIndex) => {
+    const start = rowStartIndices[rowIndex];
+    const leftToRight = rowIndex % 2 === 0;
+    for (let offset = 0; offset < rowLength; offset += 1) {
+      const idx = start + offset;
+      const column = leftToRight ? offset : rowLength - 1 - offset;
+      const mat = (rowIndex + column) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
       const tile = new THREE.Mesh(tileGeo, mat);
       const pos = serpentineIndexToXZ(idx);
       tile.position.set(pos.x, tileGroup.position.y + tileHeight / 2, pos.z);
@@ -1185,7 +1217,7 @@ function buildSnakeBoard(
       label.position.set(pos.x, labelGroup.position.y, pos.z);
       labelGroup.add(label);
     }
-  }
+  });
 
   const laddersGroup = new THREE.Group();
   laddersGroup.position.y = tileGroup.position.y + tileHeight / 2;
@@ -1212,14 +1244,14 @@ function buildSnakeBoard(
   );
   coin.rotation.x = Math.PI / 2;
   potGroup.add(coin);
-  const potPos = serpentineIndexToXZ(SNAKE_BOARD_TILES * SNAKE_BOARD_TILES);
+  const potPos = serpentineIndexToXZ(PYRAMID_TOTAL_CELLS);
   potGroup.position.set(potPos.x, tileGroup.position.y + tileHeight + TILE_SIZE * 0.1, potPos.z);
   boardRoot.add(potGroup);
 
   const diceGroup = new THREE.Group();
   const diceBaseY = tileGroup.position.y + tileHeight + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
   // Keep the dice resting near the player-facing edge of the board, closer to the rails
-  const diceAnchorZ = half + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA + DICE_SIZE * 0.5;
+  const diceAnchorZ = BOARD_HALF_DEPTH + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA + DICE_SIZE * 0.5;
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
@@ -1236,12 +1268,19 @@ function buildSnakeBoard(
   diceLightTarget.position.set(0, diceBaseY, diceAnchorZ);
   boardRoot.add(diceLightTarget);
 
-  const diceAccent = new THREE.SpotLight(0xfff1c1, 2.25, RAW_BOARD_SIZE * 1.2, Math.PI / 5, 0.42, 1.25);
+  const diceAccent = new THREE.SpotLight(
+    0xfff1c1,
+    2.25,
+    BOARD_RAW_SPAN * 1.2,
+    Math.PI / 5,
+    0.42,
+    1.25
+  );
   diceAccent.userData.offset = new THREE.Vector3(DICE_SIZE * 2.6, DICE_SIZE * 7.5, DICE_SIZE * 3.4);
   diceAccent.target = diceLightTarget;
   boardRoot.add(diceAccent);
 
-  const diceFill = new THREE.PointLight(0xffe4a3, 1.18, RAW_BOARD_SIZE * 0.9, 2.2);
+  const diceFill = new THREE.PointLight(0xffe4a3, 1.18, BOARD_RAW_SPAN * 0.9, 2.2);
   diceFill.userData.offset = new THREE.Vector3(-DICE_SIZE * 3.2, DICE_SIZE * 6.2, -DICE_SIZE * 3.6);
   boardRoot.add(diceFill);
 
