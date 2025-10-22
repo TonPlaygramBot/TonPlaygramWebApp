@@ -137,19 +137,19 @@ const DICE_SEAT_ADJUSTMENTS = [
   },
   {
     forward: {
-      start: TILE_SIZE * 0.14,
-      bounce: TILE_SIZE * 0.12,
-      base: TILE_SIZE * 0.18
-    },
-    front: {
-      start: TILE_SIZE * 0.32,
-      bounce: TILE_SIZE * 0.5,
-      base: TILE_SIZE * 0.72
-    },
-    side: {
       start: TILE_SIZE * 0.24,
       bounce: TILE_SIZE * 0.28,
-      base: TILE_SIZE * 0.32
+      base: TILE_SIZE * 0.42
+    },
+    front: {
+      start: TILE_SIZE * 0.64,
+      bounce: TILE_SIZE * 0.98,
+      base: TILE_SIZE * 1.36
+    },
+    side: {
+      start: TILE_SIZE * 0.4,
+      bounce: TILE_SIZE * 0.48,
+      base: TILE_SIZE * 0.6
     }
   },
   {
@@ -161,19 +161,19 @@ const DICE_SEAT_ADJUSTMENTS = [
   },
   {
     forward: {
-      start: TILE_SIZE * 0.14,
-      bounce: TILE_SIZE * 0.12,
-      base: TILE_SIZE * 0.18
+      start: TILE_SIZE * 0.24,
+      bounce: TILE_SIZE * 0.28,
+      base: TILE_SIZE * 0.42
     },
     front: {
-      start: TILE_SIZE * 0.32,
-      bounce: TILE_SIZE * 0.5,
-      base: TILE_SIZE * 0.72
+      start: TILE_SIZE * 0.64,
+      bounce: TILE_SIZE * 0.98,
+      base: TILE_SIZE * 1.36
     },
     side: {
-      start: -TILE_SIZE * 0.24,
-      bounce: -TILE_SIZE * 0.28,
-      base: -TILE_SIZE * 0.32
+      start: -TILE_SIZE * 0.4,
+      bounce: -TILE_SIZE * 0.48,
+      base: -TILE_SIZE * 0.6
     }
   }
 ];
@@ -1442,16 +1442,39 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
       const right = new THREE.Vector3().crossVectors(dir.clone().normalize(), up).normalize();
       const railOffset = TILE_SIZE * 0.18;
 
-      const railCurveA = new THREE.LineCurve3(
-        A.clone().add(right.clone().multiplyScalar(-railOffset)),
-        B.clone().add(right.clone().multiplyScalar(-railOffset))
+      const baseLift = TILE_SIZE * 0.1;
+      const archHeight = TILE_SIZE * 0.5 + len * 0.008;
+      const sway = right.clone().multiplyScalar(TILE_SIZE * 0.12);
+
+      const centerStart = A.clone().addScaledVector(up, baseLift);
+      const centerEnd = B.clone().addScaledVector(up, baseLift);
+      const centerMid = centerStart
+        .clone()
+        .lerp(centerEnd, 0.5)
+        .addScaledVector(up, archHeight)
+        .add(sway);
+      const centerCurve = new THREE.CatmullRomCurve3([centerStart, centerMid, centerEnd], false);
+
+      const lateralEase = 0.9;
+      const leftCurve = new THREE.CatmullRomCurve3(
+        [
+          centerStart.clone().addScaledVector(right, -railOffset),
+          centerMid.clone().addScaledVector(right, -railOffset * lateralEase),
+          centerEnd.clone().addScaledVector(right, -railOffset)
+        ],
+        false
       );
-      const railCurveB = new THREE.LineCurve3(
-        A.clone().add(right.clone().multiplyScalar(railOffset)),
-        B.clone().add(right.clone().multiplyScalar(railOffset))
+      const rightCurve = new THREE.CatmullRomCurve3(
+        [
+          centerStart.clone().addScaledVector(right, railOffset),
+          centerMid.clone().addScaledVector(right, railOffset * lateralEase),
+          centerEnd.clone().addScaledVector(right, railOffset)
+        ],
+        false
       );
-      const railGeomA = new THREE.TubeGeometry(railCurveA, 1, TILE_SIZE * 0.05, 12, false);
-      const railGeomB = new THREE.TubeGeometry(railCurveB, 1, TILE_SIZE * 0.05, 12, false);
+
+      const railGeomA = new THREE.TubeGeometry(leftCurve, 48, TILE_SIZE * 0.05, 12, false);
+      const railGeomB = new THREE.TubeGeometry(rightCurve, 48, TILE_SIZE * 0.05, 12, false);
       const railA = new THREE.Mesh(railGeomA, matRail.clone());
       const railB = new THREE.Mesh(railGeomB, matRail.clone());
       const repeat = Math.max(3, len / (TILE_SIZE * 0.5));
@@ -1463,20 +1486,23 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
       const rungCount = Math.max(3, Math.floor(len / rungStep));
       for (let i = 1; i < rungCount; i++) {
         const t = i / rungCount;
-        const pMid = A.clone().lerp(B, t);
+        const point = centerCurve.getPoint(t);
+        const tangent = centerCurve.getTangent(t).normalize();
+        const localRight = new THREE.Vector3().crossVectors(tangent, up);
+        if (localRight.lengthSq() < 1e-6) {
+          localRight.copy(right);
+        } else {
+          localRight.normalize();
+        }
         const rungGeom = new THREE.CylinderGeometry(TILE_SIZE * 0.04, TILE_SIZE * 0.04, railOffset * 2, 12);
         const rung = new THREE.Mesh(rungGeom, matRung);
-        rung.position.copy(pMid);
-        rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), right.clone());
+        rung.position.copy(point);
+        rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), localRight);
         group.add(rung);
       }
 
-      const ladderCurve = new THREE.LineCurve3(
-        A.clone().add(new THREE.Vector3(0, TILE_SIZE * 0.1, 0)),
-        B.clone().add(new THREE.Vector3(0, TILE_SIZE * 0.1, 0))
-      );
       group.userData.paths.set(start, {
-        curve: ladderCurve,
+        curve: centerCurve,
         start: A.clone(),
         end: B.clone()
       });
@@ -1532,7 +1558,8 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const B = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
     const length = Math.abs(start - end);
     const mid = A.clone().lerp(B, 0.5);
-    mid.y += TILE_SIZE * 0.8 + length * 0.01;
+    const archHeight = TILE_SIZE * 0.6 + length * 0.006;
+    mid.y += archHeight;
     const side = new THREE.Vector3(B.z - A.z, 0, -(B.x - A.x))
       .normalize()
       .multiplyScalar(TILE_SIZE * 0.3);
