@@ -732,7 +732,8 @@ export default function FreeKick3DGame({ config }) {
       if (history.length === 0 && start) history.push(start);
       if (history.length === 1) history.push(end);
       const dtSeconds = dt / 1000;
-      const power = THREE.MathUtils.clamp((distance * 22) / dtSeconds, 2.4, 30) * 0.5;
+      const basePower = THREE.MathUtils.clamp((distance * 22) / dtSeconds, 2.4, 30);
+      const power = basePower * 0.25; // reduce launch power by 50%
       const direction = new THREE.Vector3(dx * 2.0, -dy * 1.4 + 0.6, -1).normalize();
       state.velocity.copy(direction.multiplyScalar(power));
       const verticalSpeed = -dy / Math.max(0.05, dtSeconds);
@@ -771,10 +772,11 @@ export default function FreeKick3DGame({ config }) {
         720
       );
       const spinZDeg = THREE.MathUtils.clamp(averageCurveRate * 120, -360, 360);
+      const spinScale = 1.5; // increase applied spin by 50%
       state.spin.set(
-        THREE.MathUtils.degToRad(spinXDeg * intensity),
-        THREE.MathUtils.degToRad(spinYDeg * intensity),
-        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.6)
+        THREE.MathUtils.degToRad(spinXDeg * intensity * spinScale),
+        THREE.MathUtils.degToRad(spinYDeg * intensity * spinScale),
+        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.6 * spinScale)
       );
       state.scored = false;
       setShots((value) => value + 1);
