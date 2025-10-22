@@ -124,39 +124,25 @@ function centroidFromRing(ring) {
   return { x: sumX / count, y: sumY / count };
 }
 
-function scaleMultiPolygon(mp, scale, origin = null) {
+function scaleMultiPolygon(mp, scale) {
   if (!Array.isArray(mp) || typeof scale !== 'number') {
     return [];
   }
   const clampedScale = Math.max(0, scale);
-  const resolveOrigin = (fallback) => {
-    if (origin && typeof origin === 'object') {
-      if (Array.isArray(origin) && origin.length >= 2) {
-        const [ox, oy] = origin;
-        if (Number.isFinite(ox) && Number.isFinite(oy)) {
-          return { x: ox, y: oy };
-        }
-      } else if (Number.isFinite(origin.x) && Number.isFinite(origin.y)) {
-        return { x: origin.x, y: origin.y };
-      }
-    }
-    return fallback;
-  };
   return mp
     .map((poly) => {
       if (!Array.isArray(poly) || !poly.length) return null;
       const outerRing = poly[0];
-      const baseCentroid = centroidFromRing(outerRing);
-      const { x: cx, y: cy } = resolveOrigin(baseCentroid);
+      const centroid = centroidFromRing(outerRing);
       const scaledPoly = poly
         .map((ring) => {
           if (!Array.isArray(ring) || !ring.length) return null;
           return ring
             .map((pt) => {
               if (!Array.isArray(pt) || pt.length < 2) return null;
-              const dx = pt[0] - cx;
-              const dy = pt[1] - cy;
-              return [cx + dx * clampedScale, cy + dy * clampedScale];
+              const dx = pt[0] - centroid.x;
+              const dy = pt[1] - centroid.y;
+              return [centroid.x + dx * clampedScale, centroid.y + dy * clampedScale];
             })
             .filter(Boolean);
         })
@@ -457,17 +443,13 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the chrome arches remain fully open
-const POCKET_JAW_CORNER_TRIM_RATIO = 0.4125; // trim the corner jaw wings further so the liners stay clear of the playing field
-const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
-const POCKET_JAW_DEPTH_SCALE = 0.66; // deepen the jaw liner so the taller black jaws clear the chrome finish cleanly
-const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
-const POCKET_JAW_SIDE_FLUSH_EPS = 0; // clamp the side jaws to the cushion break, preventing any lip from entering the playfield
-const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
-const POCKET_RIM_INNER_SCALE = 0.982; // pull the rim's inner edge in so the band reads thicker above the jaw
-const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.012; // shave a little more material from the side pocket rims so they don't crowd the jaws
-const POCKET_RIM_DEPTH_SCALE = 0.46; // deepen the rim extrusion so the thicker band stands out above the jaw
-const POCKET_RIM_LIP = TABLE.THICK * 0.072; // lift the rim higher so the taller profile clears the chrome plates
+const POCKET_JAW_CORNER_INNER_SCALE = 0.88; // keep the wider liners hugging the corner chamfers so the jaws track the cushion gap
+const POCKET_JAW_SIDE_INNER_SCALE = 0.84; // tuck the slimmer liners back into the tighter side pocket openings
+const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
+const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
+const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
+const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
+const POCKET_RIM_LIP = TABLE.THICK * 0.012; // slight lift so the rim sits proud of the jaw insert
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -525,28 +507,6 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_JAW_SIDE_OUTWARD_OFFSET =
-  POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
-const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
-  POCKET_VIS_R * 0.0095 * POCKET_VISUAL_EXPANSION; // pull the diagonal trims in tighter so the corner jaws no longer creep over the cloth
-const POCKET_JAW_CORNER_LIMIT_OFFSET =
-  POCKET_VIS_R * 0.01875 * POCKET_VISUAL_EXPANSION; // push the corner jaw lips back farther so the chrome openings remain unobstructed
-const POCKET_JAW_CORNER_OUTWARD_BIAS = 0; // lock the corner jaws directly beneath the chrome arches without any outward drift
-const POCKET_CUP_PROFILE_SAMPLES = 24;
-const POCKET_CUP_SEGMENTS = 48;
-const POCKET_CUP_FLARE_START = 0.78;
-const POCKET_CUP_FLARE_AMPLITUDE = 0.08;
-const POCKET_CUP_RADIUS_EASING = 0.82;
-const POCKET_LIP_RADIUS_SCALE = 1.012;
-const POCKET_LIP_TUBE_RADIUS = TABLE.THICK * 0.03;
-const POCKET_LIP_TOP_BLEND = 0.75;
-const POCKET_LIP_CLEARCOAT_BOOST = 0.16;
-const POCKET_LIP_CLEARCOAT_ROUGHNESS_SCALE = 0.72;
-const POCKET_LIP_SHEEN_BOOST = 0.08;
-const POCKET_LIP_SHEEN_ROUGHNESS_SCALE = 0.92;
-const POCKET_LIP_EMISSIVE_SCALE = 1.08;
-const POCKET_LIP_EMISSIVE_OFFSET = 0.02;
-const POCKET_LIP_ENV_INTENSITY_BOOST = 0.04;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
@@ -576,7 +536,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.4; // widen cloth openings further so the cloth never overlaps or obscures the pocket visuals
+const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
@@ -1234,14 +1194,14 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0x050505,
-          metalness: 0.34,
-          roughness: 0.44,
-          clearcoat: 0.46,
-          clearcoatRoughness: 0.28,
-          sheen: 0.18,
-          sheenRoughness: 0.4,
-          envMapIntensity: 0.6
+          color: 0xb3b3b3,
+          metalness: 0.28,
+          roughness: 0.48,
+          clearcoat: 0.42,
+          clearcoatRoughness: 0.32,
+          sheen: 0.16,
+          sheenRoughness: 0.42,
+          envMapIntensity: 0.58
         });
         const pocketRim = new THREE.MeshPhysicalMaterial({
           color: 0x101010,
@@ -3710,10 +3670,7 @@ function Table3D(
     clearcoatRoughness: 0.86,
     envMapIntensity: 0.12,
     emissive: clothColor.clone().multiplyScalar(0.05),
-    emissiveIntensity: 0.5,
-    polygonOffset: true,
-    polygonOffsetFactor: 0.5,
-    polygonOffsetUnits: 2
+    emissiveIntensity: 0.5
   });
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
@@ -3749,13 +3706,6 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
-  const pocketLipMat = clothMat.clone();
-  pocketLipMat.name = 'pocketLipCloth';
-  pocketLipMat.side = THREE.DoubleSide;
-  pocketLipMat.userData = {
-    ...(pocketLipMat.userData || {}),
-    isPocketLip: true
-  };
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -3766,7 +3716,7 @@ function Table3D(
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale
   };
-  const clothMaterials = [clothMat, cushionMat, pocketLipMat];
+  const clothMaterials = [clothMat, cushionMat];
   const applyClothDetail = (detail) => {
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
@@ -3823,48 +3773,6 @@ function Table3D(
       } else {
         mat.bumpScale = clothBaseSettings.bumpScale;
       }
-      if (mat?.userData?.isPocketLip) {
-        mat.clearcoat = THREE.MathUtils.clamp(
-          (mat.clearcoat ?? clothBaseSettings.clearcoat ?? 0) + POCKET_LIP_CLEARCOAT_BOOST,
-          0,
-          1
-        );
-        const nextClearcoatRoughness = (mat.clearcoatRoughness ?? clothBaseSettings.clearcoatRoughness ?? 0.5) *
-          POCKET_LIP_CLEARCOAT_ROUGHNESS_SCALE;
-        mat.clearcoatRoughness = THREE.MathUtils.clamp(
-          nextClearcoatRoughness,
-          Math.max(0, CLOTH_REFLECTION_LIMITS.clearcoatRoughnessMin * 0.65),
-          1
-        );
-        if (typeof mat.sheen === 'number') {
-          mat.sheen = THREE.MathUtils.clamp(
-            mat.sheen + POCKET_LIP_SHEEN_BOOST,
-            0,
-            1
-          );
-        }
-        if (typeof mat.sheenRoughness === 'number') {
-          mat.sheenRoughness = THREE.MathUtils.clamp(
-            mat.sheenRoughness * POCKET_LIP_SHEEN_ROUGHNESS_SCALE,
-            0,
-            1
-          );
-        }
-        if (typeof mat.emissiveIntensity === 'number') {
-          mat.emissiveIntensity = THREE.MathUtils.clamp(
-            mat.emissiveIntensity * POCKET_LIP_EMISSIVE_SCALE + POCKET_LIP_EMISSIVE_OFFSET,
-            0,
-            1
-          );
-        }
-        if ('envMapIntensity' in mat) {
-          mat.envMapIntensity = THREE.MathUtils.clamp(
-            (mat.envMapIntensity ?? clothBaseSettings.envMapIntensity ?? 0) + POCKET_LIP_ENV_INTENSITY_BOOST,
-            0,
-            1
-          );
-        }
-      }
       mat.needsUpdate = true;
     });
     const primary = clothMaterials[0];
@@ -3891,7 +3799,6 @@ function Table3D(
     },
     clothMat,
     cushionMat,
-    additionalClothMats: [pocketLipMat].filter(Boolean),
     parts: finishParts,
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
@@ -4064,88 +3971,28 @@ function Table3D(
   const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
-  const pocketCupHeight = TABLE.THICK;
-  const createPocketCupGeometry = (topRadius, bottomRadius, height) => {
-    const samples = Math.max(4, Math.floor(POCKET_CUP_PROFILE_SAMPLES));
-    const profile = [];
-    for (let i = 0; i < samples; i++) {
-      const t = samples === 1 ? 1 : i / (samples - 1);
-      const eased = Math.pow(t, POCKET_CUP_RADIUS_EASING);
-      const radius = THREE.MathUtils.lerp(bottomRadius, topRadius, eased);
-      let offset = 0;
-      if (t >= POCKET_CUP_FLARE_START) {
-        const flareT = (t - POCKET_CUP_FLARE_START) / Math.max(1e-6, 1 - POCKET_CUP_FLARE_START);
-        const easedFlare = Math.sin(flareT * Math.PI);
-        offset = easedFlare * topRadius * POCKET_CUP_FLARE_AMPLITUDE;
-      }
-      profile.push(new THREE.Vector2(Math.max(MICRO_EPS, radius + offset), t * height));
-    }
-    const geom = new THREE.LatheGeometry(profile, Math.max(8, Math.floor(POCKET_CUP_SEGMENTS)));
-    geom.translate(0, -height / 2, 0);
-    geom.computeVertexNormals();
-    return geom;
-  };
-  const pocketCupGeometry = createPocketCupGeometry(
+  const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
-    pocketCupHeight
+    TABLE.THICK,
+    48
   );
-  const pocketLipGeometry = new THREE.TorusGeometry(
-    Math.max(MICRO_EPS, POCKET_TOP_R * POCKET_LIP_RADIUS_SCALE),
-    Math.max(MICRO_EPS, POCKET_LIP_TUBE_RADIUS),
-    32,
-    64
-  );
-  const pocketCupMat = new THREE.MeshPhysicalMaterial({
-    color: 0x030303,
-    metalness: 0.22,
-    roughness: 0.54,
-    clearcoat: 0.38,
-    clearcoatRoughness: 0.42,
-    envMapIntensity: 0.36
+  const pocketMat = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    metalness: 0.45,
+    roughness: 0.6
   });
-  pocketCupMat.name = 'pocketCup';
-  pocketCupMat.side = THREE.DoubleSide;
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
-    const cup = new THREE.Mesh(pocketCupGeometry, pocketCupMat);
-    cup.name = 'pocketCupMesh';
-    cup.castShadow = false;
-    cup.receiveShadow = true;
-    cup.position.set(
+    const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+    pocket.position.set(
       p.x,
-      clothPlaneLocal - pocketSurfaceOffset - pocketCupHeight / 2,
+      clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
       p.y
     );
-    cup.userData = {
-      ...(cup.userData || {}),
-      pocketCup: {
-        height: pocketCupHeight,
-        topOffset: pocketSurfaceOffset
-      }
-    };
-    const cupInfo = cup.userData.pocketCup;
-    const lip = new THREE.Mesh(pocketLipGeometry, pocketLipMat);
-    lip.name = 'pocketLip';
-    lip.rotation.x = Math.PI / 2;
-    lip.castShadow = false;
-    lip.receiveShadow = true;
-    lip.userData = {
-      ...(lip.userData || {}),
-      pocketLip: {
-        tubeRadius: POCKET_LIP_TUBE_RADIUS,
-        topBlend: POCKET_LIP_TOP_BLEND
-      }
-    };
-    const lipLocalY =
-      cupInfo.height / 2 +
-      cupInfo.topOffset * POCKET_LIP_TOP_BLEND -
-      POCKET_LIP_TUBE_RADIUS;
-    lip.position.set(0, lipLocalY, 0);
-    cup.add(lip);
-    cupInfo.lipMesh = lip;
-    table.add(cup);
-    pocketMeshes.push(cup);
+    pocket.receiveShadow = true;
+    table.add(pocket);
+    pocketMeshes.push(pocket);
   });
 
   const railH = RAIL_HEIGHT;
@@ -4232,11 +4079,6 @@ function Table3D(
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
-  const cushionRailReachX = Math.max(
-    0,
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH
-  );
-  const cushionRailReachZ = Math.max(0, cushionInnerZ);
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromeCornerMeetX = Math.max(0, horizLen / 2);
@@ -4560,8 +4402,7 @@ function Table3D(
     outerMP,
     innerScale,
     clipConfig = null,
-    outerScale = 1,
-    scaleOrigin = null
+    outerScale = 1
   ) => {
     if (!Array.isArray(outerMP) || !outerMP.length) {
       return [];
@@ -4572,10 +4413,8 @@ function Table3D(
       0.99
     );
     const scaledOuter =
-      outerScale === 1
-        ? outerMP
-        : scaleMultiPolygon(outerMP, outerScale, scaleOrigin);
-    const innerMP = scaleMultiPolygon(outerMP, clampedInner, scaleOrigin);
+      outerScale === 1 ? outerMP : scaleMultiPolygon(outerMP, outerScale);
+    const innerMP = scaleMultiPolygon(outerMP, clampedInner);
     if (!Array.isArray(innerMP) || !innerMP.length) {
       return [];
     }
@@ -4663,62 +4502,23 @@ function Table3D(
               .filter(Boolean)
           : [];
 
-      const clipEntries = [];
-      const addClipEntry = (axis, entry) => {
-        if (!entry) return;
-        if (Number.isFinite(entry.threshold)) {
-          clipEntries.push({ axis, ...entry });
-        }
-      };
-      const addRangeEntries = (axis, range) => {
-        if (!range) return;
-        const { min, max } = range;
-        if (Number.isFinite(min)) {
-          clipEntries.push({ axis, threshold: min, keepGreater: true });
-        }
-        if (Number.isFinite(max)) {
-          clipEntries.push({ axis, threshold: max, keepGreater: false });
-        }
-      };
-      addClipEntry('x', clipConfig.x);
-      addClipEntry('z', clipConfig.z);
-      addRangeEntries('x', clipConfig.xRange);
-      addRangeEntries('z', clipConfig.zRange);
-
-      const combineMode = clipConfig.combine === 'union' ? 'union' : 'intersection';
-      if (combineMode === 'union' && clipEntries.length > 1) {
-        const baseMP = ringMP;
-        const clippedPieces = clipEntries
-          .map((entry) =>
-            pruneSmallPolys(
-              applyHalfPlaneClip(
-                baseMP,
-                entry.axis,
-                entry.threshold,
-                !!entry.keepGreater
-              )
-            )
-          )
-          .filter((mp) => Array.isArray(mp) && mp.length);
-        if (!clippedPieces.length) {
-          return [];
-        }
-        let unioned = clippedPieces[0];
-        for (let i = 1; i < clippedPieces.length; i++) {
-          unioned = polygonClipping.union(unioned, clippedPieces[i]);
-        }
-        ringMP = pruneSmallPolys(unioned);
-      } else {
-        for (const entry of clipEntries) {
-          if (!ringMP.length) break;
-          ringMP = applyHalfPlaneClip(
-            ringMP,
-            entry.axis,
-            entry.threshold,
-            !!entry.keepGreater
-          );
-          ringMP = pruneSmallPolys(ringMP);
-        }
+      if (clipConfig.x && ringMP.length) {
+        ringMP = applyHalfPlaneClip(
+          ringMP,
+          'x',
+          clipConfig.x.threshold,
+          !!clipConfig.x.keepGreater
+        );
+        ringMP = pruneSmallPolys(ringMP);
+      }
+      if (clipConfig.z && ringMP.length) {
+        ringMP = applyHalfPlaneClip(
+          ringMP,
+          'z',
+          clipConfig.z.threshold,
+          !!clipConfig.z.keepGreater
+        );
+        ringMP = pruneSmallPolys(ringMP);
       }
 
       if (!Array.isArray(ringMP) || !ringMP.length) {
@@ -4730,21 +4530,8 @@ function Table3D(
     return shapes.length ? shapes : [];
   };
 
-  const createPocketJawAssembly = (
-    outerMP,
-    innerScale,
-    clipConfig = null,
-    options = null
-  ) => {
-    const scaleOrigin =
-      options && options.scaleOrigin ? options.scaleOrigin : null;
-    const jawShapes = buildPocketRingShapes(
-      outerMP,
-      innerScale,
-      clipConfig,
-      1,
-      scaleOrigin
-    );
+  const createPocketJawAssembly = (outerMP, innerScale, clipConfig = null) => {
+    const jawShapes = buildPocketRingShapes(outerMP, innerScale, clipConfig, 1);
     if (!jawShapes.length) {
       return null;
     }
@@ -4764,18 +4551,12 @@ function Table3D(
     jawMesh.receiveShadow = true;
 
     const rimOuterScale = THREE.MathUtils.lerp(1, innerScale, POCKET_RIM_OUTER_BLEND);
-    const rimInnerScaleMultiplier =
-      options && Number.isFinite(options.rimInnerScaleMultiplier)
-        ? options.rimInnerScaleMultiplier
-        : 1;
-    const rimInnerScale =
-      innerScale * POCKET_RIM_INNER_SCALE * rimInnerScaleMultiplier;
+    const rimInnerScale = innerScale * POCKET_RIM_INNER_SCALE;
     const rimShapes = buildPocketRingShapes(
       outerMP,
       rimInnerScale,
       clipConfig,
-      rimOuterScale,
-      scaleOrigin
+      rimOuterScale
     );
     let rimMesh = null;
     if (rimShapes.length) {
@@ -4803,13 +4584,8 @@ function Table3D(
     return { group, jawMesh, rimMesh };
   };
 
-  const addPocketJaw = (outerMP, innerScale, clipConfig, options = null) => {
-    const assembly = createPocketJawAssembly(
-      outerMP,
-      innerScale,
-      clipConfig,
-      options
-    );
+  const addPocketJaw = (outerMP, innerScale, clipConfig) => {
+    const assembly = createPocketJawAssembly(outerMP, innerScale, clipConfig);
     if (!assembly) return;
     pocketJawGroup.add(assembly.group);
     finishParts.pocketJawMeshes.push(assembly.jawMesh);
@@ -4826,19 +4602,6 @@ function Table3D(
       return baseValue;
     }
     return centroidValue + (baseValue - centroidValue) * scale;
-  };
-
-  const clampToCushionLimit = (value, limit, positive, epsilon = 0) => {
-    if (!Number.isFinite(limit)) {
-      return value;
-    }
-    const directed = positive ? Math.max(value, limit) : Math.min(value, limit);
-    if (!Number.isFinite(epsilon) || epsilon <= 0) {
-      return directed;
-    }
-    return positive
-      ? Math.min(directed, limit + epsilon)
-      : Math.max(directed, limit - epsilon);
   };
 
   [
@@ -4866,81 +4629,10 @@ function Table3D(
       centroid.y,
       RAIL_CORNER_POCKET_CUT_SCALE
     );
-    const chamferBaseX =
-      sx * (innerHalfW - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO);
-    const chamferBaseZ =
-      sz * (innerHalfH - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO);
-    const chamferTargetX =
-      computeScaledCoordinate(chamferBaseX, centroid.x, RAIL_CORNER_POCKET_CUT_SCALE) +
-      sx * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
-    const chamferTargetZ =
-      computeScaledCoordinate(chamferBaseZ, centroid.y, RAIL_CORNER_POCKET_CUT_SCALE) +
-      sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
-    const cushionEdgeX =
-      sx * (cushionRailReachX + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
-    const cushionEdgeZ =
-      sz * (cushionRailReachZ + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
-    const chamferCandidateX =
-      sx > 0
-        ? Math.max(scaledCenterX, chamferTargetX)
-        : Math.min(scaledCenterX, chamferTargetX);
-    const chamferCandidateZ =
-      sz > 0
-        ? Math.max(scaledCenterZ, chamferTargetZ)
-        : Math.min(scaledCenterZ, chamferTargetZ);
-    const flushTargetX = cushionEdgeX + sx * POCKET_JAW_CORNER_FLUSH_EPS;
-    const flushTargetZ = cushionEdgeZ + sz * POCKET_JAW_CORNER_FLUSH_EPS;
-    const trimmedCandidateX =
-      sx > 0
-        ? Math.max(chamferCandidateX, flushTargetX)
-        : Math.min(chamferCandidateX, flushTargetX);
-    const trimmedCandidateZ =
-      sz > 0
-        ? Math.max(chamferCandidateZ, flushTargetZ)
-        : Math.min(chamferCandidateZ, flushTargetZ);
-    const biasedCandidateX =
-      sx > 0
-        ? Math.max(
-            trimmedCandidateX + sx * POCKET_JAW_CORNER_OUTWARD_BIAS,
-            flushTargetX
-          )
-        : Math.min(
-            trimmedCandidateX + sx * POCKET_JAW_CORNER_OUTWARD_BIAS,
-            flushTargetX
-          );
-    const biasedCandidateZ =
-      sz > 0
-        ? Math.max(
-            trimmedCandidateZ + sz * POCKET_JAW_CORNER_OUTWARD_BIAS,
-            flushTargetZ
-          )
-        : Math.min(
-            trimmedCandidateZ + sz * POCKET_JAW_CORNER_OUTWARD_BIAS,
-            flushTargetZ
-          );
-    const trimmedCenterX = clampToCushionLimit(
-      biasedCandidateX,
-      cushionEdgeX,
-      sx > 0,
-      POCKET_JAW_CORNER_FLUSH_EPS
-    );
-    const trimmedCenterZ = clampToCushionLimit(
-      biasedCandidateZ,
-      cushionEdgeZ,
-      sz > 0,
-      POCKET_JAW_CORNER_FLUSH_EPS
-    );
-    const pocketOrigin = { x: scaledCenterX, y: scaledCenterZ };
-    addPocketJaw(
-      scaledMP,
-      POCKET_JAW_CORNER_INNER_SCALE,
-      {
-        combine: 'union',
-        x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
-        z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
-      },
-      { scaleOrigin: pocketOrigin }
-    );
+    addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
+      x: { threshold: scaledCenterX, keepGreater: sx > 0 },
+      z: { threshold: scaledCenterZ, keepGreater: sz > 0 }
+    });
   });
 
   [-1, 1].forEach((sx) => {
@@ -4957,42 +4649,9 @@ function Table3D(
       centroid.x,
       RAIL_SIDE_POCKET_CUT_SCALE
     );
-    const scaledOuterRing =
-      Array.isArray(scaledMP) && scaledMP.length && Array.isArray(scaledMP[0]) && scaledMP[0].length
-        ? scaledMP[0][0]
-        : null;
-    let extremeX = scaledCenterX;
-    if (Array.isArray(scaledOuterRing)) {
-      for (const pt of scaledOuterRing) {
-        if (!Array.isArray(pt) || pt.length < 2) continue;
-        extremeX = sx > 0 ? Math.max(extremeX, pt[0]) : Math.min(extremeX, pt[0]);
-      }
-    }
-    const desiredThreshold = scaledCenterX + sx * POCKET_JAW_SIDE_OUTWARD_OFFSET;
-    const adjustedCenterX =
-      sx > 0
-        ? Math.max(scaledCenterX, Math.min(desiredThreshold, extremeX - MICRO_EPS * 8))
-        : Math.min(scaledCenterX, Math.max(desiredThreshold, extremeX + MICRO_EPS * 8));
-    const cushionEdgeX = sx * (cushionRailReachX + MICRO_EPS * 4);
-    const flushCenterX = clampToCushionLimit(
-      adjustedCenterX,
-      cushionEdgeX,
-      sx > 0,
-      POCKET_JAW_SIDE_FLUSH_EPS
-    );
-    const zLimit = Math.max(
-      MICRO_EPS,
-      Math.min(sideChromeMeetZ, cushionRailReachZ + MICRO_EPS * 4)
-    );
-    addPocketJaw(
-      scaledMP,
-      POCKET_JAW_SIDE_INNER_SCALE,
-      {
-        x: { threshold: flushCenterX, keepGreater: sx > 0 },
-        zRange: { min: -zLimit, max: zLimit }
-      },
-      { rimInnerScaleMultiplier: POCKET_RIM_SIDE_INNER_MULTIPLIER }
-    );
+    addPocketJaw(scaledMP, POCKET_JAW_SIDE_INNER_SCALE, {
+      x: { threshold: scaledCenterX, keepGreater: sx > 0 }
+    });
   });
 
   if (pocketJawGroup.children.length) {
@@ -5517,30 +5176,7 @@ function Table3D(
   });
 
   pocketMeshes.forEach((mesh) => {
-    if (!mesh) return;
-    const cupInfo = mesh.userData?.pocketCup;
-    if (cupInfo) {
-      const height = Number.isFinite(cupInfo.height)
-        ? cupInfo.height
-        : TABLE.THICK;
-      const topOffset = Number.isFinite(cupInfo.topOffset)
-        ? cupInfo.topOffset
-        : pocketSurfaceOffset;
-      mesh.position.y = clothPlaneLocal - topOffset - height / 2;
-      const lip = cupInfo.lipMesh;
-      const lipInfo = lip?.userData?.pocketLip;
-      if (lip && lipInfo) {
-        const tubeRadius = Number.isFinite(lipInfo.tubeRadius)
-          ? lipInfo.tubeRadius
-          : POCKET_LIP_TUBE_RADIUS;
-        const topBlend = Number.isFinite(lipInfo.topBlend)
-          ? lipInfo.topBlend
-          : POCKET_LIP_TOP_BLEND;
-        lip.position.y = height / 2 + topOffset * topBlend - tubeRadius;
-      }
-    } else {
-      mesh.position.y = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
-    }
+    mesh.position.y = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
   });
 
   alignRailsToCushions(table, railsGroup);
@@ -5708,14 +5344,6 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.color.copy(clothColor);
     finishInfo.cushionMat.emissive.copy(emissiveColor);
     finishInfo.cushionMat.needsUpdate = true;
-  }
-  if (Array.isArray(finishInfo.additionalClothMats)) {
-    finishInfo.additionalClothMats.forEach((mat) => {
-      if (!mat) return;
-      mat.color.copy(clothColor);
-      mat.emissive.copy(emissiveColor);
-      mat.needsUpdate = true;
-    });
   }
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
