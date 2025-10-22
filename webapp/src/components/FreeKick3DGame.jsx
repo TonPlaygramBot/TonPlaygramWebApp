@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
@@ -36,7 +42,10 @@ function makePitchGreenTexture() {
 
   const stripeHeight = size / 16;
   for (let y = 0; y < size; y += stripeHeight) {
-    ctx.fillStyle = (y / stripeHeight) % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+    ctx.fillStyle =
+      (y / stripeHeight) % 2 === 0
+        ? 'rgba(255,255,255,0.05)'
+        : 'rgba(0,0,0,0.06)';
     ctx.fillRect(0, y, size, stripeHeight);
   }
 
@@ -49,7 +58,11 @@ function makePitchGreenTexture() {
 }
 
 function makeFieldLineMaterial() {
-  return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.0 });
+  return new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.8,
+    metalness: 0.0
+  });
 }
 
 function makeBillboardTexture(text, accentColor) {
@@ -300,16 +313,22 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
-const SHOOT_POWER_SCALE = 0.46875; // 50% stronger launch than the previous 0.3125 scale
+const SHOOT_POWER_SCALE = 0.52; // extra boost while staying under crossbar height limits
 const BASE_SPIN_SCALE = 1.5;
 const SPIN_SCALE = BASE_SPIN_SCALE * 1.25;
 const CROSSBAR_HEIGHT_MARGIN = 0.25;
 const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
   Math.max(
     0,
-    2 * Math.abs(GRAVITY.y) * Math.max(0, GOAL_CONFIG.height + CROSSBAR_HEIGHT_MARGIN - BALL_RADIUS)
+    2 *
+      Math.abs(GRAVITY.y) *
+      Math.max(0, GOAL_CONFIG.height + CROSSBAR_HEIGHT_MARGIN - BALL_RADIUS)
   )
 );
+const MIN_GOAL_POINTS = 5;
+const BOMB_PENALTY_SCORE = 50;
+const BOMB_PENALTY_SECONDS = 15;
+const TIMER_OPTIONS = [10, 15, 20];
 const SOUND_SOURCES = {
   crowd: encodeURI('/assets/sounds/football-crowd-3-69245.mp3'),
   whistle: encodeURI('/assets/sounds/metal-whistle-6121.mp3'),
@@ -319,7 +338,12 @@ const SOUND_SOURCES = {
 export default function FreeKick3DGame({ config }) {
   const hostRef = useRef(null);
   const threeRef = useRef(null);
-  const gestureRef = useRef({ start: null, last: null, pointerId: null, history: [] });
+  const gestureRef = useRef({
+    start: null,
+    last: null,
+    pointerId: null,
+    history: []
+  });
   const messageTimeoutRef = useRef(null);
   const resetTimeoutRef = useRef(null);
   const gameStateRef = useRef({ gameOver: false });
@@ -331,15 +355,33 @@ export default function FreeKick3DGame({ config }) {
     kick: null
   });
 
-  const [score, setScore] = useState(0);
+  const [points, setPoints] = useState(0);
+  const [goals, setGoals] = useState(0);
   const [shots, setShots] = useState(0);
   const [timeLeft, setTimeLeft] = useState(config.duration ?? 60);
   const [isRunning, setIsRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [message, setMessage] = useState(INSTRUCTION_TEXT);
 
-  const playerName = useMemo(() => config.playerName || 'Player', [config.playerName]);
-  const playDuration = useMemo(() => Math.max(10, Number(config.duration) || 60), [config.duration]);
+  const showTemporaryMessage = useCallback((text, duration = 2000) => {
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+    }
+    setMessage(text);
+    messageTimeoutRef.current = window.setTimeout(() => {
+      setMessage(INSTRUCTION_TEXT);
+      messageTimeoutRef.current = null;
+    }, duration);
+  }, []);
+
+  const playerName = useMemo(
+    () => config.playerName || 'Player',
+    [config.playerName]
+  );
+  const playDuration = useMemo(
+    () => Math.max(10, Number(config.duration) || 60),
+    [config.duration]
+  );
 
   const playWhistle = useCallback(() => {
     const { whistle } = audioRef.current;
@@ -384,7 +426,8 @@ export default function FreeKick3DGame({ config }) {
 
   useEffect(() => {
     setTimeLeft(playDuration);
-    setScore(0);
+    setPoints(0);
+    setGoals(0);
     setShots(0);
     setIsRunning(false);
     setGameOver(false);
@@ -440,7 +483,11 @@ export default function FreeKick3DGame({ config }) {
     const host = hostRef.current;
     if (!host) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.shadowMap.enabled = true;
@@ -456,9 +503,17 @@ export default function FreeKick3DGame({ config }) {
 
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.03).texture;
+    scene.environment = pmrem.fromScene(
+      new RoomEnvironment(renderer),
+      0.03
+    ).texture;
 
-    const camera = new THREE.PerspectiveCamera(55, host.clientWidth / host.clientHeight, 0.1, 240);
+    const camera = new THREE.PerspectiveCamera(
+      55,
+      host.clientWidth / host.clientHeight,
+      0.1,
+      240
+    );
     camera.position.set(0, 1.65, 6.6);
     camera.lookAt(0, 1.4, GOAL_CONFIG.z);
 
@@ -501,15 +556,34 @@ export default function FreeKick3DGame({ config }) {
       lines.add(mesh);
     };
     const addCircle = (radius, thickness, segments, x, z) => {
-      const geometry = new THREE.RingGeometry(radius - thickness, radius, segments);
+      const geometry = new THREE.RingGeometry(
+        radius - thickness,
+        radius,
+        segments
+      );
       const mesh = new THREE.Mesh(geometry, lineMat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(x, 0.003, z);
       mesh.receiveShadow = true;
       lines.add(mesh);
     };
-    const addArc = (radius, thickness, segments, startAngle, angleLength, x, z) => {
-      const geometry = new THREE.RingGeometry(radius - thickness, radius, segments, 1, startAngle, angleLength);
+    const addArc = (
+      radius,
+      thickness,
+      segments,
+      startAngle,
+      angleLength,
+      x,
+      z
+    ) => {
+      const geometry = new THREE.RingGeometry(
+        radius - thickness,
+        radius,
+        segments,
+        1,
+        startAngle,
+        angleLength
+      );
       const mesh = new THREE.Mesh(geometry, lineMat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(x, 0.003, z);
@@ -542,7 +616,15 @@ export default function FreeKick3DGame({ config }) {
     addCircle(3.5, 0.08, 64, 0, goalZ + 7.5);
     addCircle(0.15, 0.15, 32, 0, goalZ + 7.5);
     addSpot(0.15, 0, goalZ + 2.5);
-    addArc(8.9, 0.08, 64, Math.PI * 0.16, Math.PI - Math.PI * 0.32, 0, goalZ + 2.2);
+    addArc(
+      8.9,
+      0.08,
+      64,
+      Math.PI * 0.16,
+      Math.PI - Math.PI * 0.32,
+      0,
+      goalZ + 2.2
+    );
     scene.add(lines);
 
     const postMaterial = new THREE.MeshPhysicalMaterial({
@@ -553,7 +635,10 @@ export default function FreeKick3DGame({ config }) {
     });
     const goal = new THREE.Group();
     const postRadius = 0.06;
-    const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalHeight, 20), postMaterial);
+    const leftPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(postRadius, postRadius, goalHeight, 20),
+      postMaterial
+    );
     leftPost.castShadow = true;
     leftPost.receiveShadow = true;
     leftPost.position.set(-goalWidth / 2, goalHeight / 2, goalZ);
@@ -561,7 +646,10 @@ export default function FreeKick3DGame({ config }) {
     const rightPost = leftPost.clone();
     rightPost.position.x = goalWidth / 2;
     goal.add(rightPost);
-    const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 20), postMaterial);
+    const crossbar = new THREE.Mesh(
+      new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 20),
+      postMaterial
+    );
     crossbar.rotation.z = Math.PI / 2;
     crossbar.position.set(0, goalHeight, goalZ);
     crossbar.castShadow = true;
@@ -621,10 +709,25 @@ export default function FreeKick3DGame({ config }) {
       roughness: 0.95
     });
 
-    const backNetGeometry = new THREE.PlaneGeometry(goalWidth, goalHeight, 20, 14);
+    const backNetGeometry = new THREE.PlaneGeometry(
+      goalWidth,
+      goalHeight,
+      20,
+      14
+    );
     const backNet = new THREE.Mesh(backNetGeometry, netMaterial);
-    const sideNetGeometry = new THREE.PlaneGeometry(goalDepth, goalHeight, 12, 14);
-    const roofNetGeometry = new THREE.PlaneGeometry(goalWidth, goalDepth, 20, 6);
+    const sideNetGeometry = new THREE.PlaneGeometry(
+      goalDepth,
+      goalHeight,
+      12,
+      14
+    );
+    const roofNetGeometry = new THREE.PlaneGeometry(
+      goalWidth,
+      goalDepth,
+      20,
+      6
+    );
     const leftNet = new THREE.Mesh(sideNetGeometry, netMaterial);
     const rightNet = leftNet.clone();
     const roofNet = new THREE.Mesh(roofNetGeometry, netMaterial);
@@ -655,8 +758,15 @@ export default function FreeKick3DGame({ config }) {
         roughness: 0.5,
         metalness: 0.2
       });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth / 2.2, 1.4), material);
-      mesh.position.set((index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6), 1.5, goalZ - goalDepth - 1.6);
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(goalWidth / 2.2, 1.4),
+        material
+      );
+      mesh.position.set(
+        (index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6),
+        0.72,
+        goalZ - goalDepth - 1.6
+      );
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       billboardGroup.add(mesh);
@@ -664,6 +774,124 @@ export default function FreeKick3DGame({ config }) {
       billboardAnimations.push({ texture, speed: 0.12 + index * 0.04 });
     });
     scene.add(billboardGroup);
+
+    const targetGroup = new THREE.Group();
+    goal.add(targetGroup);
+    const targetMaterials = {
+      prize: new THREE.MeshStandardMaterial({
+        color: 0xfacc15,
+        emissive: new THREE.Color(0xfbbf24).multiplyScalar(0.35),
+        emissiveIntensity: 1.25,
+        roughness: 0.35,
+        metalness: 0.25
+      }),
+      timer: new THREE.MeshStandardMaterial({
+        color: 0x22c55e,
+        emissive: new THREE.Color(0x16a34a).multiplyScalar(0.4),
+        emissiveIntensity: 1.35,
+        roughness: 0.3,
+        metalness: 0.2
+      }),
+      bomb: new THREE.MeshStandardMaterial({
+        color: 0xef4444,
+        emissive: new THREE.Color(0xb91c1c).multiplyScalar(0.4),
+        emissiveIntensity: 1.4,
+        roughness: 0.4,
+        metalness: 0.18
+      })
+    };
+
+    const targets = [];
+    const regenerateTargets = () => {
+      while (targetGroup.children.length) {
+        const child = targetGroup.children.pop();
+        if (child) {
+          targetGroup.remove(child);
+          child.geometry?.dispose?.();
+        }
+      }
+      targets.length = 0;
+      const marginX = goalWidth * 0.08;
+      const marginY = goalHeight * 0.08;
+      const area = {
+        minX: -goalWidth / 2 + marginX,
+        maxX: goalWidth / 2 - marginX,
+        minY: BALL_RADIUS * 1.4,
+        maxY: goalHeight - marginY
+      };
+      const baseMinR = BALL_RADIUS * 1.2;
+      const baseMaxR = Math.max(baseMinR + 0.1, goalWidth * 0.12);
+      const placements = [];
+      const targetZ = goalZ - goalDepth + 0.16;
+      const isClear = (x, y, r) =>
+        placements.every(
+          (p) => new THREE.Vector2(x - p.x, y - p.y).length() >= p.r + r + 0.12
+        );
+      const addTarget = (type, opts = {}) => {
+        const attempts = 140;
+        const radius =
+          opts.radius ?? THREE.MathUtils.randFloat(baseMinR, baseMaxR);
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+          const x = THREE.MathUtils.randFloat(
+            area.minX + radius,
+            area.maxX - radius
+          );
+          const y = THREE.MathUtils.randFloat(
+            area.minY + radius,
+            area.maxY - radius
+          );
+          if (!isClear(x, y, radius)) continue;
+          const geometry = new THREE.CircleGeometry(radius, 48);
+          const mesh = new THREE.Mesh(geometry, targetMaterials[type]);
+          mesh.position.set(x, y, targetZ);
+          mesh.receiveShadow = false;
+          mesh.castShadow = false;
+          targetGroup.add(mesh);
+          placements.push({ x, y, r: radius });
+          const target = {
+            mesh,
+            radius,
+            type,
+            points: opts.points ?? 0,
+            timer: opts.timer ?? 0,
+            hit: false
+          };
+          targets.push(target);
+          return true;
+        }
+        return false;
+      };
+
+      const baseCount = 6 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < baseCount; i += 1) {
+        const radius = THREE.MathUtils.randFloat(baseMinR, baseMaxR);
+        const points = Math.max(
+          10,
+          Math.round(
+            THREE.MathUtils.mapLinear(radius, baseMaxR, baseMinR, 15, 35) / 5
+          ) * 5
+        );
+        addTarget('prize', { radius, points });
+      }
+
+      const timerCount = 4;
+      for (let i = 0; i < timerCount; i += 1) {
+        const timer =
+          TIMER_OPTIONS[Math.floor(Math.random() * TIMER_OPTIONS.length)];
+        addTarget('timer', {
+          radius: THREE.MathUtils.randFloat(baseMinR * 0.9, baseMinR * 1.3),
+          timer
+        });
+      }
+
+      const bombCount = 3;
+      for (let i = 0; i < bombCount; i += 1) {
+        addTarget('bomb', {
+          radius: baseMinR * 1.4,
+          points: -BOMB_PENALTY_SCORE
+        });
+      }
+    };
 
     const createRoyalBroadcastCamera = (() => {
       const metalDark = new THREE.MeshStandardMaterial({
@@ -747,25 +975,44 @@ export default function FreeKick3DGame({ config }) {
           const leg = new THREE.Mesh(legGeo, metalDark);
           leg.castShadow = true;
           leg.receiveShadow = true;
-          const tiltAxis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
-          leg.position.set(Math.cos(angle) * LEG_SPREAD * 0.42, HUB_HEIGHT - 0.6, Math.sin(angle) * LEG_SPREAD * 0.42);
+          const tiltAxis = new THREE.Vector3(
+            -Math.sin(angle),
+            0,
+            Math.cos(angle)
+          ).normalize();
+          leg.position.set(
+            Math.cos(angle) * LEG_SPREAD * 0.42,
+            HUB_HEIGHT - 0.6,
+            Math.sin(angle) * LEG_SPREAD * 0.42
+          );
           leg.quaternion.setFromAxisAngle(tiltAxis, LEG_TILT);
           base.add(leg);
 
           const foot = new THREE.Mesh(footGeo, rubber);
-          foot.position.set(Math.cos(angle) * LEG_SPREAD, 0.012, Math.sin(angle) * LEG_SPREAD);
+          foot.position.set(
+            Math.cos(angle) * LEG_SPREAD,
+            0.012,
+            Math.sin(angle) * LEG_SPREAD
+          );
           foot.receiveShadow = true;
           base.add(foot);
 
           const from = new THREE.Vector3(0, HUB_HEIGHT, 0);
-          const to = new THREE.Vector3(Math.cos(angle) * LEG_SPREAD, 0.02, Math.sin(angle) * LEG_SPREAD);
+          const to = new THREE.Vector3(
+            Math.cos(angle) * LEG_SPREAD,
+            0.02,
+            Math.sin(angle) * LEG_SPREAD
+          );
           const dir = new THREE.Vector3().subVectors(to, from);
           const brace = new THREE.Mesh(braceGeo, metalLite);
           brace.castShadow = true;
           brace.receiveShadow = true;
           brace.scale.set(1, dir.length() / 0.7, 1);
           brace.position.copy(from.clone().add(to).multiplyScalar(0.5));
-          brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+          brace.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            dir.clone().normalize()
+          );
           base.add(brace);
         });
 
@@ -831,7 +1078,7 @@ export default function FreeKick3DGame({ config }) {
         cable.castShadow = true;
         cameraAssembly.add(cable);
 
-        group.scale.setScalar(scale);
+        group.scale.set(scale, scale * 0.5, scale);
         return { group, headPivot };
       };
     })();
@@ -843,7 +1090,10 @@ export default function FreeKick3DGame({ config }) {
 
     const leftCameraRig = createRoyalBroadcastCamera();
     leftCameraRig.group.position.set(-cameraOffset, GROUND_Y, cameraZ);
-    const toLeftTarget = new THREE.Vector3().subVectors(broadcastFocus, leftCameraRig.group.position);
+    const toLeftTarget = new THREE.Vector3().subVectors(
+      broadcastFocus,
+      leftCameraRig.group.position
+    );
     const leftYaw = Math.atan2(toLeftTarget.x, toLeftTarget.z);
     leftCameraRig.group.rotation.y = leftYaw;
     scene.add(leftCameraRig.group);
@@ -855,7 +1105,10 @@ export default function FreeKick3DGame({ config }) {
 
     const rightCameraRig = createRoyalBroadcastCamera();
     rightCameraRig.group.position.set(cameraOffset, GROUND_Y, cameraZ);
-    const toRightTarget = new THREE.Vector3().subVectors(broadcastFocus, rightCameraRig.group.position);
+    const toRightTarget = new THREE.Vector3().subVectors(
+      broadcastFocus,
+      rightCameraRig.group.position
+    );
     const rightYaw = Math.atan2(toRightTarget.x, toRightTarget.z);
     rightCameraRig.group.rotation.y = rightYaw;
     scene.add(rightCameraRig.group);
@@ -869,18 +1122,39 @@ export default function FreeKick3DGame({ config }) {
     const supportWidth = goalWidth * supportScale;
     const supportHeight = goalHeight * supportScale;
     const supportZ = goalZ - goalDepth - 0.25;
-    const supportPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 0.75, postRadius * 0.75, supportHeight, 16), postMaterial);
+    const supportPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        postRadius * 0.75,
+        postRadius * 0.75,
+        supportHeight,
+        16
+      ),
+      postMaterial
+    );
     supportPost.position.set(-supportWidth / 2, supportHeight / 2, supportZ);
     goal.add(supportPost);
     const supportPostR = supportPost.clone();
     supportPostR.position.x = supportWidth / 2;
     goal.add(supportPostR);
-    const supportBar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 0.75, postRadius * 0.75, supportWidth, 16), postMaterial);
+    const supportBar = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        postRadius * 0.75,
+        postRadius * 0.75,
+        supportWidth,
+        16
+      ),
+      postMaterial
+    );
     supportBar.rotation.z = Math.PI / 2;
     supportBar.position.set(0, supportHeight, supportZ);
     goal.add(supportBar);
 
-    const connectorGeo = new THREE.CylinderGeometry(0.03, 0.03, Math.abs(supportZ - goalZ), 10);
+    const connectorGeo = new THREE.CylinderGeometry(
+      0.03,
+      0.03,
+      Math.abs(supportZ - goalZ),
+      10
+    );
     const addConnector = (x, y) => {
       const mesh = new THREE.Mesh(connectorGeo, postMaterial);
       mesh.rotation.x = Math.PI / 2;
@@ -895,10 +1169,16 @@ export default function FreeKick3DGame({ config }) {
     scene.add(goal);
 
     const wallGroup = new THREE.Group();
-    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
+    const wallMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x20232a,
+      roughness: 0.6
+    });
     const defenders = [];
     for (let i = 0; i < 3; i += 1) {
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
+      const body = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.25, 0.9, 4, 8),
+        wallMaterial
+      );
       body.castShadow = true;
       body.receiveShadow = true;
       body.position.set((i - 1) * 0.8, 1.1, goalZ + 5.0);
@@ -927,16 +1207,31 @@ export default function FreeKick3DGame({ config }) {
     scene.add(ball);
 
     const aimLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-      new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.08, gapSize: 0.04 })
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]),
+      new THREE.LineDashedMaterial({
+        color: 0xffffff,
+        dashSize: 0.08,
+        gapSize: 0.04
+      })
     );
     aimLine.computeLineDistances();
     aimLine.visible = false;
     scene.add(aimLine);
 
     const goalAABB = new THREE.Box3(
-      new THREE.Vector3(-goalWidth / 2 + BALL_RADIUS, BALL_RADIUS * 0.6, goalZ - 0.25),
-      new THREE.Vector3(goalWidth / 2 - BALL_RADIUS, goalHeight - BALL_RADIUS * 0.5, goalZ + 0.4)
+      new THREE.Vector3(
+        -goalWidth / 2 + BALL_RADIUS,
+        BALL_RADIUS * 0.6,
+        goalZ - 0.25
+      ),
+      new THREE.Vector3(
+        goalWidth / 2 - BALL_RADIUS,
+        goalHeight - BALL_RADIUS * 0.5,
+        goalZ + 0.4
+      )
     );
 
     const tmp = new THREE.Vector3();
@@ -968,7 +1263,12 @@ export default function FreeKick3DGame({ config }) {
       netSim: null,
       billboards: [],
       defenders: [],
-      netCooldown: 0
+      netCooldown: 0,
+      targets,
+      regenerateTargets,
+      shotPoints: 0,
+      broadcastCameras: [leftCameraRig, rightCameraRig],
+      tripodTilt
     };
 
     state.netSim = netSim;
@@ -984,11 +1284,13 @@ export default function FreeKick3DGame({ config }) {
       state.spin.set(0, 0, 0);
       state.scored = false;
       state.netCooldown = 0;
+      state.shotPoints = 0;
       ball.position.set(0, BALL_RADIUS, START_Z);
       ball.rotation.set(0, 0, 0);
       if (state.netSim) {
         state.netSim.velocity.fill(0);
       }
+      state.regenerateTargets();
     };
     resetBall();
 
@@ -1000,22 +1302,26 @@ export default function FreeKick3DGame({ config }) {
     const updateAimLine = () => {
       if (!aimLine.visible) return;
       const positions = aimLine.geometry.attributes.position;
-      positions.setXYZ(0, ball.position.x, ball.position.y + 0.1, ball.position.z);
+      positions.setXYZ(
+        0,
+        ball.position.x,
+        ball.position.y + 0.1,
+        ball.position.z
+      );
       positions.needsUpdate = true;
       aimLine.computeLineDistances();
     };
 
     const applyGoalCelebration = () => {
-      setScore((value) => value + 1);
-      if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
-      setMessage('Goal!');
+      const earned = Math.max(MIN_GOAL_POINTS, Math.round(state.shotPoints));
+      setPoints((value) => value + earned);
+      setGoals((value) => value + 1);
+      showTemporaryMessage(`Goal! +${earned}`, 2200);
       playGoalSound();
-      messageTimeoutRef.current = window.setTimeout(() => {
-        setMessage(INSTRUCTION_TEXT);
-      }, 2000);
       resetTimeoutRef.current = window.setTimeout(() => {
         resetBall();
       }, 900);
+      state.shotPoints = 0;
     };
 
     const animate = () => {
@@ -1024,15 +1330,29 @@ export default function FreeKick3DGame({ config }) {
       const dt = Math.min(0.033, (now - state.lastTime) / 1000);
       state.lastTime = now;
 
+      state.broadcastCameras.forEach((rig) => {
+        if (!rig?.headPivot) return;
+        rig.headPivot.up.set(0, 1, 0);
+        rig.headPivot.lookAt(ball.position);
+        rig.headPivot.rotateY(Math.PI);
+        rig.headPivot.rotateX(state.tripodTilt);
+      });
+
       state.netCooldown = Math.max(0, state.netCooldown - dt);
 
-      if (!gameStateRef.current.gameOver && state.velocity.lengthSq() > 0.00001) {
+      if (
+        !gameStateRef.current.gameOver &&
+        state.velocity.lengthSq() > 0.00001
+      ) {
         const speed = state.velocity.length();
         const dragFactor = 1 - AIR_DRAG * speed;
         const frictionFactor = Math.pow(FRICTION, dt * 60);
         state.velocity.multiplyScalar(frictionFactor * dragFactor);
 
-        tmp.copy(state.spin).cross(state.velocity).multiplyScalar(MAGNUS_COEFFICIENT);
+        tmp
+          .copy(state.spin)
+          .cross(state.velocity)
+          .multiplyScalar(MAGNUS_COEFFICIENT);
         const acceleration = tmp.add(GRAVITY);
         state.velocity.addScaledVector(acceleration, dt);
         ball.position.addScaledVector(state.velocity, dt);
@@ -1046,8 +1366,16 @@ export default function FreeKick3DGame({ config }) {
 
         state.defenders.forEach((defender) => {
           const { mesh, radius, halfHeight } = defender;
-          segmentStart.set(mesh.position.x, mesh.position.y - halfHeight, mesh.position.z);
-          segmentEnd.set(mesh.position.x, mesh.position.y + halfHeight, mesh.position.z);
+          segmentStart.set(
+            mesh.position.x,
+            mesh.position.y - halfHeight,
+            mesh.position.z
+          );
+          segmentEnd.set(
+            mesh.position.x,
+            mesh.position.y + halfHeight,
+            mesh.position.z
+          );
           tmp.copy(segmentEnd).sub(segmentStart);
           tmp2.copy(ball.position).sub(segmentStart);
           const segLengthSq = tmp.lengthSq();
@@ -1063,10 +1391,16 @@ export default function FreeKick3DGame({ config }) {
             if (defenderNormal.lengthSq() > 1e-6) {
               defenderNormal.normalize();
               const penetration = combinedRadius - distance;
-              ball.position.addScaledVector(defenderNormal, penetration + 0.002);
+              ball.position.addScaledVector(
+                defenderNormal,
+                penetration + 0.002
+              );
               const speedAlongNormal = state.velocity.dot(defenderNormal);
               if (speedAlongNormal < 0) {
-                state.velocity.addScaledVector(defenderNormal, -speedAlongNormal * 1.6);
+                state.velocity.addScaledVector(
+                  defenderNormal,
+                  -speedAlongNormal * 1.6
+                );
               }
               state.velocity.multiplyScalar(0.78);
               state.spin.multiplyScalar(0.7);
@@ -1074,7 +1408,107 @@ export default function FreeKick3DGame({ config }) {
           }
         });
 
-        if (!state.scored && state.velocity.z < 0 && state.goalAABB.containsPoint(ball.position)) {
+        const combinedPostRadius = postRadius + BALL_RADIUS;
+        const handlePostCollision = (postX) => {
+          tmp.set(ball.position.x - postX, 0, ball.position.z - goalZ);
+          const distSq = tmp.x * tmp.x + tmp.z * tmp.z;
+          if (distSq >= combinedPostRadius * combinedPostRadius) return;
+          let dist = Math.sqrt(distSq);
+          if (dist < 1e-5) {
+            tmp.set(1, 0, 0);
+            dist = combinedPostRadius;
+          } else {
+            tmp.multiplyScalar(1 / dist);
+          }
+          const penetration = combinedPostRadius - dist;
+          ball.position.addScaledVector(tmp, penetration + 0.002);
+          const velAlong = state.velocity.dot(tmp);
+          if (velAlong < 0) {
+            state.velocity.addScaledVector(tmp, -(1 + RESTITUTION) * velAlong);
+            state.velocity.multiplyScalar(0.86);
+          }
+          state.spin.multiplyScalar(0.72);
+        };
+
+        handlePostCollision(-goalWidth / 2);
+        handlePostCollision(goalWidth / 2);
+
+        const combinedCrossbarRadius = postRadius + BALL_RADIUS;
+        if (
+          Math.abs(ball.position.x) <=
+          goalWidth / 2 + combinedCrossbarRadius
+        ) {
+          tmp2.set(0, ball.position.y - goalHeight, ball.position.z - goalZ);
+          const radialSq = tmp2.y * tmp2.y + tmp2.z * tmp2.z;
+          if (radialSq < combinedCrossbarRadius * combinedCrossbarRadius) {
+            let radial = Math.sqrt(radialSq);
+            if (radial < 1e-5) {
+              tmp2.set(0, 1, 0);
+              radial = combinedCrossbarRadius;
+            } else {
+              tmp2.multiplyScalar(1 / radial);
+            }
+            const penetration = combinedCrossbarRadius - radial;
+            ball.position.addScaledVector(tmp2, penetration + 0.002);
+            const velAlong = state.velocity.dot(tmp2);
+            if (velAlong < 0) {
+              state.velocity.addScaledVector(
+                tmp2,
+                -(1 + RESTITUTION) * velAlong
+              );
+              state.velocity.multiplyScalar(0.84);
+            }
+            state.spin.multiplyScalar(0.7);
+          }
+        }
+
+        if (
+          ball.position.z < goalZ &&
+          ball.position.z > goalZ - goalDepth - 0.6
+        ) {
+          state.targets.forEach((target) => {
+            if (target.hit || !target.mesh) return;
+            target.mesh.getWorldPosition(tmp3);
+            const dx = ball.position.x - tmp3.x;
+            const dy = ball.position.y - tmp3.y;
+            const distance = Math.hypot(dx, dy);
+            const threshold = target.radius + BALL_RADIUS * 0.35;
+            if (distance > threshold) return;
+            target.hit = true;
+            target.mesh.visible = false;
+            if (target.type === 'prize') {
+              state.shotPoints += target.points;
+              showTemporaryMessage(`+${target.points} pts`, 1600);
+            } else if (target.type === 'timer') {
+              setTimeLeft((value) => value + target.timer);
+              showTemporaryMessage(`+${target.timer}s`, 1600);
+            } else if (target.type === 'bomb') {
+              setTimeLeft((value) => Math.max(0, value - BOMB_PENALTY_SECONDS));
+              setPoints((value) => Math.max(0, value - BOMB_PENALTY_SCORE));
+              state.shotPoints = Math.max(
+                0,
+                state.shotPoints - BOMB_PENALTY_SCORE
+              );
+              showTemporaryMessage('Bomb! -15s -50 pts', 2000);
+              state.velocity.multiplyScalar(0.35);
+              state.spin.multiplyScalar(0.25);
+              state.scored = true;
+              if (resetTimeoutRef.current) {
+                clearTimeout(resetTimeoutRef.current);
+                resetTimeoutRef.current = null;
+              }
+              resetTimeoutRef.current = window.setTimeout(() => {
+                resetBall();
+              }, 700);
+            }
+          });
+        }
+
+        if (
+          !state.scored &&
+          state.velocity.z < 0 &&
+          state.goalAABB.containsPoint(ball.position)
+        ) {
           state.scored = true;
           applyGoalCelebration();
         }
@@ -1089,8 +1523,16 @@ export default function FreeKick3DGame({ config }) {
           ball.position.y <= goalHeight + BALL_RADIUS
         ) {
           if (state.netCooldown <= 0 && state.velocity.z < 0) {
-            const impactX = THREE.MathUtils.clamp(ball.position.x, -goalWidth / 2, goalWidth / 2);
-            const impactY = THREE.MathUtils.clamp(ball.position.y, BALL_RADIUS * 0.6, goalHeight);
+            const impactX = THREE.MathUtils.clamp(
+              ball.position.x,
+              -goalWidth / 2,
+              goalWidth / 2
+            );
+            const impactY = THREE.MathUtils.clamp(
+              ball.position.y,
+              BALL_RADIUS * 0.6,
+              goalHeight
+            );
             tmp3.set(impactX, impactY, netPlaneZ);
             localImpact.copy(tmp3);
             netMesh.worldToLocal(localImpact);
@@ -1102,7 +1544,10 @@ export default function FreeKick3DGame({ config }) {
             tmp.set(0, 0, 1);
             const approach = state.velocity.dot(tmp);
             if (approach < 0) {
-              state.velocity.addScaledVector(tmp, -approach * (1.3 + impactForce * 0.12));
+              state.velocity.addScaledVector(
+                tmp,
+                -approach * (1.3 + impactForce * 0.12)
+              );
             }
             state.velocity.multiplyScalar(0.45);
             state.spin.multiplyScalar(0.6);
@@ -1113,7 +1558,8 @@ export default function FreeKick3DGame({ config }) {
         if (
           ball.position.z < goalZ - goalDepth - 4 ||
           ball.position.z > START_Z + 2 ||
-          (state.velocity.length() < 0.18 && ball.position.y <= BALL_RADIUS + 0.002)
+          (state.velocity.length() < 0.18 &&
+            ball.position.y <= BALL_RADIUS + 0.002)
         ) {
           resetBall();
         }
@@ -1128,7 +1574,8 @@ export default function FreeKick3DGame({ config }) {
 
       updateNetSimulation(state.netSim, dt);
       state.billboards.forEach((billboard) => {
-        billboard.texture.offset.x = (billboard.texture.offset.x + dt * billboard.speed) % 1;
+        billboard.texture.offset.x =
+          (billboard.texture.offset.x + dt * billboard.speed) % 1;
       });
       updateAimLine();
       renderer.render(scene, camera);
@@ -1184,9 +1631,17 @@ export default function FreeKick3DGame({ config }) {
       pushPointerSample(pointer);
       const dx = (pointer.x - gestureRef.current.start.x) / pointer.w;
       const dy = (pointer.y - gestureRef.current.start.y) / pointer.h;
-      const direction = new THREE.Vector3(dx * 6, -dy * 4 + 1.2, -6).normalize();
-      const startPoint = new THREE.Vector3().copy(ball.position).add(new THREE.Vector3(0, 0.1, 0));
-      const endPoint = new THREE.Vector3().copy(startPoint).addScaledVector(direction, 2.5);
+      const direction = new THREE.Vector3(
+        dx * 6.4,
+        -dy * 3.2 + 0.96,
+        -6
+      ).normalize();
+      const startPoint = new THREE.Vector3()
+        .copy(ball.position)
+        .add(new THREE.Vector3(0, 0.1, 0));
+      const endPoint = new THREE.Vector3()
+        .copy(startPoint)
+        .addScaledVector(direction, 2.7);
       aimLine.geometry.setFromPoints([startPoint, endPoint]);
       aimLine.computeLineDistances();
       aimLine.visible = true;
@@ -1200,7 +1655,9 @@ export default function FreeKick3DGame({ config }) {
       const end = gestureRef.current.last;
       gestureRef.current.start = null;
       gestureRef.current.last = null;
-      const history = gestureRef.current.history ? [...gestureRef.current.history] : [];
+      const history = gestureRef.current.history
+        ? [...gestureRef.current.history]
+        : [];
       gestureRef.current.history = [];
       if (!start || !end || gameStateRef.current.gameOver) return;
       const dt = Math.max(16, end.t - start.t);
@@ -1211,23 +1668,33 @@ export default function FreeKick3DGame({ config }) {
       if (history.length === 0 && start) history.push(start);
       if (history.length === 1) history.push(end);
       const dtSeconds = dt / 1000;
-      const basePower = THREE.MathUtils.clamp((distance * 22) / dtSeconds, 2.4, 30);
+      const basePower = THREE.MathUtils.clamp(
+        (distance * 22) / dtSeconds,
+        2.4,
+        30
+      );
       const power = basePower * SHOOT_POWER_SCALE;
-      const launchVector = new THREE.Vector3(dx * 2.0, -dy * 1.1 + 0.45, -1);
-      const maxElevation = 0.68;
+      const launchVector = new THREE.Vector3(dx * 2.4, -dy * 0.95 + 0.32, -1);
+      const maxElevation = 0.6;
       if (launchVector.y > maxElevation) {
         launchVector.y = maxElevation;
       }
       const direction = launchVector.normalize();
       state.velocity.copy(direction.multiplyScalar(power));
-      const maxVerticalSpeed = Math.min(power * 0.48, MAX_VERTICAL_LAUNCH_SPEED);
+      const maxVerticalSpeed = Math.min(
+        power * 0.42,
+        MAX_VERTICAL_LAUNCH_SPEED
+      );
       if (state.velocity.y > maxVerticalSpeed) {
         state.velocity.y = maxVerticalSpeed;
       }
       const verticalSpeed = -dy / Math.max(0.05, dtSeconds);
       const lateralSpeed = dx / Math.max(0.05, dtSeconds);
       const samples = history;
-      const midIndex = Math.min(samples.length - 1, Math.max(1, Math.floor(samples.length / 2)));
+      const midIndex = Math.min(
+        samples.length - 1,
+        Math.max(1, Math.floor(samples.length / 2))
+      );
       const early = samples[0];
       const mid = samples[midIndex];
       const late = samples[samples.length - 1];
@@ -1251,7 +1718,8 @@ export default function FreeKick3DGame({ config }) {
         weightedLateralRate += segRate * weight;
         totalWeight += weight;
       }
-      const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : lateralSpeed;
+      const averageCurveRate =
+        totalWeight > 0 ? weightedLateralRate / totalWeight : lateralSpeed;
       const intensity = THREE.MathUtils.clamp(distance / 0.65, 0, 1);
       const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 220, -540, 540);
       const spinYDeg = THREE.MathUtils.clamp(
@@ -1271,8 +1739,12 @@ export default function FreeKick3DGame({ config }) {
       playKickSound();
     };
 
-    renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
-    renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: false });
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, {
+      passive: false
+    });
+    renderer.domElement.addEventListener('pointermove', onPointerMove, {
+      passive: false
+    });
     window.addEventListener('pointerup', onPointerUp, { passive: false });
 
     const onResize = () => {
@@ -1354,17 +1826,21 @@ export default function FreeKick3DGame({ config }) {
     gameStateRef.current.gameOver = gameOver;
   }, [gameOver]);
 
-  useEffect(() => () => {
-    if (messageTimeoutRef.current) {
-      clearTimeout(messageTimeoutRef.current);
-    }
-    if (resetTimeoutRef.current) {
-      clearTimeout(resetTimeoutRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   const restart = () => {
-    setScore(0);
+    setPoints(0);
+    setGoals(0);
     setShots(0);
     setTimeLeft(playDuration);
     setIsRunning(false);
@@ -1383,21 +1859,27 @@ export default function FreeKick3DGame({ config }) {
       <div ref={hostRef} className="absolute inset-0" />
       <div className="absolute top-4 left-4 right-4 z-10 grid grid-cols-3 gap-3 text-sm md:text-base">
         <div className="pointer-events-none rounded-xl bg-black/45 px-3 py-2">
-          <div className="text-xs uppercase tracking-wider text-white/60">Player</div>
+          <div className="text-xs uppercase tracking-wider text-white/60">
+            Player
+          </div>
           <div className="font-semibold">{playerName}</div>
         </div>
         <div className="pointer-events-none rounded-xl bg-black/45 px-3 py-2 text-center">
-          <div className="text-xs uppercase tracking-wider text-white/60">Time</div>
+          <div className="text-xs uppercase tracking-wider text-white/60">
+            Time
+          </div>
           <div className="font-semibold text-lg">{formatTime(timeLeft)}</div>
         </div>
         <div className="pointer-events-none rounded-xl bg-black/45 px-3 py-2 text-right">
-          <div className="text-xs uppercase tracking-wider text-white/60">Score</div>
-          <div className="font-semibold text-lg">{score}</div>
+          <div className="text-xs uppercase tracking-wider text-white/60">
+            Points
+          </div>
+          <div className="font-semibold text-lg">{points}</div>
         </div>
       </div>
       <div className="absolute top-20 left-1/2 z-10 flex -translate-x-1/2 gap-2 text-xs md:text-sm">
         <div className="rounded-full bg-black/50 px-3 py-1">Shots {shots}</div>
-        <div className="rounded-full bg-black/50 px-3 py-1">Goals {score}</div>
+        <div className="rounded-full bg-black/50 px-3 py-1">Goals {goals}</div>
       </div>
       <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 w-[90%] -translate-x-1/2 rounded-xl bg-black/50 px-4 py-3 text-center text-sm md:text-base">
         {message}
@@ -1407,7 +1889,8 @@ export default function FreeKick3DGame({ config }) {
           <div className="w-full max-w-sm rounded-2xl bg-slate-900/90 p-6 text-center">
             <h3 className="text-xl font-semibold">Match Complete</h3>
             <p className="mt-2 text-sm text-white/70">Shots taken: {shots}</p>
-            <p className="text-sm text-white/70">Goals scored: {score}</p>
+            <p className="text-sm text-white/70">Goals scored: {goals}</p>
+            <p className="text-sm text-white/70">Total points: {points}</p>
             <button
               type="button"
               onClick={restart}
