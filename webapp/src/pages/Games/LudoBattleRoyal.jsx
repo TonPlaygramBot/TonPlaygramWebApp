@@ -1006,6 +1006,97 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     moveDiceToRail(player, immediate);
   };
 
+  const configureDiceAnchors = useCallback(
+    ({ dice, boardGroup, chairs, tableInfo } = {}) => {
+      const diceObj = dice ?? diceRef.current;
+      const arena = arenaRef.current;
+      const group = boardGroup ?? arena?.boardGroup;
+      const chairList = chairs ?? arena?.chairs;
+      const table = tableInfo ?? arena?.tableInfo;
+      if (!diceObj || !group) return;
+
+      const centerWorld = new THREE.Vector3();
+      const scaleWorld = new THREE.Vector3();
+      const centerXZ = new THREE.Vector3();
+      group.getWorldPosition(centerWorld);
+      group.getWorldScale(scaleWorld);
+      centerXZ.set(centerWorld.x, 0, centerWorld.z);
+
+      const heightLocal =
+        diceObj.userData?.railHeight ?? diceObj.userData?.baseHeight ?? DICE_BASE_HEIGHT;
+      const heightWorld = heightLocal * scaleWorld.y;
+
+      const fallbackDirs = [
+        new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 0, -1),
+        new THREE.Vector3(-1, 0, 0)
+      ];
+
+      const rails = [];
+      const rolls = [];
+      const clothLimit = diceObj.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
+
+      for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
+        const seatDir = new THREE.Vector3();
+        const chairGroup = chairList?.[i]?.group;
+        if (chairGroup) {
+          chairGroup.getWorldPosition(seatDir);
+          seatDir.setY(0);
+          seatDir.sub(centerXZ);
+        } else {
+          seatDir.copy(fallbackDirs[i % fallbackDirs.length]);
+        }
+
+        if (seatDir.lengthSq() < 1e-6) {
+          seatDir.copy(fallbackDirs[i % fallbackDirs.length]);
+        }
+        seatDir.setY(0);
+        if (seatDir.lengthSq() < 1e-6) {
+          seatDir.set(0, 0, 1);
+        }
+        seatDir.normalize();
+
+        let restRadius = BOARD_RADIUS + 0.24;
+        if (table?.getInnerRadius) {
+          const inner = table.getInnerRadius(seatDir);
+          if (Number.isFinite(inner) && inner > 0) {
+            const outer = table.getOuterRadius?.(seatDir) ?? inner;
+            const rimInner = Math.min(inner, outer);
+            const rimOuter = Math.max(inner, outer);
+            const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
+            restRadius = THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08);
+            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.12);
+          }
+        }
+
+        const baseRollRadius = BOARD_RADIUS - 0.32;
+        const minRollRadius = BOARD_RADIUS * 0.35;
+        const maxRollRadius = Number.isFinite(clothLimit)
+          ? Math.max(minRollRadius, clothLimit - 0.12)
+          : BOARD_RADIUS - 0.2;
+        const rollRadius = THREE.MathUtils.clamp(baseRollRadius, minRollRadius, maxRollRadius);
+
+        const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
+        restWorld.y = centerWorld.y + heightWorld;
+        const rollWorld = seatDir.clone().multiplyScalar(rollRadius).add(centerXZ);
+        rollWorld.y = centerWorld.y + heightWorld;
+
+        const restLocal = restWorld.clone();
+        const rollLocal = rollWorld.clone();
+        group.worldToLocal(restLocal);
+        group.worldToLocal(rollLocal);
+        restLocal.y = heightLocal;
+        rollLocal.y = heightLocal;
+
+        rails.push(restLocal);
+        rolls.push(rollLocal);
+      }
+
+      diceObj.userData.railPositions = rails;
+      diceObj.userData.rollTargets = rolls;
+    }, []);
+
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
@@ -1088,6 +1179,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
         fitRef.current?.();
+        configureDiceAnchors({ tableInfo: nextTable, boardGroup, chairs: arena.chairs });
+        const currentTurn = stateRef.current?.turn ?? 0;
+        moveDiceToRail(currentTurn, true);
       } else if (arena.tableInfo?.materials) {
         applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
       }
@@ -1366,6 +1460,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const boardData = buildLudoBoard(boardGroup);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
+    configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
     moveDiceToRail(0, true);
     updateTurnIndicator(0, true);
 
