@@ -4629,7 +4629,7 @@ function Table3D(
         baseRadius: cornerBaseRadius,
         jawAngle: CORNER_JAW_ANGLE,
         orientationAngle,
-        wide: true,
+        wide: false,
         isMiddle: false,
         clampOuter: cornerPocketRadius * 1.02
       });
@@ -4648,7 +4648,7 @@ function Table3D(
         baseRadius: sideBaseRadius,
         jawAngle: SIDE_JAW_ANGLE,
         orientationAngle,
-        wide: false,
+        wide: true,
         isMiddle: true,
         clampOuter: sidePocketRadius * 1.03
       });
