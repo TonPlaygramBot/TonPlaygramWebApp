@@ -1056,7 +1056,7 @@ const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const ZMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
-const CHAIN_TILE_Y = CLOTH_TOP + 0.014;
+const CHAIN_TILE_Y = CLOTH_TOP + 0.02;
 
 /* ---------- Materials ---------- */
 const porcelainMat = new THREE.MeshPhysicalMaterial({
@@ -1226,7 +1226,7 @@ configButtonEl?.addEventListener('click', () => {
 configCloseEl?.addEventListener('click', () => closeConfigPanel());
 document.addEventListener('click', (event) => {
   if (!configPanelEl?.classList.contains('active')) return;
-  if (configPanelEl.contains(event.target) || event.target === configButtonEl) return;
+  if (configPanelEl.contains(event.target) || configButtonEl?.contains(event.target)) return;
   closeConfigPanel();
 });
 document.addEventListener('keydown', (event) => {
