@@ -1117,13 +1117,10 @@ input:focus {
 }
 
 .pot-cell {
-  @apply absolute flex flex-col items-center justify-center;
+  @apply relative flex flex-col items-center justify-center;
   width: calc(var(--cell-width) * 2.7);
   height: calc(var(--cell-height) * 2.7);
-  /* move the pot slightly higher */
-  top: calc(var(--cell-height) * -7.1);
-  left: 50%;
-  transform: translateX(-50%) translateZ(12px);
+  transform: translateZ(12px);
   z-index: 50;
   background-color: transparent;
   border: none;

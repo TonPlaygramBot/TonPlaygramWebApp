@@ -1,13 +1,92 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment, useMemo } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
-// Board dimensions
-const ROWS = 20;
-const COLS = 5;
+const LEVEL_SPECS = [
+  { size: 11, gapAfter: 2 },
+  { size: 9, gapAfter: 2 },
+  { size: 6, gapAfter: 2 },
+  { size: 3, gapAfter: 0 },
+];
+const GRID_SCALE = 2;
 const EXTRA_COLUMN_FRACTION = 0.6;
 const CELL_HEIGHT_RATIO = 1.9;
 const BOARD_SCALE = 1.12;
-export const FINAL_TILE = ROWS * COLS + 1; // 101
+const FINAL_SCALE_TARGET = 1.65;
+
+function buildPyramidLayout() {
+  const baseSize = LEVEL_SPECS[0].size;
+  let cell = 1;
+  let yCursor = 0;
+  const tiles = [];
+  const levels = [];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  LEVEL_SPECS.forEach(({ size, gapAfter }, levelIndex) => {
+    const xOffset = (baseSize - size) / 2;
+    const yOffset = yCursor;
+    const levelTiles = [];
+
+    const pushTile = (col, row) => {
+      const tile = {
+        cell,
+        col,
+        row,
+        levelIndex,
+        levelSize: size,
+      };
+      tiles.push(tile);
+      levelTiles.push(tile);
+      cell += 1;
+      minX = Math.min(minX, col);
+      maxX = Math.max(maxX, col + 1);
+      maxY = Math.max(maxY, row + 1);
+    };
+
+    for (let i = 0; i < size; i++) pushTile(xOffset + i, yOffset);
+    for (let i = 1; i < size; i++) pushTile(xOffset + size - 1, yOffset + i);
+    for (let i = size - 2; i >= 0; i--) pushTile(xOffset + i, yOffset + size - 1);
+    for (let i = size - 2; i >= 1; i--) pushTile(xOffset, yOffset + i);
+
+    levels.push({
+      levelIndex,
+      startCell: levelTiles[0]?.cell ?? cell,
+      endCell: levelTiles[levelTiles.length - 1]?.cell ?? cell,
+      size,
+      xOffset,
+      yOffset,
+    });
+
+    yCursor += size + (gapAfter ?? 0);
+  });
+
+  const totalCells = cell - 1;
+  const widthUnits = maxX - minX;
+  const heightUnits = maxY;
+  const centerColumn = minX + widthUnits / 2;
+
+  return {
+    tiles,
+    levels,
+    totalCells,
+    widthUnits,
+    heightUnits,
+    minX,
+    maxX,
+    centerColumn,
+  };
+}
+
+const BOARD_LAYOUT = buildPyramidLayout();
+export const BOARD_CELL_COUNT = BOARD_LAYOUT.totalCells;
+export const FINAL_TILE = BOARD_CELL_COUNT + 1;
+const BOARD_WIDTH_UNITS = BOARD_LAYOUT.widthUnits;
+const BOARD_HEIGHT_UNITS = BOARD_LAYOUT.heightUnits;
+const CENTER_COLUMN = BOARD_LAYOUT.centerColumn;
+const SCALE_STEP = (FINAL_SCALE_TARGET - 1) / Math.max(1, BOARD_HEIGHT_UNITS - 3);
+const FINAL_SCALE = 1 + (BOARD_HEIGHT_UNITS - 3) * SCALE_STEP;
+const WIDEN_STEP = 0.07;
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -61,141 +140,137 @@ export default function SnakeBoard({
   const tile1Ref = useRef(null);
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
-  const tiles = [];
-  const centerCol = (COLS - 1) / 2;
-  const widenStep = 0.07;
-  const scaleStep = 0.03;
-  const finalScale = 1 + (ROWS - 3) * scaleStep;
+  const layoutTiles = BOARD_LAYOUT.tiles;
+  const scaledCols = BOARD_WIDTH_UNITS * GRID_SCALE;
+  const scaledRows = BOARD_HEIGHT_UNITS * GRID_SCALE;
 
-  const rowOffsets = [0];
-  for (let r = 1; r < ROWS; r++) {
-    const prevScale = 1 + (r - 3) * scaleStep;
-    rowOffsets[r] = rowOffsets[r - 1] + (prevScale - 1) * cellHeight;
-  }
-  const offsetYMax = rowOffsets[ROWS - 1];
-
-  for (let r = 0; r < ROWS; r++) {
-    const rowFactor = r - 2;
-    const scale = 1 + rowFactor * scaleStep;
-    const rowPos = r / (ROWS - 1);
-    const scaleX = scale * (1 + rowPos * widenStep);
-    const offsetX = (scaleX - 1) * cellWidth;
-    const reversed = r % 2 === 1;
-    const rowColor = "#6db0ad";
-
-    for (let c = 0; c < COLS; c++) {
-      const col = c;
-      const num = reversed ? (r + 1) * COLS - c : r * COLS + c + 1;
-      const translateX = (col - centerCol) * offsetX;
-      const translateY = -rowOffsets[r];
-      const isHighlight = highlight && highlight.cell === num;
-      const trailHighlight = trail?.find((t) => t.cell === num);
-      const highlightClass = isHighlight
-        ? `${highlight.type}-highlight`
-        : trailHighlight
-        ? `${trailHighlight.type}-highlight`
-        : "";
-      const isJump = isHighlight && highlight.type === "normal";
-      const cellType = ladders[num]
-        ? "ladder"
-        : snakes[num]
-        ? "snake"
-        : diceCells && diceCells[num]
-        ? "dice"
-        : "";
-      const cellClass = cellType ? `${cellType}-cell` : "";
-      const iconImage =
-        cellType === "ladder"
-          ? "/assets/icons/Ladder.webp"
-          : cellType === "snake"
-          ? "/assets/icons/snake_vector_no_bg.webp"
-          : null;
-      const offsetVal =
-        cellType === "ladder"
-          ? ladderOffsets[num]
-          : cellType === "snake"
-          ? snakeOffsets[num]
-          : null;
-      const style = {
-        gridRowStart: ROWS - r,
-        gridColumnStart: col + 1,
-        transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
-        transformOrigin: "bottom center",
-      };
-      if (!highlightClass) style.backgroundColor = rowColor;
-
-      tiles.push(
-        <div
-          key={num}
-          data-cell={num}
-          ref={num === 1 ? tile1Ref : null}
-          className={`board-cell ${cellClass} ${highlightClass}`}
-          style={style}
-        >
-          {(iconImage || offsetVal != null) && (
-            <span className="cell-marker">
-              {iconImage && <img  src={iconImage} alt="cell icon" className="cell-icon" />}
-              {offsetVal != null && (
-                <span
-                  className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}
-                >
-                  {cellType === 'snake'
-                    ? `-${Math.abs(offsetVal)}`
-                    : offsetVal > 0
-                    ? `+${offsetVal}`
-                    : offsetVal}
-                </span>
-              )}
-            </span>
-          )}
-          {!cellType && <span className="cell-number">{num}</span>}
-          {diceCells && diceCells[num] && (
-            <span className="dice-marker">
-              <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" alt="dice" className="dice-icon" />
-              <span className="dice-value">+{diceCells[num]}</span>
-            </span>
-          )}
-          {players
-            .map((p, i) => ({ ...p, index: i }))
-            .filter((p) => p.position !== 0 && p.position === num)
-            .map((p) => (
-              <Fragment key={p.index}>
-                <PlayerToken
-                  photoUrl={p.photoUrl}
-                  type={p.type || (p.index === 0 ? (isJump ? highlight.type : tokenType) : 'normal')}
-                  color={p.color}
-                  rolling={p.index === rollingIndex}
-                  active={p.index === currentTurn}
-                  photoOnly
-                  className={
-                    'board-token ' +
-                    (p.position === 0
-                      ? 'start'
-                      : p.index === 0 && isJump
-                      ? 'jump'
-                      : '') +
-                    (burning.includes(p.index) ? ' burning' : '')
-                  }
-                />
-              </Fragment>
-            ))}
-          {offsetPopup && offsetPopup.cell === num && (
-            <span
-              className={`popup-offset italic font-bold ${offsetPopup.type === 'snake' ? 'text-red-500' : 'text-green-500'}`}
-            >
-              {offsetPopup.type === 'snake' ? '-' : '+'}
-              {offsetPopup.amount}
-            </span>
-          )}
-        </div>
-      );
+  const rowOffsets = useMemo(() => {
+    const offsets = [0];
+    for (let r = 1; r < BOARD_HEIGHT_UNITS; r++) {
+      const prevScale = 1 + (r - 3) * SCALE_STEP;
+      offsets[r] = offsets[r - 1] + (prevScale - 1) * cellHeight;
     }
-  }
+    return offsets;
+  }, [cellHeight]);
+
+  const offsetYMax = rowOffsets[BOARD_HEIGHT_UNITS - 1] ?? 0;
+
+  const tileElements = layoutTiles.map((tile) => {
+    const num = tile.cell;
+    const rowIndex = Math.floor(tile.row);
+    const rowPos = BOARD_HEIGHT_UNITS > 1 ? rowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
+    const scale = 1 + (rowIndex - 3) * SCALE_STEP;
+    const scaleX = scale * (1 + rowPos * WIDEN_STEP);
+    const offsetX = (scaleX - 1) * cellWidth;
+    const translateX = (tile.col + 0.5 - CENTER_COLUMN) * offsetX;
+    const translateY = -rowOffsets[rowIndex];
+    const isHighlight = highlight && highlight.cell === num;
+    const trailHighlight = trail?.find((t) => t.cell === num);
+    const highlightClass = isHighlight
+      ? `${highlight.type}-highlight`
+      : trailHighlight
+      ? `${trailHighlight.type}-highlight`
+      : "";
+    const isJump = isHighlight && highlight.type === "normal";
+    const cellType = ladders[num]
+      ? "ladder"
+      : snakes[num]
+      ? "snake"
+      : diceCells && diceCells[num]
+      ? "dice"
+      : "";
+    const cellClass = cellType ? `${cellType}-cell` : "";
+    const iconImage =
+      cellType === "ladder"
+        ? "/assets/icons/Ladder.webp"
+        : cellType === "snake"
+        ? "/assets/icons/snake_vector_no_bg.webp"
+        : null;
+    const offsetVal =
+      cellType === "ladder"
+        ? ladderOffsets[num]
+        : cellType === "snake"
+        ? snakeOffsets[num]
+        : null;
+    const style = {
+      gridRowStart: scaledRows - tile.row * GRID_SCALE - (GRID_SCALE - 1),
+      gridRowEnd: `span ${GRID_SCALE}`,
+      gridColumnStart: Math.round(tile.col * GRID_SCALE) + 1,
+      gridColumnEnd: `span ${GRID_SCALE}`,
+      transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
+      transformOrigin: "bottom center",
+    };
+    if (!highlightClass) style.backgroundColor = "#6db0ad";
+
+    return (
+      <div
+        key={num}
+        data-cell={num}
+        ref={num === 1 ? tile1Ref : null}
+        className={`board-cell ${cellClass} ${highlightClass}`}
+        style={style}
+      >
+        {(iconImage || offsetVal != null) && (
+          <span className="cell-marker">
+            {iconImage && <img  src={iconImage} alt="cell icon" className="cell-icon" />}
+            {offsetVal != null && (
+              <span className={`offset-text ${cellType === 'snake' ? 'snake-text' : 'ladder-text'}`}>
+                {cellType === 'snake'
+                  ? `-${Math.abs(offsetVal)}`
+                  : offsetVal > 0
+                  ? `+${offsetVal}`
+                  : offsetVal}
+              </span>
+            )}
+          </span>
+        )}
+        {!cellType && <span className="cell-number">{num}</span>}
+        {diceCells && diceCells[num] && (
+          <span className="dice-marker">
+            <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" alt="dice" className="dice-icon" />
+            <span className="dice-value">+{diceCells[num]}</span>
+          </span>
+        )}
+        {players
+          .map((p, i) => ({ ...p, index: i }))
+          .filter((p) => p.position !== 0 && p.position === num)
+          .map((p) => (
+            <Fragment key={p.index}>
+              <PlayerToken
+                photoUrl={p.photoUrl}
+                type={p.type || (p.index === 0 ? (isJump ? highlight.type : tokenType) : 'normal')}
+                color={p.color}
+                rolling={p.index === rollingIndex}
+                active={p.index === currentTurn}
+                photoOnly
+                className={
+                  'board-token ' +
+                  (p.position === 0
+                    ? 'start'
+                    : p.index === 0 && isJump
+                    ? 'jump'
+                    : '') +
+                  (burning.includes(p.index) ? ' burning' : '')
+                }
+              />
+            </Fragment>
+          ))}
+        {offsetPopup && offsetPopup.cell === num && (
+          <span
+            className={`popup-offset italic font-bold ${offsetPopup.type === 'snake' ? 'text-red-500' : 'text-green-500'}`}
+          >
+            {offsetPopup.type === 'snake' ? '-' : '+'}
+            {offsetPopup.amount}
+          </span>
+        )}
+      </div>
+    );
+  });
 
   useEffect(() => {
     const updateSize = () => {
       const width = window.innerWidth;
-      const cw = Math.floor(width / (COLS + EXTRA_COLUMN_FRACTION));
+      const cw = Math.floor(width / (BOARD_WIDTH_UNITS + EXTRA_COLUMN_FRACTION));
       setCellWidth(cw);
       const ch = Math.floor(cw / CELL_HEIGHT_RATIO);
       setCellHeight(ch);
@@ -226,6 +301,24 @@ export default function SnakeBoard({
   const paddingTop = 0;
   const paddingBottom = '15vh';
 
+  const topLevel = BOARD_LAYOUT.levels[BOARD_LAYOUT.levels.length - 1];
+  const potRowIndex = topLevel.yOffset + topLevel.size - 1;
+  const potCol = topLevel.xOffset + (topLevel.size - 1) / 2;
+  const potRowPos = BOARD_HEIGHT_UNITS > 1 ? potRowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
+  const potScale = 1 + (potRowIndex - 3) * SCALE_STEP;
+  const potScaleX = potScale * (1 + potRowPos * WIDEN_STEP);
+  const potOffsetX = (potScaleX - 1) * cellWidth;
+  const potTranslateX = (potCol + 0.5 - CENTER_COLUMN) * potOffsetX;
+  const potTranslateY = -rowOffsets[potRowIndex] - cellHeight * 2.8;
+  const potStyle = {
+    gridRowStart: scaledRows - potRowIndex * GRID_SCALE - (GRID_SCALE - 1),
+    gridRowEnd: `span ${GRID_SCALE}`,
+    gridColumnStart: Math.round((potCol - 0.5) * GRID_SCALE) + 1,
+    gridColumnEnd: `span ${GRID_SCALE * 2}`,
+    transform: `translate(${potTranslateX}px, ${potTranslateY}px) scaleX(${potScaleX * 1.1}) scaleY(${potScale}) translateZ(12px)`,
+    transformOrigin: "bottom center",
+  };
+
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
       <img
@@ -252,22 +345,25 @@ export default function SnakeBoard({
             ref={gridRef}
             className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
-              width: `${cellWidth * COLS}px`,
-              height: `${cellHeight * ROWS + offsetYMax}px`,
-              gridTemplateColumns: `repeat(${COLS}, ${cellWidth}px)`,
-              gridTemplateRows: `repeat(${ROWS}, ${cellHeight}px)`,
+              width: `${cellWidth * BOARD_WIDTH_UNITS}px`,
+              height: `${cellHeight * BOARD_HEIGHT_UNITS + offsetYMax}px`,
+              gridTemplateColumns: `repeat(${scaledCols}, ${cellWidth / GRID_SCALE}px)`,
+              gridTemplateRows: `repeat(${scaledRows}, ${cellHeight / GRID_SCALE}px)`,
               '--cell-width': `${cellWidth}px`,
               '--cell-height': `${cellHeight}px`,
-              '--board-width': `${cellWidth * COLS}px`,
-              '--board-height': `${cellHeight * ROWS + offsetYMax}px`,
+              '--board-width': `${cellWidth * BOARD_WIDTH_UNITS}px`,
+              '--board-height': `${cellHeight * BOARD_HEIGHT_UNITS + offsetYMax}px`,
               '--board-angle': `${angle}deg`,
-              '--final-scale': finalScale,
+              '--final-scale': FINAL_SCALE,
               '--board-scale': BOARD_SCALE,
               transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(${BOARD_SCALE})`,
             }}
           >
-            {tiles}
-            <div className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}>
+            {tileElements}
+            <div
+              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}
+              style={potStyle}
+            >
               <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" />
               <div className="pot-icon">
                 <img

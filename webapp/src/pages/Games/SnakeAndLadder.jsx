@@ -3,6 +3,10 @@ import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import {
+  FINAL_TILE as BOARD_FINAL_TILE,
+  BOARD_CELL_COUNT as SNAKE_BOARD_CELL_COUNT,
+} from "../../components/SnakeBoard.jsx";
+import {
   dropSound,
   snakeSound,
   ladderSound,
@@ -98,9 +102,7 @@ const TOKEN_COLORS = [
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
 // while keeping the total cell count at 100
-const ROWS = 20;
-const COLS = 5;
-const FINAL_TILE = ROWS * COLS + 1; // 101
+const FINAL_TILE = BOARD_FINAL_TILE;
 const TURN_TIME = 15;
 
 function shuffle(arr) {
@@ -669,7 +671,7 @@ export default function SnakeAndLadder() {
         setSnakeOffsets(snk);
         setLadderOffsets(lad);
 
-        const boardSize = ROWS * COLS;
+        const boardSize = SNAKE_BOARD_CELL_COUNT;
         const diceMap = {};
         const diceValues = [1, 2, 1];
         const usedD = new Set([
