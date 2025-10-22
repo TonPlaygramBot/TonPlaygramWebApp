@@ -537,16 +537,6 @@ const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
 const POCKET_CUP_FLARE_AMPLITUDE = 0.08;
 const POCKET_CUP_RADIUS_EASING = 0.82;
-const POCKET_LIP_RADIUS_SCALE = 1.012;
-const POCKET_LIP_TUBE_RADIUS = TABLE.THICK * 0.03;
-const POCKET_LIP_TOP_BLEND = 0.75;
-const POCKET_LIP_CLEARCOAT_BOOST = 0.16;
-const POCKET_LIP_CLEARCOAT_ROUGHNESS_SCALE = 0.72;
-const POCKET_LIP_SHEEN_BOOST = 0.08;
-const POCKET_LIP_SHEEN_ROUGHNESS_SCALE = 0.92;
-const POCKET_LIP_EMISSIVE_SCALE = 1.08;
-const POCKET_LIP_EMISSIVE_OFFSET = 0.02;
-const POCKET_LIP_ENV_INTENSITY_BOOST = 0.04;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
@@ -576,7 +566,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.4; // widen cloth openings further so the cloth never overlaps or obscures the pocket visuals
+const POCKET_CUT_EXPANSION = 1.12; // align cloth openings with the legacy black pocket cutouts
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
@@ -3749,13 +3739,6 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
-  const pocketLipMat = clothMat.clone();
-  pocketLipMat.name = 'pocketLipCloth';
-  pocketLipMat.side = THREE.DoubleSide;
-  pocketLipMat.userData = {
-    ...(pocketLipMat.userData || {}),
-    isPocketLip: true
-  };
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -3766,7 +3749,7 @@ function Table3D(
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale
   };
-  const clothMaterials = [clothMat, cushionMat, pocketLipMat];
+  const clothMaterials = [clothMat, cushionMat];
   const applyClothDetail = (detail) => {
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
@@ -3823,48 +3806,6 @@ function Table3D(
       } else {
         mat.bumpScale = clothBaseSettings.bumpScale;
       }
-      if (mat?.userData?.isPocketLip) {
-        mat.clearcoat = THREE.MathUtils.clamp(
-          (mat.clearcoat ?? clothBaseSettings.clearcoat ?? 0) + POCKET_LIP_CLEARCOAT_BOOST,
-          0,
-          1
-        );
-        const nextClearcoatRoughness = (mat.clearcoatRoughness ?? clothBaseSettings.clearcoatRoughness ?? 0.5) *
-          POCKET_LIP_CLEARCOAT_ROUGHNESS_SCALE;
-        mat.clearcoatRoughness = THREE.MathUtils.clamp(
-          nextClearcoatRoughness,
-          Math.max(0, CLOTH_REFLECTION_LIMITS.clearcoatRoughnessMin * 0.65),
-          1
-        );
-        if (typeof mat.sheen === 'number') {
-          mat.sheen = THREE.MathUtils.clamp(
-            mat.sheen + POCKET_LIP_SHEEN_BOOST,
-            0,
-            1
-          );
-        }
-        if (typeof mat.sheenRoughness === 'number') {
-          mat.sheenRoughness = THREE.MathUtils.clamp(
-            mat.sheenRoughness * POCKET_LIP_SHEEN_ROUGHNESS_SCALE,
-            0,
-            1
-          );
-        }
-        if (typeof mat.emissiveIntensity === 'number') {
-          mat.emissiveIntensity = THREE.MathUtils.clamp(
-            mat.emissiveIntensity * POCKET_LIP_EMISSIVE_SCALE + POCKET_LIP_EMISSIVE_OFFSET,
-            0,
-            1
-          );
-        }
-        if ('envMapIntensity' in mat) {
-          mat.envMapIntensity = THREE.MathUtils.clamp(
-            (mat.envMapIntensity ?? clothBaseSettings.envMapIntensity ?? 0) + POCKET_LIP_ENV_INTENSITY_BOOST,
-            0,
-            1
-          );
-        }
-      }
       mat.needsUpdate = true;
     });
     const primary = clothMaterials[0];
@@ -3891,7 +3832,6 @@ function Table3D(
     },
     clothMat,
     cushionMat,
-    additionalClothMats: [pocketLipMat].filter(Boolean),
     parts: finishParts,
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
@@ -4090,12 +4030,6 @@ function Table3D(
     POCKET_BOTTOM_R,
     pocketCupHeight
   );
-  const pocketLipGeometry = new THREE.TorusGeometry(
-    Math.max(MICRO_EPS, POCKET_TOP_R * POCKET_LIP_RADIUS_SCALE),
-    Math.max(MICRO_EPS, POCKET_LIP_TUBE_RADIUS),
-    32,
-    64
-  );
   const pocketCupMat = new THREE.MeshPhysicalMaterial({
     color: 0x030303,
     metalness: 0.22,
@@ -4124,26 +4058,6 @@ function Table3D(
         topOffset: pocketSurfaceOffset
       }
     };
-    const cupInfo = cup.userData.pocketCup;
-    const lip = new THREE.Mesh(pocketLipGeometry, pocketLipMat);
-    lip.name = 'pocketLip';
-    lip.rotation.x = Math.PI / 2;
-    lip.castShadow = false;
-    lip.receiveShadow = true;
-    lip.userData = {
-      ...(lip.userData || {}),
-      pocketLip: {
-        tubeRadius: POCKET_LIP_TUBE_RADIUS,
-        topBlend: POCKET_LIP_TOP_BLEND
-      }
-    };
-    const lipLocalY =
-      cupInfo.height / 2 +
-      cupInfo.topOffset * POCKET_LIP_TOP_BLEND -
-      POCKET_LIP_TUBE_RADIUS;
-    lip.position.set(0, lipLocalY, 0);
-    cup.add(lip);
-    cupInfo.lipMesh = lip;
     table.add(cup);
     pocketMeshes.push(cup);
   });
@@ -5529,17 +5443,6 @@ function Table3D(
         ? cupInfo.topOffset
         : pocketSurfaceOffset;
       mesh.position.y = clothPlaneLocal - topOffset - height / 2;
-      const lip = cupInfo.lipMesh;
-      const lipInfo = lip?.userData?.pocketLip;
-      if (lip && lipInfo) {
-        const tubeRadius = Number.isFinite(lipInfo.tubeRadius)
-          ? lipInfo.tubeRadius
-          : POCKET_LIP_TUBE_RADIUS;
-        const topBlend = Number.isFinite(lipInfo.topBlend)
-          ? lipInfo.topBlend
-          : POCKET_LIP_TOP_BLEND;
-        lip.position.y = height / 2 + topOffset * topBlend - tubeRadius;
-      }
     } else {
       mesh.position.y = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
     }
@@ -5710,14 +5613,6 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.color.copy(clothColor);
     finishInfo.cushionMat.emissive.copy(emissiveColor);
     finishInfo.cushionMat.needsUpdate = true;
-  }
-  if (Array.isArray(finishInfo.additionalClothMats)) {
-    finishInfo.additionalClothMats.forEach((mat) => {
-      if (!mat) return;
-      mat.color.copy(clothColor);
-      mat.emissive.copy(emissiveColor);
-      mat.needsUpdate = true;
-    });
   }
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
