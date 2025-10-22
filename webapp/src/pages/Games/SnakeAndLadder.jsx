@@ -2140,7 +2140,8 @@ export default function SnakeAndLadder() {
                   startDiceBoardAnimation({
                     id: diceRollIdRef.current,
                     phase: 'end',
-                    values: vals
+                    values: vals,
+                    seatIndex: aiRollingIndex ?? 0
                   });
                   if (aiRollingIndex) {
                     handleAIRoll(aiRollingIndex, vals);
@@ -2157,7 +2158,8 @@ export default function SnakeAndLadder() {
                   startDiceBoardAnimation({
                     id: diceRollIdRef.current,
                     phase: 'start',
-                    count: diceCount + bonusDice
+                    count: diceCount + bonusDice,
+                    seatIndex: aiRollingIndex ?? 0
                   });
                   if (timerRef.current) clearInterval(timerRef.current);
                   timerSoundRef.current?.pause();
@@ -2227,14 +2229,16 @@ export default function SnakeAndLadder() {
                     startDiceBoardAnimation({
                       id: diceRollIdRef.current,
                       phase: 'start',
-                      count: diceCount + bonusDice
+                      count: diceCount + bonusDice,
+                      seatIndex: currentTurn
                     });
                   }}
                   onRollEnd={(vals) => {
                     startDiceBoardAnimation({
                       id: diceRollIdRef.current,
                       phase: 'end',
-                      values: vals
+                      values: vals,
+                      seatIndex: currentTurn
                     });
                   }}
                 />
