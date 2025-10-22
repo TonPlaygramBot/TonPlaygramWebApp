@@ -190,7 +190,7 @@ const SOUND_SOURCES = {
 export default function FreeKick3DGame({ config }) {
   const hostRef = useRef(null);
   const threeRef = useRef(null);
-  const gestureRef = useRef({ start: null, last: null, pointerId: null });
+  const gestureRef = useRef({ start: null, last: null, pointerId: null, history: [] });
   const messageTimeoutRef = useRef(null);
   const resetTimeoutRef = useRef(null);
   const gameStateRef = useRef({ gameOver: false });
@@ -262,6 +262,7 @@ export default function FreeKick3DGame({ config }) {
     setMessage(INSTRUCTION_TEXT);
     gestureRef.current.start = null;
     gestureRef.current.last = null;
+    gestureRef.current.history = [];
     if (messageTimeoutRef.current) {
       clearTimeout(messageTimeoutRef.current);
       messageTimeoutRef.current = null;
@@ -657,6 +658,15 @@ export default function FreeKick3DGame({ config }) {
 
     animate();
 
+    const pushPointerSample = (pointer) => {
+      const history = gestureRef.current.history;
+      if (!history) return;
+      history.push(pointer);
+      if (history.length > 24) {
+        history.splice(0, history.length - 24);
+      }
+    };
+
     const getPointer = (event) => {
       const bounds = renderer.domElement.getBoundingClientRect();
       const clientX = event.touches ? event.touches[0].clientX : event.clientX;
@@ -677,6 +687,7 @@ export default function FreeKick3DGame({ config }) {
       gestureRef.current.start = pointer;
       gestureRef.current.last = pointer;
       gestureRef.current.pointerId = event.pointerId;
+      gestureRef.current.history = [pointer];
       aimLine.visible = true;
       updateAimLine();
       startCrowdSound();
@@ -691,6 +702,7 @@ export default function FreeKick3DGame({ config }) {
       if (gestureRef.current.pointerId !== event.pointerId) return;
       const pointer = getPointer(event);
       gestureRef.current.last = pointer;
+      pushPointerSample(pointer);
       const dx = (pointer.x - gestureRef.current.start.x) / pointer.w;
       const dy = (pointer.y - gestureRef.current.start.y) / pointer.h;
       const direction = new THREE.Vector3(dx * 6, -dy * 4 + 1.2, -6).normalize();
@@ -709,18 +721,61 @@ export default function FreeKick3DGame({ config }) {
       const end = gestureRef.current.last;
       gestureRef.current.start = null;
       gestureRef.current.last = null;
+      const history = gestureRef.current.history ? [...gestureRef.current.history] : [];
+      gestureRef.current.history = [];
       if (!start || !end || gameStateRef.current.gameOver) return;
       const dt = Math.max(16, end.t - start.t);
       const dx = (end.x - start.x) / end.w;
       const dy = (end.y - start.y) / end.h;
       const distance = Math.hypot(dx, dy);
       if (distance < 0.02) return;
-      const power = THREE.MathUtils.clamp((distance * 22) / (dt / 1000), 2.4, 30);
+      if (history.length === 0 && start) history.push(start);
+      if (history.length === 1) history.push(end);
+      const dtSeconds = dt / 1000;
+      const power = THREE.MathUtils.clamp((distance * 22) / dtSeconds, 2.4, 30) * 0.5;
       const direction = new THREE.Vector3(dx * 2.0, -dy * 1.4 + 0.6, -1).normalize();
       state.velocity.copy(direction.multiplyScalar(power));
-      const spinX = THREE.MathUtils.degToRad(-dy * 20);
-      const spinY = THREE.MathUtils.degToRad(-dx * 40);
-      state.spin.set(spinX, spinY, 0);
+      const verticalSpeed = -dy / Math.max(0.05, dtSeconds);
+      const lateralSpeed = dx / Math.max(0.05, dtSeconds);
+      const samples = history;
+      const midIndex = Math.min(samples.length - 1, Math.max(1, Math.floor(samples.length / 2)));
+      const early = samples[0];
+      const mid = samples[midIndex];
+      const late = samples[samples.length - 1];
+      const earlyDx = (mid.x - early.x) / mid.w;
+      const earlyDt = Math.max(0.05, (mid.t - early.t) / 1000);
+      const earlyRate = earlyDt > 0 ? earlyDx / earlyDt : 0;
+      const lateDx = (late.x - mid.x) / late.w;
+      const lateDt = Math.max(0.05, (late.t - mid.t) / 1000);
+      const lateRate = lateDt > 0 ? lateDx / lateDt : 0;
+      const lateralChange = lateRate - earlyRate;
+      let weightedLateralRate = 0;
+      let totalWeight = 0;
+      for (let i = 1; i < samples.length; i += 1) {
+        const prev = samples[i - 1];
+        const curr = samples[i];
+        const segDx = (curr.x - prev.x) / curr.w;
+        const segDt = Math.max(0.016, (curr.t - prev.t) / 1000);
+        const segRate = segDt > 0 ? segDx / segDt : 0;
+        const progress = i / Math.max(1, samples.length - 1);
+        const weight = progress * segDt;
+        weightedLateralRate += segRate * weight;
+        totalWeight += weight;
+      }
+      const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : lateralSpeed;
+      const intensity = THREE.MathUtils.clamp(distance / 0.65, 0, 1);
+      const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 220, -540, 540);
+      const spinYDeg = THREE.MathUtils.clamp(
+        lateralSpeed * 110 + lateralChange * 260 + averageCurveRate * 200,
+        -720,
+        720
+      );
+      const spinZDeg = THREE.MathUtils.clamp(averageCurveRate * 120, -360, 360);
+      state.spin.set(
+        THREE.MathUtils.degToRad(spinXDeg * intensity),
+        THREE.MathUtils.degToRad(spinYDeg * intensity),
+        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.6)
+      );
       state.scored = false;
       setShots((value) => value + 1);
       playKickSound();
