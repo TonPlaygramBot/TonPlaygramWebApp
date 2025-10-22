@@ -140,8 +140,14 @@ export default function AirHockey3D({ player, ai }) {
     const world = new THREE.Group();
     scene.add(world);
 
+    const TABLE_ELEVATION_FACTOR = 1.2;
+    const tableFloorGap =
+      POOL_ENVIRONMENT.tableSurfaceY - POOL_ENVIRONMENT.floorY;
+    const tableLift = tableFloorGap * (TABLE_ELEVATION_FACTOR - 1);
+    const elevatedTableSurfaceY = POOL_ENVIRONMENT.tableSurfaceY + tableLift;
+
     const tableGroup = new THREE.Group();
-    tableGroup.position.y = POOL_ENVIRONMENT.tableSurfaceY;
+    tableGroup.position.y = elevatedTableSurfaceY;
     world.add(tableGroup);
 
     const carpet = new THREE.Mesh(
@@ -209,7 +215,7 @@ export default function AirHockey3D({ player, ai }) {
     const tableSurface = new THREE.Mesh(
       new THREE.BoxGeometry(TABLE.w, TABLE.thickness, TABLE.h),
       new THREE.MeshStandardMaterial({
-        color: 0x0b64b4,
+        color: 0x3b83c3,
         roughness: 0.85,
         metalness: 0.1
       })
@@ -217,7 +223,7 @@ export default function AirHockey3D({ player, ai }) {
     tableSurface.position.y = -TABLE.thickness / 2;
     tableGroup.add(tableSurface);
 
-    const floorLocalY = POOL_ENVIRONMENT.floorY - POOL_ENVIRONMENT.tableSurfaceY;
+    const floorLocalY = POOL_ENVIRONMENT.floorY - elevatedTableSurfaceY;
     const woodMaterial = new THREE.MeshStandardMaterial({
       color: 0x5d3725,
       roughness: 0.55,
@@ -430,7 +436,7 @@ export default function AirHockey3D({ player, ai }) {
     };
 
     const you = makeMallet(0xff5577);
-    you.position.set(0, 0, TABLE.h * 0.36);
+    you.position.set(0, 0, TABLE.h * 0.42);
     tableGroup.add(you);
 
     const aiMallet = makeMallet(0x66ddff);
@@ -446,28 +452,16 @@ export default function AirHockey3D({ player, ai }) {
 
     const hemisphereKey = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
     const lightLift = TABLE.h * 0.32;
-    hemisphereKey.position.set(
-      0,
-      POOL_ENVIRONMENT.tableSurfaceY + lightLift,
-      -TABLE.h * 0.18
-    );
+    hemisphereKey.position.set(0, elevatedTableSurfaceY + lightLift, -TABLE.h * 0.18);
     scene.add(hemisphereKey);
 
     const hemisphereFill = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
-    hemisphereFill.position.set(0, POOL_ENVIRONMENT.tableSurfaceY + lightLift, 0);
+    hemisphereFill.position.set(0, elevatedTableSurfaceY + lightLift, 0);
     scene.add(hemisphereFill);
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
-    dirLight.position.set(
-      -TABLE.w * 0.28,
-      POOL_ENVIRONMENT.tableSurfaceY + lightLift,
-      TABLE.h * 0.18
-    );
-    dirLight.target.position.set(
-      0,
-      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.1,
-      0
-    );
+    dirLight.position.set(-TABLE.w * 0.28, elevatedTableSurfaceY + lightLift, TABLE.h * 0.18);
+    dirLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.1, 0);
     scene.add(dirLight);
     scene.add(dirLight.target);
 
@@ -481,37 +475,34 @@ export default function AirHockey3D({ player, ai }) {
     );
     spotLight.position.set(
       TABLE.w * 0.32,
-      POOL_ENVIRONMENT.tableSurfaceY + lightLift * 1.3,
+      elevatedTableSurfaceY + lightLift * 1.3,
       TABLE.h * 0.26
     );
-    spotLight.target.position.set(
-      0,
-      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.4,
-      0
-    );
+    spotLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.4, 0);
     spotLight.decay = 1.0;
     scene.add(spotLight);
     scene.add(spotLight.target);
 
+    const playerRailZ = TABLE.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
       0,
-      POOL_ENVIRONMENT.tableSurfaceY + TABLE.thickness * 0.18,
-      TABLE.h * 0.12
+      elevatedTableSurfaceY + TABLE.thickness * 0.08,
+      0
     );
     const cameraAnchor = new THREE.Vector3(
       0,
-      POOL_ENVIRONMENT.tableSurfaceY + TABLE.h * 0.18,
-      TABLE.h / 2 + TABLE.h * 0.22
+      elevatedTableSurfaceY + TABLE.h * 0.42,
+      playerRailZ + railThickness * 0.35
     );
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)
       .normalize();
 
     const tableCorners = [
-      new THREE.Vector3(-TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, -TABLE.h / 2),
-      new THREE.Vector3(TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, -TABLE.h / 2),
-      new THREE.Vector3(-TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, TABLE.h / 2),
-      new THREE.Vector3(TABLE.w / 2, POOL_ENVIRONMENT.tableSurfaceY, TABLE.h / 2)
+      new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2),
+      new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2),
+      new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2),
+      new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2)
     ];
 
     const fitCameraToTable = () => {
@@ -524,7 +515,7 @@ export default function AirHockey3D({ player, ai }) {
         const needsRetreat = tableCorners.some((corner) => {
           const sample = corner.clone();
           const ndc = sample.project(camera);
-          return Math.abs(ndc.x) > 0.92 || ndc.y < -0.97 || ndc.y > 0.97;
+          return Math.abs(ndc.x) > 0.95 || ndc.y < -1.05 || ndc.y > 1.05;
         });
         if (!needsRetreat) break;
         camera.position.addScaledVector(cameraDirection, 2.4);
@@ -544,7 +535,7 @@ export default function AirHockey3D({ player, ai }) {
     const ndc = new THREE.Vector2();
     const plane = new THREE.Plane(
       new THREE.Vector3(0, 1, 0),
-      -POOL_ENVIRONMENT.tableSurfaceY
+      -elevatedTableSurfaceY
     );
     const hit = new THREE.Vector3();
 
@@ -616,7 +607,7 @@ export default function AirHockey3D({ player, ai }) {
     const reset = (towardTop = false) => {
       puck.position.set(0, PUCK_HEIGHT / 2, 0);
       S.vel.set(0, 0, towardTop ? -SERVE_SPEED : SERVE_SPEED);
-      you.position.set(0, 0, TABLE.h * 0.36);
+      you.position.set(0, 0, TABLE.h * 0.42);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     };
 
