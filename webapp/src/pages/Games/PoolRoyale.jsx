@@ -4489,8 +4489,8 @@ function Table3D(
       baseRadius,
       jawAngle,
       orientationAngle,
-      innerScale: wide ? POCKET_JAW_CORNER_INNER_SCALE : POCKET_JAW_SIDE_INNER_SCALE,
-      outerScale: wide ? POCKET_JAW_CORNER_OUTER_SCALE : POCKET_JAW_SIDE_OUTER_SCALE,
+      innerScale: wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE,
+      outerScale: wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE,
       steps: wide ? 88 : 68,
       sideThinFactor: wide ? 0.18 : 0.24,
       middleThinFactor: wide ? 0.78 : 0.88,
@@ -4515,8 +4515,8 @@ function Table3D(
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
-    const baseInnerScale = wide ? POCKET_JAW_CORNER_INNER_SCALE : POCKET_JAW_SIDE_INNER_SCALE;
-    const baseOuterScale = wide ? POCKET_JAW_CORNER_OUTER_SCALE : POCKET_JAW_SIDE_OUTER_SCALE;
+    const baseInnerScale = wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE;
+    const baseOuterScale = wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE;
     const rimInnerScale = baseInnerScale * POCKET_RIM_INNER_SCALE;
     let rimOuterScale = THREE.MathUtils.lerp(baseOuterScale, baseInnerScale, POCKET_RIM_OUTER_BLEND);
     if (rimOuterScale <= rimInnerScale + MICRO_EPS) {
