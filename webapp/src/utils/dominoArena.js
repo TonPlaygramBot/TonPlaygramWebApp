@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { makeRoughClothTexture, DEFAULT_TABLE_CLOTH_OPTION } from './murlanTable.js';
 
 const ROOM_DIMENSIONS = Object.freeze({
   width: 6.2,
@@ -455,10 +456,28 @@ function buildDominoTable(renderer) {
 
   const woodMat = new THREE.MeshStandardMaterial({ color: '#5a3a19', roughness: 0.55, metalness: 0.08 });
   const woodDark = new THREE.MeshStandardMaterial({ color: '#4a3115', roughness: 0.7, metalness: 0.05 });
-  const feltMat = new THREE.MeshStandardMaterial({ color: '#155c2a', roughness: 1, metalness: 0 });
+  const clothOption = DEFAULT_TABLE_CLOTH_OPTION;
+  const feltMat = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    roughness: 0.82,
+    metalness: 0.04,
+    emissive: clothOption.emissive ?? '#000000',
+    emissiveIntensity: Number.isFinite(clothOption.emissiveIntensity)
+      ? clothOption.emissiveIntensity
+      : 0.08
+  });
   const baseMat = new THREE.MeshStandardMaterial({ color: '#0f3e2d', roughness: 0.85, metalness: 0.05 });
 
-  disposables.push(woodMat, woodDark, feltMat, baseMat);
+  const feltTexture = makeRoughClothTexture(
+    1024,
+    clothOption.feltTop,
+    clothOption.feltBottom,
+    renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
+  );
+  feltMat.map = feltTexture;
+  feltMat.needsUpdate = true;
+
+  disposables.push(woodMat, woodDark, feltMat, baseMat, feltTexture);
 
   const outer = roundedRectShape(TABLE_DIMENSIONS.outerHalfWidth, TABLE_DIMENSIONS.outerHalfWidth, 0.06);
   const extrudeSettings = { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012 };
