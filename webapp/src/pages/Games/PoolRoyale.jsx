@@ -447,6 +447,8 @@ const POCKET_JAW_CORNER_INNER_SCALE = 0.948; // slim the corner jaw walls so the
 const POCKET_JAW_CORNER_TRIM_RATIO = 0.68; // shorten the corner jaw wings so they finish exactly at the cushion break
 const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the side pocket chamfers so the jaws stay thin and track the cushion gap
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
+const POCKET_JAW_CORNER_FLUSH_EPS = TABLE.THICK * 0.0042; // clamp the corner jaw bases against the cushion line with a tiny outward allowance
+const POCKET_JAW_SIDE_FLUSH_EPS = TABLE.THICK * 0.0036; // keep the side pocket jaw bases flush with the cushion shoulders
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
 const POCKET_RIM_INNER_SCALE = 1.018; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
 const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.012; // shave a little more material from the side pocket rims so they don't crowd the jaws
@@ -4213,6 +4215,11 @@ function Table3D(
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cushionRailReachX = Math.max(
+    0,
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH
+  );
+  const cushionRailReachZ = Math.max(0, cushionInnerZ);
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromeCornerMeetX = Math.max(0, horizLen / 2);
@@ -4792,6 +4799,19 @@ function Table3D(
     return centroidValue + (baseValue - centroidValue) * scale;
   };
 
+  const clampToCushionLimit = (value, limit, positive, epsilon = 0) => {
+    if (!Number.isFinite(limit)) {
+      return value;
+    }
+    const directed = positive ? Math.max(value, limit) : Math.min(value, limit);
+    if (!Number.isFinite(epsilon) || epsilon <= 0) {
+      return directed;
+    }
+    return positive
+      ? Math.min(directed, limit + epsilon)
+      : Math.max(directed, limit - epsilon);
+  };
+
   [
     { sx: 1, sz: 1 },
     { sx: -1, sz: 1 },
@@ -4827,23 +4847,27 @@ function Table3D(
     const chamferTargetZ =
       computeScaledCoordinate(chamferBaseZ, centroid.y, RAIL_CORNER_POCKET_CUT_SCALE) +
       sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
-    const cushionEdgeX = sx * (Math.max(0, cushionInnerX) + MICRO_EPS * 4);
-    const cushionEdgeZ = sz * (Math.max(0, cushionInnerZ) + MICRO_EPS * 4);
-    const limitThreshold = (value, limit, positive) =>
-      positive ? Math.max(value, limit) : Math.min(value, limit);
-    const trimmedCenterX = limitThreshold(
+    const cushionEdgeX = sx * (cushionRailReachX + MICRO_EPS * 4);
+    const cushionEdgeZ = sz * (cushionRailReachZ + MICRO_EPS * 4);
+    const trimmedCandidateX =
       sx > 0
         ? Math.max(scaledCenterX, chamferTargetX)
-        : Math.min(scaledCenterX, chamferTargetX),
-      cushionEdgeX,
-      sx > 0
-    );
-    const trimmedCenterZ = limitThreshold(
+        : Math.min(scaledCenterX, chamferTargetX);
+    const trimmedCandidateZ =
       sz > 0
         ? Math.max(scaledCenterZ, chamferTargetZ)
-        : Math.min(scaledCenterZ, chamferTargetZ),
+        : Math.min(scaledCenterZ, chamferTargetZ);
+    const trimmedCenterX = clampToCushionLimit(
+      trimmedCandidateX,
+      cushionEdgeX,
+      sx > 0,
+      POCKET_JAW_CORNER_FLUSH_EPS
+    );
+    const trimmedCenterZ = clampToCushionLimit(
+      trimmedCandidateZ,
       cushionEdgeZ,
-      sz > 0
+      sz > 0,
+      POCKET_JAW_CORNER_FLUSH_EPS
     );
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
       combine: 'union',
@@ -4882,12 +4906,22 @@ function Table3D(
       sx > 0
         ? Math.max(scaledCenterX, Math.min(desiredThreshold, extremeX - MICRO_EPS * 8))
         : Math.min(scaledCenterX, Math.max(desiredThreshold, extremeX + MICRO_EPS * 8));
-    const zLimit = Math.max(MICRO_EPS, sideChromeMeetZ);
+    const cushionEdgeX = sx * (cushionRailReachX + MICRO_EPS * 4);
+    const flushCenterX = clampToCushionLimit(
+      adjustedCenterX,
+      cushionEdgeX,
+      sx > 0,
+      POCKET_JAW_SIDE_FLUSH_EPS
+    );
+    const zLimit = Math.max(
+      MICRO_EPS,
+      Math.min(sideChromeMeetZ, cushionRailReachZ + MICRO_EPS * 4)
+    );
     addPocketJaw(
       scaledMP,
       POCKET_JAW_SIDE_INNER_SCALE,
       {
-        x: { threshold: adjustedCenterX, keepGreater: sx > 0 },
+        x: { threshold: flushCenterX, keepGreater: sx > 0 },
         zRange: { min: -zLimit, max: zLimit }
       },
       { rimInnerScaleMultiplier: POCKET_RIM_SIDE_INNER_MULTIPLIER }
