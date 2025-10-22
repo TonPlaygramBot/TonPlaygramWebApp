@@ -4,6 +4,9 @@ import PlayerToken from "./PlayerToken.jsx";
 // Board dimensions
 const ROWS = 20;
 const COLS = 5;
+const EXTRA_COLUMN_FRACTION = 0.6;
+const CELL_HEIGHT_RATIO = 1.9;
+const BOARD_SCALE = 1.12;
 export const FINAL_TILE = ROWS * COLS + 1; // 101
 
 function CoinBurst({ token }) {
@@ -192,9 +195,9 @@ export default function SnakeBoard({
   useEffect(() => {
     const updateSize = () => {
       const width = window.innerWidth;
-      const cw = Math.floor(width / COLS);
+      const cw = Math.floor(width / (COLS + EXTRA_COLUMN_FRACTION));
       setCellWidth(cw);
-      const ch = Math.floor(cw / 1.7);
+      const ch = Math.floor(cw / CELL_HEIGHT_RATIO);
       setCellHeight(ch);
     };
     updateSize();
@@ -259,7 +262,8 @@ export default function SnakeBoard({
               '--board-height': `${cellHeight * ROWS + offsetYMax}px`,
               '--board-angle': `${angle}deg`,
               '--final-scale': finalScale,
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(0.9)`,
+              '--board-scale': BOARD_SCALE,
+              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(${BOARD_SCALE})`,
             }}
           >
             {tiles}
