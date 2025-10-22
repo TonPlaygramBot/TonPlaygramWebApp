@@ -71,7 +71,7 @@ const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / SNAKE_BOARD_TILES;
 const MAX_DICE = 2;
-const DICE_SIZE = TILE_SIZE * 0.675;
+const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -83,11 +83,11 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 360;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
-const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.35;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 3.0;
+const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
+const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.25;
-const BOARD_EDGE_BUFFER = TILE_SIZE * 0.12;
-const DICE_RETREAT_EXTRA = DICE_SIZE * 0.75;
+const BOARD_EDGE_BUFFER = TILE_SIZE * 0.16;
+const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.28 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.22 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -137,19 +137,19 @@ const DICE_SEAT_ADJUSTMENTS = [
   },
   {
     forward: {
-      start: TILE_SIZE * 0.05,
-      bounce: TILE_SIZE * 0.05,
-      base: TILE_SIZE * 0.08
+      start: TILE_SIZE * 0.14,
+      bounce: TILE_SIZE * 0.12,
+      base: TILE_SIZE * 0.18
     },
     front: {
-      start: TILE_SIZE * 0.22,
-      bounce: TILE_SIZE * 0.36,
-      base: TILE_SIZE * 0.52
+      start: TILE_SIZE * 0.32,
+      bounce: TILE_SIZE * 0.5,
+      base: TILE_SIZE * 0.72
     },
     side: {
-      start: TILE_SIZE * 0.28,
-      bounce: TILE_SIZE * 0.32,
-      base: TILE_SIZE * 0.36
+      start: TILE_SIZE * 0.24,
+      bounce: TILE_SIZE * 0.28,
+      base: TILE_SIZE * 0.32
     }
   },
   {
@@ -161,19 +161,19 @@ const DICE_SEAT_ADJUSTMENTS = [
   },
   {
     forward: {
-      start: TILE_SIZE * 0.05,
-      bounce: TILE_SIZE * 0.05,
-      base: TILE_SIZE * 0.08
+      start: TILE_SIZE * 0.14,
+      bounce: TILE_SIZE * 0.12,
+      base: TILE_SIZE * 0.18
     },
     front: {
-      start: TILE_SIZE * 0.22,
-      bounce: TILE_SIZE * 0.36,
-      base: TILE_SIZE * 0.52
+      start: TILE_SIZE * 0.32,
+      bounce: TILE_SIZE * 0.5,
+      base: TILE_SIZE * 0.72
     },
     side: {
-      start: -TILE_SIZE * 0.28,
-      bounce: -TILE_SIZE * 0.32,
-      base: -TILE_SIZE * 0.36
+      start: -TILE_SIZE * 0.24,
+      bounce: -TILE_SIZE * 0.28,
+      base: -TILE_SIZE * 0.32
     }
   }
 ];
@@ -1219,7 +1219,7 @@ function buildSnakeBoard(
   const diceGroup = new THREE.Group();
   const diceBaseY = tileGroup.position.y + tileHeight + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
   // Keep the dice resting near the player-facing edge of the board, closer to the rails
-  const diceAnchorZ = half + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA + DICE_SIZE * 0.35;
+  const diceAnchorZ = half + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA + DICE_SIZE * 0.5;
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
