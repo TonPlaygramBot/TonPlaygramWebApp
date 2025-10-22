@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
@@ -180,7 +180,13 @@ const FRICTION = 0.995;
 const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
-const START_Z = 4.8;
+const START_Z = 1.2;
+const SOUND_SOURCES = {
+  crowd: encodeURI('/assets/sounds/football-crowd-3-69245.mp3'),
+  whistle: encodeURI('/assets/sounds/metal-whistle-6121.mp3'),
+  goal: encodeURI('/assets/sounds/goal net origjinal (2).mp3'),
+  kick: encodeURI('/assets/sounds/ball kick .mp3')
+};
 export default function FreeKick3DGame({ config }) {
   const hostRef = useRef(null);
   const threeRef = useRef(null);
@@ -188,6 +194,13 @@ export default function FreeKick3DGame({ config }) {
   const messageTimeoutRef = useRef(null);
   const resetTimeoutRef = useRef(null);
   const gameStateRef = useRef({ gameOver: false });
+  const audioRef = useRef({
+    started: false,
+    crowd: null,
+    whistle: null,
+    goal: null,
+    kick: null
+  });
 
   const [score, setScore] = useState(0);
   const [shots, setShots] = useState(0);
@@ -198,6 +211,47 @@ export default function FreeKick3DGame({ config }) {
 
   const playerName = useMemo(() => config.playerName || 'Player', [config.playerName]);
   const playDuration = useMemo(() => Math.max(10, Number(config.duration) || 60), [config.duration]);
+
+  const playWhistle = useCallback(() => {
+    const { whistle } = audioRef.current;
+    if (!whistle) return;
+    whistle.currentTime = 0;
+    whistle.play().catch(() => {});
+    window.setTimeout(() => {
+      whistle.pause();
+      whistle.currentTime = 0;
+    }, 1800);
+  }, []);
+
+  const playGoalSound = useCallback(() => {
+    const { goal } = audioRef.current;
+    if (!goal) return;
+    goal.currentTime = 0;
+    goal.play().catch(() => {});
+  }, []);
+
+  const playKickSound = useCallback(() => {
+    const { kick } = audioRef.current;
+    if (!kick) return;
+    kick.currentTime = 0;
+    kick.play().catch(() => {});
+  }, []);
+
+  const startCrowdSound = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio.crowd) return;
+    audio.started = true;
+    if (audio.crowd.paused) {
+      audio.crowd.currentTime = 0;
+    }
+    audio.crowd.play().catch(() => {});
+  }, []);
+
+  const pauseCrowdSound = useCallback(() => {
+    const { crowd } = audioRef.current;
+    if (!crowd) return;
+    crowd.pause();
+  }, []);
 
   useEffect(() => {
     setTimeLeft(playDuration);
@@ -220,6 +274,37 @@ export default function FreeKick3DGame({ config }) {
       threeRef.current.resetBall();
     }
   }, [playDuration]);
+
+  useEffect(() => {
+    if (typeof Audio === 'undefined') return undefined;
+    const crowd = new Audio(SOUND_SOURCES.crowd);
+    crowd.loop = true;
+    crowd.volume = 0.5;
+    const whistle = new Audio(SOUND_SOURCES.whistle);
+    const goal = new Audio(SOUND_SOURCES.goal);
+    goal.volume = 1;
+    const kick = new Audio(SOUND_SOURCES.kick);
+    kick.volume = 1;
+
+    audioRef.current.crowd = crowd;
+    audioRef.current.whistle = whistle;
+    audioRef.current.goal = goal;
+    audioRef.current.kick = kick;
+    audioRef.current.started = false;
+
+    return () => {
+      [crowd, whistle, goal, kick].forEach((audio) => {
+        if (!audio) return;
+        audio.pause();
+        audio.src = '';
+      });
+      audioRef.current.crowd = null;
+      audioRef.current.whistle = null;
+      audioRef.current.goal = null;
+      audioRef.current.kick = null;
+      audioRef.current.started = false;
+    };
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -511,6 +596,7 @@ export default function FreeKick3DGame({ config }) {
       setScore((value) => value + 1);
       if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
       setMessage('Goal!');
+      playGoalSound();
       messageTimeoutRef.current = window.setTimeout(() => {
         setMessage(INSTRUCTION_TEXT);
       }, 2000);
@@ -593,9 +679,11 @@ export default function FreeKick3DGame({ config }) {
       gestureRef.current.pointerId = event.pointerId;
       aimLine.visible = true;
       updateAimLine();
+      startCrowdSound();
       if (!state.started) {
         setIsRunning(true);
         state.started = true;
+        playWhistle();
       }
     };
 
@@ -635,6 +723,7 @@ export default function FreeKick3DGame({ config }) {
       state.spin.set(spinX, spinY, 0);
       state.scored = false;
       setShots((value) => value + 1);
+      playKickSound();
     };
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -707,6 +796,14 @@ export default function FreeKick3DGame({ config }) {
       }
     }
   }, [gameOver]);
+
+  useEffect(() => {
+    if (gameOver || !isRunning) {
+      pauseCrowdSound();
+    } else if (audioRef.current.started) {
+      startCrowdSound();
+    }
+  }, [gameOver, isRunning, pauseCrowdSound, startCrowdSound]);
 
   useEffect(() => {
     gameStateRef.current.gameOver = gameOver;
