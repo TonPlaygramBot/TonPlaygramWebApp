@@ -153,82 +153,6 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
-function normalizeAngle(angle) {
-  if (!Number.isFinite(angle)) {
-    return 0;
-  }
-  const twoPi = Math.PI * 2;
-  let normalized = angle % twoPi;
-  if (normalized <= -Math.PI) {
-    normalized += twoPi;
-  } else if (normalized > Math.PI) {
-    normalized -= twoPi;
-  }
-  return normalized;
-}
-
-function resolvePocketArcFromCut({
-  mp,
-  center,
-  radius,
-  fallbackOrientation,
-  fallbackAngle
-}) {
-  if (
-    !(center instanceof THREE.Vector2) ||
-    !Array.isArray(mp) ||
-    !mp.length ||
-    !Number.isFinite(radius) ||
-    radius <= MICRO_EPS
-  ) {
-    return { orientation: fallbackOrientation, angle: fallbackAngle };
-  }
-  const twoPi = Math.PI * 2;
-  const tolerance = Math.max(radius * 0.08, MICRO_EPS * 128);
-  const offsets = [];
-  mp.forEach((poly) => {
-    if (!Array.isArray(poly) || !poly.length) return;
-    const ring = poly[0];
-    if (!Array.isArray(ring) || ring.length < 2) return;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const pt = ring[i];
-      if (!Array.isArray(pt) || pt.length < 2) continue;
-      const dx = pt[0] - center.x;
-      const dz = pt[1] - center.y;
-      const dist = Math.hypot(dx, dz);
-      if (!Number.isFinite(dist) || dist <= MICRO_EPS) continue;
-      if (Math.abs(dist - radius) > tolerance) continue;
-      const angle = Math.atan2(dz, dx);
-      const offset = normalizeAngle(angle - fallbackOrientation);
-      offsets.push(offset);
-    }
-  });
-  if (offsets.length < 2) {
-    return { orientation: fallbackOrientation, angle: fallbackAngle };
-  }
-  offsets.sort((a, b) => a - b);
-  let maxGap = -Infinity;
-  let maxIndex = -1;
-  for (let i = 0; i < offsets.length; i++) {
-    const current = offsets[i];
-    const next = i === offsets.length - 1 ? offsets[0] + twoPi : offsets[i + 1];
-    const gap = next - current;
-    if (gap > maxGap) {
-      maxGap = gap;
-      maxIndex = i;
-    }
-  }
-  const arcSpan = twoPi - maxGap;
-  if (!Number.isFinite(arcSpan) || arcSpan <= MICRO_EPS) {
-    return { orientation: fallbackOrientation, angle: fallbackAngle };
-  }
-  const startOffset = offsets[(maxIndex + 1) % offsets.length];
-  const midOffset = startOffset + arcSpan / 2;
-  const orientation = normalizeAngle(fallbackOrientation + midOffset);
-  const angle = Math.min(Math.max(arcSpan, MICRO_EPS), Math.PI * 2 - MICRO_EPS);
-  return { orientation, angle };
-}
-
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -4501,13 +4425,13 @@ function Table3D(
     }
     const startAngle = orientationAngle - jawAngle / 2;
     const endAngle = orientationAngle + jawAngle / 2;
-    const baseInnerRadius = Math.max(MICRO_EPS, baseRadius * innerScale);
-    let outerRadius = Math.max(baseInnerRadius + MICRO_EPS, baseRadius * outerScale);
-    if (Number.isFinite(clampOuter) && clampOuter > baseInnerRadius) {
+    const innerRadius = Math.max(MICRO_EPS, baseRadius * innerScale);
+    let outerRadius = Math.max(innerRadius + MICRO_EPS, baseRadius * outerScale);
+    if (Number.isFinite(clampOuter) && clampOuter > innerRadius) {
       outerRadius = Math.min(outerRadius, clampOuter);
-      outerRadius = Math.max(baseInnerRadius + MICRO_EPS, outerRadius);
+      outerRadius = Math.max(innerRadius + MICRO_EPS, outerRadius);
     }
-    const baseThickness = Math.max(MICRO_EPS, outerRadius - baseInnerRadius);
+    const baseThickness = Math.max(MICRO_EPS, outerRadius - innerRadius);
     const segmentCount =
       Number.isFinite(steps) && steps > 0
         ? Math.floor(steps)
@@ -4528,20 +4452,12 @@ function Table3D(
         thicknessScale *= clampedMiddleThin;
       }
       thicknessScale = THREE.MathUtils.clamp(thicknessScale, 0.06, 1);
-      const thickness = Math.max(MICRO_EPS, baseThickness * thicknessScale);
-      const currentOuter = outerRadius;
-      let currentInner = currentOuter - thickness;
-      if (currentInner < baseInnerRadius) {
-        currentInner = baseInnerRadius;
-      }
-      if (currentInner > currentOuter - MICRO_EPS) {
-        currentInner = currentOuter - MICRO_EPS;
-      }
+      const currentOuter = innerRadius + baseThickness * thicknessScale;
       const outerX = center.x + Math.cos(theta) * currentOuter;
       const outerZ = center.y + Math.sin(theta) * currentOuter;
       outerPts.push(new THREE.Vector2(outerX, outerZ));
-      const innerX = center.x + Math.cos(theta) * currentInner;
-      const innerZ = center.y + Math.sin(theta) * currentInner;
+      const innerX = center.x + Math.cos(theta) * innerRadius;
+      const innerZ = center.y + Math.sin(theta) * innerRadius;
       innerPts.unshift(new THREE.Vector2(innerX, innerZ));
     }
     if (!outerPts.length || !innerPts.length) {
@@ -4710,19 +4626,12 @@ function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
-      const fallbackOrientation = Math.atan2(sz, sx);
-      const arc = resolvePocketArcFromCut({
-        mp: scaledMP,
-        center,
-        radius: cornerJawOuterLimit,
-        fallbackOrientation,
-        fallbackAngle: CORNER_JAW_ANGLE
-      });
+      const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
         baseRadius: cornerBaseRadius,
-        jawAngle: arc.angle,
-        orientationAngle: arc.orientation,
+        jawAngle: CORNER_JAW_ANGLE,
+        orientationAngle,
         wide: false,
         isMiddle: false,
         clampOuter: cornerJawOuterLimit
@@ -4736,19 +4645,12 @@ function Table3D(
       const scaledMP = scaleSidePocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
-      const fallbackOrientation = Math.atan2(0, sx);
-      const arc = resolvePocketArcFromCut({
-        mp: scaledMP,
-        center,
-        radius: sideJawOuterLimit,
-        fallbackOrientation,
-        fallbackAngle: SIDE_JAW_ANGLE
-      });
+      const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
         baseRadius: sideBaseRadius,
-        jawAngle: arc.angle,
-        orientationAngle: arc.orientation,
+        jawAngle: SIDE_JAW_ANGLE,
+        orientationAngle,
         wide: true,
         isMiddle: true,
         clampOuter: sideJawOuterLimit
