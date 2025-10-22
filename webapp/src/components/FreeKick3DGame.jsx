@@ -685,8 +685,8 @@ export default function FreeKick3DGame({ config }) {
         roughness: 0.5,
         metalness: 0.2
       });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth / 2.2, 1.4), material);
-      mesh.position.set((index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6), 1.5, goalZ - goalDepth - 1.6);
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth / 2.2, 1.1), material);
+      mesh.position.set((index - (billboardConfigs.length - 1) / 2) * (goalWidth / 1.6), 1.2, goalZ - goalDepth - 1.6);
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       billboardGroup.add(mesh);
@@ -695,8 +695,106 @@ export default function FreeKick3DGame({ config }) {
     });
     scene.add(billboardGroup);
 
+    const standSeatMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0066ff,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const standFrameMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      roughness: 0.6,
+      metalness: 0.2
+    });
+    const standConcreteMaterial = new THREE.MeshStandardMaterial({
+      color: 0x777777,
+      roughness: 0.9,
+      metalness: 0.05
+    });
+    const standMetalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x999999,
+      roughness: 0.4,
+      metalness: 0.8
+    });
+
+    const standSeatGeo = new THREE.BoxGeometry(1.4, 0.15, 1.2);
+    const standBackGeo = new THREE.BoxGeometry(1.4, 0.8, 0.1);
+    const standLegGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
+    const standStepGeo = new THREE.BoxGeometry(32, 0.4, 1.8);
+
+    function createStandSection(offsetX = 0, baseY = 0, depthOffset = 0) {
+      const section = new THREE.Group();
+      const rows = 8;
+      const seatsPerRow = 18;
+      const rowRise = 0.7;
+      const rowDepth = 1.8;
+
+      for (let r = 0; r < rows; r += 1) {
+        for (let c = 0; c < seatsPerRow; c += 1) {
+          const seat = new THREE.Mesh(standSeatGeo, standSeatMaterial);
+          const back = new THREE.Mesh(standBackGeo, standSeatMaterial);
+          const leftLeg = new THREE.Mesh(standLegGeo, standFrameMaterial);
+          const rightLeg = new THREE.Mesh(standLegGeo, standFrameMaterial);
+
+          const x = c * 1.7 - (seatsPerRow * 1.7) / 2 + offsetX;
+          const y = baseY + r * rowRise;
+          const z = -r * rowDepth + depthOffset;
+
+          seat.position.set(x, y, z);
+          back.position.set(x, y + 0.45, z - 0.55);
+          leftLeg.position.set(x - 0.6, y - 0.35, z + 0.4);
+          rightLeg.position.set(x + 0.6, y - 0.35, z + 0.4);
+
+          section.add(seat, back, leftLeg, rightLeg);
+        }
+
+        const step = new THREE.Mesh(standStepGeo, standConcreteMaterial);
+        step.position.set(offsetX, baseY + r * rowRise - 0.4, -r * rowDepth - 0.9 + depthOffset);
+        section.add(step);
+      }
+      return section;
+    }
+
+    const standsGroup = new THREE.Group();
+    const lowerLeftStand = createStandSection(-15, 0, 0);
+    const lowerRightStand = createStandSection(15, 0, 0);
+    const middleWalkway = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 20), standConcreteMaterial);
+    middleWalkway.position.set(0, -0.4, -6);
+    standsGroup.add(lowerLeftStand, lowerRightStand, middleWalkway);
+
+    const upperBaseY = 6;
+    const upperDepthOffset = -15;
+    const upperLeftStand = createStandSection(-15, upperBaseY, upperDepthOffset);
+    const upperRightStand = createStandSection(15, upperBaseY, upperDepthOffset);
+    const upperWalkway = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 20), standConcreteMaterial);
+    upperWalkway.position.set(0, upperBaseY - 0.4, -6 + upperDepthOffset);
+    standsGroup.add(upperLeftStand, upperRightStand, upperWalkway);
+
+    const netPoleGeo = new THREE.CylinderGeometry(0.15, 0.15, 10, 12);
+    const protectiveNetGeo = new THREE.PlaneGeometry(40, 12);
+    const protectiveNetMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.25,
+      side: THREE.DoubleSide
+    });
+    const protectiveNet = new THREE.Mesh(protectiveNetGeo, protectiveNetMaterial);
+    protectiveNet.position.set(0, 5.6, 3.5);
+    standsGroup.add(protectiveNet);
+
+    for (let i = -14; i <= 14; i += 7) {
+      const pole = new THREE.Mesh(netPoleGeo, standMetalMaterial);
+      pole.position.set(i, 5.6, 3.5);
+      standsGroup.add(pole);
+    }
+
+    const standScale = 0.3;
+    standsGroup.scale.set(standScale, standScale, standScale);
+    const standsOffsetZ = goalZ - goalDepth - 3.3;
+    standsGroup.position.set(0, 0.12, standsOffsetZ);
+    scene.add(standsGroup);
+
     const billboardColliders = billboardGroup.children.map((mesh) => {
-      const { width = goalWidth / 2.2, height = 1.4 } = mesh.geometry.parameters || {};
+      const { width = goalWidth / 2.2, height = 1.1 } = mesh.geometry.parameters || {};
       return {
         mesh,
         center: new THREE.Vector3(),
