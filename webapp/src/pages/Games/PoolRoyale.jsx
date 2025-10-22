@@ -449,8 +449,6 @@ const POCKET_JAW_SIDE_INNER_SCALE = 0.945; // keep the wider liners hugging the 
 const POCKET_JAW_DEPTH_SCALE = 0.56; // proportion of the rail height the jaw liner drops into the pocket cut (taller to lift rims above chrome)
 const POCKET_JAW_CORNER_FLUSH_EPS = 0; // lock the corner jaw bases to the cushion line so they never intrude over the cloth
 const POCKET_JAW_SIDE_FLUSH_EPS = 0; // clamp the side jaws to the cushion break, preventing any lip from entering the playfield
-const POCKET_JAW_CORNER_DIAGONAL_FLUSH = TABLE.THICK * 0.0025; // shave the corner jaw tips so they finish exactly at the cushion seam
-const POCKET_JAW_SIDE_DIAGONAL_FLUSH = TABLE.THICK * 0.0025; // trim the side jaw tips to stop right where the long cushions begin
 const POCKET_RIM_OUTER_BLEND = 0; // keep the rim's outer edge flush with the chrome plate's rounded cut
 const POCKET_RIM_INNER_SCALE = 1.018; // bias the rim toward the rail side while leaving a thicker metal band above the jaw
 const POCKET_RIM_SIDE_INNER_MULTIPLIER = 1.012; // shave a little more material from the side pocket rims so they don't crowd the jaws
@@ -4645,66 +4643,7 @@ function Table3D(
               .filter(Boolean)
           : [];
 
-      const rotateMultiPolygon = (mp, cosAngle, sinAngle) => {
-        if (!Array.isArray(mp)) return [];
-        return mp.map((poly) => {
-          if (!Array.isArray(poly)) return poly;
-          return poly.map((ring) => {
-            if (!Array.isArray(ring)) return ring;
-            return ring.map((pt) => {
-              if (!Array.isArray(pt) || pt.length < 2) {
-                return pt;
-              }
-              const x = pt[0];
-              const z = pt[1];
-              const rx = x * cosAngle - z * sinAngle;
-              const rz = x * sinAngle + z * cosAngle;
-              return [rx, rz];
-            });
-          });
-        });
-      };
-
-      const applyPlaneClip = (mp, plane) => {
-        if (!Array.isArray(mp) || !mp.length) {
-          return [];
-        }
-        const nx = Number(plane?.normal?.x);
-        const nz = Number(plane?.normal?.z);
-        if (!Number.isFinite(nx) || !Number.isFinite(nz)) {
-          return mp;
-        }
-        const length = Math.hypot(nx, nz);
-        if (!(length > MICRO_EPS)) {
-          return mp;
-        }
-        if (!Number.isFinite(plane.threshold)) {
-          return mp;
-        }
-        const keepGreater = plane.keepGreater !== false;
-        const epsilon = Number.isFinite(plane.epsilon) ? plane.epsilon : 0;
-        const angle = Math.atan2(nz, nx);
-        const cosForward = Math.cos(-angle);
-        const sinForward = Math.sin(-angle);
-        const rotated = rotateMultiPolygon(mp, cosForward, sinForward);
-        const normalizedThreshold = plane.threshold / length;
-        const normalizedEpsilon = epsilon / length;
-        const effectiveThreshold = keepGreater
-          ? normalizedThreshold + normalizedEpsilon
-          : normalizedThreshold - normalizedEpsilon;
-        const clippedRotated = applyHalfPlaneClip(
-          rotated,
-          'x',
-          effectiveThreshold,
-          keepGreater
-        );
-        const cosBackward = Math.cos(angle);
-        const sinBackward = Math.sin(angle);
-        return rotateMultiPolygon(clippedRotated, cosBackward, sinBackward);
-      };
-
       const clipEntries = [];
-      const planeEntries = [];
       const addClipEntry = (axis, entry) => {
         if (!entry) return;
         if (Number.isFinite(entry.threshold)) {
@@ -4721,29 +4660,10 @@ function Table3D(
           clipEntries.push({ axis, threshold: max, keepGreater: false });
         }
       };
-      const addPlaneEntry = (entry) => {
-        if (!entry) return;
-        const nx = Number(entry?.normal?.x);
-        const nz = Number(entry?.normal?.z);
-        if (!Number.isFinite(nx) || !Number.isFinite(nz)) return;
-        const threshold = Number(entry.threshold);
-        if (!Number.isFinite(threshold)) return;
-        if (!(Math.hypot(nx, nz) > MICRO_EPS)) return;
-        planeEntries.push({
-          normal: { x: nx, z: nz },
-          threshold,
-          keepGreater: entry.keepGreater !== false,
-          epsilon: Number.isFinite(entry.epsilon) ? entry.epsilon : 0
-        });
-      };
       addClipEntry('x', clipConfig.x);
       addClipEntry('z', clipConfig.z);
       addRangeEntries('x', clipConfig.xRange);
       addRangeEntries('z', clipConfig.zRange);
-      addPlaneEntry(clipConfig.plane);
-      if (Array.isArray(clipConfig.planes)) {
-        clipConfig.planes.forEach(addPlaneEntry);
-      }
 
       const combineMode = clipConfig.combine === 'union' ? 'union' : 'intersection';
       if (combineMode === 'union' && clipEntries.length > 1) {
@@ -4783,17 +4703,6 @@ function Table3D(
 
       if (!Array.isArray(ringMP) || !ringMP.length) {
         return [];
-      }
-
-      if (planeEntries.length) {
-        for (const planeEntry of planeEntries) {
-          if (!ringMP.length) break;
-          ringMP = applyPlaneClip(ringMP, planeEntry);
-          ringMP = pruneSmallPolys(ringMP);
-        }
-        if (!Array.isArray(ringMP) || !ringMP.length) {
-          return [];
-        }
       }
     }
 
@@ -4903,7 +4812,6 @@ function Table3D(
       : Math.max(directed, limit - epsilon);
   };
 
-  const cornerDiagonalThreshold = cushionRailReachX + cushionInnerZ;
   [
     { sx: 1, sz: 1 },
     { sx: -1, sz: 1 },
@@ -4974,19 +4882,10 @@ function Table3D(
     addPocketJaw(scaledMP, POCKET_JAW_CORNER_INNER_SCALE, {
       combine: 'union',
       x: { threshold: trimmedCenterX, keepGreater: sx > 0 },
-      z: { threshold: trimmedCenterZ, keepGreater: sz > 0 },
-      planes: [
-        {
-          normal: { x: sx, z: sz },
-          threshold: cornerDiagonalThreshold,
-          keepGreater: true,
-          epsilon: POCKET_JAW_CORNER_DIAGONAL_FLUSH
-        }
-      ]
+      z: { threshold: trimmedCenterZ, keepGreater: sz > 0 }
     });
   });
 
-  const sideDiagonalThreshold = cushionRailReachX + sideChromeMeetZ;
   [-1, 1].forEach((sx) => {
     const baseMP = sideNotchMP(sx);
     const scaledMP = scaleSidePocketCut(baseMP);
@@ -5033,21 +4932,7 @@ function Table3D(
       POCKET_JAW_SIDE_INNER_SCALE,
       {
         x: { threshold: flushCenterX, keepGreater: sx > 0 },
-        zRange: { min: -zLimit, max: zLimit },
-        planes: [
-          {
-            normal: { x: sx, z: 1 },
-            threshold: sideDiagonalThreshold,
-            keepGreater: true,
-            epsilon: POCKET_JAW_SIDE_DIAGONAL_FLUSH
-          },
-          {
-            normal: { x: sx, z: -1 },
-            threshold: sideDiagonalThreshold,
-            keepGreater: true,
-            epsilon: POCKET_JAW_SIDE_DIAGONAL_FLUSH
-          }
-        ]
+        zRange: { min: -zLimit, max: zLimit }
       },
       { rimInnerScaleMultiplier: POCKET_RIM_SIDE_INNER_MULTIPLIER }
     );
