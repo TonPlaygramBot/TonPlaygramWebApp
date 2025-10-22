@@ -1327,49 +1327,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const DEFAULT_POCKET_STYLE_ID = 'tour';
-const POCKET_STYLE_OPTIONS = Object.freeze([
-  Object.freeze({
-    id: 'compact',
-    label: 'Compact Corners',
-    cornerTrimRatio: 0.45,
-    cornerSideTrimOffsetMultiplier: 0.82
-  }),
-  Object.freeze({
-    id: 'club',
-    label: 'Club Corners',
-    cornerTrimRatio: 0.52,
-    cornerSideTrimOffsetMultiplier: 0.88
-  }),
-  Object.freeze({
-    id: 'balanced',
-    label: 'Balanced Corners',
-    cornerTrimRatio: 0.58,
-    cornerSideTrimOffsetMultiplier: 0.94
-  }),
-  Object.freeze({
-    id: 'tour',
-    label: 'Tour Standard',
-    cornerTrimRatio: 0.624,
-    cornerSideTrimOffsetMultiplier: 1
-  }),
-  Object.freeze({
-    id: 'pro',
-    label: 'Pro Extended',
-    cornerTrimRatio: 0.7,
-    cornerSideTrimOffsetMultiplier: 1.05
-  }),
-  Object.freeze({
-    id: 'grand',
-    label: 'Grand Suite',
-    cornerTrimRatio: 0.78,
-    cornerSideTrimOffsetMultiplier: 1.1
-  })
-]);
-const POCKET_STYLE_OPTIONS_BY_ID = Object.freeze(
-  Object.fromEntries(POCKET_STYLE_OPTIONS.map((option) => [option.id, option]))
-);
-
 const toHexColor = (value) => {
   if (typeof value === 'number') {
     return `#${value.toString(16).padStart(6, '0')}`;
@@ -3707,26 +3664,6 @@ function Table3D(
       WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
     defaultWoodOption;
   finishParts.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
-  const resolvedPocketStyleId =
-    typeof resolvedFinish?.pocketStyle?.id === 'string'
-      ? resolvedFinish.pocketStyle.id
-      : DEFAULT_POCKET_STYLE_ID;
-  const pocketStyle =
-    POCKET_STYLE_OPTIONS_BY_ID[resolvedPocketStyleId] ??
-    POCKET_STYLE_OPTIONS_BY_ID[DEFAULT_POCKET_STYLE_ID] ??
-    POCKET_STYLE_OPTIONS[0];
-  const jawCornerTrimRatio = THREE.MathUtils.clamp(
-    Number.isFinite(pocketStyle?.cornerTrimRatio)
-      ? pocketStyle.cornerTrimRatio
-      : POCKET_JAW_CORNER_TRIM_RATIO,
-    0.35,
-    0.95
-  );
-  const jawCornerSideTrimOffset =
-    POCKET_JAW_CORNER_SIDE_TRIM_OFFSET *
-    (Number.isFinite(pocketStyle?.cornerSideTrimOffsetMultiplier)
-      ? pocketStyle.cornerSideTrimOffsetMultiplier
-      : 1);
 
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
@@ -3959,8 +3896,7 @@ function Table3D(
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
     applyClothDetail,
-    woodTextureId: finishParts.woodTextureId,
-    pocketStyleId: pocketStyle?.id ?? DEFAULT_POCKET_STYLE_ID
+    woodTextureId: finishParts.woodTextureId
   };
 
   const clothExtendBase = Math.max(
@@ -4931,15 +4867,15 @@ function Table3D(
       RAIL_CORNER_POCKET_CUT_SCALE
     );
     const chamferBaseX =
-      sx * (innerHalfW - cornerInset + cornerChamfer * jawCornerTrimRatio);
+      sx * (innerHalfW - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO);
     const chamferBaseZ =
-      sz * (innerHalfH - cornerInset + cornerChamfer * jawCornerTrimRatio);
+      sz * (innerHalfH - cornerInset + cornerChamfer * POCKET_JAW_CORNER_TRIM_RATIO);
     const chamferTargetX =
       computeScaledCoordinate(chamferBaseX, centroid.x, RAIL_CORNER_POCKET_CUT_SCALE) +
-      sx * jawCornerSideTrimOffset;
+      sx * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
     const chamferTargetZ =
       computeScaledCoordinate(chamferBaseZ, centroid.y, RAIL_CORNER_POCKET_CUT_SCALE) +
-      sz * jawCornerSideTrimOffset;
+      sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
     const cushionEdgeX =
       sx * (cushionRailReachX + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
     const cushionEdgeZ =
@@ -5741,9 +5677,6 @@ function applyTableFinishToTable(table, finish) {
   woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
   finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
   finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
-  if (resolvedFinish?.pocketStyle?.id) {
-    finishInfo.pocketStyleId = resolvedFinish.pocketStyle.id;
-  }
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
@@ -5827,15 +5760,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_TABLE_FINISH_ID;
   });
-  const [pocketStyleId, setPocketStyleId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('poolPocketStyle');
-      if (stored && POCKET_STYLE_OPTIONS_BY_ID[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_POCKET_STYLE_ID;
-  });
   const [woodTextureId, setWoodTextureId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerWoodTexture');
@@ -5870,13 +5794,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
-  );
-  const activePocketStyle = useMemo(
-    () =>
-      POCKET_STYLE_OPTIONS_BY_ID[pocketStyleId] ??
-      POCKET_STYLE_OPTIONS_BY_ID[DEFAULT_POCKET_STYLE_ID] ??
-      POCKET_STYLE_OPTIONS[0],
-    [pocketStyleId]
   );
   const activeWoodTexture = useMemo(
     () =>
@@ -6123,7 +6040,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       },
       woodTexture: woodSelection,
       woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
-      pocketStyle: activePocketStyle,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -6159,7 +6075,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture, activePocketStyle]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -6188,11 +6104,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('poolPocketStyle', pocketStyleId);
-    }
-  }, [pocketStyleId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -12199,7 +12110,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         console.error(e);
         setErr(e?.message || String(e));
       }
-  }, [pocketStyleId]);
+  }, []);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -12501,10 +12412,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   })}
               </div>
             </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plates
-                </h3>
+            <div>
+              <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                Chrome Plates
+              </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {CHROME_COLOR_OPTIONS.map((option) => {
                     const active = option.id === chromeColorId;
@@ -12528,31 +12439,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                           />
                           {option.label}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Pocket Jaws &amp; Rims
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {POCKET_STYLE_OPTIONS.map((option) => {
-                    const active = option.id === pocketStyleId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setPocketStyleId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {option.label}
                       </button>
                     );
                   })}
