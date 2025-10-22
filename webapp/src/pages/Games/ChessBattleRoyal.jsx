@@ -248,25 +248,15 @@ const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
 const TABLE_RADIUS = 3.315; // 30% wider footprint to better fill the arena
 const TABLE_HEIGHT = 2.05; // Raised so the surface aligns with the oversized chairs
-const CAMERA_TABLE_SPAN_FACTOR = 2.15; // Slightly tighter framing so the orbit camera starts closer
-
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.72; // Pull the player chair further back to clear the camera path
-const CAMERA_PHI_OFFSET = 0.18; // Lower the camera to feel closer to a seated viewpoint
-const CAMERA_INITIAL_PHI_EXTRA = 0.32;
 const SEAT_LABEL_HEIGHT = 0.82;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
-const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
-const CAMERA_INITIAL_PHI_LERP = clamp01(
-  ARENA_CAMERA_DEFAULTS.initialPhiLerp + CAMERA_INITIAL_PHI_EXTRA,
-  ARENA_CAMERA_DEFAULTS.initialPhiLerp
-);
-const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
-const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
+const CAMERA_LEAN_SMOOTH = 0.22;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -284,25 +274,62 @@ const CHESS_ARENA = Object.freeze({
 });
 
 const CAM_RANGE = buildArenaCameraConfig(BOARD_DISPLAY_SIZE);
-const cameraPhiMin = clamp(
-  ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET,
-  0,
-  Math.PI - 0.2
-);
-const cameraPhiMax = clamp(
-  ARENA_CAMERA_DEFAULTS.phiMax + CAMERA_PHI_OFFSET,
-  cameraPhiMin + 0.05,
-  Math.PI - 0.001
-);
+const CAMERA_BASE_PHI = THREE.MathUtils.degToRad(78);
+const CAMERA_MAX_PHI = THREE.MathUtils.degToRad(110);
+const CAMERA_AZIMUTH_RANGE = THREE.MathUtils.degToRad(34);
+const CAMERA_MIN_RADIUS = Math.min(CAM_RANGE.minRadius, BOARD_DISPLAY_SIZE * 0.55);
 const CAM = {
   fov: CAM_RANGE.fov,
   near: CAM_RANGE.near,
   far: CAM_RANGE.far,
-  minR: CAM_RANGE.minRadius,
+  minR: CAMERA_MIN_RADIUS,
   maxR: CAM_RANGE.maxRadius,
-  phiMin: cameraPhiMin,
-  phiMax: cameraPhiMax
+  phiMin: CAMERA_BASE_PHI,
+  phiMax: CAMERA_MAX_PHI
 };
+
+function createSeatCameraState(tableRadius = TABLE_RADIUS) {
+  const state = {
+    basePhi: CAMERA_BASE_PHI,
+    maxPhi: CAMERA_MAX_PHI,
+    azimuthRange: CAMERA_AZIMUTH_RANGE,
+    maxLeanDelta: 1.25,
+    minRadiusFloor: 1.7,
+    baseRadius: 0,
+    leanRadius: 0,
+    leanDelta: 0,
+    recompute(nextRadius = tableRadius) {
+      const safeRadius = Math.max(nextRadius, TABLE_RADIUS * 0.6, 1.4);
+      const desiredBase = Math.max(
+        BOARD_DISPLAY_SIZE * 0.82,
+        safeRadius * 0.72,
+        state.minRadiusFloor + 0.65
+      );
+      const minCandidate = Math.max(
+        BOARD_DISPLAY_SIZE * 0.55,
+        safeRadius * 0.5,
+        state.minRadiusFloor
+      );
+      const leanRadius = Math.max(minCandidate, desiredBase - state.maxLeanDelta);
+      state.baseRadius = desiredBase;
+      state.leanRadius = leanRadius;
+      state.leanDelta = Math.max(0.35, state.baseRadius - state.leanRadius);
+      return state;
+    },
+    updateBase(radius) {
+      const next = Math.max(radius, state.leanRadius);
+      const delta = Math.min(
+        Math.max(next - state.leanRadius, 0.35),
+        state.maxLeanDelta
+      );
+      state.baseRadius = next;
+      state.leanDelta = delta;
+      return state;
+    }
+  };
+
+  return state.recompute(tableRadius);
+}
 
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
@@ -1661,7 +1688,11 @@ function Chess3D({ avatar, username, initialFlag }) {
         arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
-        fitRef.current?.();
+        if (arena.updateSeatCameraForTable) {
+          arena.updateSeatCameraForTable(nextTable.radius ?? TABLE_RADIUS, { recenter: true });
+        } else {
+          fitRef.current?.();
+        }
       } else if (arena.tableInfo?.materials) {
         applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
       }
@@ -2239,16 +2270,11 @@ function Chess3D({ avatar, username, initialFlag }) {
 
     // Camera orbit via OrbitControls
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const initialRadius = Math.max(
-      BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
-      CAM.minR + 0.6
+    const seatCameraState = createSeatCameraState(tableInfo?.radius ?? TABLE_RADIUS);
+    const seatOffset = new THREE.Vector3().setFromSpherical(
+      new THREE.Spherical(seatCameraState.baseRadius, seatCameraState.basePhi, Math.PI)
     );
-    const initialPhi = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP);
-    const initialTheta = Math.PI * 0.25;
-    const initialOffset = new THREE.Vector3().setFromSpherical(
-      new THREE.Spherical(initialRadius, initialPhi, initialTheta)
-    );
-    camera.position.copy(boardLookTarget).add(initialOffset);
+    camera.position.copy(boardLookTarget).add(seatOffset);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -2256,31 +2282,82 @@ function Chess3D({ avatar, username, initialFlag }) {
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.enableZoom = true;
-    controls.minDistance = CAM.minR;
-    controls.maxDistance = CAM.maxR;
-    controls.minPolarAngle = CAM.phiMin;
-    controls.maxPolarAngle = CAM.phiMax;
+
+    const syncControlsBounds = () => {
+      if (!controls) return;
+      controls.minDistance = seatCameraState.leanRadius;
+      controls.maxDistance = Math.max(
+        seatCameraState.baseRadius + 2.5,
+        seatCameraState.leanRadius + 3
+      );
+      controls.minPolarAngle = seatCameraState.basePhi;
+      controls.maxPolarAngle = seatCameraState.maxPhi;
+      const halfAzimuth = seatCameraState.azimuthRange / 2;
+      controls.minAzimuthAngle = Math.PI - halfAzimuth;
+      controls.maxAzimuthAngle = Math.PI + halfAzimuth;
+    };
+    syncControlsBounds();
     controls.target.copy(boardLookTarget);
+    controls.update();
     controlsRef.current = controls;
 
-    const fit = () => {
+    const updateBaseRadius = () => {
+      if (!camera) return;
+      seatCameraState.updateBase(camera.position.distanceTo(boardLookTarget));
+      syncControlsBounds();
+    };
+
+    const fit = ({ keepOrientation = false } = {}) => {
       const w = host.clientWidth;
       const h = host.clientHeight;
       renderer.setSize(w, h, false);
-      camera.aspect = w / h;
+      camera.aspect = w / Math.max(h, 1);
       camera.updateProjectionMatrix();
-      const tableSpan = (tableInfo?.radius ?? TABLE_RADIUS) * CAMERA_TABLE_SPAN_FACTOR;
-      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
-      const span = Math.max(tableSpan, boardSpan);
-      const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
-      const dir = camera.position.clone().sub(boardLookTarget).normalize();
-      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+
+      if (!keepOrientation) {
+        const resetOffset = new THREE.Vector3().setFromSpherical(
+          new THREE.Spherical(seatCameraState.baseRadius, seatCameraState.basePhi, Math.PI)
+        );
+        camera.position.copy(boardLookTarget).add(resetOffset);
+        controls.target.copy(boardLookTarget);
+      } else {
+        const currentOffset = camera.position.clone().sub(boardLookTarget);
+        const radius = currentOffset.length();
+        const minAllowed = seatCameraState.leanRadius;
+        const maxAllowed = Math.max(
+          seatCameraState.baseRadius + 2.5,
+          seatCameraState.leanRadius + 3
+        );
+        if (radius < minAllowed) {
+          currentOffset.setLength(minAllowed);
+          camera.position.copy(boardLookTarget).add(currentOffset);
+        } else if (radius > maxAllowed) {
+          currentOffset.setLength(maxAllowed);
+          camera.position.copy(boardLookTarget).add(currentOffset);
+        }
+      }
+
+      updateBaseRadius();
       controls.update();
     };
     fitRef.current = fit;
     fit();
+
+    const updateSeatCameraForTable = (nextRadius, { recenter = true } = {}) => {
+      seatCameraState.recompute(nextRadius ?? TABLE_RADIUS);
+      if (recenter) {
+        fit({ keepOrientation: false });
+      } else {
+        syncControlsBounds();
+        const offset = camera.position.clone().sub(boardLookTarget);
+        if (offset.length() < seatCameraState.leanRadius) {
+          offset.setLength(seatCameraState.leanRadius);
+          camera.position.copy(boardLookTarget).add(offset);
+        }
+        updateBaseRadius();
+        controls.update();
+      }
+    };
 
     const dollyScale = 1 + CAMERA_WHEEL_FACTOR;
     zoomRef.current = {
@@ -2288,12 +2365,46 @@ function Chess3D({ avatar, username, initialFlag }) {
         if (!controls) return;
         controls.dollyIn(dollyScale);
         controls.update();
+        updateBaseRadius();
       },
       zoomOut: () => {
         if (!controls) return;
         controls.dollyOut(dollyScale);
         controls.update();
+        updateBaseRadius();
       }
+    };
+
+    const handleControlEnd = () => {
+      updateBaseRadius();
+    };
+    controls.addEventListener('end', handleControlEnd);
+
+    const leanOffset = new THREE.Vector3();
+    const leanDirection = new THREE.Vector3();
+    const applySeatLean = () => {
+      if (!camera) return;
+      leanOffset.copy(camera.position).sub(boardLookTarget);
+      const radius = leanOffset.length();
+      if (radius <= 1e-6) return;
+      leanDirection.copy(leanOffset).normalize();
+      const cosPhi = clamp(leanDirection.y, -1, 1);
+      const phi = Math.acos(cosPhi);
+      const phiRange = seatCameraState.maxPhi - seatCameraState.basePhi;
+      if (phiRange <= 1e-5) return;
+      const leanT = clamp01((phi - seatCameraState.basePhi) / phiRange);
+      if (!Number.isFinite(leanT)) return;
+      const targetRadius = seatCameraState.baseRadius - seatCameraState.leanDelta * leanT;
+      if (!Number.isFinite(targetRadius)) return;
+      if (Math.abs(targetRadius - radius) < 1e-3) return;
+      const maxDistance = controls?.maxDistance ?? seatCameraState.baseRadius + 3;
+      const newRadius = clamp(
+        radius + (targetRadius - radius) * CAMERA_LEAN_SMOOTH,
+        seatCameraState.leanRadius,
+        maxDistance
+      );
+      leanOffset.setLength(newRadius);
+      camera.position.copy(boardLookTarget).add(leanOffset);
     };
 
     const createExplosion = (pos) => {
@@ -2447,6 +2558,8 @@ function Chess3D({ avatar, username, initialFlag }) {
       tableShapeId: tableInfo.shapeId,
       boardGroup,
       boardLookTarget,
+      seatCameraState,
+      updateSeatCameraForTable,
       chairMaterials,
       chairs,
       seatLabels,
@@ -2464,6 +2577,7 @@ function Chess3D({ avatar, username, initialFlag }) {
     };
     arenaRef.current.seatLabels = seatLabels;
     arenaRef.current.palette = palette;
+    arenaRef.current.updateSeatCameraForTable = updateSeatCameraForTable;
 
     arena.seatLabels = seatLabels;
     arena.palette = palette;
@@ -2692,6 +2806,7 @@ function Chess3D({ avatar, username, initialFlag }) {
 
     // Loop
     const step = () => {
+      applySeatLean();
       controls?.update();
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(step);
@@ -2700,7 +2815,7 @@ function Chess3D({ avatar, username, initialFlag }) {
 
     // Resize
     const onResize = () => {
-      fit();
+      fit({ keepOrientation: true });
     };
     window.addEventListener('resize', onResize);
 
@@ -2724,6 +2839,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
       controlsRef.current = null;
+      controls?.removeEventListener('end', handleControlEnd);
       controls?.dispose();
       controls = null;
       const arenaState = arenaRef.current;
