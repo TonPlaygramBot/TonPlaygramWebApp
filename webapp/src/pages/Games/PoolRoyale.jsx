@@ -526,13 +526,12 @@ const POCKET_CORNER_MOUTH =
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_JAW_SIDE_OUTWARD_OFFSET =
-  POCKET_VIS_R * 0.068 * POCKET_VISUAL_EXPANSION; // push the middle jaws farther toward the wooden rails while keeping their faces straight with the cushions
+  POCKET_VIS_R * 0.042 * POCKET_VISUAL_EXPANSION; // nudge the middle jaws a little farther toward the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
   POCKET_VIS_R * 0.0095 * POCKET_VISUAL_EXPANSION; // pull the diagonal trims in tighter so the corner jaws no longer creep over the cloth
 const POCKET_JAW_CORNER_LIMIT_OFFSET =
   POCKET_VIS_R * 0.024 * POCKET_VISUAL_EXPANSION; // trim the corner jaw bases back to finish flush with the cushion point
-const POCKET_JAW_CORNER_OUTWARD_BIAS =
-  POCKET_VIS_R * 0.018 * POCKET_VISUAL_EXPANSION; // ease the corner jaws outward so they align with the widened chrome cuts
+const POCKET_JAW_CORNER_OUTWARD_BIAS = 0; // lock the corner jaws directly beneath the chrome arches without any outward drift
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -550,7 +549,7 @@ const POCKET_LIP_EMISSIVE_OFFSET = 0.02;
 const POCKET_LIP_ENV_INTENSITY_BOOST = 0.04;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.09 * POCKET_VISUAL_EXPANSION; // keep corner pockets tucked while letting the jaws sit farther toward the rails
+  POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
@@ -3750,7 +3749,13 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
-  const pocketLipMat = null;
+  const pocketLipMat = clothMat.clone();
+  pocketLipMat.name = 'pocketLipCloth';
+  pocketLipMat.side = THREE.DoubleSide;
+  pocketLipMat.userData = {
+    ...(pocketLipMat.userData || {}),
+    isPocketLip: true
+  };
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -3761,7 +3766,7 @@ function Table3D(
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale
   };
-  const clothMaterials = [clothMat, cushionMat];
+  const clothMaterials = [clothMat, cushionMat, pocketLipMat];
   const applyClothDetail = (detail) => {
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
@@ -4085,22 +4090,19 @@ function Table3D(
     POCKET_BOTTOM_R,
     pocketCupHeight
   );
-  let pocketLipGeometry = null;
-  if (pocketLipMat) {
-    pocketLipGeometry = new THREE.TorusGeometry(
-      Math.max(MICRO_EPS, POCKET_TOP_R * POCKET_LIP_RADIUS_SCALE),
-      Math.max(MICRO_EPS, POCKET_LIP_TUBE_RADIUS),
-      32,
-      64
-    );
-  }
+  const pocketLipGeometry = new THREE.TorusGeometry(
+    Math.max(MICRO_EPS, POCKET_TOP_R * POCKET_LIP_RADIUS_SCALE),
+    Math.max(MICRO_EPS, POCKET_LIP_TUBE_RADIUS),
+    32,
+    64
+  );
   const pocketCupMat = new THREE.MeshPhysicalMaterial({
-    color: 0x010101,
-    metalness: 0.16,
-    roughness: 0.6,
-    clearcoat: 0.24,
-    clearcoatRoughness: 0.48,
-    envMapIntensity: 0.18
+    color: 0x030303,
+    metalness: 0.22,
+    roughness: 0.54,
+    clearcoat: 0.38,
+    clearcoatRoughness: 0.42,
+    envMapIntensity: 0.36
   });
   pocketCupMat.name = 'pocketCup';
   pocketCupMat.side = THREE.DoubleSide;
@@ -4123,27 +4125,25 @@ function Table3D(
       }
     };
     const cupInfo = cup.userData.pocketCup;
-    if (pocketLipMat && pocketLipGeometry) {
-      const lip = new THREE.Mesh(pocketLipGeometry, pocketLipMat);
-      lip.name = 'pocketLip';
-      lip.rotation.x = Math.PI / 2;
-      lip.castShadow = false;
-      lip.receiveShadow = true;
-      lip.userData = {
-        ...(lip.userData || {}),
-        pocketLip: {
-          tubeRadius: POCKET_LIP_TUBE_RADIUS,
-          topBlend: POCKET_LIP_TOP_BLEND
-        }
-      };
-      const lipLocalY =
-        cupInfo.height / 2 +
-        cupInfo.topOffset * POCKET_LIP_TOP_BLEND -
-        POCKET_LIP_TUBE_RADIUS;
-      lip.position.set(0, lipLocalY, 0);
-      cup.add(lip);
-      cupInfo.lipMesh = lip;
-    }
+    const lip = new THREE.Mesh(pocketLipGeometry, pocketLipMat);
+    lip.name = 'pocketLip';
+    lip.rotation.x = Math.PI / 2;
+    lip.castShadow = false;
+    lip.receiveShadow = true;
+    lip.userData = {
+      ...(lip.userData || {}),
+      pocketLip: {
+        tubeRadius: POCKET_LIP_TUBE_RADIUS,
+        topBlend: POCKET_LIP_TOP_BLEND
+      }
+    };
+    const lipLocalY =
+      cupInfo.height / 2 +
+      cupInfo.topOffset * POCKET_LIP_TOP_BLEND -
+      POCKET_LIP_TUBE_RADIUS;
+    lip.position.set(0, lipLocalY, 0);
+    cup.add(lip);
+    cupInfo.lipMesh = lip;
     table.add(cup);
     pocketMeshes.push(cup);
   });
@@ -4325,7 +4325,7 @@ function Table3D(
     CORNER_POCKET_CENTER_INSET +
     CORNER_NOTCH_EXTRA_INSET;
   const sideInset =
-    SIDE_POCKET_RADIUS * 0.7 * POCKET_VISUAL_EXPANSION; // slide the middle rail cuts farther outward so the chrome and rail rounding follow the expanded jaw position
+    SIDE_POCKET_RADIUS * 0.76 * POCKET_VISUAL_EXPANSION; // push the middle rail cuts slightly farther outward so the chrome and rail rounding hug the side rails tighter
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
