@@ -158,6 +158,19 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
+const HUMAN_SEAT_INDEX = 0;
+const CHAIR_SEAT_ANGLES = Object.freeze([
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(270),
+  THREE.MathUtils.degToRad(225)
+]);
+const CHAIR_SEAT_RADII = Object.freeze([
+  CHAIR_RADIUS,
+  CHAIR_RADIUS * 0.94,
+  CHAIR_RADIUS * 1.02,
+  CHAIR_RADIUS * 0.94
+]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
@@ -172,11 +185,42 @@ const CAMERA_MIN_POLAR = 0.92;
 const CAMERA_MAX_POLAR = 1.22;
 const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(CAMERA_MIN_POLAR, CAMERA_MAX_POLAR, 0.35);
 const CAMERA_BASE_RADIUS = TABLE_RADIUS;
-const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.95;
-const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.4;
-const CAMERA_INITIAL_RADIUS = CAMERA_BASE_RADIUS * 1.35;
-const CAMERA_DEFAULT_AZIMUTH = Math.PI / 2;
+const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.7;
+const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.6;
+const CAMERA_DEFAULT_AZIMUTH = CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
+const CAMERA_LATERAL_OFFSET = { portrait: 0.55, landscape: 0.42 };
+const CAMERA_REAR_OFFSET = { portrait: 1.85, landscape: 1.35 };
+const CAMERA_HEIGHT_BOOST = { portrait: 1.95, landscape: 1.58 };
 const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
+const UP = new THREE.Vector3(0, 1, 0);
+
+function seatBasisForAngle(angle, radius = CHAIR_RADIUS) {
+  const useAngle = Number.isFinite(angle) ? angle : CAMERA_DEFAULT_AZIMUTH;
+  const useRadius = Number.isFinite(radius) ? radius : CHAIR_RADIUS;
+  const position = new THREE.Vector3(
+    Math.cos(useAngle) * useRadius,
+    0,
+    Math.sin(useAngle) * useRadius
+  );
+  const forward = position.clone();
+  if (forward.lengthSq() > 0) {
+    forward.multiplyScalar(-1 / forward.length());
+  } else {
+    forward.set(0, 0, -1);
+  }
+  const right = new THREE.Vector3().crossVectors(UP, forward).normalize();
+  if (right.lengthSq() === 0) {
+    right.set(1, 0, 0);
+  }
+  return { position, forward, right };
+}
+
+function seatBasisForIndex(index = 0) {
+  const safeIndex = Number.isFinite(index) ? index : 0;
+  const angle = CHAIR_SEAT_ANGLES[safeIndex % CHAIR_SEAT_ANGLES.length] ?? CAMERA_DEFAULT_AZIMUTH;
+  const radius = CHAIR_SEAT_RADII[safeIndex % CHAIR_SEAT_RADII.length] ?? CHAIR_RADIUS;
+  return seatBasisForAngle(angle, radius);
+}
 
 const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
 function fitCamera(){
@@ -218,24 +262,42 @@ function positionCameraForViewport({ force = false } = {}) {
   const width = dom?.clientWidth || window.innerWidth || 1;
   const height = dom?.clientHeight || window.innerHeight || 1;
   const isPortrait = height >= width;
-  const portraitBoost = isPortrait ? 1.08 : 1;
-  const desiredRadius = THREE.MathUtils.clamp(
-    CAMERA_INITIAL_RADIUS * portraitBoost,
-    CAMERA_MIN_RADIUS,
-    CAMERA_MAX_RADIUS
-  );
 
-  if (!cameraHasUserControl || force) {
-    const spherical = new THREE.Spherical(desiredRadius, CAMERA_INITIAL_PHI, CAMERA_DEFAULT_AZIMUTH);
-    const offset = new THREE.Vector3().setFromSpherical(spherical);
-    camera.position.copy(CAMERA_TARGET).add(offset);
-  } else {
-    const offset = camera.position.clone().sub(CAMERA_TARGET);
+  const seat = seatBasisForIndex(HUMAN_SEAT_INDEX);
+  const seatHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+  const seatAnchor = seat.position.clone();
+  seatAnchor.y = seatHeight;
+  const retreat = isPortrait ? CAMERA_REAR_OFFSET.portrait : CAMERA_REAR_OFFSET.landscape;
+  const lateral = isPortrait ? CAMERA_LATERAL_OFFSET.portrait : CAMERA_LATERAL_OFFSET.landscape;
+  const elevation = isPortrait ? CAMERA_HEIGHT_BOOST.portrait : CAMERA_HEIGHT_BOOST.landscape;
+
+  const desiredPosition = seatAnchor
+    .clone()
+    .addScaledVector(seat.forward, -retreat)
+    .addScaledVector(seat.right, lateral);
+  desiredPosition.y = seatHeight + elevation;
+
+  const clampPosition = (position) => {
+    const offset = position.clone().sub(CAMERA_TARGET);
     const spherical = new THREE.Spherical().setFromVector3(offset);
+    if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
+      spherical.radius = CAMERA_MIN_RADIUS;
+      spherical.theta = CAMERA_DEFAULT_AZIMUTH;
+      spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
+    }
     spherical.radius = THREE.MathUtils.clamp(spherical.radius, CAMERA_MIN_RADIUS, CAMERA_MAX_RADIUS);
     spherical.phi = THREE.MathUtils.clamp(spherical.phi, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
     const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
-    camera.position.copy(CAMERA_TARGET).add(clampedOffset);
+    return CAMERA_TARGET.clone().add(clampedOffset);
+  };
+
+  if (!cameraHasUserControl || force) {
+    camera.position.copy(clampPosition(desiredPosition));
+    if (force) {
+      cameraHasUserControl = false;
+    }
+  } else {
+    camera.position.copy(clampPosition(camera.position));
   }
 
   controls.target.copy(CAMERA_TARGET);
@@ -1236,12 +1298,13 @@ function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFA
       roughness: 0.32
     })
   };
-  const angles = Array.from({ length: 6 }, (_, i) => Math.PI / 2 - (i * (Math.PI * 2)) / 6);
   const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
   const seatBottomOffset = CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
-  angles.forEach((angle) => {
+  CHAIR_SEAT_ANGLES.forEach((angle, index) => {
+    const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
+    const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
-    wrapper.position.set(Math.cos(angle) * CHAIR_RADIUS, CHAIR_BASE_HEIGHT, Math.sin(angle) * CHAIR_RADIUS);
+    wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
     wrapper.lookAt(lookTarget);
     wrapper.rotateY(Math.PI);
 
@@ -1624,64 +1687,101 @@ function enumerateMoves(hand){
 
 function scoreMove(player, move){
   const {tile,index,other,side} = move;
+  const futureHand = [];
+  player.hand.forEach((t, i) => { if (i !== index && isValidTile(t)) futureHand.push(t); });
+
   let score = 0;
   const sum = tile.a + tile.b;
-  score += sum; // prefer dumping high pips to avoid being stuck later
+  score += sum * 1.1; // prefer dumping high pips to avoid being stuck later
   if(tile.a===tile.b){
-    score += 6; // doubles can open/close branches effectively
+    score += 8; // doubles can open/close branches effectively
   }
 
   const sameValueRemaining = valueOccurrencesInTiles(player.hand, other, index);
-  score += sameValueRemaining * 2.5; // keeping follow-up options for ourselves
+  score += sameValueRemaining * 2.75; // keeping follow-up options for ourselves
 
   const occurrencesFromTile = (tile.a === tile.b) ? 2 : ((tile.a === other || tile.b === other) ? 1 : 0);
   const knownElsewhere = valueOccurrencesInChain(other) + sameValueRemaining + occurrencesFromTile;
   const remainingElsewhere = Math.max(0, VALUE_MAX_OCCURRENCES - knownElsewhere);
   if(remainingElsewhere === 0){
-    score += 6; // completely choke the value — strong blocking move
+    score += 7.5; // completely choke the value — strong blocking move
   } else if(remainingElsewhere <= 2){
-    score += 3;
+    score += 3.75;
+  } else if(remainingElsewhere >= 5 && sameValueRemaining === 0){
+    score -= 1.5; // avoid handing tempo back when opponents likely own the value
   }
-  score += (VALUE_MAX_OCCURRENCES - remainingElsewhere) * 1.25;
+  score += (VALUE_MAX_OCCURRENCES - remainingElsewhere) * 1.1;
 
   if(ends){
-    const currentEndValue = (side < 0 ? ends.L.v : ends.R.v);
+    const leftEnd = ends.L;
+    const rightEnd = ends.R;
+    const currentEndValue = (side < 0 ? leftEnd?.v : rightEnd?.v);
     if(currentEndValue === other && tile.a !== tile.b){
       // keeping the same value on the end makes it predictable — slight penalty unless it's a double
       score -= 1.5;
     }
     if(sameValueRemaining === 0 && remainingElsewhere > 0){
       // avoid stranding ourselves with no follow-up on that end unless it is a blocking move
-      score -= 2;
+      score -= 2.4;
     }
-    const probeEnd = side < 0 ? ends.L : ends.R;
+    const probeEnd = side < 0 ? leftEnd : rightEnd;
     if (probeEnd) {
       const projection = nextCandidate(probeEnd);
       if (Math.abs(projection.nx) > XMAX * 0.92 || Math.abs(projection.nz) > ZMAX * 0.92) {
         score += 1.1; // reward steering the snake before it hits the rails
       }
     }
+
+    const futureLeftValue = (side < 0 ? other : leftEnd?.v);
+    const futureRightValue = (side > 0 ? other : rightEnd?.v);
+    const countMatches = (value) => {
+      if(!Number.isFinite(value)) return 0;
+      return futureHand.reduce((count, t) => count + ((t.a === value || t.b === value) ? 1 : 0), 0);
+    };
+    const leftMatches = countMatches(futureLeftValue);
+    const rightMatches = countMatches(futureRightValue);
+    if(Number.isFinite(futureLeftValue)){
+      score += leftMatches * 1.4;
+      if(leftMatches === 0){
+        score -= remainingElsewhere > 0 ? 3.5 : 0.75;
+      }
+    }
+    if(Number.isFinite(futureRightValue)){
+      score += rightMatches * 1.4;
+      if(rightMatches === 0){
+        score -= remainingElsewhere > 0 ? 3.5 : 0.75;
+      }
+    }
+  } else {
+    // opening move heuristics: reward heavy doubles slightly more to secure tempo
+    if(tile.a === tile.b){
+      score += 5 + tile.a * 0.6;
+    } else {
+      score += sum * 0.35;
+    }
   }
 
-  const futureHand = [];
-  player.hand.forEach((t, i) => { if (i !== index && isValidTile(t)) futureHand.push(t); });
+  if(sameValueRemaining >= 2){
+    score += 1.2; // encourage offloading duplicate values early
+  }
+
   const futurePipSum = futureHand.reduce((s, t) => s + t.a + t.b, 0);
   score += (42 - futurePipSum) * 0.12; // bias toward lighter remaining hand
 
   const futureValues = new Set();
   futureHand.forEach((t) => { futureValues.add(t.a); futureValues.add(t.b); });
   if (!futureValues.has(other) && remainingElsewhere === 0) {
-    score += 8; // we lock that value completely
+    score += 6; // we lock that value completely
   }
 
   const futureDoubleCount = futureHand.filter((t) => t.a === t.b).length;
   if (tile.a === tile.b) {
-    score += 2 + futureDoubleCount * 0.75; // chain strong doubles back-to-back
+    score += 2.5 + futureDoubleCount * 0.85; // chain strong doubles back-to-back
   } else if (futureDoubleCount === 0 && remainingElsewhere <= 2) {
-    score += 1.5; // keep variety when low on doubles
+    score += 1.8; // keep variety when low on doubles
   }
 
-  score += Math.random() * 0.25; // tiny randomness to avoid deterministic loops
+  score += Math.random() * 0.1; // tiny randomness to avoid deterministic loops
   return score;
 }
 
