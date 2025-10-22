@@ -350,17 +350,18 @@ const getPoolCarpetTextures = (() => {
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext("2d");
 
+    // Match Pool Royale's crimson carpet palette.
     const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, "#0f172a");
-    gradient.addColorStop(1, "#1e3a8a");
+    gradient.addColorStop(0, "#7c242f");
+    gradient.addColorStop(1, "#9d3642");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
 
     const rand = prng(987654321);
     const image = ctx.getImageData(0, 0, size, size);
     const data = image.data;
-    const baseColor = { r: 15, g: 23, b: 42 };
-    const highlightColor = { r: 30, g: 58, b: 138 };
+    const baseColor = { r: 112, g: 28, b: 34 };
+    const highlightColor = { r: 196, g: 72, b: 82 };
     const toChannel = (component) => Math.round(clamp01(component / 255) * 255);
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
@@ -379,7 +380,7 @@ const getPoolCarpetTextures = (() => {
     ctx.putImageData(image, 0, 0);
 
     ctx.globalAlpha = 0.04;
-  ctx.fillStyle = "#0b1a38";
+    ctx.fillStyle = "#4f1119";
     for (let row = 0; row < size; row += 3) {
       ctx.fillRect(0, row, size, 1);
     }
@@ -1184,10 +1185,11 @@ floor.receiveShadow = true;
 arenaG.add(floor);
 
 const carpetTextures = getPoolCarpetTextures(renderer);
+// Match Pool Royale's red carpet finish.
 const carpetMat = new THREE.MeshStandardMaterial({
-  color: 0x0f172a,
-  roughness: 0.92,
-  metalness: 0.04
+  color: 0x8c2a2e,
+  roughness: 0.9,
+  metalness: 0.025
 });
 if (carpetTextures.map) {
   carpetMat.map = carpetTextures.map;
@@ -1196,7 +1198,7 @@ if (carpetTextures.map) {
 }
 if (carpetTextures.bump) {
   carpetMat.bumpMap = carpetTextures.bump;
-  carpetMat.bumpScale = 0.22;
+  carpetMat.bumpScale = 0.18;
   carpetMat.bumpMap.needsUpdate = true;
   carpetMat.bumpMap.repeat.set(5, 5);
 }
@@ -1206,12 +1208,11 @@ carpet.position.y = 0.01;
 carpet.receiveShadow = true;
 arenaG.add(carpet);
 
+// Align the arena walls with Pool Royale's light blue tone.
 const wallMaterial = new THREE.MeshStandardMaterial({
-  color: 0x1e293b,
-  emissive: 0x0b1120,
-  emissiveIntensity: 0.25,
-  roughness: 0.9,
-  metalness: 0.08,
+  color: 0xb9ddff,
+  roughness: 0.88,
+  metalness: 0.06,
   side: THREE.DoubleSide
 });
 const wall = new THREE.Mesh(
@@ -1303,7 +1304,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(18, 18);
+  texture.repeat.set(18 * 5, 18 * 5);
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
