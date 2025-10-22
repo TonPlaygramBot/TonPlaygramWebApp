@@ -1104,6 +1104,13 @@ let boneyardStackTopLocal = 0;
 
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
+const placementAnimations = [];
+const PLACE_ANIM_DURATION = 640;
+const PLACE_ANIM_ARC = 0.05;
+
+const TMP_WORLD_POS = new THREE.Vector3();
+const TMP_WORLD_QUAT = new THREE.Quaternion();
+const TMP_WORLD_SCALE = new THREE.Vector3();
 
 function disposeDominoMesh(mesh){
   if(!mesh) return;
@@ -1150,6 +1157,12 @@ function clearExistingDominoMeshes(){
     }
   });
   drawAnimations.length = 0;
+  placementAnimations.forEach((anim)=>{
+    if(anim?.mesh){
+      disposeDominoMesh(anim.mesh);
+    }
+  });
+  placementAnimations.length = 0;
   boneyardStackG.clear();
   boneyardStackVisible = 0;
   boneyardStackTopLocal = 0;
@@ -1631,6 +1644,9 @@ function renderChain(){
     }
   });
   chain.forEach(c=>{
+    if(c.animating){
+      return;
+    }
     const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true, preserveOrder: true });
     const yPos = CHAIN_TILE_Y;
     domino.position.set(c.x, yPos, c.z);
@@ -1696,6 +1712,88 @@ function spawnDrawAnimation(startWorld, seatIndex = human){
     startTime: performance.now(),
     duration: DRAW_ANIM_DURATION,
     arc: 0.05
+  });
+}
+
+function attachMeshPreserveWorld(mesh){
+  if(!mesh){
+    return;
+  }
+  mesh.updateMatrixWorld(true);
+  mesh.matrixWorld.decompose(TMP_WORLD_POS, TMP_WORLD_QUAT, TMP_WORLD_SCALE);
+  if(mesh.parent){
+    mesh.parent.remove(mesh);
+  }
+  piecesG.add(mesh);
+  mesh.position.copy(TMP_WORLD_POS);
+  mesh.quaternion.copy(TMP_WORLD_QUAT);
+  mesh.scale.copy(TMP_WORLD_SCALE);
+}
+
+function takeTileMeshForAnimation(tile){
+  if(!tile || !tile.mesh){
+    return null;
+  }
+  const mesh = tile.mesh;
+  tile.mesh = null;
+  const data = mesh.userData || (mesh.userData = {});
+  delete data.owner;
+  delete data.tile;
+  data.animating = true;
+  attachMeshPreserveWorld(mesh);
+  return mesh;
+}
+
+function spawnPlacementAnimation(tile, segment, { duration = PLACE_ANIM_DURATION, mesh: providedMesh } = {}){
+  if(!segment){
+    return;
+  }
+  let mesh = providedMesh;
+  if(!mesh){
+    mesh = takeTileMeshForAnimation(tile);
+  } else {
+    if(tile && tile.mesh === mesh){
+      tile.mesh = null;
+    }
+    const data = mesh.userData || (mesh.userData = {});
+    delete data.owner;
+    delete data.tile;
+    data.animating = true;
+    attachMeshPreserveWorld(mesh);
+  }
+  if(!mesh){
+    segment.animating = false;
+    renderChain();
+    return;
+  }
+
+  mesh.renderOrder = 6;
+  mesh.traverse((child)=>{
+    if(child.isMesh){
+      child.renderOrder = 6;
+    }
+  });
+
+  const start = mesh.position.clone();
+  const startQuat = mesh.quaternion.clone();
+  const startScale = mesh.scale.clone();
+  const end = new THREE.Vector3(segment.x, CHAIN_TILE_Y, segment.z);
+  const orientTarget = new THREE.Object3D();
+  orientDominoFlat(orientTarget, segment.rot ?? 0);
+  const endQuat = orientTarget.quaternion.clone();
+
+  placementAnimations.push({
+    mesh,
+    start,
+    end,
+    startQuat,
+    endQuat,
+    startScale,
+    endScale: startScale.clone(),
+    startTime: performance.now(),
+    duration: duration || PLACE_ANIM_DURATION,
+    arc: PLACE_ANIM_ARC,
+    segment
   });
 }
 
@@ -1937,43 +2035,79 @@ function startGame(){
 function canPlayAny(hand){ if(!ends) return true; return hand.some(t=> t.a===ends.L.v||t.b===ends.L.v||t.a===ends.R.v||t.b===ends.R.v ); }
 function validSidesFor(tile){ if(!ends) return {L:false,R:false}; return {L:(tile.a===ends.L.v||tile.b===ends.L.v), R:(tile.a===ends.R.v||tile.b===ends.R.v)}; }
 
-function placeOnBoard(tile, side){
-  if(!chain.length) return false; if(!isValidTile(tile)) return false;
-  const end=(side<0?ends.L:ends.R); const want=end.v;
-  let a=tile.a,b=tile.b; if(a!==want && b===want){ [a,b]=[b,a]; }
-  if(a!==want){ return false; }
-  let [dx,dz]=end.dir;
-  let nx=end.x+dx*STEP, nz=end.z+dz*STEP;
-  // table bounds (square)
-  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; nx=end.x+dx*STEP; nz=end.z+dz*STEP; }
-  const isDouble=(a===b);
-  const isHorizontal=Math.abs(dx)>=Math.abs(dz);
+function placeOnBoard(tile, side, options = {}){
+  if(!chain.length || !isValidTile(tile)){
+    return { success:false };
+  }
+  const end = (side < 0 ? ends?.L : ends?.R);
+  if(!end){
+    return { success:false };
+  }
+  const want = end.v;
+  let a = tile.a, b = tile.b;
+  if(a !== want && b === want){
+    [a, b] = [b, a];
+  }
+  if(a !== want){
+    return { success:false };
+  }
+  let [dx, dz] = end.dir;
+  let nx = end.x + dx * STEP;
+  let nz = end.z + dz * STEP;
+  if(Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX){
+    const ndx = -dz;
+    const ndz = dx;
+    dx = ndx;
+    dz = ndz;
+    nx = end.x + dx * STEP;
+    nz = end.z + dz * STEP;
+  }
+  const isDouble = (a === b);
+  const isHorizontal = Math.abs(dx) >= Math.abs(dz);
   let rot;
   if(isDouble){
-    rot = isHorizontal ? Math.PI/2 : 0;
+    rot = isHorizontal ? Math.PI / 2 : 0;
   } else if(isHorizontal){
-    rot = (dx>=0) ? 0 : Math.PI;
+    rot = (dx >= 0) ? 0 : Math.PI;
   } else {
-    rot = (dz>=0) ? Math.PI/2 : -Math.PI/2;
+    rot = (dz >= 0) ? Math.PI / 2 : -Math.PI / 2;
   }
-  const orientedTile = {a,b};
+  const orientedTile = { a, b };
   const key = tileKey(orientedTile);
   if(usedTileKeys.has(key)){
-    return false;
+    return { success:false };
   }
-  chain.push({tile:orientedTile,x:nx,z:nz,rot,double:isDouble});
+
+  const segment = { tile: orientedTile, x: nx, z: nz, rot, double: isDouble, mesh: null };
+  const animate = !!options.animate;
+  if(animate){
+    segment.animating = true;
+  }
+  chain.push(segment);
   usedTileKeys.add(key);
-  const newVal=b;
+
+  const newVal = b;
   let nextOrient;
   if(isHorizontal){
-    nextOrient = (dx>=0) ? 0 : Math.PI;
+    nextOrient = (dx >= 0) ? 0 : Math.PI;
   } else {
-    nextOrient = (dz>=0) ? Math.PI/2 : -Math.PI/2;
+    nextOrient = (dz >= 0) ? Math.PI / 2 : -Math.PI / 2;
   }
-  const updatedEnd={v:newVal,x:nx,z:nz,dir:[dx,dz],orient:nextOrient};
-  if(side<0) ends.L=updatedEnd; else ends.R=updatedEnd;
-  renderChain(); SFX.place.currentTime=0; SFX.place.play();
-  return true;
+  const updatedEnd = { v: newVal, x: nx, z: nz, dir: [dx, dz], orient: nextOrient };
+  if(side < 0){
+    ends.L = updatedEnd;
+  } else {
+    ends.R = updatedEnd;
+  }
+
+  if(animate){
+    spawnPlacementAnimation(tile, segment, { duration: options.duration, mesh: options.animateMesh });
+  } else {
+    renderChain();
+  }
+  SFX.place.currentTime = 0;
+  SFX.place.play();
+  return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
   let {x,z,dir:[dx,dz]}=end; let ang=Math.atan2(dz,dx);
@@ -2016,8 +2150,20 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
   if(!isHumanTurn) return;
   if(obj.userData && obj.userData.owner===human){ humanPickTile(obj); return; }
   if(obj.userData && obj.userData.marker && selectedTile){
-    const side=obj.userData.side; const idx=players[human].hand.indexOf(selectedTile); if(idx>=0) players[human].hand.splice(idx,1);
-    if(!placeOnBoard(selectedTile, side)){ players[human].hand.splice(idx,0,selectedTile); }
+    const side=obj.userData.side;
+    const idx=players[human].hand.indexOf(selectedTile);
+    if(idx>=0){
+      const [picked] = players[human].hand.splice(idx,1);
+      const placement = placeOnBoard(picked, side, { animate: true });
+      if(!placement.success){
+        players[human].hand.splice(idx,0,picked);
+        selectedTile = picked;
+        clearMarkers();
+        renderHands();
+        showMarkersFor(selectedTile);
+        return;
+      }
+    }
     selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
   }
 });
@@ -2089,8 +2235,8 @@ function cpuPlay(){
     const tile = player.hand[move.index];
     if(!tile) continue;
     const picked = player.hand.splice(move.index,1)[0];
-    const placed = placeOnBoard(picked, move.side);
-    if(placed){
+    const placement = placeOnBoard(picked, move.side, { animate: true });
+    if(placement.success){
       renderHands();
       if(player.hand.length===0){
         setStatus(`Player ${current+1} won!`);
@@ -2158,8 +2304,44 @@ function updateDrawAnimations(now){
   }
 }
 
+function updatePlacementAnimations(now){
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  for(let i=placementAnimations.length-1;i>=0;i--){
+    const anim = placementAnimations[i];
+    const elapsed = timestamp - anim.startTime;
+    const duration = anim.duration || PLACE_ANIM_DURATION;
+    const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    const pos = anim.start.clone().lerp(anim.end, ease);
+    if(anim.arc){
+      pos.y += Math.sin(Math.PI * ease) * anim.arc;
+    }
+    anim.mesh.position.copy(pos);
+
+    if(anim.endQuat && anim.startQuat){
+      const quat = anim.startQuat.clone().slerp(anim.endQuat, ease);
+      anim.mesh.quaternion.copy(quat);
+    }
+
+    if(anim.endScale && anim.startScale){
+      const scale = anim.startScale.clone().lerp(anim.endScale, ease);
+      anim.mesh.scale.copy(scale);
+    }
+
+    if(t >= 1){
+      if(anim.segment){
+        anim.segment.animating = false;
+      }
+      disposeDominoMesh(anim.mesh);
+      placementAnimations.splice(i,1);
+      renderChain();
+    }
+  }
+}
+
 /* ---------- Loop & Resize ---------- */
-function tick(now){ updateDrawAnimations(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
+function tick(now){ updateDrawAnimations(now); updatePlacementAnimations(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
 function onResize(){ positionCameraForViewport(); }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
