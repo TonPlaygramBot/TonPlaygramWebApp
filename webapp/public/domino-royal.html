@@ -1047,11 +1047,13 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_LENGTH = SCALE * (0.016 / 0.22) * 2;
+const DOMINO_SCALE = 1.5; // enlarge domino tiles by 50%
+const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
+const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.08;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
 const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.12;
-const TILE_UP_H = 0.2 * SCALE;
+const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const ZMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -1091,10 +1093,10 @@ const goldMat = new THREE.MeshPhysicalMaterial({
 const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
 
 const boneyardStackG = new THREE.Group();
-const BONEYARD_STACK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, CLOTH_TOP + 0.0075, TABLE_RADIUS * 0.55);
+const BONEYARD_STACK_POSITION = new THREE.Vector3(0, CLOTH_TOP + 0.0075, CLOTH_RADIUS * 0.45);
 boneyardStackG.position.copy(BONEYARD_STACK_POSITION);
 piecesG.add(boneyardStackG);
-const BONEYARD_STACK_STEP = SCALE * 0.22 * 0.1 * 1.02;
+const BONEYARD_STACK_STEP = DOMINO_WORLD_SCALE * 0.22 * 0.1 * 1.02;
 const MAX_BONEYARD_DISPLAY = 12;
 let boneyardStackVisible = 0;
 let boneyardStackTopLocal = 0;
@@ -1431,7 +1433,7 @@ function makeDomino(a,b,{flat=true, faceUp=true}={}){
 
   // Ruaj shkallën ekzistuese të botës (ashtu si para ndryshimit)
   const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
-  group.scale.set(SCALE*sx, SCALE*sy, SCALE*sz);
+  group.scale.set(DOMINO_WORLD_SCALE * sx, DOMINO_WORLD_SCALE * sy, DOMINO_WORLD_SCALE * sz);
 
   group.userData.val = [a,b];
   return group;
@@ -1846,7 +1848,13 @@ function startGame(){
       R:{v:firstTile.b,x:-step,z:0,dir:[-1,0],orient:Math.PI}
     };
   }
-  renderChain(); current=(starter+1)%N; setStatus(`Turn: Player ${current+1}`); updateInteractivity();
+  renderChain();
+  current=(starter+1)%N;
+  setStatus(`Turn: Player ${current+1}`);
+  updateInteractivity();
+  if(current!==human){
+    setTimeout(cpuPlay, 450);
+  }
 }
 
 /* ---------- Placement & Snake ---------- */
