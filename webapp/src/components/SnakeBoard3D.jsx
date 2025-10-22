@@ -124,6 +124,59 @@ const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const TEMP_SEAT_VECTOR = new THREE.Vector3();
 const TEMP_NDC_VECTOR = new THREE.Vector3();
 const DICE_CENTER_VECTOR = new THREE.Vector3();
+const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
+const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
+
+const DICE_SEAT_ADJUSTMENTS = [
+  {
+    forward: {
+      start: TILE_SIZE * 0.12,
+      bounce: TILE_SIZE * 0.1,
+      base: TILE_SIZE * 0.18
+    }
+  },
+  {
+    forward: {
+      start: TILE_SIZE * 0.05,
+      bounce: TILE_SIZE * 0.05,
+      base: TILE_SIZE * 0.08
+    },
+    front: {
+      start: TILE_SIZE * 0.22,
+      bounce: TILE_SIZE * 0.36,
+      base: TILE_SIZE * 0.52
+    },
+    side: {
+      start: TILE_SIZE * 0.28,
+      bounce: TILE_SIZE * 0.32,
+      base: TILE_SIZE * 0.36
+    }
+  },
+  {
+    forward: {
+      start: TILE_SIZE * 0.12,
+      bounce: TILE_SIZE * 0.1,
+      base: TILE_SIZE * 0.18
+    }
+  },
+  {
+    forward: {
+      start: TILE_SIZE * 0.05,
+      bounce: TILE_SIZE * 0.05,
+      base: TILE_SIZE * 0.08
+    },
+    front: {
+      start: TILE_SIZE * 0.22,
+      bounce: TILE_SIZE * 0.36,
+      base: TILE_SIZE * 0.52
+    },
+    side: {
+      start: -TILE_SIZE * 0.28,
+      bounce: -TILE_SIZE * 0.32,
+      base: -TILE_SIZE * 0.36
+    }
+  }
+];
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
@@ -484,6 +537,26 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
   const settleBaseDistance = boardHalf + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA;
 
+  const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
+  const forwardAdjust = seatAdjust.forward ?? {};
+  const frontAdjust = seatAdjust.front ?? {};
+  const sideAdjust = seatAdjust.side ?? {};
+
+  const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0);
+  const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0);
+  const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0);
+
+  const applyAxisOffsets = (vec, phase) => {
+    const front = frontAdjust?.[phase];
+    if (typeof front === 'number' && Number.isFinite(front) && front !== 0) {
+      vec.addScaledVector(BOARD_FRONT_VECTOR, front);
+    }
+    const side = sideAdjust?.[phase];
+    if (typeof side === 'number' && Number.isFinite(side) && side !== 0) {
+      vec.addScaledVector(BOARD_SIDE_VECTOR, side);
+    }
+  };
+
   const spacing = DICE_SIZE * 1.35;
   const centerOffset = (count - 1) / 2;
 
@@ -494,11 +567,11 @@ function computeDiceThrowLayout(board, seatIndex, count) {
     const retreatExtra = Math.random() * DICE_SIZE * 0.5;
     const outwardJitter = Math.random() * DICE_SIZE * 0.6;
 
-    const startDistance = baseStartDistance + Math.random() * DICE_SIZE * 0.6;
-    const bounceDistance = boardEdgeDistance + (Math.random() - 0.5) * DICE_SIZE * 0.12;
+    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.6;
+    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.12;
     const settleDistance = Math.max(
       bounceDistance + DICE_SIZE * 0.25,
-      settleBaseDistance + (Math.random() - 0.2) * DICE_SIZE * 0.45
+      settleDistanceBase + (Math.random() - 0.2) * DICE_SIZE * 0.45
     );
 
     const start = centerLocal
@@ -506,12 +579,14 @@ function computeDiceThrowLayout(board, seatIndex, count) {
       .addScaledVector(awayFromBoard, startDistance)
       .addScaledVector(lateral, offset * 0.9 + lateralJitter);
     start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
+    applyAxisOffsets(start, 'start');
 
     const bounce = centerLocal
       .clone()
       .addScaledVector(awayFromBoard, bounceDistance)
       .addScaledVector(lateral, offset * 0.35 + bounceJitter);
     bounce.y = diceBaseY + DICE_SIZE * (0.12 + Math.random() * 0.12);
+    applyAxisOffsets(bounce, 'bounce');
 
     const base = centerLocal
       .clone()
@@ -519,6 +594,7 @@ function computeDiceThrowLayout(board, seatIndex, count) {
       .addScaledVector(lateral, offset + lateralJitter * 0.45);
     base.addScaledVector(awayFromBoard, outwardJitter);
     base.y = diceBaseY;
+    applyAxisOffsets(base, 'base');
 
     const bouncePoint = bounce.clone();
 
