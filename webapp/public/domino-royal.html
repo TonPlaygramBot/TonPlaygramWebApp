@@ -1050,9 +1050,9 @@ const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SCALE = 1.5; // enlarge domino tiles by 50%
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
-const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.08;
+const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.12;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.25;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -1385,9 +1385,12 @@ function addPips(dominoFace, count, yOffset){
   });
 }
 
-function makeDomino(a,b,{flat=true, faceUp=true}={}){
-  const ct = canonTile({a,b}); if(!ct){ return new THREE.Group(); }
-  a=ct.a; b=ct.b;
+function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
+  const tile = {a,b};
+  if(!isValidTile(tile)){ return new THREE.Group(); }
+  const oriented = preserveOrder ? tile : canonTile(tile);
+  if(!oriented){ return new THREE.Group(); }
+  ({a,b} = oriented);
 
   const group = new THREE.Group();
 
@@ -1492,34 +1495,52 @@ function renderHands(){
   players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
-  const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
   const BASE_GAP = DOMINO_HAND_GAP;
-  const MIN_GAP = DOMINO_LENGTH * 0.98;
-  const MAX_SPAN = EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6;
-  const HOLE = 0; // equal gap for all, no special case
+  const MIN_GAP = DOMINO_LENGTH * 1.05;
+  const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
 
   players.forEach((p,pi)=>{
     const [x0,z0] = layoutSeat(pi);
     const faceUp = (pi===human);
     const count = p.hand.length;
-    const desiredSpan = count>1 ? BASE_GAP * (count-1) : 0;
-    let span = desiredSpan;
-    if(count>1){
-      span = Math.min(desiredSpan, MAX_SPAN);
-      span = Math.max(span, MIN_GAP * (count-1));
-    }
-    const gap = count>1 ? span/(count-1 || 1) : BASE_GAP; // safe division when count>1
-    const start = -span/2; // symmetric layout
     const isSide = (pi===1 || pi===3);
+
+    let span = 0;
+    let gap = 0;
+    if(count>1){
+      const desiredSpan = BASE_GAP * (count-1);
+      const minSpan = Math.min(MIN_GAP * (count-1), MAX_SPAN);
+      span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
+      gap = span/(count-1);
+    }
+
+    let start = count>1 ? -span/2 : 0;
+    if(count>1){
+      const axisCenter = isSide ? z0 : x0;
+      const minLimit = -EDGE_SPAN;
+      const maxLimit = EDGE_SPAN;
+      const minStart = minLimit - axisCenter;
+      const maxStart = maxLimit - axisCenter - span;
+      if(minStart <= maxStart){
+        if(start < minStart) start = minStart;
+        if(start > maxStart) start = maxStart;
+      } else {
+        start = (minStart + maxStart) / 2;
+      }
+    }
 
     p.hand.forEach((h,hi)=>{
       const m = makeDomino(h.a,h.b,{flat:false, faceUp});
-      let offset = start + gap*hi;
-      if(isSide){ const zLine = clamp(z0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(x0, HAND_Y, zLine); }
-      else      { const xLine = clamp(x0 + offset, -EDGE_SPAN, EDGE_SPAN); m.position.set(xLine, HAND_Y, z0); }
+      const offset = count>1 ? start + gap*hi : 0;
+      if(isSide){
+        m.position.set(x0, HAND_Y, z0 + offset);
+      }
+      else{
+        m.position.set(x0 + offset, HAND_Y, z0);
+      }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
-      m.rotation.z += (Math.random()*0.02-0.01);
+      m.rotation.z += (Math.random()*0.006-0.003);
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
     });
   });
@@ -1559,7 +1580,7 @@ function renderChain(){
     }
   });
   chain.forEach(c=>{
-    const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true });
+    const domino = makeDomino(c.tile.a, c.tile.b, { flat: true, faceUp: true, preserveOrder: true });
     const yPos = CHAIN_TILE_Y;
     domino.position.set(c.x, yPos, c.z);
     domino.renderOrder = 5;
