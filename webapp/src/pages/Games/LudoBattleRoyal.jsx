@@ -1872,7 +1872,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const advanceTurn = (extraTurn) => {
     setUi((s) => {
       if (s.winner) return s;
-      const nextTurn = extraTurn ? s.turn : (s.turn + 1) % 4;
+      const totalPlayers = DEFAULT_PLAYER_COUNT;
+      const nextTurn = extraTurn ? s.turn : (s.turn - 1 + totalPlayers) % totalPlayers;
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);

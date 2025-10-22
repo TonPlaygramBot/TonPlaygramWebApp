@@ -1855,17 +1855,18 @@ function dealHands(deck, playerCount) {
   let idx = 0;
   deck.forEach((card) => {
     hands[idx].push(card);
-    idx = (idx + 1) % playerCount;
+    idx = (idx - 1 + playerCount) % playerCount;
   });
   return hands;
 }
 
 function getNextAlive(players, index) {
   if (!players.length) return 0;
-  let next = (index + 1) % players.length;
+  const totalPlayers = players.length;
+  let next = ((index - 1) % totalPlayers + totalPlayers) % totalPlayers;
   let safety = 0;
   while (players[next]?.finished) {
-    next = (next + 1) % players.length;
+    next = (next - 1 + totalPlayers) % totalPlayers;
     safety += 1;
     if (safety > players.length) return index;
   }
