@@ -455,13 +455,389 @@ const CHAIR_THEME_OPTIONS = Object.freeze([
   { id: "frost", label: "Akull", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#94a3b8" }
 ]);
 
+const clamp01f = (value) => Math.min(1, Math.max(0, value));
+const normalizeHue = (h) => {
+  let hue = h % 360;
+  if (hue < 0) hue += 360;
+  return hue;
+};
+const hslString = (h, s, l) => {
+  const sat = clamp01f(s);
+  const light = clamp01f(l);
+  return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
+};
+const hslToHexNumber = (h, s, l) => {
+  const color = new THREE.Color();
+  color.setHSL(normalizeHue(h) / 360, clamp01f(s), clamp01f(l));
+  return color.getHex();
+};
+const hslToHexString = (h, s, l) => `#${hslToHexNumber(h, s, l).toString(16).padStart(6, '0')}`;
+const shiftLightness = (light, delta) => clamp01f(light + delta);
+const shiftSaturation = (sat, delta) => clamp01f(sat + delta);
+
+const WOOD_FINISH_PRESETS = Object.freeze([
+  Object.freeze({ id: 'birch', label: 'Vidhi', hue: 38, sat: 0.25, light: 0.84, contrast: 0.42 }),
+  Object.freeze({ id: 'maple', label: 'Panjo', hue: 35, sat: 0.22, light: 0.78, contrast: 0.44 }),
+  Object.freeze({ id: 'oak', label: 'Lis', hue: 32, sat: 0.34, light: 0.7, contrast: 0.52 }),
+  Object.freeze({ id: 'cherry', label: 'Qershi', hue: 14, sat: 0.42, light: 0.6, contrast: 0.58 }),
+  Object.freeze({ id: 'teak', label: 'Tik', hue: 28, sat: 0.4, light: 0.52, contrast: 0.6 }),
+  Object.freeze({ id: 'walnut', label: 'Arre', hue: 22, sat: 0.4, light: 0.44, contrast: 0.64 }),
+  Object.freeze({ id: 'smokedOak', label: 'Lis i Tymosur', hue: 28, sat: 0.35, light: 0.28, contrast: 0.75 }),
+  Object.freeze({ id: 'wenge', label: 'Wenge', hue: 24, sat: 0.38, light: 0.22, contrast: 0.8 }),
+  Object.freeze({ id: 'ebony', label: 'Eben', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
+]);
+
+const WOOD_PRESETS_BY_ID = Object.freeze(
+  WOOD_FINISH_PRESETS.reduce((acc, preset) => {
+    acc[preset.id] = preset;
+    return acc;
+  }, {})
+);
+
+const WOOD_GRAIN_OPTIONS = Object.freeze([
+  Object.freeze({
+    id: 'heritagePlanks',
+    label: 'Heritage Planks',
+    rail: {
+      repeat: { x: 0.09, y: 0.5 },
+      rotation: Math.PI / 28,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.18, y: 0.34 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'atelierChevron',
+    label: 'Atelier Chevron',
+    rail: {
+      repeat: { x: 0.16, y: 0.62 },
+      rotation: Math.PI / 9,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.28, y: 0.46 },
+      rotation: -Math.PI / 8,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'estateBands',
+    label: 'Estate Bands',
+    rail: {
+      repeat: { x: 0.12, y: 0.68 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.32, y: 0.4 },
+      rotation: 0,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'studioVeins',
+    label: 'Studio Veins',
+    rail: {
+      repeat: { x: 0.1, y: 0.56 },
+      rotation: Math.PI / 14,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.24, y: 0.38 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  })
+]);
+
+const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
+  WOOD_GRAIN_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
+const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'heritagePlanks';
+const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
+const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
+const WOOD_TEXTURE_BASE_CACHE = new Map();
+
+function makeCacheKey({
+  hue,
+  sat,
+  light,
+  contrast,
+  textureSize,
+  roughnessSize,
+  roughnessBase,
+  roughnessVariance,
+  sharedKey
+}) {
+  const parts = [
+    sharedKey ?? 'solo',
+    Number.isFinite(hue) ? hue.toFixed(4) : '0',
+    Number.isFinite(sat) ? sat.toFixed(4) : '0',
+    Number.isFinite(light) ? light.toFixed(4) : '0',
+    Number.isFinite(contrast) ? contrast.toFixed(4) : '0',
+    textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessSize ?? DEFAULT_WOOD_ROUGHNESS_SIZE,
+    Number.isFinite(roughnessBase) ? roughnessBase.toFixed(4) : '0',
+    Number.isFinite(roughnessVariance) ? roughnessVariance.toFixed(4) : '0'
+  ];
+  return parts.join('|');
+}
+
+function makeNaturalWoodTexture(width, height, hue, sat, light, contrast) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = hslString(hue, sat, light);
+  ctx.fillRect(0, 0, width, height);
+
+  for (let i = 0; i < 3000; i += 1) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const grainLen = 50 + Math.random() * 200;
+    const curve = Math.sin(y / 40 + Math.random() * 2) * 10;
+    ctx.strokeStyle = hslString(hue, sat * 0.6, light - Math.random() * contrast);
+    ctx.lineWidth = 0.8 + Math.random() * 1.2;
+    ctx.globalAlpha = 0.25 + Math.random() * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + curve, y + grainLen / 2, x, y + grainLen);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 40; i += 1) {
+    const kx = Math.random() * width;
+    const ky = Math.random() * height;
+    const r = 8 + Math.random() * 15;
+    const grad = ctx.createRadialGradient(kx, ky, 0, kx, ky, r);
+    grad.addColorStop(0, hslString(hue, sat * 0.9, light - 0.3));
+    grad.addColorStop(1, hslString(hue, sat * 0.4, light));
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(kx, ky, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 16;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function makeRoughnessMap(width, height, base, variance) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const imageData = ctx.createImageData(width, height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const value = clamp01f(base + (Math.random() - 0.5) * variance);
+    const channel = Math.round(value * 255);
+    data[i] = data[i + 1] = data[i + 2] = channel;
+    data[i + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function disposeWoodTextures(material) {
+  if (!material) return;
+  const textures = material.userData?.__woodTextures;
+  if (textures) {
+    const { map, roughnessMap } = textures;
+    if (map?.dispose) map.dispose();
+    if (roughnessMap && roughnessMap !== map && roughnessMap.dispose) {
+      roughnessMap.dispose();
+    }
+    delete material.userData.__woodTextures;
+  }
+  if (material.map && material.map.dispose) {
+    material.map.dispose();
+  }
+  if (material.roughnessMap && material.roughnessMap !== material.map && material.roughnessMap.dispose) {
+    material.roughnessMap.dispose();
+  }
+  material.map = null;
+  material.roughnessMap = null;
+}
+
+function cloneWoodTexture(texture, repeatVec, rotation) {
+  if (!texture) return null;
+  const clone = texture.clone();
+  clone.repeat.copy(repeatVec ?? new THREE.Vector2(1, 1));
+  clone.center.set(0.5, 0.5);
+  if (typeof rotation === 'number' && rotation !== 0) {
+    clone.rotation = rotation;
+  }
+  clone.needsUpdate = true;
+  return clone;
+}
+
+function ensureSharedWoodTextures({
+  hue,
+  sat,
+  light,
+  contrast,
+  textureSize,
+  roughnessSize,
+  roughnessBase,
+  roughnessVariance,
+  sharedKey
+}) {
+  if (typeof document === 'undefined') {
+    return { map: null, roughnessMap: null };
+  }
+  const key = makeCacheKey({
+    hue,
+    sat,
+    light,
+    contrast,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance,
+    sharedKey
+  });
+  let entry = WOOD_TEXTURE_BASE_CACHE.get(key);
+  if (!entry) {
+    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const roughnessMap = makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance);
+    if (map) {
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.center.set(0.5, 0.5);
+      map.needsUpdate = true;
+    }
+    if (roughnessMap) {
+      roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+      roughnessMap.center.set(0.5, 0.5);
+      roughnessMap.needsUpdate = true;
+    }
+    entry = { map, roughnessMap };
+    WOOD_TEXTURE_BASE_CACHE.set(key, entry);
+  }
+  return entry;
+}
+
+function applyWoodTextures(
+  material,
+  {
+    hue,
+    sat,
+    light,
+    contrast,
+    repeat = { x: 1, y: 1 },
+    rotation = 0,
+    textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
+    roughnessBase = 0.18,
+    roughnessVariance = 0.25,
+    sharedKey = null
+  } = {}
+) {
+  if (!material) return null;
+  disposeWoodTextures(material);
+  const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
+  let map = null;
+  let roughnessMap = null;
+  if (typeof document !== 'undefined') {
+    const baseTextures = sharedKey
+      ? ensureSharedWoodTextures({
+          hue,
+          sat,
+          light,
+          contrast,
+          textureSize,
+          roughnessSize,
+          roughnessBase,
+          roughnessVariance,
+          sharedKey
+        })
+      : {
+          map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
+          roughnessMap: makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance)
+        };
+    map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
+    roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
+    if (map) {
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.needsUpdate = true;
+    }
+    if (roughnessMap) {
+      roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+      roughnessMap.needsUpdate = true;
+    }
+  }
+  material.map = map ?? null;
+  material.roughnessMap = roughnessMap ?? null;
+  material.color.setHex(0xffffff);
+  material.needsUpdate = true;
+  material.userData = material.userData || {};
+  material.userData.__woodTextures = { map: material.map, roughnessMap: material.roughnessMap };
+  material.userData.__woodOptions = {
+    hue,
+    sat,
+    light,
+    contrast,
+    repeat: { x: repeatVec.x, y: repeatVec.y },
+    rotation,
+    textureSize,
+    roughnessSize,
+    roughnessBase,
+    roughnessVariance,
+    sharedKey
+  };
+  material.userData.woodRepeat = repeatVec.clone();
+  if (material.map) material.map.needsUpdate = true;
+  if (material.roughnessMap) material.roughnessMap.needsUpdate = true;
+  return { map: material.map, roughnessMap: material.roughnessMap };
+}
+
+function makeTableWoodOption({ id, label, presetId, grainId }) {
+  const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
+  const preset = (presetId && WOOD_PRESETS_BY_ID[presetId]) || fallbackPreset;
+  return Object.freeze({
+    id,
+    label,
+    presetId,
+    grainId,
+    baseHex: hslToHexString(preset.hue, preset.sat, preset.light),
+    rimHex: hslToHexString(preset.hue, shiftSaturation(preset.sat, 0.04), shiftLightness(preset.light, -0.08)),
+    accentHex: hslToHexString(preset.hue, shiftSaturation(preset.sat, 0.12), shiftLightness(preset.light, -0.18))
+  });
+}
+
+function resolveWoodComponents(option) {
+  const fallbackPreset = WOOD_PRESETS_BY_ID.walnut ?? WOOD_FINISH_PRESETS[0];
+  const preset = (option?.presetId && WOOD_PRESETS_BY_ID[option.presetId]) || fallbackPreset;
+  const fallbackGrain = WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+  const grain = (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || fallbackGrain;
+  return { preset, grain };
+}
+
 const TABLE_WOOD_OPTIONS = Object.freeze([
-  { id: "walnutHeritage", label: "Arre Heritage", top: "#5b3a1f", rim: "#3b2414", accent: "#d4b07a" },
-  { id: "mapleChevron", label: "Panjo Chevron", top: "#c48c56", rim: "#8a5d32", accent: "#f2d4a5" },
-  { id: "oakEstate", label: "Lis Estate", top: "#8b5a2b", rim: "#59381c", accent: "#ddb88a" },
-  { id: "teakStudio", label: "Tik Studio", top: "#754c28", rim: "#4a2e17", accent: "#c99a6b" },
-  { id: "wengeShadow", label: "Wenge Hije", top: "#2b1b13", rim: "#160d08", accent: "#c5a37a" },
-  { id: "ebonyClassic", label: "Eben Klasik", top: "#1a1a1c", rim: "#0f0f12", accent: "#c7c9d1" }
+  makeTableWoodOption({ id: 'walnutHeritage', label: 'Arre Heritage', presetId: 'walnut', grainId: 'heritagePlanks' }),
+  makeTableWoodOption({ id: 'mapleChevron', label: 'Panjo Chevron', presetId: 'maple', grainId: 'atelierChevron' }),
+  makeTableWoodOption({ id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' }),
+  makeTableWoodOption({ id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' }),
+  makeTableWoodOption({ id: 'wengeShadow', label: 'Wenge Hije', presetId: 'wenge', grainId: 'atelierChevron' }),
+  makeTableWoodOption({ id: 'ebonyClassic', label: 'Eben Klasik', presetId: 'ebony', grainId: 'heritagePlanks' })
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
@@ -927,7 +1303,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(5, 5);
+  texture.repeat.set(18, 18);
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -963,9 +1339,40 @@ const tableMaterials = {
 
 function updateTableMaterials() {
   const wood = TABLE_WOOD_OPTIONS[appearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-  tableMaterials.top.color.set(wood.top);
-  tableMaterials.rim.color.set(wood.rim);
-  tableMaterials.accent.color.set(wood.accent);
+  const { preset, grain } = resolveWoodComponents(wood);
+  const sharedKey = `domino-wood-${wood?.id ?? preset.id ?? 'default'}`;
+  applyWoodTextures(tableMaterials.top, {
+    hue: preset.hue,
+    sat: preset.sat,
+    light: preset.light,
+    contrast: preset.contrast,
+    repeat: grain?.frame?.repeat ?? grain?.rail?.repeat ?? { x: 0.24, y: 0.38 },
+    rotation: grain?.frame?.rotation ?? 0,
+    textureSize: grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessBase: 0.16,
+    roughnessVariance: 0.28,
+    sharedKey
+  });
+  applyWoodTextures(tableMaterials.rim, {
+    hue: preset.hue,
+    sat: preset.sat,
+    light: preset.light,
+    contrast: preset.contrast,
+    repeat: grain?.rail?.repeat ?? grain?.frame?.repeat ?? { x: 0.12, y: 0.62 },
+    rotation: grain?.rail?.rotation ?? 0,
+    textureSize: grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    roughnessBase: 0.18,
+    roughnessVariance: 0.32,
+    sharedKey
+  });
+  if (!tableMaterials.top.map) {
+    tableMaterials.top.color.set(wood.baseHex);
+  }
+  if (!tableMaterials.rim.map) {
+    tableMaterials.rim.color.set(wood.rimHex ?? wood.baseHex);
+  }
+  tableMaterials.accent.color.set(wood.accentHex);
+  tableMaterials.accent.needsUpdate = true;
 
   const cloth = TABLE_CLOTH_OPTIONS[appearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
   tableMaterials.felt.color.set(0xffffff);
@@ -1238,6 +1645,9 @@ function applyAppearanceChange({ refresh = true } = {}) {
     if (material?.map) {
       material.map.needsUpdate = true;
     }
+    if (material?.roughnessMap) {
+      material.roughnessMap.needsUpdate = true;
+    }
   });
   buildChairs(CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME);
   saveAppearance();
@@ -1254,7 +1664,37 @@ function createOptionPreview(key, option) {
   swatch.style.border = '1px solid rgba(255,255,255,0.12)';
   switch (key) {
     case 'tableWood':
-      swatch.style.background = `linear-gradient(135deg, ${option.top}, ${option.rim})`;
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      swatch.style.background = `linear-gradient(135deg, ${option.baseHex ?? option.top}, ${option.accentHex ?? option.rim})`;
+      {
+        const sheen = document.createElement('div');
+        sheen.style.position = 'absolute';
+        sheen.style.inset = '0';
+        sheen.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.14), rgba(15,23,42,0.55))';
+        sheen.style.pointerEvents = 'none';
+        swatch.appendChild(sheen);
+      }
+      {
+        const grain = (option?.grainId && WOOD_GRAIN_OPTIONS_BY_ID[option.grainId]) || WOOD_GRAIN_OPTIONS[0];
+        if (grain?.label) {
+          const badge = document.createElement('span');
+          badge.textContent = grain.label.slice(0, 16);
+          badge.style.position = 'absolute';
+          badge.style.right = '0.4rem';
+          badge.style.bottom = '0.35rem';
+          badge.style.padding = '0.12rem 0.4rem';
+          badge.style.borderRadius = '999px';
+          badge.style.fontSize = '0.5rem';
+          badge.style.fontWeight = '700';
+          badge.style.letterSpacing = '0.12em';
+          badge.style.textTransform = 'uppercase';
+          badge.style.color = 'rgba(226,232,240,0.92)';
+          badge.style.background = 'rgba(15,23,42,0.7)';
+          badge.style.pointerEvents = 'none';
+          swatch.appendChild(badge);
+        }
+      }
       break;
     case 'tableCloth':
       swatch.style.background = `linear-gradient(135deg, ${option.feltTop}, ${option.feltBottom})`;
