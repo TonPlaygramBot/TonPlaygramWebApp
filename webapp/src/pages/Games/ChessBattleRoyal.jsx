@@ -248,6 +248,7 @@ const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
 const TABLE_RADIUS = 3.315; // 30% wider footprint to better fill the arena
 const TABLE_HEIGHT = 2.05; // Raised so the surface aligns with the oversized chairs
+const CAMERA_TABLE_SPAN_FACTOR = 2.15; // Slightly tighter framing so the orbit camera starts closer
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
@@ -2268,7 +2269,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const tableSpan = (tableInfo?.radius ?? TABLE_RADIUS) * 2.6;
+      const tableSpan = (tableInfo?.radius ?? TABLE_RADIUS) * CAMERA_TABLE_SPAN_FACTOR;
       const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
