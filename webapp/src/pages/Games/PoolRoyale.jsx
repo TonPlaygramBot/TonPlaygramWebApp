@@ -515,6 +515,8 @@ const POCKET_JAW_SIDE_OUTWARD_OFFSET =
   POCKET_VIS_R * 0.038 * POCKET_VISUAL_EXPANSION; // push the middle jaws snug against the wooden rails while keeping their faces straight with the cushions
 const POCKET_JAW_CORNER_SIDE_TRIM_OFFSET =
   POCKET_VIS_R * 0.012 * POCKET_VISUAL_EXPANSION; // push the diagonal cut deeper so the corner jaws clear the cloth fully
+const POCKET_JAW_CORNER_LIMIT_OFFSET =
+  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // stop the corner jaw lips right at the cushion point so they never spill onto the cloth
 const POCKET_CUP_PROFILE_SAMPLES = 24;
 const POCKET_CUP_SEGMENTS = 48;
 const POCKET_CUP_FLARE_START = 0.78;
@@ -4847,8 +4849,10 @@ function Table3D(
     const chamferTargetZ =
       computeScaledCoordinate(chamferBaseZ, centroid.y, RAIL_CORNER_POCKET_CUT_SCALE) +
       sz * POCKET_JAW_CORNER_SIDE_TRIM_OFFSET;
-    const cushionEdgeX = sx * (cushionRailReachX + MICRO_EPS * 4);
-    const cushionEdgeZ = sz * (cushionRailReachZ + MICRO_EPS * 4);
+    const cushionEdgeX =
+      sx * (cushionRailReachX + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
+    const cushionEdgeZ =
+      sz * (cushionRailReachZ + POCKET_JAW_CORNER_LIMIT_OFFSET + MICRO_EPS * 4);
     const chamferCandidateX =
       sx > 0
         ? Math.max(scaledCenterX, chamferTargetX)
