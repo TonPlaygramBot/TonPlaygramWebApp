@@ -1333,37 +1333,49 @@ const POCKET_STYLE_OPTIONS = Object.freeze([
     id: 'compact',
     label: 'Compact Corners',
     cornerTrimRatio: 0.45,
-    cornerSideTrimOffsetMultiplier: 0.82
+    cornerSideTrimOffsetMultiplier: 0.82,
+    sideArcFraction: 0.34,
+    sideOutwardOffsetMultiplier: 0.86
   }),
   Object.freeze({
     id: 'club',
     label: 'Club Corners',
     cornerTrimRatio: 0.52,
-    cornerSideTrimOffsetMultiplier: 0.88
+    cornerSideTrimOffsetMultiplier: 0.88,
+    sideArcFraction: 0.45,
+    sideOutwardOffsetMultiplier: 0.9
   }),
   Object.freeze({
     id: 'balanced',
     label: 'Balanced Corners',
     cornerTrimRatio: 0.58,
-    cornerSideTrimOffsetMultiplier: 0.94
+    cornerSideTrimOffsetMultiplier: 0.94,
+    sideArcFraction: 0.56,
+    sideOutwardOffsetMultiplier: 0.96
   }),
   Object.freeze({
     id: 'tour',
     label: 'Tour Standard',
     cornerTrimRatio: 0.624,
-    cornerSideTrimOffsetMultiplier: 1
+    cornerSideTrimOffsetMultiplier: 1,
+    sideArcFraction: 0.72,
+    sideOutwardOffsetMultiplier: 1
   }),
   Object.freeze({
     id: 'pro',
     label: 'Pro Extended',
     cornerTrimRatio: 0.7,
-    cornerSideTrimOffsetMultiplier: 1.05
+    cornerSideTrimOffsetMultiplier: 1.05,
+    sideArcFraction: 0.86,
+    sideOutwardOffsetMultiplier: 1.05
   }),
   Object.freeze({
     id: 'grand',
     label: 'Grand Suite',
     cornerTrimRatio: 0.78,
-    cornerSideTrimOffsetMultiplier: 1.1
+    cornerSideTrimOffsetMultiplier: 1.1,
+    sideArcFraction: 1,
+    sideOutwardOffsetMultiplier: 1.08
   })
 ]);
 const POCKET_STYLE_OPTIONS_BY_ID = Object.freeze(
@@ -3727,6 +3739,20 @@ function Table3D(
     (Number.isFinite(pocketStyle?.cornerSideTrimOffsetMultiplier)
       ? pocketStyle.cornerSideTrimOffsetMultiplier
       : 1);
+  const jawSideArcFraction = THREE.MathUtils.clamp(
+    Number.isFinite(pocketStyle?.sideArcFraction)
+      ? pocketStyle.sideArcFraction
+      : 1,
+    0.2,
+    1
+  );
+  const jawSideOutwardOffsetMultiplier = THREE.MathUtils.clamp(
+    Number.isFinite(pocketStyle?.sideOutwardOffsetMultiplier)
+      ? pocketStyle.sideOutwardOffsetMultiplier
+      : 1,
+    0.6,
+    1.2
+  );
 
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
@@ -5032,7 +5058,9 @@ function Table3D(
         extremeX = sx > 0 ? Math.max(extremeX, pt[0]) : Math.min(extremeX, pt[0]);
       }
     }
-    const desiredThreshold = scaledCenterX + sx * POCKET_JAW_SIDE_OUTWARD_OFFSET;
+    const scaledSideOutwardOffset =
+      POCKET_JAW_SIDE_OUTWARD_OFFSET * jawSideOutwardOffsetMultiplier;
+    const desiredThreshold = scaledCenterX + sx * scaledSideOutwardOffset;
     const adjustedCenterX =
       sx > 0
         ? Math.max(scaledCenterX, Math.min(desiredThreshold, extremeX - MICRO_EPS * 8))
@@ -5044,9 +5072,14 @@ function Table3D(
       sx > 0,
       POCKET_JAW_SIDE_FLUSH_EPS
     );
-    const zLimit = Math.max(
+    const baseZLimit = Math.max(
       MICRO_EPS,
       Math.min(sideChromeMeetZ, cushionRailReachZ + MICRO_EPS * 4)
+    );
+    const zLimit = THREE.MathUtils.clamp(
+      baseZLimit * jawSideArcFraction,
+      MICRO_EPS,
+      baseZLimit
     );
     addPocketJaw(
       scaledMP,
