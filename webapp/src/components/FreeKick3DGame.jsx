@@ -309,7 +309,7 @@ const SOUND_SOURCES = {
 export default function FreeKick3DGame({ config }) {
   const hostRef = useRef(null);
   const threeRef = useRef(null);
-  const gestureRef = useRef({ start: null, last: null, pointerId: null, history: [] });
+  const gestureRef = useRef({ start: null, last: null, pointerId: null, history: [], plan: null });
   const messageTimeoutRef = useRef(null);
   const resetTimeoutRef = useRef(null);
   const gameStateRef = useRef({ gameOver: false });
@@ -1607,52 +1607,7 @@ export default function FreeKick3DGame({ config }) {
     scene.add(aimLine);
 
     const aimLineOffsets = [];
-    const aimLineBaseOffset = new THREE.Vector3(0, 0.1, 0);
-
-    const rebuildAimLine = (samples) => {
-      aimLineOffsets.length = 0;
-      const base = aimLineBaseOffset.clone();
-      aimLineOffsets.push(base);
-      if (!samples || samples.length < 2) {
-        const fallback = base.clone().add(new THREE.Vector3(0, 0, -1.2));
-        aimLineOffsets.push(fallback);
-      } else {
-        const cursor = base.clone();
-        for (let i = 1; i < samples.length; i += 1) {
-          const prev = samples[i - 1];
-          const curr = samples[i];
-          const segDx = (curr.x - prev.x) / curr.w;
-          const segDy = (curr.y - prev.y) / curr.h;
-          const segDistance = Math.hypot(segDx, segDy);
-          const segTime = Math.max(0.016, (curr.t - prev.t) / 1000);
-          if (segDistance <= 1e-5) continue;
-          const forwardPull = 1.2 + segDistance * 6.0;
-          const segmentDirection = new THREE.Vector3(segDx * 3.2, -segDy * 1.8, -forwardPull).normalize();
-          const segmentScale = THREE.MathUtils.clamp(segDistance * (5 + segTime * 4), 0.4, 3.2);
-          cursor.addScaledVector(segmentDirection, segmentScale);
-          aimLineOffsets.push(cursor.clone());
-        }
-        if (aimLineOffsets.length < 2) {
-          const fallback = base.clone().add(new THREE.Vector3(0, 0, -1.2));
-          aimLineOffsets.push(fallback);
-        }
-      }
-      const worldPoints = aimLineOffsets.map((offset) =>
-        new THREE.Vector3(
-          ball.position.x + offset.x,
-          ball.position.y + offset.y,
-          ball.position.z + offset.z
-        )
-      );
-      aimLine.geometry.setFromPoints(worldPoints);
-      aimLine.computeLineDistances();
-      aimLine.visible = true;
-    };
-
-    const clearAimLine = () => {
-      aimLineOffsets.length = 0;
-      aimLine.visible = false;
-    };
+    const aimLineBaseOffset = new THREE.Vector3(0, 0.05, 0);
 
     const summarizeSwipe = (samples) => {
       if (!samples || samples.length < 2) {
@@ -1681,6 +1636,373 @@ export default function FreeKick3DGame({ config }) {
         avgDx: totalWeight > 0 ? weightedDx / totalWeight : 0,
         avgDy: totalWeight > 0 ? weightedDy / totalWeight : 0
       };
+    };
+
+    const directionFromAzimuthSlope = (azimuth, slope) => {
+      const horizontalScale = 1 / Math.sqrt(1 + slope * slope);
+      return new THREE.Vector3(
+        Math.sin(azimuth) * horizontalScale,
+        slope * horizontalScale,
+        -Math.cos(azimuth) * horizontalScale
+      );
+    };
+
+    const simulateShotPreview = ({
+      speed,
+      azimuth,
+      slope,
+      spin,
+      planeZ,
+      collectPath = false
+    }) => {
+      if (!Number.isFinite(speed) || speed <= 0) {
+        return { hit: false, point: ball.position.clone(), path: collectPath ? [] : null };
+      }
+      const dt = 1 / 180;
+      const maxTime = 4.5;
+      const position = ball.position.clone();
+      const prevPosition = position.clone();
+      const velocity = directionFromAzimuthSlope(azimuth, slope).multiplyScalar(speed);
+      const spinState = spin.clone();
+      const tmpForce = new THREE.Vector3();
+      const path = collectPath ? [position.clone()] : null;
+      let time = 0;
+      let steps = 0;
+      while (time < maxTime && steps < 900) {
+        const speedNow = velocity.length();
+        const dragFactor = 1 - AIR_DRAG * speedNow;
+        const frictionFactor = Math.pow(FRICTION, dt * 60);
+        velocity.multiplyScalar(frictionFactor * dragFactor);
+        tmpForce.copy(spinState).cross(velocity).multiplyScalar(MAGNUS_COEFFICIENT);
+        tmpForce.add(GRAVITY);
+        velocity.addScaledVector(tmpForce, dt);
+        prevPosition.copy(position);
+        position.addScaledVector(velocity, dt);
+        if (collectPath && (steps % 2 === 0 || time + dt >= maxTime)) {
+          path.push(position.clone());
+        }
+        if (position.y < BALL_RADIUS) {
+          position.y = BALL_RADIUS;
+          if (velocity.y < 0) velocity.y *= -0.35;
+        }
+        spinState.multiplyScalar(0.985);
+        time += dt;
+        steps += 1;
+        if (prevPosition.z >= planeZ && position.z <= planeZ) {
+          const denom = prevPosition.z - position.z;
+          const ratio = denom !== 0 ? THREE.MathUtils.clamp((prevPosition.z - planeZ) / denom, 0, 1) : 0;
+          const hitPoint = prevPosition.clone().lerp(position, ratio);
+          if (collectPath) {
+            path[path.length - 1] = hitPoint.clone();
+          }
+          return { hit: true, point: hitPoint, path };
+        }
+        if (velocity.lengthSq() < 0.0004 && position.z > planeZ) break;
+      }
+      return { hit: false, point: position.clone(), path };
+    };
+
+    const solveLaunchParameters = ({ speed, azimuth, slope, target, spin }) => {
+      const planeZ = target.z;
+      let currentAzimuth = azimuth;
+      let currentSlope = slope;
+      let preview = simulateShotPreview({ speed, azimuth: currentAzimuth, slope: currentSlope, spin, planeZ });
+      if (!preview.hit) {
+        return null;
+      }
+      for (let i = 0; i < 4; i += 1) {
+        const errorX = preview.point.x - target.x;
+        if (Math.abs(errorX) > 0.002) {
+          const deltaAzimuth = 0.012;
+          const forward = simulateShotPreview({
+            speed,
+            azimuth: currentAzimuth + deltaAzimuth,
+            slope: currentSlope,
+            spin,
+            planeZ
+          });
+          if (forward.hit) {
+            const derivative = (forward.point.x - preview.point.x) / deltaAzimuth;
+            if (Math.abs(derivative) > 1e-5) {
+              currentAzimuth = THREE.MathUtils.clamp(
+                currentAzimuth - errorX / derivative,
+                -Math.PI / 2 + 0.02,
+                Math.PI / 2 - 0.02
+              );
+              preview = simulateShotPreview({
+                speed,
+                azimuth: currentAzimuth,
+                slope: currentSlope,
+                spin,
+                planeZ
+              });
+              if (!preview.hit) break;
+            }
+          }
+        }
+        const errorY = preview.point.y - target.y;
+        if (Math.abs(errorY) > 0.002) {
+          const deltaSlope = 0.01;
+          const forwardSlope = simulateShotPreview({
+            speed,
+            azimuth: currentAzimuth,
+            slope: currentSlope + deltaSlope,
+            spin,
+            planeZ
+          });
+          if (forwardSlope.hit) {
+            const derivativeY = (forwardSlope.point.y - preview.point.y) / deltaSlope;
+            if (Math.abs(derivativeY) > 1e-5) {
+              currentSlope = THREE.MathUtils.clamp(currentSlope - errorY / derivativeY, -0.35, 3.4);
+              preview = simulateShotPreview({
+                speed,
+                azimuth: currentAzimuth,
+                slope: currentSlope,
+                spin,
+                planeZ
+              });
+              if (!preview.hit) break;
+            }
+          }
+        }
+        if (
+          Math.abs(preview.point.x - target.x) < 0.004 &&
+          Math.abs(preview.point.y - target.y) < 0.004
+        ) {
+          break;
+        }
+      }
+      if (!preview.hit) {
+        return null;
+      }
+      const finalPreview = simulateShotPreview({
+        speed,
+        azimuth: currentAzimuth,
+        slope: currentSlope,
+        spin,
+        planeZ,
+        collectPath: true
+      });
+      if (!finalPreview.hit || !finalPreview.path || finalPreview.path.length < 2) {
+        return null;
+      }
+      return {
+        azimuth: currentAzimuth,
+        slope: currentSlope,
+        landing: finalPreview.point,
+        pathPoints: finalPreview.path
+      };
+    };
+
+    const buildShotPlan = (samples) => {
+      if (!samples || samples.length < 2) return null;
+      const start = samples[0];
+      const end = samples[samples.length - 1];
+      const dt = Math.max(16, end.t - start.t);
+      const { pathDistance, avgDx, avgDy } = summarizeSwipe(samples);
+      const rawDx = (end.x - start.x) / end.w;
+      const rawDy = (end.y - start.y) / end.h;
+      const baseDistance = Math.hypot(rawDx, rawDy);
+      const hasAverage = Math.abs(avgDx) + Math.abs(avgDy) > 1e-6;
+      const dx = hasAverage ? avgDx : rawDx;
+      const dy = hasAverage ? avgDy : rawDy;
+      const effectiveDistance = Math.max(pathDistance, baseDistance);
+      if (effectiveDistance < 0.02) return null;
+      const dtSeconds = Math.max(0.04, dt / 1000);
+
+      let targetPoint = projectPointerToGoal(end);
+      if (targetPoint) {
+        targetPoint.x = THREE.MathUtils.clamp(
+          targetPoint.x,
+          -goalWidth / 2 + BALL_RADIUS * 0.6,
+          goalWidth / 2 - BALL_RADIUS * 0.6
+        );
+        targetPoint.y = THREE.MathUtils.clamp(
+          targetPoint.y,
+          BALL_RADIUS * 1.1,
+          goalHeight - BALL_RADIUS * 0.4
+        );
+      } else {
+        const fallbackX = THREE.MathUtils.clamp(
+          dx * goalWidth * 1.1,
+          -goalWidth / 2 + BALL_RADIUS * 0.6,
+          goalWidth / 2 - BALL_RADIUS * 0.6
+        );
+        const fallbackY = THREE.MathUtils.clamp(
+          goalHeight * 0.6 - dy * goalHeight * 0.9,
+          BALL_RADIUS * 1.1,
+          goalHeight - BALL_RADIUS * 0.4
+        );
+        targetPoint = new THREE.Vector3(fallbackX, fallbackY, goalZ);
+      }
+      targetPoint.z = goalZ - 0.4;
+
+      const samplesCount = samples.length;
+      const midIndex = Math.min(samplesCount - 1, Math.max(1, Math.floor(samplesCount / 2)));
+      const early = samples[0];
+      const mid = samples[midIndex];
+      const late = samples[samplesCount - 1];
+      const earlyDx = (mid.x - early.x) / mid.w;
+      const earlyDt = Math.max(0.05, (mid.t - early.t) / 1000);
+      const earlyRate = earlyDt > 0 ? earlyDx / earlyDt : 0;
+      const lateDx = (late.x - mid.x) / late.w;
+      const lateDt = Math.max(0.05, (late.t - mid.t) / 1000);
+      const lateRate = lateDt > 0 ? lateDx / lateDt : 0;
+      const lateralChange = lateRate - earlyRate;
+      let weightedLateralRate = 0;
+      let totalWeight = 0;
+      for (let i = 1; i < samplesCount; i += 1) {
+        const prev = samples[i - 1];
+        const curr = samples[i];
+        const segDx = (curr.x - prev.x) / curr.w;
+        const segDt = Math.max(0.016, (curr.t - prev.t) / 1000);
+        const segRate = segDt > 0 ? segDx / segDt : 0;
+        const progress = i / Math.max(1, samplesCount - 1);
+        const weight = progress * segDt;
+        weightedLateralRate += segRate * weight;
+        totalWeight += weight;
+      }
+      const fallbackLateralSpeed = dx / dtSeconds;
+      const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : fallbackLateralSpeed;
+      const rawTargetDepth = Math.abs(targetPoint.z - ball.position.z);
+      const targetDepth = Math.max(rawTargetDepth, 0.5);
+      const curveBoost = 1 + Math.min(0.35, Math.abs(lateralChange) * 0.9 + Math.abs(averageCurveRate) * 0.8);
+      const distanceScale = THREE.MathUtils.clamp(targetDepth / 8.5, 0.85, 1.32);
+      const basePower = THREE.MathUtils.clamp((effectiveDistance * 30) / dtSeconds, 3.2, MAX_BASE_SHOT_POWER);
+      const rawPower = basePower * SHOOT_POWER_SCALE * curveBoost * distanceScale;
+      const power = Math.min(rawPower, MAX_SHOT_POWER);
+      const normalizedPower = MAX_SHOT_POWER > 0 ? THREE.MathUtils.clamp(power / MAX_SHOT_POWER, 0, 1) : 0;
+      const fullArcThreshold = SHOOT_VERTICAL_FULL_POWER_THRESHOLD;
+      const highArcWeight =
+        normalizedPower <= fullArcThreshold
+          ? 0
+          : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
+
+      const aimVector = targetPoint.clone().sub(ball.position);
+      const horizontalDistance = Math.max(0.1, Math.hypot(aimVector.x, aimVector.z));
+      const slopeToTarget = aimVector.y / horizontalDistance;
+      const swipeSlope = THREE.MathUtils.clamp(-dy * 1.7 + 0.6, -0.4, 2.8);
+      const arcBias = highArcWeight * 0.45 + THREE.MathUtils.clamp(effectiveDistance * 0.5, 0, 0.3);
+      const slopeGuess = THREE.MathUtils.clamp(
+        THREE.MathUtils.lerp(slopeToTarget, swipeSlope, 0.6) + arcBias,
+        -0.35,
+        3.4
+      );
+      const azimuthGuess = Math.atan2(targetPoint.x - ball.position.x, ball.position.z - targetPoint.z);
+
+      const verticalSpeed = -dy / dtSeconds;
+      const lateralSpeed = fallbackLateralSpeed;
+      const intensity = THREE.MathUtils.clamp(power / (MAX_SHOT_POWER * 0.92), 0, 1.1);
+      const swipeCurve = THREE.MathUtils.clamp(lateralChange * 0.85 + averageCurveRate * 1.1, -1.8, 1.8);
+      const targetCurve = THREE.MathUtils.clamp((targetPoint.x - ball.position.x) / targetDepth, -1.6, 1.6);
+      const combinedCurve = THREE.MathUtils.lerp(targetCurve, swipeCurve, 0.7);
+      const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 260 - swipeSlope * 85, -720, 720);
+      const spinYDeg = THREE.MathUtils.clamp(lateralSpeed * 150 + combinedCurve * 520, -900, 900);
+      const spinZDeg = THREE.MathUtils.clamp(combinedCurve * 300, -540, 540);
+      const spinScale = SPIN_SCALE * (1 + intensity * 0.35);
+      const spinVector = new THREE.Vector3(
+        THREE.MathUtils.degToRad(spinXDeg * intensity * spinScale),
+        THREE.MathUtils.degToRad(spinYDeg * intensity * spinScale),
+        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.65 * spinScale)
+      );
+
+      const solution = solveLaunchParameters({
+        speed: power,
+        azimuth: azimuthGuess,
+        slope: slopeGuess,
+        target: targetPoint,
+        spin: spinVector
+      });
+
+      const resolvedDirection = solution
+        ? directionFromAzimuthSlope(solution.azimuth, solution.slope)
+        : directionFromAzimuthSlope(azimuthGuess, slopeGuess);
+
+      const velocity = resolvedDirection.clone().multiplyScalar(power);
+
+      const verticalFactor = THREE.MathUtils.lerp(
+        SHOOT_VERTICAL_POWER_MIN,
+        SHOOT_VERTICAL_POWER_MAX,
+        Math.pow(highArcWeight, 0.9)
+      );
+      const maxVerticalSpeed = Math.min(power * verticalFactor, MAX_VERTICAL_LAUNCH_SPEED);
+      if (velocity.y > maxVerticalSpeed) {
+        velocity.y = maxVerticalSpeed;
+        const horizontalMag = Math.hypot(velocity.x, velocity.z);
+        const remaining = Math.sqrt(Math.max(power * power - maxVerticalSpeed * maxVerticalSpeed, 0));
+        if (horizontalMag > 1e-5 && remaining > 0) {
+          const scale = remaining / horizontalMag;
+          velocity.x *= scale;
+          velocity.z *= scale;
+        }
+      }
+
+      let offsets;
+      if (solution) {
+        offsets = solution.pathPoints.map((point, index) => {
+          const offset = new THREE.Vector3(
+            point.x - ball.position.x,
+            point.y - ball.position.y,
+            point.z - ball.position.z
+          );
+          if (index === 0) {
+            offset.add(aimLineBaseOffset);
+          }
+          return offset;
+        });
+      } else {
+        const base = aimLineBaseOffset.clone();
+        offsets = [base, base.clone().add(new THREE.Vector3(0, 0, -1.2))];
+      }
+      if (offsets.length < 2) {
+        const base = aimLineBaseOffset.clone();
+        offsets = [base, base.clone().add(new THREE.Vector3(0, 0, -1.2))];
+      }
+
+      return {
+        velocity,
+        spin: spinVector.clone(),
+        offsets,
+        targetPoint,
+        power,
+        intensity,
+        landing: solution?.landing ?? null
+      };
+    };
+
+    const rebuildAimLine = (samples) => {
+      aimLineOffsets.length = 0;
+      gestureRef.current.plan = null;
+      let plan = null;
+      if (samples && samples.length >= 2) {
+        plan = buildShotPlan(samples);
+      }
+      if (plan) {
+        plan.offsets.forEach((offset) => {
+          aimLineOffsets.push(offset.clone());
+        });
+        gestureRef.current.plan = plan;
+      } else {
+        const base = aimLineBaseOffset.clone();
+        aimLineOffsets.push(base);
+        aimLineOffsets.push(base.clone().add(new THREE.Vector3(0, 0, -1.2)));
+      }
+      const worldPoints = aimLineOffsets.map((offset) =>
+        new THREE.Vector3(
+          ball.position.x + offset.x,
+          ball.position.y + offset.y,
+          ball.position.z + offset.z
+        )
+      );
+      aimLine.geometry.setFromPoints(worldPoints);
+      aimLine.computeLineDistances();
+      aimLine.visible = true;
+    };
+
+    const clearAimLine = () => {
+      aimLineOffsets.length = 0;
+      gestureRef.current.plan = null;
+      aimLine.visible = false;
     };
 
     const goalAABB = new THREE.Box3(
@@ -2039,6 +2361,7 @@ export default function FreeKick3DGame({ config }) {
       gestureRef.current.last = pointer;
       gestureRef.current.pointerId = event.pointerId;
       gestureRef.current.history = [pointer];
+      gestureRef.current.plan = null;
       rebuildAimLine(gestureRef.current.history);
       startCrowdSound();
       if (!state.started) {
@@ -2059,135 +2382,27 @@ export default function FreeKick3DGame({ config }) {
     const onPointerUp = (event) => {
       if (gestureRef.current.pointerId !== event.pointerId) return;
       gestureRef.current.pointerId = null;
-      clearAimLine();
       const start = gestureRef.current.start;
       const end = gestureRef.current.last;
+      const history = gestureRef.current.history ? [...gestureRef.current.history] : [];
       gestureRef.current.start = null;
       gestureRef.current.last = null;
-      const history = gestureRef.current.history ? [...gestureRef.current.history] : [];
       gestureRef.current.history = [];
-      if (!start || !end || gameStateRef.current.gameOver) return;
-      const dt = Math.max(16, end.t - start.t);
+      const storedPlan = gestureRef.current.plan;
+      if (!start || !end || gameStateRef.current.gameOver) {
+        clearAimLine();
+        gestureRef.current.plan = null;
+        return;
+      }
       if (history.length === 0) history.push(start);
       if (history[history.length - 1] !== end) history.push(end);
       else if (history.length === 1) history.push(end);
-      const rawDx = (end.x - start.x) / end.w;
-      const rawDy = (end.y - start.y) / end.h;
-      const baseDistance = Math.hypot(rawDx, rawDy);
-      const { pathDistance, avgDx, avgDy } = summarizeSwipe(history);
-      const hasAverage = Math.abs(avgDx) + Math.abs(avgDy) > 1e-6;
-      const dx = hasAverage ? avgDx : rawDx;
-      const dy = hasAverage ? avgDy : rawDy;
-      const effectiveDistance = Math.max(pathDistance, baseDistance);
-      if (effectiveDistance < 0.02) return;
-      const dtSeconds = dt / 1000;
-      const normalizedDt = Math.max(0.04, dtSeconds);
-      let targetPoint = projectPointerToGoal(end);
-      if (targetPoint) {
-        targetPoint.x = THREE.MathUtils.clamp(
-          targetPoint.x,
-          -goalWidth / 2 + BALL_RADIUS * 0.6,
-          goalWidth / 2 - BALL_RADIUS * 0.6
-        );
-        targetPoint.y = THREE.MathUtils.clamp(
-          targetPoint.y,
-          BALL_RADIUS * 1.1,
-          goalHeight - BALL_RADIUS * 0.4
-        );
-      } else {
-        const fallbackX = THREE.MathUtils.clamp(
-          dx * goalWidth * 1.1,
-          -goalWidth / 2 + BALL_RADIUS * 0.6,
-          goalWidth / 2 - BALL_RADIUS * 0.6
-        );
-        const fallbackY = THREE.MathUtils.clamp(
-          goalHeight * 0.6 - dy * goalHeight * 0.9,
-          BALL_RADIUS * 1.1,
-          goalHeight - BALL_RADIUS * 0.4
-        );
-        targetPoint = new THREE.Vector3(fallbackX, fallbackY, goalZ);
-      }
-      targetPoint.z = goalZ - 0.4;
-      const samples = history;
-      const midIndex = Math.min(samples.length - 1, Math.max(1, Math.floor(samples.length / 2)));
-      const early = samples[0];
-      const mid = samples[midIndex];
-      const late = samples[samples.length - 1];
-      const earlyDx = (mid.x - early.x) / mid.w;
-      const earlyDt = Math.max(0.05, (mid.t - early.t) / 1000);
-      const earlyRate = earlyDt > 0 ? earlyDx / earlyDt : 0;
-      const lateDx = (late.x - mid.x) / late.w;
-      const lateDt = Math.max(0.05, (late.t - mid.t) / 1000);
-      const lateRate = lateDt > 0 ? lateDx / lateDt : 0;
-      const lateralChange = lateRate - earlyRate;
-      let weightedLateralRate = 0;
-      let totalWeight = 0;
-      for (let i = 1; i < samples.length; i += 1) {
-        const prev = samples[i - 1];
-        const curr = samples[i];
-        const segDx = (curr.x - prev.x) / curr.w;
-        const segDt = Math.max(0.016, (curr.t - prev.t) / 1000);
-        const segRate = segDt > 0 ? segDx / segDt : 0;
-        const progress = i / Math.max(1, samples.length - 1);
-        const weight = progress * segDt;
-        weightedLateralRate += segRate * weight;
-        totalWeight += weight;
-      }
-      const fallbackLateralSpeed = dx / normalizedDt;
-      const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : fallbackLateralSpeed;
-      const rawTargetDepth = Math.abs(targetPoint.z - ball.position.z);
-      const targetDepth = Math.max(rawTargetDepth, 0.5);
-      const curveBoost = 1 + Math.min(0.35, Math.abs(lateralChange) * 0.9 + Math.abs(averageCurveRate) * 0.8);
-      const distanceScale = THREE.MathUtils.clamp(targetDepth / 8.5, 0.85, 1.32);
-      const basePower = THREE.MathUtils.clamp((effectiveDistance * 30) / normalizedDt, 3.2, MAX_BASE_SHOT_POWER);
-      const rawPower = basePower * SHOOT_POWER_SCALE * curveBoost * distanceScale;
-      const power = Math.min(rawPower, MAX_SHOT_POWER);
-      const normalizedPower = MAX_SHOT_POWER > 0 ? THREE.MathUtils.clamp(power / MAX_SHOT_POWER, 0, 1) : 0;
-      const fullArcThreshold = SHOOT_VERTICAL_FULL_POWER_THRESHOLD;
-      const highArcWeight =
-        normalizedPower <= fullArcThreshold
-          ? 0
-          : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
-      const aimVector = targetPoint.clone().sub(ball.position);
-      const horizontalDistance = Math.max(0.1, Math.hypot(aimVector.x, aimVector.z));
-      const slopeToTarget = aimVector.y / horizontalDistance;
-      const swipeSlope = THREE.MathUtils.clamp(-dy * 1.7 + 0.6, -0.4, 2.8);
-      const arcBias = highArcWeight * 0.45 + THREE.MathUtils.clamp(effectiveDistance * 0.5, 0, 0.3);
-      const desiredSlope = THREE.MathUtils.lerp(slopeToTarget, swipeSlope, 0.6) + arcBias;
-      aimVector.y = desiredSlope * horizontalDistance;
-      const direction = aimVector.normalize();
-      state.velocity.copy(direction.multiplyScalar(power));
-      const verticalFactor = THREE.MathUtils.lerp(
-        SHOOT_VERTICAL_POWER_MIN,
-        SHOOT_VERTICAL_POWER_MAX,
-        Math.pow(highArcWeight, 0.9)
-      );
-      const maxVerticalSpeed = Math.min(power * verticalFactor, MAX_VERTICAL_LAUNCH_SPEED);
-      if (state.velocity.y > maxVerticalSpeed) {
-        state.velocity.y = maxVerticalSpeed;
-        const horizontalMag = Math.hypot(state.velocity.x, state.velocity.z);
-        const remaining = Math.sqrt(Math.max(power * power - maxVerticalSpeed * maxVerticalSpeed, 0));
-        if (horizontalMag > 1e-5 && remaining > 0) {
-          const scale = remaining / horizontalMag;
-          state.velocity.x *= scale;
-          state.velocity.z *= scale;
-        }
-      }
-      const verticalSpeed = -dy / normalizedDt;
-      const lateralSpeed = fallbackLateralSpeed;
-      const intensity = THREE.MathUtils.clamp(power / (MAX_SHOT_POWER * 0.92), 0, 1.1);
-      const swipeCurve = THREE.MathUtils.clamp(lateralChange * 0.85 + averageCurveRate * 1.1, -1.8, 1.8);
-      const targetCurve = THREE.MathUtils.clamp((targetPoint.x - ball.position.x) / targetDepth, -1.6, 1.6);
-      const combinedCurve = THREE.MathUtils.lerp(targetCurve, swipeCurve, 0.7);
-      const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 260 - swipeSlope * 85, -720, 720);
-      const spinYDeg = THREE.MathUtils.clamp(lateralSpeed * 150 + combinedCurve * 520, -900, 900);
-      const spinZDeg = THREE.MathUtils.clamp(combinedCurve * 300, -540, 540);
-      const spinScale = SPIN_SCALE * (1 + intensity * 0.35);
-      state.spin.set(
-        THREE.MathUtils.degToRad(spinXDeg * intensity * spinScale),
-        THREE.MathUtils.degToRad(spinYDeg * intensity * spinScale),
-        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.65 * spinScale)
-      );
+      const plan = storedPlan ?? buildShotPlan(history);
+      clearAimLine();
+      gestureRef.current.plan = null;
+      if (!plan) return;
+      state.velocity.copy(plan.velocity);
+      state.spin.copy(plan.spin);
       state.scored = false;
       setShots((value) => value + 1);
       playKickSound();
