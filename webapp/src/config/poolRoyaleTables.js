@@ -1,19 +1,19 @@
 const BASE_TABLE_SCALE = 1.44;
 const BASE_TABLE_MOBILE_SCALE = 1.44;
 const BASE_TABLE_COMPACT_SCALE = 1.44;
-const BASE_PLAYFIELD_WIDTH_MM = 3569; // 12 ft snooker playing surface width
+const BASE_PLAYFIELD_WIDTH_MM = 2540; // WPA 9 ft playing surface width (100")
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
   '8ft': {
     id: '8ft',
-    label: 'Snooker Clone',
-    playfield: Object.freeze({ widthMm: 3569, heightMm: 1778 }),
-    ballDiameterMm: 52.5,
+    label: '8 ft',
+    playfield: Object.freeze({ widthMm: 2235, heightMm: 1118 }), // 88" × 44"
+    ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
-      corner: 89,
-      side: 109
+      corner: 171.45,
+      side: 152.4
     }),
-    cushionCutAngleDeg: 29,
+    cushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
 });
