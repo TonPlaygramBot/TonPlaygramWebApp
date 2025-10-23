@@ -493,12 +493,12 @@ const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward 
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const POCKET_JAW_CLOTH_CONTACT_PAD = 0; // let the jaws run right up to the green cloth without leaving a standoff gap
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.1; // widen the middle pocket jaws 10% along the side rails
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.2; // widen the middle pocket jaws 20% along the side rails
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.5; // enlarge the side pocket jaw footprint by 50%
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
 const SIDE_POCKET_RIM_FIELD_PULL = 0.08; // keep the middle pocket rim hugging the chrome arc instead of the field
-const CORNER_JAW_ARC_DEG = 54 * 1.4; // expand the corner jaw span 40% further along the rails
-const SIDE_JAW_ARC_DEG = 52 * 1.4; // expand the side jaw span 40% further toward the long rails
+const CORNER_JAW_ARC_DEG = 54 * 1.5; // expand the corner jaw span 50% further along the rails
+const SIDE_JAW_ARC_DEG = 52; // base side jaw span; middle-pocket expansion happens via SIDE_POCKET_JAW_LATERAL_EXPANSION
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
