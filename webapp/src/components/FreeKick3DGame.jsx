@@ -282,7 +282,7 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
-const SHOOT_POWER_SCALE = 1.0; // deliver full swipe power for stronger shots
+const SHOOT_POWER_SCALE = 1.15; // allow harder strikes from the swipe motion
 const SHOOT_VERTICAL_POWER_MIN = 0.32;
 const SHOOT_VERTICAL_POWER_MAX = 0.48;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.8;
@@ -610,16 +610,15 @@ export default function FreeKick3DGame({ config }) {
       canvas.width = canvas.height = size;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
-      ctx.lineWidth = 3.2;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#ffd60a';
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 4.5;
       const radius = 18;
+      const outlineWidth = radius * 0.52;
+      const innerWidth = radius * 0.32;
       const patternWidth = radius * 3;
       const patternHeight = Math.sqrt(3) * radius;
       const drawHex = (cx, cy) => {
+        ctx.save();
         ctx.beginPath();
         for (let i = 0; i < 6; i += 1) {
           const angle = (Math.PI / 3) * i + Math.PI / 6;
@@ -629,7 +628,16 @@ export default function FreeKick3DGame({ config }) {
           else ctx.lineTo(x, y);
         }
         ctx.closePath();
+        ctx.shadowColor = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur = 3.5;
+        ctx.lineWidth = outlineWidth;
+        ctx.strokeStyle = '#111827';
         ctx.stroke();
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = innerWidth;
+        ctx.strokeStyle = '#facc15';
+        ctx.stroke();
+        ctx.restore();
       };
       for (let y = -patternHeight; y < size + patternHeight; y += patternHeight) {
         for (let x = -patternWidth; x < size + patternWidth; x += patternWidth) {
@@ -814,6 +822,11 @@ export default function FreeKick3DGame({ config }) {
     const billboardBaseY = billboardHeight / 2 + 0.02;
     const billboardZ = goalZ - goalDepthBottom - 1.35;
     const billboardGroup = new THREE.Group();
+    const billboardFrameMaterial = new THREE.MeshStandardMaterial({
+      color: 0x000000,
+      roughness: 0.42,
+      metalness: 0.55
+    });
     const billboardAnimations = [];
     const fieldFacingTarget = new THREE.Vector3();
     const orientTowardsField = (mesh, targetZOffset = 2.4, rotateFront = false) => {
@@ -836,6 +849,29 @@ export default function FreeKick3DGame({ config }) {
         metalness: 0.2
       });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, billboardHeight), material);
+      const frameThicknessWorld = Math.max(0.12, width * 0.04);
+      const frameDepth = 0.08;
+      const topBar = new THREE.Mesh(
+        new THREE.BoxGeometry(width + frameThicknessWorld * 2, frameThicknessWorld, frameDepth),
+        billboardFrameMaterial
+      );
+      topBar.position.set(0, billboardHeight / 2 + frameThicknessWorld / 2, frameDepth * 0.5);
+      const bottomBar = topBar.clone();
+      bottomBar.position.y = -topBar.position.y;
+      const sideBarGeo = new THREE.BoxGeometry(
+        frameThicknessWorld,
+        billboardHeight + frameThicknessWorld * 2,
+        frameDepth
+      );
+      const leftBar = new THREE.Mesh(sideBarGeo, billboardFrameMaterial);
+      leftBar.position.set(-width / 2 - frameThicknessWorld / 2, 0, frameDepth * 0.5);
+      const rightBar = leftBar.clone();
+      rightBar.position.x = -leftBar.position.x;
+      [topBar, bottomBar, leftBar, rightBar].forEach((bar) => {
+        bar.castShadow = false;
+        bar.receiveShadow = false;
+        mesh.add(bar);
+      });
       const centerX = billboardCursor + width / 2;
       mesh.position.set(centerX, billboardBaseY, billboardZ);
       mesh.castShadow = false;
@@ -903,11 +939,15 @@ export default function FreeKick3DGame({ config }) {
       ior: 1.45
     });
     const suiteFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x3d454f, roughness: 0.48, metalness: 0.62 });
+    const suiteMullionMaterial = new THREE.MeshStandardMaterial({ color: 0x1f242c, roughness: 0.5, metalness: 0.6 });
     const suiteRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x202126, roughness: 0.32, metalness: 0.7 });
     const suiteGeo = new THREE.BoxGeometry(9.2, 4.8, 13);
     const suiteFrameGeo = new THREE.BoxGeometry(10.4, 5.9, 14.6);
     const suiteRoofGeo = new THREE.BoxGeometry(11.2, 0.6, 15);
     const suiteDeckGeo = new THREE.BoxGeometry(78, 0.5, 16);
+    const suiteWindowGeo = new THREE.BoxGeometry(7.6, 3.6, 9.2);
+    const suiteMullionGeo = new THREE.BoxGeometry(0.28, 3.6, 9.4);
+    const suiteTransomGeo = new THREE.BoxGeometry(7.6, 0.24, 9.4);
 
     function createStandSection(offsetX = 0, baseY = 0, depthOffset = 0) {
       const section = new THREE.Group();
@@ -1063,6 +1103,61 @@ export default function FreeKick3DGame({ config }) {
       roofSupports.add(support);
     }
 
+    const roofStrutMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x363d48,
+      roughness: 0.32,
+      metalness: 0.72,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.28
+    });
+    const roofStruts = new THREE.Group();
+    roofSupports.children.forEach((support) => {
+      const supportTop = new THREE.Vector3(
+        support.position.x,
+        support.position.y + supportHeight / 2,
+        support.position.z
+      );
+      const forwardAnchor = new THREE.Vector3(
+        support.position.x,
+        suiteBaseY + suiteGeo.parameters.height + 6,
+        suiteCenterZ - 26
+      );
+      const midAnchor = new THREE.Vector3(
+        support.position.x,
+        suiteBaseY + suiteGeo.parameters.height + 4.5,
+        suiteCenterZ - 32
+      );
+      [forwardAnchor, midAnchor].forEach((target, index) => {
+        const strut = makeTubeBetween(supportTop, target, index === 0 ? 0.55 : 0.45, roofStrutMaterial);
+        if (strut) {
+          strut.castShadow = true;
+          strut.receiveShadow = true;
+          roofStruts.add(strut);
+        }
+      });
+    });
+    for (let i = 0; i < roofSupports.children.length - 1; i += 1) {
+      const leftSupport = roofSupports.children[i];
+      const rightSupport = roofSupports.children[i + 1];
+      const crossStart = new THREE.Vector3(
+        leftSupport.position.x,
+        suiteBaseY + suiteGeo.parameters.height + 4.5,
+        suiteCenterZ - 32
+      );
+      const crossEnd = new THREE.Vector3(
+        rightSupport.position.x,
+        suiteBaseY + suiteGeo.parameters.height + 4.5,
+        suiteCenterZ - 32
+      );
+      const crossBrace = makeTubeBetween(crossStart, crossEnd, 0.42, roofStrutMaterial);
+      if (crossBrace) {
+        crossBrace.castShadow = true;
+        crossBrace.receiveShadow = true;
+        roofStruts.add(crossBrace);
+      }
+    }
+    suitesGroup.add(roofStruts);
+
     for (let i = -2.5; i <= 2.5; i += 1) {
       const centerX = i * 12;
       const centerY = suiteBaseY + suiteGeo.parameters.height / 2;
@@ -1073,7 +1168,24 @@ export default function FreeKick3DGame({ config }) {
       frame.receiveShadow = true;
       orientTowardsField(frame, 2.4, true);
 
-      const glass = new THREE.Mesh(suiteGeo, suiteGlassMaterial);
+      const glass = new THREE.Mesh(suiteWindowGeo, suiteGlassMaterial);
+      const mullionOffsets = [
+        -suiteWindowGeo.parameters.width / 6,
+        suiteWindowGeo.parameters.width / 6
+      ];
+      mullionOffsets.forEach((offset) => {
+        const mullion = new THREE.Mesh(suiteMullionGeo, suiteMullionMaterial);
+        mullion.position.x = offset;
+        mullion.castShadow = false;
+        mullion.receiveShadow = false;
+        glass.add(mullion);
+      });
+      const transom = new THREE.Mesh(suiteTransomGeo, suiteMullionMaterial);
+      transom.position.y =
+        suiteWindowGeo.parameters.height / 2 - suiteTransomGeo.parameters.height / 2 - 0.08;
+      transom.castShadow = false;
+      transom.receiveShadow = false;
+      glass.add(transom);
       glass.position.copy(frame.position);
       orientTowardsField(glass, 2.4, true);
 
@@ -1297,72 +1409,66 @@ export default function FreeKick3DGame({ config }) {
     const broadcastFocus = new THREE.Vector3(0, goalHeight * 0.55, goalZ + 2.4);
     const tripodTilt = THREE.MathUtils.degToRad(-8);
 
-    const leftCameraRig = createRoyalBroadcastCamera(CAMERA_SCALE);
-    leftCameraRig.group.position.set(-cameraOffset, GROUND_Y, cameraZ);
-    const toLeftTarget = new THREE.Vector3().subVectors(broadcastFocus, leftCameraRig.group.position);
-    const leftYaw = Math.atan2(toLeftTarget.x, toLeftTarget.z);
-    leftCameraRig.group.rotation.y = leftYaw;
-    scene.add(leftCameraRig.group);
-    leftCameraRig.group.updateWorldMatrix(true, false);
-    leftCameraRig.headPivot.up.set(0, 1, 0);
-    leftCameraRig.headPivot.lookAt(broadcastFocus);
-    leftCameraRig.headPivot.rotateY(Math.PI);
-    leftCameraRig.headPivot.rotateX(tripodTilt);
+    const broadcastCameras = [];
+    const cameraColliders = [];
 
-    const rightCameraRig = createRoyalBroadcastCamera(CAMERA_SCALE);
-    rightCameraRig.group.position.set(cameraOffset, GROUND_Y, cameraZ);
-    const toRightTarget = new THREE.Vector3().subVectors(broadcastFocus, rightCameraRig.group.position);
-    const rightYaw = Math.atan2(toRightTarget.x, toRightTarget.z);
-    rightCameraRig.group.rotation.y = rightYaw;
-    scene.add(rightCameraRig.group);
-    rightCameraRig.group.updateWorldMatrix(true, false);
-    rightCameraRig.headPivot.up.set(0, 1, 0);
-    rightCameraRig.headPivot.lookAt(broadcastFocus);
-    rightCameraRig.headPivot.rotateY(Math.PI);
-    rightCameraRig.headPivot.rotateX(tripodTilt);
+    const registerCameraRig = (rig) => {
+      const scaleRatio = rig.group.scale.x / CAMERA_BASE_SCALE;
+      const bodyRadius = 0.36 * scaleRatio;
+      const baseRadius = 0.29 * scaleRatio;
+      cameraColliders.push(
+        {
+          anchor: rig.bodyAnchor,
+          radius: bodyRadius,
+          restitution: 1.15,
+          velocityDamping: 0.78,
+          spinDamping: 0.72,
+          slop: 0.002,
+          center: new THREE.Vector3()
+        },
+        {
+          anchor: rig.baseAnchor,
+          radius: baseRadius,
+          restitution: 1.1,
+          velocityDamping: 0.78,
+          spinDamping: 0.72,
+          slop: 0.002,
+          center: new THREE.Vector3()
+        }
+      );
+      broadcastCameras.push(rig);
+    };
 
-    const cameraScaleRatio = CAMERA_SCALE / CAMERA_BASE_SCALE;
-    const cameraBodyRadius = 0.36 * cameraScaleRatio;
-    const cameraBaseRadius = 0.29 * cameraScaleRatio;
-    const broadcastCameras = [leftCameraRig, rightCameraRig];
-    const cameraColliders = [
-      {
-        anchor: leftCameraRig.bodyAnchor,
-        radius: cameraBodyRadius,
-        restitution: 1.15,
-        velocityDamping: 0.78,
-        spinDamping: 0.72,
-        slop: 0.002,
-        center: new THREE.Vector3()
-      },
-      {
-        anchor: leftCameraRig.baseAnchor,
-        radius: cameraBaseRadius,
-        restitution: 1.1,
-        velocityDamping: 0.78,
-        spinDamping: 0.72,
-        slop: 0.002,
-        center: new THREE.Vector3()
-      },
-      {
-        anchor: rightCameraRig.bodyAnchor,
-        radius: cameraBodyRadius,
-        restitution: 1.15,
-        velocityDamping: 0.78,
-        spinDamping: 0.72,
-        slop: 0.002,
-        center: new THREE.Vector3()
-      },
-      {
-        anchor: rightCameraRig.baseAnchor,
-        radius: cameraBaseRadius,
-        restitution: 1.1,
-        velocityDamping: 0.78,
-        spinDamping: 0.72,
-        slop: 0.002,
-        center: new THREE.Vector3()
-      }
-    ];
+    const orientCameraRig = (rig) => {
+      const toTarget = new THREE.Vector3().subVectors(broadcastFocus, rig.group.position);
+      rig.group.rotation.y = Math.atan2(toTarget.x, toTarget.z);
+      scene.add(rig.group);
+      rig.group.updateWorldMatrix(true, false);
+      rig.headPivot.up.set(0, 1, 0);
+      rig.headPivot.lookAt(broadcastFocus);
+      rig.headPivot.rotateY(Math.PI);
+      rig.headPivot.rotateX(tripodTilt);
+      registerCameraRig(rig);
+    };
+
+    const placeCameraRig = (position) => {
+      const rig = createRoyalBroadcastCamera(CAMERA_SCALE);
+      rig.group.position.copy(position);
+      orientCameraRig(rig);
+      return rig;
+    };
+
+    placeCameraRig(new THREE.Vector3(-cameraOffset, GROUND_Y, cameraZ));
+    placeCameraRig(new THREE.Vector3(cameraOffset, GROUND_Y, cameraZ));
+
+    const suiteCameraOffsetX = standScale * (suiteDeckGeo.parameters.width / 2 + 4);
+    const suiteCameraY =
+      standsGroup.position.y + standScale * (suiteBaseY + suiteGeo.parameters.height * 0.6);
+    const suiteCameraZ =
+      standsGroup.position.z + standScale * (suiteCenterZ + suiteGeo.parameters.depth * 0.45);
+
+    placeCameraRig(new THREE.Vector3(-suiteCameraOffsetX, suiteCameraY, suiteCameraZ));
+    placeCameraRig(new THREE.Vector3(suiteCameraOffsetX, suiteCameraY, suiteCameraZ));
 
     scene.add(goal);
 
@@ -1405,6 +1511,83 @@ export default function FreeKick3DGame({ config }) {
     aimLine.computeLineDistances();
     aimLine.visible = false;
     scene.add(aimLine);
+
+    const aimLineOffsets = [];
+    const aimLineBaseOffset = new THREE.Vector3(0, 0.1, 0);
+
+    const rebuildAimLine = (samples) => {
+      aimLineOffsets.length = 0;
+      const base = aimLineBaseOffset.clone();
+      aimLineOffsets.push(base);
+      if (!samples || samples.length < 2) {
+        const fallback = base.clone().add(new THREE.Vector3(0, 0, -1.2));
+        aimLineOffsets.push(fallback);
+      } else {
+        const cursor = base.clone();
+        for (let i = 1; i < samples.length; i += 1) {
+          const prev = samples[i - 1];
+          const curr = samples[i];
+          const segDx = (curr.x - prev.x) / curr.w;
+          const segDy = (curr.y - prev.y) / curr.h;
+          const segDistance = Math.hypot(segDx, segDy);
+          const segTime = Math.max(0.016, (curr.t - prev.t) / 1000);
+          if (segDistance <= 1e-5) continue;
+          const forwardPull = 1.2 + segDistance * 6.0;
+          const segmentDirection = new THREE.Vector3(segDx * 3.2, -segDy * 1.8, -forwardPull).normalize();
+          const segmentScale = THREE.MathUtils.clamp(segDistance * (5 + segTime * 4), 0.4, 3.2);
+          cursor.addScaledVector(segmentDirection, segmentScale);
+          aimLineOffsets.push(cursor.clone());
+        }
+        if (aimLineOffsets.length < 2) {
+          const fallback = base.clone().add(new THREE.Vector3(0, 0, -1.2));
+          aimLineOffsets.push(fallback);
+        }
+      }
+      const worldPoints = aimLineOffsets.map((offset) =>
+        new THREE.Vector3(
+          ball.position.x + offset.x,
+          ball.position.y + offset.y,
+          ball.position.z + offset.z
+        )
+      );
+      aimLine.geometry.setFromPoints(worldPoints);
+      aimLine.computeLineDistances();
+      aimLine.visible = true;
+    };
+
+    const clearAimLine = () => {
+      aimLineOffsets.length = 0;
+      aimLine.visible = false;
+    };
+
+    const summarizeSwipe = (samples) => {
+      if (!samples || samples.length < 2) {
+        return { pathDistance: 0, avgDx: 0, avgDy: 0 };
+      }
+      let pathDistance = 0;
+      let weightedDx = 0;
+      let weightedDy = 0;
+      let totalWeight = 0;
+      for (let i = 1; i < samples.length; i += 1) {
+        const prev = samples[i - 1];
+        const curr = samples[i];
+        const segDx = (curr.x - prev.x) / curr.w;
+        const segDy = (curr.y - prev.y) / curr.h;
+        const segDistance = Math.hypot(segDx, segDy);
+        const segTime = Math.max(0.016, (curr.t - prev.t) / 1000);
+        if (segDistance <= 1e-6) continue;
+        pathDistance += segDistance;
+        const weight = segTime + segDistance * 0.5;
+        weightedDx += segDx * weight;
+        weightedDy += segDy * weight;
+        totalWeight += weight;
+      }
+      return {
+        pathDistance,
+        avgDx: totalWeight > 0 ? weightedDx / totalWeight : 0,
+        avgDy: totalWeight > 0 ? weightedDy / totalWeight : 0
+      };
+    };
 
     const goalAABB = new THREE.Box3(
       new THREE.Vector3(-goalWidth / 2 + BALL_RADIUS, BALL_RADIUS * 0.6, goalZ - 0.25),
@@ -1546,9 +1729,18 @@ export default function FreeKick3DGame({ config }) {
     };
 
     const updateAimLine = () => {
-      if (!aimLine.visible) return;
+      if (!aimLine.visible || aimLineOffsets.length === 0) return;
       const positions = aimLine.geometry.attributes.position;
-      positions.setXYZ(0, ball.position.x, ball.position.y + 0.1, ball.position.z);
+      if (!positions) return;
+      for (let i = 0; i < aimLineOffsets.length; i += 1) {
+        const offset = aimLineOffsets[i];
+        positions.setXYZ(
+          i,
+          ball.position.x + offset.x,
+          ball.position.y + offset.y,
+          ball.position.z + offset.z
+        );
+      }
       positions.needsUpdate = true;
       aimLine.computeLineDistances();
     };
@@ -1738,8 +1930,7 @@ export default function FreeKick3DGame({ config }) {
       gestureRef.current.last = pointer;
       gestureRef.current.pointerId = event.pointerId;
       gestureRef.current.history = [pointer];
-      aimLine.visible = true;
-      updateAimLine();
+      rebuildAimLine(gestureRef.current.history);
       startCrowdSound();
       if (!state.started) {
         setIsRunning(true);
@@ -1753,20 +1944,13 @@ export default function FreeKick3DGame({ config }) {
       const pointer = getPointer(event);
       gestureRef.current.last = pointer;
       pushPointerSample(pointer);
-      const dx = (pointer.x - gestureRef.current.start.x) / pointer.w;
-      const dy = (pointer.y - gestureRef.current.start.y) / pointer.h;
-      const direction = new THREE.Vector3(dx * 6, -dy * 4 + 1.2, -6).normalize();
-      const startPoint = new THREE.Vector3().copy(ball.position).add(new THREE.Vector3(0, 0.1, 0));
-      const endPoint = new THREE.Vector3().copy(startPoint).addScaledVector(direction, 2.5);
-      aimLine.geometry.setFromPoints([startPoint, endPoint]);
-      aimLine.computeLineDistances();
-      aimLine.visible = true;
+      rebuildAimLine(gestureRef.current.history);
     };
 
     const onPointerUp = (event) => {
       if (gestureRef.current.pointerId !== event.pointerId) return;
       gestureRef.current.pointerId = null;
-      aimLine.visible = false;
+      clearAimLine();
       const start = gestureRef.current.start;
       const end = gestureRef.current.last;
       gestureRef.current.start = null;
@@ -1775,14 +1959,21 @@ export default function FreeKick3DGame({ config }) {
       gestureRef.current.history = [];
       if (!start || !end || gameStateRef.current.gameOver) return;
       const dt = Math.max(16, end.t - start.t);
-      const dx = (end.x - start.x) / end.w;
-      const dy = (end.y - start.y) / end.h;
-      const distance = Math.hypot(dx, dy);
-      if (distance < 0.02) return;
-      if (history.length === 0 && start) history.push(start);
-      if (history.length === 1) history.push(end);
+      if (history.length === 0) history.push(start);
+      if (history[history.length - 1] !== end) history.push(end);
+      else if (history.length === 1) history.push(end);
+      const rawDx = (end.x - start.x) / end.w;
+      const rawDy = (end.y - start.y) / end.h;
+      const baseDistance = Math.hypot(rawDx, rawDy);
+      const { pathDistance, avgDx, avgDy } = summarizeSwipe(history);
+      const hasAverage = Math.abs(avgDx) + Math.abs(avgDy) > 1e-6;
+      const dx = hasAverage ? avgDx : rawDx;
+      const dy = hasAverage ? avgDy : rawDy;
+      const effectiveDistance = Math.max(pathDistance, baseDistance);
+      if (effectiveDistance < 0.02) return;
       const dtSeconds = dt / 1000;
-      const basePower = THREE.MathUtils.clamp((distance * 24) / dtSeconds, 2.4, MAX_BASE_SHOT_POWER);
+      const normalizedDt = Math.max(0.05, dtSeconds);
+      const basePower = THREE.MathUtils.clamp((effectiveDistance * 26) / normalizedDt, 2.8, MAX_BASE_SHOT_POWER);
       const power = basePower * SHOOT_POWER_SCALE;
       const normalizedPower = MAX_SHOT_POWER > 0 ? THREE.MathUtils.clamp(power / MAX_SHOT_POWER, 0, 1) : 0;
       const fullArcThreshold = SHOOT_VERTICAL_FULL_POWER_THRESHOLD;
@@ -1790,7 +1981,7 @@ export default function FreeKick3DGame({ config }) {
         normalizedPower <= fullArcThreshold
           ? 0
           : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
-      const launchVector = new THREE.Vector3(dx * 3.1, -dy * 1.5 + 0.52, -1);
+      const launchVector = new THREE.Vector3(dx * 3.1, -dy * 1.6 + 0.52, -1);
       const dynamicElevationCap = 0.68 + highArcWeight * 0.24;
       if (launchVector.y > dynamicElevationCap) {
         launchVector.y = dynamicElevationCap;
@@ -1806,8 +1997,8 @@ export default function FreeKick3DGame({ config }) {
       if (state.velocity.y > maxVerticalSpeed) {
         state.velocity.y = maxVerticalSpeed;
       }
-      const verticalSpeed = -dy / Math.max(0.05, dtSeconds);
-      const lateralSpeed = dx / Math.max(0.05, dtSeconds);
+      const verticalSpeed = -dy / normalizedDt;
+      const lateralSpeed = dx / normalizedDt;
       const samples = history;
       const midIndex = Math.min(samples.length - 1, Math.max(1, Math.floor(samples.length / 2)));
       const early = samples[0];
@@ -1834,7 +2025,7 @@ export default function FreeKick3DGame({ config }) {
         totalWeight += weight;
       }
       const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : lateralSpeed;
-      const intensity = THREE.MathUtils.clamp(distance / 0.55, 0, 1);
+      const intensity = THREE.MathUtils.clamp(effectiveDistance / 0.55, 0, 1);
       const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 220, -540, 540);
       const spinYDeg = THREE.MathUtils.clamp(
         lateralSpeed * 110 + lateralChange * 260 + averageCurveRate * 200,
