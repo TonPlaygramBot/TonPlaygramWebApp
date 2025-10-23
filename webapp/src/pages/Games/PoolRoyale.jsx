@@ -448,9 +448,8 @@ const POCKET_JAW_SIDE_INNER_SCALE = 1; // inner radius multiplier for the side p
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.3; // outer radius multiplier to keep corner jaws wrapping the pocket chamfer
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.18; // outer radius multiplier that keeps the middle jaws slim
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
-const POCKET_JAW_SEGMENTS = 2; // create mirrored pocket jaws so each side of the wooden rail cut receives a liner
-const POCKET_RIM_OUTER_OFFSET = 0.18; // proportion of the jaw thickness kept inside the rim before it leans onto the rail exterior
-const POCKET_RIM_OUTER_EXPAND = 0.42; // proportion of the jaw thickness that pushes the rim past the chrome arch so it sits outside
+const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
+const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
 const POCKET_RIM_LIP = TABLE.THICK * 0.012; // slight lift so the rim sits proud of the jaw insert
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
@@ -4493,9 +4492,9 @@ function Table3D(
       innerScale: wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE,
       outerScale: wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE,
       steps: wide ? 88 : 68,
-      sideThinFactor: 1,
-      middleThinFactor: 1,
-      centerEase: 0.5,
+      sideThinFactor: wide ? 0.26 : 0.32,
+      middleThinFactor: wide ? 0.8 : 0.9,
+      centerEase: wide ? 0.3 : 0.38,
       clampOuter
     });
     if (!jawShape) {
@@ -4518,19 +4517,11 @@ function Table3D(
 
     const baseInnerScale = wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE;
     const baseOuterScale = wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE;
-    const jawOuterRadius = Math.max(MICRO_EPS, baseRadius * baseOuterScale);
-    const jawInnerRadius = Math.max(MICRO_EPS, baseRadius * baseInnerScale);
-    const jawThickness = Math.max(MICRO_EPS, jawOuterRadius - jawInnerRadius);
-    const rimInnerRadius = Math.max(
-      jawInnerRadius,
-      jawOuterRadius - jawThickness * POCKET_RIM_OUTER_OFFSET
-    );
-    const rimOuterRadius = jawOuterRadius + jawThickness * POCKET_RIM_OUTER_EXPAND;
-    const rimInnerScale = rimInnerRadius / baseRadius;
-    const rimOuterScale = Math.max(rimInnerScale + MICRO_EPS, rimOuterRadius / baseRadius);
-    const rimClampOuter = Number.isFinite(clampOuter)
-      ? clampOuter + jawThickness * POCKET_RIM_OUTER_EXPAND
-      : rimOuterRadius;
+    const rimInnerScale = baseInnerScale * POCKET_RIM_INNER_SCALE;
+    let rimOuterScale = THREE.MathUtils.lerp(baseOuterScale, baseInnerScale, POCKET_RIM_OUTER_BLEND);
+    if (rimOuterScale <= rimInnerScale + MICRO_EPS) {
+      rimOuterScale = rimInnerScale + MICRO_EPS * 12;
+    }
     const rimShape = buildPocketJawShape({
       center,
       baseRadius,
@@ -4539,10 +4530,10 @@ function Table3D(
       innerScale: rimInnerScale,
       outerScale: rimOuterScale,
       steps: wide ? 88 : 68,
-      sideThinFactor: 1,
-      middleThinFactor: 1,
-      centerEase: 0.5,
-      clampOuter: rimClampOuter
+      sideThinFactor: wide ? 0.22 : 0.3,
+      middleThinFactor: wide ? 0.86 : 0.92,
+      centerEase: wide ? 0.28 : 0.38,
+      clampOuter
     });
     let rimMesh = null;
     if (rimShape) {
@@ -4570,40 +4561,13 @@ function Table3D(
     return { group, jawMesh, rimMesh };
   };
 
-  const addPocketJawSegments = ({
-    center,
-    baseRadius,
-    jawAngle,
-    startAngle,
-    wide,
-    isMiddle,
-    clampOuter,
-    segments = POCKET_JAW_SEGMENTS
-  }) => {
-    if (!(center instanceof THREE.Vector2)) return;
-    if (!Number.isFinite(baseRadius) || baseRadius <= MICRO_EPS) return;
-    if (!Number.isFinite(jawAngle) || jawAngle <= MICRO_EPS) return;
-    const safeSegments = Math.max(1, Math.floor(segments));
-    const segmentAngle = jawAngle / safeSegments;
-    if (!Number.isFinite(segmentAngle) || segmentAngle <= MICRO_EPS) return;
-    for (let i = 0; i < safeSegments; i++) {
-      const segmentStart = startAngle + segmentAngle * i;
-      const orientationAngle = segmentStart + segmentAngle / 2;
-      const assembly = createPocketJawAssembly({
-        center,
-        baseRadius,
-        jawAngle: segmentAngle,
-        orientationAngle,
-        wide,
-        isMiddle,
-        clampOuter
-      });
-      if (!assembly) continue;
-      pocketJawGroup.add(assembly.group);
-      finishParts.pocketJawMeshes.push(assembly.jawMesh);
-      if (assembly.rimMesh) {
-        finishParts.pocketRimMeshes.push(assembly.rimMesh);
-      }
+  const addPocketJaw = (config) => {
+    const assembly = createPocketJawAssembly(config);
+    if (!assembly) return;
+    pocketJawGroup.add(assembly.group);
+    finishParts.pocketJawMeshes.push(assembly.jawMesh);
+    if (assembly.rimMesh) {
+      finishParts.pocketRimMeshes.push(assembly.rimMesh);
     }
   };
 
@@ -4648,81 +4612,6 @@ function Table3D(
     return new THREE.Vector2(fallbackX, fallbackZ);
   };
 
-  const normalizeAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
-
-  const resolveNotchArcSpan = (mp, center) => {
-    if (!Array.isArray(mp) || !(center instanceof THREE.Vector2)) {
-      return null;
-    }
-    const samples = [];
-    mp.forEach((poly) => {
-      if (!Array.isArray(poly) || !poly.length) return;
-      const outerRing = poly[0];
-      if (!Array.isArray(outerRing) || !outerRing.length) return;
-      outerRing.forEach((pt) => {
-        if (!Array.isArray(pt) || pt.length < 2) return;
-        const dx = pt[0] - center.x;
-        const dz = pt[1] - center.y;
-        const radius = Math.hypot(dx, dz);
-        if (!Number.isFinite(radius) || radius <= MICRO_EPS) return;
-        samples.push({
-          radius,
-          angle: Math.atan2(dz, dx)
-        });
-      });
-    });
-    if (!samples.length) {
-      return null;
-    }
-    const maxRadius = samples.reduce(
-      (acc, sample) => Math.max(acc, sample.radius),
-      0
-    );
-    if (!Number.isFinite(maxRadius) || maxRadius <= MICRO_EPS) {
-      return null;
-    }
-    const tolerance = Math.max(maxRadius * 0.06, TABLE.THICK * 0.002);
-    const arcSamples = samples.filter(
-      (sample) => maxRadius - sample.radius <= tolerance
-    );
-    if (arcSamples.length < 2) {
-      return null;
-    }
-    const arcAngles = arcSamples
-      .map((sample) => sample.angle)
-      .sort((a, b) => a - b);
-    const len = arcAngles.length;
-    const TWO_PI = Math.PI * 2;
-    const extended = arcAngles.concat(arcAngles.map((angle) => angle + TWO_PI));
-    let bestStart = extended[0];
-    let bestEnd = extended[len - 1];
-    let bestSpan = bestEnd - bestStart;
-    for (let i = 0; i < len; i++) {
-      const start = extended[i];
-      const end = extended[i + len - 1];
-      const span = end - start;
-      if (span < bestSpan) {
-        bestSpan = span;
-        bestStart = start;
-        bestEnd = end;
-      }
-    }
-    if (!Number.isFinite(bestSpan) || bestSpan <= MICRO_EPS || bestSpan >= Math.PI * 1.5) {
-      return null;
-    }
-    const normalizedStart = normalizeAngle(bestStart);
-    const normalizedSpan = bestSpan;
-    const avgRadius =
-      arcSamples.reduce((sum, sample) => sum + sample.radius, 0) /
-      arcSamples.length;
-    return {
-      startAngle: normalizedStart,
-      jawAngle: normalizedSpan,
-      orientationAngle: normalizeAngle(normalizedStart + normalizedSpan / 2),
-      outerRadius: avgRadius
-    };
-  };
-
   if (cornerBaseRadius && cornerBaseRadius > MICRO_EPS) {
     [
       { sx: 1, sz: 1 },
@@ -4737,45 +4626,15 @@ function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
-      const fallbackOrientation = Math.atan2(sz, sx);
-      let jawAngle = CORNER_JAW_ANGLE;
-      let startAngle = fallbackOrientation - jawAngle / 2;
-      let jawOuterLimit = cornerJawOuterLimit;
-      const arcInfo = resolveNotchArcSpan(scaledMP, center);
-      if (arcInfo) {
-        if (Number.isFinite(arcInfo.jawAngle) && arcInfo.jawAngle > MICRO_EPS) {
-          jawAngle = arcInfo.jawAngle;
-          startAngle = arcInfo.startAngle;
-        }
-        if (Number.isFinite(arcInfo.outerRadius) && arcInfo.outerRadius > MICRO_EPS) {
-          jawOuterLimit = Math.min(jawOuterLimit, arcInfo.outerRadius);
-        }
-      }
-      if (!Number.isFinite(jawAngle) || jawAngle <= MICRO_EPS) {
-        jawAngle = CORNER_JAW_ANGLE;
-        startAngle = fallbackOrientation - jawAngle / 2;
-      }
-      if (jawAngle > CORNER_JAW_ANGLE * 1.5) {
-        jawAngle = CORNER_JAW_ANGLE;
-        startAngle = fallbackOrientation - jawAngle / 2;
-      }
-      const effectiveOuterLimit = Number.isFinite(jawOuterLimit) && jawOuterLimit > MICRO_EPS
-        ? jawOuterLimit
-        : cornerJawOuterLimit;
-      const baseRadius =
-        resolveBaseRadius(effectiveOuterLimit, POCKET_JAW_CORNER_OUTER_SCALE) ??
-        cornerBaseRadius;
-      if (!Number.isFinite(baseRadius) || baseRadius <= MICRO_EPS) {
-        return;
-      }
-      addPocketJawSegments({
+      const orientationAngle = Math.atan2(sz, sx);
+      addPocketJaw({
         center,
-        baseRadius,
-        jawAngle,
-        startAngle,
+        baseRadius: cornerBaseRadius,
+        jawAngle: CORNER_JAW_ANGLE,
+        orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: effectiveOuterLimit
+        clampOuter: cornerJawOuterLimit
       });
     });
   }
@@ -4786,45 +4645,15 @@ function Table3D(
       const scaledMP = scaleSidePocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
-      const fallbackOrientation = Math.atan2(0, sx);
-      let jawAngle = SIDE_JAW_ANGLE;
-      let startAngle = fallbackOrientation - jawAngle / 2;
-      let jawOuterLimit = sideJawOuterLimit;
-      const arcInfo = resolveNotchArcSpan(scaledMP, center);
-      if (arcInfo) {
-        if (Number.isFinite(arcInfo.jawAngle) && arcInfo.jawAngle > MICRO_EPS) {
-          jawAngle = arcInfo.jawAngle;
-          startAngle = arcInfo.startAngle;
-        }
-        if (Number.isFinite(arcInfo.outerRadius) && arcInfo.outerRadius > MICRO_EPS) {
-          jawOuterLimit = Math.min(jawOuterLimit, arcInfo.outerRadius);
-        }
-      }
-      if (!Number.isFinite(jawAngle) || jawAngle <= MICRO_EPS) {
-        jawAngle = SIDE_JAW_ANGLE;
-        startAngle = fallbackOrientation - jawAngle / 2;
-      }
-      if (jawAngle > SIDE_JAW_ANGLE * 1.5) {
-        jawAngle = SIDE_JAW_ANGLE;
-        startAngle = fallbackOrientation - jawAngle / 2;
-      }
-      const effectiveOuterLimit = Number.isFinite(jawOuterLimit) && jawOuterLimit > MICRO_EPS
-        ? jawOuterLimit
-        : sideJawOuterLimit;
-      const baseRadius =
-        resolveBaseRadius(effectiveOuterLimit, POCKET_JAW_SIDE_OUTER_SCALE) ??
-        sideBaseRadius;
-      if (!Number.isFinite(baseRadius) || baseRadius <= MICRO_EPS) {
-        return;
-      }
-      addPocketJawSegments({
+      const orientationAngle = Math.atan2(0, sx);
+      addPocketJaw({
         center,
-        baseRadius,
-        jawAngle,
-        startAngle,
+        baseRadius: sideBaseRadius,
+        jawAngle: SIDE_JAW_ANGLE,
+        orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: effectiveOuterLimit
+        clampOuter: sideJawOuterLimit
       });
     });
   }
