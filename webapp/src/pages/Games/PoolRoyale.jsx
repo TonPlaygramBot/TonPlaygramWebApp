@@ -455,6 +455,16 @@ const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to t
 const POCKET_RIM_LIP = TABLE.THICK * 0.032; // lift the rim higher so it sits proud of the chrome plates
 const POCKET_JAW_EDGE_FLUSH_START = 0.32; // begin easing the jaw back out to meet the chrome edge sooner
 const POCKET_JAW_EDGE_FLUSH_END = 0.94; // ensure the jaw and rim finish flush with the chrome trim
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.22; // edge thickness multiplier so the jaw fades into the cushion line
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.58; // minimum centre thickness ratio (relative to jaw depth)
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74; // maximum centre thickness ratio
+const POCKET_JAW_OUTER_EXPONENT_MIN = 0.72; // controls arc falloff toward the chrome rim
+const POCKET_JAW_OUTER_EXPONENT_MAX = 1.08;
+const POCKET_JAW_INNER_EXPONENT_MIN = 0.85; // controls inner lip easing toward the cushion
+const POCKET_JAW_INNER_EXPONENT_MAX = 1.22;
+const POCKET_JAW_SEGMENT_MIN = 64; // base tessellation for smoother arcs
+const CORNER_JAW_ARC_DEG = 54;
+const SIDE_JAW_ARC_DEG = 52;
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4426,65 +4436,113 @@ function Table3D(
     if (!Number.isFinite(jawAngle) || jawAngle <= MICRO_EPS) {
       return null;
     }
-    const startAngle = orientationAngle - jawAngle / 2;
-    const endAngle = orientationAngle + jawAngle / 2;
-    const innerRadius = Math.max(MICRO_EPS, baseRadius * innerScale);
-    let outerRadius = Math.max(innerRadius + MICRO_EPS, baseRadius * outerScale);
-    if (Number.isFinite(clampOuter) && clampOuter > innerRadius) {
-      outerRadius = Math.min(outerRadius, clampOuter);
-      outerRadius = Math.max(innerRadius + MICRO_EPS, outerRadius);
+
+    const halfAngle = jawAngle / 2;
+    const startAngle = orientationAngle - halfAngle;
+    const endAngle = orientationAngle + halfAngle;
+    const innerBaseRadius = Math.max(MICRO_EPS, baseRadius * innerScale);
+    let outerLimit = Math.max(innerBaseRadius + MICRO_EPS, baseRadius * outerScale);
+    if (Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS) {
+      outerLimit = Math.min(outerLimit, clampOuter);
+      outerLimit = Math.max(innerBaseRadius + MICRO_EPS, outerLimit);
     }
-    const baseThickness = Math.max(MICRO_EPS, outerRadius - innerRadius);
-    const segmentCount =
-      Number.isFinite(steps) && steps > 0
-        ? Math.floor(steps)
-        : Math.max(32, Math.ceil((jawAngle / Math.PI) * 96));
-    const clampedCenterEase = THREE.MathUtils.clamp(centerEase ?? 0.3, 0.05, 0.95);
-    const clampedSideThin = THREE.MathUtils.clamp(sideThinFactor ?? 0.2, 0.05, 0.95);
-    const clampedMiddleThin = THREE.MathUtils.clamp(middleThinFactor ?? 0.8, 0.05, 1);
+    const baseThickness = Math.max(MICRO_EPS, outerLimit - innerBaseRadius);
+
+    const edgeFactor = THREE.MathUtils.clamp(sideThinFactor ?? 0.32, 0.1, 0.9);
+    const edgeThickness = Math.max(
+      MICRO_EPS * 12,
+      baseThickness * edgeFactor * POCKET_JAW_EDGE_TAPER_SCALE
+    );
+    const edgeInnerRadius = Math.max(
+      innerBaseRadius + MICRO_EPS * 6,
+      outerLimit - edgeThickness
+    );
+
+    const middleFactor = THREE.MathUtils.clamp(middleThinFactor ?? 0.85, 0, 1);
+    const centerThicknessRatio = THREE.MathUtils.lerp(
+      POCKET_JAW_CENTER_THICKNESS_MIN,
+      POCKET_JAW_CENTER_THICKNESS_MAX,
+      middleFactor
+    );
+    let centerOuterRadius = innerBaseRadius + baseThickness * centerThicknessRatio;
+    centerOuterRadius = Math.min(outerLimit - MICRO_EPS * 4, centerOuterRadius);
+    centerOuterRadius = Math.max(innerBaseRadius + MICRO_EPS * 4, centerOuterRadius);
+
+    const easeFactor = THREE.MathUtils.clamp(centerEase ?? 0.3, 0.1, 0.9);
+    const easeT = THREE.MathUtils.clamp((easeFactor - 0.1) / 0.8, 0, 1);
+    const outerPower = THREE.MathUtils.lerp(
+      POCKET_JAW_OUTER_EXPONENT_MAX,
+      POCKET_JAW_OUTER_EXPONENT_MIN,
+      easeT
+    );
+    const innerPower = THREE.MathUtils.lerp(
+      POCKET_JAW_INNER_EXPONENT_MAX,
+      POCKET_JAW_INNER_EXPONENT_MIN,
+      easeT
+    );
+
+    const requestedSteps =
+      Number.isFinite(steps) && steps > 0 ? Math.floor(steps) : null;
+    const segmentCount = requestedSteps
+      ? Math.max(POCKET_JAW_SEGMENT_MIN, requestedSteps)
+      : Math.max(POCKET_JAW_SEGMENT_MIN, Math.ceil((jawAngle / Math.PI) * 128));
+
     const midAngle = (startAngle + endAngle) / 2;
     const outerPts = [];
     const innerPts = [];
+
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
       const theta = startAngle + t * (endAngle - startAngle);
-      const distFromMid = Math.abs(theta - midAngle) / (jawAngle / 2);
-      const normalized = THREE.MathUtils.clamp(distFromMid, 0, 1);
-      let thicknessScale = 1 - normalized * (1 - clampedSideThin);
-      if (normalized < clampedCenterEase) {
-        thicknessScale *= clampedMiddleThin;
-      }
-      thicknessScale = THREE.MathUtils.clamp(thicknessScale, 0.06, 1);
+      const normalized = Math.abs(theta - midAngle) / halfAngle;
+      const clamped = THREE.MathUtils.clamp(normalized, 0, 1);
+      const eased = clamped <= 0
+        ? 0
+        : clamped >= 1
+          ? 1
+          : THREE.MathUtils.smootherstep(clamped, 0, 1);
+      const outerWeight = Math.pow(eased, outerPower);
+      const innerWeight = Math.pow(eased, innerPower);
 
-      const baseOuter = innerRadius + baseThickness * thicknessScale;
-      let currentOuter = baseOuter;
-      if (
-        Number.isFinite(clampOuter) &&
-        clampOuter > innerRadius + MICRO_EPS &&
-        baseThickness > MICRO_EPS
-      ) {
-        const clampLimit = Math.max(
-          innerRadius + MICRO_EPS,
-          Math.min(clampOuter, innerRadius + baseThickness)
-        );
-        const clampedOuter = Math.min(clampLimit, currentOuter);
-        const flushBlend = THREE.MathUtils.smoothstep(
-          normalized,
+      let outerRadius = THREE.MathUtils.lerp(
+        centerOuterRadius,
+        outerLimit,
+        outerWeight
+      );
+      if (Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS) {
+        const flushBlend = THREE.MathUtils.smootherstep(
+          clamped,
           POCKET_JAW_EDGE_FLUSH_START,
           POCKET_JAW_EDGE_FLUSH_END
         );
-        currentOuter = THREE.MathUtils.lerp(clampedOuter, clampLimit, flushBlend);
+        outerRadius = Math.min(
+          clampOuter,
+          THREE.MathUtils.lerp(outerRadius, clampOuter, flushBlend)
+        );
       }
-      const outerX = center.x + Math.cos(theta) * currentOuter;
-      const outerZ = center.y + Math.sin(theta) * currentOuter;
+      outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
+
+      let innerRadius = THREE.MathUtils.lerp(
+        innerBaseRadius,
+        edgeInnerRadius,
+        innerWeight
+      );
+      innerRadius = Math.min(innerRadius, outerRadius - MICRO_EPS * 6);
+      innerRadius = Math.max(innerBaseRadius, innerRadius);
+
+      const outerX = center.x + Math.cos(theta) * outerRadius;
+      const outerZ = center.y + Math.sin(theta) * outerRadius;
       outerPts.push(new THREE.Vector2(outerX, outerZ));
+
       const innerX = center.x + Math.cos(theta) * innerRadius;
       const innerZ = center.y + Math.sin(theta) * innerRadius;
       innerPts.unshift(new THREE.Vector2(innerX, innerZ));
     }
+
     if (!outerPts.length || !innerPts.length) {
       return null;
     }
+
     const outline = [...outerPts, ...innerPts];
     const first = outline[0];
     const last = outline[outline.length - 1];
@@ -4607,8 +4665,8 @@ function Table3D(
     }
   };
 
-  const CORNER_JAW_ANGLE = Math.PI / 2.1;
-  const SIDE_JAW_ANGLE = Math.PI / 3.4;
+  const CORNER_JAW_ANGLE = THREE.MathUtils.degToRad(CORNER_JAW_ARC_DEG);
+  const SIDE_JAW_ANGLE = THREE.MathUtils.degToRad(SIDE_JAW_ARC_DEG);
 
   const cornerJawOuterLimit =
     cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE * POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
