@@ -472,8 +472,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // lock the corner jaw footprint to the rounded chrome plate cut exactly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // lock the side jaw footprint to the rounded chrome plate cut exactly
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.5; // allow the corner jaw footprint to widen 50%
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.2; // allow the middle pocket jaw footprint to widen 20%
 const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
 const POCKET_JAW_SIDE_INNER_SCALE = 0.936; // keep the side jaw interior aligned with the cloth edge seen in the photos
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -492,9 +492,8 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
-const POCKET_JAW_CLOTH_CONTACT_PAD = 0; // let the jaws run right up to the green cloth without leaving a standoff gap
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.2; // widen the middle pocket jaws 20% along the side rails
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.5; // enlarge the side pocket jaw footprint by 50%
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale to widen the footprint by 20%
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
 const SIDE_POCKET_RIM_FIELD_PULL = 0.08; // keep the middle pocket rim hugging the chrome arc instead of the field
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // widen the corner pocket jaws 50% along both rails
@@ -4453,58 +4452,6 @@ function Table3D(
 
   const pocketJawGroup = new THREE.Group();
 
-  const createPocketJawClothClamp = (center) => {
-    if (!(center instanceof THREE.Vector2)) {
-      return null;
-    }
-    const limitX = Math.max(0, cushionInnerX);
-    const limitZ = Math.max(0, cushionInnerZ);
-    if (limitX <= MICRO_EPS || limitZ <= MICRO_EPS) {
-      return null;
-    }
-    const margin = TABLE.THICK * 0.08;
-    return (theta) => {
-      const dirX = Math.cos(theta);
-      const dirZ = Math.sin(theta);
-      let best = Infinity;
-
-      if (limitX > MICRO_EPS && Math.abs(dirX) > 1e-6) {
-        const targetX = dirX >= 0 ? limitX : -limitX;
-        const deltaX = targetX - center.x;
-        if (deltaX * dirX > MICRO_EPS) {
-          const dist = deltaX / dirX;
-          if (Number.isFinite(dist) && dist > MICRO_EPS) {
-            const zAt = center.y + dirZ * dist;
-            if (Math.abs(zAt) <= limitZ + margin) {
-              best = Math.min(best, dist);
-            }
-          }
-        }
-      }
-
-      if (limitZ > MICRO_EPS && Math.abs(dirZ) > 1e-6) {
-        const targetZ = dirZ >= 0 ? limitZ : -limitZ;
-        const deltaZ = targetZ - center.y;
-        if (deltaZ * dirZ > MICRO_EPS) {
-          const dist = deltaZ / dirZ;
-          if (Number.isFinite(dist) && dist > MICRO_EPS) {
-            const xAt = center.x + dirX * dist;
-            if (Math.abs(xAt) <= limitX + margin) {
-              best = Math.min(best, dist);
-            }
-          }
-        }
-      }
-
-      if (!Number.isFinite(best) || best === Infinity) {
-        return null;
-      }
-
-      const clamped = Math.max(0, best - POCKET_JAW_CLOTH_CONTACT_PAD);
-      return clamped > MICRO_EPS ? clamped : null;
-    };
-  };
-
   const buildPocketJawShape = ({
     center,
     baseRadius,
@@ -4516,8 +4463,7 @@ function Table3D(
     sideThinFactor,
     middleThinFactor,
     centerEase,
-    clampOuter,
-    clampOuterFn
+    clampOuter
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -4529,7 +4475,6 @@ function Table3D(
       return null;
     }
 
-    const hasDirectionalClamp = typeof clampOuterFn === 'function';
     const halfAngle = jawAngle / 2;
     const startAngle = orientationAngle - halfAngle;
     const endAngle = orientationAngle + halfAngle;
@@ -4613,16 +4558,6 @@ function Table3D(
           THREE.MathUtils.lerp(outerRadius, clampOuter, flushBlend)
         );
       }
-      if (hasDirectionalClamp) {
-        const directionalLimit = clampOuterFn(theta);
-        if (directionalLimit != null && Number.isFinite(directionalLimit)) {
-          const safeLimit = Math.max(
-            innerBaseRadius + MICRO_EPS * 4,
-            directionalLimit
-          );
-          outerRadius = Math.min(outerRadius, safeLimit);
-        }
-      }
       outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
 
       let innerRadius = THREE.MathUtils.lerp(
@@ -4667,7 +4602,6 @@ function Table3D(
     isMiddle,
     clampOuter
   }) => {
-    const clothClampFn = createPocketJawClothClamp(center);
     const baseInnerScale = wide
       ? POCKET_JAW_SIDE_INNER_SCALE
       : POCKET_JAW_CORNER_INNER_SCALE;
@@ -4711,8 +4645,7 @@ function Table3D(
       sideThinFactor: wide ? 0.3 : 0.36,
       middleThinFactor: wide ? 0.82 : 0.92,
       centerEase: wide ? 0.28 : 0.36,
-      clampOuter: localClampOuter,
-      clampOuterFn: clothClampFn
+      clampOuter: localClampOuter
     });
     if (!jawShape) {
       return null;
@@ -4768,8 +4701,7 @@ function Table3D(
       sideThinFactor: wide ? 0.34 : 0.44,
       middleThinFactor: wide ? 0.88 : 0.94,
       centerEase: wide ? 0.24 : 0.32,
-      clampOuter: localClampOuter,
-      clampOuterFn: clothClampFn
+      clampOuter: localClampOuter
     });
     let rimMesh = null;
     if (rimShape) {
