@@ -282,14 +282,14 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
-const SHOOT_POWER_SCALE = 1.15; // allow harder strikes from the swipe motion
-const SHOOT_VERTICAL_POWER_MIN = 0.32;
-const SHOOT_VERTICAL_POWER_MAX = 0.48;
-const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.8;
-const MAX_BASE_SHOT_POWER = 34;
+const SHOOT_POWER_SCALE = 1.28; // allow harder strikes from the swipe motion
+const SHOOT_VERTICAL_POWER_MIN = 0.36;
+const SHOOT_VERTICAL_POWER_MAX = 0.52;
+const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.72;
+const MAX_BASE_SHOT_POWER = 36;
 const MAX_SHOT_POWER = MAX_BASE_SHOT_POWER * SHOOT_POWER_SCALE;
-const BASE_SPIN_SCALE = 1.5;
-const SPIN_SCALE = BASE_SPIN_SCALE * 1.25;
+const BASE_SPIN_SCALE = 1.6;
+const SPIN_SCALE = BASE_SPIN_SCALE * 1.35;
 const CROSSBAR_HEIGHT_MARGIN = 0.2;
 const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
   Math.max(
@@ -496,7 +496,6 @@ export default function FreeKick3DGame({ config }) {
     pitch.receiveShadow = true;
     fieldGroup.add(pitch);
 
-    scene.add(fieldGroup);
     const goalWidth = GOAL_CONFIG.width;
     const goalHeight = GOAL_CONFIG.height;
     const goalDepthTop = GOAL_CONFIG.depthTop;
@@ -504,6 +503,98 @@ export default function FreeKick3DGame({ config }) {
     const goalZ = GOAL_CONFIG.z;
     const postDiameter = GOAL_CONFIG.postDiameter ?? 0.12;
     const postRadius = postDiameter / 2;
+
+    const pitchWidth = pitch.geometry.parameters.width ?? 0;
+    const pitchHalfWidth = pitchWidth / 2;
+    const markings = new THREE.Group();
+    markings.position.y = 0.002;
+    const lineMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.28,
+      metalness: 0.1
+    });
+    const lineThickness = 0.12;
+    const addLine = (width, depth, position) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, 0.004, depth), lineMaterial);
+      mesh.position.copy(position);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      markings.add(mesh);
+      return mesh;
+    };
+
+    const penaltyAreaDepth = 16.5;
+    const goalAreaDepth = 5.5;
+    const penaltySpotDistance = 11;
+    const availableSideSpace = Math.max(0.1, pitchHalfWidth - goalWidth / 2);
+    const clampedSideSpace = Math.max(availableSideSpace, 0);
+    const penaltyAreaExtraX = Math.min(16.5, clampedSideSpace);
+    const widthScale = penaltyAreaExtraX > 0 ? penaltyAreaExtraX / 16.5 : 0;
+    const goalAreaExtraX = Math.min(clampedSideSpace, Math.max(0.3, 5.5 * widthScale));
+    const penaltyAreaHalfWidth = goalWidth / 2 + penaltyAreaExtraX;
+    const goalAreaHalfWidth = goalWidth / 2 + goalAreaExtraX;
+    const goalAreaFrontZ = goalZ + goalAreaDepth;
+    const penaltyAreaFrontZ = goalZ + penaltyAreaDepth;
+
+    addLine(pitchWidth, lineThickness, new THREE.Vector3(0, 0, goalZ));
+
+    addLine(penaltyAreaHalfWidth * 2, lineThickness, new THREE.Vector3(0, 0, penaltyAreaFrontZ));
+    addLine(
+      lineThickness,
+      penaltyAreaDepth,
+      new THREE.Vector3(penaltyAreaHalfWidth, 0, goalZ + penaltyAreaDepth / 2)
+    );
+    addLine(
+      lineThickness,
+      penaltyAreaDepth,
+      new THREE.Vector3(-penaltyAreaHalfWidth, 0, goalZ + penaltyAreaDepth / 2)
+    );
+
+    addLine(goalAreaHalfWidth * 2, lineThickness, new THREE.Vector3(0, 0, goalAreaFrontZ));
+    addLine(lineThickness, goalAreaDepth, new THREE.Vector3(goalAreaHalfWidth, 0, goalZ + goalAreaDepth / 2));
+    addLine(
+      lineThickness,
+      goalAreaDepth,
+      new THREE.Vector3(-goalAreaHalfWidth, 0, goalZ + goalAreaDepth / 2)
+    );
+
+    const penaltySpotZ = goalZ + penaltySpotDistance;
+    const penaltySpot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.004, 32), lineMaterial);
+    penaltySpot.position.set(0, 0.002, penaltySpotZ);
+    penaltySpot.castShadow = false;
+    penaltySpot.receiveShadow = false;
+    markings.add(penaltySpot);
+
+    const penaltyArcDepth = penaltyAreaFrontZ - penaltySpotZ;
+    const maxArcRadius = Math.sqrt(
+      Math.max(penaltyAreaHalfWidth * penaltyAreaHalfWidth + penaltyArcDepth * penaltyArcDepth, 0.01)
+    );
+    const penaltyArcRadius = Math.min(9.15, maxArcRadius);
+    if (penaltyArcRadius > penaltyArcDepth + 0.01) {
+      const depthRatio = THREE.MathUtils.clamp(penaltyArcDepth / penaltyArcRadius, -0.999, 0.999);
+      const arcOffset = Math.asin(depthRatio);
+      const arcStart = Math.PI + arcOffset;
+      const arcLength = Math.max(0.1, Math.PI - 2 * arcOffset);
+      const penaltyArc = new THREE.Mesh(
+        new THREE.RingGeometry(
+          penaltyArcRadius - lineThickness / 2,
+          penaltyArcRadius + lineThickness / 2,
+          72,
+          1,
+          arcStart,
+          arcLength
+        ),
+        lineMaterial
+      );
+      penaltyArc.rotation.x = -Math.PI / 2;
+      penaltyArc.position.set(0, 0.002, penaltySpotZ);
+      penaltyArc.castShadow = false;
+      penaltyArc.receiveShadow = false;
+      markings.add(penaltyArc);
+    }
+
+    fieldGroup.add(markings);
+    scene.add(fieldGroup);
 
     const depthAtHeight = (height) => {
       const clamped = THREE.MathUtils.clamp((height - postRadius) / Math.max(0.0001, goalHeight - postRadius), 0, 1);
@@ -612,10 +703,10 @@ export default function FreeKick3DGame({ config }) {
       ctx.clearRect(0, 0, size, size);
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      const radius = 18;
-      const outlineWidth = radius * 0.52;
-      const innerWidth = radius * 0.32;
-      const patternWidth = radius * 3;
+      const radius = 26;
+      const outlineWidth = radius * 0.66;
+      const innerWidth = radius * 0.46;
+      const patternWidth = radius * 3.2;
       const patternHeight = Math.sqrt(3) * radius;
       const drawHex = (cx, cy) => {
         ctx.save();
@@ -628,14 +719,14 @@ export default function FreeKick3DGame({ config }) {
           else ctx.lineTo(x, y);
         }
         ctx.closePath();
-        ctx.shadowColor = 'rgba(0,0,0,0.65)';
-        ctx.shadowBlur = 3.5;
+        ctx.shadowColor = 'rgba(0,0,0,0.55)';
+        ctx.shadowBlur = 4.2;
         ctx.lineWidth = outlineWidth;
-        ctx.strokeStyle = '#111827';
+        ctx.strokeStyle = '#0b1120';
         ctx.stroke();
         ctx.shadowColor = 'transparent';
         ctx.lineWidth = innerWidth;
-        ctx.strokeStyle = '#facc15';
+        ctx.strokeStyle = '#fde047';
         ctx.stroke();
         ctx.restore();
       };
@@ -647,7 +738,7 @@ export default function FreeKick3DGame({ config }) {
       }
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(4, 4);
+      texture.repeat.set(3, 3);
       texture.anisotropy = 8;
       texture.colorSpace = THREE.SRGBColorSpace;
       return texture;
@@ -945,9 +1036,9 @@ export default function FreeKick3DGame({ config }) {
     const suiteFrameGeo = new THREE.BoxGeometry(10.4, 5.9, 14.6);
     const suiteRoofGeo = new THREE.BoxGeometry(11.2, 0.6, 15);
     const suiteDeckGeo = new THREE.BoxGeometry(78, 0.5, 16);
-    const suiteWindowGeo = new THREE.BoxGeometry(7.6, 3.6, 9.2);
-    const suiteMullionGeo = new THREE.BoxGeometry(0.28, 3.6, 9.4);
-    const suiteTransomGeo = new THREE.BoxGeometry(7.6, 0.24, 9.4);
+    const suiteWindowGeo = new THREE.BoxGeometry(3.8, 1.8, 9.2);
+    const suiteMullionGeo = new THREE.BoxGeometry(0.28, 1.8, 9.4);
+    const suiteTransomGeo = new THREE.BoxGeometry(3.8, 0.24, 9.4);
 
     function createStandSection(offsetX = 0, baseY = 0, depthOffset = 0) {
       const section = new THREE.Group();
@@ -1922,6 +2013,21 @@ export default function FreeKick3DGame({ config }) {
       };
     };
 
+    const projectPointerToGoal = (pointer) => {
+      if (!pointer) return null;
+      const ndc = new THREE.Vector3(
+        (pointer.x / pointer.w) * 2 - 1,
+        -(pointer.y / pointer.h) * 2 + 1,
+        0.5
+      );
+      ndc.unproject(camera);
+      const dir = ndc.sub(camera.position).normalize();
+      if (Math.abs(dir.z) < 1e-4) return null;
+      const distance = (goalZ - camera.position.z) / dir.z;
+      if (!Number.isFinite(distance) || distance <= 0.1) return null;
+      return camera.position.clone().addScaledVector(dir, distance);
+    };
+
     const onPointerDown = (event) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       if (gameStateRef.current.gameOver) return;
@@ -1972,33 +2078,33 @@ export default function FreeKick3DGame({ config }) {
       const effectiveDistance = Math.max(pathDistance, baseDistance);
       if (effectiveDistance < 0.02) return;
       const dtSeconds = dt / 1000;
-      const normalizedDt = Math.max(0.05, dtSeconds);
-      const basePower = THREE.MathUtils.clamp((effectiveDistance * 26) / normalizedDt, 2.8, MAX_BASE_SHOT_POWER);
-      const power = basePower * SHOOT_POWER_SCALE;
-      const normalizedPower = MAX_SHOT_POWER > 0 ? THREE.MathUtils.clamp(power / MAX_SHOT_POWER, 0, 1) : 0;
-      const fullArcThreshold = SHOOT_VERTICAL_FULL_POWER_THRESHOLD;
-      const highArcWeight =
-        normalizedPower <= fullArcThreshold
-          ? 0
-          : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
-      const launchVector = new THREE.Vector3(dx * 3.1, -dy * 1.6 + 0.52, -1);
-      const dynamicElevationCap = 0.68 + highArcWeight * 0.24;
-      if (launchVector.y > dynamicElevationCap) {
-        launchVector.y = dynamicElevationCap;
+      const normalizedDt = Math.max(0.04, dtSeconds);
+      let targetPoint = projectPointerToGoal(end);
+      if (targetPoint) {
+        targetPoint.x = THREE.MathUtils.clamp(
+          targetPoint.x,
+          -goalWidth / 2 + BALL_RADIUS * 0.6,
+          goalWidth / 2 - BALL_RADIUS * 0.6
+        );
+        targetPoint.y = THREE.MathUtils.clamp(
+          targetPoint.y,
+          BALL_RADIUS * 1.1,
+          goalHeight - BALL_RADIUS * 0.4
+        );
+      } else {
+        const fallbackX = THREE.MathUtils.clamp(
+          dx * goalWidth * 1.1,
+          -goalWidth / 2 + BALL_RADIUS * 0.6,
+          goalWidth / 2 - BALL_RADIUS * 0.6
+        );
+        const fallbackY = THREE.MathUtils.clamp(
+          goalHeight * 0.6 - dy * goalHeight * 0.9,
+          BALL_RADIUS * 1.1,
+          goalHeight - BALL_RADIUS * 0.4
+        );
+        targetPoint = new THREE.Vector3(fallbackX, fallbackY, goalZ);
       }
-      const direction = launchVector.normalize();
-      state.velocity.copy(direction.multiplyScalar(power));
-      const verticalFactor = THREE.MathUtils.lerp(
-        SHOOT_VERTICAL_POWER_MIN,
-        SHOOT_VERTICAL_POWER_MAX,
-        highArcWeight
-      );
-      const maxVerticalSpeed = Math.min(power * verticalFactor, MAX_VERTICAL_LAUNCH_SPEED);
-      if (state.velocity.y > maxVerticalSpeed) {
-        state.velocity.y = maxVerticalSpeed;
-      }
-      const verticalSpeed = -dy / normalizedDt;
-      const lateralSpeed = dx / normalizedDt;
+      targetPoint.z = goalZ - 0.4;
       const samples = history;
       const midIndex = Math.min(samples.length - 1, Math.max(1, Math.floor(samples.length / 2)));
       const early = samples[0];
@@ -2024,20 +2130,60 @@ export default function FreeKick3DGame({ config }) {
         weightedLateralRate += segRate * weight;
         totalWeight += weight;
       }
-      const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : lateralSpeed;
-      const intensity = THREE.MathUtils.clamp(effectiveDistance / 0.55, 0, 1);
-      const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 220, -540, 540);
-      const spinYDeg = THREE.MathUtils.clamp(
-        lateralSpeed * 110 + lateralChange * 260 + averageCurveRate * 200,
-        -720,
-        720
+      const fallbackLateralSpeed = dx / normalizedDt;
+      const averageCurveRate = totalWeight > 0 ? weightedLateralRate / totalWeight : fallbackLateralSpeed;
+      const rawTargetDepth = Math.abs(targetPoint.z - ball.position.z);
+      const targetDepth = Math.max(rawTargetDepth, 0.5);
+      const curveBoost = 1 + Math.min(0.35, Math.abs(lateralChange) * 0.9 + Math.abs(averageCurveRate) * 0.8);
+      const distanceScale = THREE.MathUtils.clamp(targetDepth / 8.5, 0.85, 1.32);
+      const basePower = THREE.MathUtils.clamp((effectiveDistance * 30) / normalizedDt, 3.2, MAX_BASE_SHOT_POWER);
+      const rawPower = basePower * SHOOT_POWER_SCALE * curveBoost * distanceScale;
+      const power = Math.min(rawPower, MAX_SHOT_POWER);
+      const normalizedPower = MAX_SHOT_POWER > 0 ? THREE.MathUtils.clamp(power / MAX_SHOT_POWER, 0, 1) : 0;
+      const fullArcThreshold = SHOOT_VERTICAL_FULL_POWER_THRESHOLD;
+      const highArcWeight =
+        normalizedPower <= fullArcThreshold
+          ? 0
+          : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
+      const aimVector = targetPoint.clone().sub(ball.position);
+      const horizontalDistance = Math.max(0.1, Math.hypot(aimVector.x, aimVector.z));
+      const slopeToTarget = aimVector.y / horizontalDistance;
+      const swipeSlope = THREE.MathUtils.clamp(-dy * 1.7 + 0.6, -0.4, 2.8);
+      const arcBias = highArcWeight * 0.45 + THREE.MathUtils.clamp(effectiveDistance * 0.5, 0, 0.3);
+      const desiredSlope = THREE.MathUtils.lerp(slopeToTarget, swipeSlope, 0.6) + arcBias;
+      aimVector.y = desiredSlope * horizontalDistance;
+      const direction = aimVector.normalize();
+      state.velocity.copy(direction.multiplyScalar(power));
+      const verticalFactor = THREE.MathUtils.lerp(
+        SHOOT_VERTICAL_POWER_MIN,
+        SHOOT_VERTICAL_POWER_MAX,
+        Math.pow(highArcWeight, 0.9)
       );
-      const spinZDeg = THREE.MathUtils.clamp(averageCurveRate * 120, -360, 360);
-      const spinScale = SPIN_SCALE;
+      const maxVerticalSpeed = Math.min(power * verticalFactor, MAX_VERTICAL_LAUNCH_SPEED);
+      if (state.velocity.y > maxVerticalSpeed) {
+        state.velocity.y = maxVerticalSpeed;
+        const horizontalMag = Math.hypot(state.velocity.x, state.velocity.z);
+        const remaining = Math.sqrt(Math.max(power * power - maxVerticalSpeed * maxVerticalSpeed, 0));
+        if (horizontalMag > 1e-5 && remaining > 0) {
+          const scale = remaining / horizontalMag;
+          state.velocity.x *= scale;
+          state.velocity.z *= scale;
+        }
+      }
+      const verticalSpeed = -dy / normalizedDt;
+      const lateralSpeed = fallbackLateralSpeed;
+      const intensity = THREE.MathUtils.clamp(power / (MAX_SHOT_POWER * 0.92), 0, 1.1);
+      const swipeCurve = THREE.MathUtils.clamp(lateralChange * 0.85 + averageCurveRate * 1.1, -1.8, 1.8);
+      const targetCurve = THREE.MathUtils.clamp((targetPoint.x - ball.position.x) / targetDepth, -1.6, 1.6);
+      const combinedCurve = THREE.MathUtils.lerp(targetCurve, swipeCurve, 0.7);
+      const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 260 - swipeSlope * 85, -720, 720);
+      const spinYDeg = THREE.MathUtils.clamp(lateralSpeed * 150 + combinedCurve * 520, -900, 900);
+      const spinZDeg = THREE.MathUtils.clamp(combinedCurve * 300, -540, 540);
+      const spinScale = SPIN_SCALE * (1 + intensity * 0.35);
       state.spin.set(
         THREE.MathUtils.degToRad(spinXDeg * intensity * spinScale),
         THREE.MathUtils.degToRad(spinYDeg * intensity * spinScale),
-        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.6 * spinScale)
+        THREE.MathUtils.degToRad(spinZDeg * intensity * 0.65 * spinScale)
       );
       state.scored = false;
       setShots((value) => value + 1);
