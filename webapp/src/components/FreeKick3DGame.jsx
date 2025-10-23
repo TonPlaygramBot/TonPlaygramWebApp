@@ -458,6 +458,7 @@ export default function FreeKick3DGame({ config }) {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.03).texture;
 
@@ -912,23 +913,49 @@ export default function FreeKick3DGame({ config }) {
     const standStepGeo = new THREE.BoxGeometry(32, 0.4, 1.8);
     const walkwayGeo = new THREE.BoxGeometry(8, 0.4, 20);
 
+    const STAND_ROWS = 8;
+    const STAND_SEATS_PER_ROW = 18;
+    const STAND_ROW_RISE = 0.82;
+    const STAND_ROW_DEPTH = 1.8;
+    const STAND_CENTRAL_AISLE_INDICES = new Set([
+      Math.floor(STAND_SEATS_PER_ROW / 2) - 1,
+      Math.floor(STAND_SEATS_PER_ROW / 2)
+    ]);
+
+    const suiteGlassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xbcdfff,
+      roughness: 0.12,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.55,
+      transmission: 0.88,
+      ior: 1.45
+    });
+    const suiteFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x3d454f, roughness: 0.48, metalness: 0.62 });
+    const suiteRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x202126, roughness: 0.32, metalness: 0.7 });
+    const suiteGeo = new THREE.BoxGeometry(10, 5.6, 14.2);
+    const suiteFrameGeo = new THREE.BoxGeometry(10.4, 5.9, 14.6);
+    const suiteRoofGeo = new THREE.BoxGeometry(11.2, 0.6, 15);
+    const suiteDeckGeo = new THREE.BoxGeometry(78, 0.5, 16);
+
     function createStandSection(offsetX = 0, baseY = 0, depthOffset = 0) {
       const section = new THREE.Group();
-      const rows = 8;
-      const seatsPerRow = 18;
-      const rowRise = 0.7;
-      const rowDepth = 1.8;
 
-      for (let r = 0; r < rows; r += 1) {
-        for (let c = 0; c < seatsPerRow; c += 1) {
+      for (let r = 0; r < STAND_ROWS; r += 1) {
+        for (let c = 0; c < STAND_SEATS_PER_ROW; c += 1) {
+          if (STAND_CENTRAL_AISLE_INDICES.has(c)) {
+            continue;
+          }
+
+          const x = c * 1.7 - (STAND_SEATS_PER_ROW * 1.7) / 2 + offsetX;
+
           const seat = new THREE.Mesh(standSeatGeo, standSeatMaterial);
           const back = new THREE.Mesh(standBackGeo, standSeatMaterial);
           const leftLeg = new THREE.Mesh(standLegGeo, standFrameMaterial);
           const rightLeg = new THREE.Mesh(standLegGeo, standFrameMaterial);
 
-          const x = c * 1.7 - (seatsPerRow * 1.7) / 2 + offsetX;
-          const y = baseY + r * rowRise;
-          const z = -r * rowDepth + depthOffset;
+          const y = baseY + r * STAND_ROW_RISE;
+          const z = -r * STAND_ROW_DEPTH + depthOffset;
 
           seat.position.set(x, y, z);
           back.position.set(x, y + 0.45, z - 0.55);
@@ -939,7 +966,7 @@ export default function FreeKick3DGame({ config }) {
         }
 
         const step = new THREE.Mesh(standStepGeo, standConcreteMaterial);
-        step.position.set(offsetX, baseY + r * rowRise - 0.4, -r * rowDepth - 0.9 + depthOffset);
+        step.position.set(offsetX, baseY + r * STAND_ROW_RISE - 0.4, -r * STAND_ROW_DEPTH - 0.9 + depthOffset);
         section.add(step);
       }
       return section;
@@ -961,6 +988,45 @@ export default function FreeKick3DGame({ config }) {
       walkway.receiveShadow = true;
       standsGroup.add(leftStand, rightStand, walkway);
     });
+
+    const topTierConfig = tierConfigs[tierConfigs.length - 1];
+    const topRowY = topTierConfig.baseY + (STAND_ROWS - 1) * STAND_ROW_RISE;
+    const topRowZ = -((STAND_ROWS - 1) * STAND_ROW_DEPTH) + topTierConfig.depthOffset;
+    const suiteBaseY = topRowY + 1.2;
+    const suiteCenterZ = topRowZ - 6.5;
+    const suiteDeck = new THREE.Mesh(suiteDeckGeo, standConcreteMaterial);
+    suiteDeck.position.set(0, suiteBaseY - suiteDeckGeo.parameters.height / 2, suiteCenterZ);
+    suiteDeck.castShadow = true;
+    suiteDeck.receiveShadow = true;
+
+    const suitesGroup = new THREE.Group();
+    suitesGroup.add(suiteDeck);
+
+    for (let i = -2.5; i <= 2.5; i += 1) {
+      const centerX = i * 12;
+      const centerY = suiteBaseY + suiteGeo.parameters.height / 2;
+
+      const frame = new THREE.Mesh(suiteFrameGeo, suiteFrameMaterial);
+      frame.position.set(centerX, centerY, suiteCenterZ);
+      frame.castShadow = true;
+      frame.receiveShadow = true;
+
+      const glass = new THREE.Mesh(suiteGeo, suiteGlassMaterial);
+      glass.position.copy(frame.position);
+
+      const roof = new THREE.Mesh(suiteRoofGeo, suiteRoofMaterial);
+      roof.position.set(
+        centerX,
+        centerY + suiteGeo.parameters.height / 2 + suiteRoofGeo.parameters.height / 2,
+        suiteCenterZ
+      );
+      roof.castShadow = true;
+      roof.receiveShadow = true;
+
+      suitesGroup.add(frame, glass, roof);
+    }
+
+    standsGroup.add(suitesGroup);
 
     const netPoleGeo = new THREE.CylinderGeometry(0.15, 0.15, 10, 12);
     const protectiveNetGeo = new THREE.PlaneGeometry(40, 12);
