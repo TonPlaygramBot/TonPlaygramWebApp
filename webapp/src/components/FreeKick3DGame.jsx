@@ -285,7 +285,7 @@ const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
 const DEFENDER_WALL_Z = 1.2; // legacy spot where the ball used to start
-const SHOOT_POWER_SCALE = 1.28; // allow harder strikes from the swipe motion
+const SHOOT_POWER_SCALE = 1.92; // allow harder strikes from the swipe motion (50% more power)
 const SHOOT_VERTICAL_POWER_MIN = 0.36;
 const SHOOT_VERTICAL_POWER_MAX = 0.52;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.72;
@@ -294,6 +294,11 @@ const MAX_SHOT_POWER = MAX_BASE_SHOT_POWER * SHOOT_POWER_SCALE;
 const BASE_SPIN_SCALE = 1.6;
 const SPIN_SCALE = BASE_SPIN_SCALE * 1.35;
 const CROSSBAR_HEIGHT_MARGIN = 0.2;
+const SOLVER_MAX_ITERATIONS = 8;
+const SOLVER_TARGET_EPSILON = 0.0012;
+const SOLVER_DELTA_AZIMUTH = 0.008;
+const SOLVER_DELTA_SLOPE = 0.008;
+const CURVE_SWIPE_INFLUENCE = 0; // prioritize the target over swipe variance for pinpoint accuracy
 const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
   Math.max(
     0,
@@ -1710,10 +1715,10 @@ export default function FreeKick3DGame({ config }) {
       if (!preview.hit) {
         return null;
       }
-      for (let i = 0; i < 4; i += 1) {
+      for (let i = 0; i < SOLVER_MAX_ITERATIONS; i += 1) {
         const errorX = preview.point.x - target.x;
-        if (Math.abs(errorX) > 0.002) {
-          const deltaAzimuth = 0.012;
+        if (Math.abs(errorX) > SOLVER_TARGET_EPSILON) {
+          const deltaAzimuth = SOLVER_DELTA_AZIMUTH;
           const forward = simulateShotPreview({
             speed,
             azimuth: currentAzimuth + deltaAzimuth,
@@ -1741,8 +1746,8 @@ export default function FreeKick3DGame({ config }) {
           }
         }
         const errorY = preview.point.y - target.y;
-        if (Math.abs(errorY) > 0.002) {
-          const deltaSlope = 0.01;
+        if (Math.abs(errorY) > SOLVER_TARGET_EPSILON) {
+          const deltaSlope = SOLVER_DELTA_SLOPE;
           const forwardSlope = simulateShotPreview({
             speed,
             azimuth: currentAzimuth,
@@ -1766,8 +1771,8 @@ export default function FreeKick3DGame({ config }) {
           }
         }
         if (
-          Math.abs(preview.point.x - target.x) < 0.004 &&
-          Math.abs(preview.point.y - target.y) < 0.004
+          Math.abs(preview.point.x - target.x) < SOLVER_TARGET_EPSILON &&
+          Math.abs(preview.point.y - target.y) < SOLVER_TARGET_EPSILON
         ) {
           break;
         }
@@ -1784,6 +1789,12 @@ export default function FreeKick3DGame({ config }) {
         collectPath: true
       });
       if (!finalPreview.hit || !finalPreview.path || finalPreview.path.length < 2) {
+        return null;
+      }
+      if (
+        Math.abs(finalPreview.point.x - target.x) > SOLVER_TARGET_EPSILON ||
+        Math.abs(finalPreview.point.y - target.y) > SOLVER_TARGET_EPSILON
+      ) {
         return null;
       }
       return {
@@ -1895,7 +1906,7 @@ export default function FreeKick3DGame({ config }) {
       const intensity = THREE.MathUtils.clamp(power / (MAX_SHOT_POWER * 0.92), 0, 1.1);
       const swipeCurve = THREE.MathUtils.clamp(lateralChange * 0.85 + averageCurveRate * 1.1, -1.8, 1.8);
       const targetCurve = THREE.MathUtils.clamp((targetPoint.x - ball.position.x) / targetDepth, -1.6, 1.6);
-      const combinedCurve = THREE.MathUtils.lerp(targetCurve, swipeCurve, 0.7);
+      const combinedCurve = THREE.MathUtils.lerp(targetCurve, swipeCurve, CURVE_SWIPE_INFLUENCE);
       const spinXDeg = THREE.MathUtils.clamp(verticalSpeed * 260 - swipeSlope * 85, -720, 720);
       const spinYDeg = THREE.MathUtils.clamp(lateralSpeed * 150 + combinedCurve * 520, -900, 900);
       const spinZDeg = THREE.MathUtils.clamp(combinedCurve * 300, -540, 540);
@@ -1906,13 +1917,25 @@ export default function FreeKick3DGame({ config }) {
         THREE.MathUtils.degToRad(spinZDeg * intensity * 0.65 * spinScale)
       );
 
-      const solution = solveLaunchParameters({
+      let appliedSpin = spinVector.clone();
+      let solution = solveLaunchParameters({
         speed: power,
         azimuth: azimuthGuess,
         slope: slopeGuess,
         target: targetPoint,
-        spin: spinVector
+        spin: appliedSpin
       });
+
+      if (!solution) {
+        appliedSpin = new THREE.Vector3(0, 0, 0);
+        solution = solveLaunchParameters({
+          speed: power,
+          azimuth: azimuthGuess,
+          slope: slopeGuess,
+          target: targetPoint,
+          spin: appliedSpin
+        });
+      }
 
       const resolvedDirection = solution
         ? directionFromAzimuthSlope(solution.azimuth, solution.slope)
@@ -1961,7 +1984,7 @@ export default function FreeKick3DGame({ config }) {
 
       return {
         velocity,
-        spin: spinVector.clone(),
+        spin: appliedSpin.clone(),
         offsets,
         targetPoint,
         power,
