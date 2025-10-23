@@ -561,8 +561,8 @@ input:focus {
 .board-token .token-photo {
   width: 3.4rem;
   height: 3.4rem;
-  /* Position slightly lower and a touch to the right */
-  transform: translate(-45%, -5%) translateZ(15.2px)
+  /* Center token within the tile */
+  transform: translate(-50%, -50%) translateZ(15.2px)
     rotateX(calc(var(--board-angle, 58deg) * -1 - 10deg));
 }
 

@@ -125,6 +125,8 @@ const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.08;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.4;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
+const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 0.9;
+const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 
@@ -135,6 +137,10 @@ const TEMP_NDC_VECTOR = new THREE.Vector3();
 const DICE_CENTER_VECTOR = new THREE.Vector3();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
 const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
+
+const SIDE_SEAT_THROW_START_EXTRA = TILE_SIZE * 1.25;
+const SIDE_SEAT_THROW_BOUNCE_EXTRA = TILE_SIZE * 0.85;
+const SIDE_SEAT_THROW_SETTLE_EXTRA = TILE_SIZE * 0.7;
 
 const DICE_SEAT_ADJUSTMENTS = [
   {
@@ -188,6 +194,14 @@ const DICE_SEAT_ADJUSTMENTS = [
 ];
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
+
+const LADDER_BASE_LIFT = TILE_SIZE * 0.24;
+const LADDER_ARCH_BASE = TILE_SIZE * 0.9;
+const LADDER_ARCH_SCALE = TILE_SIZE * 0.015;
+const LADDER_SWAY_BASE = TILE_SIZE * 0.3;
+const LADDER_SWAY_SCALE = TILE_SIZE * 0.012;
+const LADDER_INNER_LIFT_RATIO = 0.9;
+const LADDER_OUTER_LIFT_RATIO = 1.1;
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
@@ -571,9 +585,14 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const frontAdjust = seatAdjust.front ?? {};
   const sideAdjust = seatAdjust.side ?? {};
 
-  const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0);
-  const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0);
-  const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0);
+  const isSideSeat = seatIndex === 1 || seatIndex === 3;
+  const sideStartBoost = isSideSeat ? SIDE_SEAT_THROW_START_EXTRA : 0;
+  const sideBounceBoost = isSideSeat ? SIDE_SEAT_THROW_BOUNCE_EXTRA : 0;
+  const sideSettleBoost = isSideSeat ? SIDE_SEAT_THROW_SETTLE_EXTRA : 0;
+
+  const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0) + sideStartBoost;
+  const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0) + sideBounceBoost;
+  const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0) + sideSettleBoost;
 
   const applyAxisOffsets = (vec, phase) => {
     const front = frontAdjust?.[phase];
@@ -1449,7 +1468,7 @@ function updateTokens(
     const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
     const baseY = Number.isFinite(baseLevelTop) ? baseLevelTop : 0;
     const center = new THREE.Vector3(0, baseY, 0);
-    const forwardLift = HOME_TOKEN_FORWARD_LIFT;
+    const forwardLift = HOME_TOKEN_FORWARD_LIFT + HOME_TOKEN_OUTWARD_EXTRA;
     seatAnchors.forEach((anchor, index) => {
       if (!anchor) {
         seatHomes[index] = null;
@@ -1519,7 +1538,7 @@ function updateTokens(
       let offsetX = 0;
       let offsetZ = 0;
       if (occupantCount > 1) {
-        const radius = TOKEN_RADIUS * 1.35;
+        const radius = Math.min(TOKEN_MULTI_OCCUPANT_RADIUS, TOKEN_RADIUS * 1.15);
         const offsetIndex = tilePlayers.indexOf(index);
         const indexForAngle = offsetIndex >= 0 ? offsetIndex : 0;
         const angle = (indexForAngle / occupantCount) * Math.PI * 2;
@@ -1611,21 +1630,23 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
       }
       const railOffset = TILE_SIZE * 0.18;
 
-      const baseLift = TILE_SIZE * 0.12;
-      const archHeight = TILE_SIZE * 0.65 + len * 0.012;
-      const swayAmount = TILE_SIZE * 0.24 + len * 0.01;
+      const baseLift = LADDER_BASE_LIFT;
+      const archHeight = LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE;
+      const swayAmount = LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE;
 
       const startPoint = A.clone().addScaledVector(up, baseLift);
       const endPoint = B.clone().addScaledVector(up, baseLift);
+      const innerLift = archHeight * LADDER_INNER_LIFT_RATIO;
+      const outerLift = archHeight * LADDER_OUTER_LIFT_RATIO;
       const midPointA = startPoint
         .clone()
         .lerp(endPoint, 0.35)
-        .addScaledVector(up, archHeight * 0.6)
+        .addScaledVector(up, innerLift)
         .addScaledVector(rightBase, swayAmount);
       const midPointB = startPoint
         .clone()
         .lerp(endPoint, 0.7)
-        .addScaledVector(up, archHeight)
+        .addScaledVector(up, outerLift)
         .addScaledVector(rightBase, -swayAmount * 0.85);
 
       const centerPoints = [startPoint, midPointA, midPointB, endPoint];
