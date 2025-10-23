@@ -98,8 +98,9 @@ function createNetSimulation(mesh) {
     mesh,
     rest,
     velocity,
-    damping: 0.88,
-    stiffness: 38
+    damping: 0.9,
+    stiffness: 26,
+    impulseScale: 1.15
   };
 }
 
@@ -122,22 +123,23 @@ function applyNetImpulse(sim, point, force) {
     }
   }
 
-  const influenceRadius = Math.max(0.4, force * 0.45);
+  const scaledForce = force * (sim.impulseScale ?? 1);
+  const influenceRadius = Math.max(BALL_RADIUS * 1.8, scaledForce * 0.42);
   for (let i = 0; i < count; i += 1) {
     const idx = i * 3;
     tmp.set(rest[idx], rest[idx + 1], rest[idx + 2]);
     const distance = tmp.distanceTo(point);
     if (distance > influenceRadius) continue;
     const weight = 1 - distance / influenceRadius;
-    const impulse = force * weight;
-    velocity[idx + 2] -= impulse * 0.9;
-    velocity[idx] += (point.x - tmp.x) * impulse * 0.15;
-    velocity[idx + 1] += (point.y - tmp.y) * impulse * 0.1;
+    const impulse = scaledForce * weight;
+    velocity[idx + 2] -= impulse * 0.95;
+    velocity[idx] += (point.x - tmp.x) * impulse * 0.18;
+    velocity[idx + 1] += (point.y - tmp.y) * impulse * 0.12;
   }
 
   if (closestIndex >= 0) {
     const idx = closestIndex * 3;
-    velocity[idx + 2] -= force * 1.1;
+    velocity[idx + 2] -= scaledForce * 1.1;
   }
 }
 
@@ -294,7 +296,7 @@ const GOAL_CONFIG = {
   z: -10.2
 };
 
-const BALL_RADIUS = 0.23;
+const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
 const GRAVITY = new THREE.Vector3(0, -9.81 * 0.35, 0);
 const AIR_DRAG = 0.0006;
 const FRICTION = 0.995;
@@ -302,11 +304,14 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
-const SHOOT_POWER_SCALE = 0.5390625; // 15% stronger launch while keeping shot arc capped
-const SHOOT_VERTICAL_POWER_FACTOR = 0.4166666666666667; // preserves previous maximum launch height
+const SHOOT_POWER_SCALE = 0.80859375; // 50% quicker shots toward goal
+const SHOOT_VERTICAL_POWER_MIN = 0.28;
+const SHOOT_VERTICAL_POWER_MAX = 0.4166666666666667;
+const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.85;
+const MAX_SHOT_POWER = 30 * SHOOT_POWER_SCALE;
 const BASE_SPIN_SCALE = 1.5;
 const SPIN_SCALE = BASE_SPIN_SCALE * 1.25;
-const CROSSBAR_HEIGHT_MARGIN = 0.25;
+const CROSSBAR_HEIGHT_MARGIN = 0.2;
 const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
   Math.max(
     0,
@@ -444,7 +449,7 @@ export default function FreeKick3DGame({ config }) {
     if (!host) return;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
     renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -471,7 +476,7 @@ export default function FreeKick3DGame({ config }) {
     const sun = new THREE.DirectionalLight(0xffffff, 1.05);
     sun.position.set(-4, 6, 5.2);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1536, 1536);
     sun.shadow.camera.near = 0.5;
     sun.shadow.camera.far = 60;
     sun.shadow.camera.left = -12;
@@ -662,8 +667,8 @@ export default function FreeKick3DGame({ config }) {
       canvas.width = canvas.height = size;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
-      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255,255,255,0.97)';
+      ctx.lineWidth = 5;
       const radius = 20;
       const width = radius * 3;
       const height = Math.sqrt(3) * radius;
@@ -894,9 +899,9 @@ export default function FreeKick3DGame({ config }) {
     scene.add(billboardGroup);
 
     const standSeatMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0052d6,
-      roughness: 0.4,
-      metalness: 0.1
+      color: 0x1f75fe,
+      roughness: 0.38,
+      metalness: 0.12
     });
     const standFrameMaterial = new THREE.MeshStandardMaterial({
       color: 0x333333,
@@ -1075,6 +1080,7 @@ export default function FreeKick3DGame({ config }) {
       };
     });
 
+    const CAMERA_BASE_SCALE = 1.25;
     const createRoyalBroadcastCamera = (() => {
       const metalDark = new THREE.MeshStandardMaterial({
         color: 0x1f2937,
@@ -1134,7 +1140,7 @@ export default function FreeKick3DGame({ config }) {
       const COLUMN_HEIGHT = 0.18;
       const HEAD_HEIGHT = HUB_HEIGHT + COLUMN_HEIGHT;
 
-      return (scale = 1.25) => {
+      return (scale = CAMERA_BASE_SCALE) => {
         const group = new THREE.Group();
         group.name = 'royalBroadcastCamera';
         const base = new THREE.Group();
@@ -1254,12 +1260,13 @@ export default function FreeKick3DGame({ config }) {
       };
     })();
 
+    const CAMERA_SCALE = CAMERA_BASE_SCALE * 0.6;
     const cameraOffset = goalWidth / 2 + 1.6;
     const cameraZ = goalZ - goalDepthBottom - 1.1;
     const broadcastFocus = new THREE.Vector3(0, goalHeight * 0.55, goalZ + 2.4);
     const tripodTilt = THREE.MathUtils.degToRad(-8);
 
-    const leftCameraRig = createRoyalBroadcastCamera();
+    const leftCameraRig = createRoyalBroadcastCamera(CAMERA_SCALE);
     leftCameraRig.group.position.set(-cameraOffset, GROUND_Y, cameraZ);
     const toLeftTarget = new THREE.Vector3().subVectors(broadcastFocus, leftCameraRig.group.position);
     const leftYaw = Math.atan2(toLeftTarget.x, toLeftTarget.z);
@@ -1271,7 +1278,7 @@ export default function FreeKick3DGame({ config }) {
     leftCameraRig.headPivot.rotateY(Math.PI);
     leftCameraRig.headPivot.rotateX(tripodTilt);
 
-    const rightCameraRig = createRoyalBroadcastCamera();
+    const rightCameraRig = createRoyalBroadcastCamera(CAMERA_SCALE);
     rightCameraRig.group.position.set(cameraOffset, GROUND_Y, cameraZ);
     const toRightTarget = new THREE.Vector3().subVectors(broadcastFocus, rightCameraRig.group.position);
     const rightYaw = Math.atan2(toRightTarget.x, toRightTarget.z);
@@ -1283,11 +1290,14 @@ export default function FreeKick3DGame({ config }) {
     rightCameraRig.headPivot.rotateY(Math.PI);
     rightCameraRig.headPivot.rotateX(tripodTilt);
 
+    const cameraScaleRatio = CAMERA_SCALE / CAMERA_BASE_SCALE;
+    const cameraBodyRadius = 0.36 * cameraScaleRatio;
+    const cameraBaseRadius = 0.29 * cameraScaleRatio;
     const broadcastCameras = [leftCameraRig, rightCameraRig];
     const cameraColliders = [
       {
         anchor: leftCameraRig.bodyAnchor,
-        radius: 0.36,
+        radius: cameraBodyRadius,
         restitution: 1.15,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1296,7 +1306,7 @@ export default function FreeKick3DGame({ config }) {
       },
       {
         anchor: leftCameraRig.baseAnchor,
-        radius: 0.29,
+        radius: cameraBaseRadius,
         restitution: 1.1,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1305,7 +1315,7 @@ export default function FreeKick3DGame({ config }) {
       },
       {
         anchor: rightCameraRig.bodyAnchor,
-        radius: 0.36,
+        radius: cameraBodyRadius,
         restitution: 1.15,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1314,7 +1324,7 @@ export default function FreeKick3DGame({ config }) {
       },
       {
         anchor: rightCameraRig.baseAnchor,
-        radius: 0.29,
+        radius: cameraBaseRadius,
         restitution: 1.1,
         velocityDamping: 0.78,
         spinDamping: 0.72,
@@ -1626,7 +1636,7 @@ export default function FreeKick3DGame({ config }) {
             if (state.netCooldown <= 0) {
               localImpact.copy(tmp3);
               netMesh.worldToLocal(localImpact);
-              const impactForce = Math.min(6, state.velocity.length() + 1.2);
+              const impactForce = Math.min(7.5, state.velocity.length() * 0.95 + 1.4);
               applyNetImpulse(state.netSim, localImpact, impactForce);
               tmp.set(impactX, impactY, goalZ).sub(tmp3).normalize();
               ball.position.copy(tmp3).addScaledVector(tmp, BALL_RADIUS * 0.45);
@@ -1634,9 +1644,9 @@ export default function FreeKick3DGame({ config }) {
               if (approach < 0) {
                 state.velocity.addScaledVector(tmp, -approach * (1.3 + impactForce * 0.12));
               }
-              state.velocity.multiplyScalar(0.45);
-              state.spin.multiplyScalar(0.6);
-              state.netCooldown = 0.35;
+              state.velocity.multiplyScalar(0.5);
+              state.spin.multiplyScalar(0.62);
+              state.netCooldown = 0.25;
             }
           }
         }
@@ -1744,14 +1754,25 @@ export default function FreeKick3DGame({ config }) {
       const dtSeconds = dt / 1000;
       const basePower = THREE.MathUtils.clamp((distance * 22) / dtSeconds, 2.4, 30);
       const power = basePower * SHOOT_POWER_SCALE;
+      const normalizedPower = MAX_SHOT_POWER > 0 ? THREE.MathUtils.clamp(power / MAX_SHOT_POWER, 0, 1) : 0;
+      const fullArcThreshold = SHOOT_VERTICAL_FULL_POWER_THRESHOLD;
+      const highArcWeight =
+        normalizedPower <= fullArcThreshold
+          ? 0
+          : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
       const launchVector = new THREE.Vector3(dx * 2.0, -dy * 1.1 + 0.45, -1);
-      const maxElevation = 0.68;
-      if (launchVector.y > maxElevation) {
-        launchVector.y = maxElevation;
+      const dynamicElevationCap = 0.52 + highArcWeight * 0.16;
+      if (launchVector.y > dynamicElevationCap) {
+        launchVector.y = dynamicElevationCap;
       }
       const direction = launchVector.normalize();
       state.velocity.copy(direction.multiplyScalar(power));
-      const maxVerticalSpeed = Math.min(power * SHOOT_VERTICAL_POWER_FACTOR, MAX_VERTICAL_LAUNCH_SPEED);
+      const verticalFactor = THREE.MathUtils.lerp(
+        SHOOT_VERTICAL_POWER_MIN,
+        SHOOT_VERTICAL_POWER_MAX,
+        highArcWeight
+      );
+      const maxVerticalSpeed = Math.min(power * verticalFactor, MAX_VERTICAL_LAUNCH_SPEED);
       if (state.velocity.y > maxVerticalSpeed) {
         state.velocity.y = maxVerticalSpeed;
       }
