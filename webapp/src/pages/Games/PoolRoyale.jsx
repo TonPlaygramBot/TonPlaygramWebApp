@@ -473,11 +473,11 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.392; // extend the corner jaws across the full chrome arch seen on the Supreme Winner reference
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.462; // stretch the side jaws so their chrome coverage mirrors the full arch in the reference table photos
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.6; // stretch the side jaws so their chrome coverage spans the entire chrome arch on the reference table
 const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
 const POCKET_JAW_SIDE_INNER_SCALE = 0.936; // keep the side jaw interior aligned with the cloth edge seen in the photos
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.658; // keep the side mouth while matching the wide chrome-backed jaw liner
+const POCKET_JAW_SIDE_OUTER_SCALE = 1.81; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
 const POCKET_JAW_DEPTH_SCALE = 0.63; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
 const POCKET_RIM_FIELD_PULL = 0.34; // pull the rim toward the cloth so the jaw lip wraps around like the reference build
 const POCKET_RIM_DEPTH_SCALE = 0.48; // depth of the rim extrusion relative to the deeper jaw body
