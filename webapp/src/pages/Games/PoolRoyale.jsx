@@ -472,8 +472,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.5; // allow the corner jaw footprint to widen 50%
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.2; // allow the middle pocket jaw footprint to widen 20%
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // apply a full (100%) reduction to the corner jaw footprint widening allowance
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.08; // reflect a 60% cut to the previous 20% widening allowance (now 8%)
 const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
 const POCKET_JAW_SIDE_INNER_SCALE = 0.936; // keep the side jaw interior aligned with the cloth edge seen in the photos
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -492,11 +492,11 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.2; // widen the middle pocket jaws 20% along the side rails
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale to widen the footprint by 20%
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // reduce the middle pocket jaw lateral widening by 60%, leaving an 8% expansion
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale to widen the footprint by the reduced 8%
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
 const SIDE_POCKET_RIM_FIELD_PULL = 0.08; // keep the middle pocket rim hugging the chrome arc instead of the field
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // widen the corner pocket jaws 50% along both rails
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1; // remove 100% of the additional lateral widening on the corner pocket jaws
 const CORNER_JAW_ARC_DEG = 54; // base corner jaw span before lateral expansion
 const SIDE_JAW_ARC_DEG = 52; // base side jaw span; middle-pocket expansion happens via SIDE_POCKET_JAW_LATERAL_EXPANSION
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
