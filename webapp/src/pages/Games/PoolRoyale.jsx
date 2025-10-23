@@ -493,6 +493,10 @@ const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward 
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const POCKET_JAW_CLOTH_CONTACT_PAD = 0; // let the jaws run right up to the green cloth without leaving a standoff gap
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.1; // widen the middle pocket jaws 10% along the side rails
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.5; // enlarge the side pocket jaw footprint by 50%
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
+const SIDE_POCKET_RIM_FIELD_PULL = 0.08; // keep the middle pocket rim hugging the chrome arc instead of the field
 const CORNER_JAW_ARC_DEG = 54 * 1.4; // expand the corner jaw span 40% further along the rails
 const SIDE_JAW_ARC_DEG = 52 * 1.4; // expand the side jaw span 40% further toward the long rails
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
@@ -4663,28 +4667,57 @@ function Table3D(
     clampOuter
   }) => {
     const clothClampFn = createPocketJawClothClamp(center);
+    const baseInnerScale = wide
+      ? POCKET_JAW_SIDE_INNER_SCALE
+      : POCKET_JAW_CORNER_INNER_SCALE;
+    const baseOuterScale = wide
+      ? POCKET_JAW_SIDE_OUTER_SCALE
+      : POCKET_JAW_CORNER_OUTER_SCALE;
+    let effectiveBaseRadius = baseRadius;
+    let localClampOuter = clampOuter;
+    let localJawAngle = jawAngle;
+    let depthMultiplier = 1;
+    let rimFieldPull = POCKET_RIM_FIELD_PULL;
+    let steps = wide ? 88 : 68;
+
+    if (isMiddle) {
+      localJawAngle *= SIDE_POCKET_JAW_LATERAL_EXPANSION;
+      depthMultiplier = SIDE_POCKET_JAW_DEPTH_EXPANSION;
+      rimFieldPull = SIDE_POCKET_RIM_FIELD_PULL;
+      steps = Math.max(steps, Math.ceil(steps * SIDE_POCKET_JAW_LATERAL_EXPANSION));
+      if (Number.isFinite(localClampOuter) && localClampOuter > 0) {
+        localClampOuter *= SIDE_POCKET_JAW_RADIUS_EXPANSION;
+        effectiveBaseRadius = localClampOuter / baseOuterScale;
+      } else {
+        effectiveBaseRadius = baseRadius * SIDE_POCKET_JAW_RADIUS_EXPANSION;
+      }
+    }
+
     const jawShape = buildPocketJawShape({
       center,
-      baseRadius,
-      jawAngle,
+      baseRadius: effectiveBaseRadius,
+      jawAngle: localJawAngle,
       orientationAngle,
-      innerScale: wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE,
-      outerScale: wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE,
-      steps: wide ? 88 : 68,
+      innerScale: baseInnerScale,
+      outerScale: baseOuterScale,
+      steps,
       sideThinFactor: wide ? 0.3 : 0.36,
       middleThinFactor: wide ? 0.82 : 0.92,
       centerEase: wide ? 0.28 : 0.36,
-      clampOuter,
+      clampOuter: localClampOuter,
       clampOuterFn: clothClampFn
     });
     if (!jawShape) {
       return null;
     }
-    const jawDepth = Math.max(MICRO_EPS, railH * POCKET_JAW_DEPTH_SCALE);
+    const jawDepth = Math.max(
+      MICRO_EPS,
+      railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
+    );
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
-      curveSegments: Math.max(64, Math.ceil(jawAngle / (Math.PI / 48))),
+      curveSegments: Math.max(64, Math.ceil(localJawAngle / (Math.PI / 48))),
       steps: 1
     });
     jawGeom.rotateX(-Math.PI / 2);
@@ -4695,39 +4728,40 @@ function Table3D(
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
-    const baseInnerScale = wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE;
-    const baseOuterScale = wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE;
-    const baseInnerRadius = baseRadius * baseInnerScale;
-    const unclampedOuterRadius = baseRadius * baseOuterScale;
+    const baseInnerRadius = effectiveBaseRadius * baseInnerScale;
+    const unclampedOuterRadius = effectiveBaseRadius * baseOuterScale;
     let rimOuterRadius = unclampedOuterRadius;
-    if (Number.isFinite(clampOuter) && clampOuter > baseInnerRadius + MICRO_EPS) {
-      rimOuterRadius = Math.min(clampOuter, rimOuterRadius);
+    if (
+      Number.isFinite(localClampOuter) &&
+      localClampOuter > baseInnerRadius + MICRO_EPS
+    ) {
+      rimOuterRadius = Math.min(localClampOuter, rimOuterRadius);
     }
     const rimInnerRadius = THREE.MathUtils.lerp(
       rimOuterRadius,
       baseInnerRadius,
-      THREE.MathUtils.clamp(POCKET_RIM_FIELD_PULL, 0, 1)
+      THREE.MathUtils.clamp(rimFieldPull, 0, 1)
     );
-    let rimInnerScale = rimInnerRadius / baseRadius;
+    let rimInnerScale = rimInnerRadius / effectiveBaseRadius;
     if (!Number.isFinite(rimInnerScale) || rimInnerScale <= MICRO_EPS) {
       rimInnerScale = baseInnerScale;
     }
-    let rimOuterScale = rimOuterRadius / baseRadius;
+    let rimOuterScale = rimOuterRadius / effectiveBaseRadius;
     if (!Number.isFinite(rimOuterScale) || rimOuterScale <= rimInnerScale + MICRO_EPS) {
       rimOuterScale = rimInnerScale + MICRO_EPS * 12;
     }
     const rimShape = buildPocketJawShape({
       center,
-      baseRadius,
-      jawAngle,
+      baseRadius: effectiveBaseRadius,
+      jawAngle: localJawAngle,
       orientationAngle,
       innerScale: rimInnerScale,
       outerScale: rimOuterScale,
-      steps: wide ? 88 : 68,
+      steps,
       sideThinFactor: wide ? 0.34 : 0.44,
       middleThinFactor: wide ? 0.88 : 0.94,
       centerEase: wide ? 0.24 : 0.32,
-      clampOuter,
+      clampOuter: localClampOuter,
       clampOuterFn: clothClampFn
     });
     let rimMesh = null;
@@ -4736,7 +4770,7 @@ function Table3D(
       const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
-        curveSegments: Math.max(48, Math.ceil(jawAngle / (Math.PI / 64))),
+        curveSegments: Math.max(48, Math.ceil(localJawAngle / (Math.PI / 64))),
         steps: 1
       });
       rimGeom.rotateX(-Math.PI / 2);
