@@ -472,8 +472,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.5; // allow the corner jaw footprint to widen 50%
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.2; // allow the middle pocket jaw footprint to widen 20%
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // keep corner jaw footprint locked to the chrome plate cut radius
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaw footprint locked to the chrome plate cut radius
 const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
 const POCKET_JAW_SIDE_INNER_SCALE = 0.936; // keep the side jaw interior aligned with the cloth edge seen in the photos
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -4743,9 +4743,15 @@ function Table3D(
   // Each pocket jaw must match 100% to the rounded chrome plate cuts—never the wooden rail arches.
   // Repeat: each pocket jaw must match 100% to the size of the rounded cuts on the chrome plates.
   const cornerJawOuterLimit =
-    cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE * POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+    cornerPocketRadius *
+    CHROME_CORNER_POCKET_RADIUS_SCALE *
+    CHROME_CORNER_POCKET_CUT_SCALE *
+    POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
   const sideJawOuterLimit =
-    sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE * POCKET_JAW_SIDE_OUTER_LIMIT_SCALE;
+    sidePocketRadius *
+    CHROME_SIDE_POCKET_RADIUS_SCALE *
+    CHROME_SIDE_POCKET_CUT_SCALE *
+    POCKET_JAW_SIDE_OUTER_LIMIT_SCALE;
 
   const resolveBaseRadius = (outerLimit, outerScale) => {
     if (!Number.isFinite(outerLimit) || outerLimit <= MICRO_EPS) {
