@@ -443,18 +443,18 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.01; // let the corner jaws reach slightly farther to blanket the wood cutout
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.004; // give the side jaws a subtle reach boost to hide the exposed trim
-const POCKET_JAW_CORNER_INNER_SCALE = 1.138; // rebalanced inner radius after the limit expansion to preserve the mouth opening
-const POCKET_JAW_SIDE_INNER_SCALE = 0.996; // nudge the side jaw interior inwards just enough to keep the pocket width steady
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // let the corner jaws reach slightly farther to blanket the wood cutout
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.006; // give the side jaws a subtle reach boost to hide the exposed trim
+const POCKET_JAW_CORNER_INNER_SCALE = 1.129; // rebalance after the limit expansion to preserve the mouth opening
+const POCKET_JAW_SIDE_INNER_SCALE = 0.994; // keep the middle jaw interior anchored while the outer edge grows
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.3; // outer radius multiplier to keep corner jaws wrapping the pocket chamfer
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.18; // outer radius multiplier that keeps the middle jaws slim
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
-const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner jaw scale (0 → rail edge, 1 → inner scale)
-const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
+const POCKET_RIM_OUTER_BLEND = 0.08; // keep the rim silhouette close to the chrome cutout (0 → rail edge, 1 → inner scale)
+const POCKET_RIM_INNER_SCALE = 1.05; // nudge the rim outward so it sits over the chrome rather than the cloth
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
-const POCKET_RIM_LIP = TABLE.THICK * 0.012; // slight lift so the rim sits proud of the jaw insert
-const POCKET_JAW_EDGE_FLUSH_START = 0.62; // begin easing the jaw back out to meet the chrome edge
+const POCKET_RIM_LIP = TABLE.THICK * 0.024; // lift the rim higher so it clears the chrome plates cleanly
+const POCKET_JAW_EDGE_FLUSH_START = 0.42; // begin easing the jaw back out to meet the chrome edge
 const POCKET_JAW_EDGE_FLUSH_END = 0.965; // ensure the jaw and rim finish flush with the chrome trim
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
