@@ -234,7 +234,7 @@ const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.958; // trim the short-rail chrome 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.99; // ease the chrome corner notch inward so the rounded cut looks smaller
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0.014; // leave a bit more chrome on the field side so the plate stretches outward cleanly
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rails square so they never imply an alternate pocket arc
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.22; // keep the side chrome throat shallow so the cut stays centered above the pocket
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.948; // pinch the middle chrome rounding so the side cuts read slightly smaller
@@ -248,8 +248,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly 
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
-const RAIL_CORNER_POCKET_CUT_SCALE = 0.944; // trim the corner rail pocket cuts so the rounded openings read slightly smaller
-const RAIL_SIDE_POCKET_CUT_SCALE = 0.978; // tighten the side rail cutouts so the rounded middle pockets shrink subtly
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.944; // chrome plate cut defines the pocket arc; wooden rails simply tuck behind this shape
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.978; // chrome middle cut defines the pocket arc; wooden rails only inherit this exact rounding
 
 function buildChromePlateGeometry({
   width,
@@ -4362,6 +4362,7 @@ function Table3D(
     return adjustSideNotchDepth(union);
   };
 
+  // Chrome plate cuts are the authoritative arcs; every other surface borrows them verbatim.
   const scalePocketCutMP = (mp, scale) => {
     if (!Array.isArray(mp)) {
       return mp;
@@ -4373,13 +4374,14 @@ function Table3D(
     return Array.isArray(scaled) && scaled.length ? scaled : mp;
   };
 
-  const scaleCornerPocketCut = (mp) =>
-    scalePocketCutMP(mp, RAIL_CORNER_POCKET_CUT_SCALE);
-  const scaleSidePocketCut = (mp) =>
-    scalePocketCutMP(mp, RAIL_SIDE_POCKET_CUT_SCALE);
+  const scaleChromeCornerPocketCut = (mp) =>
+    scalePocketCutMP(mp, CHROME_CORNER_POCKET_CUT_SCALE);
+  const scaleChromeSidePocketCut = (mp) =>
+    scalePocketCutMP(mp, CHROME_SIDE_POCKET_CUT_SCALE);
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
+  // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
@@ -4388,7 +4390,8 @@ function Table3D(
   ].forEach(({ corner, sx, sz }) => {
     const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
     const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
-    const notchMP = scaleCornerPocketCut(cornerNotchMP(sx, sz));
+    // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
+    const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
     const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -4419,7 +4422,7 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
     const centerZ = 0;
-    const notchMP = scaleSidePocketCut(sideNotchMP(sx));
+    const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
     const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
@@ -4864,17 +4867,18 @@ function Table3D(
     }
   }
 
+  // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...scaleSidePocketCut(sideNotchMP(-1)),
-    ...scaleSidePocketCut(sideNotchMP(1))
+    ...scaleChromeSidePocketCut(sideNotchMP(-1)),
+    ...scaleChromeSidePocketCut(sideNotchMP(1))
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...scaleCornerPocketCut(cornerNotchMP(1, 1)),
-    ...scaleCornerPocketCut(cornerNotchMP(-1, 1)),
-    ...scaleCornerPocketCut(cornerNotchMP(-1, -1)),
-    ...scaleCornerPocketCut(cornerNotchMP(1, -1))
+    ...scaleChromeCornerPocketCut(cornerNotchMP(1, 1)),
+    ...scaleChromeCornerPocketCut(cornerNotchMP(-1, 1)),
+    ...scaleChromeCornerPocketCut(cornerNotchMP(-1, -1)),
+    ...scaleChromeCornerPocketCut(cornerNotchMP(1, -1))
   );
 
   const railsOuter = new THREE.Shape();

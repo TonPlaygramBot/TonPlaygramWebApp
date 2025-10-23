@@ -23,6 +23,7 @@ Exactly **four** chalk blocks are visible at all times—one centred on each woo
 ### Pool Royal (Arcade)
 - Same table geometry as American Billiards but with neon accent lighting.
 - Power-up spawn pads appear on the long rails; reuse the chalk placement rule so props do not collide.
+- Pocket jaws and rims must match the chrome plate cutouts **100%**—never size them from the wooden rail arches.
 
 ### 3D UK 8 Ball
 - 7 ft pub-style table with rounded corners and smaller pockets.
