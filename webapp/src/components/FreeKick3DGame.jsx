@@ -628,10 +628,10 @@ export default function FreeKick3DGame({ config }) {
           else ctx.lineTo(x, y);
         }
         ctx.closePath();
-        ctx.shadowColor = 'rgba(0,0,0,0.45)';
-        ctx.shadowBlur = 2.5;
+        ctx.shadowColor = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur = 3.5;
         ctx.lineWidth = outlineWidth;
-        ctx.strokeStyle = '#facc15';
+        ctx.strokeStyle = '#111827';
         ctx.stroke();
         ctx.shadowColor = 'transparent';
         ctx.lineWidth = innerWidth;
@@ -653,21 +653,16 @@ export default function FreeKick3DGame({ config }) {
       return texture;
     })();
 
-    const netColor = new THREE.Color('#facc15');
-    const netEmissive = netColor.clone().multiplyScalar(0.25);
     const netMaterial = new THREE.MeshPhysicalMaterial({
       map: netTexture,
       transparent: true,
       alphaMap: netTexture,
       side: THREE.DoubleSide,
-      color: netColor,
-      emissive: netEmissive,
-      emissiveIntensity: 1,
-      roughness: 0.72,
-      metalness: 0.05,
+      roughness: 0.85,
+      metalness: 0.08,
       transmission: 0,
       clearcoat: 0.2,
-      clearcoatRoughness: 0.42,
+      clearcoatRoughness: 0.5,
       alphaTest: 0.35
     });
 
@@ -1009,8 +1004,7 @@ export default function FreeKick3DGame({ config }) {
     const topRowY = topTierConfig.baseY + (STAND_ROWS - 1) * STAND_ROW_RISE;
     const topRowZ = -((STAND_ROWS - 1) * STAND_ROW_DEPTH) + topTierConfig.depthOffset;
     const suiteBaseY = topRowY + 1.2;
-    const SUITE_BACK_OFFSET = 3.5;
-    const suiteCenterZ = topRowZ - SUITE_BACK_OFFSET;
+    const suiteCenterZ = topRowZ - 6.5;
     const terraceGroup = new THREE.Group();
     const suiteDeck = new THREE.Mesh(suiteDeckGeo, standConcreteMaterial);
     const deckHeight = suiteBaseY - suiteDeckGeo.parameters.height / 2;
@@ -1086,8 +1080,7 @@ export default function FreeKick3DGame({ config }) {
     const stadiumRoof = new THREE.Mesh(canopyGeometry, canopyMaterial);
     stadiumRoof.castShadow = true;
     stadiumRoof.receiveShadow = true;
-    const CANOPY_REAR_OFFSET = 18;
-    stadiumRoof.position.set(0, suiteBaseY + suiteGeo.parameters.height + 2.5, suiteCenterZ - CANOPY_REAR_OFFSET);
+    stadiumRoof.position.set(0, suiteBaseY + suiteGeo.parameters.height + 2.5, suiteCenterZ - 32);
     suitesGroup.add(stadiumRoof);
 
     const roofSupportMaterial = new THREE.MeshStandardMaterial({
@@ -1105,7 +1098,7 @@ export default function FreeKick3DGame({ config }) {
       support.position.set(
         i * 22,
         suiteBaseY - 0.4 + supportHeight / 2,
-        suiteCenterZ - 26
+        suiteCenterZ - 40
       );
       roofSupports.add(support);
     }
@@ -1118,8 +1111,6 @@ export default function FreeKick3DGame({ config }) {
       clearcoatRoughness: 0.28
     });
     const roofStruts = new THREE.Group();
-    const CANOPY_FORWARD_ANCHOR_OFFSET = 10;
-    const CANOPY_MID_ANCHOR_OFFSET = CANOPY_REAR_OFFSET;
     roofSupports.children.forEach((support) => {
       const supportTop = new THREE.Vector3(
         support.position.x,
@@ -1129,12 +1120,12 @@ export default function FreeKick3DGame({ config }) {
       const forwardAnchor = new THREE.Vector3(
         support.position.x,
         suiteBaseY + suiteGeo.parameters.height + 6,
-        suiteCenterZ - CANOPY_FORWARD_ANCHOR_OFFSET
+        suiteCenterZ - 26
       );
       const midAnchor = new THREE.Vector3(
         support.position.x,
         suiteBaseY + suiteGeo.parameters.height + 4.5,
-        suiteCenterZ - CANOPY_MID_ANCHOR_OFFSET
+        suiteCenterZ - 32
       );
       [forwardAnchor, midAnchor].forEach((target, index) => {
         const strut = makeTubeBetween(supportTop, target, index === 0 ? 0.55 : 0.45, roofStrutMaterial);
@@ -1151,12 +1142,12 @@ export default function FreeKick3DGame({ config }) {
       const crossStart = new THREE.Vector3(
         leftSupport.position.x,
         suiteBaseY + suiteGeo.parameters.height + 4.5,
-        suiteCenterZ - CANOPY_MID_ANCHOR_OFFSET
+        suiteCenterZ - 32
       );
       const crossEnd = new THREE.Vector3(
         rightSupport.position.x,
         suiteBaseY + suiteGeo.parameters.height + 4.5,
-        suiteCenterZ - CANOPY_MID_ANCHOR_OFFSET
+        suiteCenterZ - 32
       );
       const crossBrace = makeTubeBetween(crossStart, crossEnd, 0.42, roofStrutMaterial);
       if (crossBrace) {
