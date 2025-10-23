@@ -479,8 +479,11 @@ const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.78; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
 const POCKET_JAW_DEPTH_SCALE = 0.63; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
+const POCKET_RIM_FIELD_PULL = 0.18; // allow the rim to stay farther out so it crowns above the chrome plates
+const POCKET_RIM_DEPTH_SCALE = 0.48; // depth of the rim extrusion relative to the deeper jaw body
+const POCKET_RIM_LIP = TABLE.THICK * 0.056; // raise the rim slightly more so it clearly crowns above the chrome plates
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
-const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
+const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw and rim finish perfectly flush with the chrome trim at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.72; // minimum centre thickness ratio (relative to jaw depth)
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.9; // maximum centre thickness ratio
@@ -492,6 +495,7 @@ const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1; // keep the middle pocket jaws the same width as the chrome pocket cuts
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale while respecting the slimmer side jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
+const SIDE_POCKET_RIM_FIELD_PULL = 0; // let the middle pocket rim sit directly above the chrome arc instead of drifting inward
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // widen the corner pocket jaws 50% along both rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = 150; // base side jaw span tuned so expansion covers half of the pocket circumference
@@ -4606,11 +4610,13 @@ function Table3D(
     let localClampOuter = clampOuter;
     let localJawAngle = jawAngle;
     let depthMultiplier = 1;
+    let rimFieldPull = POCKET_RIM_FIELD_PULL;
     let steps = wide ? 88 : 68;
 
     if (isMiddle) {
       localJawAngle *= SIDE_POCKET_JAW_LATERAL_EXPANSION;
       depthMultiplier = SIDE_POCKET_JAW_DEPTH_EXPANSION;
+      rimFieldPull = SIDE_POCKET_RIM_FIELD_PULL;
       steps = Math.max(steps, Math.ceil(steps * SIDE_POCKET_JAW_LATERAL_EXPANSION));
       if (Number.isFinite(localClampOuter) && localClampOuter > 0) {
         localClampOuter *= SIDE_POCKET_JAW_RADIUS_EXPANSION;
@@ -4660,9 +4666,65 @@ function Table3D(
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
+    const baseInnerRadius = effectiveBaseRadius * baseInnerScale;
+    const unclampedOuterRadius = effectiveBaseRadius * baseOuterScale;
+    let rimOuterRadius = unclampedOuterRadius;
+    if (
+      Number.isFinite(localClampOuter) &&
+      localClampOuter > baseInnerRadius + MICRO_EPS
+    ) {
+      rimOuterRadius = Math.min(localClampOuter, rimOuterRadius);
+    }
+    const rimInnerRadius = THREE.MathUtils.lerp(
+      rimOuterRadius,
+      baseInnerRadius,
+      THREE.MathUtils.clamp(rimFieldPull, 0, 1)
+    );
+    let rimInnerScale = rimInnerRadius / effectiveBaseRadius;
+    if (!Number.isFinite(rimInnerScale) || rimInnerScale <= MICRO_EPS) {
+      rimInnerScale = baseInnerScale;
+    }
+    let rimOuterScale = rimOuterRadius / effectiveBaseRadius;
+    if (!Number.isFinite(rimOuterScale) || rimOuterScale <= rimInnerScale + MICRO_EPS) {
+      rimOuterScale = rimInnerScale + MICRO_EPS * 12;
+    }
+    const rimShape = buildPocketJawShape({
+      center,
+      baseRadius: effectiveBaseRadius,
+      jawAngle: localJawAngle,
+      orientationAngle,
+      innerScale: rimInnerScale,
+      outerScale: rimOuterScale,
+      steps,
+      sideThinFactor: wide ? 0.34 : 0.44,
+      middleThinFactor: wide ? 0.88 : 0.94,
+      centerEase: wide ? 0.24 : 0.32,
+      clampOuter: localClampOuter
+    });
+    let rimMesh = null;
+    if (rimShape) {
+      const rimDepth = Math.max(MICRO_EPS, jawDepth * POCKET_RIM_DEPTH_SCALE);
+      const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
+        depth: rimDepth,
+        bevelEnabled: false,
+        curveSegments: Math.max(48, Math.ceil(localJawAngle / (Math.PI / 64))),
+        steps: 1
+      });
+      rimGeom.rotateX(-Math.PI / 2);
+      rimGeom.translate(0, -rimDepth, 0);
+      rimGeom.computeVertexNormals();
+      rimMesh = new THREE.Mesh(rimGeom, pocketRimMat);
+      rimMesh.position.y = railsTopY + POCKET_RIM_LIP;
+      rimMesh.castShadow = false;
+      rimMesh.receiveShadow = true;
+    }
+
     const group = new THREE.Group();
     group.add(jawMesh);
-    return { group, jawMesh, rimMesh: null };
+    if (rimMesh) {
+      group.add(rimMesh);
+    }
+    return { group, jawMesh, rimMesh };
   };
 
   const addPocketJaw = (config) => {
