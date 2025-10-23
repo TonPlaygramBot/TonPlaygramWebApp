@@ -444,11 +444,11 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.13; // push the corner jaws farther so they blanket the wood rail cutouts completely
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.095; // extend the middle jaws further to hide the side rail reliefs from both sides
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.14; // push the middle jaws farther so they cover the entire chrome + rail notch span
 const POCKET_JAW_CORNER_INNER_SCALE = 1.081042; // rebalance after the wider limit so the mouth opening stays consistent
 const POCKET_JAW_SIDE_INNER_SCALE = 0.94952; // keep the middle jaw interior locked in place while the outer edge grows
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.38173; // match the extended corner limit without shrinking the pocket opening
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.22693; // track the wider middle limit while leaving the inner mouth untouched
+const POCKET_JAW_SIDE_OUTER_SCALE = 1.27735178; // preserve the side mouth while matching the wider chrome coverage
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
 const POCKET_RIM_FIELD_PULL = 0.08; // only let the rim drift a few percent toward the cloth side
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
