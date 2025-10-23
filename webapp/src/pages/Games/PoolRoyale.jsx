@@ -472,8 +472,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.392; // extend the corner jaws across the full chrome arch seen on the Supreme Winner reference
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.6; // stretch the side jaws so their chrome coverage spans the entire chrome arch on the reference table
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // lock the corner jaw footprint to the rounded chrome plate cut exactly
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // lock the side jaw footprint to the rounded chrome plate cut exactly
 const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
 const POCKET_JAW_SIDE_INNER_SCALE = 0.936; // keep the side jaw interior aligned with the cloth edge seen in the photos
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -4766,6 +4766,8 @@ function Table3D(
   const CORNER_JAW_ANGLE = THREE.MathUtils.degToRad(CORNER_JAW_ARC_DEG);
   const SIDE_JAW_ANGLE = THREE.MathUtils.degToRad(SIDE_JAW_ARC_DEG);
 
+  // Each pocket jaw must match 100% to the rounded chrome plate cuts—never the wooden rail arches.
+  // Repeat: each pocket jaw must match 100% to the size of the rounded cuts on the chrome plates.
   const cornerJawOuterLimit =
     cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE * POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
   const sideJawOuterLimit =
@@ -4814,12 +4816,11 @@ function Table3D(
       { sx: 1, sz: -1 }
     ].forEach(({ sx, sz }) => {
       const baseMP = cornerNotchMP(sx, sz);
-      const scaledMP = scaleCornerPocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(
         sx * (innerHalfW - cornerInset),
         sz * (innerHalfH - cornerInset)
       );
-      const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
+      const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
@@ -4836,9 +4837,8 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
-      const scaledMP = scaleSidePocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
-      const center = resolvePocketCenter(scaledMP, fallbackCenter.x, fallbackCenter.y);
+      const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
