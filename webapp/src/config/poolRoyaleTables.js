@@ -10,8 +10,8 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     playfield: Object.freeze({ widthMm: 2235, heightMm: 1118 }), // 88" × 44"
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
+      corner: 171.45,
+      side: 152.4
     }),
     cushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
