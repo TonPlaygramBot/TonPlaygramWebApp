@@ -274,6 +274,8 @@ const GOAL_CONFIG = {
   z: -10.2
 };
 
+const PENALTY_AREA_DEPTH = 16.5;
+const BALL_PENALTY_BUFFER = 1.5; // ensures kick is taken outside of the box
 const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
 const GRAVITY = new THREE.Vector3(0, -9.81 * 0.35, 0);
 const AIR_DRAG = 0.0006;
@@ -281,7 +283,8 @@ const FRICTION = 0.995;
 const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
-const START_Z = 1.2;
+const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
+const DEFENDER_WALL_Z = 1.2; // legacy spot where the ball used to start
 const SHOOT_POWER_SCALE = 1.28; // allow harder strikes from the swipe motion
 const SHOOT_VERTICAL_POWER_MIN = 0.36;
 const SHOOT_VERTICAL_POWER_MAX = 0.52;
@@ -447,7 +450,7 @@ export default function FreeKick3DGame({ config }) {
     scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.03).texture;
 
     const camera = new THREE.PerspectiveCamera(55, host.clientWidth / host.clientHeight, 0.1, 240);
-    camera.position.set(0, 1.65, 6.6);
+    camera.position.set(0, 1.7, START_Z + 4.0);
     camera.lookAt(0, 1.4, GOAL_CONFIG.z);
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.7);
@@ -523,13 +526,13 @@ export default function FreeKick3DGame({ config }) {
       return mesh;
     };
 
-    const penaltyAreaDepth = 16.5;
+    const penaltyAreaDepth = PENALTY_AREA_DEPTH;
     const goalAreaDepth = 5.5;
     const penaltySpotDistance = 11;
     const availableSideSpace = Math.max(0.1, pitchHalfWidth - goalWidth / 2);
     const clampedSideSpace = Math.max(availableSideSpace, 0);
-    const penaltyAreaExtraX = Math.min(16.5, clampedSideSpace);
-    const widthScale = penaltyAreaExtraX > 0 ? penaltyAreaExtraX / 16.5 : 0;
+    const penaltyAreaExtraX = Math.min(PENALTY_AREA_DEPTH, clampedSideSpace);
+    const widthScale = penaltyAreaExtraX > 0 ? penaltyAreaExtraX / PENALTY_AREA_DEPTH : 0;
     const goalAreaExtraX = Math.min(clampedSideSpace, Math.max(0.3, 5.5 * widthScale));
     const penaltyAreaHalfWidth = goalWidth / 2 + penaltyAreaExtraX;
     const goalAreaHalfWidth = goalWidth / 2 + goalAreaExtraX;
@@ -703,7 +706,7 @@ export default function FreeKick3DGame({ config }) {
       ctx.clearRect(0, 0, size, size);
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      const radius = 26;
+      const radius = 36;
       const outlineWidth = radius * 0.66;
       const innerWidth = radius * 0.46;
       const patternWidth = radius * 3.2;
@@ -905,7 +908,7 @@ export default function FreeKick3DGame({ config }) {
       { text: 'FREE KICK LIVE', color: '#f97316', widthMultiplier: 1.32 }
     ];
     const billboardHeight = 1.1;
-    const baseBillboardWidth = goalWidth / 2.6;
+    const baseBillboardWidth = goalWidth / 3.2;
     const billboardMargin = baseBillboardWidth * 0.2;
     const billboardWidths = billboardConfigs.map((config) => baseBillboardWidth * (config.widthMultiplier ?? 1));
     const totalBillboardWidth = billboardWidths.reduce((sum, width) => sum + width, 0) +
@@ -1570,7 +1573,7 @@ export default function FreeKick3DGame({ config }) {
       const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
       body.castShadow = true;
       body.receiveShadow = true;
-      body.position.set((i - 1) * 0.8, 1.1, goalZ + 5.0);
+      body.position.set((i - 1) * 0.8, 1.1, DEFENDER_WALL_Z);
       wallGroup.add(body);
       defenders.push({ mesh: body, radius: 0.28, halfHeight: 0.7 });
     }
