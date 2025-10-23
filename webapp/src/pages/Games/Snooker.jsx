@@ -234,7 +234,7 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.05; // trim the side pocket jaws slightly
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08;
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5;
@@ -514,10 +514,6 @@ const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const SIDE_POCKET_LATERAL_INSET_SCALE = 0.78; // shift middle pocket centers slightly toward the rails
-const SIDE_POCKET_LATERAL_OFFSET = SIDE_POCKET_RADIUS * SIDE_POCKET_LATERAL_INSET_SCALE;
-const SIDE_POCKET_CENTER_X = PLAY_W / 2 - SIDE_POCKET_LATERAL_OFFSET;
-const SIDE_POCKET_VISUAL_INSET = SIDE_POCKET_LATERAL_OFFSET * POCKET_VISUAL_EXPANSION;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -2796,8 +2792,8 @@ const pocketCenters = () => [
   new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
   new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
   new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(-SIDE_POCKET_CENTER_X, 0),
-  new THREE.Vector2(SIDE_POCKET_CENTER_X, 0)
+  new THREE.Vector2(-PLAY_W / 2, 0),
+  new THREE.Vector2(PLAY_W / 2, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -2835,9 +2831,9 @@ const getPocketCenterById = (id) => {
     case 'BR':
       return new THREE.Vector2(PLAY_W / 2, PLAY_H / 2);
     case 'TM':
-      return new THREE.Vector2(-SIDE_POCKET_CENTER_X, 0);
+      return new THREE.Vector2(-PLAY_W / 2, 0);
     case 'BM':
-      return new THREE.Vector2(SIDE_POCKET_CENTER_X, 0);
+      return new THREE.Vector2(PLAY_W / 2, 0);
     default:
       return null;
   }
@@ -3988,7 +3984,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
-  const sideInset = SIDE_POCKET_VISUAL_INSET;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
