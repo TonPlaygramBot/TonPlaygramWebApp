@@ -123,6 +123,10 @@ const TOKEN_HEIGHT = TILE_SIZE * 0.48;
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
 const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.08;
+const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.4;
+const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
+const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
+const TOP_TILE_EXTRA_LEVELS = 1;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -1165,6 +1169,7 @@ function buildSnakeBoard(
   const levelGap = TILE_SIZE * 0.08;
   const platformMeshes = [];
   const levelPlacements = [];
+  const topTileLift = (platformThickness + tileHeight + levelGap) * TOP_TILE_EXTRA_LEVELS;
 
   let currentLevelBottom = 0;
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
@@ -1176,7 +1181,10 @@ function buildSnakeBoard(
       roughness: 0.9,
       metalness: 0.08
     });
-    const extra = BOARD_BASE_EXTRA * (1 - levelIndex / (PYRAMID_LEVELS.length + 1));
+    const baseExtraRatio = 1 - levelIndex / (PYRAMID_LEVELS.length + 1);
+    const extra =
+      BOARD_BASE_EXTRA *
+      (levelIndex === 0 ? baseExtraRatio * BASE_PLATFORM_EXTRA_MULTIPLIER : baseExtraRatio);
     const platform = new THREE.Mesh(
       new THREE.BoxGeometry(dimension + extra, platformThickness, dimension + extra),
       mat
@@ -1222,6 +1230,9 @@ function buildSnakeBoard(
           tilePosition.add(outward);
         }
       }
+      if (idx === TOTAL_BOARD_TILES) {
+        tilePosition.y += topTileLift;
+      }
       const tile = new THREE.Mesh(tileGeo, mat);
       tile.position.copy(tilePosition);
       tile.userData.index = idx;
@@ -1233,10 +1244,17 @@ function buildSnakeBoard(
 
       const topPosition = tilePosition.clone();
       topPosition.y = tileTopY;
+      if (idx === TOTAL_BOARD_TILES) {
+        topPosition.y += topTileLift;
+      }
       indexToPosition.set(idx, topPosition);
 
       const label = createTileLabel(idx);
-      label.position.set(tilePosition.x, tileTopY + TILE_LABEL_OFFSET, tilePosition.z);
+      let labelY = tileTopY;
+      if (idx === TOTAL_BOARD_TILES) {
+        labelY += topTileLift;
+      }
+      label.position.set(tilePosition.x, labelY + TILE_LABEL_OFFSET, tilePosition.z);
       labelGroup.add(label);
     });
   });
@@ -1291,7 +1309,12 @@ function buildSnakeBoard(
   const diceGroup = new THREE.Group();
   const baseLevelTop = levelPlacements[0].tileTopY;
   const diceBaseY = baseLevelTop + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
-  const diceAnchorZ = baseHalf + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA + DICE_SIZE * 0.5;
+  const diceAnchorZ =
+    baseHalf +
+    DICE_THROW_LANDING_MARGIN +
+    DICE_RETREAT_EXTRA +
+    DICE_SIZE * 0.5 +
+    DICE_PLAYER_EXTRA_OFFSET;
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
@@ -1426,7 +1449,7 @@ function updateTokens(
     const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
     const baseY = Number.isFinite(baseLevelTop) ? baseLevelTop : 0;
     const center = new THREE.Vector3(0, baseY, 0);
-    const forwardLift = TILE_SIZE * 0.45;
+    const forwardLift = HOME_TOKEN_FORWARD_LIFT;
     seatAnchors.forEach((anchor, index) => {
       if (!anchor) {
         seatHomes[index] = null;
@@ -1492,14 +1515,17 @@ function updateTokens(
     let worldPos = null;
     if (hasBoardPosition) {
       const tilePlayers = occupancy.get(rawPosition) || [];
-      const offsetIndex = tilePlayers.indexOf(index);
-      const radius = TOKEN_RADIUS * 1.35;
-      const angle =
-        offsetIndex >= 0 && tilePlayers.length > 0
-          ? (offsetIndex / Math.max(1, tilePlayers.length)) * Math.PI * 2
-          : 0;
-      const offsetX = Math.cos(angle) * radius;
-      const offsetZ = Math.sin(angle) * radius;
+      const occupantCount = tilePlayers.length;
+      let offsetX = 0;
+      let offsetZ = 0;
+      if (occupantCount > 1) {
+        const radius = TOKEN_RADIUS * 1.35;
+        const offsetIndex = tilePlayers.indexOf(index);
+        const indexForAngle = offsetIndex >= 0 ? offsetIndex : 0;
+        const angle = (indexForAngle / occupantCount) * Math.PI * 2;
+        offsetX = Math.cos(angle) * radius;
+        offsetZ = Math.sin(angle) * radius;
+      }
       const basePos = indexToPosition.get(rawPosition);
       const baseVector = basePos ? basePos.clone() : serpentineIndexToXZ(rawPosition).clone();
       baseVector.x += offsetX;
