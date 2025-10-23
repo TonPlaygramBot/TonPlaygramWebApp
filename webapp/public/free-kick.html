@@ -146,6 +146,7 @@
     ctx.setTransform(DPR,0,0,DPR,0,0);
     positionLayout();
     layout();
+    computeBackdropGeometry();
     generateMiniHoles();
     initBanners();
     initCameras();
@@ -272,6 +273,66 @@
     defenders.baseY = defenders.y;
   }
 
+  function computeBackdropGeometry(){
+    const g = geom.goal;
+    if(!g || !g.w) { backdropGeom = null; return; }
+    const width = g.w * 1.3;
+    const left = g.x + g.w / 2 - width / 2;
+    const deckTop = Math.max(20, g.y - g.h * 0.72);
+    const deckHeight = g.h * 0.24;
+    const deckBottom = deckTop + deckHeight;
+    let stairBottom = g.y + g.h * 0.12;
+    const stairTopWidth = width * 0.38;
+    const stairBottomWidth = width * 0.62;
+    const stairLeftTop = left + (width - stairTopWidth) / 2;
+    const stairLeftBottom = left + (width - stairBottomWidth) / 2;
+    if(stairBottom < deckBottom + 24) stairBottom = deckBottom + 24;
+    if(stairBottom > g.y + g.h * 0.55) stairBottom = g.y + g.h * 0.55;
+    const roomsY = deckTop + deckHeight * 0.12;
+    const roomHeight = deckHeight * 0.58;
+    const roomWidth = width * 0.22;
+    const roomSpacing = width * 0.08;
+    const roofHeight = g.h * 0.18;
+    const roofTop = Math.max(8, deckTop - roofHeight - g.h * 0.04);
+    const roofThickness = roofHeight * 0.45;
+    const supports = [];
+    const supportCount = 4;
+    for(let i=0;i<supportCount;i++){
+      const cx = left + (width/(supportCount+1))*(i+1);
+      supports.push({cx});
+    }
+    const windowW = roomWidth * 0.32;
+    const windowH = roomHeight * 0.32;
+    const rooms = [
+      { x: left + roomSpacing, y: roomsY, w: roomWidth, h: roomHeight },
+      { x: left + width - roomSpacing - roomWidth, y: roomsY, w: roomWidth, h: roomHeight }
+    ];
+    const tripodFootY = deckBottom + g.h * 0.14;
+    const cameraLevel = roomsY + roomHeight * 0.35;
+    backdropGeom = {
+      left,
+      width,
+      deckTop,
+      deckHeight,
+      deckBottom,
+      roof:{ x: left - width*0.04, y: roofTop, w: width * 1.08, h: roofThickness },
+      supports,
+      stairs:{
+        topY: deckBottom,
+        bottomY: stairBottom,
+        topWidth: stairTopWidth,
+        bottomWidth: stairBottomWidth,
+        leftTop: stairLeftTop,
+        leftBottom: stairLeftBottom,
+        steps: 5
+      },
+      rooms,
+      window:{ w: windowW, h: windowH },
+      cameraLevel,
+      tripodFootY
+    };
+  }
+
   // ===== Game state =====
   const ROUND_TIME = durationParam * 1000;
   let roundStart = 0; let timeLeft = ROUND_TIME; let running=false; let paused=false; let ended=false;
@@ -279,7 +340,7 @@
 
   const BALL_R = 28;
   // slightly faster initial shot for a snappier feel
-  const SHOT_SPEED = 24; // previously 22
+  const SHOT_SPEED = 30; // boosted for a stronger strike
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -307,6 +368,9 @@
 
   let holes=[]; let banners=[]; let cameras=[]; let looseBalls=[]; let punchEffects=[];
   let prizePieces=[]; let ballPieces=[]; let smokePuffs=[];
+  let tripodCameras=[];
+  let backdropGeom=null;
+  let swipePreview=null;
   let netHit={x:0,y:0,t:0,shake:0};
   let goalFlash=0;
   let missFlash=0;
@@ -505,6 +569,44 @@
   const rnd=(a,b)=>a+Math.random()*(b-a);
   function roundedRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
+  function resamplePath(points, spacing=16){
+    if(!Array.isArray(points) || points.length < 2) return Array.isArray(points) ? points.slice() : [];
+    const result=[{x:points[0].x, y:points[0].y}];
+    let prev={x:points[0].x, y:points[0].y};
+    let carry=0;
+    for(let i=1;i<points.length;i++){
+      const current={x:points[i].x, y:points[i].y};
+      let segLen=Math.hypot(current.x-prev.x,current.y-prev.y);
+      if(segLen===0) continue;
+      while(carry + segLen >= spacing){
+        const need=spacing - carry;
+        const ratio=need/segLen;
+        prev={x:prev.x + (current.x-prev.x)*ratio, y:prev.y + (current.y-prev.y)*ratio};
+        result.push(prev);
+        segLen=Math.hypot(current.x-prev.x,current.y-prev.y);
+        carry=0;
+      }
+      carry+=segLen;
+      prev=current;
+    }
+    const last=points[points.length-1];
+    const tail=result[result.length-1];
+    if(!tail || Math.hypot(tail.x-last.x,tail.y-last.y)>1){ result.push({x:last.x,y:last.y}); }
+    else result[result.length-1]={x:last.x,y:last.y};
+    return result;
+  }
+
+  function pathLength(points){
+    if(!Array.isArray(points) || points.length < 2) return 0;
+    let len=0;
+    for(let i=1;i<points.length;i++){
+      const a=points[i-1];
+      const b=points[i];
+      len+=Math.hypot(b.x-a.x,b.y-a.y);
+    }
+    return len;
+  }
+
   function coinConfetti(count=50, iconSrc='/assets/icons/ezgif-54c96d8a9b9236.webp'){
     for(let i=0;i<count;i++){
       const img=document.createElement('img');
@@ -587,7 +689,28 @@
     let x=-W*0.5;
     for(let i=0;i<10;i++){ const w=rnd(240,320); banners.push({x,y:trackY,w,h:trackH,speed:rnd(0.6,1.1),hue:Math.floor(rnd(200,320)),text:texts[i%texts.length]}); x+=w+rnd(80,140); }
   }
-  function initCameras(){ const g=geom.goal,cw=36,ch=24; cameras=[{x:g.x-cw-12,y:g.y+g.h-ch-6,w:cw,h:ch},{x:g.x+g.w+12,y:g.y+g.h-ch-6,w:cw,h:ch}]; }
+  function initCameras(){
+    const g=geom.goal, cw=36, ch=24;
+    cameras=[
+      {x:g.x-cw-12,y:g.y+g.h-ch-6,w:cw,h:ch,base:ch*0.55},
+      {x:g.x+g.w+12,y:g.y+g.h-ch-6,w:cw,h:ch,base:ch*0.55}
+    ];
+    if(backdropGeom){
+      const bodyH = Math.min(24, g.h * 0.14);
+      const bodyW = bodyH * 1.6;
+      const pivotY = Math.min(backdropGeom.cameraLevel, backdropGeom.deckBottom - bodyH*0.5 - 6);
+      const footY = Math.min(backdropGeom.tripodFootY, pivotY + Math.max(26, g.h * 0.28));
+      const legLength = Math.max(20, footY - pivotY);
+      const footSpread = bodyW * 1.05;
+      const offset = backdropGeom.width * 0.24;
+      tripodCameras=[
+        {cx:backdropGeom.left + offset, cy:pivotY, w:bodyW, h:bodyH, legLength, footSpread},
+        {cx:backdropGeom.left + backdropGeom.width - offset, cy:pivotY, w:bodyW, h:bodyH, legLength, footSpread}
+      ];
+    } else {
+      tripodCameras=[];
+    }
+  }
 
   // ===== Targets =====
   function generateHoles(){
@@ -688,17 +811,146 @@
     // Free-kick arc omitted for simplified field
   }
 
+  function drawBackdrop(){
+    if(!backdropGeom) return;
+    const g = backdropGeom;
+    ctx.save();
+
+    const skyGrad = ctx.createLinearGradient(0, g.roof.y, 0, g.stairs.bottomY + 120);
+    skyGrad.addColorStop(0, '#0b1224');
+    skyGrad.addColorStop(1, '#101b38');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(g.roof.x - 40, g.roof.y, g.roof.w + 80, g.stairs.bottomY + 140 - g.roof.y);
+
+    const facadeGrad = ctx.createLinearGradient(0, g.deckTop, 0, g.deckBottom);
+    facadeGrad.addColorStop(0, '#1a2545');
+    facadeGrad.addColorStop(1, '#0f192f');
+    ctx.fillStyle = facadeGrad;
+    ctx.fillRect(g.left, g.deckTop, g.width, g.deckBottom - g.deckTop);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(g.left, g.deckTop - 4, g.width, 4);
+
+    const stairs = g.stairs;
+    const stairGrad = ctx.createLinearGradient(0, stairs.topY, 0, stairs.bottomY);
+    stairGrad.addColorStop(0, '#29345d');
+    stairGrad.addColorStop(1, '#131b33');
+    ctx.beginPath();
+    ctx.moveTo(stairs.leftTop, stairs.topY);
+    ctx.lineTo(stairs.leftTop + stairs.topWidth, stairs.topY);
+    ctx.lineTo(stairs.leftBottom + stairs.bottomWidth, stairs.bottomY);
+    ctx.lineTo(stairs.leftBottom, stairs.bottomY);
+    ctx.closePath();
+    ctx.fillStyle = stairGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(15,23,42,0.6)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    for(let i=1;i<stairs.steps;i++){
+      const t = i / stairs.steps;
+      const y = stairs.topY + (stairs.bottomY - stairs.topY) * t;
+      const width = stairs.topWidth + (stairs.bottomWidth - stairs.topWidth) * t;
+      const x = stairs.leftTop + (stairs.leftBottom - stairs.leftTop) * t;
+      ctx.strokeStyle = 'rgba(17,24,39,0.45)';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + width, y);
+      ctx.stroke();
+    }
+
+    for(const room of g.rooms){
+      const radius = Math.min(12, room.w * 0.08);
+      ctx.save();
+      roundedRect(room.x, room.y, room.w, room.h, radius);
+      const roomGrad = ctx.createLinearGradient(0, room.y, 0, room.y + room.h);
+      roomGrad.addColorStop(0, '#1e293b');
+      roomGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = roomGrad;
+      ctx.fill();
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      const marginX = room.w * 0.1;
+      const marginY = room.h * 0.18;
+      const winW = g.window.w;
+      const winH = g.window.h;
+      const gap = room.w - marginX * 2 - winW * 2;
+      const spacing = gap <= 0 ? 0 : gap;
+      for(let i=0;i<2;i++){
+        const wx = room.x + marginX + i * (winW + spacing);
+        const wy = room.y + marginY;
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(wx, wy, winW, winH);
+        const glassGrad = ctx.createLinearGradient(0, wy, 0, wy + winH);
+        glassGrad.addColorStop(0, 'rgba(59,130,246,0.55)');
+        glassGrad.addColorStop(1, 'rgba(226,232,240,0.35)');
+        ctx.fillStyle = glassGrad;
+        ctx.fillRect(wx + 2, wy + 2, winW - 4, winH - 4);
+        ctx.strokeStyle = '#0b1120';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(wx + 0.5, wy + 0.5, winW - 1, winH - 1);
+      }
+    }
+
+    const roof = g.roof;
+    ctx.save();
+    roundedRect(roof.x, roof.y, roof.w, roof.h, roof.h * 0.25);
+    const roofGrad = ctx.createLinearGradient(0, roof.y, 0, roof.y + roof.h);
+    roofGrad.addColorStop(0, '#111827');
+    roofGrad.addColorStop(1, '#1f2937');
+    ctx.fillStyle = roofGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#0b1224';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    for(const sup of g.supports){
+      const topY = roof.y + roof.h;
+      const baseY = g.deckTop + g.deckHeight * 0.96;
+      const spread = g.width * 0.04;
+      const supportGrad = ctx.createLinearGradient(0, topY, 0, baseY);
+      supportGrad.addColorStop(0, 'rgba(30,41,59,0.9)');
+      supportGrad.addColorStop(1, 'rgba(15,23,42,0.8)');
+      ctx.beginPath();
+      ctx.moveTo(sup.cx, topY);
+      ctx.lineTo(sup.cx - spread, baseY);
+      ctx.lineTo(sup.cx + spread, baseY);
+      ctx.closePath();
+      ctx.fillStyle = supportGrad;
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sup.cx, topY);
+      ctx.lineTo(sup.cx, baseY);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(g.left, g.deckTop + g.deckHeight * 0.22, g.width, 2);
+    ctx.fillStyle = 'rgba(15,23,42,0.9)';
+    ctx.fillRect(g.left, g.deckBottom - 4, g.width, 4);
+
+    ctx.restore();
+  }
+
   function drawMiniGoal(c,g,netOverride){
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     const scale=g.w/geom.goal.w;
-    const netColor=netOverride||getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
+    const netStroke=netOverride? '#000' : '#111';
+    const netFill=netOverride? 'rgba(255,214,0,0.55)' : 'rgba(250,204,21,0.34)';
     const size=18*scale; const h=size*Math.sqrt(3)/2;
     c.save();
     c.beginPath();
     c.rect(ix,iy,innerW,innerH);
     c.clip();
-    c.strokeStyle=netColor; c.lineWidth=Math.max(0.5,1.2*scale);
+    c.strokeStyle=netStroke; c.lineWidth=Math.max(0.5,1.4*scale);
     for(let y=g.y-h; y<g.y+g.h+h; y+=h){
       for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
         const off=((Math.round((y-g.y)/h))%2)*size*0.75;
@@ -711,6 +963,8 @@
           if(i===0) c.moveTo(px,py); else c.lineTo(px,py);
         }
         c.closePath();
+        c.fillStyle=netFill;
+        c.fill();
         c.stroke();
       }
     }
@@ -749,6 +1003,7 @@
     for(const b of banners){
       b.x+=b.speed; if(b.x>g.x+g.w+160) b.x=g.x-220-b.w;
       ctx.fillStyle=`hsl(${b.hue} 70% 50%)`; ctx.fillRect(b.x,trackY+4,b.w,trackH-8);
+      ctx.strokeStyle='#000'; ctx.lineWidth=3; ctx.strokeRect(b.x+1.5,trackY+5.5,b.w-3,trackH-11);
       ctx.fillStyle='#fff'; ctx.font='700 14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(b.text,b.x+b.w/2,trackY+trackH/2);
     }
@@ -760,10 +1015,11 @@
     const g=geom.goal;
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    const netColor=(goalFlash>0||missFlash>0)?'#ffd400':(getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6');
+    const netStrokeBase = (goalFlash>0||missFlash>0)?'#000':'#111';
+    const netFillBase = (goalFlash>0||missFlash>0)?'rgba(255,214,0,0.58)':'rgba(250,204,21,0.34)';
     const size=18; const h=size*Math.sqrt(3)/2;
     function drawNetMesh(){
-      ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
+      ctx.strokeStyle=netStrokeBase; ctx.lineWidth=1.6;
       for(let y=g.y-h; y<g.y+g.h+h; y+=h){
         for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
           const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
@@ -783,7 +1039,10 @@
             if(netHit.shake>0){ py+=Math.sin((px+py+i)*0.3+performance.now()*0.02)*netHit.shake*3; }
             if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
           }
-          ctx.closePath(); ctx.stroke();
+          ctx.closePath();
+          ctx.fillStyle = netFillBase;
+          ctx.fill();
+          ctx.stroke();
         }
       }
     }
@@ -878,7 +1137,8 @@
       ctx.fillText('MISSED',ix+innerW/2,iy+innerH/2);
       ctx.restore();
     }
-    for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
+    for(const c of cameras){ renderGroundCamera(c); }
+    for(const cam of tripodCameras){ renderTripodCamera(cam); }
     for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
       if(h.timer) ctx.fillText(`⏳️ +${h.timer}`, h.x, h.y);
@@ -886,6 +1146,100 @@
       else ctx.fillText(h.points, h.x, h.y);
     }
     drawKeeper();
+  }
+
+  function renderGroundCamera(cam){
+    const cx = cam.x + cam.w/2;
+    const cy = cam.y + cam.h/2;
+    const angle = Math.atan2(ball.y - cy, ball.x - cx);
+    const baseHeight = cam.base || cam.h * 0.4;
+    ctx.save();
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(cx - cam.w*0.35, cam.y + cam.h, cam.w*0.7, baseHeight);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    roundedRect(-cam.w/2, -cam.h/2, cam.w, cam.h, Math.min(cam.h/3, 6));
+    ctx.fillStyle = '#0b1120';
+    ctx.fill();
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.fillStyle = '#1d4ed8';
+    ctx.beginPath();
+    ctx.arc(cam.w/2 - 6, 0, Math.min(6, cam.h/2.2), 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#e10600';
+    ctx.beginPath();
+    ctx.arc(-cam.w/2 + 6, -cam.h/2 + 6, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function renderTripodCamera(cam){
+    const cx = cam.cx;
+    const cy = cam.cy;
+    const angle = Math.atan2(ball.y - cy, ball.x - cx);
+    const footSpread = cam.footSpread || cam.w;
+    const footY = cy + cam.legLength;
+    ctx.save();
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, footY);
+    ctx.lineTo(cx - footSpread * 0.5, footY + cam.legLength * 0.25);
+    ctx.moveTo(cx, footY);
+    ctx.lineTo(cx + footSpread * 0.5, footY + cam.legLength * 0.25);
+    ctx.moveTo(cx, footY);
+    ctx.lineTo(cx, footY + cam.legLength * 0.35);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = '#111827';
+    ctx.beginPath();
+    ctx.arc(0, 0, cam.w*0.28, 0, Math.PI*2);
+    ctx.fill();
+    ctx.rotate(angle);
+    roundedRect(-cam.w/2, -cam.h/2, cam.w, cam.h, Math.min(cam.h/3, 6));
+    ctx.fillStyle = '#0b1120';
+    ctx.fill();
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath();
+    ctx.arc(cam.w/2 - 5, 0, Math.min(5, cam.h/2.4), 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSwipePreview(){
+    if(!swipePreview || swipePreview.length < 2) return;
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    const first = swipePreview[0];
+    const last = swipePreview[swipePreview.length-1];
+    const grad = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+    grad.addColorStop(0, 'rgba(253,224,71,0.9)');
+    grad.addColorStop(1, 'rgba(56,189,248,0.9)');
+    ctx.strokeStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(first.x, first.y);
+    for(let i=1;i<swipePreview.length;i++){
+      ctx.lineTo(swipePreview[i].x, swipePreview[i].y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(59,130,246,0.85)';
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 6, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawKeeper(){
@@ -1293,18 +1647,8 @@
 
   // ===== Aim guide =====
   // aiming controls removed
-  function drawSwipePath(path){
-    if(!aimOn || path.length < 2) return;
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    for(let i=1;i<path.length;i++){
-      ctx.lineTo(path[i].x, path[i].y);
-    }
-    ctx.strokeStyle='rgba(125,211,252,.9)';
-    ctx.lineWidth=2;
-    ctx.setLineDash([6,8]);
-    ctx.stroke();
-    ctx.setLineDash([]);
+  function setSwipePreview(path){
+    swipePreview = (Array.isArray(path) && path.length > 1) ? path : null;
   }
 
   // ===== Round / scoring =====
@@ -1374,31 +1718,54 @@ function endShot(hit,pts,delay=SHOT_RESET_DELAY){
   // ===== Input (swipe/flick + spin) =====
   let pointer={id:null,path:[],active:false,armed:false,t0:0,t1:0};
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
-  function onDown(e){ if(!running||ended||paused) return; if(pointer.active) return; pointer.active=true; pointer.id=e.pointerId; const p=pos(e); pointer.path=[p]; pointer.t0=performance.now(); pointer.t1=pointer.t0; pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*2.4 && !ball.moving; if(pointer.armed){ status('Swipe upward. Curve for spin.'); } }
+  function onDown(e){
+    if(!running||ended||paused) return;
+    if(pointer.active) return;
+    pointer.active=true;
+    pointer.id=e.pointerId;
+    const p=pos(e);
+    pointer.t0=performance.now();
+    pointer.t1=pointer.t0;
+    pointer.armed = Math.hypot(p.x-ball.x,p.y-ball.y) <= ball.r*2.4 && !ball.moving;
+    if(pointer.armed){
+      pointer.path=[{x:ball.x,y:ball.y}];
+      pointer.path.push({x:p.x,y:p.y});
+      status('Swipe upward. Curve for spin.');
+      if(aimOn) setSwipePreview(resamplePath(pointer.path, 16));
+    } else {
+      pointer.path=[{x:p.x,y:p.y}];
+      setSwipePreview(null);
+    }
+  }
   function onMove(e){
     if(!pointer.active || e.pointerId !== pointer.id) return;
-    pointer.path.push(pos(e));
+    const next = pos(e);
+    pointer.path.push({x:next.x,y:next.y});
+    if(pointer.path.length>240){ pointer.path.splice(1, pointer.path.length-240); }
     pointer.t1 = performance.now();
     if(pointer.armed && aimOn && pointer.path.length > 1){
-      drawSwipePath(pointer.path);
+      setSwipePreview(resamplePath(pointer.path, 16));
     }
   }
 function onUp(e){
   if(!pointer.active || e.pointerId !== pointer.id) return;
   pointer.active = false;
-  if(!pointer.armed || ball.moving || !running || paused){ pointer.path = []; return; }
-  const path = pointer.path;
+  const releasePos = pos(e);
+  if(pointer.armed){ pointer.path.push({x:releasePos.x,y:releasePos.y}); }
+  pointer.t1 = performance.now();
+  if(!pointer.armed || ball.moving || !running || paused){ pointer.path = []; setSwipePreview(null); return; }
+  const path = pointer.path.slice();
   pointer.path = [];
-  if(path.length < 3){ status('Swipe longer/faster.'); return; }
-  path[0] = { x: ball.x, y: ball.y };
-  const totalDist = path.reduce((sum, p, i) => i ? sum + Math.hypot(p.x - path[i-1].x, p.y - path[i-1].y) : 0, 0);
-  const power = clamp(totalDist / 150, 0.4, 5.0);
-  ball.path = path.slice(1);
+  if(path.length < 3){ status('Swipe longer/faster.'); setSwipePreview(null); return; }
+  const sampled = resamplePath(path, 16);
+  if(sampled.length < 2){ status('Swipe longer/faster.'); setSwipePreview(null); return; }
+  const totalDist = pathLength(sampled);
+  const power = clamp(totalDist / 130, 0.5, 6.2);
+  ball.path = sampled.slice(1);
   ball.pathIndex = 0;
   ball.pathSpeed = SHOT_SPEED * power;
   ball.vx = 0; ball.vy = 0; ball.spin = 0;
   ball.moving = true;
-  // when shot starts, move keeper toward the center of the goal smoothly
   const centerX = geom.goal.x + (geom.goal.w - keeper.w) / 2;
   keeper.targetX = centerX;
   keeper.targetY = keeper.baseY + geom.goal.h * 0.02;
@@ -1407,8 +1774,9 @@ function onUp(e){
     defenders.jumping = true;
   }
   playBallKickSound();
-  ball.target = path[path.length-1];
+  ball.target = sampled[sampled.length-1];
   ball.prevDist = Infinity;
+  setSwipePreview(null);
 }
   canvas.addEventListener('pointerdown', onDown, {passive:true});
   canvas.addEventListener('pointermove', onMove, {passive:true});
@@ -1615,7 +1983,7 @@ function onUp(e){
 
   // ===== Timer + loop =====
   function tick(now){ if(!running||paused) return; if(!roundStart) roundStart=now; timeLeft = Math.max(0, ROUND_TIME - (now - roundStart)); timeShort.textContent = Math.ceil(timeLeft/1000); if(timeLeft<=0){ finish(); } }
-  function loop(now){ requestAnimationFrame(loop); drawField(); drawAds(); drawGoal(); drawBall(); drawPrizePieces(); drawBallPieces(); drawSmoke(); drawDefenders(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
+  function loop(now){ requestAnimationFrame(loop); drawField(); drawBackdrop(); drawAds(); drawGoal(); drawSwipePreview(); drawBall(); drawPrizePieces(); drawBallPieces(); drawSmoke(); drawDefenders(); drawPunchEffects(); stepBall(); stepLooseBalls(); stepDefenders(); stepKeeper(); drawMiniBoards(); tick(now||performance.now()); stepRivals(now||performance.now()); updateHUD(); netHit.t*=NET_DECAY; netHit.shake*=NET_DECAY; goalFlash*=0.92; missFlash*=0.92; }
 
   // ===== Controls =====
   // controls removed
@@ -1889,7 +2257,7 @@ function onUp(e){
   function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch{} }
 
   // ===== Static draw & tests =====
-function drawStaticOnce(){ drawField(); drawAds(); drawGoal(); resetBall(); drawBall(); drawDefenders(); drawMiniBoards(true); }
+function drawStaticOnce(){ drawField(); drawBackdrop(); drawAds(); drawGoal(); drawSwipePreview(); resetBall(); drawBall(); drawDefenders(); drawMiniBoards(true); }
 
   // ===== Boot =====
   function startCountdown(n){
