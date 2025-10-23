@@ -452,6 +452,8 @@ const POCKET_RIM_OUTER_BLEND = 0.24; // how aggressively the rim hugs the inner 
 const POCKET_RIM_INNER_SCALE = 0.9; // relative to the jaw inner scale so the rim stays slightly narrower
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
 const POCKET_RIM_LIP = TABLE.THICK * 0.012; // slight lift so the rim sits proud of the jaw insert
+const POCKET_JAW_EDGE_FLUSH_START = 0.62; // begin easing the jaw back out to meet the chrome edge
+const POCKET_JAW_EDGE_FLUSH_END = 0.965; // ensure the jaw and rim finish flush with the chrome trim
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4452,7 +4454,26 @@ function Table3D(
         thicknessScale *= clampedMiddleThin;
       }
       thicknessScale = THREE.MathUtils.clamp(thicknessScale, 0.06, 1);
-      const currentOuter = innerRadius + baseThickness * thicknessScale;
+
+      const baseOuter = innerRadius + baseThickness * thicknessScale;
+      let currentOuter = baseOuter;
+      if (
+        Number.isFinite(clampOuter) &&
+        clampOuter > innerRadius + MICRO_EPS &&
+        baseThickness > MICRO_EPS
+      ) {
+        const clampLimit = Math.max(
+          innerRadius + MICRO_EPS,
+          Math.min(clampOuter, innerRadius + baseThickness)
+        );
+        const clampedOuter = Math.min(clampLimit, currentOuter);
+        const flushBlend = THREE.MathUtils.smoothstep(
+          normalized,
+          POCKET_JAW_EDGE_FLUSH_START,
+          POCKET_JAW_EDGE_FLUSH_END
+        );
+        currentOuter = THREE.MathUtils.lerp(clampedOuter, clampLimit, flushBlend);
+      }
       const outerX = center.x + Math.cos(theta) * currentOuter;
       const outerZ = center.y + Math.sin(theta) * currentOuter;
       outerPts.push(new THREE.Vector2(outerX, outerZ));
