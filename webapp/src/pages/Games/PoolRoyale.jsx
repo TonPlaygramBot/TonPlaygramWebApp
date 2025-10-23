@@ -443,19 +443,18 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.018; // let the corner jaws reach slightly farther to blanket the wood cutout
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.006; // give the side jaws a subtle reach boost to hide the exposed trim
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.038; // extend the corner jaws farther so they blanket the rounded rail cut
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.01; // nudge the middle jaws outward just enough to hide the side rail cut
 const POCKET_JAW_CORNER_INNER_SCALE = 1.129; // rebalance after the limit expansion to preserve the mouth opening
 const POCKET_JAW_SIDE_INNER_SCALE = 0.994; // keep the middle jaw interior anchored while the outer edge grows
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.3; // outer radius multiplier to keep corner jaws wrapping the pocket chamfer
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.18; // outer radius multiplier that keeps the middle jaws slim
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.32554; // match the extended corner limit without shrinking the pocket opening
+const POCKET_JAW_SIDE_OUTER_SCALE = 1.1847; // track the wider middle limit while leaving the inner mouth untouched
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
-const POCKET_RIM_OUTER_BLEND = 0.08; // keep the rim silhouette close to the chrome cutout (0 → rail edge, 1 → inner scale)
-const POCKET_RIM_INNER_SCALE = 1.05; // nudge the rim outward so it sits over the chrome rather than the cloth
+const POCKET_RIM_FIELD_PULL = 0.08; // only let the rim drift a few percent toward the cloth side
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
-const POCKET_RIM_LIP = TABLE.THICK * 0.024; // lift the rim higher so it clears the chrome plates cleanly
-const POCKET_JAW_EDGE_FLUSH_START = 0.42; // begin easing the jaw back out to meet the chrome edge
-const POCKET_JAW_EDGE_FLUSH_END = 0.965; // ensure the jaw and rim finish flush with the chrome trim
+const POCKET_RIM_LIP = TABLE.THICK * 0.032; // lift the rim higher so it sits proud of the chrome plates
+const POCKET_JAW_EDGE_FLUSH_START = 0.32; // begin easing the jaw back out to meet the chrome edge sooner
+const POCKET_JAW_EDGE_FLUSH_END = 0.94; // ensure the jaw and rim finish flush with the chrome trim
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4515,9 +4514,9 @@ function Table3D(
       innerScale: wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE,
       outerScale: wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE,
       steps: wide ? 88 : 68,
-      sideThinFactor: wide ? 0.26 : 0.32,
-      middleThinFactor: wide ? 0.8 : 0.9,
-      centerEase: wide ? 0.3 : 0.38,
+      sideThinFactor: wide ? 0.3 : 0.36,
+      middleThinFactor: wide ? 0.82 : 0.92,
+      centerEase: wide ? 0.28 : 0.36,
       clampOuter
     });
     if (!jawShape) {
@@ -4540,9 +4539,23 @@ function Table3D(
 
     const baseInnerScale = wide ? POCKET_JAW_SIDE_INNER_SCALE : POCKET_JAW_CORNER_INNER_SCALE;
     const baseOuterScale = wide ? POCKET_JAW_SIDE_OUTER_SCALE : POCKET_JAW_CORNER_OUTER_SCALE;
-    const rimInnerScale = baseInnerScale * POCKET_RIM_INNER_SCALE;
-    let rimOuterScale = THREE.MathUtils.lerp(baseOuterScale, baseInnerScale, POCKET_RIM_OUTER_BLEND);
-    if (rimOuterScale <= rimInnerScale + MICRO_EPS) {
+    const baseInnerRadius = baseRadius * baseInnerScale;
+    const unclampedOuterRadius = baseRadius * baseOuterScale;
+    let rimOuterRadius = unclampedOuterRadius;
+    if (Number.isFinite(clampOuter) && clampOuter > baseInnerRadius + MICRO_EPS) {
+      rimOuterRadius = Math.min(clampOuter, rimOuterRadius);
+    }
+    const rimInnerRadius = THREE.MathUtils.lerp(
+      rimOuterRadius,
+      baseInnerRadius,
+      THREE.MathUtils.clamp(POCKET_RIM_FIELD_PULL, 0, 1)
+    );
+    let rimInnerScale = rimInnerRadius / baseRadius;
+    if (!Number.isFinite(rimInnerScale) || rimInnerScale <= MICRO_EPS) {
+      rimInnerScale = baseInnerScale;
+    }
+    let rimOuterScale = rimOuterRadius / baseRadius;
+    if (!Number.isFinite(rimOuterScale) || rimOuterScale <= rimInnerScale + MICRO_EPS) {
       rimOuterScale = rimInnerScale + MICRO_EPS * 12;
     }
     const rimShape = buildPocketJawShape({
@@ -4553,9 +4566,9 @@ function Table3D(
       innerScale: rimInnerScale,
       outerScale: rimOuterScale,
       steps: wide ? 88 : 68,
-      sideThinFactor: wide ? 0.22 : 0.3,
-      middleThinFactor: wide ? 0.86 : 0.92,
-      centerEase: wide ? 0.28 : 0.38,
+      sideThinFactor: wide ? 0.34 : 0.44,
+      middleThinFactor: wide ? 0.88 : 0.94,
+      centerEase: wide ? 0.24 : 0.32,
       clampOuter
     });
     let rimMesh = null;
