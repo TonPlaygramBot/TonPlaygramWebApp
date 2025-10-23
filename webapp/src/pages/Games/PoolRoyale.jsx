@@ -456,15 +456,15 @@ function addPocketCuts(parent, clothPlane) {
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions now mirror the 3D Snooker table so the geometry matches 1:1 while
-// still fitting comfortably inside the existing mobile arena presentation.
+// Dimensions tuned for an official 9ft pool table footprint while globally reduced
+// to fit comfortably inside the existing mobile arena presentation.
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 2.85;
+const TABLE_SCALE = 1.17; // expand Pool Royale table ~17% without altering proportions
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -495,17 +495,17 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deep
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // widen the corner pocket jaws 50% along both rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = 150; // base side jaw span tuned so expansion covers half of the pocket circumference
-const FRAME_TOP_Y = -TABLE.THICK + 0.01;
+const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect World Snooker specifications (playing surface 12' × 6')
-const WIDTH_REF = 3569;
-const HEIGHT_REF = 1778;
-const BALL_D_REF = 52.5;
-const BAULK_FROM_BAULK_REF = 737;
+// Dimensions reflect WPA specifications (playing surface 100" × 50")
+const WIDTH_REF = 2540;
+const HEIGHT_REF = 1270;
+const BALL_D_REF = 57.15;
+const BAULK_FROM_BAULK_REF = 635;
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 89;
-const SIDE_MOUTH_REF = 109;
+const BLACK_FROM_TOP_REF = 635;
+const CORNER_MOUTH_REF = 114.3;
+const SIDE_MOUTH_REF = 127;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -524,7 +524,7 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 console.assert(
   Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-  'Pool table inner ratio must match 3569:1778 after scaling.'
+  'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
@@ -544,8 +544,8 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1; // match snooker pocket proportions exactly
-const POCKET_SIDE_MOUTH_SCALE = 1; // match snooker pocket proportions exactly
+const POCKET_CORNER_MOUTH_SCALE = 1.5; // widen the corner pocket jaws 50%
+const POCKET_SIDE_MOUTH_SCALE = 1.08; // keep the middle pocket mouths slightly slimmer to match the corner pockets
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -599,7 +599,7 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
 const FRICTION = 0.993;
-const DEFAULT_CUSHION_RESTITUTION = 1;
+const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
@@ -608,21 +608,21 @@ const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of c
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match the thinner snooker cloth profile
+const CLOTH_THICKNESS = TABLE.THICK * 0.18; // render a thicker carpeted cloth for a plush playing surface
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint while staying invisible via colorWrite=false
 const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the underlay to avoid clipping
-const CLOTH_SHADOW_COVER_THICKNESS = 0; // disable the additional shadow cover so the assembly mirrors Snooker
-const CLOTH_SHADOW_COVER_GAP = 0;
-const CLOTH_SHADOW_COVER_EDGE_INSET = 0;
-const CLOTH_SHADOW_COVER_HOLE_RADIUS = 0;
+const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
+const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
+const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
+const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion lip perfectly level with the surrounding rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners to match Snooker
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with straight edges
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -746,30 +746,35 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
-// Use the same table stance as Snooker so the rails, legs, and skirts align perfectly
+// Pool Royale previously lifted the table surface dramatically; trim the legs so the playfield sits lower
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const LEG_HEIGHT_BOOST = 1.15; // lift the playfield by extending the legs 15%
-const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
-const TABLE_LIFT_BASE =
+const TABLE_HEIGHT_REDUCTION = 0.8;
+const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after 20% reduction
+const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
+const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
+const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
+const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
-const LEG_ROOM_HEIGHT_RAW_BASE = BASE_LEG_HEIGHT + TABLE_LIFT_BASE;
-const LEG_ROOM_HEIGHT_BASE =
-  (LEG_ROOM_HEIGHT_RAW_BASE + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ROOM_HEIGHT = LEG_ROOM_HEIGHT_BASE * LEG_HEIGHT_BOOST;
-const TABLE_LIFT = TABLE_LIFT_BASE + (LEG_ROOM_HEIGHT - LEG_ROOM_HEIGHT_BASE);
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
+const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
+const BASE_LEG_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
+// adjust overall table position so the shorter legs bring the playfield closer to floor level
+const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -801,8 +806,8 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5 * SPIN_VERTICAL_EFFECT_BOOST;
 const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
-// angle for cushion cuts guiding balls into pockets (match Snooker spec)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// angle for cushion cuts guiding balls into pockets (WPA K-55 profile ≈32°)
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
@@ -2404,7 +2409,7 @@ function applySnookerScaling({
   const ratio = width / Math.max(height, 1e-6);
   console.assert(
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
-    'applySnookerScaling: table aspect ratio must remain 3569:1778.'
+    'applySnookerScaling: table aspect ratio must remain 2:1.'
   );
   const expectedCornerMouth =
     CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
@@ -3917,34 +3922,32 @@ function Table3D(
   clothUnderlay.renderOrder = cloth.renderOrder - 1;
   table.add(clothUnderlay);
 
-  if (CLOTH_SHADOW_COVER_THICKNESS > 0) {
-    const shadowCoverShape = buildSurfaceShape(
-      CLOTH_SHADOW_COVER_HOLE_RADIUS,
-      CLOTH_SHADOW_COVER_EDGE_INSET
-    );
-    const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
-      depth: CLOTH_SHADOW_COVER_THICKNESS,
-      bevelEnabled: false,
-      curveSegments: 32,
-      steps: 1
-    });
-    shadowCoverGeo.translate(0, 0, -CLOTH_SHADOW_COVER_THICKNESS);
-    const shadowCoverMat = railMat.clone();
-    shadowCoverMat.side = THREE.DoubleSide;
-    shadowCoverMat.transparent = true;
-    shadowCoverMat.opacity = 0;
-    shadowCoverMat.depthWrite = true;
-    shadowCoverMat.colorWrite = false;
-    shadowCoverMat.needsUpdate = true;
-    const clothShadowCover = new THREE.Mesh(shadowCoverGeo, shadowCoverMat);
-    clothShadowCover.rotation.x = -Math.PI / 2;
-    clothShadowCover.position.y =
-      clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS - CLOTH_SHADOW_COVER_GAP;
-    clothShadowCover.castShadow = true;
-    clothShadowCover.receiveShadow = true;
-    clothShadowCover.renderOrder = clothUnderlay.renderOrder - 1;
-    table.add(clothShadowCover);
-  }
+  const shadowCoverShape = buildSurfaceShape(
+    CLOTH_SHADOW_COVER_HOLE_RADIUS,
+    CLOTH_SHADOW_COVER_EDGE_INSET
+  );
+  const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
+    depth: CLOTH_SHADOW_COVER_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 32,
+    steps: 1
+  });
+  shadowCoverGeo.translate(0, 0, -CLOTH_SHADOW_COVER_THICKNESS);
+  const shadowCoverMat = railMat.clone();
+  shadowCoverMat.side = THREE.DoubleSide;
+  shadowCoverMat.transparent = true;
+  shadowCoverMat.opacity = 0;
+  shadowCoverMat.depthWrite = true;
+  shadowCoverMat.colorWrite = false;
+  shadowCoverMat.needsUpdate = true;
+  const clothShadowCover = new THREE.Mesh(shadowCoverGeo, shadowCoverMat);
+  clothShadowCover.rotation.x = -Math.PI / 2;
+  clothShadowCover.position.y =
+    clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS - CLOTH_SHADOW_COVER_GAP;
+  clothShadowCover.castShadow = true;
+  clothShadowCover.receiveShadow = true;
+  clothShadowCover.renderOrder = clothUnderlay.renderOrder - 1;
+  table.add(clothShadowCover);
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
