@@ -18,7 +18,6 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
@@ -49,6 +48,34 @@ function applyTablePhysicsSpec(meta) {
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
   CUSHION_RESTITUTION = restitution;
+}
+
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
 }
 
 function signedRingArea(ring) {
@@ -434,6 +461,8 @@ function addPocketCuts(parent, clothPlane) {
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+const TOUCH_UI_SCALE = SIZE_REDUCTION;
+const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_SCALE = 1.17; // expand Pool Royale table ~17% without altering proportions
 const TABLE = {
@@ -443,26 +472,26 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.235; // extend the corner jaws to match the 3" liner footprint from the reference build
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.255; // stretch the side jaws so their chrome coverage equals the photographed jaws
-const POCKET_JAW_CORNER_INNER_SCALE = 1.081042; // rebalance after the wider limit so the mouth opening stays consistent
-const POCKET_JAW_SIDE_INNER_SCALE = 0.94952; // keep the middle jaw interior locked in place while the outer edge grows
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.51012; // keep the corner mouth width while matching the longer jaw shell
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.406207; // preserve the side mouth while matching the wider chrome coverage
-const POCKET_JAW_DEPTH_SCALE = 0.52; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" depth)
-const POCKET_RIM_FIELD_PULL = 0.1; // let the rim follow the deeper jaw a little farther toward the cloth side
-const POCKET_RIM_DEPTH_SCALE = 0.27; // depth of the rim extrusion relative to the jaw depth
-const POCKET_RIM_LIP = TABLE.THICK * 0.036; // lift the rim higher so it sits proud of the chrome plates
-const POCKET_JAW_EDGE_FLUSH_START = 0.28; // begin easing the jaw back out to meet the chrome edge later so the lip stays long
-const POCKET_JAW_EDGE_FLUSH_END = 0.99; // ensure the jaw and rim finish flush with the chrome trim at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.19; // edge thickness multiplier so the jaw fades into the cushion line
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.6; // minimum centre thickness ratio (relative to jaw depth)
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.78; // maximum centre thickness ratio
-const POCKET_JAW_OUTER_EXPONENT_MIN = 0.68; // controls arc falloff toward the chrome rim
-const POCKET_JAW_OUTER_EXPONENT_MAX = 1.12;
-const POCKET_JAW_INNER_EXPONENT_MIN = 0.9; // controls inner lip easing toward the cushion
-const POCKET_JAW_INNER_EXPONENT_MAX = 1.28;
-const POCKET_JAW_SEGMENT_MIN = 64; // base tessellation for smoother arcs
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.312; // extend the corner jaws to the photographed chrome footprint of a Supreme Winner corner
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.332; // stretch the side jaws so their chrome coverage mirrors the reference table photos
+const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
+const POCKET_JAW_SIDE_INNER_SCALE = 0.936; // keep the side jaw interior aligned with the cloth edge seen in the photos
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.623; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_SIDE_OUTER_SCALE = 1.512; // keep the side mouth while matching the wide chrome-backed jaw liner
+const POCKET_JAW_DEPTH_SCALE = 0.63; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
+const POCKET_RIM_FIELD_PULL = 0.148; // pull the rim toward the cloth so the jaw lip wraps around like the reference build
+const POCKET_RIM_DEPTH_SCALE = 0.33; // depth of the rim extrusion relative to the deeper jaw body
+const POCKET_RIM_LIP = TABLE.THICK * 0.044; // lift the rim so it sits proud of the chrome plates exactly as in the photos
+const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
+const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw and rim finish perfectly flush with the chrome trim at the very ends
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.72; // minimum centre thickness ratio (relative to jaw depth)
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.9; // maximum centre thickness ratio
+const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
+const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
+const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
+const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
+const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const POCKET_JAW_CLOTH_CONTACT_PAD = 0; // let the jaws run right up to the green cloth without leaving a standoff gap
 const CORNER_JAW_ARC_DEG = 54;
 const SIDE_JAW_ARC_DEG = 52;
@@ -786,7 +815,6 @@ const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the r
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
-const UI_SCALE = SIZE_REDUCTION;
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
@@ -1210,24 +1238,26 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0xb3b3b3,
-          metalness: 0.28,
-          roughness: 0.48,
-          clearcoat: 0.42,
-          clearcoatRoughness: 0.32,
-          sheen: 0.16,
-          sheenRoughness: 0.42,
-          envMapIntensity: 0.58
+          color: 0x101215,
+          metalness: 0.08,
+          roughness: 0.62,
+          clearcoat: 0.22,
+          clearcoatRoughness: 0.46,
+          sheen: 0.58,
+          sheenColor: new THREE.Color(0x1d1f25),
+          sheenRoughness: 0.5,
+          envMapIntensity: 0.34
         });
         const pocketRim = new THREE.MeshPhysicalMaterial({
-          color: 0x101010,
-          metalness: 0.44,
-          roughness: 0.36,
-          clearcoat: 0.62,
-          clearcoatRoughness: 0.22,
-          sheen: 0.22,
-          sheenRoughness: 0.46,
-          envMapIntensity: 0.5
+          color: 0x050608,
+          metalness: 0.14,
+          roughness: 0.72,
+          clearcoat: 0.18,
+          clearcoatRoughness: 0.56,
+          sheen: 0.42,
+          sheenColor: new THREE.Color(0x0e0f12),
+          sheenRoughness: 0.6,
+          envMapIntensity: 0.26
         });
         return {
           frame,
@@ -5603,6 +5633,41 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const configButtonRef = useRef(null);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
+  const [uiScale, setUiScale] = useState(() =>
+    detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const updateScale = () => {
+      setUiScale(detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE);
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    let coarseQuery = null;
+    if (typeof window.matchMedia === 'function') {
+      try {
+        coarseQuery = window.matchMedia('(pointer: coarse)');
+        if (coarseQuery?.addEventListener) {
+          coarseQuery.addEventListener('change', updateScale);
+        } else if (coarseQuery?.addListener) {
+          coarseQuery.addListener(updateScale);
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      if (!coarseQuery) return;
+      if (coarseQuery.removeEventListener) {
+        coarseQuery.removeEventListener('change', updateScale);
+      } else if (coarseQuery.removeListener) {
+        coarseQuery.removeListener(updateScale);
+      }
+    };
+  }, []);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -12289,7 +12354,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           <div
             className="pointer-events-auto flex h-12 max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
-              transform: `scale(${UI_SCALE})`,
+              transform: `scale(${uiScale})`,
               transformOrigin: 'bottom center',
               maxWidth: 'min(26rem, 100%)'
             }}
@@ -12345,7 +12410,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         <div
           ref={sliderRef}
           style={{
-            transform: `scale(${UI_SCALE})`,
+            transform: `scale(${uiScale})`,
             transformOrigin: 'top right'
           }}
         />
@@ -12355,7 +12420,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       <div
         className="absolute bottom-4 right-4"
         style={{
-          transform: `scale(${UI_SCALE})`,
+          transform: `scale(${uiScale})`,
           transformOrigin: 'bottom right'
         }}
       >
@@ -12380,7 +12445,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 }
 
 export default function PoolRoyale() {
-  const isMobileOrTablet = useIsMobile(1366);
   const location = useLocation();
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -12392,14 +12456,5 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
-
-  if (!isMobileOrTablet) {
-    return (
-      <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile phones and tablets only.</p>
-      </div>
-    );
-  }
-
   return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
 }
