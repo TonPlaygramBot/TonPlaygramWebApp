@@ -247,11 +247,15 @@
   // ===== Geometry =====
   const geom = { goal:{x:0,y:0,w:0,h:0,post:12}, spot:{x:0,y:0}, penaltySpot:{x:0,y:0}, scale:1, paDepth:0 };
   function layout(){
-    const goalScale = 0.85;
+    const goalScale = 0.78;
     const goalW = Math.min(W*0.92, 950) * 0.97 * goalScale;
     const goalH = Math.min(H*0.28, 260) * 0.92 * goalScale;
     const pbarBottom = document.getElementById('pbar').getBoundingClientRect().bottom;
-    geom.goal = { x:(W-goalW)/2, y:pbarBottom + 10, w:goalW, h:goalH, post:12 };
+    const minGoalY = pbarBottom + 12;
+    const desiredGoalY = pbarBottom + Math.max(STRIPE * 0.9, H * 0.08);
+    const safeMaxGoalY = Math.max(minGoalY, H - goalH - STRIPE * 4);
+    const goalY = Math.max(minGoalY, Math.min(desiredGoalY, safeMaxGoalY));
+    geom.goal = { x:(W-goalW)/2, y:goalY, w:goalW, h:goalH, post:12 };
     geom.scale = goalW / 860;
     geom.paDepth = Math.min(320*geom.scale, H*0.34) * goalScale;
     geom.penaltySpot = { x:W/2, y: geom.goal.y + geom.goal.h + geom.paDepth * (11/16.5) + STRIPE*3 };
@@ -650,8 +654,98 @@
     ball.trail = [];
   }
 
-  // ===== Drawing: Field & lines =====
+  // ===== Drawing: Stadium & Field =====
+  function drawStadium(){
+    const g = geom.goal;
+    if(!g || !g.w) return;
+    const roofTop = Math.max(40, g.y - g.h * 1.45);
+    const roofBottom = g.y - g.h * 0.22;
+    const suiteBandHeight = Math.max(36, g.h * 0.55);
+    const suiteBottom = roofBottom;
+    const suiteTop = Math.max(roofTop + 10, suiteBottom - suiteBandHeight);
+    const suiteHeight = Math.max(12, suiteBottom - suiteTop);
+    ctx.save();
+
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, roofTop);
+    skyGrad.addColorStop(0, '#050812');
+    skyGrad.addColorStop(1, '#0a1230');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, roofTop);
+
+    const roofGrad = ctx.createLinearGradient(0, roofTop, 0, roofBottom);
+    roofGrad.addColorStop(0, '#0d1738');
+    roofGrad.addColorStop(0.6, '#1b2950');
+    roofGrad.addColorStop(1, '#111d3a');
+    ctx.beginPath();
+    ctx.moveTo(0, roofBottom);
+    ctx.lineTo(W * 0.12, roofTop);
+    ctx.lineTo(W * 0.88, roofTop);
+    ctx.lineTo(W, roofBottom);
+    ctx.closePath();
+    ctx.fillStyle = roofGrad;
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(122,169,255,0.55)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.12, roofTop + 2);
+    ctx.lineTo(W * 0.88, roofTop + 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(95,138,255,0.22)';
+    ctx.lineWidth = 3;
+    for(let i=0;i<=6;i++){
+      const t = i / 6;
+      const x = W * 0.12 + (W * 0.76) * t;
+      ctx.beginPath();
+      ctx.moveTo(x, roofTop - 26);
+      ctx.lineTo(x + W * 0.018 - W * 0.036 * (t - 0.5), roofBottom);
+      ctx.stroke();
+    }
+
+    const suiteLeft = W * 0.08;
+    const suiteWidth = W * 0.84;
+    const suiteGrad = ctx.createLinearGradient(0, suiteTop, 0, suiteBottom);
+    suiteGrad.addColorStop(0, '#101c3c');
+    suiteGrad.addColorStop(0.5, '#1f2d53');
+    suiteGrad.addColorStop(1, '#111b36');
+    ctx.fillStyle = suiteGrad;
+    ctx.fillRect(suiteLeft, suiteTop, suiteWidth, suiteHeight);
+
+    const boxCount = 6;
+    const gap = Math.max(8, suiteWidth * 0.02);
+    const boxWidth = (suiteWidth - gap * (boxCount + 1)) / boxCount;
+    for(let i=0;i<boxCount;i++){
+      const bx = suiteLeft + gap + i * (boxWidth + gap);
+      const windowGrad = ctx.createLinearGradient(bx, suiteTop, bx, suiteBottom);
+      windowGrad.addColorStop(0, '#1a2644');
+      windowGrad.addColorStop(0.55, '#2b3d67');
+      windowGrad.addColorStop(1, '#1b2542');
+      ctx.fillStyle = windowGrad;
+      ctx.fillRect(bx, suiteTop + 4, boxWidth, suiteHeight - 8);
+
+      const glassHeight = (suiteHeight - 12) * 0.48;
+      ctx.fillStyle = 'rgba(138,188,255,0.18)';
+      ctx.fillRect(bx + 6, suiteTop + 10, boxWidth - 12, glassHeight);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(bx + 6, suiteTop + 10 + glassHeight + 6, boxWidth - 12, suiteHeight - glassHeight - 22);
+      ctx.fillStyle = 'rgba(118,196,255,0.65)';
+      ctx.fillRect(bx + 8, suiteTop + 6, boxWidth - 16, 3);
+    }
+
+    const concourseTop = suiteBottom;
+    const concourseHeight = Math.max(24, g.h * 0.22);
+    const concourseGrad = ctx.createLinearGradient(0, concourseTop, 0, concourseTop + concourseHeight);
+    concourseGrad.addColorStop(0, 'rgba(8,12,32,0.85)');
+    concourseGrad.addColorStop(1, 'rgba(5,8,20,0)');
+    ctx.fillStyle = concourseGrad;
+    ctx.fillRect(0, concourseTop, W, concourseHeight);
+
+    ctx.restore();
+  }
+
   function drawField(){
+    drawStadium();
     for(let y=0;y<H;y+=STRIPE){
       ctx.fillStyle=(Math.floor(y/STRIPE)%2?getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d':'#0c7a23'); ctx.fillRect(0,y,W,STRIPE);
     }
@@ -688,33 +782,171 @@
     // Free-kick arc omitted for simplified field
   }
 
+  function traceHexPath(context, radius, offsetY=0){
+    context.beginPath();
+    for(let i=0;i<6;i++){
+      const angle = Math.PI/3 * i - Math.PI/2;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius + offsetY;
+      if(i===0) context.moveTo(px, py); else context.lineTo(px, py);
+    }
+    context.closePath();
+  }
+
+  function drawHexTargetBadge(context, x, y, radius, hole, options={}){
+    const points = hole?.points ?? hole?.p ?? 0;
+    const timer = hole?.timer ?? hole?.t ?? 0;
+    const bomb = Boolean(hole?.bomb ?? hole?.b);
+    const dropDepth = Math.max(4, radius * (options.compact ? 0.28 : 0.36));
+    context.save();
+    context.translate(x, y);
+
+    const dropAlpha = options.compact ? 0.22 : 0.28;
+    context.globalAlpha = dropAlpha;
+    context.fillStyle = 'rgba(0,0,0,0.45)';
+    traceHexPath(context, radius, dropDepth);
+    context.fill();
+    context.globalAlpha = 1;
+
+    const topGradient = context.createLinearGradient(0, -radius, 0, radius);
+    topGradient.addColorStop(0, '#ff7f7f');
+    topGradient.addColorStop(0.5, '#e10600');
+    topGradient.addColorStop(1, '#6f0404');
+    context.fillStyle = topGradient;
+    traceHexPath(context, radius, 0);
+    context.fill();
+
+    context.lineWidth = Math.max(1.2, radius * 0.14);
+    context.strokeStyle = 'rgba(94,5,5,0.85)';
+    traceHexPath(context, radius, 0);
+    context.stroke();
+
+    const innerRadius = radius * 0.64;
+    context.lineWidth = Math.max(0.8, radius * 0.08);
+    const ringGradient = context.createLinearGradient(0, -innerRadius, 0, innerRadius);
+    ringGradient.addColorStop(0, 'rgba(255,234,173,0.95)');
+    ringGradient.addColorStop(1, 'rgba(206,134,32,0.85)');
+    context.strokeStyle = ringGradient;
+    traceHexPath(context, innerRadius, 0);
+    context.stroke();
+
+    const highlight = context.createLinearGradient(-radius, -radius * 0.2, radius, radius * 0.6);
+    highlight.addColorStop(0, 'rgba(255,255,255,0.18)');
+    highlight.addColorStop(1, 'rgba(255,255,255,0)');
+    context.fillStyle = highlight;
+    traceHexPath(context, radius, 0);
+    context.fill();
+
+    const dotR = Math.max(2.5, radius * 0.14);
+    context.shadowColor = `rgba(255,232,181,${options.compact ? 0.45 : 0.65})`;
+    context.shadowBlur = Math.max(3, radius * 0.18);
+    context.fillStyle = '#ffd400';
+    context.beginPath();
+    context.arc(0, 0, dotR, 0, Math.PI * 2);
+    context.fill();
+    context.shadowBlur = 0;
+    context.shadowColor = 'transparent';
+
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    if(bomb){
+      context.fillStyle = '#ffe9b0';
+      context.font = `700 ${Math.max(8, radius * 0.42)}px system-ui`;
+      context.fillText('💣', 0, -radius * 0.32);
+      context.font = `900 ${Math.max(10, radius * 0.58)}px system-ui`;
+      context.fillStyle = '#fff8d2';
+      context.fillText(points, 0, 0);
+      context.font = `600 ${Math.max(7, radius * 0.34)}px system-ui`;
+      context.fillStyle = '#ffae67';
+      context.fillText('-15s', 0, radius * 0.42);
+    } else if(timer){
+      context.fillStyle = '#ffe9b0';
+      context.font = `700 ${Math.max(8, radius * 0.4)}px system-ui`;
+      context.fillText('⏳', 0, -radius * 0.28);
+      context.font = `900 ${Math.max(10, radius * 0.56)}px system-ui`;
+      context.fillStyle = '#fff8d2';
+      context.fillText(`+${timer}s`, 0, radius * 0.04);
+    } else {
+      context.fillStyle = '#fff8d2';
+      context.font = `900 ${Math.max(12, radius * 0.62)}px system-ui`;
+      context.fillText(points, 0, 0);
+    }
+
+    context.restore();
+  }
+
   function drawMiniGoal(c,g,netOverride){
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
     const scale=g.w/geom.goal.w;
-    const netColor=netOverride||getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6';
     const size=18*scale; const h=size*Math.sqrt(3)/2;
-    c.save();
-    c.beginPath();
-    c.rect(ix,iy,innerW,innerH);
-    c.clip();
-    c.strokeStyle=netColor; c.lineWidth=Math.max(0.5,1.2*scale);
-    for(let y=g.y-h; y<g.y+g.h+h; y+=h){
-      for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
-        const off=((Math.round((y-g.y)/h))%2)*size*0.75;
-        let cx=x+off, cy=y;
-        c.beginPath();
-        for(let i=0;i<6;i++){
-          const a=Math.PI/3*i;
-          const px=cx+size*Math.cos(a);
-          const py=cy+size*Math.sin(a);
-          if(i===0) c.moveTo(px,py); else c.lineTo(px,py);
+    const netGradient=netOverride||(()=>{
+      const grad=c.createLinearGradient(ix,iy,ix,iy+innerH);
+      grad.addColorStop(0,'rgba(247,249,255,0.95)');
+      grad.addColorStop(0.5,'rgba(213,224,255,0.85)');
+      grad.addColorStop(1,'rgba(172,185,212,0.8)');
+      return grad;
+    })();
+    const netWidth=Math.max(0.6,1.6*scale);
+
+    function drawPanel(pathFn){
+      c.save();
+      c.beginPath();
+      pathFn();
+      c.clip();
+      c.save();
+      c.lineJoin='round';
+      c.lineCap='round';
+      c.strokeStyle=netGradient;
+      c.lineWidth=netWidth;
+      c.shadowColor='rgba(32,54,112,0.2)';
+      c.shadowBlur=1.2;
+      for(let y=g.y-h; y<g.y+g.h+h; y+=h){
+        for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
+          const off=((Math.round((y-g.y)/h))%2)*size*0.75;
+          const cx=x+off, cy=y;
+          const depth=clamp((cy-g.y)/(g.h+h),0,1);
+          const centerX=g.x+g.w/2;
+          const warp=1 - depth*0.18;
+          const drop=depth*innerH*0.28;
+          c.beginPath();
+          for(let i=0;i<6;i++){
+            const a=Math.PI/3*i;
+            const px=centerX + (cx + size*Math.cos(a) - centerX)*warp;
+            const py=cy + size*Math.sin(a) + drop;
+            if(i===0) c.moveTo(px,py); else c.lineTo(px,py);
+          }
+          c.closePath();
+          c.stroke();
         }
-        c.closePath();
-        c.stroke();
       }
+      c.restore();
+      c.restore();
     }
-    c.restore();
+
+    drawPanel(()=>{ c.rect(ix,iy,innerW,innerH); });
+    drawPanel(()=>{
+      c.moveTo(g.x,g.y);
+      c.lineTo(ix,iy);
+      c.lineTo(ix,iy+innerH);
+      c.lineTo(g.x,g.y+g.h);
+      c.closePath();
+    });
+    drawPanel(()=>{
+      c.moveTo(g.x+g.w,g.y);
+      c.lineTo(ix+innerW,iy);
+      c.lineTo(ix+innerW,iy+innerH);
+      c.lineTo(g.x+g.w,g.y+g.h);
+      c.closePath();
+    });
+    drawPanel(()=>{
+      c.moveTo(g.x,g.y);
+      c.lineTo(g.x+g.w,g.y);
+      c.lineTo(ix+innerW,iy);
+      c.lineTo(ix,iy);
+      c.closePath();
+    });
+
     c.strokeStyle='#fff';
     c.lineWidth=2*scale;
     c.beginPath();
@@ -760,32 +992,60 @@
     const g=geom.goal;
     const innerW=g.w*0.8, innerH=g.h*0.8;
     const ix=g.x+(g.w-innerW)/2, iy=g.y+(g.h-innerH)/2;
-    const netColor=(goalFlash>0||missFlash>0)?'#ffd400':(getComputedStyle(document.documentElement).getPropertyValue('--net')||'#e6e6e6');
     const size=18; const h=size*Math.sqrt(3)/2;
+    const netGradient=(()=>{
+      const grad=ctx.createLinearGradient(ix,iy,ix,iy+innerH);
+      if(goalFlash>0||missFlash>0){
+        grad.addColorStop(0,'#ffe680');
+        grad.addColorStop(1,'#ffb347');
+      } else {
+        grad.addColorStop(0,'rgba(247,249,255,0.96)');
+        grad.addColorStop(0.55,'rgba(211,222,255,0.88)');
+        grad.addColorStop(1,'rgba(166,183,214,0.82)');
+      }
+      return grad;
+    })();
+    const netLineWidth=Math.max(1.3,1.8*geom.scale);
     function drawNetMesh(){
-      ctx.strokeStyle=netColor; ctx.lineWidth=1.2;
+      ctx.save();
+      ctx.lineJoin='round';
+      ctx.lineCap='round';
+      ctx.strokeStyle=netGradient;
+      ctx.lineWidth=netLineWidth;
+      ctx.shadowColor='rgba(42,64,124,0.28)';
+      ctx.shadowBlur=1.6;
       for(let y=g.y-h; y<g.y+g.h+h; y+=h){
         for(let x=g.x-size; x<g.x+g.w+size; x+=size*1.5){
-          const off = ((Math.round((y-g.y)/h))%2)*size*0.75;
-          let cx=x+off, cy=y;
-          // skip drawing net near the ground behind the keeper's feet
+          const off=((Math.round((y-g.y)/h))%2)*size*0.75;
+          const cx=x+off, cy=y;
           if(cy > g.y + g.h - 8) continue;
+          const depth=clamp((cy-g.y)/(g.h+h),0,1);
+          const centerX=g.x+g.w/2;
+          const warp=1 - depth*0.2;
+          const drop=depth*innerH*0.32;
           ctx.beginPath();
           for(let i=0;i<6;i++){
-            const a=Math.PI/3*i; let px=cx+size*Math.cos(a); let py=cy+size*Math.sin(a);
+            const a=Math.PI/3*i;
+            let px=centerX + (cx + size*Math.cos(a) - centerX)*warp;
+            let py=cy + size*Math.sin(a) + drop;
             const dx=netHit.x-px, dy=netHit.y-py; const dist=Math.hypot(dx,dy);
             if(netHit.t>0 && dist>0){
-              const impact=Math.exp(-dist/40)*12*netHit.t;
-              const ripple=0.3*netHit.t;
+              const impact=Math.exp(-dist/40)*14*netHit.t;
+              const ripple=0.35*netHit.t;
               const pull=impact+ripple;
               px+=dx/dist*pull; py+=dy/dist*pull;
             }
-            if(netHit.shake>0){ py+=Math.sin((px+py+i)*0.3+performance.now()*0.02)*netHit.shake*3; }
+            if(netHit.shake>0){
+              py+=Math.sin((px+py+i)*0.3+performance.now()*0.02)*netHit.shake*3.4;
+              px+=Math.cos((px-py-i)*0.25+performance.now()*0.015)*netHit.shake*1.6;
+            }
             if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
           }
-          ctx.closePath(); ctx.stroke();
+          ctx.closePath();
+          ctx.stroke();
         }
       }
+      ctx.restore();
     }
     function drawNetPanel(pathFn){
       ctx.save();
@@ -821,6 +1081,22 @@
       ctx.lineTo(ix, iy);
       ctx.closePath();
     });
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(g.x, g.y);
+    ctx.lineTo(g.x + g.w, g.y);
+    ctx.lineTo(ix + innerW, iy + innerH);
+    ctx.lineTo(ix, iy + innerH);
+    ctx.closePath();
+    ctx.clip();
+    ctx.globalAlpha=0.12;
+    const sheen=ctx.createLinearGradient(ix, iy, ix + innerW, iy + innerH * 0.6);
+    sheen.addColorStop(0,'rgba(255,255,255,0.85)');
+    sheen.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=sheen;
+    ctx.fillRect(ix-40, iy-40, innerW+80, innerH+120);
+    ctx.restore();
     ctx.strokeStyle='#fff'; ctx.lineWidth=2;
     ctx.beginPath();
     ctx.moveTo(g.x, g.y);
@@ -879,11 +1155,9 @@
       ctx.restore();
     }
     for(const c of cameras){ ctx.fillStyle='#111'; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.fillStyle='#e10600'; ctx.beginPath(); ctx.arc(c.x+8,c.y+6,3,0,Math.PI*2); ctx.fill(); }
-    for(const h of holes){ if(h.hit) continue; ctx.fillStyle='rgba(225,6,0,.9)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.r,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ffd400'; ctx.font=`800 ${Math.max(12,h.r*0.9)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      if(h.timer) ctx.fillText(`⏳️ +${h.timer}`, h.x, h.y);
-      else if(h.bomb) ctx.fillText('💣 ' + (h.points * 3), h.x, h.y);
-      else ctx.fillText(h.points, h.x, h.y);
+    for(const h of holes){
+      if(h.hit) continue;
+      drawHexTargetBadge(ctx, h.x, h.y, h.r, h);
     }
     drawKeeper();
   }
@@ -1403,7 +1677,7 @@ function onUp(e){
   keeper.targetX = centerX;
   keeper.targetY = keeper.baseY + geom.goal.h * 0.02;
   if(!defenders.jumping){
-    defenders.vy = -3*geom.scale;
+    defenders.vy = -1.5*geom.scale;
     defenders.jumping = true;
   }
   playBallKickSound();
@@ -1470,17 +1744,7 @@ function onUp(e){
 
       const list = Array.isArray(miniHolesCache[i]) ? miniHolesCache[i] : [];
       for(const h of list){
-        c.fillStyle='rgba(225,6,0,.9)';
-        c.beginPath();
-        c.arc(h.x,h.y,h.r,0,Math.PI*2);
-        c.fill();
-        c.fillStyle='#ffd400';
-        c.font='bold 12px system-ui';
-        c.textAlign='center';
-        c.textBaseline='middle';
-        if(h.t) c.fillText(`⏳️ +${h.t}`,h.x,h.y);
-        else if(h.b) c.fillText('💣',h.x,h.y);
-        else c.fillText(h.p,h.x,h.y);
+        drawHexTargetBadge(c, h.x, h.y, h.r, h, { compact: true });
       }
 
       // keeper setup
@@ -1603,7 +1867,7 @@ function onUp(e){
           }
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
-          if(!r.defJump){ r.defVy = -2*r.scale; r.defJump = true; }
+          if(!r.defJump){ r.defVy = -1*r.scale; r.defJump = true; }
           const vx = (target.x - startX) / 15;
           const vy = (target.y - (g.y + g.h)) / 15;
           r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved});
