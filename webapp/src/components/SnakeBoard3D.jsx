@@ -126,6 +126,8 @@ const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.08;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.4;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
 const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 0.9;
+// Extra distance so side-seat tokens rest closer to their players than the board edge.
+const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 1.6;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -138,9 +140,9 @@ const DICE_CENTER_VECTOR = new THREE.Vector3();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
 const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
 
-const SIDE_SEAT_THROW_START_EXTRA = TILE_SIZE * 1.25;
-const SIDE_SEAT_THROW_BOUNCE_EXTRA = TILE_SIZE * 0.85;
-const SIDE_SEAT_THROW_SETTLE_EXTRA = TILE_SIZE * 0.7;
+const SIDE_SEAT_THROW_START_EXTRA = TILE_SIZE * 2.4;
+const SIDE_SEAT_THROW_BOUNCE_EXTRA = TILE_SIZE * 1.65;
+const SIDE_SEAT_THROW_SETTLE_EXTRA = TILE_SIZE * 1.45;
 
 const DICE_SEAT_ADJUSTMENTS = [
   {
@@ -1486,9 +1488,9 @@ function updateTokens(
       } else {
         direction.normalize();
       }
-      const target = center
-        .clone()
-        .addScaledVector(direction, boardHalf + BOARD_EDGE_BUFFER + forwardLift);
+      const sideBonus = index === 1 || index === 3 ? SIDE_HOME_EXTRA_DISTANCE : 0;
+      const distanceFromBoard = boardHalf + BOARD_EDGE_BUFFER + forwardLift + sideBonus;
+      const target = center.clone().addScaledVector(direction, distanceFromBoard);
       target.y = baseY + TOKEN_HEIGHT * 0.02;
       seatHomes[index] = { position: target, direction };
     });
