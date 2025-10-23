@@ -118,6 +118,12 @@ const HIGHLIGHT_COLORS = {
   ladder: new THREE.Color(0x22c55e)
 };
 
+const BOARD_TILE_HEIGHT = TILE_SIZE * 0.06;
+const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
+const TILE_BOTTOM_COLOR = new THREE.Color(0x3d2514);
+const TILE_SIDE_EMISSIVE_SCALE = 0.25;
+const TILE_BOTTOM_EMISSIVE_SCALE = 0.1;
+
 const TOKEN_RADIUS = TILE_SIZE * 0.3;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48;
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
@@ -127,7 +133,8 @@ const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.4;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
 const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 0.9;
 // Extra distance so side-seat tokens rest closer to their players than the board edge.
-const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 1.6;
+const SIDE_HOME_EXTRA_DISTANCE = TILE_SIZE * 2.4;
+const BACK_HOME_EXTRA_DISTANCE = TILE_SIZE * 2.8;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -837,6 +844,78 @@ function createTileLabel(number) {
   return mesh;
 }
 
+function createTileMaterialSet(baseColor) {
+  const topColor = baseColor.clone();
+  const sideColor = TILE_SIDE_COLOR.clone().lerp(topColor, 0.25);
+  const bottomColor = TILE_BOTTOM_COLOR.clone().lerp(topColor, 0.15);
+
+  const topMaterial = new THREE.MeshStandardMaterial({
+    color: topColor,
+    roughness: 0.78,
+    metalness: 0.05,
+    emissive: new THREE.Color(0x000000)
+  });
+
+  const sideMaterial = new THREE.MeshStandardMaterial({
+    color: sideColor,
+    roughness: 0.85,
+    metalness: 0.08,
+    emissive: new THREE.Color(0x000000)
+  });
+
+  const bottomMaterial = new THREE.MeshStandardMaterial({
+    color: bottomColor,
+    roughness: 0.9,
+    metalness: 0.05,
+    emissive: new THREE.Color(0x000000)
+  });
+
+  return {
+    materials: [sideMaterial, sideMaterial, topMaterial, bottomMaterial, sideMaterial, sideMaterial],
+    topMaterial,
+    sideMaterial,
+    bottomMaterial
+  };
+}
+
+function resetTileAppearance(tile) {
+  const { topMaterial, sideMaterial, bottomMaterial, baseColor } = tile.userData ?? {};
+  if (topMaterial && baseColor) {
+    topMaterial.color.copy(baseColor);
+    topMaterial.emissive?.setRGB(0, 0, 0);
+  }
+  if (sideMaterial) {
+    sideMaterial.emissive?.setRGB(0, 0, 0);
+  }
+  if (bottomMaterial) {
+    bottomMaterial.emissive?.setRGB(0, 0, 0);
+  }
+  if (!topMaterial && tile.material?.color && baseColor) {
+    tile.material.color.copy(baseColor);
+    tile.material.emissive?.setRGB(0, 0, 0);
+  }
+}
+
+function applyTileHighlight(tile, color, intensity = 1) {
+  const { topMaterial, sideMaterial, bottomMaterial } = tile.userData ?? {};
+  if (topMaterial?.emissive) {
+    topMaterial.emissive.copy(color).multiplyScalar(intensity);
+  }
+  if (sideMaterial?.emissive) {
+    sideMaterial.emissive
+      .copy(color)
+      .multiplyScalar(intensity * TILE_SIDE_EMISSIVE_SCALE);
+  }
+  if (bottomMaterial?.emissive) {
+    bottomMaterial.emissive
+      .copy(color)
+      .multiplyScalar(intensity * TILE_BOTTOM_EMISSIVE_SCALE);
+  }
+  if (!topMaterial && tile.material?.emissive) {
+    tile.material.emissive.copy(color).multiplyScalar(intensity);
+  }
+}
+
 function makeRailTexture() {
   const c = document.createElement('canvas');
   c.width = 128;
@@ -1163,7 +1242,7 @@ function buildSnakeBoard(
 
   const tileMeshes = new Map();
   const indexToPosition = new Map();
-  const tileHeight = TILE_SIZE * 0.024;
+  const tileHeight = BOARD_TILE_HEIGHT;
   const tileGeo = new THREE.BoxGeometry(
     TILE_SIZE - TILE_GAP,
     tileHeight,
@@ -1172,19 +1251,6 @@ function buildSnakeBoard(
 
   const labelGroup = new THREE.Group();
   boardRoot.add(labelGroup);
-
-  const mats = {
-    even: new THREE.MeshStandardMaterial({
-      color: TILE_COLOR_A,
-      roughness: 0.8,
-      metalness: 0.05
-    }),
-    odd: new THREE.MeshStandardMaterial({
-      color: TILE_COLOR_B,
-      roughness: 0.8,
-      metalness: 0.05
-    })
-  };
 
   const platformThickness = TILE_SIZE * 0.32;
   const levelGap = TILE_SIZE * 0.08;
@@ -1239,7 +1305,8 @@ function buildSnakeBoard(
     const perimeter = buildPerimeterSequence(size);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
-      const mat = (row + col) % 2 === 0 ? mats.even.clone() : mats.odd.clone();
+      const baseColor = (row + col) % 2 === 0 ? TILE_COLOR_A : TILE_COLOR_B;
+      const materialSet = createTileMaterialSet(baseColor);
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
@@ -1254,12 +1321,13 @@ function buildSnakeBoard(
       if (idx === TOTAL_BOARD_TILES) {
         tilePosition.y += topTileLift;
       }
-      const tile = new THREE.Mesh(tileGeo, mat);
+      const tile = new THREE.Mesh(tileGeo, materialSet.materials);
       tile.position.copy(tilePosition);
       tile.userData.index = idx;
-      tile.userData.baseColor = tile.material.color.clone();
-      tile.material.emissive = new THREE.Color(0x000000);
-      tile.material.emissiveIntensity = 1.0;
+      tile.userData.topMaterial = materialSet.topMaterial;
+      tile.userData.sideMaterial = materialSet.sideMaterial;
+      tile.userData.bottomMaterial = materialSet.bottomMaterial;
+      tile.userData.baseColor = materialSet.topMaterial.color.clone();
       tileGroup.add(tile);
       tileMeshes.set(idx, tile);
 
@@ -1412,22 +1480,21 @@ function buildSnakeBoard(
 
 function updateTilesHighlight(tileMeshes, highlight, trail) {
   tileMeshes.forEach((tile) => {
-    tile.material.color.copy(tile.userData.baseColor);
-    tile.material.emissive.setRGB(0, 0, 0);
+    resetTileAppearance(tile);
   });
   if (trail?.length) {
     trail.forEach((segment) => {
       const tile = tileMeshes.get(segment.cell);
       if (!tile) return;
       const color = HIGHLIGHT_COLORS[segment.type] ?? HIGHLIGHT_COLORS.normal;
-      tile.material.emissive.copy(color).multiplyScalar(0.35);
+      applyTileHighlight(tile, color, 0.35);
     });
   }
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
       const color = HIGHLIGHT_COLORS[highlight.type] ?? HIGHLIGHT_COLORS.normal;
-      tile.material.emissive.copy(color);
+      applyTileHighlight(tile, color);
     }
   }
 }
@@ -1488,8 +1555,10 @@ function updateTokens(
       } else {
         direction.normalize();
       }
-      const sideBonus = index === 1 || index === 3 ? SIDE_HOME_EXTRA_DISTANCE : 0;
-      const distanceFromBoard = boardHalf + BOARD_EDGE_BUFFER + forwardLift + sideBonus;
+      let seatBonus = 0;
+      if (index === 1 || index === 3) seatBonus = SIDE_HOME_EXTRA_DISTANCE;
+      else if (index === 2) seatBonus = BACK_HOME_EXTRA_DISTANCE;
+      const distanceFromBoard = boardHalf + BOARD_EDGE_BUFFER + forwardLift + seatBonus;
       const target = center.clone().addScaledVector(direction, distanceFromBoard);
       target.y = baseY + TOKEN_HEIGHT * 0.02;
       seatHomes[index] = { position: target, direction };
@@ -2077,7 +2146,7 @@ export default function SnakeBoard3D({
       const tile = boardRef.current.tileMeshes.get(offsetPopup.cell);
       if (tile) {
         const color = offsetPopup.type === 'snake' ? HIGHLIGHT_COLORS.snake : HIGHLIGHT_COLORS.ladder;
-        tile.material.emissive.copy(color);
+        applyTileHighlight(tile, color);
       }
     }
   }, [highlight, trail, offsetPopup]);
