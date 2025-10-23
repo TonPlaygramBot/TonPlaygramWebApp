@@ -226,7 +226,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.05;
+const POCKET_VISUAL_EXPANSION = 0.98; // shrink the visible pocket footprint so cloth openings read smaller
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.996; // tighten the chrome corner arc so the curved cut sits closer to the pocket
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
 const CHROME_CORNER_EXPANSION_SCALE = 1.008; // expand the corner chrome footprint slightly so it reaches further toward the rail centerline
@@ -472,7 +472,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // keep corner jaw footprint locked to the chrome plate cut radius
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.006; // nudge the corner jaw radius outward so it seats flush against the chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaw footprint locked to the chrome plate cut radius
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward to keep the liner flush with the rail edge
@@ -544,8 +544,8 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1.5; // widen the corner pocket jaws 50%
-const POCKET_SIDE_MOUTH_SCALE = 1.08; // keep the middle pocket mouths slightly slimmer to match the corner pockets
+const POCKET_CORNER_MOUTH_SCALE = 1.44; // slightly tighten the corner pocket jaws so the cloth openings read smaller
+const POCKET_SIDE_MOUTH_SCALE = 1.04; // narrow the middle pocket mouths in step with the corner updates
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -554,6 +554,9 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.14 * POCKET_VISUAL_EXPANSION; // pull corner pockets slightly toward centre so they sit flush with the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
+const SIDE_POCKET_OUTWARD_SHIFT_SCALE = 0.18; // bias the middle pockets further toward the long rails
+const SIDE_POCKET_OUTWARD_SHIFT =
+  SIDE_POCKET_RADIUS * SIDE_POCKET_OUTWARD_SHIFT_SCALE * POCKET_VISUAL_EXPANSION;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
@@ -2921,8 +2924,8 @@ const pocketCenters = () => [
   cornerPocketCenter(1, -1),
   cornerPocketCenter(-1, 1),
   cornerPocketCenter(1, 1),
-  new THREE.Vector2(-PLAY_W / 2, 0),
-  new THREE.Vector2(PLAY_W / 2, 0)
+  new THREE.Vector2(-(PLAY_W / 2 + SIDE_POCKET_OUTWARD_SHIFT), 0),
+  new THREE.Vector2(PLAY_W / 2 + SIDE_POCKET_OUTWARD_SHIFT, 0)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -2960,9 +2963,9 @@ const getPocketCenterById = (id) => {
     case 'BR':
       return cornerPocketCenter(1, 1);
     case 'TM':
-      return new THREE.Vector2(-PLAY_W / 2, 0);
+      return new THREE.Vector2(-(PLAY_W / 2 + SIDE_POCKET_OUTWARD_SHIFT), 0);
     case 'BM':
-      return new THREE.Vector2(PLAY_W / 2, 0);
+      return new THREE.Vector2(PLAY_W / 2 + SIDE_POCKET_OUTWARD_SHIFT, 0);
     default:
       return null;
   }
@@ -4210,8 +4213,9 @@ function Table3D(
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION +
     CORNER_POCKET_CENTER_INSET +
     CORNER_NOTCH_EXTRA_INSET;
-  const sideInset =
-    SIDE_POCKET_RADIUS * 0.62 * POCKET_VISUAL_EXPANSION; // slide the middle rail cuts farther toward the rails so the chrome, wood, jaws, and rims shift outward together
+  const desiredSideCenter = PLAY_W / 2 + SIDE_POCKET_OUTWARD_SHIFT;
+  const sideCenterX = Math.min(desiredSideCenter, innerHalfW - MICRO_EPS);
+  const sideInset = Math.max(MICRO_EPS, innerHalfW - sideCenterX); // align chrome, wood, and jaws with the outward-shifted side pockets
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4332,7 +4336,7 @@ function Table3D(
   };
 
   const sideNotchMP = (sx) => {
-    const cx = sx * (innerHalfW - sideInset);
+    const cx = sx * sideCenterX;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
       MICRO_EPS,
@@ -4755,7 +4759,7 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
-      const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
+      const fallbackCenter = new THREE.Vector2(sx * sideCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
