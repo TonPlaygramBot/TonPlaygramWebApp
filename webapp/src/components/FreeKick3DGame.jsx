@@ -13,36 +13,7 @@ function formatTime(totalSeconds) {
   return `${minutes}:${seconds}`;
 }
 
-function makePitchGreenTexture() {
-  const size = 1024;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, 0, size);
-  gradient.addColorStop(0, '#1b8f3d');
-  gradient.addColorStop(1, '#12672b');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  const highlight = ctx.createRadialGradient(size / 2, size * 0.35, size * 0.05, size / 2, size * 0.35, size * 0.9);
-  highlight.addColorStop(0, 'rgba(255,255,255,0.08)');
-  highlight.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = highlight;
-  ctx.fillRect(0, 0, size, size);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 8);
-  texture.anisotropy = 8;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-function makeFieldLineMaterial() {
-  return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.0 });
-}
-
-function makeBillboardTexture(text, accentColor) {
+function makeBillboardTexture(text, accentColor, frameThickness = 32) {
   const width = 1024;
   const height = 256;
   const canvas = document.createElement('canvas');
@@ -50,24 +21,41 @@ function makeBillboardTexture(text, accentColor) {
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, accentColor);
-  gradient.addColorStop(1, '#111827');
-  ctx.fillStyle = gradient;
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, width, height);
+
+  const innerX = frameThickness;
+  const innerY = frameThickness;
+  const innerWidth = width - frameThickness * 2;
+  const innerHeight = height - frameThickness * 2;
+
+  const gradient = ctx.createLinearGradient(innerX, 0, innerX + innerWidth, 0);
+  gradient.addColorStop(0, accentColor);
+  gradient.addColorStop(1, '#0b1120');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
 
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.font = 'bold 160px "Montserrat", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, width / 2, height / 2);
+  ctx.fillText(text, width / 2, height / 2 + frameThickness * 0.05);
 
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(innerX, innerY, innerWidth, innerHeight);
+  ctx.clip();
   ctx.globalAlpha = 0.18;
   ctx.fillStyle = '#ffffff';
   for (let i = 0; i < 6; i += 1) {
     ctx.fillRect((width / 6) * i, 0, width / 12, height);
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
+
+  ctx.lineWidth = frameThickness * 0.6;
+  ctx.strokeStyle = '#000000';
+  ctx.strokeRect(frameThickness / 2, frameThickness / 2, width - frameThickness, height - frameThickness);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
@@ -476,8 +464,6 @@ export default function FreeKick3DGame({ config }) {
     sun.shadow.camera.bottom = -12;
     scene.add(sun);
 
-    const pitchTexture = makePitchGreenTexture();
-
     const fieldGroup = new THREE.Group();
 
     const apron = new THREE.Mesh(
@@ -500,12 +486,10 @@ export default function FreeKick3DGame({ config }) {
 
     const pitch = new THREE.Mesh(
       new THREE.PlaneGeometry(14, 26),
-      new THREE.MeshPhysicalMaterial({
-        map: pitchTexture,
+      new THREE.MeshStandardMaterial({
+        color: 0x1f7a32,
         roughness: 0.92,
-        metalness: 0.02,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.78
+        metalness: 0.04
       })
     );
     pitch.rotation.x = -Math.PI / 2;
@@ -513,24 +497,6 @@ export default function FreeKick3DGame({ config }) {
     fieldGroup.add(pitch);
 
     scene.add(fieldGroup);
-
-    const lines = new THREE.Group();
-    const lineMat = makeFieldLineMaterial();
-    const addLine = (w, h, x, z) => {
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lineMat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, 0.002, z);
-      mesh.receiveShadow = true;
-      lines.add(mesh);
-    };
-    const addCircle = (radius, thickness, segments, x, z) => {
-      const geometry = new THREE.RingGeometry(radius - thickness, radius, segments);
-      const mesh = new THREE.Mesh(geometry, lineMat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, 0.003, z);
-      mesh.receiveShadow = true;
-      lines.add(mesh);
-    };
     const goalWidth = GOAL_CONFIG.width;
     const goalHeight = GOAL_CONFIG.height;
     const goalDepthTop = GOAL_CONFIG.depthTop;
@@ -543,18 +509,6 @@ export default function FreeKick3DGame({ config }) {
       const clamped = THREE.MathUtils.clamp((height - postRadius) / Math.max(0.0001, goalHeight - postRadius), 0, 1);
       return THREE.MathUtils.lerp(goalDepthBottom, goalDepthTop, clamped);
     };
-    addLine(0.08, 26, -7, 0);
-    addLine(0.08, 26, 7, 0);
-    addLine(14, 0.08, 0, 13);
-    addLine(14, 0.08, 0, -13);
-    addLine(goalWidth + 5.5, 0.08, 0, goalZ + 2.2);
-    addLine(0.08, 6.5, -(goalWidth / 2 + 2.75), goalZ + 0.9);
-    addLine(0.08, 6.5, goalWidth / 2 + 2.75, goalZ + 0.9);
-    addLine(goalWidth + 1.8, 0.08, 0, goalZ + 1.15);
-    addLine(0.08, 4.0, -(goalWidth / 2 + 1.1), goalZ + 0.45);
-    addLine(0.08, 4.0, goalWidth / 2 + 1.1, goalZ + 0.45);
-    addLine(14, 0.06, 0, 0);
-    scene.add(lines);
 
     const postMaterial = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
@@ -656,13 +610,15 @@ export default function FreeKick3DGame({ config }) {
       canvas.width = canvas.height = size;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
-      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.2;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
+      ctx.strokeStyle = '#ffd60a';
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur = 4.5;
       const radius = 18;
-      const width = radius * 3;
-      const height = Math.sqrt(3) * radius;
+      const patternWidth = radius * 3;
+      const patternHeight = Math.sqrt(3) * radius;
       const drawHex = (cx, cy) => {
         ctx.beginPath();
         for (let i = 0; i < 6; i += 1) {
@@ -675,21 +631,12 @@ export default function FreeKick3DGame({ config }) {
         ctx.closePath();
         ctx.stroke();
       };
-      for (let y = -height; y < size + height; y += height) {
-        for (let x = -width; x < size + width; x += width) {
-          const offset = Math.floor(y / height) % 2 ? 1.5 * radius : 0;
+      for (let y = -patternHeight; y < size + patternHeight; y += patternHeight) {
+        for (let x = -patternWidth; x < size + patternWidth; x += patternWidth) {
+          const offset = Math.floor(y / patternHeight) % 2 ? 1.5 * radius : 0;
           drawHex(x + offset, y);
         }
       }
-      const data = ctx.getImageData(0, 0, size, size);
-      for (let i = 0; i < data.data.length; i += 4) {
-        const value = data.data[i];
-        data.data[i] = 255;
-        data.data[i + 1] = 255;
-        data.data[i + 2] = 255;
-        data.data[i + 3] = value;
-      }
-      ctx.putImageData(data, 0, 0);
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(4, 4);
@@ -699,15 +646,16 @@ export default function FreeKick3DGame({ config }) {
     })();
 
     const netMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
+      map: netTexture,
       transparent: true,
       alphaMap: netTexture,
       side: THREE.DoubleSide,
-      roughness: 0.9,
+      roughness: 0.85,
+      metalness: 0.08,
       transmission: 0,
-      clearcoat: 0.25,
-      clearcoatRoughness: 0.6,
-      alphaTest: 0.25
+      clearcoat: 0.2,
+      clearcoatRoughness: 0.5,
+      alphaTest: 0.35
     });
 
     const buildBackNetGeometry = () => {
@@ -853,13 +801,16 @@ export default function FreeKick3DGame({ config }) {
     const netSim = createNetSimulation(backNet);
 
     const billboardConfigs = [
-      { text: 'TONPLAY', color: '#0ea5e9' },
-      { text: 'GRAM ARENA', color: '#22c55e' },
-      { text: 'FREE KICK LIVE', color: '#f97316' }
+      { text: 'TONPLAY', color: '#0ea5e9', widthMultiplier: 1.32 },
+      { text: 'GRAM ARENA', color: '#22c55e', widthMultiplier: 1.0 },
+      { text: 'FREE KICK LIVE', color: '#f97316', widthMultiplier: 1.32 }
     ];
     const billboardHeight = 1.1;
-    const billboardWidth = goalWidth / 2.4;
-    const billboardSpacing = billboardWidth * 1.05;
+    const baseBillboardWidth = goalWidth / 2.6;
+    const billboardMargin = baseBillboardWidth * 0.2;
+    const billboardWidths = billboardConfigs.map((config) => baseBillboardWidth * (config.widthMultiplier ?? 1));
+    const totalBillboardWidth = billboardWidths.reduce((sum, width) => sum + width, 0) +
+      billboardMargin * (billboardConfigs.length - 1);
     const billboardBaseY = billboardHeight / 2 + 0.02;
     const billboardZ = goalZ - goalDepthBottom - 1.35;
     const billboardGroup = new THREE.Group();
@@ -872,8 +823,11 @@ export default function FreeKick3DGame({ config }) {
         mesh.rotateY(Math.PI);
       }
     };
+    let billboardCursor = -totalBillboardWidth / 2;
     billboardConfigs.forEach((config, index) => {
-      const texture = makeBillboardTexture(config.text, config.color);
+      const width = billboardWidths[index];
+      const frameSize = 24 + (config.widthMultiplier ?? 1) * 6;
+      const texture = makeBillboardTexture(config.text, config.color, frameSize);
       const material = new THREE.MeshStandardMaterial({
         map: texture,
         emissive: new THREE.Color(config.color).multiplyScalar(0.25),
@@ -881,18 +835,17 @@ export default function FreeKick3DGame({ config }) {
         roughness: 0.5,
         metalness: 0.2
       });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(billboardWidth, billboardHeight), material);
-      mesh.position.set(
-        (index - (billboardConfigs.length - 1) / 2) * billboardSpacing,
-        billboardBaseY,
-        billboardZ
-      );
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, billboardHeight), material);
+      const centerX = billboardCursor + width / 2;
+      mesh.position.set(centerX, billboardBaseY, billboardZ);
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       orientTowardsField(mesh, 2.4);
       billboardGroup.add(mesh);
+      texture.repeat.set((width / baseBillboardWidth) * 2.5, 1);
       texture.offset.x = Math.random();
       billboardAnimations.push({ texture, speed: 0.12 + index * 0.04 });
+      billboardCursor += width + billboardMargin;
     });
     scene.add(billboardGroup);
 
@@ -951,7 +904,7 @@ export default function FreeKick3DGame({ config }) {
     });
     const suiteFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x3d454f, roughness: 0.48, metalness: 0.62 });
     const suiteRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x202126, roughness: 0.32, metalness: 0.7 });
-    const suiteGeo = new THREE.BoxGeometry(10, 5.6, 14.2);
+    const suiteGeo = new THREE.BoxGeometry(9.2, 4.8, 13);
     const suiteFrameGeo = new THREE.BoxGeometry(10.4, 5.9, 14.6);
     const suiteRoofGeo = new THREE.BoxGeometry(11.2, 0.6, 15);
     const suiteDeckGeo = new THREE.BoxGeometry(78, 0.5, 16);
@@ -1012,14 +965,40 @@ export default function FreeKick3DGame({ config }) {
     const topRowZ = -((STAND_ROWS - 1) * STAND_ROW_DEPTH) + topTierConfig.depthOffset;
     const suiteBaseY = topRowY + 1.2;
     const suiteCenterZ = topRowZ - 6.5;
+    const terraceGroup = new THREE.Group();
     const suiteDeck = new THREE.Mesh(suiteDeckGeo, standConcreteMaterial);
-    suiteDeck.position.set(0, suiteBaseY - suiteDeckGeo.parameters.height / 2, suiteCenterZ);
+    const deckHeight = suiteBaseY - suiteDeckGeo.parameters.height / 2;
+    suiteDeck.position.set(0, deckHeight, 0);
     suiteDeck.castShadow = true;
     suiteDeck.receiveShadow = true;
-    orientTowardsField(suiteDeck, 2.4, true);
+    terraceGroup.add(suiteDeck);
+
+    const terraceSupportMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x2a2a2a,
+      roughness: 0.42,
+      metalness: 0.78,
+      clearcoat: 0.12,
+      clearcoatRoughness: 0.35
+    });
+    const terraceSupportHeight = Math.max(0.1, deckHeight);
+    const terraceSupportGeo = new THREE.CylinderGeometry(0.6, 0.6, terraceSupportHeight, 18);
+    const supportOffsetsX = [-30, -15, 0, 15, 30];
+    const supportOffsetZ = suiteDeckGeo.parameters.depth / 2 - 1.2;
+    supportOffsetsX.forEach((offsetX) => {
+      [supportOffsetZ, -supportOffsetZ].forEach((offsetZ) => {
+        const support = new THREE.Mesh(terraceSupportGeo, terraceSupportMaterial);
+        support.position.set(offsetX, terraceSupportHeight / 2, offsetZ);
+        support.castShadow = true;
+        support.receiveShadow = true;
+        terraceGroup.add(support);
+      });
+    });
+
+    terraceGroup.position.set(0, 0, suiteCenterZ);
+    orientTowardsField(terraceGroup, 2.4, true);
 
     const suitesGroup = new THREE.Group();
-    suitesGroup.add(suiteDeck);
+    suitesGroup.add(terraceGroup);
 
     const canopyMaterial = new THREE.MeshPhysicalMaterial({
       color: 0x1d242f,
@@ -1114,24 +1093,6 @@ export default function FreeKick3DGame({ config }) {
     standsGroup.add(suitesGroup);
     standsGroup.add(roofSupports);
 
-    const netPoleGeo = new THREE.CylinderGeometry(0.15, 0.15, 10, 12);
-    const protectiveNetGeo = new THREE.PlaneGeometry(40, 12);
-    const protectiveNetMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.25,
-      side: THREE.DoubleSide
-    });
-    const protectiveNet = new THREE.Mesh(protectiveNetGeo, protectiveNetMaterial);
-    protectiveNet.position.set(0, 5.6, 3.5);
-    standsGroup.add(protectiveNet);
-
-    for (let i = -14; i <= 14; i += 7) {
-      const pole = new THREE.Mesh(netPoleGeo, standMetalMaterial);
-      pole.position.set(i, 5.6, 3.5);
-      standsGroup.add(pole);
-    }
-
     const standScale = 0.36; // 20% larger seating tiers for better presence
     standsGroup.scale.set(standScale, standScale, standScale);
     const standsOffsetZ = goalZ - goalDepthBottom - 3.3;
@@ -1139,7 +1100,7 @@ export default function FreeKick3DGame({ config }) {
     scene.add(standsGroup);
 
     const billboardColliders = billboardGroup.children.map((mesh) => {
-      const { width = billboardWidth, height = billboardHeight } = mesh.geometry.parameters || {};
+      const { width = baseBillboardWidth, height = billboardHeight } = mesh.geometry.parameters || {};
       return {
         mesh,
         center: new THREE.Vector3(),
@@ -1466,7 +1427,6 @@ export default function FreeKick3DGame({ config }) {
       scene,
       camera,
       pmrem,
-      pitchTexture,
       ball,
       aimLine,
       goalAABB,
@@ -1928,7 +1888,6 @@ export default function FreeKick3DGame({ config }) {
           }
         }
       });
-      pitchTexture.dispose();
       ballTexture.dispose();
       bumpMap.dispose();
       netTexture.dispose();
