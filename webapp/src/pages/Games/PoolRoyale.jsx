@@ -443,8 +443,10 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_INNER_SCALE = 1.15; // inner radius multiplier for the corner pocket jaw profile
-const POCKET_JAW_SIDE_INNER_SCALE = 1; // inner radius multiplier for the side pocket jaw profile
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.01; // let the corner jaws reach slightly farther to blanket the wood cutout
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.004; // give the side jaws a subtle reach boost to hide the exposed trim
+const POCKET_JAW_CORNER_INNER_SCALE = 1.138; // rebalanced inner radius after the limit expansion to preserve the mouth opening
+const POCKET_JAW_SIDE_INNER_SCALE = 0.996; // nudge the side jaw interior inwards just enough to keep the pocket width steady
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.3; // outer radius multiplier to keep corner jaws wrapping the pocket chamfer
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.18; // outer radius multiplier that keeps the middle jaws slim
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
@@ -4595,8 +4597,10 @@ function Table3D(
   const CORNER_JAW_ANGLE = Math.PI / 2.1;
   const SIDE_JAW_ANGLE = Math.PI / 3.4;
 
-  const cornerJawOuterLimit = cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE;
-  const sideJawOuterLimit = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
+  const cornerJawOuterLimit =
+    cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE * POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+  const sideJawOuterLimit =
+    sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE * POCKET_JAW_SIDE_OUTER_LIMIT_SCALE;
 
   const resolveBaseRadius = (outerLimit, outerScale) => {
     if (!Number.isFinite(outerLimit) || outerLimit <= MICRO_EPS) {
