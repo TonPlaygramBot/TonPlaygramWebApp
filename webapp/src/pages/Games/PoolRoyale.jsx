@@ -237,7 +237,7 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rails square so they never imply an alternate pocket arc
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.22; // keep the side chrome throat shallow so the cut stays centered above the pocket
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1; // keep the middle chrome rounding exactly aligned with the chrome pocket diameter
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.948; // pinch the middle chrome rounding so the side cuts read slightly smaller
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
 const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.32; // carve a deeper wedge so no chrome lingers on the field side of the pocket
@@ -249,7 +249,7 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.944; // chrome plate cut defines the pocket arc; wooden rails simply tuck behind this shape
-const CHROME_SIDE_POCKET_CUT_SCALE = 1; // chrome middle cut defines the pocket arc; wooden rails only inherit this exact rounding
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.978; // chrome middle cut defines the pocket arc; wooden rails only inherit this exact rounding
 
 function buildChromePlateGeometry({
   width,
@@ -489,7 +489,7 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1; // keep the middle pocket jaws the same width as the chrome pocket cuts
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // widen the middle pocket jaws 8% along the side rails
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale while respecting the slimmer side jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // widen the corner pocket jaws 50% along both rails
@@ -4211,7 +4211,7 @@ function Table3D(
     CORNER_POCKET_CENTER_INSET +
     CORNER_NOTCH_EXTRA_INSET;
   const sideInset =
-    SIDE_POCKET_RADIUS * 0.56 * POCKET_VISUAL_EXPANSION; // slide the middle rail cuts farther toward the rails so the chrome, wood, jaws, and rims shift outward together
+    SIDE_POCKET_RADIUS * 0.62 * POCKET_VISUAL_EXPANSION; // slide the middle rail cuts farther toward the rails so the chrome, wood, jaws, and rims shift outward together
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
