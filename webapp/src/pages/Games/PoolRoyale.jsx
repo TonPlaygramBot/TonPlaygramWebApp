@@ -493,8 +493,8 @@ const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward 
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const POCKET_JAW_CLOTH_CONTACT_PAD = 0; // let the jaws run right up to the green cloth without leaving a standoff gap
-const CORNER_JAW_ARC_DEG = 54;
-const SIDE_JAW_ARC_DEG = 52;
+const CORNER_JAW_ARC_DEG = 54 * 1.4; // expand the corner jaw span 40% further along the rails
+const SIDE_JAW_ARC_DEG = 52 * 1.4; // expand the side jaw span 40% further toward the long rails
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
