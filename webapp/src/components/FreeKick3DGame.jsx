@@ -265,6 +265,77 @@ function makeBumpFromColor(texture) {
   return bump;
 }
 
+function makeTargetTexture({
+  text,
+  accentColor,
+  icon,
+  subtext,
+  background = '#0b1120',
+  detailColor = '#fde047'
+}) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, size, size);
+
+  const center = size / 2;
+  const radius = size * 0.42;
+  const gradient = ctx.createRadialGradient(center, center, radius * 0.2, center, center, radius);
+  gradient.addColorStop(0, '#1f2937');
+  gradient.addColorStop(1, '#111827');
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, Math.PI * 2);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.lineWidth = size * 0.035;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(center, center, radius * 0.82, 0, Math.PI * 2);
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = size * 0.03;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(center, center, radius * 0.6, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.lineWidth = size * 0.02;
+  ctx.stroke();
+
+  if (icon) {
+    ctx.font = `900 ${Math.floor(size * 0.24)}px "Segoe UI Emoji", "Apple Color Emoji", "Twemoji Mozilla", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icon, center, center - size * 0.14);
+  }
+
+  if (text) {
+    ctx.font = `800 ${Math.floor(size * 0.2)}px "Montserrat", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = detailColor;
+    ctx.fillText(text, center, center + (icon ? size * 0.02 : 0));
+  }
+
+  if (subtext) {
+    ctx.font = `700 ${Math.floor(size * 0.12)}px "Montserrat", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+    ctx.fillText(subtext, center, center + size * 0.22);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 const GOAL_CONFIG = {
   width: 7.32,
   height: 2.44,
@@ -273,6 +344,12 @@ const GOAL_CONFIG = {
   postDiameter: 0.12,
   z: -10.2
 };
+
+const MIN_GOAL_POINTS = 5;
+const TIMER_BONUS_OPTIONS = Object.freeze([10, 15, 20]);
+const BOMB_TIME_PENALTY = 15;
+const BOMB_SCORE_PENALTY = 50;
+const BOMB_RESET_DELAY = 0.7;
 
 const PENALTY_AREA_DEPTH = 16.5;
 const BALL_PENALTY_BUFFER = 1.5; // ensures kick is taken outside of the box
@@ -305,6 +382,14 @@ const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
     2 * Math.abs(GRAVITY.y) * Math.max(0, GOAL_CONFIG.height + CROSSBAR_HEIGHT_MARGIN - BALL_RADIUS)
   )
 );
+const DEFENDER_JUMP_VELOCITY = 3.6;
+const DEFENDER_GRAVITY_SCALE = 0.85;
+const DEFENDER_MAX_OFFSET = GOAL_CONFIG.width * 0.48;
+const KEEPER_RETURN_EASE = 0.05;
+const KEEPER_CENTER_EASE = 0.08;
+const TARGET_PADDING_X = 0.35;
+const TARGET_PADDING_Y = 0.28;
+const TARGET_SEPARATION = 0.32;
 const SOUND_SOURCES = {
   crowd: encodeURI('/assets/sounds/football-crowd-3-69245.mp3'),
   whistle: encodeURI('/assets/sounds/metal-whistle-6121.mp3'),
@@ -328,6 +413,7 @@ export default function FreeKick3DGame({ config }) {
 
   const [score, setScore] = useState(0);
   const [shots, setShots] = useState(0);
+  const [goals, setGoals] = useState(0);
   const [timeLeft, setTimeLeft] = useState(config.duration ?? 60);
   const [isRunning, setIsRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
@@ -381,6 +467,7 @@ export default function FreeKick3DGame({ config }) {
     setTimeLeft(playDuration);
     setScore(0);
     setShots(0);
+    setGoals(0);
     setIsRunning(false);
     setGameOver(false);
     setMessage(INSTRUCTION_TEXT);
@@ -1572,17 +1659,57 @@ export default function FreeKick3DGame({ config }) {
     scene.add(goal);
 
     const wallGroup = new THREE.Group();
+    wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
     const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
     const defenders = [];
+    const defenderOffsets = [];
+    const defenderBaseY = 1.1;
     for (let i = 0; i < 3; i += 1) {
       const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
       body.castShadow = true;
       body.receiveShadow = true;
-      body.position.set((i - 1) * 0.8, 1.1, DEFENDER_WALL_Z);
+      const offsetX = (i - 1) * 0.8;
+      body.position.set(offsetX, defenderBaseY, 0);
       wallGroup.add(body);
-      defenders.push({ mesh: body, radius: 0.28, halfHeight: 0.7 });
+      defenders.push({ mesh: body, radius: 0.28, halfHeight: 0.7, offsetX });
+      defenderOffsets.push(offsetX);
     }
     scene.add(wallGroup);
+
+    const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0x1c2432, roughness: 0.45 });
+    const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
+    keeperMesh.castShadow = true;
+    keeperMesh.receiveShadow = true;
+    keeperMesh.position.set(0, 1.02, goalZ + 0.32);
+    scene.add(keeperMesh);
+
+    const targetGroup = new THREE.Group();
+    targetGroup.position.set(0, 0, goalZ - 0.08);
+    scene.add(targetGroup);
+
+    const wallState = {
+      group: wallGroup,
+      defenders,
+      offsets: defenderOffsets,
+      baseY: defenderBaseY,
+      centerX: 0,
+      offsetY: 0,
+      velocityY: 0,
+      jumping: false
+    };
+
+    const keeperState = {
+      mesh: keeperMesh,
+      radius: 0.34,
+      halfHeight: 0.92,
+      baseY: keeperMesh.position.y,
+      baseZ: keeperMesh.position.z,
+      baseX: keeperMesh.position.x,
+      targetX: keeperMesh.position.x,
+      targetY: keeperMesh.position.y,
+      moveEase: KEEPER_RETURN_EASE,
+      side: 0
+    };
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
@@ -2043,6 +2170,7 @@ export default function FreeKick3DGame({ config }) {
     const localImpact = new THREE.Vector3();
     const defenderNormal = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
+    const defenderQuat = new THREE.Quaternion();
 
     const state = {
       renderer,
@@ -2066,7 +2194,15 @@ export default function FreeKick3DGame({ config }) {
       cameraColliders: [],
       broadcastCameraRigs: [],
       billboardColliders: [],
-      netCooldown: 0
+      netCooldown: 0,
+      wallState,
+      keeperState,
+      targets: [],
+      targetGroup,
+      currentShotPoints: 0,
+      shotResolved: false,
+      ballExploded: false,
+      shotInFlight: false
     };
 
     state.netSim = netSim;
@@ -2088,9 +2224,9 @@ export default function FreeKick3DGame({ config }) {
       tmp3.copy(start).addScaledVector(tmp, t);
       const combinedRadius = radius + BALL_RADIUS;
       const distance = tmp3.distanceTo(ball.position);
-      if (distance >= combinedRadius - 0.001) return;
+      if (distance >= combinedRadius - 0.001) return false;
       defenderNormal.copy(ball.position).sub(tmp3);
-      if (defenderNormal.lengthSq() <= 1e-6) return;
+      if (defenderNormal.lengthSq() <= 1e-6) return false;
       defenderNormal.normalize();
       const penetration = combinedRadius - distance;
       const slop = options.slop ?? 0.002;
@@ -2104,6 +2240,7 @@ export default function FreeKick3DGame({ config }) {
       }
       state.velocity.multiplyScalar(velocityDamping);
       state.spin.multiplyScalar(spinDamping);
+      return true;
     };
 
     const applySphereCollision = (collider) => {
@@ -2145,6 +2282,218 @@ export default function FreeKick3DGame({ config }) {
       }
     };
 
+    const showTransientMessage = (text, duration = 2000) => {
+      if (!text) return;
+      setMessage(text);
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      messageTimeoutRef.current = window.setTimeout(() => {
+        setMessage(INSTRUCTION_TEXT);
+        messageTimeoutRef.current = null;
+      }, duration);
+    };
+
+    const disposeTarget = (target) => {
+      if (!target) return;
+      if (target.mesh) {
+        targetGroup.remove(target.mesh);
+        target.mesh.geometry?.dispose?.();
+        if (target.mesh.material) {
+          const { material } = target.mesh;
+          if (material.map) {
+            material.map.dispose?.();
+          }
+          material.dispose?.();
+        }
+      }
+      if (target.texture) {
+        target.texture.dispose?.();
+      }
+    };
+
+    const clearTargets = () => {
+      if (state.targets.length > 0) {
+        state.targets.forEach(disposeTarget);
+      }
+      state.targets = [];
+    };
+
+    const randomBetween = (min, max) => THREE.MathUtils.lerp(min, max, Math.random());
+
+    const canPlaceTarget = (list, x, y, r) =>
+      list.every((existing) => Math.hypot(existing.x - x, existing.y - y) > existing.radius + r + TARGET_SEPARATION);
+
+    const pickSideX = (side, r, minX, maxX, span) => {
+      if (side < 0) {
+        const leftMin = minX;
+        const leftMax = Math.min(leftMin + span, maxX);
+        return randomBetween(leftMin, leftMax);
+      }
+      const rightMax = maxX;
+      const rightMin = Math.max(rightMax - span, minX);
+      return randomBetween(rightMin, rightMax);
+    };
+
+    const buildTargetSet = (wallCenter, keeperSide) => {
+      const results = [];
+      const baseCount = 6 + Math.floor(Math.random() * 7);
+      const minRadius = Math.max(BALL_RADIUS * 1.05, 0.32);
+      const maxRadius = Math.max(minRadius + 0.18, 0.7);
+      const minX = -goalWidth / 2 + TARGET_PADDING_X + minRadius;
+      const maxX = goalWidth / 2 - TARGET_PADDING_X - minRadius;
+      const minY = BALL_RADIUS * 0.6 + TARGET_PADDING_Y + minRadius;
+      const maxY = goalHeight - TARGET_PADDING_Y - minRadius;
+      const sideSpan = goalWidth * 0.2;
+      let attempts = 0;
+      while (results.length < baseCount && attempts < 1600) {
+        attempts += 1;
+        const radius = randomBetween(minRadius, maxRadius);
+        let x;
+        if (Math.random() < 0.6) {
+          const side = Math.random() < 0.5 ? -1 : 1;
+          x = pickSideX(side, radius, minX, maxX, sideSpan);
+        } else {
+          x = randomBetween(minX, maxX);
+        }
+        const y = randomBetween(minY, maxY);
+        if (!canPlaceTarget(results, x, y, radius)) continue;
+        const points = Math.max(10, Math.round(((maxRadius / radius) * 70) / 5) * 5);
+        results.push({ x, y, radius, points, type: 'points' });
+      }
+
+      const timerAttempts = 12;
+      for (let i = 0; i < timerAttempts; i += 1) {
+        const radius = randomBetween(minRadius, maxRadius);
+        let x;
+        if (Math.random() < 0.8) {
+          const side = Math.random() < 0.5 ? -1 : 1;
+          x = pickSideX(side, radius, minX, maxX, goalWidth * 0.22);
+        } else {
+          x = randomBetween(minX, maxX);
+        }
+        const y = randomBetween(minY, maxY);
+        if (!canPlaceTarget(results, x, y, radius)) continue;
+        const timer = TIMER_BONUS_OPTIONS[Math.floor(Math.random() * TIMER_BONUS_OPTIONS.length)];
+        results.push({ x, y, radius, timer, type: 'timer' });
+      }
+
+      const preferSide = keeperSide === 0 ? (wallCenter < 0 ? 1 : wallCenter > 0 ? -1 : Math.random() < 0.5 ? -1 : 1) : -Math.sign(keeperSide);
+      const bombAttempts = 12;
+      for (let i = 0; i < bombAttempts; i += 1) {
+        const radius = randomBetween(minRadius * 1.05, maxRadius * 1.1);
+        let side = preferSide;
+        if (Math.random() < 0.25) {
+          side = Math.random() < 0.5 ? -1 : 1;
+        }
+        const x = pickSideX(side, radius, minX, maxX, goalWidth * 0.26);
+        const y = randomBetween(minY, maxY);
+        if (!canPlaceTarget(results, x, y, radius)) continue;
+        results.push({ x, y, radius: radius * 1.05, bomb: true, type: 'bomb' });
+      }
+
+      return results;
+    };
+
+    const addTargetToScene = (target) => {
+      const diameter = target.radius * 2;
+      const geometry = new THREE.PlaneGeometry(diameter, diameter);
+      let texture;
+      if (target.bomb) {
+        texture = makeTargetTexture({ text: '-15s', subtext: '-50', accentColor: '#ef4444', icon: '💣', detailColor: '#f87171' });
+      } else if (target.timer) {
+        texture = makeTargetTexture({ text: `+${target.timer}s`, accentColor: '#22c55e', icon: '⏳', detailColor: '#bbf7d0' });
+      } else {
+        texture = makeTargetTexture({ text: `${target.points}`, accentColor: '#fde047', icon: '⭐', detailColor: '#facc15' });
+      }
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        opacity: 1
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(target.x, target.y, 0);
+      targetGroup.add(mesh);
+      target.mesh = mesh;
+      target.material = material;
+      target.texture = texture;
+      target.opacity = 1;
+      target.hit = false;
+      state.targets.push(target);
+    };
+
+    const regenerateTargets = () => {
+      clearTargets();
+      const wallCenter = state.wallState?.centerX ?? 0;
+      const keeperSide = state.keeperState?.side ?? 0;
+      const targets = buildTargetSet(wallCenter, keeperSide);
+      targets.forEach(addTargetToScene);
+    };
+
+    const settleKeeper = () => {
+      if (!state.keeperState) return;
+      state.keeperState.targetX = state.keeperState.baseX;
+      state.keeperState.targetY = state.keeperState.baseY;
+      state.keeperState.moveEase = KEEPER_RETURN_EASE;
+    };
+
+    const scheduleReset = (delayMs = 900) => {
+      if (resetTimeoutRef.current) return;
+      resetTimeoutRef.current = window.setTimeout(() => {
+        resetBall();
+      }, delayMs);
+    };
+
+    const applyTimerBonus = (seconds) => {
+      setTimeLeft((value) => value + seconds);
+      showTransientMessage(`+${seconds}s Bonus`, 1800);
+    };
+
+    const applyBombPenalty = () => {
+      if (state.shotResolved) return;
+      state.shotResolved = true;
+      state.shotInFlight = false;
+      state.currentShotPoints = 0;
+      setTimeLeft((value) => Math.max(0, value - BOMB_TIME_PENALTY));
+      setScore((value) => Math.max(0, value - BOMB_SCORE_PENALTY));
+      state.velocity.set(0, 0, 0);
+      state.spin.set(0, 0, 0);
+      state.ballExploded = true;
+      ball.visible = false;
+      showTransientMessage('💣 Bomb! -15s -50', 2000);
+      settleKeeper();
+      scheduleReset(BOMB_RESET_DELAY * 1000);
+    };
+
+    const applyPrizePoints = (points) => {
+      state.currentShotPoints += points;
+      showTransientMessage(`+${points} pts`, 1500);
+    };
+
+    const handleKeeperSave = () => {
+      if (state.shotResolved) return;
+      state.shotResolved = true;
+      state.shotInFlight = false;
+      state.currentShotPoints = 0;
+      state.velocity.set(0, 0, 0);
+      state.spin.set(0, 0, 0);
+      showTransientMessage('Saved!', 1400);
+      settleKeeper();
+      scheduleReset(900);
+    };
+
+    const handleMiss = (text = 'Missed!') => {
+      if (state.shotResolved) return;
+      state.shotResolved = true;
+      state.shotInFlight = false;
+      state.currentShotPoints = 0;
+      showTransientMessage(text, 1400);
+      settleKeeper();
+      scheduleReset(900);
+    };
+
     const resetBall = () => {
       if (resetTimeoutRef.current) {
         clearTimeout(resetTimeoutRef.current);
@@ -2153,12 +2502,46 @@ export default function FreeKick3DGame({ config }) {
       state.velocity.set(0, 0, 0);
       state.spin.set(0, 0, 0);
       state.scored = false;
+      state.shotResolved = false;
+      state.currentShotPoints = 0;
+      state.ballExploded = false;
+      state.shotInFlight = false;
       state.netCooldown = 0;
-      ball.position.set(0, BALL_RADIUS, START_Z);
+      ball.visible = true;
+      const startRange = goalWidth * 0.35;
+      const startX = THREE.MathUtils.clamp(THREE.MathUtils.randFloat(-startRange, startRange), -DEFENDER_MAX_OFFSET, DEFENDER_MAX_OFFSET);
+      ball.position.set(startX, BALL_RADIUS, START_Z);
       ball.rotation.set(0, 0, 0);
       if (state.netSim) {
         state.netSim.velocity.fill(0);
       }
+      const wall = state.wallState;
+      if (wall) {
+        wall.centerX = THREE.MathUtils.clamp(startX, -DEFENDER_MAX_OFFSET, DEFENDER_MAX_OFFSET);
+        wall.offsetY = 0;
+        wall.velocityY = 0;
+        wall.jumping = false;
+        wall.group.position.set(wall.centerX, wall.offsetY, DEFENDER_WALL_Z);
+      }
+      const keeper = state.keeperState;
+      if (keeper) {
+        const gap = goalWidth * 0.02;
+        let keeperX;
+        if (wall && wall.centerX < -goalWidth * 0.1) {
+          keeperX = goalWidth / 2 - keeper.radius - gap;
+        } else if (wall && wall.centerX > goalWidth * 0.1) {
+          keeperX = -goalWidth / 2 + keeper.radius + gap;
+        } else {
+          keeperX = Math.random() < 0.5 ? -goalWidth / 2 + keeper.radius + gap : goalWidth / 2 - keeper.radius - gap;
+        }
+        keeper.mesh.position.set(keeperX, keeper.baseY, keeper.baseZ ?? keeper.mesh.position.z);
+        keeper.baseX = keeperX;
+        keeper.targetX = keeperX;
+        keeper.targetY = keeper.baseY;
+        keeper.moveEase = KEEPER_RETURN_EASE;
+        keeper.side = keeperX >= 0 ? 1 : -1;
+      }
+      regenerateTargets();
     };
     resetBall();
 
@@ -2185,13 +2568,19 @@ export default function FreeKick3DGame({ config }) {
     };
 
     const applyGoalCelebration = () => {
-      setScore((value) => value + 1);
-      if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
-      setMessage('Goal!');
+      if (state.shotResolved) return;
+      state.shotResolved = true;
+      state.shotInFlight = false;
+      const awarded = Math.max(
+        MIN_GOAL_POINTS,
+        Math.round((state.currentShotPoints || 0) / 5) * 5 || MIN_GOAL_POINTS
+      );
+      state.currentShotPoints = 0;
+      setGoals((value) => value + 1);
+      setScore((value) => value + awarded);
       playGoalSound();
-      messageTimeoutRef.current = window.setTimeout(() => {
-        setMessage(INSTRUCTION_TEXT);
-      }, 2000);
+      showTransientMessage(`Goal! +${awarded}`, 2200);
+      settleKeeper();
       resetTimeoutRef.current = window.setTimeout(() => {
         resetBall();
       }, 900);
@@ -2233,7 +2622,58 @@ export default function FreeKick3DGame({ config }) {
         });
       }
 
-      if (!gameStateRef.current.gameOver && state.velocity.lengthSq() > 0.00001) {
+      const wall = state.wallState;
+      if (wall) {
+        if (wall.jumping || wall.offsetY > 0) {
+          wall.velocityY += GRAVITY.y * DEFENDER_GRAVITY_SCALE * dt;
+          wall.offsetY = Math.max(0, wall.offsetY + wall.velocityY * dt);
+          if (wall.offsetY <= 0) {
+            wall.offsetY = 0;
+            wall.velocityY = 0;
+            wall.jumping = false;
+          }
+        }
+        wall.group.position.set(wall.centerX, wall.offsetY, DEFENDER_WALL_Z);
+      }
+
+      const keeper = state.keeperState;
+      if (keeper) {
+        const ease = keeper.moveEase ?? KEEPER_RETURN_EASE;
+        const lerpFactor = 1 - Math.pow(1 - ease, Math.max(1, dt * 60));
+        keeper.mesh.position.x += (keeper.targetX - keeper.mesh.position.x) * lerpFactor;
+        keeper.mesh.position.y += (keeper.targetY - keeper.mesh.position.y) * lerpFactor;
+        keeper.mesh.position.z = keeper.baseZ ?? keeper.mesh.position.z;
+        if (
+          Math.abs(keeper.mesh.position.x - keeper.targetX) < 0.01 &&
+          Math.abs(keeper.mesh.position.y - keeper.targetY) < 0.01
+        ) {
+          keeper.moveEase = KEEPER_RETURN_EASE;
+        }
+      }
+
+      if (state.targets.length > 0) {
+        state.targets.forEach((target) => {
+          if (!target.material) return;
+          if (target.hit) {
+            target.material.opacity = Math.max(0, target.material.opacity - dt * 4);
+            if (target.material.opacity <= 0.05) {
+              disposeTarget(target);
+              target.removed = true;
+            }
+          } else if (target.material.opacity < 1) {
+            target.material.opacity = Math.min(1, target.material.opacity + dt * 2.5);
+          }
+        });
+        if (state.targets.some((target) => target?.removed)) {
+          state.targets = state.targets.filter((target) => !target.removed);
+        }
+      }
+
+      if (
+        !gameStateRef.current.gameOver &&
+        !state.ballExploded &&
+        state.velocity.lengthSq() > 0.00001
+      ) {
         const speed = state.velocity.length();
         const dragFactor = 1 - AIR_DRAG * speed;
         const frictionFactor = Math.pow(FRICTION, dt * 60);
@@ -2253,8 +2693,11 @@ export default function FreeKick3DGame({ config }) {
 
         state.defenders.forEach((defender) => {
           const { mesh, radius, halfHeight } = defender;
-          segmentStart.set(mesh.position.x, mesh.position.y - halfHeight, mesh.position.z);
-          segmentEnd.set(mesh.position.x, mesh.position.y + halfHeight, mesh.position.z);
+          mesh.updateWorldMatrix(true, false);
+          mesh.getWorldPosition(tmp3);
+          mesh.getWorldQuaternion(defenderQuat);
+          segmentStart.set(0, -halfHeight, 0).applyQuaternion(defenderQuat).add(tmp3);
+          segmentEnd.set(0, halfHeight, 0).applyQuaternion(defenderQuat).add(tmp3);
           applyCapsuleCollision(segmentStart, segmentEnd, radius, {
             restitution: 1.6,
             velocityDamping: 0.78,
@@ -2274,6 +2717,50 @@ export default function FreeKick3DGame({ config }) {
         state.billboardColliders.forEach((collider) => {
           applyBillboardCollision(collider);
         });
+
+        if (keeper) {
+          keeper.mesh.updateWorldMatrix(true, false);
+          keeper.mesh.getWorldPosition(tmp3);
+          keeper.mesh.getWorldQuaternion(defenderQuat);
+          segmentStart.set(0, -keeper.halfHeight, 0).applyQuaternion(defenderQuat).add(tmp3);
+          segmentEnd.set(0, keeper.halfHeight, 0).applyQuaternion(defenderQuat).add(tmp3);
+          if (
+            applyCapsuleCollision(segmentStart, segmentEnd, keeper.radius, {
+              restitution: 1.25,
+              velocityDamping: 0.68,
+              spinDamping: 0.5,
+              slop: 0.0025
+            })
+          ) {
+            handleKeeperSave();
+          }
+        }
+
+        if (!state.shotResolved && state.targets.length > 0) {
+          const insideGoalFace =
+            Math.abs(ball.position.x) <= goalWidth / 2 &&
+            ball.position.y >= BALL_RADIUS * 0.6 &&
+            ball.position.y <= goalHeight &&
+            ball.position.z <= goalZ + 0.25;
+          if (insideGoalFace) {
+            for (const target of state.targets) {
+              if (target.hit) continue;
+              const distance = Math.hypot(ball.position.x - target.x, ball.position.y - target.y);
+              if (distance <= target.radius + BALL_RADIUS * 0.3) {
+                target.hit = true;
+                if (target.timer) {
+                  applyTimerBonus(target.timer);
+                } else if (target.bomb) {
+                  applyBombPenalty();
+                } else if (target.points) {
+                  applyPrizePoints(target.points);
+                }
+                state.spin.multiplyScalar(0.6);
+                break;
+              }
+            }
+          }
+        }
 
         if (!state.scored && state.velocity.z < 0 && state.goalAABB.containsPoint(ball.position)) {
           state.scored = true;
@@ -2317,10 +2804,14 @@ export default function FreeKick3DGame({ config }) {
           ball.position.z > START_Z + 2 ||
           (state.velocity.length() < 0.18 && ball.position.y <= BALL_RADIUS + 0.002)
         ) {
-          resetBall();
+          if (!state.shotResolved) {
+            handleMiss();
+          } else {
+            scheduleReset(600);
+          }
         }
 
-        if (state.spin.lengthSq() > 1e-6) {
+        if (!state.ballExploded && state.spin.lengthSq() > 1e-6) {
           spinAxis.copy(state.spin).normalize();
           spinStep.copy(spinAxis).multiplyScalar(state.spin.length() * dt);
           ball.rotateOnAxis(spinAxis, spinStep.length());
@@ -2427,6 +2918,19 @@ export default function FreeKick3DGame({ config }) {
       state.velocity.copy(plan.velocity);
       state.spin.copy(plan.spin);
       state.scored = false;
+      state.shotResolved = false;
+      state.ballExploded = false;
+      state.shotInFlight = true;
+      state.currentShotPoints = 0;
+      if (state.wallState && !state.wallState.jumping) {
+        state.wallState.velocityY = DEFENDER_JUMP_VELOCITY;
+        state.wallState.jumping = true;
+      }
+      if (state.keeperState) {
+        state.keeperState.targetX = 0;
+        state.keeperState.targetY = state.keeperState.baseY + goalHeight * 0.02;
+        state.keeperState.moveEase = KEEPER_CENTER_EASE;
+      }
       setShots((value) => value + 1);
       playKickSound();
     };
@@ -2454,6 +2958,7 @@ export default function FreeKick3DGame({ config }) {
       if (renderer.domElement.parentElement) {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
+      clearTargets();
       aimLine.geometry.dispose();
       aimLine.material.dispose();
       scene.traverse((object) => {
@@ -2525,6 +3030,7 @@ export default function FreeKick3DGame({ config }) {
   const restart = () => {
     setScore(0);
     setShots(0);
+    setGoals(0);
     setTimeLeft(playDuration);
     setIsRunning(false);
     setGameOver(false);
@@ -2556,7 +3062,7 @@ export default function FreeKick3DGame({ config }) {
       </div>
       <div className="absolute top-20 left-1/2 z-10 flex -translate-x-1/2 gap-2 text-xs md:text-sm">
         <div className="rounded-full bg-black/50 px-3 py-1">Shots {shots}</div>
-        <div className="rounded-full bg-black/50 px-3 py-1">Goals {score}</div>
+        <div className="rounded-full bg-black/50 px-3 py-1">Goals {goals}</div>
       </div>
       <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 w-[90%] -translate-x-1/2 rounded-xl bg-black/50 px-4 py-3 text-center text-sm md:text-base">
         {message}
@@ -2566,7 +3072,8 @@ export default function FreeKick3DGame({ config }) {
           <div className="w-full max-w-sm rounded-2xl bg-slate-900/90 p-6 text-center">
             <h3 className="text-xl font-semibold">Match Complete</h3>
             <p className="mt-2 text-sm text-white/70">Shots taken: {shots}</p>
-            <p className="text-sm text-white/70">Goals scored: {score}</p>
+            <p className="text-sm text-white/70">Goals scored: {goals}</p>
+            <p className="text-sm text-white/70">Total points: {score}</p>
             <button
               type="button"
               onClick={restart}
