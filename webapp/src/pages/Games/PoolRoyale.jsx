@@ -226,30 +226,32 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.02;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 0.996; // tighten the chrome corner arc so the curved cut sits closer to the pocket
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.16;
-const CHROME_CORNER_EXPANSION_SCALE = 1.008; // expand the corner chrome footprint slightly so it reaches further toward the rail centerline
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 0.958; // trim the short-rail chrome a touch more so it stays clear of the cushion edge
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 0.99; // ease the chrome corner notch inward so the rounded cut looks smaller
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0.014; // leave a bit more chrome on the field side so the plate stretches outward cleanly
+const POCKET_VISUAL_EXPANSION = 1.05;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
+const CHROME_CORNER_EXPANSION_SCALE = 1.02;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
+const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
+const CHROME_CORNER_WIDTH_SCALE = 0.99;
+const CHROME_CORNER_HEIGHT_SCALE = 0.99;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rails square so they never imply an alternate pocket arc
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.22; // keep the side chrome throat shallow so the cut stays centered above the pocket
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.872; // align the notch opening height with the snooker middle pockets
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.948; // pinch the middle chrome rounding so the side cuts read slightly smaller
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the throat depth consistent with the snooker chrome plates
-const CHROME_SIDE_FIELD_PULL_SCALE = 0; // remove the forward pull so the plates sit flush like the snooker middle pockets
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.32; // carve a deeper wedge so no chrome lingers on the field side of the pocket
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.18; // run the trim farther down the short rail to keep the notch flush with the cushion
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.72; // widen the side plates a touch more toward the short rails
-const CHROME_SIDE_PLATE_RAIL_INSET_SCALE = 0.038; // pull the side plates inward so they clear the rail caps on mobile
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.05; // push the middle chrome slightly farther so it wraps the rail sides
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.058; // tighten the middle trim so the chrome reveals the rail shoulders cleanly
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008; // leave a slim gap near each pocket to avoid chrome overlap on the cloth
-const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.12; // cap the side plate corner fillet so it matches the rail cut without overpowering the plate footprint
-const CHROME_CORNER_POCKET_CUT_SCALE = 0.944; // chrome plate cut defines the pocket arc; wooden rails simply tuck behind this shape
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.978; // chrome middle cut defines the pocket arc; wooden rails only inherit this exact rounding
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.6;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_FIELD_PULL_SCALE = 0;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.4;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94;
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
+const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_CORNER_POCKET_CUT_SCALE = 1;
+const CHROME_SIDE_POCKET_CUT_SCALE = 1;
 
 function buildChromePlateGeometry({
   width,
@@ -472,7 +474,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.01; // push corner jaws snug against the chrome plate cut radius
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match snooker jaw reach so liners hug the chrome plate cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaw footprint locked to the chrome plate cut radius
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward to keep the liner flush with the rail edge
@@ -545,15 +547,14 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1.5; // widen the corner pocket jaws 50%
-const POCKET_SIDE_MOUTH_SCALE = 1.08; // keep the middle pocket mouths slightly slimmer to match the corner pockets
+const POCKET_CORNER_MOUTH_SCALE = 1;
+const POCKET_SIDE_MOUTH_SCALE = 1;
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
-const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep corner pockets eased toward centre while staying tight to the chrome
+const CORNER_POCKET_CENTER_INSET = 0; // align corner pocket centres exactly with the snooker geometry
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
@@ -580,7 +581,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.04; // keep the cloth openings closely matched to the chrome pocket cuts
+const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings to mirror the snooker cut geometry
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
@@ -4070,9 +4071,8 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.056; // pull cushions a touch farther toward centre so they no longer overlap the wood trim
-  const SIDE_CUSHION_RAIL_REACH =
-    TABLE.THICK * 0.038; // push the long-rail cushions out far enough that they rest against the side rails without overlapping
+  const CUSHION_CENTER_NUDGE = 0; // keep cushions flush with the rail like the snooker layout
+  const SIDE_CUSHION_RAIL_REACH = 0; // snooker rails do not extend beyond the chrome, so no additional reach is required
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -4084,17 +4084,17 @@ function Table3D(
   const POCKET_GAP =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
   const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * -0.2 * POCKET_VISUAL_EXPANSION; // trim the short rail cushions further so they stop clear of the pocket mouths
+    POCKET_VIS_R * 0.065 * POCKET_VISUAL_EXPANSION; // pull short rail cushions further back so they stay clear of the pocket mouths
   const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // keep the long cushions tidy while preserving pocket clearance
+    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
   const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // let the long cushions meet the chrome arches without leaving gaps
+    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
   const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.1 * POCKET_VISUAL_EXPANSION; // keep clearance around the pockets while allowing longer cushions
+    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
   const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.26 * POCKET_VISUAL_EXPANSION; // push the long-side cushions a touch more toward the middle pockets
+    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
   const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.11 * POCKET_VISUAL_EXPANSION; // pull corner cushions back slightly so they stay clear of the pocket mouths
+    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
   const horizLen =
     PLAY_W -
     2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
@@ -4109,17 +4109,8 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePocketCoverageDepth = Math.max(
-    0,
-    railsTopY - (clothPlaneLocal - CLOTH_DROP) + MICRO_EPS * 6
-  ); // extend the pocket arches until they meet the lowered cloth plane
-  const chromePlateThickness = railH * 0.17; // deepen the corner chrome so it blankets the rail sides and pocket cuts
-  const sideChromePlateThickness = Math.min(
-    railH * 0.92,
-    Math.max(chromePlateThickness, chromePocketCoverageDepth)
-  );
+  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
   const chromePlateInset = TABLE.THICK * 0.02;
-  const sideChromePlateInset = TABLE.THICK * CHROME_SIDE_PLATE_RAIL_INSET_SCALE;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
@@ -4145,15 +4136,23 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
-  const chromePlateWidth = Math.max(
+  const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
       chromeCornerPlateTrim
   );
-  const chromePlateHeight = Math.max(
+  const chromePlateBaseHeight = Math.max(
     MICRO_EPS,
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
+  );
+  const chromePlateWidth = Math.max(
+    MICRO_EPS,
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
+  );
+  const chromePlateHeight = Math.max(
+    MICRO_EPS,
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -4162,14 +4161,12 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-  const sideChromePlateY =
-    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - sideChromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
+    outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
@@ -4189,15 +4186,8 @@ function Table3D(
     chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
-  const sidePlateThroatRadius = Math.max(
-    MICRO_EPS,
-    Math.min(
-      sidePocketRadius * CHROME_SIDE_NOTCH_RADIUS_SCALE,
-      sidePocketRadius * 1.2 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
-    )
-  );
   const sideChromePlateRadius = Math.min(
-    sidePlateThroatRadius,
+    chromePlateRadius * 0.3,
     Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
   );
 
@@ -4205,14 +4195,9 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const CORNER_NOTCH_EXTRA_INSET =
-    TABLE.THICK * 0.082; // push the chrome/rail corner cutouts even farther toward centre for tighter alignment
   const cornerInset =
-    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION +
-    CORNER_POCKET_CENTER_INSET +
-    CORNER_NOTCH_EXTRA_INSET;
-  const sideInset =
-    SIDE_POCKET_RADIUS * 0.56 * POCKET_VISUAL_EXPANSION; // slide the middle rail cuts farther toward the rails so the chrome, wood, jaws, and rims shift outward together
+    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4313,18 +4298,31 @@ function Table3D(
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    let union = polygonClipping.union(notchCircle, boxX, boxZ);
     const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
     const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
+    const unionParts = [notchCircle, boxX, boxZ];
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
-      const fieldClip = [[[
-        [cx, cz],
-        [cx + sx * fieldClipWidth, cz],
-        [cx, cz + sz * fieldClipDepth],
-        [cx, cz]
-      ]]];
-      union = polygonClipping.union(union, fieldClip);
+      unionParts.push([
+        [
+          [cx, cz],
+          [cx + sx * fieldClipWidth, cz],
+          [cx, cz + sz * fieldClipDepth],
+          [cx, cz]
+        ]
+      ]);
     }
+    if (wedgeDepth > MICRO_EPS) {
+      unionParts.push([
+        [
+          [cx, cz],
+          [cx - sx * wedgeDepth, cz],
+          [cx, cz - sz * wedgeDepth],
+          [cx, cz]
+        ]
+      ]);
+    }
+    const union = polygonClipping.union(...unionParts);
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
@@ -4419,7 +4417,7 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - sideChromePlateInset);
+    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
     const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
     const notchLocalMP = notchMP.map((poly) =>
@@ -4430,14 +4428,14 @@ function Table3D(
         width: sideChromePlateWidth,
         height: sideChromePlateHeight,
         radius: sideChromePlateRadius,
-        thickness: sideChromePlateThickness,
+        thickness: chromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
-    plate.position.set(centerX, sideChromePlateY, centerZ);
+    plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
