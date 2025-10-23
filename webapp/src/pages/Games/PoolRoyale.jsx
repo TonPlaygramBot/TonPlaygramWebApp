@@ -474,14 +474,14 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // keep corner jaw footprint locked to the chrome plate cut radius
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaw footprint locked to the chrome plate cut radius
-const POCKET_JAW_CORNER_INNER_SCALE = 1.097; // maintain the observed mouth width while accommodating the wider outer shell
-const POCKET_JAW_SIDE_INNER_SCALE = 0.95; // keep the side jaw interior aligned with the cloth edge seen in the photos
+const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
+const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward to keep the liner flush with the rail edge
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.78; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
 const POCKET_JAW_DEPTH_SCALE = 0.63; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
-const POCKET_RIM_FIELD_PULL = 0.24; // pull the rim toward the cloth so the jaw lip wraps around like the reference build
+const POCKET_RIM_FIELD_PULL = 0.18; // allow the rim to stay farther out so it crowns above the chrome plates
 const POCKET_RIM_DEPTH_SCALE = 0.48; // depth of the rim extrusion relative to the deeper jaw body
-const POCKET_RIM_LIP = TABLE.THICK * 0.05; // lift the rim so it sits proud of the chrome plates exactly as in the photos
+const POCKET_RIM_LIP = TABLE.THICK * 0.056; // raise the rim slightly more so it clearly crowns above the chrome plates
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw and rim finish perfectly flush with the chrome trim at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -549,7 +549,7 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = 1.5; // widen the corner pocket jaws 50%
-const POCKET_SIDE_MOUTH_SCALE = 1.12; // widen the middle pocket jaws 12%
+const POCKET_SIDE_MOUTH_SCALE = 1.08; // keep the middle pocket mouths slightly slimmer to match the corner pockets
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -4215,7 +4215,7 @@ function Table3D(
     CORNER_POCKET_CENTER_INSET +
     CORNER_NOTCH_EXTRA_INSET;
   const sideInset =
-    SIDE_POCKET_RADIUS * 0.7 * POCKET_VISUAL_EXPANSION; // push the middle rail cuts farther outward so the chrome and rail rounding stay tight to the side rails
+    SIDE_POCKET_RADIUS * 0.62 * POCKET_VISUAL_EXPANSION; // slide the middle rail cuts farther toward the rails so the chrome, wood, jaws, and rims shift outward together
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
