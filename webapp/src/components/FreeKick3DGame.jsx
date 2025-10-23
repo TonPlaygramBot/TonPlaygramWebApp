@@ -278,17 +278,17 @@ const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
 const GRAVITY = new THREE.Vector3(0, -9.81 * 0.35, 0);
 const AIR_DRAG = 0.0006;
 const FRICTION = 0.995;
-const MAGNUS_COEFFICIENT = 0.065;
+const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = 1.2;
-const SHOOT_POWER_SCALE = 1.45; // allow much harder strikes from the swipe motion
+const SHOOT_POWER_SCALE = 1.15; // allow harder strikes from the swipe motion
 const SHOOT_VERTICAL_POWER_MIN = 0.32;
 const SHOOT_VERTICAL_POWER_MAX = 0.48;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.8;
 const MAX_BASE_SHOT_POWER = 34;
 const MAX_SHOT_POWER = MAX_BASE_SHOT_POWER * SHOOT_POWER_SCALE;
-const BASE_SPIN_SCALE = 1.8;
+const BASE_SPIN_SCALE = 1.5;
 const SPIN_SCALE = BASE_SPIN_SCALE * 1.25;
 const CROSSBAR_HEIGHT_MARGIN = 0.2;
 const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
@@ -445,8 +445,6 @@ export default function FreeKick3DGame({ config }) {
     scene.background = new THREE.Color(0x87ceeb);
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.03).texture;
-
-    const textureLoader = new THREE.TextureLoader();
 
     const camera = new THREE.PerspectiveCamera(55, host.clientWidth / host.clientHeight, 0.1, 240);
     camera.position.set(0, 1.65, 6.6);
@@ -614,10 +612,10 @@ export default function FreeKick3DGame({ config }) {
       ctx.clearRect(0, 0, size, size);
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      const radius = 24;
-      const outlineWidth = radius * 0.68;
-      const innerWidth = radius * 0.46;
-      const patternWidth = radius * 3.4;
+      const radius = 18;
+      const outlineWidth = radius * 0.52;
+      const innerWidth = radius * 0.32;
+      const patternWidth = radius * 3;
       const patternHeight = Math.sqrt(3) * radius;
       const drawHex = (cx, cy) => {
         ctx.save();
@@ -649,14 +647,14 @@ export default function FreeKick3DGame({ config }) {
       }
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(3, 3);
+      texture.repeat.set(4, 4);
       texture.anisotropy = 8;
       texture.colorSpace = THREE.SRGBColorSpace;
       return texture;
     })();
 
-    const netColor = new THREE.Color('#fde047');
-    const netEmissive = netColor.clone().multiplyScalar(0.28);
+    const netColor = new THREE.Color('#facc15');
+    const netEmissive = netColor.clone().multiplyScalar(0.25);
     const netMaterial = new THREE.MeshPhysicalMaterial({
       map: netTexture,
       transparent: true,
@@ -952,13 +950,9 @@ export default function FreeKick3DGame({ config }) {
     const suiteFrameGeo = new THREE.BoxGeometry(10.4, 5.9, 14.6);
     const suiteRoofGeo = new THREE.BoxGeometry(11.2, 0.6, 15);
     const suiteDeckGeo = new THREE.BoxGeometry(78, 0.5, 16);
-    const suiteWindowScale = 0.5;
-    const suiteWindowWidth = 7.6 * suiteWindowScale;
-    const suiteWindowHeight = 3.6 * suiteWindowScale;
-    const suiteWindowDepth = 9.2 * suiteWindowScale;
-    const suiteWindowGeo = new THREE.BoxGeometry(suiteWindowWidth, suiteWindowHeight, suiteWindowDepth);
-    const suiteMullionGeo = new THREE.BoxGeometry(0.28 * suiteWindowScale, suiteWindowHeight, 9.4 * suiteWindowScale);
-    const suiteTransomGeo = new THREE.BoxGeometry(suiteWindowWidth, 0.24 * suiteWindowScale, 9.4 * suiteWindowScale);
+    const suiteWindowGeo = new THREE.BoxGeometry(7.6, 3.6, 9.2);
+    const suiteMullionGeo = new THREE.BoxGeometry(0.28, 3.6, 9.4);
+    const suiteTransomGeo = new THREE.BoxGeometry(7.6, 0.24, 9.4);
 
     function createStandSection(offsetX = 0, baseY = 0, depthOffset = 0) {
       const section = new THREE.Group();
@@ -1487,168 +1481,18 @@ export default function FreeKick3DGame({ config }) {
 
     scene.add(goal);
 
-    const cutoutWoodMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x8f7252,
-      roughness: 0.68,
-      metalness: 0.18,
-      clearcoat: 0.16,
-      clearcoatRoughness: 0.45
-    });
-    const cutoutStandMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x2b2d32,
-      roughness: 0.5,
-      metalness: 0.34
-    });
-
-    const createPlywoodCutout = (textureUrl, options = {}) => {
-      const {
-        height = 2.1,
-        thickness = 0.05,
-        standDepth = 0.5,
-        standHeight = 0.16,
-        restitution = 1.32,
-        velocityDamping = 0.7,
-        spinDamping = 0.65,
-        name = 'plywoodCutout'
-      } = options;
-
-      const group = new THREE.Group();
-      group.name = name;
-
-      const boardMaterial = cutoutWoodMaterial.clone();
-      const board = new THREE.Mesh(new THREE.BoxGeometry(1, height, thickness), boardMaterial);
-      board.castShadow = true;
-      board.receiveShadow = false;
-      group.add(board);
-
-      const faceMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        transparent: true,
-        alphaTest: 0.45,
-        roughness: 0.4,
-        metalness: 0.12,
-        clearcoat: 0.15,
-        clearcoatRoughness: 0.42
-      });
-      const front = new THREE.Mesh(new THREE.PlaneGeometry(1, height), faceMaterial.clone());
-      front.castShadow = true;
-      front.receiveShadow = false;
-      group.add(front);
-
-      const backMaterial = faceMaterial.clone();
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(1, height), backMaterial);
-      back.rotation.y = Math.PI;
-      back.castShadow = true;
-      back.receiveShadow = false;
-      group.add(back);
-
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, standHeight, standDepth), cutoutStandMaterial.clone());
-      base.castShadow = true;
-      base.receiveShadow = true;
-      group.add(base);
-
-      const collider = {
-        mesh: group,
-        center: new THREE.Vector3(),
-        halfSize: new THREE.Vector3(0.5, (standHeight + height) / 2, Math.max(thickness, standDepth * 0.45) / 2),
-        restitution,
-        velocityDamping,
-        spinDamping,
-        slop: 0.0025
-      };
-
-      const updateDimensions = (width, finalHeight) => {
-        const combinedHeight = standHeight + finalHeight;
-        const baseCenterY = -combinedHeight / 2 + standHeight / 2;
-        const boardCenterY = -combinedHeight / 2 + standHeight + finalHeight / 2;
-
-        board.geometry.dispose();
-        board.geometry = new THREE.BoxGeometry(width, finalHeight, thickness);
-        board.position.y = boardCenterY;
-
-        front.geometry.dispose();
-        front.geometry = new THREE.PlaneGeometry(width, finalHeight);
-        front.position.y = boardCenterY;
-        front.position.z = thickness / 2 + 0.001;
-
-        back.geometry.dispose();
-        back.geometry = new THREE.PlaneGeometry(width, finalHeight);
-        back.position.y = boardCenterY;
-        back.position.z = -thickness / 2 - 0.001;
-
-        const footWidth = Math.max(width * 0.6, thickness * 4);
-        base.geometry.dispose();
-        base.geometry = new THREE.BoxGeometry(footWidth, standHeight, standDepth);
-        base.position.y = baseCenterY;
-
-        collider.halfSize.set(width / 2, combinedHeight / 2, Math.max(thickness, standDepth * 0.45) / 2);
-        group.position.y = collider.halfSize.y;
-      };
-
-      const initialWidth = height * (options.aspect ?? 1);
-      updateDimensions(initialWidth, height);
-
-      textureLoader.load(
-        textureUrl,
-        (texture) => {
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.anisotropy = 8;
-          texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-          const width = height * (texture.image?.width && texture.image?.height ? texture.image.width / texture.image.height : 1);
-
-          const frontMaterial = front.material;
-          frontMaterial.map = texture;
-          frontMaterial.alphaMap = texture;
-          frontMaterial.needsUpdate = true;
-
-          backMaterial.map = texture;
-          backMaterial.alphaMap = texture;
-          backMaterial.needsUpdate = true;
-
-          updateDimensions(width, height);
-        },
-        undefined,
-        (error) => {
-          console.error('Failed to load cutout texture', textureUrl, error);
-        }
-      );
-
-      return { group, collider };
-    };
-
+    const wallGroup = new THREE.Group();
+    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
     const defenders = [];
-
-    const defendersCutout = createPlywoodCutout(
-      '/assets/icons/file_0000000091b0624395c9e8d8acf66e69.webp',
-      {
-        name: 'wallCutout',
-        height: 2.4,
-        thickness: 0.065,
-        standDepth: 0.62,
-        standHeight: 0.2,
-        restitution: 1.45,
-        velocityDamping: 0.64,
-        spinDamping: 0.6,
-        aspect: 1.5
-      }
-    );
-    defendersCutout.group.position.set(0, defendersCutout.group.position.y, goalZ + 5.0);
-    scene.add(defendersCutout.group);
-    defenders.push({ type: 'board', collider: defendersCutout.collider });
-
-    const keeperCutout = createPlywoodCutout('/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp', {
-      name: 'goalkeeperCutout',
-      height: 2.2,
-      thickness: 0.055,
-      standDepth: 0.48,
-      standHeight: 0.18,
-      restitution: 1.28,
-      velocityDamping: 0.66,
-      spinDamping: 0.62
-    });
-    keeperCutout.group.position.set(0, keeperCutout.group.position.y, goalZ + 0.6);
-    scene.add(keeperCutout.group);
-    defenders.push({ type: 'board', collider: keeperCutout.collider });
+    for (let i = 0; i < 3; i += 1) {
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      body.position.set((i - 1) * 0.8, 1.1, goalZ + 5.0);
+      wallGroup.add(body);
+      defenders.push({ mesh: body, radius: 0.28, halfHeight: 0.7 });
+    }
+    scene.add(wallGroup);
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
@@ -1959,16 +1803,6 @@ export default function FreeKick3DGame({ config }) {
         });
       }
 
-      if (state.defenders.length > 0) {
-        state.defenders.forEach((defender) => {
-          if (defender.type !== 'board') return;
-          const { collider } = defender;
-          if (!collider?.mesh || !collider.center) return;
-          collider.mesh.updateWorldMatrix(true, false);
-          collider.mesh.getWorldPosition(collider.center);
-        });
-      }
-
       if (!gameStateRef.current.gameOver && state.velocity.lengthSq() > 0.00001) {
         const speed = state.velocity.length();
         const dragFactor = 1 - AIR_DRAG * speed;
@@ -1988,20 +1822,15 @@ export default function FreeKick3DGame({ config }) {
         }
 
         state.defenders.forEach((defender) => {
-          if (defender.type === 'board') {
-            if (!defender.collider) return;
-            applyBillboardCollision(defender.collider);
-          } else if (defender.type === 'capsule') {
-            const { mesh, radius, halfHeight } = defender;
-            segmentStart.set(mesh.position.x, mesh.position.y - halfHeight, mesh.position.z);
-            segmentEnd.set(mesh.position.x, mesh.position.y + halfHeight, mesh.position.z);
-            applyCapsuleCollision(segmentStart, segmentEnd, radius, {
-              restitution: 1.6,
-              velocityDamping: 0.78,
-              spinDamping: 0.7,
-              slop: 0.002
-            });
-          }
+          const { mesh, radius, halfHeight } = defender;
+          segmentStart.set(mesh.position.x, mesh.position.y - halfHeight, mesh.position.z);
+          segmentEnd.set(mesh.position.x, mesh.position.y + halfHeight, mesh.position.z);
+          applyCapsuleCollision(segmentStart, segmentEnd, radius, {
+            restitution: 1.6,
+            velocityDamping: 0.78,
+            spinDamping: 0.7,
+            slop: 0.002
+          });
         });
 
         state.structureColliders.forEach((collider) => {
@@ -2161,50 +1990,22 @@ export default function FreeKick3DGame({ config }) {
         normalizedPower <= fullArcThreshold
           ? 0
           : Math.pow((normalizedPower - fullArcThreshold) / (1 - fullArcThreshold), 1.6);
-      const endNormalizedX = THREE.MathUtils.clamp(end.x / end.w, 0, 1);
-      const endNormalizedY = THREE.MathUtils.clamp(end.y / end.h, 0, 1);
-      const pointerAimY = THREE.MathUtils.clamp(1 - endNormalizedY, 0, 1);
-      const lateralAim = THREE.MathUtils.lerp(-goalWidth / 2, goalWidth / 2, endNormalizedX);
-      const lateralClamp = goalWidth / 2 - BALL_RADIUS * 0.8;
-      const targetGoalX = THREE.MathUtils.clamp(lateralAim, -lateralClamp, lateralClamp);
-      const baseGoalY = THREE.MathUtils.lerp(BALL_RADIUS * 0.9, goalHeight - BALL_RADIUS * 0.35, pointerAimY);
-      const verticalSwipeBias = THREE.MathUtils.clamp(-dy * 1.25, -goalHeight * 0.18, goalHeight * 0.42);
-      const arcLift = THREE.MathUtils.lerp(0, goalHeight * 0.28, highArcWeight);
-      const targetGoalY = THREE.MathUtils.clamp(
-        baseGoalY + arcLift + verticalSwipeBias,
-        BALL_RADIUS * 0.9,
-        goalHeight - BALL_RADIUS * 0.2
-      );
-      const targetDepth = depthAtHeight(targetGoalY);
-      const targetGoalZ = goalZ - targetDepth * 0.55;
-      const xDelta = targetGoalX - ball.position.x;
-      const zDelta = targetGoalZ - ball.position.z;
-      const yDelta = targetGoalY - ball.position.y;
-      const horizontalDistance = Math.hypot(xDelta, zDelta);
-      const desiredSpeed = Math.max(power * 1.08, Math.min(power * 1.25, power + 6));
-      const minTime = Math.max(0.36, horizontalDistance / Math.max(desiredSpeed * 1.5, 7));
-      const maxTimeBase = horizontalDistance / Math.max(desiredSpeed * 0.45, 4) + 0.5;
-      const maxTime = Math.max(minTime + 0.05, Math.min(1.8, maxTimeBase));
-      const samplesCount = 16;
-      let bestTime = minTime;
-      let bestScore = Infinity;
-      for (let i = 0; i <= samplesCount; i += 1) {
-        const t = THREE.MathUtils.lerp(minTime, maxTime, i / samplesCount);
-        if (t <= 0) continue;
-        const vxCandidate = xDelta / t;
-        const vzCandidate = zDelta / t;
-        const vyCandidate = (yDelta - 0.5 * GRAVITY.y * t * t) / t;
-        const speed = Math.hypot(vxCandidate, vyCandidate, vzCandidate);
-        const score = Math.abs(speed - desiredSpeed) + Math.max(0, desiredSpeed - speed) * 0.9;
-        if (score < bestScore) {
-          bestScore = score;
-          bestTime = t;
-        }
+      const launchVector = new THREE.Vector3(dx * 3.1, -dy * 1.6 + 0.52, -1);
+      const dynamicElevationCap = 0.68 + highArcWeight * 0.24;
+      if (launchVector.y > dynamicElevationCap) {
+        launchVector.y = dynamicElevationCap;
       }
-      const vx = xDelta / bestTime;
-      const vz = zDelta / bestTime;
-      const vy = (yDelta - 0.5 * GRAVITY.y * bestTime * bestTime) / bestTime;
-      state.velocity.set(vx, vy, vz);
+      const direction = launchVector.normalize();
+      state.velocity.copy(direction.multiplyScalar(power));
+      const verticalFactor = THREE.MathUtils.lerp(
+        SHOOT_VERTICAL_POWER_MIN,
+        SHOOT_VERTICAL_POWER_MAX,
+        highArcWeight
+      );
+      const maxVerticalSpeed = Math.min(power * verticalFactor, MAX_VERTICAL_LAUNCH_SPEED);
+      if (state.velocity.y > maxVerticalSpeed) {
+        state.velocity.y = maxVerticalSpeed;
+      }
       const verticalSpeed = -dy / normalizedDt;
       const lateralSpeed = dx / normalizedDt;
       const samples = history;
