@@ -34,15 +34,16 @@ function makePitchGreenTexture() {
   }
   ctx.putImageData(imageData, 0, 0);
 
-  const stripeHeight = size / 16;
-  for (let y = 0; y < size; y += stripeHeight) {
-    ctx.fillStyle = (y / stripeHeight) % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
-    ctx.fillRect(0, y, size, stripeHeight);
+  const stripeWidth = size / 10;
+  for (let x = 0; x < size; x += stripeWidth) {
+    const stripeIndex = Math.floor(x / stripeWidth);
+    ctx.fillStyle = stripeIndex % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+    ctx.fillRect(x, 0, stripeWidth, size);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 16);
+  texture.repeat.set(6, 12);
   texture.anisotropy = 8;
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -563,8 +564,6 @@ export default function FreeKick3DGame({ config }) {
     addLine(0.08, 4.0, -(goalWidth / 2 + 1.1), goalZ + 0.45);
     addLine(0.08, 4.0, goalWidth / 2 + 1.1, goalZ + 0.45);
     addLine(14, 0.06, 0, 0);
-    addCircle(3.5, 0.08, 64, 0, goalZ + 7.5);
-    addCircle(0.15, 0.15, 32, 0, goalZ + 7.5);
     scene.add(lines);
 
     const postMaterial = new THREE.MeshPhysicalMaterial({
@@ -872,7 +871,6 @@ export default function FreeKick3DGame({ config }) {
     const orientTowardsField = (mesh, targetZOffset = 2.4) => {
       fieldFacingTarget.set(mesh.position.x, mesh.position.y, goalZ + targetZOffset);
       mesh.lookAt(fieldFacingTarget);
-      mesh.rotateY(Math.PI);
     };
     billboardConfigs.forEach((config, index) => {
       const texture = makeBillboardTexture(config.text, config.color);
@@ -899,7 +897,7 @@ export default function FreeKick3DGame({ config }) {
     scene.add(billboardGroup);
 
     const standSeatMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1f75fe,
+      color: 0x15306d,
       roughness: 0.38,
       metalness: 0.12
     });
