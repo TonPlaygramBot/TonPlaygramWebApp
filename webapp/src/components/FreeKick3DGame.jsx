@@ -863,6 +863,12 @@ export default function FreeKick3DGame({ config }) {
     const billboardZ = goalZ - goalDepthBottom - 1.35;
     const billboardGroup = new THREE.Group();
     const billboardAnimations = [];
+    const fieldFacingTarget = new THREE.Vector3();
+    const orientTowardsField = (mesh, targetZOffset = 2.4) => {
+      fieldFacingTarget.set(mesh.position.x, mesh.position.y, goalZ + targetZOffset);
+      mesh.lookAt(fieldFacingTarget);
+      mesh.rotateY(Math.PI);
+    };
     billboardConfigs.forEach((config, index) => {
       const texture = makeBillboardTexture(config.text, config.color);
       const material = new THREE.MeshStandardMaterial({
@@ -880,6 +886,7 @@ export default function FreeKick3DGame({ config }) {
       );
       mesh.castShadow = false;
       mesh.receiveShadow = false;
+      orientTowardsField(mesh, 2.4);
       billboardGroup.add(mesh);
       texture.offset.x = Math.random();
       billboardAnimations.push({ texture, speed: 0.12 + index * 0.04 });
@@ -887,7 +894,7 @@ export default function FreeKick3DGame({ config }) {
     scene.add(billboardGroup);
 
     const standSeatMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0066ff,
+      color: 0x0052d6,
       roughness: 0.4,
       metalness: 0.1
     });
@@ -998,6 +1005,7 @@ export default function FreeKick3DGame({ config }) {
     suiteDeck.position.set(0, suiteBaseY - suiteDeckGeo.parameters.height / 2, suiteCenterZ);
     suiteDeck.castShadow = true;
     suiteDeck.receiveShadow = true;
+    orientTowardsField(suiteDeck, 2.4);
 
     const suitesGroup = new THREE.Group();
     suitesGroup.add(suiteDeck);
@@ -1010,9 +1018,11 @@ export default function FreeKick3DGame({ config }) {
       frame.position.set(centerX, centerY, suiteCenterZ);
       frame.castShadow = true;
       frame.receiveShadow = true;
+      orientTowardsField(frame, 2.4);
 
       const glass = new THREE.Mesh(suiteGeo, suiteGlassMaterial);
       glass.position.copy(frame.position);
+      orientTowardsField(glass, 2.4);
 
       const roof = new THREE.Mesh(suiteRoofGeo, suiteRoofMaterial);
       roof.position.set(
@@ -1022,6 +1032,7 @@ export default function FreeKick3DGame({ config }) {
       );
       roof.castShadow = true;
       roof.receiveShadow = true;
+      orientTowardsField(roof, 2.4);
 
       suitesGroup.add(frame, glass, roof);
     }
@@ -1311,33 +1322,6 @@ export default function FreeKick3DGame({ config }) {
         center: new THREE.Vector3()
       }
     ];
-
-    const supportScale = 0.9;
-    const supportWidth = goalWidth * supportScale;
-    const supportHeight = goalHeight * supportScale;
-    const supportZ = goalZ - goalDepthBottom - 0.25;
-    const supportPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 0.75, postRadius * 0.75, supportHeight, 16), postMaterial);
-    supportPost.position.set(-supportWidth / 2, supportHeight / 2, supportZ);
-    goal.add(supportPost);
-    const supportPostR = supportPost.clone();
-    supportPostR.position.x = supportWidth / 2;
-    goal.add(supportPostR);
-    const supportBar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 0.75, postRadius * 0.75, supportWidth, 16), postMaterial);
-    supportBar.rotation.z = Math.PI / 2;
-    supportBar.position.set(0, supportHeight, supportZ);
-    goal.add(supportBar);
-
-    const connectorGeo = new THREE.CylinderGeometry(0.03, 0.03, Math.abs(supportZ - goalZ), 10);
-    const addConnector = (x, y) => {
-      const mesh = new THREE.Mesh(connectorGeo, postMaterial);
-      mesh.rotation.x = Math.PI / 2;
-      mesh.position.set(x, y, (supportZ + goalZ) / 2);
-      goal.add(mesh);
-    };
-    addConnector(-goalWidth / 2, goalHeight);
-    addConnector(goalWidth / 2, goalHeight);
-    addConnector(-goalWidth / 2, 0.1);
-    addConnector(goalWidth / 2, 0.1);
 
     scene.add(goal);
 
