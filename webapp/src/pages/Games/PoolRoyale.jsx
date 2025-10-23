@@ -153,6 +153,46 @@ function scaleMultiPolygon(mp, scale) {
     .filter((poly) => Array.isArray(poly) && poly.length > 0);
 }
 
+function scaleMultiPolygonAxis(mp, center, scaleX, scaleZ) {
+  if (!Array.isArray(mp)) {
+    return [];
+  }
+  const sx = Number.isFinite(scaleX) ? scaleX : 1;
+  const sz = Number.isFinite(scaleZ) ? scaleZ : 1;
+  const cx = center instanceof THREE.Vector2 ? center.x : Number(center?.x) || 0;
+  const cz = center instanceof THREE.Vector2 ? center.y : Number(center?.y) || 0;
+  return mp
+    .map((poly) => {
+      if (!Array.isArray(poly) || !poly.length) return null;
+      const scaledPoly = poly
+        .map((ring) => {
+          if (!Array.isArray(ring) || !ring.length) return null;
+          const scaledRing = ring
+            .map((pt) => {
+              if (!Array.isArray(pt) || pt.length < 2) return null;
+              const dx = pt[0] - cx;
+              const dz = pt[1] - cz;
+              const x = cx + dx * sx;
+              const z = cz + dz * sz;
+              return [x, z];
+            })
+            .filter(Boolean);
+          if (scaledRing.length) {
+            const first = scaledRing[0];
+            const last = scaledRing[scaledRing.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+              scaledRing.push([first[0], first[1]]);
+            }
+          }
+          return scaledRing;
+        })
+        .filter((ring) => Array.isArray(ring) && ring.length > 0);
+      if (!scaledPoly.length) return null;
+      return scaledPoly;
+    })
+    .filter((poly) => Array.isArray(poly) && poly.length > 0);
+}
+
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -450,9 +490,23 @@ const POCKET_JAW_SIDE_INNER_SCALE = 0.994; // keep the middle jaw interior ancho
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.32554; // match the extended corner limit without shrinking the pocket opening
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.1847; // track the wider middle limit while leaving the inner mouth untouched
 const POCKET_JAW_DEPTH_SCALE = 0.46; // proportion of the rail height the jaw liner drops into the pocket cut
-const POCKET_RIM_FIELD_PULL = 0.08; // only let the rim drift a few percent toward the cloth side
+const POCKET_RIM_FIELD_PULL = 0; // keep the rim anchored over the chrome side rather than drifting toward the cloth
 const POCKET_RIM_DEPTH_SCALE = 0.22; // depth of the rim extrusion relative to the jaw depth
-const POCKET_RIM_LIP = TABLE.THICK * 0.032; // lift the rim higher so it sits proud of the chrome plates
+const POCKET_RIM_LIP = TABLE.THICK * 0.048; // lift the rim higher so it sits proud of the chrome plates
+const POCKET_JAW_CORNER_OUTER_SCALE_X = 1.014; // stretch the leather outward along both rails to blanket the chrome cut
+const POCKET_JAW_CORNER_OUTER_SCALE_Z = 1.014;
+const POCKET_JAW_SIDE_OUTER_SCALE_X = 1.006; // nudge the middle jaws just enough along the rail to cover the wood notch
+const POCKET_JAW_SIDE_OUTER_SCALE_Z = 1.01;
+const POCKET_JAW_CORNER_INNER_SCALE_X = 0.992; // keep the playable mouth close to its previous footprint
+const POCKET_JAW_CORNER_INNER_SCALE_Z = 0.992;
+const POCKET_JAW_SIDE_INNER_SCALE_X = 0.996;
+const POCKET_JAW_SIDE_INNER_SCALE_Z = 0.995;
+const POCKET_RIM_OUTER_FIELD_SCALE_X = 1.003; // let the outer metal trim hug the chrome outline tightly
+const POCKET_RIM_OUTER_FIELD_SCALE_Z = 1.003;
+const POCKET_RIM_INNER_FIELD_SCALE_X = 0.964; // keep the rim band on the chrome side so it stays off the playfield
+const POCKET_RIM_INNER_FIELD_SCALE_Z = 0.964;
+const MIN_RIM_INNER_SCALE = 1.001; // minimum inward scale so the rim never overlaps the cloth
+const MIN_RIM_BAND_DELTA = 0.0015; // prevent the rim band from collapsing to zero thickness
 const POCKET_JAW_EDGE_FLUSH_START = 0.32; // begin easing the jaw back out to meet the chrome edge sooner
 const POCKET_JAW_EDGE_FLUSH_END = 0.94; // ensure the jaw and rim finish flush with the chrome trim
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
@@ -4504,8 +4558,126 @@ function Table3D(
     orientationAngle,
     wide,
     isMiddle,
-    clampOuter
+    clampOuter,
+    baseMP
   }) => {
+    const jawDepth = Math.max(MICRO_EPS, railH * POCKET_JAW_DEPTH_SCALE);
+
+    const buildFromNotch = () => {
+      if (!Array.isArray(baseMP) || !baseMP.length) {
+        return null;
+      }
+      if (!(center instanceof THREE.Vector2)) {
+        return null;
+      }
+      const outerScaleX = wide
+        ? POCKET_JAW_SIDE_OUTER_SCALE_X
+        : POCKET_JAW_CORNER_OUTER_SCALE_X;
+      const outerScaleZ = wide
+        ? POCKET_JAW_SIDE_OUTER_SCALE_Z
+        : POCKET_JAW_CORNER_OUTER_SCALE_Z;
+      const innerScaleX = wide
+        ? POCKET_JAW_SIDE_INNER_SCALE_X
+        : POCKET_JAW_CORNER_INNER_SCALE_X;
+      const innerScaleZ = wide
+        ? POCKET_JAW_SIDE_INNER_SCALE_Z
+        : POCKET_JAW_CORNER_INNER_SCALE_Z;
+
+      const outerMP = scaleMultiPolygonAxis(baseMP, center, outerScaleX, outerScaleZ);
+      const innerMP = scaleMultiPolygonAxis(baseMP, center, innerScaleX, innerScaleZ);
+      if (!outerMP.length || !innerMP.length) {
+        return null;
+      }
+      const jawMP = polygonClipping.difference(outerMP, innerMP);
+      const jawShapes = multiPolygonToShapes(jawMP);
+      if (!jawShapes.length) {
+        return null;
+      }
+
+      const jawGeom = new THREE.ExtrudeGeometry(jawShapes, {
+        depth: jawDepth,
+        bevelEnabled: false,
+        curveSegments: 160,
+        steps: 1
+      });
+      jawGeom.rotateX(-Math.PI / 2);
+      jawGeom.translate(0, -jawDepth, 0);
+      jawGeom.computeVertexNormals();
+      const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
+      jawMesh.position.y = railsTopY;
+      jawMesh.castShadow = false;
+      jawMesh.receiveShadow = true;
+
+      const rimOuterScaleX = outerScaleX * POCKET_RIM_OUTER_FIELD_SCALE_X;
+      const rimOuterScaleZ = outerScaleZ * POCKET_RIM_OUTER_FIELD_SCALE_Z;
+      let rimInnerScaleX = Math.max(
+        MIN_RIM_INNER_SCALE,
+        outerScaleX * POCKET_RIM_INNER_FIELD_SCALE_X
+      );
+      let rimInnerScaleZ = Math.max(
+        MIN_RIM_INNER_SCALE,
+        outerScaleZ * POCKET_RIM_INNER_FIELD_SCALE_Z
+      );
+      const rimInnerMaxX = rimOuterScaleX - MIN_RIM_BAND_DELTA;
+      const rimInnerMaxZ = rimOuterScaleZ - MIN_RIM_BAND_DELTA;
+      rimInnerScaleX = Math.max(
+        MIN_RIM_INNER_SCALE,
+        Math.min(rimInnerScaleX, rimInnerMaxX)
+      );
+      rimInnerScaleZ = Math.max(
+        MIN_RIM_INNER_SCALE,
+        Math.min(rimInnerScaleZ, rimInnerMaxZ)
+      );
+
+      let rimMesh = null;
+      if (rimInnerScaleX > 0 && rimInnerScaleZ > 0 && rimOuterScaleX > 0 && rimOuterScaleZ > 0) {
+        if (rimOuterScaleX - rimInnerScaleX > MICRO_EPS && rimOuterScaleZ - rimInnerScaleZ > MICRO_EPS) {
+          const rimOuterMP = scaleMultiPolygonAxis(
+            baseMP,
+            center,
+            rimOuterScaleX,
+            rimOuterScaleZ
+          );
+          const rimInnerMP = scaleMultiPolygonAxis(
+            baseMP,
+            center,
+            rimInnerScaleX,
+            rimInnerScaleZ
+          );
+          const rimMP = polygonClipping.difference(rimOuterMP, rimInnerMP);
+          const rimShapes = multiPolygonToShapes(rimMP);
+          if (rimShapes.length) {
+            const rimDepth = Math.max(MICRO_EPS, jawDepth * POCKET_RIM_DEPTH_SCALE);
+            const rimGeom = new THREE.ExtrudeGeometry(rimShapes, {
+              depth: rimDepth,
+              bevelEnabled: false,
+              curveSegments: 128,
+              steps: 1
+            });
+            rimGeom.rotateX(-Math.PI / 2);
+            rimGeom.translate(0, -rimDepth, 0);
+            rimGeom.computeVertexNormals();
+            rimMesh = new THREE.Mesh(rimGeom, pocketRimMat);
+            rimMesh.position.y = railsTopY + POCKET_RIM_LIP;
+            rimMesh.castShadow = false;
+            rimMesh.receiveShadow = true;
+          }
+        }
+      }
+
+      const group = new THREE.Group();
+      group.add(jawMesh);
+      if (rimMesh) {
+        group.add(rimMesh);
+      }
+      return { group, jawMesh, rimMesh };
+    };
+
+    const notchAssembly = buildFromNotch();
+    if (notchAssembly) {
+      return notchAssembly;
+    }
+
     const jawShape = buildPocketJawShape({
       center,
       baseRadius,
@@ -4522,7 +4694,6 @@ function Table3D(
     if (!jawShape) {
       return null;
     }
-    const jawDepth = Math.max(MICRO_EPS, railH * POCKET_JAW_DEPTH_SCALE);
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
@@ -4672,7 +4843,8 @@ function Table3D(
         orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: cornerJawOuterLimit
+        clampOuter: cornerJawOuterLimit,
+        baseMP: scaledMP
       });
     });
   }
@@ -4691,7 +4863,8 @@ function Table3D(
         orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: sideJawOuterLimit
+        clampOuter: sideJawOuterLimit,
+        baseMP: scaledMP
       });
     });
   }
