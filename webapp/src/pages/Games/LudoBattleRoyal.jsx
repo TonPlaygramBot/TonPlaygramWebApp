@@ -1872,7 +1872,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const advanceTurn = (extraTurn) => {
     setUi((s) => {
       if (s.winner) return s;
-      const nextTurn = extraTurn ? s.turn : (s.turn + 1) % 4;
+      const nextTurn = extraTurn ? s.turn : (s.turn + 3) % 4;
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
