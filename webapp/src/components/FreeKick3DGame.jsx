@@ -362,10 +362,10 @@ const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
 const DEFENDER_WALL_Z = 1.2; // legacy spot where the ball used to start
-const SHOOT_POWER_SCALE = 1.92; // allow harder strikes from the swipe motion (50% more power)
-const SHOOT_VERTICAL_POWER_MIN = 0.36;
-const SHOOT_VERTICAL_POWER_MAX = 0.52;
-const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.72;
+const SHOOT_POWER_SCALE = 2.25; // additional top-end power for faster, punchier strikes
+const SHOOT_VERTICAL_POWER_MIN = 0.38;
+const SHOOT_VERTICAL_POWER_MAX = 0.58;
+const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.68;
 const MAX_BASE_SHOT_POWER = 36;
 const MAX_SHOT_POWER = MAX_BASE_SHOT_POWER * SHOOT_POWER_SCALE;
 const BASE_SPIN_SCALE = 1.6;
@@ -390,6 +390,17 @@ const KEEPER_CENTER_EASE = 0.08;
 const TARGET_PADDING_X = 0.35;
 const TARGET_PADDING_Y = 0.28;
 const TARGET_SEPARATION = 0.32;
+const FIXED_TIME_STEP = 1 / 60;
+const MAX_FRAME_DELTA = 0.08;
+const MAX_ACCUMULATED_TIME = 0.24;
+const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
+const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 1.48, GOAL_CONFIG.z);
+const CAMERA_ACTIVE_MIN_DISTANCE = 3.4;
+const CAMERA_ACTIVE_MAX_DISTANCE = 8.6;
+const CAMERA_LATERAL_CLAMP = 3.6;
+const CAMERA_IDLE_LERP = 0.1;
+const CAMERA_ACTIVE_LERP = 0.18;
+const CAMERA_SHAKE_DECAY = 3.5;
 const SOUND_SOURCES = {
   crowd: encodeURI('/assets/sounds/football-crowd-3-69245.mp3'),
   whistle: encodeURI('/assets/sounds/metal-whistle-6121.mp3'),
@@ -542,8 +553,9 @@ export default function FreeKick3DGame({ config }) {
     scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.03).texture;
 
     const camera = new THREE.PerspectiveCamera(55, host.clientWidth / host.clientHeight, 0.1, 240);
-    camera.position.set(0, 1.7, START_Z + 4.0);
-    camera.lookAt(0, 1.4, GOAL_CONFIG.z);
+    camera.position.copy(CAMERA_IDLE_POSITION);
+    camera.lookAt(CAMERA_IDLE_FOCUS);
+    camera.up.set(0, 1, 0);
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.7);
     scene.add(hemi);
@@ -2171,6 +2183,13 @@ export default function FreeKick3DGame({ config }) {
     const defenderNormal = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
     const defenderQuat = new THREE.Quaternion();
+    const cameraForward = new THREE.Vector3();
+    const cameraStrafe = new THREE.Vector3();
+    const upVector = new THREE.Vector3(0, 1, 0);
+    const desiredCameraPos = new THREE.Vector3();
+    const desiredCameraFocus = new THREE.Vector3();
+    const cameraShakeSample = new THREE.Vector3();
+    const lookTarget = new THREE.Vector3();
 
     const state = {
       renderer,
@@ -2181,6 +2200,8 @@ export default function FreeKick3DGame({ config }) {
       aimLine,
       goalAABB,
       lastTime: performance.now(),
+      timeAccumulator: 0,
+      smoothedFrameTime: FIXED_TIME_STEP,
       velocity: new THREE.Vector3(),
       spin: new THREE.Vector3(),
       scored: false,
@@ -2202,7 +2223,11 @@ export default function FreeKick3DGame({ config }) {
       currentShotPoints: 0,
       shotResolved: false,
       ballExploded: false,
-      shotInFlight: false
+      shotInFlight: false,
+      cameraCurrentPosition: camera.position.clone(),
+      cameraFocus: CAMERA_IDLE_FOCUS.clone(),
+      cameraShakeIntensity: 0,
+      cameraShakeOffset: new THREE.Vector3()
     };
 
     state.netSim = netSim;
@@ -2463,6 +2488,7 @@ export default function FreeKick3DGame({ config }) {
       state.ballExploded = true;
       ball.visible = false;
       showTransientMessage('💣 Bomb! -15s -50', 2000);
+      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.35, 0.9);
       settleKeeper();
       scheduleReset(BOMB_RESET_DELAY * 1000);
     };
@@ -2480,6 +2506,7 @@ export default function FreeKick3DGame({ config }) {
       state.velocity.set(0, 0, 0);
       state.spin.set(0, 0, 0);
       showTransientMessage('Saved!', 1400);
+      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.25, 0.8);
       settleKeeper();
       scheduleReset(900);
     };
@@ -2490,6 +2517,7 @@ export default function FreeKick3DGame({ config }) {
       state.shotInFlight = false;
       state.currentShotPoints = 0;
       showTransientMessage(text, 1400);
+      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.18, 0.75);
       settleKeeper();
       scheduleReset(900);
     };
@@ -2507,6 +2535,8 @@ export default function FreeKick3DGame({ config }) {
       state.ballExploded = false;
       state.shotInFlight = false;
       state.netCooldown = 0;
+      state.cameraShakeIntensity = 0;
+      state.timeAccumulator = 0;
       ball.visible = true;
       const startRange = goalWidth * 0.35;
       const startX = THREE.MathUtils.clamp(THREE.MathUtils.randFloat(-startRange, startRange), -DEFENDER_MAX_OFFSET, DEFENDER_MAX_OFFSET);
@@ -2542,6 +2572,11 @@ export default function FreeKick3DGame({ config }) {
         keeper.side = keeperX >= 0 ? 1 : -1;
       }
       regenerateTargets();
+      state.cameraCurrentPosition.copy(CAMERA_IDLE_POSITION);
+      state.cameraFocus.copy(CAMERA_IDLE_FOCUS);
+      camera.position.copy(CAMERA_IDLE_POSITION);
+      camera.lookAt(CAMERA_IDLE_FOCUS);
+      camera.up.set(0, 1, 0);
     };
     resetBall();
 
@@ -2580,47 +2615,15 @@ export default function FreeKick3DGame({ config }) {
       setScore((value) => value + awarded);
       playGoalSound();
       showTransientMessage(`Goal! +${awarded}`, 2200);
+      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.45, 1);
       settleKeeper();
       resetTimeoutRef.current = window.setTimeout(() => {
         resetBall();
       }, 900);
     };
 
-    const animate = () => {
-      if (state.disposed) return;
-      const now = performance.now();
-      const dt = Math.min(0.033, (now - state.lastTime) / 1000);
-      state.lastTime = now;
-
+    const stepSimulation = (dt) => {
       state.netCooldown = Math.max(0, state.netCooldown - dt);
-
-      if (state.broadcastCameraRigs.length > 0) {
-        cameraTarget.copy(ball.position);
-        cameraTarget.y += 0.35;
-        state.broadcastCameraRigs.forEach((rig) => {
-          rig.headPivot.up.set(0, 1, 0);
-          rig.headPivot.lookAt(cameraTarget);
-          rig.headPivot.rotateY(Math.PI);
-          rig.headPivot.rotateX(tripodTilt);
-          rig.headPivot.updateWorldMatrix(true, true);
-        });
-      }
-
-      if (state.cameraColliders.length > 0) {
-        state.cameraColliders.forEach((collider) => {
-          if (!collider.anchor || !collider.center) return;
-          collider.anchor.updateWorldMatrix(true, false);
-          collider.anchor.getWorldPosition(collider.center);
-        });
-      }
-
-      if (state.billboardColliders.length > 0) {
-        state.billboardColliders.forEach((collider) => {
-          if (!collider.mesh || !collider.center) return;
-          collider.mesh.updateWorldMatrix(true, false);
-          collider.mesh.getWorldPosition(collider.center);
-        });
-      }
 
       const wall = state.wallState;
       if (wall) {
@@ -2823,6 +2826,123 @@ export default function FreeKick3DGame({ config }) {
       state.billboards.forEach((billboard) => {
         billboard.texture.offset.x = (billboard.texture.offset.x + dt * billboard.speed) % 1;
       });
+
+      if (state.cameraShakeIntensity > 0) {
+        state.cameraShakeIntensity = Math.max(0, state.cameraShakeIntensity - dt * CAMERA_SHAKE_DECAY);
+      }
+    };
+
+    const updateCameraRig = (dt) => {
+      const followLerp = state.shotInFlight ? CAMERA_ACTIVE_LERP : CAMERA_IDLE_LERP;
+      const blend = 1 - Math.pow(1 - followLerp, Math.max(1, dt * 60));
+
+      if (state.shotInFlight) {
+        desiredCameraFocus.copy(ball.position);
+        desiredCameraFocus.y += 0.45;
+
+        cameraForward.copy(state.velocity);
+        cameraForward.y = 0;
+        if (cameraForward.lengthSq() < 0.0001) {
+          cameraForward.set(0, 0, -1);
+        } else {
+          cameraForward.normalize();
+        }
+
+        cameraStrafe.crossVectors(upVector, cameraForward).normalize();
+        const speed = state.velocity.length();
+        const distance = THREE.MathUtils.clamp(
+          CAMERA_ACTIVE_MIN_DISTANCE + speed * 0.14,
+          CAMERA_ACTIVE_MIN_DISTANCE,
+          CAMERA_ACTIVE_MAX_DISTANCE
+        );
+        const lateralOffset = THREE.MathUtils.clamp(ball.position.x * 0.32, -CAMERA_LATERAL_CLAMP, CAMERA_LATERAL_CLAMP);
+        desiredCameraPos.copy(ball.position);
+        desiredCameraPos.addScaledVector(cameraForward, -distance);
+        desiredCameraPos.addScaledVector(cameraStrafe, lateralOffset);
+        desiredCameraPos.y = THREE.MathUtils.clamp(
+          1.4 + ball.position.y * 0.35 + Math.abs(state.velocity.y) * 0.06,
+          CAMERA_IDLE_POSITION.y - 0.3,
+          CAMERA_IDLE_POSITION.y + 3.6
+        );
+      } else {
+        desiredCameraFocus.copy(CAMERA_IDLE_FOCUS);
+        desiredCameraPos.copy(CAMERA_IDLE_POSITION);
+      }
+
+      desiredCameraPos.x = THREE.MathUtils.clamp(desiredCameraPos.x, -GOAL_CONFIG.width, GOAL_CONFIG.width);
+      desiredCameraPos.z = THREE.MathUtils.clamp(
+        desiredCameraPos.z,
+        GOAL_CONFIG.z - GOAL_CONFIG.depthBottom - 4.8,
+        START_Z + 7.4
+      );
+      desiredCameraPos.y = THREE.MathUtils.clamp(desiredCameraPos.y, 1.1, CAMERA_IDLE_POSITION.y + 4.0);
+
+      state.cameraCurrentPosition.lerp(desiredCameraPos, blend);
+      state.cameraFocus.lerp(desiredCameraFocus, blend * 0.9 + 0.05);
+
+      if (state.cameraShakeIntensity > 0) {
+        cameraShakeSample.set(
+          (Math.random() - 0.5) * state.cameraShakeIntensity * 0.12,
+          (Math.random() - 0.5) * state.cameraShakeIntensity * 0.08,
+          (Math.random() - 0.5) * state.cameraShakeIntensity * 0.1
+        );
+        state.cameraShakeOffset.lerp(cameraShakeSample, 0.4);
+      } else {
+        state.cameraShakeOffset.multiplyScalar(0.6);
+      }
+
+      camera.position.copy(state.cameraCurrentPosition).add(state.cameraShakeOffset);
+      lookTarget.copy(state.cameraFocus).addScaledVector(state.cameraShakeOffset, 0.5);
+      camera.lookAt(lookTarget);
+      camera.up.copy(upVector);
+    };
+
+    const animate = () => {
+      if (state.disposed) return;
+      const now = performance.now();
+      let frameDelta = (now - state.lastTime) / 1000;
+      if (!Number.isFinite(frameDelta) || frameDelta <= 0) {
+        frameDelta = FIXED_TIME_STEP;
+      }
+      frameDelta = Math.min(MAX_FRAME_DELTA, frameDelta);
+      state.lastTime = now;
+      state.smoothedFrameTime = THREE.MathUtils.lerp(state.smoothedFrameTime, frameDelta, 0.15);
+      state.timeAccumulator = Math.min(state.timeAccumulator + frameDelta, MAX_ACCUMULATED_TIME);
+
+      if (state.broadcastCameraRigs.length > 0) {
+        cameraTarget.copy(ball.position);
+        cameraTarget.y += 0.35;
+        state.broadcastCameraRigs.forEach((rig) => {
+          rig.headPivot.up.set(0, 1, 0);
+          rig.headPivot.lookAt(cameraTarget);
+          rig.headPivot.rotateY(Math.PI);
+          rig.headPivot.rotateX(tripodTilt);
+          rig.headPivot.updateWorldMatrix(true, true);
+        });
+      }
+
+      if (state.cameraColliders.length > 0) {
+        state.cameraColliders.forEach((collider) => {
+          if (!collider.anchor || !collider.center) return;
+          collider.anchor.updateWorldMatrix(true, false);
+          collider.anchor.getWorldPosition(collider.center);
+        });
+      }
+
+      if (state.billboardColliders.length > 0) {
+        state.billboardColliders.forEach((collider) => {
+          if (!collider.mesh || !collider.center) return;
+          collider.mesh.updateWorldMatrix(true, false);
+          collider.mesh.getWorldPosition(collider.center);
+        });
+      }
+
+      while (state.timeAccumulator >= FIXED_TIME_STEP) {
+        stepSimulation(FIXED_TIME_STEP);
+        state.timeAccumulator -= FIXED_TIME_STEP;
+      }
+
+      updateCameraRig(state.smoothedFrameTime);
       updateAimLine();
       renderer.render(scene, camera);
       state.animationId = requestAnimationFrame(animate);
@@ -2922,6 +3042,7 @@ export default function FreeKick3DGame({ config }) {
       state.ballExploded = false;
       state.shotInFlight = true;
       state.currentShotPoints = 0;
+      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.4, 0.95);
       if (state.wallState && !state.wallState.jumping) {
         state.wallState.velocityY = DEFENDER_JUMP_VELOCITY;
         state.wallState.jumping = true;
