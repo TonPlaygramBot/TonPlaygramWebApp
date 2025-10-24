@@ -38,10 +38,18 @@ import {
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
+const MIN_CUSHION_CUT_ANGLE = 29;
+const MAX_CUSHION_CUT_ANGLE = 32;
+
 function applyTablePhysicsSpec(meta) {
-  const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
+  const rawAngle = Number.isFinite(meta?.cushionCutAngleDeg)
     ? meta.cushionCutAngleDeg
     : DEFAULT_CUSHION_CUT_ANGLE;
+  const cushionAngle = THREE.MathUtils.clamp(
+    rawAngle,
+    MIN_CUSHION_CUT_ANGLE,
+    MAX_CUSHION_CUT_ANGLE
+  );
   CUSHION_CUT_ANGLE = cushionAngle;
 
   const restitution = Number.isFinite(meta?.cushionRestitution)
@@ -819,7 +827,7 @@ const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5 * SPIN_VERTICAL_EFFECT_BOOST;
 const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
 // angle for cushion cuts guiding balls into pockets (WPA K-55 profile ≈32°)
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
+const DEFAULT_CUSHION_CUT_ANGLE = MAX_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
@@ -3547,6 +3555,136 @@ const toBallColorId = (id) => {
   return lower.toUpperCase();
 };
 
+function computeCushionFlushLayout({ jaws, halfW, halfH }) {
+  if (!Array.isArray(jaws) || !jaws.length) {
+    return null;
+  }
+  const toleranceBase = Math.max(Math.abs(halfW), Math.abs(halfH));
+  const tolerance = toleranceBase > 0 ? toleranceBase * 1e-4 : 1e-4;
+  const topZValues = [];
+  const bottomZValues = [];
+  const layout = {
+    top: { minX: null, maxX: null, centerX: null, z: null },
+    bottom: { minX: null, maxX: null, centerX: null, z: null },
+    left: { x: null, topZ: null, bottomZ: null, sideTopZ: null, sideBottomZ: null },
+    right: { x: null, topZ: null, bottomZ: null, sideTopZ: null, sideBottomZ: null }
+  };
+  const scratch = new THREE.Vector3();
+
+  jaws.forEach((mesh) => {
+    if (!mesh?.isMesh || !mesh.geometry?.attributes?.position) {
+      return;
+    }
+    mesh.updateMatrixWorld(true);
+    const attr = mesh.geometry.attributes.position;
+    const matrixWorld = mesh.matrixWorld;
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const signX = center.x >= 0 ? 1 : -1;
+    const isSidePocket = Math.abs(center.z) <= tolerance;
+    const signZ = isSidePocket ? 0 : center.z >= 0 ? 1 : -1;
+
+    if (signZ !== 0) {
+      const targetZ = signZ > 0 ? box.max.z : box.min.z;
+      let extremeX = signX > 0 ? -Infinity : Infinity;
+      for (let i = 0; i < attr.count; i++) {
+        scratch
+          .set(attr.getX(i), attr.getY(i), attr.getZ(i))
+          .applyMatrix4(matrixWorld);
+        if (Math.abs(scratch.z - targetZ) > tolerance) continue;
+        if (signX > 0) {
+          extremeX = Math.max(extremeX, scratch.x);
+        } else {
+          extremeX = Math.min(extremeX, scratch.x);
+        }
+      }
+      if (!Number.isFinite(extremeX)) {
+        return;
+      }
+      if (signZ > 0) {
+        topZValues.push(targetZ);
+        if (signX > 0) {
+          layout.top.maxX = Number.isFinite(layout.top.maxX)
+            ? Math.max(layout.top.maxX, extremeX)
+            : extremeX;
+          layout.right.topZ = Number.isFinite(layout.right.topZ)
+            ? (layout.right.topZ + targetZ) / 2
+            : targetZ;
+        } else {
+          layout.top.minX = Number.isFinite(layout.top.minX)
+            ? Math.min(layout.top.minX, extremeX)
+            : extremeX;
+          layout.left.topZ = Number.isFinite(layout.left.topZ)
+            ? (layout.left.topZ + targetZ) / 2
+            : targetZ;
+        }
+      } else {
+        bottomZValues.push(targetZ);
+        if (signX > 0) {
+          layout.bottom.maxX = Number.isFinite(layout.bottom.maxX)
+            ? Math.max(layout.bottom.maxX, extremeX)
+            : extremeX;
+          layout.right.bottomZ = Number.isFinite(layout.right.bottomZ)
+            ? (layout.right.bottomZ + targetZ) / 2
+            : targetZ;
+        } else {
+          layout.bottom.minX = Number.isFinite(layout.bottom.minX)
+            ? Math.min(layout.bottom.minX, extremeX)
+            : extremeX;
+          layout.left.bottomZ = Number.isFinite(layout.left.bottomZ)
+            ? (layout.left.bottomZ + targetZ) / 2
+            : targetZ;
+        }
+      }
+    } else {
+      const targetX = signX > 0 ? box.max.x : box.min.x;
+      const zValues = [];
+      for (let i = 0; i < attr.count; i++) {
+        scratch
+          .set(attr.getX(i), attr.getY(i), attr.getZ(i))
+          .applyMatrix4(matrixWorld);
+        if (Math.abs(scratch.x - targetX) > tolerance) continue;
+        zValues.push(scratch.z);
+      }
+      if (!zValues.length) {
+        return;
+      }
+      zValues.sort((a, b) => a - b);
+      const zMin = zValues[0];
+      const zMax = zValues[zValues.length - 1];
+      if (signX > 0) {
+        layout.right.x = targetX;
+        layout.right.sideBottomZ = zMin;
+        layout.right.sideTopZ = zMax;
+      } else {
+        layout.left.x = targetX;
+        layout.left.sideBottomZ = zMin;
+        layout.left.sideTopZ = zMax;
+      }
+    }
+  });
+
+  if (topZValues.length) {
+    const avg = topZValues.reduce((sum, z) => sum + z, 0) / topZValues.length;
+    layout.top.z = avg;
+  }
+  if (bottomZValues.length) {
+    const avg =
+      bottomZValues.reduce((sum, z) => sum + z, 0) / bottomZValues.length;
+    layout.bottom.z = avg;
+  }
+
+  if (Number.isFinite(layout.top.minX) && Number.isFinite(layout.top.maxX)) {
+    layout.top.centerX = (layout.top.minX + layout.top.maxX) / 2;
+  }
+  if (Number.isFinite(layout.bottom.minX) && Number.isFinite(layout.bottom.maxX)) {
+    layout.bottom.centerX = (layout.bottom.minX + layout.bottom.maxX) / 2;
+  }
+
+  return layout;
+}
+
 function alignRailsToCushions(table, frame) {
   if (!frame || !table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
@@ -4933,6 +5071,13 @@ function Table3D(
 
   table.add(railsGroup);
 
+  table.updateMatrixWorld(true);
+  const cushionFlushLayout = computeCushionFlushLayout({
+    jaws: finishParts.pocketJawMeshes,
+    halfW,
+    halfH
+  });
+
   const chalkGroup = new THREE.Group();
   const chalkScale = 0.5;
   const chalkSize = BALL_R * 1.92 * chalkScale;
@@ -5096,12 +5241,14 @@ function Table3D(
 
     if (horizontal) {
       const side = z >= 0 ? 1 : -1;
-      group.position.z =
-        side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
+      const defaultZ = side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
+      group.position.z = Number.isFinite(z) ? z : defaultZ;
     } else {
       const side = x >= 0 ? 1 : -1;
-      const reach = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
-      group.position.x = side * reach;
+      const defaultX =
+        side *
+        (halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH);
+      group.position.x = Number.isFinite(x) ? x : defaultX;
     }
 
     group.userData = group.userData || {};
@@ -5111,39 +5258,90 @@ function Table3D(
     table.userData.cushions.push(group);
   }
 
-  const bottomZ = -halfH;
-  const topZ = halfH;
-  const leftX = -halfW;
-  const rightX = halfW;
+  const computeSegmentFromEndpoints = (start, end) => {
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      return null;
+    }
+    return {
+      center: (start + end) / 2,
+      length: Math.max(MICRO_EPS, Math.abs(end - start))
+    };
+  };
 
-  addCushion(0, bottomZ, horizLen, true, false);
-  addCushion(0, topZ, horizLen, true, true);
+  const flushTop = cushionFlushLayout?.top ?? {};
+  const flushBottom = cushionFlushLayout?.bottom ?? {};
+  const flushLeft = cushionFlushLayout?.left ?? {};
+  const flushRight = cushionFlushLayout?.right ?? {};
 
-  addCushion(
-    leftX,
-    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift,
-    trimmedVertSeg,
-    false,
-    false
+  const resolvedBottomZ = Number.isFinite(flushBottom.z) ? flushBottom.z : undefined;
+  const resolvedTopZ = Number.isFinite(flushTop.z) ? flushTop.z : undefined;
+
+  const bottomSpan =
+    Number.isFinite(flushBottom.minX) && Number.isFinite(flushBottom.maxX)
+      ? Math.abs(flushBottom.maxX - flushBottom.minX)
+      : null;
+  const topSpan =
+    Number.isFinite(flushTop.minX) && Number.isFinite(flushTop.maxX)
+      ? Math.abs(flushTop.maxX - flushTop.minX)
+      : null;
+
+  const resolvedBottomLen = Math.max(
+    MICRO_EPS,
+    bottomSpan != null ? Math.min(horizLen, bottomSpan) : horizLen
   );
-  addCushion(
-    leftX,
-    halfH - sideCushionOffset - vertSeg / 2 - cornerShift,
-    trimmedVertSeg,
-    false,
-    false
+  const resolvedTopLen = Math.max(
+    MICRO_EPS,
+    topSpan != null ? Math.min(horizLen, topSpan) : horizLen
   );
+
+  const bottomCenterX = Number.isFinite(flushBottom.centerX) ? flushBottom.centerX : 0;
+  const topCenterX = Number.isFinite(flushTop.centerX) ? flushTop.centerX : bottomCenterX;
+
+  addCushion(bottomCenterX, resolvedBottomZ, resolvedBottomLen, true, false);
+  addCushion(topCenterX, resolvedTopZ, resolvedTopLen, true, true);
+
+  const leftBottomFallbackCenter = -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
+  const leftTopFallbackCenter = halfH - sideCushionOffset - vertSeg / 2 - cornerShift;
+  const rightBottomFallbackCenter = leftBottomFallbackCenter;
+  const rightTopFallbackCenter = leftTopFallbackCenter;
+
+  const leftBottomSegment =
+    computeSegmentFromEndpoints(flushLeft.bottomZ, flushLeft.sideBottomZ) ?? {
+      center: leftBottomFallbackCenter,
+      length: trimmedVertSeg
+    };
+  const leftTopSegment =
+    computeSegmentFromEndpoints(flushLeft.sideTopZ, flushLeft.topZ) ?? {
+      center: leftTopFallbackCenter,
+      length: trimmedVertSeg
+    };
+  const rightBottomSegment =
+    computeSegmentFromEndpoints(flushRight.bottomZ, flushRight.sideBottomZ) ?? {
+      center: rightBottomFallbackCenter,
+      length: trimmedVertSeg
+    };
+  const rightTopSegment =
+    computeSegmentFromEndpoints(flushRight.sideTopZ, flushRight.topZ) ?? {
+      center: rightTopFallbackCenter,
+      length: trimmedVertSeg
+    };
+
+  const resolvedLeftX = Number.isFinite(flushLeft.x) ? flushLeft.x : undefined;
+  const resolvedRightX = Number.isFinite(flushRight.x) ? flushRight.x : undefined;
+
+  addCushion(resolvedLeftX, leftBottomSegment.center, leftBottomSegment.length, false, false);
+  addCushion(resolvedLeftX, leftTopSegment.center, leftTopSegment.length, false, false);
   addCushion(
-    rightX,
-    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift,
-    trimmedVertSeg,
+    resolvedRightX,
+    rightBottomSegment.center,
+    rightBottomSegment.length,
     false,
     true
   );
   addCushion(
-    rightX,
-    halfH - sideCushionOffset - vertSeg / 2 - cornerShift,
-    trimmedVertSeg,
+    resolvedRightX,
+    rightTopSegment.center,
+    rightTopSegment.length,
     false,
     true
   );
