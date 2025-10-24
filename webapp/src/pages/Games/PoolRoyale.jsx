@@ -226,7 +226,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 0.99;
+const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
 const CHROME_CORNER_EXPANSION_SCALE = 1.02;
@@ -466,7 +466,7 @@ const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.17; // expand Pool Royale table ~17% without altering proportions
+const TABLE_SCALE = 1.17; // reduce snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -491,13 +491,13 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.02; // subtle 2% flare keeps liners hugging the chrome without oversizing the mouth
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // match snooker jaw flare so liners follow the chrome cut exactly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale while respecting the slimmer side jaws
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.35; // keep the drop deep while matching the tighter jaw footprint
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.28; // rein in the corner jaw spread so the chrome cut mirrors the pocket diameter
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // keep the drop deep while matching the tighter jaw footprint
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // align the corner jaw spread with the snooker chrome cut geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = 150; // base side jaw span tuned so expansion covers half of the pocket circumference
-const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
+const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
 const WIDTH_REF = 2540;
@@ -506,8 +506,8 @@ const BALL_D_REF = 57.15;
 const BAULK_FROM_BAULK_REF = 635;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 635;
-const CORNER_MOUTH_REF = 114.3;
-const SIDE_MOUTH_REF = 127;
+const CORNER_MOUTH_REF = 89;
+const SIDE_MOUTH_REF = 109;
 const SIDE_RAIL_INNER_REDUCTION = 0.8;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -558,8 +558,6 @@ const CORNER_POCKET_CENTER_INSET = 0; // align corner pocket centres exactly wit
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-const SIDE_POCKET_OUTWARD_OFFSET =
-  SIDE_POCKET_RADIUS * 0.12 * POCKET_VISUAL_EXPANSION; // subtle push so side pockets sit closer to the chrome edge
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -612,11 +610,11 @@ const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of c
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
-const CLOTH_THICKNESS = TABLE.THICK * 0.18; // render a thicker carpeted cloth for a plush playing surface
+const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint while staying invisible via colorWrite=false
-const CLOTH_UNDERLAY_HOLE_SCALE = 1.04; // widen the pocket apertures on the underlay to avoid clipping
+const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the underlay to avoid clipping
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
@@ -626,7 +624,7 @@ const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the clot
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion lip perfectly level with the surrounding rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with straight edges
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // soften the exterior rail corners with a shallow curve
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -3867,8 +3865,10 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0042; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const desiredSidePocketShift = Math.max(0, halfWext - sideInset - halfW);
   const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
-  sidePocketShift = Math.min(SIDE_POCKET_OUTWARD_OFFSET, maxSidePocketShift);
+  sidePocketShift = Math.min(desiredSidePocketShift, maxSidePocketShift);
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
@@ -4202,7 +4202,7 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
