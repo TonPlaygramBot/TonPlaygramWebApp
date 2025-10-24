@@ -462,8 +462,10 @@ const HOME_COLUMN_COORDS = Object.freeze([
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
-const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
+const COLOR_NAMES = ['Blue', 'Green', 'Yellow', 'Red'];
+const PLAYER_COLORS = [0x3b82f6, 0x22c55e, 0xf59e0b, 0xef4444];
+const RAIL_TOKEN_FORWARD_SPACING = 0.05;
+const RAIL_TOKEN_SIDE_SPACING = 0.055;
 const TOKEN_MOVE_SPEED = 1.85;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
@@ -773,7 +775,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const seatPositionsRef = useRef([]);
   const [ui, setUi] = useState({
     turn: 0,
-    status: 'Red to roll',
+    status: `${COLOR_NAMES[0]} to roll`,
     dice: null,
     winner: null
   });
@@ -1006,6 +1008,95 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     moveDiceToRail(player, immediate);
   };
 
+  const applyRailLayout = useCallback(() => {
+    const dice = diceRef.current;
+    const state = stateRef.current;
+    if (!dice || !state) return;
+    const layouts = dice.userData?.tokenRails;
+    if (!Array.isArray(layouts) || layouts.length < DEFAULT_PLAYER_COUNT) return;
+
+    const padMeshes = Array.isArray(dice.userData?.railPads) ? dice.userData.railPads : [];
+    const updatedPads =
+      Array.isArray(state.startPads) && state.startPads.length >= DEFAULT_PLAYER_COUNT
+        ? state.startPads.slice()
+        : Array.from({ length: DEFAULT_PLAYER_COUNT }, () =>
+            Array.from({ length: 4 }, () => new THREE.Vector3())
+          );
+
+    layouts.forEach((layout, player) => {
+      if (!layout) {
+        if (padMeshes[player]) padMeshes[player].visible = false;
+        return;
+      }
+      const base = layout.base?.clone?.() ? layout.base.clone() : null;
+      const forward = layout.forward?.clone?.() ? layout.forward.clone() : null;
+      const right = layout.right?.clone?.() ? layout.right.clone() : null;
+      if (!base || !forward || !right) {
+        if (padMeshes[player]) padMeshes[player].visible = false;
+        return;
+      }
+      forward.setY(0);
+      right.setY(0);
+      if (forward.lengthSq() < 1e-6) {
+        forward.set(0, 0, 1);
+      } else {
+        forward.normalize();
+      }
+      if (right.lengthSq() < 1e-6) {
+        right.set(-forward.z, 0, forward.x);
+      } else {
+        right.normalize();
+      }
+
+      const forwardOffset = forward.clone().multiplyScalar(RAIL_TOKEN_FORWARD_SPACING);
+      const backwardOffset = forwardOffset.clone().multiplyScalar(-1);
+      const rightOffset = right.clone().multiplyScalar(RAIL_TOKEN_SIDE_SPACING);
+      const leftOffset = rightOffset.clone().multiplyScalar(-1);
+
+      const playerPads = [
+        base.clone().add(backwardOffset).add(leftOffset),
+        base.clone().add(backwardOffset).add(rightOffset),
+        base.clone().add(forwardOffset).add(leftOffset),
+        base.clone().add(forwardOffset).add(rightOffset)
+      ].map((vec) => {
+        vec.y = 0;
+        return vec;
+      });
+
+      updatedPads[player] = playerPads;
+
+      const mesh = padMeshes[player];
+      if (mesh) {
+        mesh.visible = true;
+        mesh.position.copy(base);
+        mesh.position.y = 0;
+        mesh.rotation.x = -Math.PI / 2;
+        const angle = Math.atan2(forward.x, forward.z);
+        mesh.rotation.y = angle;
+      }
+
+      for (let tokenIndex = 0; tokenIndex < 4; tokenIndex += 1) {
+        if (!state.progress?.[player] || state.progress[player][tokenIndex] == null) continue;
+        if (state.progress[player][tokenIndex] >= 0) continue;
+        const token = state.tokens?.[player]?.[tokenIndex];
+        if (!token) continue;
+        const home = playerPads[tokenIndex];
+        const target = home.clone();
+        target.y += 0.012;
+        token.position.copy(target);
+        token.rotation.set(0, 0, 0);
+      }
+    });
+
+    padMeshes.forEach((mesh, index) => {
+      if (!layouts[index] && mesh) {
+        mesh.visible = false;
+      }
+    });
+
+    state.startPads = updatedPads;
+  }, []);
+
   const configureDiceAnchors = useCallback(
     ({ dice, boardGroup, chairs, tableInfo } = {}) => {
       const diceObj = dice ?? diceRef.current;
@@ -1035,7 +1126,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
       const rails = [];
       const rolls = [];
-      const clothLimit = diceObj.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
+      const layouts = [];
+      const up = new THREE.Vector3(0, 1, 0);
+      const centerLocal = new THREE.Vector3();
+      centerLocal.copy(centerWorld);
+      group.worldToLocal(centerLocal);
 
       for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
         const seatDir = new THREE.Vector3();
@@ -1070,17 +1165,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
           }
         }
 
-        const baseRollRadius = BOARD_RADIUS - 0.32;
-        const minRollRadius = BOARD_RADIUS * 0.35;
-        const maxRollRadius = Number.isFinite(clothLimit)
-          ? Math.max(minRollRadius, clothLimit - 0.12)
-          : BOARD_RADIUS - 0.2;
-        const rollRadius = THREE.MathUtils.clamp(baseRollRadius, minRollRadius, maxRollRadius);
-
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
-        const rollWorld = seatDir.clone().multiplyScalar(rollRadius).add(centerXZ);
-        rollWorld.y = centerWorld.y + heightWorld;
+        const rollWorld = restWorld.clone();
 
         const restLocal = restWorld.clone();
         const rollLocal = rollWorld.clone();
@@ -1091,11 +1178,32 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
         rails.push(restLocal);
         rolls.push(rollLocal);
+
+        const seatWorldPoint = centerWorld.clone().add(seatDir);
+        const seatLocalPoint = seatWorldPoint.clone();
+        group.worldToLocal(seatLocalPoint);
+        const forwardLocal = seatLocalPoint.sub(centerLocal).setY(0);
+        if (forwardLocal.lengthSq() < 1e-6) {
+          forwardLocal.set(0, 0, 1);
+        } else {
+          forwardLocal.normalize();
+        }
+        const rightLocal = new THREE.Vector3().crossVectors(up, forwardLocal).setY(0);
+        if (rightLocal.lengthSq() < 1e-6) {
+          rightLocal.set(-forwardLocal.z, 0, forwardLocal.x);
+        } else {
+          rightLocal.normalize();
+        }
+        const base = restLocal.clone();
+        base.y = 0;
+        layouts.push({ base, forward: forwardLocal.clone(), right: rightLocal.clone() });
       }
 
       diceObj.userData.railPositions = rails;
       diceObj.userData.rollTargets = rolls;
-    }, []);
+      diceObj.userData.tokenRails = layouts;
+      applyRailLayout();
+    }, [applyRailLayout]);
 
   useEffect(() => {
     const applyVolume = (baseVolume) => {
@@ -1476,6 +1584,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       winner: null,
       animation: null
     };
+
+    applyRailLayout();
 
     arenaRef.current = {
       renderer,
@@ -1980,7 +2090,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const rollTargets = dice.userData?.rollTargets;
     const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
     const baseTarget = rollTargets?.[player]?.clone() ?? new THREE.Vector3(0, baseHeight, 0);
-    const jitter = new THREE.Vector3((Math.random() - 0.5) * 0.18, 0, (Math.random() - 0.5) * 0.18);
+    const jitter = new THREE.Vector3((Math.random() - 0.5) * 0.06, 0, (Math.random() - 0.5) * 0.06);
     baseTarget.add(jitter);
     baseTarget.x = THREE.MathUtils.clamp(baseTarget.x, -clothLimit, clothLimit);
     baseTarget.z = THREE.MathUtils.clamp(baseTarget.z, -clothLimit, clothLimit);
@@ -2037,7 +2147,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       const diceObj = diceRef.current;
       if (diceObj?.userData?.isRolling) return;
       rollDiceRef.current?.();
-    }, 650);
+    }, 2000);
 
     return () => {
       if (aiTimeoutRef.current) {
@@ -2354,6 +2464,22 @@ function buildLudoBoard(boardGroup) {
   });
 
   const dice = makeDice();
+  const railPadGroup = new THREE.Group();
+  railPadGroup.position.y = 0.001;
+  scene.add(railPadGroup);
+  const railPadGeometry = new THREE.CircleGeometry(0.11, 48);
+  const railPads = PLAYER_COLORS.map((color) => {
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.7,
+      metalness: 0.12
+    });
+    const mesh = new THREE.Mesh(railPadGeometry, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.visible = false;
+    railPadGroup.add(mesh);
+    return mesh;
+  });
   const clothHalf = BOARD_CLOTH_HALF;
   const railHeight = DICE_BASE_HEIGHT;
   const diceAnchor = new THREE.Vector3(0, railHeight, 0);
@@ -2367,6 +2493,7 @@ function buildLudoBoard(boardGroup) {
   dice.userData.bounceHeight = 0.07;
   dice.userData.clothLimit = clothHalf - 0.12;
   dice.userData.isRolling = false;
+  dice.userData.railPads = railPads;
   scene.add(dice);
 
   const diceLightTarget = new THREE.Object3D();
