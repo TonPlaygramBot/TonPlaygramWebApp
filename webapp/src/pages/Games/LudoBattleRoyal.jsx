@@ -73,6 +73,7 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(225)
 ];
+const AI_ROLL_DELAY_MS = 2000;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -735,12 +736,11 @@ function createMarkerMesh({ label, color, position, angle = 0, size = LUDO_TILE 
   const texture = getMarkerTexture({ label, color, arrow, backgroundColor, textColor });
   if (!texture) return null;
   const geometry = new THREE.PlaneGeometry(size, size);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
   mesh.position.y += 0.003;
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.rotation.y = angle;
+  mesh.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, angle, 0, 'YXZ'));
   mesh.renderOrder = 12;
   return mesh;
 }
@@ -1669,10 +1669,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         layouts.push({ base, forward: forwardLocal.clone(), right: rightLocal.clone() });
       }
 
+      const swap = (arr, a, b) => {
+        if (!Array.isArray(arr) || arr.length <= Math.max(a, b)) return;
+        const temp = arr[a];
+        arr[a] = arr[b];
+        arr[b] = temp;
+      };
+      swap(rails, 0, 2);
+      swap(rolls, 0, 2);
+      swap(layouts, 0, 2);
+
       diceObj.userData.railPositions = rails;
       const preferredLanding = Array.isArray(diceObj.userData?.homeLandingTargets)
         ? diceObj.userData.homeLandingTargets.map((vec) => vec.clone())
         : rolls.map((vec) => vec.clone());
+      swap(preferredLanding, 0, 2);
       diceObj.userData.rollTargets = preferredLanding;
       diceObj.userData.tokenRails = layouts;
       applyRailLayout();
@@ -2571,7 +2582,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   };
 
   const queueAiRoll = useCallback(
-    (delay = 2000) => {
+    (delay = AI_ROLL_DELAY_MS) => {
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current);
       }
@@ -2581,12 +2592,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         if (!nextState || nextState.winner) return;
         if (nextState.turn === 0) return;
         if (nextState.animation) return;
-        if (uiRef.current?.dice != null) {
-          queueAiRoll(200);
+        const diceObj = diceRef.current;
+        if (diceObj?.userData?.isRolling) {
+          queueAiRoll(Math.min(400, delay));
           return;
         }
-        const diceObj = diceRef.current;
-        if (diceObj?.userData?.isRolling) return;
         rollDiceRef.current?.();
       }, delay);
     },
@@ -2763,6 +2773,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       dice: value,
       status: player === 0 ? `You rolled ${value}` : `${COLOR_NAMES[player]} rolled ${value}`
     }));
+    scheduleDiceClear();
     const options = getMovableTokens(player, value);
     if (!options.length) {
       advanceTurn(value === 6);
