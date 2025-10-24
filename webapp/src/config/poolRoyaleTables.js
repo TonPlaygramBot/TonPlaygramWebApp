@@ -15,37 +15,6 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     }),
     cushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
-  },
-  '9ft': {
-    id: '9ft',
-    label: '9 ft Pro',
-    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // 100" × 50"
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: Number((57.15 * 1.695).toFixed(2)),
-      side: Number((57.15 * 1.94).toFixed(2))
-    }),
-    cushionCutAngleDeg: 34,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    cushionRestitution: 0.88,
-    componentPreset: 'snooker'
-  },
-  '10ft': {
-    id: '10ft',
-    label: '10 ft Grand',
-    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 120" × 60"
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: Number((57.15 * 1.695).toFixed(2)),
-      side: Number((57.15 * 1.94).toFixed(2))
-    }),
-    cushionCutAngleDeg: 34,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    cushionRestitution: 0.87,
-    componentPreset: 'snooker',
-    scaleOverrides: Object.freeze({
-      compactScale: 1.44
-    })
   }
 });
 
