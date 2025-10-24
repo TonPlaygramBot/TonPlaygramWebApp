@@ -668,8 +668,23 @@ const markerTextureCache = new Map();
 const starMarkerTextureCache = new Map();
 const homeLabelTextureCache = new Map();
 
-function getMarkerTexture({ label, color, arrow = false, backgroundColor, textColor }) {
-  const key = `${label}-${color}-${arrow}-${backgroundColor ?? ''}-${textColor ?? ''}`;
+function resolveColorStyle(input) {
+  if (input == null) {
+    return null;
+  }
+  const color = new THREE.Color(input);
+  return color.getStyle();
+}
+
+function getMarkerTexture({
+  label,
+  color,
+  arrow = false,
+  backgroundColor,
+  textColor,
+  arrowColor
+}) {
+  const key = `${label}-${color}-${arrow}-${backgroundColor ?? ''}-${textColor ?? ''}-${arrowColor ?? ''}`;
   if (markerTextureCache.has(key)) {
     return markerTextureCache.get(key);
   }
@@ -687,7 +702,8 @@ function getMarkerTexture({ label, color, arrow = false, backgroundColor, textCo
     skipBackground || !backgroundColor
       ? baseColor.clone().lerp(new THREE.Color(0x000000), 0.68).getStyle()
       : backgroundColor;
-  const accentColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18).getStyle();
+  const accentColor =
+    resolveColorStyle(arrowColor) || baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18).getStyle();
   const labelColor =
     textColor || baseColor.clone().lerp(new THREE.Color(0x1f2937), 0.2).getStyle();
 
@@ -732,14 +748,26 @@ function getMarkerTexture({ label, color, arrow = false, backgroundColor, textCo
   return texture;
 }
 
-function createMarkerMesh({ label, color, position, angle = 0, size = LUDO_TILE * 0.92, arrow = false, backgroundColor, textColor }) {
-  const texture = getMarkerTexture({ label, color, arrow, backgroundColor, textColor });
+const MARKER_HEIGHT_OFFSET = 0.007;
+
+function createMarkerMesh({
+  label,
+  color,
+  position,
+  angle = 0,
+  size = LUDO_TILE * 0.92,
+  arrow = false,
+  backgroundColor,
+  textColor,
+  arrowColor
+}) {
+  const texture = getMarkerTexture({ label, color, arrow, backgroundColor, textColor, arrowColor });
   if (!texture) return null;
   const geometry = new THREE.PlaneGeometry(size, size);
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
-  mesh.position.y += 0.003;
+  mesh.position.y += MARKER_HEIGHT_OFFSET;
   mesh.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, angle, 0, 'YXZ'));
   mesh.renderOrder = 12;
   return mesh;
@@ -760,7 +788,9 @@ function getStarMarkerTexture(color) {
   }
 
   ctx.fillStyle = '#fef9ef';
+  ctx.globalAlpha = 0.62;
   ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
 
   ctx.strokeStyle = '#d1a15d';
   ctx.lineWidth = size * 0.06;
@@ -973,22 +1003,43 @@ function addBoardMarkers(scene, cellToWorld) {
   const group = new THREE.Group();
   scene.add(group);
 
+  const safeKeyToPlayer = new Map();
   PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
-    const [r, c] = TRACK_COORDS[startIndex];
+    const [startR, startC] = TRACK_COORDS[startIndex];
+    safeKeyToPlayer.set(keyFor(startR, startC), playerIdx);
+    const safeIndex = (startIndex + 8) % RING_STEPS;
+    const [safeR, safeC] = TRACK_COORDS[safeIndex];
+    safeKeyToPlayer.set(keyFor(safeR, safeC), playerIdx);
+  });
+
+  TRACK_COORDS.forEach(([r, c], index) => {
+    const key = keyFor(r, c);
+    const startOwner = START_KEY_TO_PLAYER.get(key);
+    const safeOwner = safeKeyToPlayer.get(key);
     const position = cellToWorld(r, c).clone();
-    const angle = getTrackDirectionAngle(startIndex);
+    const angle = getTrackDirectionAngle(index);
+    const baseColor =
+      startOwner != null
+        ? PLAYER_COLORS[startOwner]
+        : safeOwner != null
+        ? PLAYER_COLORS[safeOwner]
+        : '#0f172a';
+    const isStartTile = startOwner != null;
     const marker = createMarkerMesh({
-      label: 'START',
-      color: PLAYER_COLORS[playerIdx],
+      label: isStartTile ? 'GO' : '',
+      color: baseColor,
       position,
       angle,
-      size: LUDO_TILE * 0.94,
+      size: LUDO_TILE * (isStartTile ? 0.98 : 0.9),
       arrow: true,
-      backgroundColor: '#fef3c7',
-      textColor: '#7f1d1d'
+      backgroundColor: !isStartTile && safeOwner != null ? 'transparent' : '#ffffff',
+      textColor: isStartTile ? resolveColorStyle(baseColor) : undefined,
+      arrowColor: baseColor
     });
     if (marker) group.add(marker);
+  });
 
+  PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
     const safeIndex = (startIndex + 8) % RING_STEPS;
     const [safeR, safeC] = TRACK_COORDS[safeIndex];
     const safePosition = cellToWorld(safeR, safeC).clone();
@@ -1011,7 +1062,8 @@ function addBoardMarkers(scene, cellToWorld) {
         angle: arrowAngle,
         size: LUDO_TILE * 0.86,
         arrow: true,
-        backgroundColor: 'transparent'
+        backgroundColor: 'transparent',
+        arrowColor: PLAYER_COLORS[playerIdx]
       });
       if (arrowMarker) group.add(arrowMarker);
     }
