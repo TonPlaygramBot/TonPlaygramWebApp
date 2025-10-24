@@ -462,8 +462,8 @@ const HOME_COLUMN_COORDS = Object.freeze([
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
-const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
+const COLOR_NAMES = ['Yellow', 'Green', 'Red', 'Blue'];
+const PLAYER_COLORS = [0xf59e0b, 0x22c55e, 0xef4444, 0x3b82f6];
 const TOKEN_COLORS = PLAYER_COLORS;
 const TOKEN_TRACK_HEIGHT = 0.012;
 const TOKEN_HOME_HEIGHT = 0.018;
@@ -654,6 +654,8 @@ function makeDice() {
 }
 
 const markerTextureCache = new Map();
+const starMarkerTextureCache = new Map();
+const homeLabelTextureCache = new Map();
 
 function getMarkerTexture({ label, color, arrow = false, backgroundColor, textColor }) {
   const key = `${label}-${color}-${arrow}-${backgroundColor ?? ''}-${textColor ?? ''}`;
@@ -669,14 +671,23 @@ function getMarkerTexture({ label, color, arrow = false, backgroundColor, textCo
     return null;
   }
   const baseColor = new THREE.Color(color);
-  const bgColor = backgroundColor || baseColor.clone().lerp(new THREE.Color(0x000000), 0.7).getStyle();
-  const accentColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.2).getStyle();
-  const labelColor = textColor || baseColor.clone().lerp(new THREE.Color(0xffffff), 0.45).getStyle();
+  const skipBackground = backgroundColor === 'transparent' || backgroundColor === 'none';
+  const bgColor =
+    skipBackground || !backgroundColor
+      ? baseColor.clone().lerp(new THREE.Color(0x000000), 0.68).getStyle()
+      : backgroundColor;
+  const accentColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18).getStyle();
+  const labelColor =
+    textColor || baseColor.clone().lerp(new THREE.Color(0x1f2937), 0.2).getStyle();
 
-  ctx.fillStyle = bgColor;
-  ctx.globalAlpha = 0.88;
-  ctx.fillRect(0, 0, size, size);
-  ctx.globalAlpha = 1;
+  if (!skipBackground) {
+    ctx.fillStyle = bgColor;
+    ctx.globalAlpha = 0.92;
+    ctx.fillRect(0, 0, size, size);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.clearRect(0, 0, size, size);
+  }
 
   ctx.translate(size / 2, size / 2);
   if (arrow) {
@@ -695,11 +706,13 @@ function getMarkerTexture({ label, color, arrow = false, backgroundColor, textCo
     ctx.fill();
   }
 
-  ctx.fillStyle = labelColor;
-  ctx.font = `bold ${size * 0.26}px Inter, Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label.toUpperCase(), 0, size * 0.28);
+  if (label) {
+    ctx.fillStyle = labelColor;
+    ctx.font = `bold ${size * 0.26}px Inter, Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label.toUpperCase(), 0, size * 0.28);
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.anisotropy = 8;
@@ -722,6 +735,214 @@ function createMarkerMesh({ label, color, position, angle = 0, size = LUDO_TILE 
   return mesh;
 }
 
+function getStarMarkerTexture(color) {
+  const key = color;
+  if (starMarkerTextureCache.has(key)) {
+    return starMarkerTextureCache.get(key);
+  }
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return null;
+  }
+
+  ctx.fillStyle = '#fef9ef';
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = '#d1a15d';
+  ctx.lineWidth = size * 0.06;
+  ctx.strokeRect(size * 0.08, size * 0.08, size * 0.84, size * 0.84);
+
+  const outerRadius = size * 0.32;
+  const innerRadius = outerRadius * 0.45;
+  const cx = size / 2;
+  const cy = size / 2;
+  const points = 5;
+  ctx.fillStyle = new THREE.Color(color).getStyle();
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const angle = (Math.PI / points) * i - Math.PI / 2;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+  starMarkerTextureCache.set(key, texture);
+  return texture;
+}
+
+function createStarMarkerMesh({ color, position, size = LUDO_TILE * 0.82 }) {
+  const texture = getStarMarkerTexture(color);
+  if (!texture) return null;
+  const geometry = new THREE.PlaneGeometry(size, size);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(position);
+  mesh.position.y += 0.004;
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.renderOrder = 13;
+  return mesh;
+}
+
+function getHomeLabelTexture() {
+  if (homeLabelTextureCache.has('home')) {
+    return homeLabelTextureCache.get('home');
+  }
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return null;
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = '#b45309';
+  ctx.lineWidth = size * 0.08;
+  ctx.strokeRect(size * 0.08, size * 0.08, size * 0.84, size * 0.84);
+
+  ctx.fillStyle = '#b91c1c';
+  ctx.font = `bold ${size * 0.24}px Inter, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HOME', size / 2, size / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+  homeLabelTextureCache.set('home', texture);
+  return texture;
+}
+
+function createHomeLabelMesh(size) {
+  const texture = getHomeLabelTexture();
+  if (!texture) return null;
+  const geometry = new THREE.PlaneGeometry(size, size);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.renderOrder = 14;
+  return mesh;
+}
+
+function addCenterHome(scene) {
+  const size = LUDO_TILE * 3;
+  const half = size / 2;
+  const baseHeight = 0.0055;
+
+  const base = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78 })
+  );
+  base.rotation.x = -Math.PI / 2;
+  base.position.set(0, baseHeight, 0);
+  base.receiveShadow = true;
+  scene.add(base);
+
+  const triangleDefs = [
+    {
+      color: PLAYER_COLORS[0],
+      vertices: new Float32Array([
+        -half,
+        0,
+        -half,
+        -half,
+        0,
+        half,
+        0,
+        0,
+        0
+      ])
+    },
+    {
+      color: PLAYER_COLORS[1],
+      vertices: new Float32Array([
+        -half,
+        0,
+        -half,
+        half,
+        0,
+        -half,
+        0,
+        0,
+        0
+      ])
+    },
+    {
+      color: PLAYER_COLORS[2],
+      vertices: new Float32Array([
+        half,
+        0,
+        -half,
+        half,
+        0,
+        half,
+        0,
+        0,
+        0
+      ])
+    },
+    {
+      color: PLAYER_COLORS[3],
+      vertices: new Float32Array([
+        -half,
+        0,
+        half,
+        half,
+        0,
+        half,
+        0,
+        0,
+        0
+      ])
+    }
+  ];
+
+  triangleDefs.forEach(({ color, vertices }) => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.74,
+      metalness: 0.06,
+      side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.y = baseHeight + 0.0006;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+  });
+
+  const homeLabel = createHomeLabelMesh(LUDO_TILE * 1.2);
+  if (homeLabel) {
+    homeLabel.position.set(0, baseHeight + 0.001, 0);
+    scene.add(homeLabel);
+  }
+}
+
 function getTrackDirectionAngle(index) {
   const current = TRACK_COORDS[index];
   const next = TRACK_COORDS[(index + 1) % RING_STEPS];
@@ -740,41 +961,44 @@ function addBoardMarkers(scene, cellToWorld) {
     const position = cellToWorld(r, c).clone();
     const angle = getTrackDirectionAngle(startIndex);
     const marker = createMarkerMesh({
-      label: 'GO',
+      label: 'START',
       color: PLAYER_COLORS[playerIdx],
       position,
       angle,
-      arrow: true
+      size: LUDO_TILE * 0.94,
+      arrow: true,
+      backgroundColor: '#fef3c7',
+      textColor: '#7f1d1d'
     });
     if (marker) group.add(marker);
-  });
 
-  PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
     const safeIndex = (startIndex + 8) % RING_STEPS;
-    const [r, c] = TRACK_COORDS[safeIndex];
-    const position = cellToWorld(r, c).clone();
-    const angle = getTrackDirectionAngle(safeIndex);
-    const marker = createMarkerMesh({
-      label: 'TURN',
+    const [safeR, safeC] = TRACK_COORDS[safeIndex];
+    const safePosition = cellToWorld(safeR, safeC).clone();
+    const star = createStarMarkerMesh({
       color: PLAYER_COLORS[playerIdx],
-      position,
-      angle,
-      size: LUDO_TILE * 0.86,
-      arrow: true
+      position: safePosition,
+      size: LUDO_TILE * 0.88
     });
-    if (marker) group.add(marker);
-  });
+    if (star) group.add(star);
 
-  const finishPosition = cellToWorld(7, 7).clone();
-  const finishMarker = createMarkerMesh({
-    label: 'Finish',
-    color: 0xfacc15,
-    position: finishPosition,
-    size: LUDO_TILE * 1.05,
-    backgroundColor: 'rgba(15, 15, 15, 0.75)',
-    textColor: '#fde68a'
+    const homePath = HOME_COLUMN_COORDS[playerIdx][HOME_COLUMN_COORDS[playerIdx].length - 1];
+    if (homePath) {
+      const [homeR, homeC] = homePath;
+      const homePos = cellToWorld(homeR, homeC).clone();
+      const arrowAngle = Math.atan2(-homePos.x, -homePos.z);
+      const arrowMarker = createMarkerMesh({
+        label: '',
+        color: PLAYER_COLORS[playerIdx],
+        position: homePos,
+        angle: arrowAngle,
+        size: LUDO_TILE * 0.86,
+        arrow: true,
+        backgroundColor: 'transparent'
+      });
+      if (arrowMarker) group.add(arrowMarker);
+    }
   });
-  if (finishMarker) group.add(finishMarker);
 }
 
 function setDiceOrientation(dice, val) {
@@ -2712,30 +2936,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 function buildLudoBoard(boardGroup) {
   const scene = boardGroup;
   const plateMat = new THREE.MeshStandardMaterial({
-    color: 0x11172a,
-    roughness: 0.92
+    color: 0xe6c07d,
+    roughness: 0.9,
+    metalness: 0.08
   });
   const tileMat = new THREE.MeshStandardMaterial({
-    color: 0xf3f4f6,
-    roughness: 0.9
+    color: 0xfef9ef,
+    roughness: 0.88
   });
   const safeMat = new THREE.MeshStandardMaterial({
-    color: 0xcbd5e1,
-    roughness: 0.85
+    color: 0xf4e3bd,
+    roughness: 0.84
   });
-  const centerBaseMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    roughness: 0.82,
-    metalness: 0.12
-  });
-  const centerStarMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    roughness: 0.75,
-    metalness: 0.18
-  });
-  const centerCornerMats = Array.from({ length: 4 }, () =>
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, metalness: 0.08 })
-  );
 
   const plate = new THREE.Mesh(
     new THREE.BoxGeometry(RAW_BOARD_SIZE + 0.04, 0.02, RAW_BOARD_SIZE + 0.04),
@@ -2794,21 +3006,6 @@ function buildLudoBoard(boardGroup) {
         continue;
       }
       if (inCenter) {
-        let mat = centerBaseMat;
-        if (r === 7 && c === 7) {
-          mat = centerStarMat;
-        } else if (r === 6 && c === 6) {
-          mat = centerCornerMats[0];
-        } else if (r === 6 && c === 8) {
-          mat = centerCornerMats[1];
-        } else if (r === 8 && c === 8) {
-          mat = centerCornerMats[2];
-        } else if (r === 8 && c === 6) {
-          mat = centerCornerMats[3];
-        }
-        const mesh = new THREE.Mesh(tileGeo, mat);
-        mesh.position.copy(pos);
-        scene.add(mesh);
         continue;
       }
       if (columnIndex !== -1) {
@@ -2841,6 +3038,7 @@ function buildLudoBoard(boardGroup) {
     }
   }
 
+  addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld);
 
   const tokens = TOKEN_COLORS.map((color, playerIdx) => {
