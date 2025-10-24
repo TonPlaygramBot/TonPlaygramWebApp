@@ -464,12 +464,7 @@ const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
 const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
-const TOKEN_COLORS = [
-  PLAYER_COLORS[3],
-  PLAYER_COLORS[1],
-  PLAYER_COLORS[2],
-  PLAYER_COLORS[0]
-];
+const TOKEN_COLORS = PLAYER_COLORS;
 const TOKEN_TRACK_HEIGHT = 0.012;
 const TOKEN_HOME_HEIGHT = 0.018;
 const TOKEN_GOAL_HEIGHT = 0.0165;
@@ -513,14 +508,13 @@ function getPlayerHomeHeight(playerIndex) {
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
-const DICE_PIP_DEPTH = DICE_SIZE * 0.028;
+const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
-const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0025;
-const DICE_PIP_SURFACE_OFFSET = DICE_SIZE * 0.0028;
+const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 
 function makeDice() {
   const dice = new THREE.Group();
@@ -537,13 +531,11 @@ function makeDice() {
 
   const pipMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x0a0a0a,
-    roughness: 0.35,
-    metalness: 0.12,
-    clearcoat: 0.05,
-    clearcoatRoughness: 0.5,
-    reflectivity: 0.25,
-    envMapIntensity: 0.7,
-    side: THREE.DoubleSide
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 1.1
   });
 
   const pipRimMaterial = new THREE.MeshPhysicalMaterial({
@@ -561,34 +553,21 @@ function makeDice() {
   });
 
   const body = new THREE.Mesh(
-    new RoundedBoxGeometry(
-      DICE_SIZE,
-      DICE_SIZE,
-      DICE_SIZE,
-      6,
-      DICE_CORNER_RADIUS
-    ),
+    new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, DICE_CORNER_RADIUS),
     dieMaterial
   );
   body.castShadow = true;
   body.receiveShadow = true;
   dice.add(body);
 
-  const pipGeo = new THREE.CylinderGeometry(
-    DICE_PIP_RADIUS,
-    DICE_PIP_RADIUS * 0.96,
-    DICE_PIP_DEPTH,
-    48,
-    1,
-    true
-  );
-  pipGeo.translate(0, -DICE_PIP_DEPTH / 2, 0);
+  const pipGeo = new THREE.SphereGeometry(DICE_PIP_RADIUS, 36, 24, 0, Math.PI * 2, 0, Math.PI);
+  pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
-  const pipCapGeo = new THREE.CircleGeometry(DICE_PIP_RADIUS * 0.96, 48);
   const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
-  const halfSize = DICE_SIZE / 2;
-  const faceDepth = halfSize - DICE_FACE_INSET * 0.08 + DICE_PIP_SURFACE_OFFSET;
+  const half = DICE_SIZE / 2;
+  const faceDepth = half - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
+
   const faces = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
@@ -645,32 +624,22 @@ function makeDice() {
     const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
 
     points.forEach(([gx, gy]) => {
-      const surface = new THREE.Vector3()
+      const base = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
-        .addScaledVector(n, faceDepth);
+        .addScaledVector(n, faceDepth - DICE_PIP_DEPTH * 0.5);
 
       const pip = new THREE.Mesh(pipGeo, pipMaterial);
-      pip.castShadow = false;
+      pip.castShadow = true;
       pip.receiveShadow = true;
-      pip.position.copy(surface);
-      const normalQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
-      pip.quaternion.copy(normalQuat);
+      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
       dice.add(pip);
-
-      const cap = new THREE.Mesh(pipCapGeo, pipMaterial);
-      cap.castShadow = false;
-      cap.receiveShadow = true;
-      cap.position.copy(surface).addScaledVector(n, -DICE_PIP_DEPTH);
-      cap.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
-      dice.add(cap);
-
-      cap.renderOrder = 5;
 
       const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
       rim.receiveShadow = true;
       rim.renderOrder = 6;
-      rim.position.copy(surface).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
       rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
       dice.add(rim);
     });
@@ -682,6 +651,130 @@ function makeDice() {
   };
   dice.userData.currentValue = 1;
   return dice;
+}
+
+const markerTextureCache = new Map();
+
+function getMarkerTexture({ label, color, arrow = false, backgroundColor, textColor }) {
+  const key = `${label}-${color}-${arrow}-${backgroundColor ?? ''}-${textColor ?? ''}`;
+  if (markerTextureCache.has(key)) {
+    return markerTextureCache.get(key);
+  }
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return null;
+  }
+  const baseColor = new THREE.Color(color);
+  const bgColor = backgroundColor || baseColor.clone().lerp(new THREE.Color(0x000000), 0.7).getStyle();
+  const accentColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.2).getStyle();
+  const labelColor = textColor || baseColor.clone().lerp(new THREE.Color(0xffffff), 0.45).getStyle();
+
+  ctx.fillStyle = bgColor;
+  ctx.globalAlpha = 0.88;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
+
+  ctx.translate(size / 2, size / 2);
+  if (arrow) {
+    ctx.fillStyle = accentColor;
+    const arrowHeight = size * 0.36;
+    const arrowWidth = size * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(0, -arrowHeight * 0.75);
+    ctx.lineTo(arrowWidth, arrowHeight * 0.05);
+    ctx.lineTo(arrowWidth * 0.38, arrowHeight * 0.05);
+    ctx.lineTo(arrowWidth * 0.38, arrowHeight * 0.55);
+    ctx.lineTo(-arrowWidth * 0.38, arrowHeight * 0.55);
+    ctx.lineTo(-arrowWidth * 0.38, arrowHeight * 0.05);
+    ctx.lineTo(-arrowWidth, arrowHeight * 0.05);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.fillStyle = labelColor;
+  ctx.font = `bold ${size * 0.26}px Inter, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label.toUpperCase(), 0, size * 0.28);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  markerTextureCache.set(key, texture);
+  return texture;
+}
+
+function createMarkerMesh({ label, color, position, angle = 0, size = LUDO_TILE * 0.92, arrow = false, backgroundColor, textColor }) {
+  const texture = getMarkerTexture({ label, color, arrow, backgroundColor, textColor });
+  if (!texture) return null;
+  const geometry = new THREE.PlaneGeometry(size, size);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(position);
+  mesh.position.y += 0.003;
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.y = angle;
+  mesh.renderOrder = 12;
+  return mesh;
+}
+
+function getTrackDirectionAngle(index) {
+  const current = TRACK_COORDS[index];
+  const next = TRACK_COORDS[(index + 1) % RING_STEPS];
+  const dx = next[1] - current[1];
+  const dz = next[0] - current[0];
+  return Math.atan2(dx, dz);
+}
+
+function addBoardMarkers(scene, cellToWorld) {
+  if (typeof document === 'undefined') return;
+  const group = new THREE.Group();
+  scene.add(group);
+
+  PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
+    const [r, c] = TRACK_COORDS[startIndex];
+    const position = cellToWorld(r, c).clone();
+    const angle = getTrackDirectionAngle(startIndex);
+    const marker = createMarkerMesh({
+      label: 'GO',
+      color: PLAYER_COLORS[playerIdx],
+      position,
+      angle,
+      arrow: true
+    });
+    if (marker) group.add(marker);
+  });
+
+  PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
+    const safeIndex = (startIndex + 8) % RING_STEPS;
+    const [r, c] = TRACK_COORDS[safeIndex];
+    const position = cellToWorld(r, c).clone();
+    const angle = getTrackDirectionAngle(safeIndex);
+    const marker = createMarkerMesh({
+      label: 'TURN',
+      color: PLAYER_COLORS[playerIdx],
+      position,
+      angle,
+      size: LUDO_TILE * 0.86,
+      arrow: true
+    });
+    if (marker) group.add(marker);
+  });
+
+  const finishPosition = cellToWorld(7, 7).clone();
+  const finishMarker = createMarkerMesh({
+    label: 'Finish',
+    color: 0xfacc15,
+    position: finishPosition,
+    size: LUDO_TILE * 1.05,
+    backgroundColor: 'rgba(15, 15, 15, 0.75)',
+    textColor: '#fde68a'
+  });
+  if (finishMarker) group.add(finishMarker);
 }
 
 function setDiceOrientation(dice, val) {
@@ -2693,6 +2786,7 @@ function buildLudoBoard(boardGroup) {
       const columnIndex = getHomeColumnIndex(r, c);
       const inCenter = r >= 6 && r <= 8 && c >= 6 && c <= 8;
       const inCross = (r >= 6 && r <= 8) || (c >= 6 && c <= 8);
+      const inTrimmedOuter = r < 2 || r > LUDO_GRID - 3 || c < 2 || c > LUDO_GRID - 3;
       if (homeIndex !== -1) {
         const mesh = new THREE.Mesh(tileGeo, homeBaseMats[homeIndex]);
         mesh.position.copy(pos);
@@ -2736,6 +2830,9 @@ function buildLudoBoard(boardGroup) {
         scene.add(mesh);
         continue;
       }
+      if (inTrimmedOuter) {
+        continue;
+      }
       if (inCross) {
         const mesh = new THREE.Mesh(tileGeo, tileMat);
         mesh.position.copy(pos);
@@ -2743,6 +2840,8 @@ function buildLudoBoard(boardGroup) {
       }
     }
   }
+
+  addBoardMarkers(scene, cellToWorld);
 
   const tokens = TOKEN_COLORS.map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
