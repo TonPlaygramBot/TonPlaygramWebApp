@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -390,6 +390,138 @@ function createStraightArmrest(side, material) {
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+function createCameraFocusAnimation({
+  camera,
+  controls,
+  fromTarget,
+  toTarget,
+  fromPosition,
+  toPosition,
+  returnTarget,
+  returnPosition,
+  focusDuration = 600,
+  returnDuration = 600,
+  minHoldDuration = 0,
+  autoReleaseAfter = null,
+  controlsEnabled = true,
+  onComplete
+}) {
+  if (!camera || !controls) return null;
+  if (!fromTarget || !toTarget || !fromPosition || !toPosition || !returnTarget || !returnPosition) {
+    return null;
+  }
+
+  const startTarget = fromTarget.clone();
+  const focusTarget = toTarget.clone();
+  const endTarget = returnTarget.clone();
+  const startPos = fromPosition.clone();
+  const focusPos = toPosition.clone();
+  const endPos = returnPosition.clone();
+
+  const focusTargetDelta = focusTarget.clone().sub(startTarget);
+  const focusPosDelta = focusPos.clone().sub(startPos);
+  const returnTargetDelta = endTarget.clone().sub(focusTarget);
+  const returnPosDelta = endPos.clone().sub(focusPos);
+
+  const state = {
+    stage: focusDuration > 0 ? 'focus' : 'hold',
+    stageStart: performance.now(),
+    releaseRequested: false,
+    releaseDelay: 0,
+    releaseRequestTime: 0,
+    minHoldDuration: Math.max(0, minHoldDuration),
+    autoReleaseAfter: typeof autoReleaseAfter === 'number' ? Math.max(0, autoReleaseAfter) : null,
+    cancelled: false,
+    controlsEnabled
+  };
+
+  const finalize = () => {
+    controls.enabled = controlsEnabled;
+    controls.target.copy(endTarget);
+    camera.position.copy(endPos);
+    controls.update();
+    onComplete?.();
+  };
+
+  const animation = {
+    controller: {
+      release: (delay = 0) => {
+        state.releaseRequested = true;
+        state.releaseDelay = Math.max(0, delay);
+        state.releaseRequestTime = performance.now();
+      },
+      cancel: () => {
+        state.cancelled = true;
+      }
+    },
+    update: (now) => {
+      if (state.cancelled) {
+        finalize();
+        return true;
+      }
+
+      controls.enabled = false;
+
+      if (state.stage === 'focus') {
+        const t = focusDuration > 0 ? Math.min(1, (now - state.stageStart) / focusDuration) : 1;
+        const eased = easeOutCubic(t);
+        controls.target.copy(startTarget).addScaledVector(focusTargetDelta, eased);
+        camera.position.copy(startPos).addScaledVector(focusPosDelta, eased);
+        controls.update();
+        if (t >= 1) {
+          state.stage = 'hold';
+          state.stageStart = now;
+          controls.target.copy(focusTarget);
+          camera.position.copy(focusPos);
+          controls.update();
+          if (state.autoReleaseAfter === 0) {
+            state.releaseRequested = true;
+            state.releaseDelay = 0;
+            state.releaseRequestTime = now;
+          }
+        }
+        return false;
+      }
+
+      if (state.stage === 'hold') {
+        controls.target.copy(focusTarget);
+        camera.position.copy(focusPos);
+        controls.update();
+        const holdElapsed = now - state.stageStart;
+        if (state.autoReleaseAfter != null && holdElapsed >= state.autoReleaseAfter) {
+          state.releaseRequested = true;
+          state.releaseDelay = 0;
+          state.releaseRequestTime = now;
+        }
+        if (state.releaseRequested) {
+          const sinceRequest = now - (state.releaseRequestTime || now);
+          if (holdElapsed >= state.minHoldDuration && sinceRequest >= state.releaseDelay) {
+            state.stage = 'return';
+            state.stageStart = now;
+          }
+        }
+        return false;
+      }
+
+      if (state.stage === 'return') {
+        const t = returnDuration > 0 ? Math.min(1, (now - state.stageStart) / returnDuration) : 1;
+        const eased = easeInOut(t);
+        controls.target.copy(focusTarget).addScaledVector(returnTargetDelta, eased);
+        camera.position.copy(focusPos).addScaledVector(returnPosDelta, eased);
+        controls.update();
+        if (t >= 1) {
+          finalize();
+          return true;
+        }
+      }
+
+      return false;
+    }
+  };
+
+  return animation;
+}
 
 function setDiceOrientation(dice, val) {
   const orientations = {
@@ -1945,11 +2077,87 @@ export default function SnakeBoard3D({
   const railTextureRef = useRef(null);
   const snakeTextureRef = useRef(null);
   const animationsRef = useRef([]);
-  const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
+  const cameraStateRef = useRef({ active: null });
+  const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0, cameraFocus: null });
   const seatCallbackRef = useRef(null);
   const diceAnchorCallbackRef = useRef(null);
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
+
+  const startCameraFocus = useCallback(
+    (focusPoint, options = {}) => {
+      const board = boardRef.current;
+      const camera = cameraRef.current;
+      if (!board || !camera || !board.controls || !focusPoint) return null;
+      const controls = board.controls;
+      if (typeof focusPoint.x !== 'number' || typeof focusPoint.y !== 'number' || typeof focusPoint.z !== 'number') {
+        return null;
+      }
+
+      if (cameraStateRef.current.active) {
+        cameraStateRef.current.active.cancel?.();
+        cameraStateRef.current.active = null;
+      }
+
+      const prevEnabled = controls.enabled;
+      const fromTarget = controls.target.clone();
+      const fromPosition = camera.position.clone();
+      const direction = fromPosition.clone().sub(fromTarget);
+      if (direction.lengthSq() < 1e-6) {
+        direction.set(0, 0, 1);
+      }
+      direction.normalize();
+
+      const baseDistance = Math.max(0.01, fromPosition.distanceTo(fromTarget));
+      const zoom = typeof options.zoom === 'number' ? options.zoom : 0.62;
+      const minRadius = typeof options.minRadius === 'number' ? options.minRadius : CAM.minR;
+      const maxRadius = typeof options.maxRadius === 'number' ? options.maxRadius : CAM.maxR;
+      const desiredDistance = clamp(baseDistance * zoom, minRadius, maxRadius);
+
+      const lift = typeof options.lift === 'number' ? options.lift : 0;
+      const focusTarget = focusPoint.clone();
+      focusTarget.y += lift;
+      const focusPosition = focusTarget.clone().addScaledVector(direction, desiredDistance);
+
+      controls.enabled = false;
+
+      const context = { controller: null };
+      const animation = createCameraFocusAnimation({
+        camera,
+        controls,
+        fromTarget,
+        toTarget: focusTarget,
+        fromPosition,
+        toPosition: focusPosition,
+        returnTarget: fromTarget,
+        returnPosition: fromPosition,
+        focusDuration: options.focusDuration ?? 600,
+        returnDuration: options.returnDuration ?? 620,
+        minHoldDuration: options.minHoldDuration ?? options.holdDuration ?? 200,
+        autoReleaseAfter: options.autoReleaseAfter ?? null,
+        controlsEnabled: prevEnabled,
+        onComplete: () => {
+          if (cameraStateRef.current.active === context.controller) {
+            cameraStateRef.current.active = null;
+          }
+        }
+      });
+
+      if (!animation) {
+        controls.enabled = prevEnabled;
+        controls.target.copy(fromTarget);
+        camera.position.copy(fromPosition);
+        controls.update();
+        return null;
+      }
+
+      context.controller = animation.controller;
+      cameraStateRef.current.active = animation.controller;
+      animationsRef.current.push(animation);
+      return animation.controller;
+    },
+    []
+  );
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -2115,6 +2323,7 @@ export default function SnakeBoard3D({
     resizeObserver.observe(mount);
 
     return () => {
+      cameraStateRef.current.active?.cancel?.();
       resizeObserver.disconnect();
       renderer.setAnimationLoop(null);
       handlers.forEach((fn) => fn());
@@ -2218,6 +2427,20 @@ export default function SnakeBoard3D({
       pathInfo = { curve: fallbackCurve, start: startBase.clone(), end: endBase.clone() };
     }
     const curve = pathInfo.curve;
+    const focusPoint = (() => {
+      if (curve?.getPoint) {
+        return curve.getPoint(0.5).clone();
+      }
+      return startBase.clone().lerp(endBase, 0.5);
+    })();
+    const cameraFocus = startCameraFocus(focusPoint, {
+      zoom: 0.55,
+      lift: TOKEN_HEIGHT * 0.8,
+      focusDuration: 520,
+      minHoldDuration: 220,
+      returnDuration: 680
+    });
+
     token.userData.isSliding = true;
     const duration = 1100;
     const startTime = performance.now();
@@ -2242,13 +2465,17 @@ export default function SnakeBoard3D({
         if (t >= 1) {
           token.userData.isSliding = false;
           token.position.copy(endBase);
+          cameraFocus?.release?.(260);
           onSlideComplete?.(slide.id, true);
           return true;
         }
         return false;
       }
     });
-  }, [slide, onSlideComplete]);
+    return () => {
+      cameraFocus?.cancel?.();
+    };
+  }, [slide, onSlideComplete, startCameraFocus]);
 
   useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
@@ -2304,13 +2531,31 @@ export default function SnakeBoard3D({
         edgeNormals.push(normal);
         visibleIndex += 1;
       });
+      const focusPoint = (() => {
+        if (basePositions.length) {
+          const avg = new THREE.Vector3();
+          basePositions.forEach((vec) => avg.add(vec));
+          return avg.multiplyScalar(1 / basePositions.length);
+        }
+        return new THREE.Vector3(0, diceBaseY, diceAnchorZ);
+      })();
+      diceStateRef.current.cameraFocus?.cancel?.();
+      const diceFocus = startCameraFocus(focusPoint, {
+        zoom: 0.5,
+        lift: DICE_SIZE * 1.1,
+        focusDuration: 420,
+        minHoldDuration: 320,
+        returnDuration: 640,
+        autoReleaseAfter: DICE_ROLL_DURATION + DICE_SETTLE_DURATION + 1200
+      });
       diceStateRef.current = {
         currentId: diceEvent.id,
         basePositions: basePositions.map((vec) => vec.clone()),
         baseY: diceBaseY,
         count,
         seatIndex,
-        lastSeatIndex: seatIndex
+        lastSeatIndex: seatIndex,
+        cameraFocus: diceFocus
       };
       const active = diceSet.filter((_, idx) => idx < count);
       if (active.length) {
@@ -2348,15 +2593,18 @@ export default function SnakeBoard3D({
         );
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
+      const focus = diceStateRef.current.cameraFocus;
+      focus?.release?.(DICE_SETTLE_DURATION + 280);
       diceStateRef.current = {
         currentId: null,
         basePositions: [],
         baseY: diceBaseY,
         count: 0,
-        lastSeatIndex
+        lastSeatIndex,
+        cameraFocus: null
       };
     }
-  }, [diceEvent]);
+  }, [diceEvent, startCameraFocus]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
