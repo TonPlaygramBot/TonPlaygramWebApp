@@ -1862,12 +1862,13 @@ function dealHands(deck, playerCount) {
 
 function getNextAlive(players, index) {
   if (!players.length) return 0;
-  let next = (index + 1) % players.length;
+  const { length } = players;
+  let next = (index - 1 + length) % length;
   let safety = 0;
   while (players[next]?.finished) {
-    next = (next + 1) % players.length;
+    next = (next - 1 + length) % length;
     safety += 1;
-    if (safety > players.length) return index;
+    if (safety > length) return index;
   }
   return next;
 }
