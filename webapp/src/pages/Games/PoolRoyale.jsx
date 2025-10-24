@@ -230,30 +230,30 @@ const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
 const CHROME_CORNER_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.015;
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
 const CHROME_CORNER_WIDTH_SCALE = 0.99;
-const CHROME_CORNER_HEIGHT_SCALE = 0.99;
+const CHROME_CORNER_HEIGHT_SCALE = 1.01;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.92;
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.6;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1;
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.4;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.08;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_CORNER_POCKET_CUT_SCALE = 0.9; // open the chrome trace slightly so the relief shows a fuller rounded trim arc
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.7; // ease the middle chrome cut outward a touch to balance the longer rail opening
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.004; // tighten the wooden relief slightly so the rail's rounded cut hugs the chrome arc more closely
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.01; // widen the middle rail relief in lockstep with the chrome side cuts
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // wood relief follows the chrome arcs without additional inflation
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
 
 function buildChromePlateGeometry({
   width,
@@ -497,8 +497,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer 
 const POCKET_JAW_SIDE_EDGE_FACTOR = 0.42; // thicker side jaw shoulders to match the beefier Pool Royale liners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the snooker reference
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = 0.86; // let the side pockets carry more material through the middle span
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.1; // let the middle jaws flare a touch wider so they mirror the relaxed chrome cuts
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.015; // expand the side jaw footprint to stay perfectly registered with the enlarged cutout
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1; // side jaws now keep a single arc that matches the pocket diameter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // jaw footprint mirrors the pocket cut with no additional widening
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // keep the drop deep while matching the tighter jaw footprint
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // align the corner jaw spread with the snooker chrome cut geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -4356,20 +4356,21 @@ function Table3D(
   const sideNotchMP = (sx) => {
     const cx = sx * sidePocketCenterX;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
-    const throatLength = Math.max(
-      MICRO_EPS,
-      radius * CHROME_SIDE_NOTCH_THROAT_SCALE
-    );
-    const throatHeight = Math.max(
-      MICRO_EPS,
-      radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
-    );
+    const throatLength = Math.max(0, radius * CHROME_SIDE_NOTCH_THROAT_SCALE);
+    const throatHeight = Math.max(0, radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE);
     const throatRadius = Math.max(
-      MICRO_EPS,
+      0,
       Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
+    const useThroat =
+      throatLength > MICRO_EPS && throatHeight > MICRO_EPS && throatRadius > MICRO_EPS;
+
+    if (!useThroat) {
+      return adjustSideNotchDepth(circle);
+    }
+
     const throat = roundedRectPoly(
       cx + (sx * throatLength) / 2,
       0,
