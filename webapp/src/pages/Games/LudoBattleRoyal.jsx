@@ -462,18 +462,19 @@ const HOME_COLUMN_COORDS = Object.freeze([
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const COLOR_NAMES = ['Blue', 'Green', 'Yellow', 'Red'];
-const PLAYER_COLORS = [0x3b82f6, 0x22c55e, 0xf59e0b, 0xef4444];
-const TOKEN_COLOR_ORDER = [3, 1, 2, 0];
-const TOKEN_COLORS = TOKEN_COLOR_ORDER.map((index) => PLAYER_COLORS[index]);
+const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
+const PLAYER_COLORS = [0xef4444, 0x22c55e, 0xf59e0b, 0x3b82f6];
+const TOKEN_COLORS = PLAYER_COLORS.slice();
 const TOKEN_TRACK_HEIGHT = 0.012;
 const TOKEN_HOME_HEIGHT = 0.018;
 const TOKEN_GOAL_HEIGHT = 0.0165;
 const TOKEN_TRACK_LIFT = new THREE.Vector3(0, TOKEN_TRACK_HEIGHT, 0);
-const TOKEN_HOME_LIFT = new THREE.Vector3(0, TOKEN_HOME_HEIGHT, 0);
 const TOKEN_GOAL_LIFT = new THREE.Vector3(0, TOKEN_GOAL_HEIGHT, 0);
 const RAIL_TOKEN_FORWARD_SPACING = 0.05;
 const RAIL_TOKEN_SIDE_SPACING = 0.055;
+const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
+const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
+const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.08, 1, 1, 1]);
 const TOKEN_MOVE_SPEED = 1.85;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
@@ -499,13 +500,15 @@ HOME_COLUMN_COORDS.forEach((coords, player) => {
   });
 });
 
+function getPlayerHomeHeight(playerIndex) {
+  const offset = TOKEN_HOME_HEIGHT_OFFSETS[playerIndex] ?? 0;
+  return TOKEN_HOME_HEIGHT + offset;
+}
+
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.028;
-const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
-const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
-const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0025;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
@@ -523,29 +526,11 @@ function makeDice() {
     envMapIntensity: 1.4
   });
 
-  const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x0a0a0a,
-    roughness: 0.35,
-    metalness: 0.12,
-    clearcoat: 0.05,
-    clearcoatRoughness: 0.5,
-    reflectivity: 0.25,
-    envMapIntensity: 0.7,
+  const pipMaterial = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.4,
+    metalness: 0.08,
     side: THREE.DoubleSide
-  });
-
-  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffd700,
-    emissive: 0x3a2a00,
-    emissiveIntensity: 0.55,
-    metalness: 1,
-    roughness: 0.18,
-    reflectivity: 1,
-    envMapIntensity: 1.35,
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1
   });
 
   const body = new THREE.Mesh(
@@ -573,7 +558,6 @@ function makeDice() {
   pipGeo.translate(0, -DICE_PIP_DEPTH / 2, 0);
   pipGeo.computeVertexNormals();
   const pipCapGeo = new THREE.CircleGeometry(DICE_PIP_RADIUS * 0.96, 48);
-  const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const halfSize = DICE_SIZE / 2;
   const faceDepth = halfSize - DICE_FACE_INSET * 0.6;
   const spread = DICE_PIP_SPREAD;
@@ -653,12 +637,7 @@ function makeDice() {
       cap.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
       dice.add(cap);
 
-      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
-      rim.receiveShadow = true;
-      rim.renderOrder = 6;
-      rim.position.copy(surface).addScaledVector(n, -DICE_PIP_RIM_OFFSET);
-      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
-      dice.add(rim);
+      cap.renderOrder = 5;
     });
   });
 
@@ -1138,10 +1117,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         right.normalize();
       }
 
+      const baseForwardShift = TOKEN_RAIL_BASE_FORWARD_SHIFT[player] ?? 0;
+      if (baseForwardShift !== 0) {
+        base.add(forward.clone().multiplyScalar(baseForwardShift));
+      }
+
       const forwardOffset = forward.clone().multiplyScalar(RAIL_TOKEN_FORWARD_SPACING);
       const backwardOffset = forwardOffset.clone().multiplyScalar(-1);
-      const rightOffset = right.clone().multiplyScalar(RAIL_TOKEN_SIDE_SPACING);
+      const sideMultiplier = TOKEN_RAIL_SIDE_MULTIPLIER[player] ?? 1;
+      const rightOffset = right
+        .clone()
+        .multiplyScalar(RAIL_TOKEN_SIDE_SPACING * sideMultiplier);
       const leftOffset = rightOffset.clone().multiplyScalar(-1);
+
+      const homeHeight = getPlayerHomeHeight(player);
 
       const playerPads = [
         base.clone().add(backwardOffset).add(leftOffset),
@@ -1172,7 +1161,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         if (!token) continue;
         const home = playerPads[tokenIndex];
         const target = home.clone();
-        target.y = TOKEN_HOME_HEIGHT;
+        target.y = homeHeight;
         token.position.copy(target);
         token.rotation.set(0, 0, 0);
       }
@@ -1183,21 +1172,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         mesh.visible = false;
       }
     });
-
-    if (dice && Array.isArray(updatedPads) && updatedPads.length >= DEFAULT_PLAYER_COUNT) {
-      const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
-      const landingCenters = updatedPads.map((pads) => {
-        if (!Array.isArray(pads) || !pads.length) {
-          return new THREE.Vector3(0, baseHeight, 0);
-        }
-        const center = pads.reduce((acc, pad) => acc.add(pad), new THREE.Vector3());
-        center.multiplyScalar(1 / pads.length);
-        center.y = baseHeight;
-        return center;
-      });
-      dice.userData.homeLandingTargets = landingCenters.map((target) => target.clone());
-      dice.userData.rollTargets = landingCenters.map((target) => target.clone());
-    }
 
     state.startPads = updatedPads;
   }, []);
@@ -2042,7 +2016,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const state = stateRef.current;
     if (!state) return new THREE.Vector3();
     if (progress < 0) {
-      return state.startPads[player][tokenIndex].clone().add(TOKEN_HOME_LIFT.clone());
+      const base = state.startPads[player][tokenIndex].clone();
+      base.y = getPlayerHomeHeight(player);
+      return base;
     }
     if (progress < RING_STEPS) {
       const idx = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
@@ -2245,7 +2221,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
           state.progress[p][t] = -1;
           const token = state.tokens[p][t];
           const pos = state.startPads[p][t].clone();
-          pos.y = TOKEN_HOME_HEIGHT;
+          pos.y = getPlayerHomeHeight(p);
           token.position.copy(pos);
           token.rotation.set(0, 0, 0);
           playCapture();
@@ -2653,6 +2629,15 @@ function buildLudoBoard(boardGroup) {
   const homeColumnPositions = HOME_COLUMN_COORDS.map((coords) =>
     coords.map(([r, c]) => cellToWorld(r, c))
   );
+  const diceRollTargets = homeColumnPositions.map((column) => {
+    if (!Array.isArray(column) || !column.length) {
+      return new THREE.Vector3(0, DICE_BASE_HEIGHT, 0);
+    }
+    const index = column.length - 1;
+    const target = column[index].clone();
+    target.y = DICE_BASE_HEIGHT;
+    return target;
+  });
 
   const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
   const homeBaseMats = PLAYER_COLORS.map((color) => {
@@ -2725,23 +2710,16 @@ function buildLudoBoard(boardGroup) {
     return Array.from({ length: 4 }, (_, i) => {
       const rook = makeRook(makeTokenMaterial(color));
       const homePos = startPads[playerIdx][i].clone();
-      homePos.y = TOKEN_HOME_HEIGHT;
+      homePos.y = getPlayerHomeHeight(playerIdx);
       rook.position.copy(homePos);
       scene.add(rook);
       return rook;
     });
   });
 
-  const landingTargets = startPads.map((pads) => {
-    const center = pads.reduce((acc, pad) => acc.add(pad), new THREE.Vector3());
-    center.multiplyScalar(1 / pads.length);
-    center.y = DICE_BASE_HEIGHT;
-    return center;
-  });
-
   const dice = makeDice();
-  dice.userData.homeLandingTargets = landingTargets.map((target) => target.clone());
-  dice.userData.rollTargets = landingTargets.map((target) => target.clone());
+  dice.userData.homeLandingTargets = diceRollTargets.map((target) => target.clone());
+  dice.userData.rollTargets = diceRollTargets.map((target) => target.clone());
   const railPadGroup = new THREE.Group();
   railPadGroup.position.y = 0.001;
   scene.add(railPadGroup);
