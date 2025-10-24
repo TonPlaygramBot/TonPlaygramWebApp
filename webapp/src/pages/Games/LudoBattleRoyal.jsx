@@ -953,12 +953,19 @@ function addCenterHome(scene) {
   }
 }
 
+function getArrowAngle(dx, dz) {
+  if (dx === 0 && dz === 0) {
+    return 0;
+  }
+  return Math.atan2(dx, -dz);
+}
+
 function getTrackDirectionAngle(index) {
   const current = TRACK_COORDS[index];
   const next = TRACK_COORDS[(index + 1) % RING_STEPS];
   const dx = next[1] - current[1];
   const dz = next[0] - current[0];
-  return Math.atan2(dx, dz);
+  return getArrowAngle(dx, dz);
 }
 
 function addBoardMarkers(scene, cellToWorld) {
@@ -996,7 +1003,7 @@ function addBoardMarkers(scene, cellToWorld) {
     if (homePath) {
       const [homeR, homeC] = homePath;
       const homePos = cellToWorld(homeR, homeC).clone();
-      const arrowAngle = Math.atan2(-homePos.x, -homePos.z);
+      const arrowAngle = getArrowAngle(-homePos.x, -homePos.z);
       const arrowMarker = createMarkerMesh({
         label: '',
         color: PLAYER_COLORS[playerIdx],
