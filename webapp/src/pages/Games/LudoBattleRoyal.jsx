@@ -74,6 +74,8 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(225)
 ];
 const AI_ROLL_DELAY_MS = 2000;
+const HUMAN_ROLL_DELAY_MS = 2000;
+const AUTO_ROLL_DURATION_MS = 2000;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -1025,15 +1027,18 @@ function addBoardMarkers(scene, cellToWorld) {
         ? PLAYER_COLORS[safeOwner]
         : '#0f172a';
     const isStartTile = startOwner != null;
+    if (!isStartTile) {
+      return;
+    }
     const marker = createMarkerMesh({
-      label: isStartTile ? 'GO' : '',
+      label: 'GO',
       color: baseColor,
       position,
       angle,
-      size: LUDO_TILE * (isStartTile ? 0.98 : 0.9),
+      size: LUDO_TILE * 0.98,
       arrow: true,
-      backgroundColor: !isStartTile && safeOwner != null ? 'transparent' : '#ffffff',
-      textColor: isStartTile ? resolveColorStyle(baseColor) : undefined,
+      backgroundColor: '#ffffff',
+      textColor: resolveColorStyle(baseColor),
       arrowColor: baseColor
     });
     if (marker) group.add(marker);
@@ -1050,9 +1055,10 @@ function addBoardMarkers(scene, cellToWorld) {
     });
     if (star) group.add(star);
 
-    const homePath = HOME_COLUMN_COORDS[playerIdx][HOME_COLUMN_COORDS[playerIdx].length - 1];
-    if (homePath) {
-      const [homeR, homeC] = homePath;
+  });
+
+  HOME_COLUMN_COORDS.forEach((coords, playerIdx) => {
+    coords.forEach(([homeR, homeC]) => {
       const homePos = cellToWorld(homeR, homeC).clone();
       const arrowAngle = getArrowAngle(-homePos.x, -homePos.z);
       const arrowMarker = createMarkerMesh({
@@ -1060,13 +1066,13 @@ function addBoardMarkers(scene, cellToWorld) {
         color: PLAYER_COLORS[playerIdx],
         position: homePos,
         angle: arrowAngle,
-        size: LUDO_TILE * 0.86,
+        size: LUDO_TILE * 0.88,
         arrow: true,
         backgroundColor: 'transparent',
         arrowColor: PLAYER_COLORS[playerIdx]
       });
       if (arrowMarker) group.add(arrowMarker);
-    }
+    });
   });
 }
 
@@ -1245,6 +1251,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const cheerSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
+  const humanRollTimeoutRef = useRef(null);
   const fitRef = useRef(() => {});
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1267,7 +1274,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const seatPositionsRef = useRef([]);
   const [ui, setUi] = useState({
     turn: 0,
-    status: `${COLOR_NAMES[0]} to roll`,
+    status: 'Your turn — dice rolling soon',
     dice: null,
     winner: null
   });
@@ -1326,6 +1333,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   useEffect(() => {
     appearanceRef.current = appearance;
   }, [appearance]);
+
+  const clearHumanRollTimeout = useCallback(() => {
+    if (humanRollTimeoutRef.current) {
+      clearTimeout(humanRollTimeoutRef.current);
+      humanRollTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleHumanAutoRoll = useCallback(() => {
+    const state = stateRef.current;
+    if (!state || state.winner || state.turn !== 0 || state.animation) return;
+    const diceObj = diceRef.current;
+    if (!diceObj || diceObj.userData?.isRolling) return;
+    if (humanRollTimeoutRef.current) return;
+    humanRollTimeoutRef.current = window.setTimeout(() => {
+      humanRollTimeoutRef.current = null;
+      rollDiceRef.current?.();
+    }, HUMAN_ROLL_DELAY_MS);
+  }, []);
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
@@ -1772,6 +1798,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         clearTimeout(diceClearTimeoutRef.current);
         diceClearTimeoutRef.current = null;
       }
+      if (humanRollTimeoutRef.current) {
+        clearTimeout(humanRollTimeoutRef.current);
+        humanRollTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -2128,6 +2158,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     };
 
     applyRailLayout();
+
+    scheduleHumanAutoRoll();
 
     arenaRef.current = {
       renderer,
@@ -2677,7 +2709,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       return {
         ...s,
         turn: nextTurn,
-        status: `${COLOR_NAMES[nextTurn]} to roll`
+        status: nextTurn === 0 ? 'Your turn — dice rolling soon' : `${COLOR_NAMES[nextTurn]} to roll`
       };
     });
     if (!updated) {
@@ -2685,14 +2717,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         clearTimeout(aiTimeoutRef.current);
         aiTimeoutRef.current = null;
       }
+      clearHumanRollTimeout();
       return;
     }
     scheduleDiceClear();
-    if (nextTurn !== 0) {
+    if (nextTurn === 0) {
+      clearHumanRollTimeout();
+      scheduleHumanAutoRoll();
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+        aiTimeoutRef.current = null;
+      }
+    } else {
+      clearHumanRollTimeout();
       queueAiRoll();
-    } else if (aiTimeoutRef.current) {
-      clearTimeout(aiTimeoutRef.current);
-      aiTimeoutRef.current = null;
     }
   };
 
@@ -2732,6 +2770,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         winner: COLOR_NAMES[player],
         status: `${COLOR_NAMES[player]} wins!`
       }));
+      clearHumanRollTimeout();
       playCheer();
       coinConfetti();
       return true;
@@ -2781,6 +2820,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
   const rollDice = async () => {
     const state = stateRef.current;
+    clearHumanRollTimeout();
     if (!state || state.winner) return;
     if (state.animation) return;
     const dice = diceRef.current;
@@ -2803,7 +2843,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
-      duration: 950,
+      duration: AUTO_ROLL_DURATION_MS,
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
@@ -3035,7 +3075,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
             {ui.winner
               ? `${ui.winner} Wins`
               : ui.turn === 0
-              ? 'Your turn — tap the dice to roll'
+              ? 'Your turn — dice rolling soon'
               : ui.status}
           </div>
         </div>
