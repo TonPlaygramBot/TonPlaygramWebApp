@@ -10,10 +10,7 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import {
-  resolveTableSize,
-  TABLE_SIZE_LIST
-} from '../../config/poolRoyaleTables.js';
+import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -25,9 +22,7 @@ export default function PoolRoyaleLobby() {
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
   const searchParams = new URLSearchParams(search);
-  const [tableSize, setTableSize] = useState(
-    () => resolveTableSize(searchParams.get('tableSize')).id
-  );
+  const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [playType, setPlayType] = useState('regular');
 
   useEffect(() => {
@@ -154,20 +149,6 @@ export default function PoolRoyaleLobby() {
               key={id}
               onClick={() => setVariant(id)}
               className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Table Size</h3>
-        <div className="flex flex-wrap gap-2">
-          {TABLE_SIZE_LIST.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setTableSize(id)}
-              className={`lobby-tile ${tableSize === id ? 'lobby-selected' : ''}`}
             >
               {label}
             </button>

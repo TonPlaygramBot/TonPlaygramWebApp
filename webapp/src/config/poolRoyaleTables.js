@@ -15,30 +15,6 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     }),
     cushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
-  },
-  '9ft': {
-    id: '9ft',
-    label: '9 ft',
-    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // 100" × 50"
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: 171.45,
-      side: 152.4
-    }),
-    cushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
-  },
-  '10ft': {
-    id: '10ft',
-    label: '10 ft',
-    playfield: Object.freeze({ widthMm: 2845, heightMm: 1422 }), // 112" × 56"
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: 171.45,
-      side: 152.4
-    }),
-    cushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
 });
 
