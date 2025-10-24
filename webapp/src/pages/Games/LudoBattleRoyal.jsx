@@ -464,6 +464,14 @@ const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
 const COLOR_NAMES = ['Blue', 'Green', 'Yellow', 'Red'];
 const PLAYER_COLORS = [0x3b82f6, 0x22c55e, 0xf59e0b, 0xef4444];
+const TOKEN_COLOR_ORDER = [3, 1, 2, 0];
+const TOKEN_COLORS = TOKEN_COLOR_ORDER.map((index) => PLAYER_COLORS[index]);
+const TOKEN_TRACK_HEIGHT = 0.012;
+const TOKEN_HOME_HEIGHT = 0.018;
+const TOKEN_GOAL_HEIGHT = 0.0165;
+const TOKEN_TRACK_LIFT = new THREE.Vector3(0, TOKEN_TRACK_HEIGHT, 0);
+const TOKEN_HOME_LIFT = new THREE.Vector3(0, TOKEN_HOME_HEIGHT, 0);
+const TOKEN_GOAL_LIFT = new THREE.Vector3(0, TOKEN_GOAL_HEIGHT, 0);
 const RAIL_TOKEN_FORWARD_SPACING = 0.05;
 const RAIL_TOKEN_SIDE_SPACING = 0.055;
 const TOKEN_MOVE_SPEED = 1.85;
@@ -494,10 +502,10 @@ HOME_COLUMN_COORDS.forEach((coords, player) => {
 const DICE_SIZE = 0.09;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
-const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
+const DICE_PIP_DEPTH = DICE_SIZE * 0.028;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
-const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
+const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0025;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
@@ -517,11 +525,13 @@ function makeDice() {
 
   const pipMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x0a0a0a,
-    roughness: 0.05,
-    metalness: 0.6,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.04,
-    envMapIntensity: 1.1
+    roughness: 0.35,
+    metalness: 0.12,
+    clearcoat: 0.05,
+    clearcoatRoughness: 0.5,
+    reflectivity: 0.25,
+    envMapIntensity: 0.7,
+    side: THREE.DoubleSide
   });
 
   const pipRimMaterial = new THREE.MeshPhysicalMaterial({
@@ -552,17 +562,17 @@ function makeDice() {
   body.receiveShadow = true;
   dice.add(body);
 
-  const pipGeo = new THREE.SphereGeometry(
+  const pipGeo = new THREE.CylinderGeometry(
     DICE_PIP_RADIUS,
-    36,
-    24,
-    0,
-    Math.PI * 2,
-    0,
-    Math.PI
+    DICE_PIP_RADIUS * 0.96,
+    DICE_PIP_DEPTH,
+    48,
+    1,
+    true
   );
-  pipGeo.rotateX(Math.PI);
+  pipGeo.translate(0, -DICE_PIP_DEPTH / 2, 0);
   pipGeo.computeVertexNormals();
+  const pipCapGeo = new THREE.CircleGeometry(DICE_PIP_RADIUS * 0.96, 48);
   const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const halfSize = DICE_SIZE / 2;
   const faceDepth = halfSize - DICE_FACE_INSET * 0.6;
@@ -623,22 +633,30 @@ function makeDice() {
     const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
 
     points.forEach(([gx, gy]) => {
-      const base = new THREE.Vector3()
+      const surface = new THREE.Vector3()
         .addScaledVector(xAxis, gx)
         .addScaledVector(yAxis, gy)
-        .addScaledVector(n, faceDepth - DICE_PIP_DEPTH * 0.5);
+        .addScaledVector(n, faceDepth);
 
       const pip = new THREE.Mesh(pipGeo, pipMaterial);
-      pip.castShadow = true;
+      pip.castShadow = false;
       pip.receiveShadow = true;
-      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
-      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
+      pip.position.copy(surface);
+      const normalQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+      pip.quaternion.copy(normalQuat);
       dice.add(pip);
+
+      const cap = new THREE.Mesh(pipCapGeo, pipMaterial);
+      cap.castShadow = false;
+      cap.receiveShadow = true;
+      cap.position.copy(surface).addScaledVector(n, -DICE_PIP_DEPTH);
+      cap.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      dice.add(cap);
 
       const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
       rim.receiveShadow = true;
       rim.renderOrder = 6;
-      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.position.copy(surface).addScaledVector(n, -DICE_PIP_RIM_OFFSET);
       rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
       dice.add(rim);
     });
@@ -716,8 +734,79 @@ function spinDice(
   });
 }
 
+const tokenTextureCache = new Map();
+
+function createTokenTexture(color) {
+  if (typeof document === 'undefined') return null;
+  const key = typeof color === 'number' ? color.toString(16) : color.getHexString?.() ?? `${color}`;
+  if (tokenTextureCache.has(key)) return tokenTextureCache.get(key);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const base = new THREE.Color(color);
+  const highlight = base.clone().lerp(new THREE.Color(0xffffff), 0.35);
+  const mid = base.clone().lerp(new THREE.Color(0xffffff), 0.08);
+  const shadow = base.clone().lerp(new THREE.Color(0x000000), 0.32);
+  const rim = base.clone().lerp(new THREE.Color(0x000000), 0.55);
+
+  ctx.fillStyle = `#${rim.getHexString()}`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const gradient = ctx.createRadialGradient(
+    canvas.width * 0.32,
+    canvas.height * 0.3,
+    canvas.width * 0.1,
+    canvas.width * 0.55,
+    canvas.height * 0.55,
+    canvas.width * 0.55
+  );
+  gradient.addColorStop(0, `#${highlight.getHexString()}`);
+  gradient.addColorStop(0.45, `#${mid.getHexString()}`);
+  gradient.addColorStop(1, `#${shadow.getHexString()}`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(canvas.width * 0.34, canvas.height * 0.3, canvas.width * 0.12, canvas.height * 0.18, -0.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+
+  tokenTextureCache.set(key, texture);
+  return texture;
+}
+
 function makeTokenMaterial(color) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+  const tone = new THREE.Color(color);
+  const texture = createTokenTexture(tone);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: tone,
+    map: texture ?? null,
+    roughness: 0.32,
+    metalness: 0.18,
+    clearcoat: 0.65,
+    clearcoatRoughness: 0.18,
+    sheen: 0.35,
+    sheenColor: tone.clone().lerp(new THREE.Color(0xffffff), 0.18),
+    envMapIntensity: 0.9
+  });
+  if (texture) {
+    material.map = texture;
+  }
+  return material;
 }
 
 function makeRook(mat) {
@@ -749,6 +838,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const rollDiceRef = useRef(() => {});
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
+  const cameraFocusRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
@@ -1082,7 +1172,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         if (!token) continue;
         const home = playerPads[tokenIndex];
         const target = home.clone();
-        target.y += 0.012;
+        target.y = TOKEN_HOME_HEIGHT;
         token.position.copy(target);
         token.rotation.set(0, 0, 0);
       }
@@ -1093,6 +1183,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         mesh.visible = false;
       }
     });
+
+    if (dice && Array.isArray(updatedPads) && updatedPads.length >= DEFAULT_PLAYER_COUNT) {
+      const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
+      const landingCenters = updatedPads.map((pads) => {
+        if (!Array.isArray(pads) || !pads.length) {
+          return new THREE.Vector3(0, baseHeight, 0);
+        }
+        const center = pads.reduce((acc, pad) => acc.add(pad), new THREE.Vector3());
+        center.multiplyScalar(1 / pads.length);
+        center.y = baseHeight;
+        return center;
+      });
+      dice.userData.homeLandingTargets = landingCenters.map((target) => target.clone());
+      dice.userData.rollTargets = landingCenters.map((target) => target.clone());
+    }
 
     state.startPads = updatedPads;
   }, []);
@@ -1131,6 +1236,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       const centerLocal = new THREE.Vector3();
       centerLocal.copy(centerWorld);
       group.worldToLocal(centerLocal);
+      const seatWorldPos = new THREE.Vector3();
 
       for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
         const seatDir = new THREE.Vector3();
@@ -1152,7 +1258,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         }
         seatDir.normalize();
 
-        let restRadius = BOARD_RADIUS + 0.24;
+        let restRadius = BOARD_RADIUS + 0.36;
+        if (chairGroup) {
+          chairGroup.getWorldPosition(seatWorldPos);
+          seatWorldPos.setY(0);
+          const seatDistance = seatWorldPos.distanceTo(centerXZ);
+          if (Number.isFinite(seatDistance) && seatDistance > 0.2) {
+            restRadius = Math.max(restRadius, seatDistance - 0.32);
+          }
+        }
         if (table?.getInnerRadius) {
           const inner = table.getInnerRadius(seatDir);
           if (Number.isFinite(inner) && inner > 0) {
@@ -1160,10 +1274,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
             const rimInner = Math.min(inner, outer);
             const rimOuter = Math.max(inner, outer);
             const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
-            restRadius = THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08);
-            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.12);
+            restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
+            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.24);
+            if (Number.isFinite(rimOuter)) {
+              restRadius = Math.min(restRadius, rimOuter - 0.12);
+            }
           }
         }
+        if (table?.getOuterRadius) {
+          const outer = table.getOuterRadius(seatDir);
+          if (Number.isFinite(outer) && outer > 0) {
+            restRadius = Math.min(restRadius, outer - 0.14);
+          }
+        }
+        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.24);
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
@@ -1200,7 +1324,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       }
 
       diceObj.userData.railPositions = rails;
-      diceObj.userData.rollTargets = rolls;
+      const preferredLanding = Array.isArray(diceObj.userData?.homeLandingTargets)
+        ? diceObj.userData.homeLandingTargets.map((vec) => vec.clone())
+        : rolls.map((vec) => vec.clone());
+      diceObj.userData.rollTargets = preferredLanding;
       diceObj.userData.tokenRails = layouts;
       applyRailLayout();
     }, [applyRailLayout]);
@@ -1283,6 +1410,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         arena.tableShapeId = nextTable.shapeId;
         if (arena.boardLookTarget) {
           arena.boardLookTarget.set(0, nextTable.surfaceY + CAMERA_TARGET_LIFT, 0);
+          arena.defaultLookTarget = arena.boardLookTarget.clone();
         }
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
@@ -1597,6 +1725,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       tableShapeId: tableInfo.shapeId,
       boardGroup,
       boardLookTarget,
+      defaultLookTarget: boardLookTarget.clone(),
       chairMaterial,
       legMaterial,
       chairs,
@@ -1656,6 +1785,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const animLook = new THREE.Vector3();
     const seatWorld = new THREE.Vector3();
     const seatNdc = new THREE.Vector3();
+    const focusTarget = new THREE.Vector3();
+    const fallbackTarget = new THREE.Vector3();
 
     const step = () => {
       const now = performance.now();
@@ -1666,10 +1797,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       if (state?.animation?.active) {
         const anim = state.animation;
         const seg = anim.segments?.[anim.segment];
-        if (!seg) {
-          const done = anim.onComplete;
-          state.animation = null;
-          if (typeof done === 'function') done();
+          if (!seg) {
+            const done = anim.onComplete;
+            if (anim.token) {
+              setCameraFocus({
+                target: anim.token.position.clone(),
+                follow: false,
+                ttl: 1.4,
+                priority: 2,
+                offset: CAMERA_TARGET_LIFT + 0.02,
+                force: true
+              });
+            }
+            state.animation = null;
+            if (typeof done === 'function') done();
         } else {
           anim.elapsed += delta;
           const duration = Math.max(seg.duration, 1e-4);
@@ -1690,6 +1831,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
             anim.elapsed = 0;
             if (anim.segment >= anim.segments.length) {
               const done = anim.onComplete;
+              if (anim.token) {
+                setCameraFocus({
+                  target: anim.token.position.clone(),
+                  follow: false,
+                  ttl: 1.5,
+                  priority: 2,
+                  offset: CAMERA_TARGET_LIFT + 0.02,
+                  force: true
+                });
+              }
               state.animation = null;
               if (typeof done === 'function') done();
             }
@@ -1708,6 +1859,42 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       }
 
       const arenaState = arenaRef.current;
+      if (arenaState?.boardLookTarget) {
+        const focusState = cameraFocusRef.current;
+        let appliedFocus = false;
+        if (focusState) {
+          let focusPos = null;
+          if (focusState.object?.position) {
+            focusPos = focusState.object.position;
+          } else if (focusState.target) {
+            focusPos = focusState.target;
+          }
+          if (focusPos) {
+            focusTarget.copy(focusPos);
+            focusTarget.y += focusState.offset ?? CAMERA_TARGET_LIFT;
+            const lerpFactor = focusState.follow ? 0.3 : 0.18;
+            arenaState.boardLookTarget.lerp(focusTarget, lerpFactor);
+            appliedFocus = true;
+          }
+          if (!focusState.follow) {
+            focusState.ttl -= delta;
+            if (focusState.ttl <= 0) {
+              cameraFocusRef.current = null;
+            }
+          } else if (!focusPos) {
+            cameraFocusRef.current = null;
+          }
+        }
+        if (!appliedFocus) {
+          if (arenaState.defaultLookTarget) {
+            arenaState.boardLookTarget.lerp(arenaState.defaultLookTarget, 0.08);
+          } else {
+            fallbackTarget.set(0, CAMERA_TARGET_LIFT, 0);
+            arenaState.boardLookTarget.lerp(fallbackTarget, 0.08);
+          }
+        }
+        controls?.target.copy(arenaState.boardLookTarget);
+      }
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
           anchor.getWorldPosition(seatWorld);
@@ -1785,6 +1972,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         arena.tableInfo?.dispose?.();
       }
       arenaRef.current = null;
+      cameraFocusRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentElement === host) {
         host.removeChild(renderer.domElement);
@@ -1816,27 +2004,55 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     }
   };
 
+  const setCameraFocus = useCallback((focus) => {
+    if (!focus) {
+      cameraFocusRef.current = null;
+      return;
+    }
+    const current = cameraFocusRef.current;
+    const shouldForce = focus.force === true;
+    const offset = typeof focus.offset === 'number' ? focus.offset : CAMERA_TARGET_LIFT;
+    let targetVec = null;
+    if (focus.target) {
+      if (typeof focus.target.clone === 'function') {
+        targetVec = focus.target.clone();
+      } else if (
+        typeof focus.target.x === 'number' &&
+        typeof focus.target.y === 'number' &&
+        typeof focus.target.z === 'number'
+      ) {
+        targetVec = new THREE.Vector3(focus.target.x, focus.target.y, focus.target.z);
+      }
+    }
+    const next = {
+      object: focus.object ?? null,
+      target: targetVec,
+      follow: Boolean(focus.follow),
+      ttl: typeof focus.ttl === 'number' ? focus.ttl : 0,
+      priority: typeof focus.priority === 'number' ? focus.priority : 0,
+      offset
+    };
+    if (!shouldForce && current && current.priority > next.priority) {
+      return;
+    }
+    cameraFocusRef.current = next;
+  }, []);
+
   const getWorldForProgress = (player, progress, tokenIndex) => {
     const state = stateRef.current;
     if (!state) return new THREE.Vector3();
     if (progress < 0) {
-      return state.startPads[player][tokenIndex]
-        .clone()
-        .add(new THREE.Vector3(0, 0.012, 0));
+      return state.startPads[player][tokenIndex].clone().add(TOKEN_HOME_LIFT.clone());
     }
     if (progress < RING_STEPS) {
       const idx = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
-      return state.paths[idx].clone().add(new THREE.Vector3(0, 0.012, 0));
+      return state.paths[idx].clone().add(TOKEN_TRACK_LIFT.clone());
     }
     if (progress < RING_STEPS + HOME_STEPS) {
       const homeStep = progress - RING_STEPS;
-      return state.homeColumns[player][homeStep]
-        .clone()
-        .add(new THREE.Vector3(0, 0.012, 0));
+      return state.homeColumns[player][homeStep].clone().add(TOKEN_TRACK_LIFT.clone());
     }
-    return state.goalSlots[player][tokenIndex]
-      .clone()
-      .add(new THREE.Vector3(0, 0.012, 0));
+    return state.goalSlots[player][tokenIndex].clone().add(TOKEN_GOAL_LIFT.clone());
   };
 
   const scheduleMove = (player, tokenIndex, targetProgress, onComplete) => {
@@ -1862,11 +2078,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       const duration = Math.max(0.12, distance / TOKEN_MOVE_SPEED);
       segments.push({ from, to, distance, duration });
     }
-    if (!segments.length) {
+      if (!segments.length) {
+      if (token) {
+        setCameraFocus({
+          target: token.position.clone(),
+          follow: false,
+          ttl: 1.2,
+          priority: 2,
+          offset: CAMERA_TARGET_LIFT + 0.02,
+          force: true
+        });
+      }
       state.animation = null;
       if (typeof onComplete === 'function') onComplete();
       return;
     }
+      if (token) {
+        setCameraFocus({
+          object: token,
+          follow: true,
+          priority: 6,
+          offset: CAMERA_TARGET_LIFT + 0.02
+        });
+      }
     state.animation = {
       active: true,
       token,
@@ -2010,9 +2244,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         if (idx === landingIdx) {
           state.progress[p][t] = -1;
           const token = state.tokens[p][t];
-          const pos = state.startPads[p][t]
-            .clone()
-            .add(new THREE.Vector3(0, 0.012, 0));
+          const pos = state.startPads[p][t].clone();
+          pos.y = TOKEN_HOME_HEIGHT;
           token.position.copy(pos);
           token.rotation.set(0, 0, 0);
           playCapture();
@@ -2090,19 +2323,32 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const rollTargets = dice.userData?.rollTargets;
     const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
     const baseTarget = rollTargets?.[player]?.clone() ?? new THREE.Vector3(0, baseHeight, 0);
-    const jitter = new THREE.Vector3((Math.random() - 0.5) * 0.06, 0, (Math.random() - 0.5) * 0.06);
-    baseTarget.add(jitter);
     baseTarget.x = THREE.MathUtils.clamp(baseTarget.x, -clothLimit, clothLimit);
     baseTarget.z = THREE.MathUtils.clamp(baseTarget.z, -clothLimit, clothLimit);
     baseTarget.y = baseHeight;
     stopDiceTransition();
     dice.userData.isRolling = true;
+    setCameraFocus({
+      object: dice,
+      follow: true,
+      priority: 4,
+      offset: CAMERA_TARGET_LIFT + 0.04
+    });
+    const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: 950,
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
+    setCameraFocus({
+      target: landingFocus,
+      follow: false,
+      ttl: 1.6,
+      priority: 3,
+      offset: CAMERA_TARGET_LIFT + 0.03,
+      force: true
+    });
     setUi((s) => ({
       ...s,
       dice: value,
@@ -2373,9 +2619,18 @@ function buildLudoBoard(boardGroup) {
     color: 0xcbd5e1,
     roughness: 0.85
   });
-  const centerMat = new THREE.MeshStandardMaterial({
-    color: 0x1f2937,
-    roughness: 0.9
+  const centerBaseMat = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
+    roughness: 0.88
+  });
+  const centerStarMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.82,
+    metalness: 0.06
+  });
+  const centerCornerMats = PLAYER_COLORS.map((color) => {
+    const tone = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.32);
+    return new THREE.MeshStandardMaterial({ color: tone, roughness: 0.82 });
   });
 
   const plate = new THREE.Mesh(
@@ -2422,7 +2677,19 @@ function buildLudoBoard(boardGroup) {
         continue;
       }
       if (inCenter) {
-        const mesh = new THREE.Mesh(tileGeo, centerMat);
+        let mat = centerBaseMat;
+        if (r === 7 && c === 7) {
+          mat = centerStarMat;
+        } else if (r === 6 && c === 6) {
+          mat = centerCornerMats[0];
+        } else if (r === 6 && c === 8) {
+          mat = centerCornerMats[1];
+        } else if (r === 8 && c === 8) {
+          mat = centerCornerMats[2];
+        } else if (r === 8 && c === 6) {
+          mat = centerCornerMats[3];
+        }
+        const mesh = new THREE.Mesh(tileGeo, mat);
         mesh.position.copy(pos);
         scene.add(mesh);
         continue;
@@ -2454,16 +2721,27 @@ function buildLudoBoard(boardGroup) {
     }
   }
 
-  const tokens = PLAYER_COLORS.map((color, playerIdx) => {
+  const tokens = TOKEN_COLORS.map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const rook = makeRook(makeTokenMaterial(color));
-      rook.position.copy(startPads[playerIdx][i].clone().add(new THREE.Vector3(0, 0.012, 0)));
+      const homePos = startPads[playerIdx][i].clone();
+      homePos.y = TOKEN_HOME_HEIGHT;
+      rook.position.copy(homePos);
       scene.add(rook);
       return rook;
     });
   });
 
+  const landingTargets = startPads.map((pads) => {
+    const center = pads.reduce((acc, pad) => acc.add(pad), new THREE.Vector3());
+    center.multiplyScalar(1 / pads.length);
+    center.y = DICE_BASE_HEIGHT;
+    return center;
+  });
+
   const dice = makeDice();
+  dice.userData.homeLandingTargets = landingTargets.map((target) => target.clone());
+  dice.userData.rollTargets = landingTargets.map((target) => target.clone());
   const railPadGroup = new THREE.Group();
   railPadGroup.position.y = 0.001;
   scene.add(railPadGroup);
@@ -2484,10 +2762,8 @@ function buildLudoBoard(boardGroup) {
   const railHeight = DICE_BASE_HEIGHT;
   const diceAnchor = new THREE.Vector3(0, railHeight, 0);
   const railPositions = Array.from({ length: 4 }, () => diceAnchor.clone());
-  const rollTargets = railPositions.map((pos) => pos.clone());
   dice.position.copy(diceAnchor);
   dice.userData.railPositions = railPositions.map((pos) => pos.clone());
-  dice.userData.rollTargets = rollTargets.map((pos) => pos.clone());
   dice.userData.baseHeight = DICE_BASE_HEIGHT;
   dice.userData.railHeight = railHeight;
   dice.userData.bounceHeight = 0.07;
