@@ -520,6 +520,7 @@ const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.047;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0025;
+const DICE_PIP_SURFACE_OFFSET = DICE_SIZE * 0.0028;
 
 function makeDice() {
   const dice = new THREE.Group();
@@ -586,7 +587,7 @@ function makeDice() {
   const pipCapGeo = new THREE.CircleGeometry(DICE_PIP_RADIUS * 0.96, 48);
   const pipRimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const halfSize = DICE_SIZE / 2;
-  const faceDepth = halfSize - DICE_FACE_INSET * 0.6;
+  const faceDepth = halfSize - DICE_FACE_INSET * 0.08 + DICE_PIP_SURFACE_OFFSET;
   const spread = DICE_PIP_SPREAD;
   const faces = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
@@ -669,7 +670,7 @@ function makeDice() {
       const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
       rim.receiveShadow = true;
       rim.renderOrder = 6;
-      rim.position.copy(surface).addScaledVector(n, -DICE_PIP_RIM_OFFSET);
+      rim.position.copy(surface).addScaledVector(n, DICE_PIP_RIM_OFFSET);
       rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
       dice.add(rim);
     });
@@ -2663,14 +2664,17 @@ function buildLudoBoard(boardGroup) {
   const homeColumnPositions = HOME_COLUMN_COORDS.map((coords) =>
     coords.map(([r, c]) => cellToWorld(r, c))
   );
-  const diceRollTargets = homeColumnPositions.map((column) => {
-    if (!Array.isArray(column) || !column.length) {
+  const diceRollTargets = startPads.map((pads) => {
+    if (!Array.isArray(pads) || !pads.length) {
       return new THREE.Vector3(0, DICE_BASE_HEIGHT, 0);
     }
-    const index = column.length - 1;
-    const target = column[index].clone();
-    target.y = DICE_BASE_HEIGHT;
-    return target;
+    const center = pads.reduce(
+      (acc, pad) => acc.add(pad.clone()),
+      new THREE.Vector3()
+    );
+    center.multiplyScalar(1 / pads.length);
+    center.y = DICE_BASE_HEIGHT;
+    return center;
   });
 
   const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
