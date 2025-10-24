@@ -514,6 +514,11 @@ export default function MurlanRoyaleArena({ search }) {
         focusCameraOnPlayer(activeIdx, immediate);
         return;
       }
+      const activePlayer = playersList[activeIdx];
+      if (activePlayer?.isHuman) {
+        focusCameraOnPlayer(activeIdx, immediate);
+        return;
+      }
       const nextIdx = getNextAlive(playersList, activeIdx);
       const focusIdx = typeof nextIdx === 'number' && nextIdx !== activeIdx ? nextIdx : activeIdx;
       focusCameraOnPlayer(focusIdx, immediate);
