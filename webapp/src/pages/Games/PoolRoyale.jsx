@@ -239,6 +239,7 @@ const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.045;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
 const CHROME_CORNER_WIDTH_SCALE = 0.99;
 const CHROME_CORNER_HEIGHT_SCALE = 1.01;
+const CHROME_CORNER_INSIDE_MARGIN = TABLE.THICK * 0.008; // ensure chrome plates overlap the wooden rail arch by a subtle margin
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
@@ -4413,6 +4414,7 @@ function Table3D(
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
   // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
+  const baseChromePlateHeight = chromePlateHeight;
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
@@ -4420,7 +4422,40 @@ function Table3D(
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
     const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
-    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
+    const baseCenterZ = sz * (outerHalfH - baseChromePlateHeight / 2 - chromePlateInset);
+    const baseInsideEdge = Math.max(0, Math.abs(baseCenterZ) - baseChromePlateHeight / 2);
+    const woodNotchWorld = scaleWoodRailCornerPocketCut(cornerNotchMP(sx, sz));
+    let woodInsideZ = sz < 0 ? -baseInsideEdge : baseInsideEdge;
+    if (Array.isArray(woodNotchWorld)) {
+      woodNotchWorld.forEach((poly) => {
+        if (!Array.isArray(poly)) return;
+        poly.forEach((ring) => {
+          if (!Array.isArray(ring)) return;
+          ring.forEach((pt) => {
+            if (!Array.isArray(pt) || pt.length < 2) return;
+            const [, z] = pt;
+            if (sz < 0) {
+              woodInsideZ = Math.max(woodInsideZ, z);
+            } else {
+              woodInsideZ = Math.min(woodInsideZ, z);
+            }
+          });
+        });
+      });
+    }
+    const woodInsideDist = Math.abs(woodInsideZ);
+    const targetInsideEdge = Math.max(0, woodInsideDist - CHROME_CORNER_INSIDE_MARGIN);
+    const extraInsideReach = Math.max(0, baseInsideEdge - targetInsideEdge);
+    const cornerHeight =
+      extraInsideReach > MICRO_EPS
+        ? baseChromePlateHeight + extraInsideReach
+        : baseChromePlateHeight;
+    const cornerRadius = Math.min(
+      outerCornerRadius * 0.95,
+      chromePlateWidth / 2,
+      cornerHeight / 2
+    );
+    const centerZ = sz * (outerHalfH - cornerHeight / 2 - chromePlateInset);
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
     const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
     const notchLocalMP = notchMP.map((poly) =>
@@ -4431,8 +4466,8 @@ function Table3D(
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: chromePlateWidth,
-        height: chromePlateHeight,
-        radius: chromePlateRadius,
+        height: cornerHeight,
+        radius: cornerRadius,
         thickness: chromePlateThickness,
         corner,
         notchMP: notchLocalMP,
