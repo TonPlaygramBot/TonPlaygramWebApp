@@ -1112,15 +1112,23 @@ function payChips(player, amount, state) {
 
 function getNextActiveIndex(players, startIndex) {
   if (!players.length) return 0;
-  for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (startIndex + offset) % players.length;
+  const count = players.length;
+  for (let offset = 1; offset <= count; offset += 1) {
+    const idx = (startIndex - offset + count) % count;
     const p = players[idx];
     if (!p) continue;
     if (!p.folded && p.chips > 0 && !p.allIn) {
       return idx;
     }
   }
-  return players.findIndex((p) => !p.folded) ?? 0;
+  for (let offset = 1; offset <= count; offset += 1) {
+    const idx = (startIndex - offset + count) % count;
+    const p = players[idx];
+    if (p && !p.folded) {
+      return idx;
+    }
+  }
+  return 0;
 }
 
 function resetActedFlags(state) {
