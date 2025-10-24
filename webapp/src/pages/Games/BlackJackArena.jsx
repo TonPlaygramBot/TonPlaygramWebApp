@@ -922,8 +922,21 @@ function dealInitialCards(state) {
 }
 
 function getNextPlayerIndex(players, start) {
-  for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (start + offset) % players.length;
+  const total = players.length;
+
+  if (start < 0) {
+    for (let idx = 0; idx < total; idx += 1) {
+      const player = players[idx];
+      if (!player) continue;
+      if (!player.isDealer && player.bet > 0 && !player.bust) {
+        return idx;
+      }
+    }
+    return DEALER_INDEX;
+  }
+
+  for (let offset = 1; offset <= total; offset += 1) {
+    const idx = (start - offset + total) % total;
     const player = players[idx];
     if (!player) continue;
     if (!player.isDealer && player.bet > 0 && !player.bust) {
