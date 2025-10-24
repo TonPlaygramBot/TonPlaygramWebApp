@@ -425,15 +425,15 @@ const TRACK_COORDS = Object.freeze([
   [7, 0],
   [6, 0]
 ]);
-const PLAYER_START_INDEX = Object.freeze([0, 13, 26, 39]);
+const PLAYER_START_INDEX = Object.freeze([26, 13, 0, 39]);
 const HOME_COLUMN_COORDS = Object.freeze([
   Object.freeze([
-    [7, 1],
-    [7, 2],
-    [7, 3],
-    [7, 4],
-    [7, 5],
-    [7, 6]
+    [7, 13],
+    [7, 12],
+    [7, 11],
+    [7, 10],
+    [7, 9],
+    [7, 8]
   ]),
   Object.freeze([
     [1, 7],
@@ -444,12 +444,12 @@ const HOME_COLUMN_COORDS = Object.freeze([
     [6, 7]
   ]),
   Object.freeze([
-    [7, 13],
-    [7, 12],
-    [7, 11],
-    [7, 10],
-    [7, 9],
-    [7, 8]
+    [7, 1],
+    [7, 2],
+    [7, 3],
+    [7, 4],
+    [7, 5],
+    [7, 6]
   ]),
   Object.freeze([
     [13, 7],
@@ -464,7 +464,7 @@ const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
-const BOARD_COLORS = Object.freeze([0xf59e0b, 0x22c55e, 0xef4444, 0x3b82f6]);
+const BOARD_COLORS = Object.freeze([0xfef08a, 0x22c55e, 0xef4444, 0x3b82f6]);
 const PLAYER_COLOR_ORDER = Object.freeze([2, 1, 0, 3]);
 const PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
@@ -972,7 +972,7 @@ function addBoardMarkers(scene, cellToWorld) {
     const angle = getTrackDirectionAngle(startIndex);
     const marker = createMarkerMesh({
       label: 'START',
-      color: BOARD_COLORS[playerIdx],
+      color: PLAYER_COLORS[playerIdx],
       position,
       angle,
       size: LUDO_TILE * 0.94,
@@ -986,7 +986,7 @@ function addBoardMarkers(scene, cellToWorld) {
     const [safeR, safeC] = TRACK_COORDS[safeIndex];
     const safePosition = cellToWorld(safeR, safeC).clone();
     const star = createStarMarkerMesh({
-      color: BOARD_COLORS[playerIdx],
+      color: PLAYER_COLORS[playerIdx],
       position: safePosition,
       size: LUDO_TILE * 0.88
     });
@@ -999,7 +999,7 @@ function addBoardMarkers(scene, cellToWorld) {
       const arrowAngle = Math.atan2(-homePos.x, -homePos.z);
       const arrowMarker = createMarkerMesh({
         label: '',
-        color: BOARD_COLORS[playerIdx],
+        color: PLAYER_COLORS[playerIdx],
         position: homePos,
         angle: arrowAngle,
         size: LUDO_TILE * 0.86,
@@ -1669,21 +1669,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         layouts.push({ base, forward: forwardLocal.clone(), right: rightLocal.clone() });
       }
 
-      const swap = (arr, a, b) => {
-        if (!Array.isArray(arr) || arr.length <= Math.max(a, b)) return;
-        const temp = arr[a];
-        arr[a] = arr[b];
-        arr[b] = temp;
-      };
-      swap(rails, 0, 2);
-      swap(rolls, 0, 2);
-      swap(layouts, 0, 2);
-
       diceObj.userData.railPositions = rails;
       const preferredLanding = Array.isArray(diceObj.userData?.homeLandingTargets)
         ? diceObj.userData.homeLandingTargets.map((vec) => vec.clone())
         : rolls.map((vec) => vec.clone());
-      swap(preferredLanding, 0, 2);
       diceObj.userData.rollTargets = preferredLanding;
       diceObj.userData.tokenRails = layouts;
       applyRailLayout();
@@ -3064,7 +3053,7 @@ function buildLudoBoard(boardGroup) {
     const darker = new THREE.Color(color).multiplyScalar(0.72);
     return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
   });
-  const pathMats = BOARD_COLORS.map(
+  const pathMats = PLAYER_COLORS.map(
     (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
   for (let r = 0; r < LUDO_GRID; r++) {
@@ -3228,9 +3217,9 @@ function getHomeStartPads(half) {
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
   const layout = [
-    [-1, -1],
-    [1, -1],
     [1, 1],
+    [1, -1],
+    [-1, -1],
     [-1, 1]
   ];
   return layout.map(([sx, sz]) => {
