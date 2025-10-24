@@ -64,16 +64,36 @@ function buildPyramidLayout() {
   const totalCells = cell - 1;
   const widthUnits = maxX - minX;
   const heightUnits = maxY;
-  const centerColumn = minX + widthUnits / 2;
+
+  const mirrorColumn = (col) => minX + widthUnits - (col + 1);
+
+  const mirroredTiles = tiles.map((tile) => ({
+    ...tile,
+    col: mirrorColumn(tile.col),
+  }));
+
+  const mirroredLevels = levels.map((level) => ({
+    ...level,
+    xOffset: mirrorColumn(level.xOffset + level.size - 1),
+  }));
+
+  let mirroredMinX = Infinity;
+  let mirroredMaxX = -Infinity;
+  mirroredTiles.forEach((tile) => {
+    mirroredMinX = Math.min(mirroredMinX, tile.col);
+    mirroredMaxX = Math.max(mirroredMaxX, tile.col + 1);
+  });
+
+  const centerColumn = mirroredMinX + (mirroredMaxX - mirroredMinX) / 2;
 
   return {
-    tiles,
-    levels,
+    tiles: mirroredTiles,
+    levels: mirroredLevels,
     totalCells,
-    widthUnits,
+    widthUnits: mirroredMaxX - mirroredMinX,
     heightUnits,
-    minX,
-    maxX,
+    minX: mirroredMinX,
+    maxX: mirroredMaxX,
     centerColumn,
   };
 }
