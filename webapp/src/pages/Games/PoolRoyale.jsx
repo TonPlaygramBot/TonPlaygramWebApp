@@ -226,18 +226,71 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
+function resolvePocketCenter(mp, fallbackX, fallbackZ) {
+  if (Array.isArray(mp) && mp.length) {
+    for (let i = 0; i < mp.length; i++) {
+      const poly = mp[i];
+      if (!Array.isArray(poly) || !poly.length) continue;
+      const outerRing = poly[0];
+      if (!Array.isArray(outerRing) || !outerRing.length) continue;
+      const centroid = centroidFromRing(outerRing);
+      if (centroid && Number.isFinite(centroid.x) && Number.isFinite(centroid.y)) {
+        return new THREE.Vector2(centroid.x, centroid.y);
+      }
+    }
+  }
+  return new THREE.Vector2(fallbackX, fallbackZ);
+}
+
+function maxRadiusFromMultiPolygon(mp, center) {
+  if (!Array.isArray(mp) || !(center instanceof THREE.Vector2)) {
+    return 0;
+  }
+  const cx = center.x;
+  const cz = center.y;
+  let maxSq = 0;
+  for (let i = 0; i < mp.length; i++) {
+    const poly = mp[i];
+    if (!Array.isArray(poly)) continue;
+    for (let j = 0; j < poly.length; j++) {
+      const ring = poly[j];
+      if (!Array.isArray(ring)) continue;
+      for (let k = 0; k < ring.length; k++) {
+        const pt = ring[k];
+        if (!Array.isArray(pt) || pt.length < 2) continue;
+        const dx = pt[0] - cx;
+        const dz = pt[1] - cz;
+        const distSq = dx * dx + dz * dz;
+        if (distSq > maxSq) {
+          maxSq = distSq;
+        }
+      }
+    }
+  }
+  return Math.sqrt(Math.max(0, maxSq));
+}
+
+function computePocketOuterLimit(mp, fallbackX, fallbackZ) {
+  const center = resolvePocketCenter(mp, fallbackX, fallbackZ);
+  const radius = maxRadiusFromMultiPolygon(mp, center);
+  return {
+    center,
+    radius: Number.isFinite(radius) && radius > MICRO_EPS ? radius : null
+  };
+}
+
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1; // keep the notch perfectly circular for symmetric chrome cuts
 const CHROME_CORNER_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.015;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.02; // mirror the long-rail expansion so both axes stay balanced
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.99;
-const CHROME_CORNER_HEIGHT_SCALE = 1.01;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.01; // very light oversize so the liner seats without gaps
+const CHROME_CORNER_WIDTH_SCALE = 1; // keep plate footprint square so pocket arcs remain symmetric
+const CHROME_CORNER_HEIGHT_SCALE = 1;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
@@ -252,7 +305,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // pull the wood relief in slightly so the rounded cuts read tighter
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.998; // trim just enough to avoid z-fighting while matching the chrome arc visually
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
 
 function buildChromePlateGeometry({
@@ -476,8 +529,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // extend the jaw reach so the liner follows the larger chrome plate cut cleanly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.015; // let the middle jaw ride the expanded chrome/wood arc without leaving a gap
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // lock the jaw to the chrome profile with no additional flare
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // align the side jaw mouth directly to the chrome plate opening
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.984; // pull the inner lip farther out so the widened jaw still meets the chrome cut
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.735; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -4731,15 +4784,36 @@ function Table3D(
 
   // Each pocket jaw must match 100% to the rounded chrome plate cuts—never the wooden rail arches.
   // Repeat: each pocket jaw must match 100% to the size of the rounded cuts on the chrome plates.
-  const cornerJawOuterLimit =
+  const fallbackCornerOuterLimit =
     cornerPocketRadius *
     CHROME_CORNER_POCKET_RADIUS_SCALE *
-    CHROME_CORNER_POCKET_CUT_SCALE *
-    POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
-  const sideJawOuterLimit =
+    CHROME_CORNER_POCKET_CUT_SCALE;
+  const fallbackSideOuterLimit =
     sidePocketRadius *
     CHROME_SIDE_POCKET_RADIUS_SCALE *
-    CHROME_SIDE_POCKET_CUT_SCALE *
+    CHROME_SIDE_POCKET_CUT_SCALE;
+
+  const baseCornerFallbackCenter = new THREE.Vector2(
+    innerHalfW - cornerInset,
+    innerHalfH - cornerInset
+  );
+  const cornerChromeReference = computePocketOuterLimit(
+    scaleChromeCornerPocketCut(cornerNotchMP(1, 1)),
+    baseCornerFallbackCenter.x,
+    baseCornerFallbackCenter.y
+  );
+  const baseSideFallbackCenter = new THREE.Vector2(sidePocketCenterX, 0);
+  const sideChromeReference = computePocketOuterLimit(
+    scaleChromeSidePocketCut(sideNotchMP(1)),
+    baseSideFallbackCenter.x,
+    baseSideFallbackCenter.y
+  );
+
+  const cornerJawOuterLimit =
+    (cornerChromeReference.radius ?? fallbackCornerOuterLimit) *
+    POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+  const sideJawOuterLimit =
+    (sideChromeReference.radius ?? fallbackSideOuterLimit) *
     POCKET_JAW_SIDE_OUTER_LIMIT_SCALE;
 
   const resolveBaseRadius = (outerLimit, outerScale) => {
@@ -4761,22 +4835,6 @@ function Table3D(
     POCKET_JAW_SIDE_OUTER_SCALE
   );
 
-  const resolvePocketCenter = (mp, fallbackX, fallbackZ) => {
-    if (Array.isArray(mp) && mp.length) {
-      for (let i = 0; i < mp.length; i++) {
-        const poly = mp[i];
-        if (!Array.isArray(poly) || !poly.length) continue;
-        const outerRing = poly[0];
-        if (!Array.isArray(outerRing) || !outerRing.length) continue;
-        const centroid = centroidFromRing(outerRing);
-        if (centroid && Number.isFinite(centroid.x) && Number.isFinite(centroid.y)) {
-          return new THREE.Vector2(centroid.x, centroid.y);
-        }
-      }
-    }
-    return new THREE.Vector2(fallbackX, fallbackZ);
-  };
-
   if (cornerBaseRadius && cornerBaseRadius > MICRO_EPS) {
     [
       { sx: 1, sz: 1 },
@@ -4785,11 +4843,16 @@ function Table3D(
       { sx: 1, sz: -1 }
     ].forEach(({ sx, sz }) => {
       const baseMP = cornerNotchMP(sx, sz);
+      const scaledMP = scaleChromeCornerPocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(
         sx * (innerHalfW - cornerInset),
         sz * (innerHalfH - cornerInset)
       );
-      const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
+      const { center } = computePocketOuterLimit(
+        scaledMP,
+        fallbackCenter.x,
+        fallbackCenter.y
+      );
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
@@ -4806,8 +4869,13 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
+      const scaledMP = scaleChromeSidePocketCut(baseMP);
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
-      const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
+      const { center } = computePocketOuterLimit(
+        scaledMP,
+        fallbackCenter.x,
+        fallbackCenter.y
+      );
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
