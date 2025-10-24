@@ -250,8 +250,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_CORNER_POCKET_CUT_SCALE = 0.92; // tighten the chrome trace a touch more so the wooden relief shows a single trim arc
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.78; // pull the middle chrome cut in further so the wood only exposes one rounded profile
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.88; // shrink the chrome trace so the wooden relief only exposes a single matching trim arc
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.68; // pull the middle chrome cut in even tighter so the rail only shows one rounded profile
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // rails now reuse the chrome cut directly so every surface shares the same rounded arch
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // middle rail relief follows the chrome cut 1:1 to avoid mismatched pocket jaws
 
@@ -477,7 +477,7 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match snooker jaw reach so liners hug the chrome plate cut
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 0.92; // tighten the middle jaw reach so it follows the smaller shared chrome/wood arc cleanly
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // let the middle jaw reach terminate exactly at the downsized chrome/wood arc
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward to keep the liner flush with the rail edge
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
