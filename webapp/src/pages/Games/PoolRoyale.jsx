@@ -252,7 +252,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // wood relief follows the chrome arcs without additional inflation
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // pull the wood relief in slightly so the rounded cuts read tighter
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
 
 function buildChromePlateGeometry({
