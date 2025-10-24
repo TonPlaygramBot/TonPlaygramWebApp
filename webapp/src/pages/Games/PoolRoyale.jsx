@@ -252,6 +252,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.97;
 const CHROME_SIDE_POCKET_CUT_SCALE = 0.97;
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.94; // pull the wooden rail cutouts back so the chrome defines the visible pocket arch
 
 function buildChromePlateGeometry({
   width,
@@ -4383,6 +4384,10 @@ function Table3D(
     scalePocketCutMP(mp, CHROME_CORNER_POCKET_CUT_SCALE);
   const scaleChromeSidePocketCut = (mp) =>
     scalePocketCutMP(mp, CHROME_SIDE_POCKET_CUT_SCALE);
+  const scaleWoodRailCornerPocketCut = (mp) =>
+    scalePocketCutMP(scaleChromeCornerPocketCut(mp), WOOD_RAIL_POCKET_RELIEF_SCALE);
+  const scaleWoodRailSidePocketCut = (mp) =>
+    scalePocketCutMP(scaleChromeSidePocketCut(mp), WOOD_RAIL_POCKET_RELIEF_SCALE);
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
@@ -4792,15 +4797,15 @@ function Table3D(
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...scaleChromeSidePocketCut(sideNotchMP(-1)),
-    ...scaleChromeSidePocketCut(sideNotchMP(1))
+    ...scaleWoodRailSidePocketCut(sideNotchMP(-1)),
+    ...scaleWoodRailSidePocketCut(sideNotchMP(1))
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...scaleChromeCornerPocketCut(cornerNotchMP(1, 1)),
-    ...scaleChromeCornerPocketCut(cornerNotchMP(-1, 1)),
-    ...scaleChromeCornerPocketCut(cornerNotchMP(-1, -1)),
-    ...scaleChromeCornerPocketCut(cornerNotchMP(1, -1))
+    ...scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
+    ...scaleWoodRailCornerPocketCut(cornerNotchMP(-1, 1)),
+    ...scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1)),
+    ...scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1))
   );
 
   const railsOuter = new THREE.Shape();
