@@ -250,8 +250,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_CORNER_POCKET_CUT_SCALE = 1;
-const CHROME_SIDE_POCKET_CUT_SCALE = 1;
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.97;
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.97;
 
 function buildChromePlateGeometry({
   width,
@@ -556,10 +556,8 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET = 0; // align corner pocket centres exactly with the snooker geometry
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const POCKET_FIELD_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION; // field pocket mouth controls every rounded cut
-const SIDE_POCKET_FIELD_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION; // side mouth mirrors the field pocket diameter
-const CORNER_CHROME_NOTCH_RADIUS = POCKET_FIELD_RADIUS;
-const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_FIELD_RADIUS;
+const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
+const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -4173,7 +4171,7 @@ function Table3D(
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sidePocketRadius = SIDE_POCKET_FIELD_RADIUS; // match the playable field mouth exactly
+  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
@@ -4204,7 +4202,7 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_FIELD_RADIUS; // match the playable field mouth exactly
+  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
@@ -4689,7 +4687,6 @@ function Table3D(
 
   // Each pocket jaw must match 100% to the rounded chrome plate cuts—never the wooden rail arches.
   // Repeat: each pocket jaw must match 100% to the size of the rounded cuts on the chrome plates.
-  // Because the chrome now mirrors the field pocket diameter exactly, the jaws inherit that precise width too.
   const cornerJawOuterLimit =
     cornerPocketRadius *
     CHROME_CORNER_POCKET_RADIUS_SCALE *
@@ -4793,7 +4790,6 @@ function Table3D(
   }
 
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
-  // With the chrome following the field pocket diameter, every rounded cut now aligns 1:1 with the cloth openings.
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...scaleChromeSidePocketCut(sideNotchMP(-1)),
