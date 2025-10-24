@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -1950,8 +1950,6 @@ export default function SnakeBoard3D({
   const diceAnchorCallbackRef = useRef(null);
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
-  const cameraFocusRef = useRef(null);
-  const defaultTargetRef = useRef(null);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -1968,40 +1966,6 @@ export default function SnakeBoard3D({
       diceAnchorCallbackRef.current = null;
     };
   }, [onDiceAnchorChange]);
-
-  const setCameraFocus = useCallback((focus) => {
-    if (!focus) {
-      cameraFocusRef.current = null;
-      return;
-    }
-    const current = cameraFocusRef.current;
-    const shouldForce = focus.force === true;
-    const offset = typeof focus.offset === 'number' ? focus.offset : CAMERA_TARGET_LIFT;
-    let targetVec = null;
-    if (focus.target) {
-      if (typeof focus.target.clone === 'function') {
-        targetVec = focus.target.clone();
-      } else if (
-        typeof focus.target.x === 'number' &&
-        typeof focus.target.y === 'number' &&
-        typeof focus.target.z === 'number'
-      ) {
-        targetVec = new THREE.Vector3(focus.target.x, focus.target.y, focus.target.z);
-      }
-    }
-    const next = {
-      object: focus.object ?? null,
-      target: targetVec,
-      follow: Boolean(focus.follow),
-      ttl: typeof focus.ttl === 'number' ? focus.ttl : 0,
-      priority: typeof focus.priority === 'number' ? focus.priority : 0,
-      offset
-    };
-    if (!shouldForce && current && current.priority > next.priority) {
-      return;
-    }
-    cameraFocusRef.current = next;
-  }, []);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -2033,16 +1997,12 @@ export default function SnakeBoard3D({
       handlers,
       arena.updateCameraTarget
     );
-    const defaultLookTarget = arena.boardLookTarget.clone();
     boardRef.current = {
       ...board,
       boardLookTarget: arena.boardLookTarget,
-      defaultLookTarget,
       controls: arena.controls,
       seatAnchors: arena.seatAnchors ?? []
     };
-    defaultTargetRef.current = defaultLookTarget.clone();
-    cameraFocusRef.current = null;
 
     railTextureRef.current = makeRailTexture();
     snakeTextureRef.current = makeSnakeTexture();
@@ -2050,15 +2010,8 @@ export default function SnakeBoard3D({
     fitRef.current = arena.fit;
     arena.fit();
 
-    let lastFrameTime = performance.now();
-    const focusTarget = new THREE.Vector3();
-    const fallbackTarget = new THREE.Vector3();
-    const objectWorld = new THREE.Vector3();
-
     renderer.setAnimationLoop((time) => {
       const now = typeof time === 'number' ? time : performance.now();
-      const delta = Math.min(0.12, (now - lastFrameTime) / 1000);
-      lastFrameTime = now;
       const active = animationsRef.current;
       for (let i = active.length - 1; i >= 0; i -= 1) {
         const anim = active[i];
@@ -2075,8 +2028,6 @@ export default function SnakeBoard3D({
         }
       }
       const board = boardRef.current;
-      const controls = board?.controls ?? arena.controls;
-      const camera = cameraRef.current;
       let hasDiceCenter = false;
       if (board?.diceLights && board?.diceSet?.length) {
         DICE_CENTER_VECTOR.set(0, 0, 0);
@@ -2099,50 +2050,8 @@ export default function SnakeBoard3D({
           }
         }
       }
-      if (board?.boardLookTarget && camera) {
-        const focusState = cameraFocusRef.current;
-        let appliedFocus = false;
-        if (focusState) {
-          let focusPos = null;
-          if (focusState.object) {
-            if (typeof focusState.object.getWorldPosition === 'function') {
-              focusState.object.getWorldPosition(objectWorld);
-              focusPos = objectWorld;
-            } else if (focusState.object.position) {
-              focusPos = focusState.object.position;
-            }
-          } else if (focusState.target) {
-            focusPos = focusState.target;
-          }
-          if (focusPos) {
-            focusTarget.copy(focusPos);
-            focusTarget.y += focusState.offset ?? CAMERA_TARGET_LIFT;
-            const lerpFactor = focusState.follow ? 0.24 : 0.14;
-            board.boardLookTarget.lerp(focusTarget, lerpFactor);
-            appliedFocus = true;
-          }
-          if (!focusState.follow) {
-            focusState.ttl -= delta;
-            if (focusState.ttl <= 0) {
-              cameraFocusRef.current = null;
-            }
-          } else if (!focusPos) {
-            cameraFocusRef.current = null;
-          }
-        }
-        if (!appliedFocus) {
-          const defaultTarget = board.defaultLookTarget ?? defaultTargetRef.current;
-          if (defaultTarget) {
-            fallbackTarget.copy(defaultTarget);
-            board.boardLookTarget.lerp(fallbackTarget, 0.08);
-          } else {
-            fallbackTarget.set(0, CAMERA_TARGET_LIFT, 0);
-            board.boardLookTarget.lerp(fallbackTarget, 0.08);
-          }
-        }
-        controls?.target.copy(board.boardLookTarget);
-      }
-      controls?.update?.();
+      arena.controls?.update?.();
+      const camera = cameraRef.current;
       if (camera) {
         if (board?.seatAnchors?.length && seatCallbackRef.current) {
           const positions = board.seatAnchors.map((anchor, index) => {
@@ -2214,8 +2123,6 @@ export default function SnakeBoard3D({
       lastDiceAnchorRef.current = null;
       diceAnchorCallbackRef.current?.(null);
       boardRef.current = null;
-      cameraFocusRef.current = null;
-      defaultTargetRef.current = null;
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
       }
@@ -2263,41 +2170,6 @@ export default function SnakeBoard3D({
   }, [players, burning, rollingIndex, currentTurn, tokenType]);
 
   useEffect(() => {
-    if (currentTurn == null || currentTurn < 0) return;
-    const board = boardRef.current;
-    if (!board) return;
-    const seatAnchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
-    const seat = seatAnchors[currentTurn];
-    if (seat) {
-      seat.updateMatrixWorld?.(true);
-      const seatWorld = new THREE.Vector3();
-      seat.getWorldPosition(seatWorld);
-      setCameraFocus({
-        target: seatWorld,
-        follow: false,
-        ttl: 1.4,
-        priority: 1,
-        offset: CAMERA_TARGET_LIFT + 0.06
-      });
-      return;
-    }
-    const player = Array.isArray(players) ? players[currentTurn] : null;
-    const rawPosition = Number(player?.position);
-    if (!Number.isFinite(rawPosition) || rawPosition < 1) return;
-    const local = (board.indexToPosition.get(rawPosition) || board.serpentineIndexToXZ(rawPosition)).clone();
-    board.root?.updateMatrixWorld?.(true);
-    const world = local.clone();
-    board.root.localToWorld(world);
-    setCameraFocus({
-      target: world,
-      follow: false,
-      ttl: 1.4,
-      priority: 1,
-      offset: CAMERA_TARGET_LIFT + 0.05
-    });
-  }, [currentTurn, players, setCameraFocus]);
-
-  useEffect(() => {
     if (!boardRef.current || !railTextureRef.current) return;
     updateLadders(
       boardRef.current.laddersGroup,
@@ -2318,23 +2190,6 @@ export default function SnakeBoard3D({
       snakeTextureRef.current
     );
   }, [snakes, snakeOffsets]);
-
-  useEffect(() => {
-    if (!celebrate) return;
-    const board = boardRef.current;
-    if (!board?.potGroup) return;
-    board.root?.updateMatrixWorld?.(true);
-    const potWorld = new THREE.Vector3();
-    board.potGroup.getWorldPosition(potWorld);
-    setCameraFocus({
-      target: potWorld,
-      follow: false,
-      ttl: 2.4,
-      priority: 3,
-      offset: CAMERA_TARGET_LIFT + 0.07,
-      force: true
-    });
-  }, [celebrate, setCameraFocus]);
 
   useEffect(() => {
     if (!slide || !boardRef.current) return;
@@ -2364,13 +2219,6 @@ export default function SnakeBoard3D({
     }
     const curve = pathInfo.curve;
     token.userData.isSliding = true;
-    setCameraFocus({
-      object: token,
-      follow: true,
-      priority: 6,
-      offset: CAMERA_TARGET_LIFT + 0.05,
-      force: true
-    });
     const duration = 1100;
     const startTime = performance.now();
     const lift = TOKEN_HEIGHT * 0.6;
@@ -2394,26 +2242,13 @@ export default function SnakeBoard3D({
         if (t >= 1) {
           token.userData.isSliding = false;
           token.position.copy(endBase);
-          if (board.root) {
-            board.root.updateMatrixWorld?.(true);
-            const worldEnd = endBase.clone();
-            board.root.localToWorld(worldEnd);
-            setCameraFocus({
-              target: worldEnd,
-              follow: false,
-              ttl: 1.6,
-              priority: 4,
-              offset: CAMERA_TARGET_LIFT + 0.04,
-              force: true
-            });
-          }
           onSlideComplete?.(slide.id, true);
           return true;
         }
         return false;
       }
     });
-  }, [slide, onSlideComplete, setCameraFocus]);
+  }, [slide, onSlideComplete]);
 
   useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
@@ -2423,15 +2258,6 @@ export default function SnakeBoard3D({
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
-      if (board.diceGroup) {
-        setCameraFocus({
-          object: board.diceGroup,
-          follow: true,
-          priority: 5,
-          offset: CAMERA_TARGET_LIFT + 0.06,
-          force: true
-        });
-      }
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
       const prevState = diceStateRef.current || {};
       const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
@@ -2520,21 +2346,6 @@ export default function SnakeBoard3D({
             baseY: diceBaseY
           })
         );
-        if (board.root && basePositions.length > 0) {
-          board.root.updateMatrixWorld?.(true);
-          const focus = basePositions.reduce((acc, vec) => acc.add(vec), new THREE.Vector3());
-          focus.multiplyScalar(1 / basePositions.length);
-          const focusWorld = focus.clone();
-          board.root.localToWorld(focusWorld);
-          setCameraFocus({
-            target: focusWorld,
-            follow: false,
-            ttl: 1.6,
-            priority: 4,
-            offset: CAMERA_TARGET_LIFT + 0.03,
-            force: true
-          });
-        }
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
       diceStateRef.current = {
@@ -2545,7 +2356,7 @@ export default function SnakeBoard3D({
         lastSeatIndex
       };
     }
-  }, [diceEvent, setCameraFocus]);
+  }, [diceEvent]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
