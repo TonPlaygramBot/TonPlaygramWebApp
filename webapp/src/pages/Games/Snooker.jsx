@@ -234,9 +234,11 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 0.94;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.96;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5;
+const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.88;
+const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.94;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 150;
@@ -4392,6 +4394,13 @@ function Table3D(
       );
     }
 
+    let sideThinFactor = wide ? 0.3 : 0.36;
+    let middleThinFactor = wide ? 0.82 : 0.92;
+    if (isMiddle && wide) {
+      sideThinFactor *= SIDE_POCKET_JAW_SIDE_TRIM_SCALE;
+      middleThinFactor *= SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE;
+    }
+
     const jawShape = buildPocketJawShape({
       center,
       baseRadius: effectiveBaseRadius,
@@ -4400,8 +4409,8 @@ function Table3D(
       innerScale: baseInnerScale,
       outerScale: baseOuterScale,
       steps,
-      sideThinFactor: wide ? 0.3 : 0.36,
-      middleThinFactor: wide ? 0.82 : 0.92,
+      sideThinFactor,
+      middleThinFactor,
       centerEase: wide ? 0.28 : 0.36,
       clampOuter: localClampOuter
     });
