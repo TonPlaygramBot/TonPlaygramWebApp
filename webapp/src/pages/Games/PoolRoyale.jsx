@@ -252,7 +252,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.9; // open the chrome trace slightly so the relief shows a fuller rounded trim arc
 const CHROME_SIDE_POCKET_CUT_SCALE = 0.7; // ease the middle chrome cut outward a touch to balance the longer rail opening
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.012; // let the wooden relief breathe so the chrome and wood share the wider cut equally
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.004; // tighten the wooden relief slightly so the rail's rounded cut hugs the chrome arc more closely
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.01; // widen the middle rail relief in lockstep with the chrome side cuts
 
 function buildChromePlateGeometry({
@@ -563,7 +563,8 @@ const POCKET_CORNER_MOUTH =
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
-const CORNER_POCKET_CENTER_INSET = 0; // align corner pocket centres exactly with the snooker geometry
+const CORNER_POCKET_CENTER_INSET =
+  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // pull every corner pocket centre a hair toward the table middle
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
