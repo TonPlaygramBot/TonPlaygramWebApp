@@ -556,8 +556,10 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET = 0; // align corner pocket centres exactly with the snooker geometry
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+const SIDE_POCKET_OUTWARD_OFFSET =
+  SIDE_POCKET_RADIUS * 0.12 * POCKET_VISUAL_EXPANSION; // subtle push so side pockets sit closer to the chrome edge
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -2918,14 +2920,18 @@ const cornerPocketCenter = (sx, sz) =>
     sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
-const pocketCenters = () => [
-  cornerPocketCenter(-1, -1),
-  cornerPocketCenter(1, -1),
-  cornerPocketCenter(-1, 1),
-  cornerPocketCenter(1, 1),
-  new THREE.Vector2(-PLAY_W / 2, 0),
-  new THREE.Vector2(PLAY_W / 2, 0)
-];
+let sidePocketShift = 0;
+const pocketCenters = () => {
+  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
+  return [
+    cornerPocketCenter(-1, -1),
+    cornerPocketCenter(1, -1),
+    cornerPocketCenter(-1, 1),
+    cornerPocketCenter(1, 1),
+    new THREE.Vector2(-sidePocketCenterX, 0),
+    new THREE.Vector2(sidePocketCenterX, 0)
+  ];
+};
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
@@ -2962,9 +2968,9 @@ const getPocketCenterById = (id) => {
     case 'BR':
       return cornerPocketCenter(1, 1);
     case 'TM':
-      return new THREE.Vector2(-PLAY_W / 2, 0);
+      return new THREE.Vector2(-(PLAY_W / 2 + sidePocketShift), 0);
     case 'BM':
-      return new THREE.Vector2(PLAY_W / 2, 0);
+      return new THREE.Vector2(PLAY_W / 2 + sidePocketShift, 0);
     default:
       return null;
   }
@@ -3861,6 +3867,9 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0042; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
+  const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
+  sidePocketShift = Math.min(SIDE_POCKET_OUTWARD_OFFSET, maxSidePocketShift);
+  const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
@@ -4193,11 +4202,10 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset =
     POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4331,7 +4339,7 @@ function Table3D(
   };
 
   const sideNotchMP = (sx) => {
-    const cx = sx * (innerHalfW - sideInset);
+    const cx = sx * sidePocketCenterX;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
       MICRO_EPS,
@@ -4754,7 +4762,7 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
-      const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
+      const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
