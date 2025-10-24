@@ -85,6 +85,9 @@ const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 360;
+const DICE_ZOOM_IN_DURATION = 420;
+const DICE_ZOOM_HOLD_DURATION = 680;
+const DICE_ZOOM_OUT_DURATION = 420;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -117,6 +120,13 @@ const HIGHLIGHT_COLORS = {
   snake: new THREE.Color(0xdc2626),
   ladder: new THREE.Color(0x22c55e)
 };
+
+const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
+const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
+const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
+const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
+const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
+const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.06;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -390,6 +400,176 @@ function createStraightArmrest(side, material) {
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+function removeAnimationsByType(list, type) {
+  if (!Array.isArray(list) || !type) return;
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i]?.type === type) list.splice(i, 1);
+  }
+}
+
+function computeVisibleDiceCenter(diceSet) {
+  if (!Array.isArray(diceSet) || !diceSet.length) return null;
+  const center = new THREE.Vector3();
+  let count = 0;
+  diceSet.forEach((die) => {
+    if (!die?.visible) return;
+    center.add(die.position);
+    count += 1;
+  });
+  if (count === 0) return null;
+  return center.multiplyScalar(1 / count);
+}
+
+function createCameraTransitionAnimation(
+  camera,
+  controls,
+  {
+    toPosition,
+    toTarget,
+    durationIn = 480,
+    durationOut = 480,
+    hold = 420,
+    type,
+    onComplete
+  }
+) {
+  if (!camera || !controls || !toPosition || !toTarget) return null;
+  const startPosition = camera.position.clone();
+  const startTarget = controls?.target ? controls.target.clone() : new THREE.Vector3();
+  const goalPosition = toPosition.clone();
+  const goalTarget = toTarget.clone();
+  const tempPosition = new THREE.Vector3();
+  const tempTarget = new THREE.Vector3();
+  const start = performance.now();
+  const total = durationIn + hold + durationOut;
+
+  const applyFrame = (pos, target) => {
+    camera.position.copy(pos);
+    if (controls?.target) controls.target.copy(target);
+    camera.lookAt(target);
+    controls?.update?.();
+  };
+
+  return {
+    type,
+    update: (now) => {
+      const elapsed = now - start;
+      if (elapsed <= durationIn) {
+        const t = durationIn > 0 ? easeInOut(Math.min(Math.max(elapsed / durationIn, 0), 1)) : 1;
+        tempPosition.copy(startPosition).lerp(goalPosition, t);
+        tempTarget.copy(startTarget).lerp(goalTarget, t);
+        applyFrame(tempPosition, tempTarget);
+        return false;
+      }
+      if (elapsed <= durationIn + hold) {
+        applyFrame(goalPosition, goalTarget);
+        return false;
+      }
+      if (elapsed <= total) {
+        const t = durationOut > 0
+          ? easeInOut(Math.min(Math.max((elapsed - durationIn - hold) / durationOut, 0), 1))
+          : 1;
+        tempPosition.copy(goalPosition).lerp(startPosition, t);
+        tempTarget.copy(goalTarget).lerp(startTarget, t);
+        applyFrame(tempPosition, tempTarget);
+        return false;
+      }
+      applyFrame(startPosition, startTarget);
+      if (typeof onComplete === 'function') onComplete();
+      return true;
+    }
+  };
+}
+
+function createDiceCameraZoomAnimation(camera, controls, focusTarget) {
+  if (!focusTarget) return null;
+  const focus = focusTarget.clone();
+  const direction = camera.position.clone().sub(focus);
+  if (direction.lengthSq() < 1e-6) direction.set(0, 1, 0.001);
+  const horizontal = direction.clone();
+  horizontal.y = 0;
+  if (horizontal.lengthSq() < 1e-6) horizontal.set(1, 0, 0);
+  horizontal.normalize();
+  const currentHorizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+  const desiredHorizontal = Math.max(DICE_SIZE * 1.9, currentHorizontal * 0.55);
+  const verticalOffset = Math.max(DICE_SIZE * 2.8, Math.abs(direction.y) * 0.6 + DICE_SIZE * 1.6);
+  const targetPosition = focus
+    .clone()
+    .addScaledVector(horizontal, desiredHorizontal)
+    .add(new THREE.Vector3(0, verticalOffset, 0));
+
+  return createCameraTransitionAnimation(camera, controls, {
+    toPosition: targetPosition,
+    toTarget: focus,
+    durationIn: DICE_ZOOM_IN_DURATION,
+    hold: DICE_ZOOM_HOLD_DURATION,
+    durationOut: DICE_ZOOM_OUT_DURATION,
+    type: 'cameraDiceZoom'
+  });
+}
+
+function computeTokenFollowCameraState(board, fromIndex, toIndex) {
+  if (!board) return null;
+  const { indexToPosition, serpentineIndexToXZ } = board;
+  const sanitizeIndex = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  };
+  const from = sanitizeIndex(fromIndex);
+  const to = sanitizeIndex(toIndex);
+  if (to == null) return null;
+  const baseVector = (indexToPosition.get(to) || serpentineIndexToXZ(to))?.clone();
+  if (!baseVector) return null;
+  baseVector.y += TOKEN_HEIGHT * 0.02;
+
+  let fromVector = null;
+  if (from != null) {
+    const ref = indexToPosition.get(from) || serpentineIndexToXZ(from);
+    if (ref) fromVector = ref.clone();
+  }
+  if (!fromVector) {
+    fromVector = baseVector.clone();
+    fromVector.x += 1e-3;
+  }
+  fromVector.y += TOKEN_HEIGHT * 0.02;
+
+  const direction = baseVector.clone().sub(fromVector);
+  direction.y = 0;
+  if (direction.lengthSq() < 1e-6) {
+    direction.set(baseVector.x, 0, baseVector.z);
+    if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
+  }
+  direction.normalize();
+
+  const focusTarget = baseVector.clone();
+  focusTarget.y += TOKEN_HEIGHT * 0.65;
+
+  const backward = direction.clone().multiplyScalar(-TOKEN_CAMERA_FOLLOW_DISTANCE);
+  const lateral = new THREE.Vector3().crossVectors(direction, WORLD_UP).normalize();
+  const cameraPosition = focusTarget
+    .clone()
+    .add(backward)
+    .addScaledVector(lateral, TOKEN_CAMERA_LATERAL_OFFSET);
+  if (cameraPosition.y < focusTarget.y + TOKEN_CAMERA_HEIGHT_OFFSET) {
+    cameraPosition.y = focusTarget.y + TOKEN_CAMERA_HEIGHT_OFFSET;
+  }
+
+  return { focusTarget, cameraPosition };
+}
+
+function createTokenCameraFollowAnimation(camera, controls, followState) {
+  if (!followState) return null;
+  const { focusTarget, cameraPosition } = followState;
+  return createCameraTransitionAnimation(camera, controls, {
+    toPosition: cameraPosition,
+    toTarget: focusTarget,
+    durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
+    hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
+    durationOut: TOKEN_CAMERA_FOLLOW_OUT_DURATION,
+    type: 'cameraTokenFollow'
+  });
+}
 
 function setDiceOrientation(dice, val) {
   const orientations = {
@@ -732,6 +912,7 @@ function createDiceRollAnimation(
   });
 
   return {
+    type: 'diceRoll',
     update: (now) => {
       const t = Math.min((now - start) / DICE_ROLL_DURATION, 1);
       diceArray.forEach((die, index) => {
@@ -1950,6 +2131,7 @@ export default function SnakeBoard3D({
   const diceAnchorCallbackRef = useRef(null);
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
+  const prevPlayerPositionsRef = useRef([]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -2153,20 +2335,49 @@ export default function SnakeBoard3D({
 
   useEffect(() => {
     if (!boardRef.current) return;
-    updateTokens(
-      boardRef.current.tokensGroup,
-      players,
-      boardRef.current.indexToPosition,
-      boardRef.current.serpentineIndexToXZ,
-      {
-        burning,
-        rollingIndex,
-        currentTurn,
-        boardRoot: boardRef.current.root,
-        seatAnchors: boardRef.current.seatAnchors,
-        baseLevelTop: boardRef.current.baseLevelTop
+    const board = boardRef.current;
+    updateTokens(board.tokensGroup, players, board.indexToPosition, board.serpentineIndexToXZ, {
+      burning,
+      rollingIndex,
+      currentTurn,
+      boardRoot: board.root,
+      seatAnchors: board.seatAnchors,
+      baseLevelTop: board.baseLevelTop
+    });
+
+    const sanitizedPositions = players.map((player) => {
+      const raw = Number(player?.position);
+      return Number.isFinite(raw) ? raw : null;
+    });
+    const previous = prevPlayerPositionsRef.current;
+    let movement = null;
+    if (Array.isArray(previous) && previous.length === sanitizedPositions.length) {
+      const movements = [];
+      sanitizedPositions.forEach((pos, index) => {
+        const prev = previous[index];
+        if (prev == null || pos == null) return;
+        if (prev !== pos) movements.push({ index, from: prev, to: pos });
+      });
+      if (movements.length) {
+        movement =
+          movements.find((m) => m.index === rollingIndex) ||
+          movements.find((m) => m.index === currentTurn) ||
+          movements[0];
       }
-    );
+    }
+    prevPlayerPositionsRef.current = sanitizedPositions;
+
+    if (movement) {
+      const camera = cameraRef.current;
+      const controls = board.controls;
+      const followState = computeTokenFollowCameraState(board, movement.from, movement.to);
+      if (camera && controls && followState) {
+        removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+        removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
+        const followAnimation = createTokenCameraFollowAnimation(camera, controls, followState);
+        if (followAnimation) animationsRef.current.push(followAnimation);
+      }
+    }
   }, [players, burning, rollingIndex, currentTurn, tokenType]);
 
   useEffect(() => {
@@ -2222,6 +2433,15 @@ export default function SnakeBoard3D({
     const duration = 1100;
     const startTime = performance.now();
     const lift = TOKEN_HEIGHT * 0.6;
+    const camera = cameraRef.current;
+    const controls = board.controls;
+    const followState = computeTokenFollowCameraState(board, slide.from, slide.to);
+    if (camera && controls && followState) {
+      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+      removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
+      const followAnimation = createTokenCameraFollowAnimation(camera, controls, followState);
+      if (followAnimation) animationsRef.current.push(followAnimation);
+    }
     animationsRef.current.push({
       update: (now) => {
         const t = Math.min((now - startTime) / duration, 1);
@@ -2258,6 +2478,8 @@ export default function SnakeBoard3D({
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
+      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+      removeAnimationsByType(animationsRef.current, 'diceRoll');
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
       const prevState = diceStateRef.current || {};
       const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
@@ -2314,20 +2536,20 @@ export default function SnakeBoard3D({
       };
       const active = diceSet.filter((_, idx) => idx < count);
       if (active.length) {
-        animationsRef.current.push(
-          createDiceRollAnimation(active, {
-            basePositions,
-            baseY: diceBaseY,
-            startPositions,
-            travelVectors,
-            bouncePoints,
-            retreatVectors,
-            edgeNormals
-          })
-        );
+        const rollAnimation = createDiceRollAnimation(active, {
+          basePositions,
+          baseY: diceBaseY,
+          startPositions,
+          travelVectors,
+          bouncePoints,
+          retreatVectors,
+          edgeNormals
+        });
+        if (rollAnimation) animationsRef.current.push(rollAnimation);
       }
     } else if (diceEvent.phase === 'end') {
       if (diceStateRef.current.currentId !== diceEvent.id) return;
+      removeAnimationsByType(animationsRef.current, 'diceRoll');
       const values = diceEvent.values || [];
       const active = diceSet.filter((die) => die.visible);
       if (active.length) {
@@ -2340,12 +2562,25 @@ export default function SnakeBoard3D({
           storedBases.length >= active.length
             ? storedBases.slice(0, active.length).map((vec) => vec.clone())
             : active.map((die) => die.position.clone());
-        animationsRef.current.push(
-          createDiceSettleAnimation(active, {
-            basePositions,
-            baseY: diceBaseY
-          })
-        );
+        const settleAnimation = createDiceSettleAnimation(active, {
+          basePositions,
+          baseY: diceBaseY
+        });
+        if (settleAnimation) animationsRef.current.push(settleAnimation);
+
+        const camera = cameraRef.current;
+        const controls = board.controls;
+        const center = computeVisibleDiceCenter(active);
+        if (camera && controls && center) {
+          const focusTarget = center.clone();
+          const baseY = Number.isFinite(diceBaseY) ? diceBaseY : 0;
+          const topFocus = Math.max(baseY + DICE_SIZE * 0.9, focusTarget.y + DICE_SIZE * 0.25);
+          focusTarget.y = topFocus;
+          removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
+          removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+          const zoomAnimation = createDiceCameraZoomAnimation(camera, controls, focusTarget);
+          if (zoomAnimation) animationsRef.current.push(zoomAnimation);
+        }
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
       diceStateRef.current = {
