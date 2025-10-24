@@ -462,8 +462,12 @@ const HOME_COLUMN_COORDS = Object.freeze([
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const COLOR_NAMES = ['Yellow', 'Green', 'Red', 'Blue'];
-const PLAYER_COLORS = [0xf59e0b, 0x22c55e, 0xef4444, 0x3b82f6];
+const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
+const BOARD_COLORS = Object.freeze([0xf59e0b, 0x22c55e, 0xef4444, 0x3b82f6]);
+const PLAYER_COLOR_ORDER = Object.freeze([2, 1, 0, 3]);
+const PLAYER_COLORS = Object.freeze(
+  PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
+);
 const TOKEN_COLORS = PLAYER_COLORS;
 const TOKEN_TRACK_HEIGHT = 0.012;
 const TOKEN_HOME_HEIGHT = 0.018;
@@ -475,6 +479,8 @@ const RAIL_TOKEN_SIDE_SPACING = 0.055;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.08, 1, 1, 1]);
+const TOKEN_RAIL_CENTER_PULL = 0.022;
+const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.85;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
@@ -503,6 +509,10 @@ HOME_COLUMN_COORDS.forEach((coords, player) => {
 function getPlayerHomeHeight(playerIndex) {
   const offset = TOKEN_HOME_HEIGHT_OFFSETS[playerIndex] ?? 0;
   return TOKEN_HOME_HEIGHT + offset;
+}
+
+function getTokenRailHeight(playerIndex) {
+  return getPlayerHomeHeight(playerIndex) + TOKEN_RAIL_HEIGHT_LIFT;
 }
 
 const DICE_SIZE = 0.09;
@@ -863,7 +873,7 @@ function addCenterHome(scene) {
 
   const triangleDefs = [
     {
-      color: PLAYER_COLORS[0],
+      color: BOARD_COLORS[0],
       vertices: new Float32Array([
         -half,
         0,
@@ -877,7 +887,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: PLAYER_COLORS[1],
+      color: BOARD_COLORS[1],
       vertices: new Float32Array([
         -half,
         0,
@@ -891,7 +901,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: PLAYER_COLORS[2],
+      color: BOARD_COLORS[2],
       vertices: new Float32Array([
         half,
         0,
@@ -905,7 +915,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: PLAYER_COLORS[3],
+      color: BOARD_COLORS[3],
       vertices: new Float32Array([
         -half,
         0,
@@ -962,7 +972,7 @@ function addBoardMarkers(scene, cellToWorld) {
     const angle = getTrackDirectionAngle(startIndex);
     const marker = createMarkerMesh({
       label: 'START',
-      color: PLAYER_COLORS[playerIdx],
+      color: BOARD_COLORS[playerIdx],
       position,
       angle,
       size: LUDO_TILE * 0.94,
@@ -976,7 +986,7 @@ function addBoardMarkers(scene, cellToWorld) {
     const [safeR, safeC] = TRACK_COORDS[safeIndex];
     const safePosition = cellToWorld(safeR, safeC).clone();
     const star = createStarMarkerMesh({
-      color: PLAYER_COLORS[playerIdx],
+      color: BOARD_COLORS[playerIdx],
       position: safePosition,
       size: LUDO_TILE * 0.88
     });
@@ -989,7 +999,7 @@ function addBoardMarkers(scene, cellToWorld) {
       const arrowAngle = Math.atan2(-homePos.x, -homePos.z);
       const arrowMarker = createMarkerMesh({
         label: '',
-        color: PLAYER_COLORS[playerIdx],
+        color: BOARD_COLORS[playerIdx],
         position: homePos,
         angle: arrowAngle,
         size: LUDO_TILE * 0.86,
@@ -1169,11 +1179,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const rollDiceRef = useRef(() => {});
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
+  const uiRef = useRef(null);
   const cameraFocusRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
+  const diceClearTimeoutRef = useRef(null);
   const fitRef = useRef(() => {});
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1237,6 +1249,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       };
     });
   }, [aiFlags, avatar, username, playerColorsHex]);
+
+  useEffect(() => {
+    uiRef.current = ui;
+  }, [ui]);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -1469,6 +1485,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         right.normalize();
       }
 
+      if (TOKEN_RAIL_CENTER_PULL > 0) {
+        base.add(forward.clone().multiplyScalar(-TOKEN_RAIL_CENTER_PULL));
+      }
+
       const baseForwardShift = TOKEN_RAIL_BASE_FORWARD_SHIFT[player] ?? 0;
       if (baseForwardShift !== 0) {
         base.add(forward.clone().multiplyScalar(baseForwardShift));
@@ -1482,7 +1502,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         .multiplyScalar(RAIL_TOKEN_SIDE_SPACING * sideMultiplier);
       const leftOffset = rightOffset.clone().multiplyScalar(-1);
 
-      const homeHeight = getPlayerHomeHeight(player);
+      const homeHeight = getTokenRailHeight(player);
 
       const playerPads = [
         base.clone().add(backwardOffset).add(leftOffset),
@@ -1684,6 +1704,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     window.addEventListener('gameVolumeChanged', onVolChange);
     return () => {
       window.removeEventListener('gameVolumeChanged', onVolChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (diceClearTimeoutRef.current) {
+        clearTimeout(diceClearTimeoutRef.current);
+        diceClearTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -2367,11 +2396,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const getWorldForProgress = (player, progress, tokenIndex) => {
     const state = stateRef.current;
     if (!state) return new THREE.Vector3();
-    if (progress < 0) {
-      const base = state.startPads[player][tokenIndex].clone();
-      base.y = getPlayerHomeHeight(player);
-      return base;
-    }
+  if (progress < 0) {
+    const base = state.startPads[player][tokenIndex].clone();
+    base.y = getTokenRailHeight(player);
+    return base;
+  }
     if (progress < RING_STEPS) {
       const idx = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
       return state.paths[idx].clone().add(TOKEN_TRACK_LIFT.clone());
@@ -2541,20 +2570,72 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     return best ?? options[0] ?? null;
   };
 
+  const queueAiRoll = useCallback(
+    (delay = 2000) => {
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+      }
+      aiTimeoutRef.current = window.setTimeout(() => {
+        aiTimeoutRef.current = null;
+        const nextState = stateRef.current;
+        if (!nextState || nextState.winner) return;
+        if (nextState.turn === 0) return;
+        if (nextState.animation) return;
+        if (uiRef.current?.dice != null) {
+          queueAiRoll(200);
+          return;
+        }
+        const diceObj = diceRef.current;
+        if (diceObj?.userData?.isRolling) return;
+        rollDiceRef.current?.();
+      }, delay);
+    },
+    []
+  );
+
+  const scheduleDiceClear = useCallback(() => {
+    if (diceClearTimeoutRef.current) {
+      clearTimeout(diceClearTimeoutRef.current);
+    }
+    diceClearTimeoutRef.current = window.setTimeout(() => {
+      diceClearTimeoutRef.current = null;
+      setUi((s) => {
+        if (s.dice == null) return s;
+        return { ...s, dice: null };
+      });
+    }, 2000);
+  }, [setUi]);
+
   const advanceTurn = (extraTurn) => {
+    let nextTurn = 0;
+    let updated = false;
     setUi((s) => {
       if (s.winner) return s;
-      const nextTurn = extraTurn ? s.turn : (s.turn + 3) % 4;
+      nextTurn = extraTurn ? s.turn : (s.turn + 3) % 4;
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
+      updated = true;
       return {
         ...s,
         turn: nextTurn,
-        status: `${COLOR_NAMES[nextTurn]} to roll`,
-        dice: null
+        status: `${COLOR_NAMES[nextTurn]} to roll`
       };
     });
+    if (!updated) {
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+        aiTimeoutRef.current = null;
+      }
+      return;
+    }
+    scheduleDiceClear();
+    if (nextTurn !== 0) {
+      queueAiRoll();
+    } else if (aiTimeoutRef.current) {
+      clearTimeout(aiTimeoutRef.current);
+      aiTimeoutRef.current = null;
+    }
   };
 
   const handleCaptures = (player, tokenIndex) => {
@@ -2573,7 +2654,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
           state.progress[p][t] = -1;
           const token = state.tokens[p][t];
           const pos = state.startPads[p][t].clone();
-          pos.y = getPlayerHomeHeight(p);
+          pos.y = getTokenRailHeight(p);
           token.position.copy(pos);
           token.rotation.set(0, 0, 0);
           playCapture();
@@ -2704,24 +2785,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     if (ui.turn === 0) return undefined;
     if (state.turn !== ui.turn) return undefined;
     if (state.animation) return undefined;
-    if (ui.dice != null) return undefined;
-    const dice = diceRef.current;
-    if (!dice || dice.userData?.isRolling) return undefined;
-
-    if (aiTimeoutRef.current) {
-      clearTimeout(aiTimeoutRef.current);
+    if (!aiTimeoutRef.current) {
+      queueAiRoll();
     }
-
-    aiTimeoutRef.current = window.setTimeout(() => {
-      aiTimeoutRef.current = null;
-      const nextState = stateRef.current;
-      if (!nextState || nextState.winner) return;
-      if (nextState.turn === 0) return;
-      if (nextState.animation) return;
-      const diceObj = diceRef.current;
-      if (diceObj?.userData?.isRolling) return;
-      rollDiceRef.current?.();
-    }, 2000);
 
     return () => {
       if (aiTimeoutRef.current) {
@@ -2729,7 +2795,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         aiTimeoutRef.current = null;
       }
     };
-  }, [ui.turn, ui.dice, ui.winner]);
+  }, [ui.turn, ui.winner, queueAiRoll]);
 
   return (
     <div
@@ -2983,11 +3049,11 @@ function buildLudoBoard(boardGroup) {
   });
 
   const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
-  const homeBaseMats = PLAYER_COLORS.map((color) => {
+  const homeBaseMats = BOARD_COLORS.map((color) => {
     const darker = new THREE.Color(color).multiplyScalar(0.72);
     return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
   });
-  const pathMats = PLAYER_COLORS.map(
+  const pathMats = BOARD_COLORS.map(
     (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
   for (let r = 0; r < LUDO_GRID; r++) {
@@ -3045,7 +3111,7 @@ function buildLudoBoard(boardGroup) {
     return Array.from({ length: 4 }, (_, i) => {
       const rook = makeRook(makeTokenMaterial(color));
       const homePos = startPads[playerIdx][i].clone();
-      homePos.y = getPlayerHomeHeight(playerIdx);
+      homePos.y = getTokenRailHeight(playerIdx);
       rook.position.copy(homePos);
       scene.add(rook);
       return rook;
