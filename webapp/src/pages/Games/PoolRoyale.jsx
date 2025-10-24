@@ -236,8 +236,8 @@ const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.99;
-const CHROME_CORNER_HEIGHT_SCALE = 0.99;
+const CHROME_CORNER_WIDTH_SCALE = 1.02;
+const CHROME_CORNER_HEIGHT_SCALE = 1.02;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
@@ -245,11 +245,11 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.92;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.6;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.4;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.97;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
-const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 1; // keep the side plate rounding identical to the pocket jaw arcs
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.88; // shrink the chrome trace so the wooden relief only exposes a single matching trim arc
 const CHROME_SIDE_POCKET_CUT_SCALE = 0.68; // pull the middle chrome cut in even tighter so the rail only shows one rounded profile
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // rails now reuse the chrome cut directly so every surface shares the same rounded arch
@@ -4203,9 +4203,17 @@ function Table3D(
     chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
-  const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.3,
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
+  const sidePocketJawRadius =
+    sidePocketRadius *
+    CHROME_SIDE_POCKET_RADIUS_SCALE *
+    CHROME_SIDE_POCKET_CUT_SCALE;
+  const sideChromePlateRadius = Math.max(
+    MICRO_EPS,
+    Math.min(
+      sidePocketJawRadius,
+      sideChromePlateWidth / 2,
+      sideChromePlateHeight / 2
+    ) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
   );
 
   const innerHalfW = halfWext;
