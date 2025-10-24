@@ -252,7 +252,8 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.97;
 const CHROME_SIDE_POCKET_CUT_SCALE = 0.97;
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.94; // pull the wooden rail cutouts back so the chrome defines the visible pocket arch
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // pull the wooden rail cutouts back a little further so chrome defines the pocket arch
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.96; // tighten side rail cutouts so middle pockets sit inside the chrome plate span
 
 function buildChromePlateGeometry({
   width,
@@ -476,7 +477,7 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match snooker jaw reach so liners hug the chrome plate cut
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaw footprint locked to the chrome plate cut radius
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 0.985; // trim middle jaw reach so the liner nests just inside the chrome plate cut
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward to keep the liner flush with the rail edge
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -493,7 +494,7 @@ const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward 
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // match snooker jaw flare so liners follow the chrome cut exactly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale while respecting the slimmer side jaws
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.985; // keep the slimmer side jaws tucked in line with the reduced chrome span
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // keep the drop deep while matching the tighter jaw footprint
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // align the corner jaw spread with the snooker chrome cut geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -4387,7 +4388,10 @@ function Table3D(
   const scaleWoodRailCornerPocketCut = (mp) =>
     scalePocketCutMP(scaleChromeCornerPocketCut(mp), WOOD_RAIL_POCKET_RELIEF_SCALE);
   const scaleWoodRailSidePocketCut = (mp) =>
-    scalePocketCutMP(scaleChromeSidePocketCut(mp), WOOD_RAIL_POCKET_RELIEF_SCALE);
+    scalePocketCutMP(
+      scaleChromeSidePocketCut(mp),
+      WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE
+    );
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
