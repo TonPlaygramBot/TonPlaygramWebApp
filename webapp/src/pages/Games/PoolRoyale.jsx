@@ -241,12 +241,12 @@ const CHROME_CORNER_HEIGHT_SCALE = 0.99;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.92;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.6;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.4;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
@@ -479,7 +479,7 @@ const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match snooker jaw reach so liners hug the chrome plate cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // let the middle jaw reach terminate exactly at the downsized chrome/wood arc
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
-const POCKET_JAW_SIDE_INNER_SCALE = 0.962; // push the side jaw interior outward to keep the liner flush with the rail edge
+const POCKET_JAW_SIDE_INNER_SCALE = 0.976; // pull the inner lip farther out so the slimmer jaw still meets the chrome cut
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.78; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
 const POCKET_JAW_DEPTH_SCALE = 0.63; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
@@ -494,7 +494,7 @@ const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward 
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // match snooker jaw flare so liners follow the chrome cut exactly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.82; // contract the side jaw footprint even more so it hugs the downsized relief perfectly
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the side jaw footprint identical to the chrome/wood cut so every surface meets cleanly
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // keep the drop deep while matching the tighter jaw footprint
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // align the corner jaw spread with the snooker chrome cut geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -535,6 +535,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.06; // nudge middle pockets outward slightly so the jaws sit closer to the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -3870,7 +3871,12 @@ function Table3D(
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
   const desiredSidePocketShift = Math.max(0, halfWext - sideInset - halfW);
   const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
-  sidePocketShift = Math.min(desiredSidePocketShift, maxSidePocketShift);
+  const baseSidePocketShift = Math.min(desiredSidePocketShift, maxSidePocketShift);
+  const extraSidePocketShift = Math.min(
+    SIDE_POCKET_EXTRA_SHIFT,
+    Math.max(0, maxSidePocketShift - baseSidePocketShift)
+  );
+  sidePocketShift = baseSidePocketShift + extraSidePocketShift;
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
@@ -4650,8 +4656,8 @@ function Table3D(
       innerScale: baseInnerScale,
       outerScale: baseOuterScale,
       steps,
-      sideThinFactor: wide ? 0.3 : 0.36,
-      middleThinFactor: wide ? 0.82 : 0.92,
+      sideThinFactor: wide ? 0.24 : 0.36,
+      middleThinFactor: wide ? 0.78 : 0.92,
       centerEase: wide ? 0.28 : 0.36,
       clampOuter: localClampOuter
     });
