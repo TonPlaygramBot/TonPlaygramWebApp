@@ -363,6 +363,11 @@ const BOARD_SCALE = 2.7;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
+const PLAYFIELD_HEIGHT = 0.018;
+const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
+const MARKER_SURFACE_OFFSET = 0.002;
+const STAR_MARKER_SURFACE_INSET = 0.001;
+const CENTER_HOME_BASE_OFFSET = -0.0045;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAM = {
   fov: CAMERA_FOV,
@@ -472,9 +477,12 @@ const PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
 const TOKEN_COLORS = PLAYER_COLORS;
-const TOKEN_TRACK_HEIGHT = 0.012;
-const TOKEN_HOME_HEIGHT = 0.018;
-const TOKEN_GOAL_HEIGHT = 0.0165;
+const TOKEN_TRACK_SURFACE_OFFSET = 0.002;
+const TOKEN_HOME_SURFACE_OFFSET = 0.008;
+const TOKEN_GOAL_SURFACE_OFFSET = 0.0065;
+const TOKEN_TRACK_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_TRACK_SURFACE_OFFSET;
+const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
+const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
 const TOKEN_TRACK_LIFT = new THREE.Vector3(0, TOKEN_TRACK_HEIGHT, 0);
 const TOKEN_GOAL_LIFT = new THREE.Vector3(0, TOKEN_GOAL_HEIGHT, 0);
 const RAIL_TOKEN_FORWARD_SPACING = 0.05;
@@ -482,7 +490,13 @@ const RAIL_TOKEN_SIDE_SPACING = 0.055;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.08, 1, 1, 1]);
-const TOKEN_RAIL_CENTER_PULL = 0.022;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.022;
+const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
+  0.028,
+  0.028,
+  TOKEN_RAIL_CENTER_PULL_DEFAULT,
+  0.028
+]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.85;
 const keyFor = (r, c) => `${r},${c}`;
@@ -518,7 +532,7 @@ function getTokenRailHeight(playerIndex) {
   return getPlayerHomeHeight(playerIndex) + TOKEN_RAIL_HEIGHT_LIFT;
 }
 
-const DICE_SIZE = 0.09;
+const DICE_SIZE = 0.082;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -750,7 +764,8 @@ function getMarkerTexture({
   return texture;
 }
 
-const MARKER_HEIGHT_OFFSET = 0.007;
+const MARKER_HEIGHT_OFFSET = TILE_HALF_HEIGHT + MARKER_SURFACE_OFFSET;
+const STAR_MARKER_HEIGHT_OFFSET = TILE_HALF_HEIGHT - STAR_MARKER_SURFACE_INSET;
 
 function createMarkerMesh({
   label,
@@ -836,7 +851,7 @@ function createStarMarkerMesh({ color, position, size = LUDO_TILE * 0.82 }) {
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
-  mesh.position.y += 0.004;
+  mesh.position.y += STAR_MARKER_HEIGHT_OFFSET;
   mesh.rotation.x = -Math.PI / 2;
   mesh.renderOrder = 13;
   return mesh;
@@ -892,7 +907,7 @@ function createHomeLabelMesh(size) {
 function addCenterHome(scene) {
   const size = LUDO_TILE * 3;
   const half = size / 2;
-  const baseHeight = 0.0055;
+  const baseHeight = PLAYFIELD_HEIGHT + CENTER_HOME_BASE_OFFSET;
 
   const base = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
@@ -1570,8 +1585,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         right.normalize();
       }
 
-      if (TOKEN_RAIL_CENTER_PULL > 0) {
-        base.add(forward.clone().multiplyScalar(-TOKEN_RAIL_CENTER_PULL));
+      const centerPull =
+        TOKEN_RAIL_CENTER_PULL_PER_PLAYER[player] ?? TOKEN_RAIL_CENTER_PULL_DEFAULT;
+      if (centerPull > 0) {
+        base.add(forward.clone().multiplyScalar(-centerPull));
       }
 
       const baseForwardShift = TOKEN_RAIL_BASE_FORWARD_SHIFT[player] ?? 0;
@@ -3125,7 +3142,7 @@ function buildLudoBoard(boardGroup) {
   const cellToWorld = (r, c) => {
     const x = -half + (c + 0.5) * LUDO_TILE;
     const z = -half + (r + 0.5) * LUDO_TILE;
-    return new THREE.Vector3(x, 0.005, z);
+    return new THREE.Vector3(x, TILE_HALF_HEIGHT, z);
   };
 
   const startPads = getHomeStartPads(half);
@@ -3147,7 +3164,7 @@ function buildLudoBoard(boardGroup) {
     return center;
   });
 
-  const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, 0.01, LUDO_TILE * 0.96);
+  const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, PLAYFIELD_HEIGHT, LUDO_TILE * 0.96);
   const homeBaseMats = BOARD_COLORS.map((color) => {
     const darker = new THREE.Color(color).multiplyScalar(0.72);
     return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
@@ -3220,22 +3237,6 @@ function buildLudoBoard(boardGroup) {
   const dice = makeDice();
   dice.userData.homeLandingTargets = diceRollTargets.map((target) => target.clone());
   dice.userData.rollTargets = diceRollTargets.map((target) => target.clone());
-  const railPadGroup = new THREE.Group();
-  railPadGroup.position.y = 0.001;
-  scene.add(railPadGroup);
-  const railPadGeometry = new THREE.CircleGeometry(0.11, 48);
-  const railPads = PLAYER_COLORS.map((color) => {
-    const mat = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.7,
-      metalness: 0.12
-    });
-    const mesh = new THREE.Mesh(railPadGeometry, mat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.visible = false;
-    railPadGroup.add(mesh);
-    return mesh;
-  });
   const clothHalf = BOARD_CLOTH_HALF;
   const railHeight = DICE_BASE_HEIGHT;
   const diceAnchor = new THREE.Vector3(0, railHeight, 0);
@@ -3247,7 +3248,7 @@ function buildLudoBoard(boardGroup) {
   dice.userData.bounceHeight = 0.07;
   dice.userData.clothLimit = clothHalf - 0.12;
   dice.userData.isRolling = false;
-  dice.userData.railPads = railPads;
+  dice.userData.railPads = Array.from({ length: DEFAULT_PLAYER_COUNT }, () => null);
   scene.add(dice);
 
   const diceLightTarget = new THREE.Object3D();
@@ -3342,7 +3343,7 @@ function getGoalSlots(half) {
     [TILE * 0.3, TILE * 0.3]
   ];
   return Array.from({ length: 4 }, (_, player) =>
-    offsets.map(([ox, oz]) => new THREE.Vector3(ox, 0.01, oz))
+    offsets.map(([ox, oz]) => new THREE.Vector3(ox, PLAYFIELD_HEIGHT, oz))
   );
 }
 
