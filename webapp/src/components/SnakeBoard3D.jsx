@@ -86,7 +86,7 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 360;
 const DICE_ZOOM_IN_DURATION = 420;
-const DICE_ZOOM_HOLD_DURATION = 2000;
+const DICE_ZOOM_HOLD_DURATION = 680;
 const DICE_ZOOM_OUT_DURATION = 420;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
@@ -124,12 +124,9 @@ const HIGHLIGHT_COLORS = {
 const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
 const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
-const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 3.0;
-const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.2;
+const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
+const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
-
-const TURN_CAMERA_DURATION = 620;
-const TURN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.4;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.06;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -434,8 +431,7 @@ function createCameraTransitionAnimation(
     durationOut = 480,
     hold = 420,
     type,
-    onComplete,
-    restore = true
+    onComplete
   }
 ) {
   if (!camera || !controls || !toPosition || !toTarget) return null;
@@ -446,8 +442,7 @@ function createCameraTransitionAnimation(
   const tempPosition = new THREE.Vector3();
   const tempTarget = new THREE.Vector3();
   const start = performance.now();
-  const exitDuration = restore ? durationOut : 0;
-  const total = durationIn + hold + exitDuration;
+  const total = durationIn + hold + durationOut;
 
   const applyFrame = (pos, target) => {
     camera.position.copy(pos);
@@ -471,27 +466,23 @@ function createCameraTransitionAnimation(
         applyFrame(goalPosition, goalTarget);
         return false;
       }
-      if (restore && elapsed <= total) {
-        const t = exitDuration > 0
-          ? easeInOut(Math.min(Math.max((elapsed - durationIn - hold) / exitDuration, 0), 1))
+      if (elapsed <= total) {
+        const t = durationOut > 0
+          ? easeInOut(Math.min(Math.max((elapsed - durationIn - hold) / durationOut, 0), 1))
           : 1;
         tempPosition.copy(goalPosition).lerp(startPosition, t);
         tempTarget.copy(goalTarget).lerp(startTarget, t);
         applyFrame(tempPosition, tempTarget);
         return false;
       }
-      if (restore) {
-        applyFrame(startPosition, startTarget);
-      } else {
-        applyFrame(goalPosition, goalTarget);
-      }
+      applyFrame(startPosition, startTarget);
       if (typeof onComplete === 'function') onComplete();
       return true;
     }
   };
 }
 
-function createDiceCameraZoomAnimation(camera, controls, focusTarget, onComplete) {
+function createDiceCameraZoomAnimation(camera, controls, focusTarget) {
   if (!focusTarget) return null;
   const focus = focusTarget.clone();
   const direction = camera.position.clone().sub(focus);
@@ -501,8 +492,8 @@ function createDiceCameraZoomAnimation(camera, controls, focusTarget, onComplete
   if (horizontal.lengthSq() < 1e-6) horizontal.set(1, 0, 0);
   horizontal.normalize();
   const currentHorizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
-  const desiredHorizontal = Math.max(DICE_SIZE * 2.2, currentHorizontal * 0.7);
-  const verticalOffset = Math.max(DICE_SIZE * 3.1, Math.abs(direction.y) * 0.65 + DICE_SIZE * 1.8);
+  const desiredHorizontal = Math.max(DICE_SIZE * 1.9, currentHorizontal * 0.55);
+  const verticalOffset = Math.max(DICE_SIZE * 2.8, Math.abs(direction.y) * 0.6 + DICE_SIZE * 1.6);
   const targetPosition = focus
     .clone()
     .addScaledVector(horizontal, desiredHorizontal)
@@ -514,8 +505,7 @@ function createDiceCameraZoomAnimation(camera, controls, focusTarget, onComplete
     durationIn: DICE_ZOOM_IN_DURATION,
     hold: DICE_ZOOM_HOLD_DURATION,
     durationOut: DICE_ZOOM_OUT_DURATION,
-    type: 'cameraDiceZoom',
-    onComplete
+    type: 'cameraDiceZoom'
   });
 }
 
@@ -568,36 +558,7 @@ function computeTokenFollowCameraState(board, fromIndex, toIndex) {
   return { focusTarget, cameraPosition };
 }
 
-function computeTurnCameraState(board, camera, turnIndex) {
-  if (!board || !camera) return null;
-  const seatAnchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
-  if (!seatAnchors.length) return null;
-  if (!Number.isFinite(turnIndex)) turnIndex = 0;
-  const normalized = ((Math.floor(turnIndex) % seatAnchors.length) + seatAnchors.length) % seatAnchors.length;
-  const anchor = seatAnchors[normalized];
-  if (!anchor) return null;
-  anchor.updateMatrixWorld?.(true);
-  const center = board.boardLookTarget?.clone() ?? new THREE.Vector3(0, CAMERA_TARGET_LIFT, 0);
-  const seatWorld = new THREE.Vector3();
-  anchor.getWorldPosition(seatWorld);
-  const direction = seatWorld.clone().sub(center);
-  direction.y = 0;
-  if (direction.lengthSq() < 1e-6) return null;
-  direction.normalize();
-  const baseRadius = camera.position.distanceTo(center);
-  const radius = clamp(baseRadius, CAM.minR, CAM.maxR);
-  const heightOffset = camera.position.y - center.y;
-  const lateral = new THREE.Vector3().crossVectors(WORLD_UP, direction).normalize();
-  const cameraPosition = center
-    .clone()
-    .addScaledVector(direction, radius)
-    .addScaledVector(lateral, TURN_CAMERA_LATERAL_OFFSET);
-  cameraPosition.y = center.y + heightOffset;
-  const focusTarget = center.clone();
-  return { cameraPosition, focusTarget };
-}
-
-function createTokenCameraFollowAnimation(camera, controls, followState, onComplete) {
+function createTokenCameraFollowAnimation(camera, controls, followState) {
   if (!followState) return null;
   const { focusTarget, cameraPosition } = followState;
   return createCameraTransitionAnimation(camera, controls, {
@@ -606,8 +567,7 @@ function createTokenCameraFollowAnimation(camera, controls, followState, onCompl
     durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
     hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
     durationOut: TOKEN_CAMERA_FOLLOW_OUT_DURATION,
-    type: 'cameraTokenFollow',
-    onComplete
+    type: 'cameraTokenFollow'
   });
 }
 
@@ -2172,53 +2132,6 @@ export default function SnakeBoard3D({
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
   const prevPlayerPositionsRef = useRef([]);
-  const turnCameraGoalRef = useRef(null);
-
-  const applyTurnCameraGoal = (overrideState = null) => {
-    const board = boardRef.current;
-    const camera = cameraRef.current;
-    if (!board || !camera || !board.controls) return;
-    const goal = overrideState || turnCameraGoalRef.current;
-    if (!goal?.cameraPosition || !goal?.focusTarget) return;
-    if (board.boardLookTarget) board.boardLookTarget.copy(goal.focusTarget);
-    camera.position.copy(goal.cameraPosition);
-    camera.lookAt(goal.focusTarget);
-    if (board.controls.target) board.controls.target.copy(goal.focusTarget);
-    board.controls.update?.();
-  };
-
-  const interruptTurnCamera = () => {
-    applyTurnCameraGoal();
-    removeAnimationsByType(animationsRef.current, 'cameraTurn');
-  };
-
-  const runTurnCamera = (turnIndex, animated = true) => {
-    const board = boardRef.current;
-    const camera = cameraRef.current;
-    if (!board || !camera || !board.controls) return;
-    const state = computeTurnCameraState(board, camera, turnIndex);
-    if (!state) return;
-    interruptTurnCamera();
-    turnCameraGoalRef.current = {
-      cameraPosition: state.cameraPosition.clone(),
-      focusTarget: state.focusTarget.clone()
-    };
-    if (!animated) {
-      applyTurnCameraGoal(turnCameraGoalRef.current);
-      return;
-    }
-    const animation = createCameraTransitionAnimation(camera, board.controls, {
-      toPosition: state.cameraPosition,
-      toTarget: state.focusTarget,
-      durationIn: TURN_CAMERA_DURATION,
-      hold: 0,
-      durationOut: 0,
-      restore: false,
-      type: 'cameraTurn',
-      onComplete: () => applyTurnCameraGoal(turnCameraGoalRef.current)
-    });
-    if (animation) animationsRef.current.push(animation);
-  };
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -2235,10 +2148,6 @@ export default function SnakeBoard3D({
       diceAnchorCallbackRef.current = null;
     };
   }, [onDiceAnchorChange]);
-
-  useEffect(() => {
-    runTurnCamera(currentTurn ?? 0, true);
-  }, [currentTurn]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -2277,20 +2186,11 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? []
     };
 
-    if (cameraRef.current && arena.boardLookTarget) {
-      turnCameraGoalRef.current = {
-        cameraPosition: cameraRef.current.position.clone(),
-        focusTarget: arena.boardLookTarget.clone()
-      };
-      applyTurnCameraGoal(turnCameraGoalRef.current);
-    }
-
     railTextureRef.current = makeRailTexture();
     snakeTextureRef.current = makeSnakeTexture();
 
     fitRef.current = arena.fit;
     arena.fit();
-    runTurnCamera(currentTurn ?? 0, false);
 
     renderer.setAnimationLoop((time) => {
       const now = typeof time === 'number' ? time : performance.now();
@@ -2405,7 +2305,6 @@ export default function SnakeBoard3D({
       lastDiceAnchorRef.current = null;
       diceAnchorCallbackRef.current?.(null);
       boardRef.current = null;
-      turnCameraGoalRef.current = null;
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
       }
@@ -2473,15 +2372,9 @@ export default function SnakeBoard3D({
       const controls = board.controls;
       const followState = computeTokenFollowCameraState(board, movement.from, movement.to);
       if (camera && controls && followState) {
-        interruptTurnCamera();
         removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
         removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-        const followAnimation = createTokenCameraFollowAnimation(
-          camera,
-          controls,
-          followState,
-          () => applyTurnCameraGoal()
-        );
+        const followAnimation = createTokenCameraFollowAnimation(camera, controls, followState);
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
     }
@@ -2544,15 +2437,9 @@ export default function SnakeBoard3D({
     const controls = board.controls;
     const followState = computeTokenFollowCameraState(board, slide.from, slide.to);
     if (camera && controls && followState) {
-      interruptTurnCamera();
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-      const followAnimation = createTokenCameraFollowAnimation(
-        camera,
-        controls,
-        followState,
-        () => applyTurnCameraGoal()
-      );
+      const followAnimation = createTokenCameraFollowAnimation(camera, controls, followState);
       if (followAnimation) animationsRef.current.push(followAnimation);
     }
     animationsRef.current.push({
@@ -2591,7 +2478,6 @@ export default function SnakeBoard3D({
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
-      interruptTurnCamera();
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
@@ -2663,8 +2549,6 @@ export default function SnakeBoard3D({
       }
     } else if (diceEvent.phase === 'end') {
       if (diceStateRef.current.currentId !== diceEvent.id) return;
-      interruptTurnCamera();
-      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       const values = diceEvent.values || [];
       const active = diceSet.filter((die) => die.visible);
@@ -2694,12 +2578,7 @@ export default function SnakeBoard3D({
           focusTarget.y = topFocus;
           removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
           removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-          const zoomAnimation = createDiceCameraZoomAnimation(
-            camera,
-            controls,
-            focusTarget,
-            () => applyTurnCameraGoal()
-          );
+          const zoomAnimation = createDiceCameraZoomAnimation(camera, controls, focusTarget);
           if (zoomAnimation) animationsRef.current.push(zoomAnimation);
         }
       }
