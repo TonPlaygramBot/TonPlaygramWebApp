@@ -226,7 +226,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.05;
+const POCKET_VISUAL_EXPANSION = 0.99;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
 const CHROME_CORNER_EXPANSION_SCALE = 1.02;
@@ -250,8 +250,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_CORNER_POCKET_CUT_SCALE = 1;
-const CHROME_SIDE_POCKET_CUT_SCALE = 1;
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.97;
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.97;
 
 function buildChromePlateGeometry({
   width,
@@ -491,10 +491,10 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // widen the middle pocket jaws 8% along the side rails
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.02; // subtle 2% flare keeps liners hugging the chrome without oversizing the mouth
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // rely on the chrome limit scale while respecting the slimmer side jaws
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // sink the middle pocket jaws deeper into the pocket by 50%
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // widen the corner pocket jaws 50% along both rails
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.35; // keep the drop deep while matching the tighter jaw footprint
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.28; // rein in the corner jaw spread so the chrome cut mirrors the pocket diameter
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = 150; // base side jaw span tuned so expansion covers half of the pocket circumference
 const FRAME_TOP_Y = -TABLE.THICK + 0.01 - TABLE.THICK * 0.012; // drop the rail assembly so the frame meets the skirt without a gap
