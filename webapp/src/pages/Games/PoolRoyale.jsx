@@ -250,10 +250,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_CORNER_POCKET_CUT_SCALE = 0.88; // shrink the chrome trace so the wooden relief only exposes a single matching trim arc
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.68; // pull the middle chrome cut in even tighter so the rail only shows one rounded profile
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // rails now reuse the chrome cut directly so every surface shares the same rounded arch
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // middle rail relief follows the chrome cut 1:1 to avoid mismatched pocket jaws
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.9; // open the chrome trace slightly so the relief shows a fuller rounded trim arc
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.7; // ease the middle chrome cut outward a touch to balance the longer rail opening
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.012; // let the wooden relief breathe so the chrome and wood share the wider cut equally
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.01; // widen the middle rail relief in lockstep with the chrome side cuts
 
 function buildChromePlateGeometry({
   width,
@@ -476,13 +476,13 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match snooker jaw reach so liners hug the chrome plate cut
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // let the middle jaw reach terminate exactly at the downsized chrome/wood arc
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // extend the jaw reach so the liner follows the larger chrome plate cut cleanly
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.015; // let the middle jaw ride the expanded chrome/wood arc without leaving a gap
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
-const POCKET_JAW_SIDE_INNER_SCALE = 0.976; // pull the inner lip farther out so the slimmer jaw still meets the chrome cut
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.723; // preserve the playable mouth while matching the longer corner jaw fascia
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.78; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
-const POCKET_JAW_DEPTH_SCALE = 0.63; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
+const POCKET_JAW_SIDE_INNER_SCALE = 0.984; // pull the inner lip farther out so the widened jaw still meets the chrome cut
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.735; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_SIDE_OUTER_SCALE = 1.81; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
+const POCKET_JAW_DEPTH_SCALE = 0.66; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -493,12 +493,18 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.08; // match snooker jaw flare so liners follow the chrome cut exactly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the side jaw footprint identical to the chrome/wood cut so every surface meets cleanly
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer along the corner jaw shoulders
+const POCKET_JAW_SIDE_EDGE_FACTOR = 0.42; // thicker side jaw shoulders to match the beefier Pool Royale liners
+const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the snooker reference
+const POCKET_JAW_SIDE_MIDDLE_FACTOR = 0.86; // let the side pockets carry more material through the middle span
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.1; // let the middle jaws flare a touch wider so they mirror the relaxed chrome cuts
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.015; // expand the side jaw footprint to stay perfectly registered with the enlarged cutout
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // keep the drop deep while matching the tighter jaw footprint
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // align the corner jaw spread with the snooker chrome cut geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = 150; // base side jaw span tuned so expansion covers half of the pocket circumference
+const POCKET_RIM_DEPTH_RATIO = 0.3; // shallow lip that hugs the top of each pocket jaw
+const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.022; // lift the rim slightly above the rail line to avoid z-fighting with the jaw
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4656,8 +4662,8 @@ function Table3D(
       innerScale: baseInnerScale,
       outerScale: baseOuterScale,
       steps,
-      sideThinFactor: wide ? 0.24 : 0.36,
-      middleThinFactor: wide ? 0.78 : 0.92,
+      sideThinFactor: wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR,
+      middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
       centerEase: wide ? 0.28 : 0.36,
       clampOuter: localClampOuter
     });
@@ -4684,7 +4690,28 @@ function Table3D(
 
     const group = new THREE.Group();
     group.add(jawMesh);
-    return { group, jawMesh, rimMesh: null };
+
+    let rimMesh = null;
+    if (POCKET_RIM_DEPTH_RATIO > MICRO_EPS) {
+      const rimDepth = Math.max(MICRO_EPS, jawDepth * POCKET_RIM_DEPTH_RATIO);
+      const rimGeom = new THREE.ExtrudeGeometry(jawShape, {
+        depth: rimDepth,
+        bevelEnabled: false,
+        curveSegments: Math.max(48, Math.ceil(localJawAngle / (Math.PI / 64))),
+        steps: 1
+      });
+      rimGeom.rotateX(-Math.PI / 2);
+      rimGeom.translate(0, -rimDepth, 0);
+      rimGeom.computeVertexNormals();
+      rimMesh = new THREE.Mesh(rimGeom, pocketRimMat);
+      rimMesh.position.y =
+        railsTopY + railH * POCKET_RIM_SURFACE_OFFSET_SCALE;
+      rimMesh.castShadow = false;
+      rimMesh.receiveShadow = false;
+      group.add(rimMesh);
+    }
+
+    return { group, jawMesh, rimMesh };
   };
 
   const addPocketJaw = (config) => {
