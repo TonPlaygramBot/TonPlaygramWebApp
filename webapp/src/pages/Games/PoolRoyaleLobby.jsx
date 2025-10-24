@@ -10,7 +10,10 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import {
+  resolveTableSize,
+  TABLE_SIZE_LIST
+} from '../../config/poolRoyaleTables.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -22,7 +25,9 @@ export default function PoolRoyaleLobby() {
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
   const searchParams = new URLSearchParams(search);
-  const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
+  const [tableSize, setTableSize] = useState(() =>
+    resolveTableSize(searchParams.get('tableSize')).id
+  );
   const [playType, setPlayType] = useState('regular');
 
   useEffect(() => {
@@ -31,6 +36,12 @@ export default function PoolRoyaleLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const resolved = resolveTableSize(params.get('tableSize')).id;
+    setTableSize((prev) => (prev === resolved ? prev : resolved));
+  }, [search]);
 
   const startGame = async () => {
     let tgId;
@@ -137,6 +148,22 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
       )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Table Size</h3>
+        <div className="flex gap-2 overflow-x-auto">
+          {TABLE_SIZE_LIST.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setTableSize(id)}
+              className={`lobby-tile whitespace-nowrap ${
+                tableSize === id ? 'lobby-selected' : ''
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
