@@ -490,12 +490,12 @@ const RAIL_TOKEN_SIDE_SPACING = 0.055;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.08, 1, 1, 1]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.022;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.028;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.028,
-  0.028,
+  0.034,
+  0.034,
   TOKEN_RAIL_CENTER_PULL_DEFAULT,
-  0.028
+  0.034
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.85;
@@ -2688,7 +2688,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         const nextState = stateRef.current;
         if (!nextState || nextState.winner) return;
         if (nextState.turn === 0) return;
-        if (nextState.animation) return;
+        if (nextState.animation) {
+          queueAiRoll(Math.min(400, delay));
+          return;
+        }
         const diceObj = diceRef.current;
         if (diceObj?.userData?.isRolling) {
           queueAiRoll(Math.min(400, delay));
@@ -3164,7 +3167,8 @@ function buildLudoBoard(boardGroup) {
     return center;
   });
 
-  const tileGeo = new THREE.BoxGeometry(LUDO_TILE * 0.96, PLAYFIELD_HEIGHT, LUDO_TILE * 0.96);
+  const tileSize = LUDO_TILE * 0.92;
+  const tileGeo = new THREE.BoxGeometry(tileSize, PLAYFIELD_HEIGHT, tileSize);
   const homeBaseMats = BOARD_COLORS.map((color) => {
     const darker = new THREE.Color(color).multiplyScalar(0.72);
     return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
@@ -3209,13 +3213,8 @@ function buildLudoBoard(boardGroup) {
         scene.add(mesh);
         continue;
       }
-      if (inTrimmedOuter) {
+      if (inTrimmedOuter || inCross) {
         continue;
-      }
-      if (inCross) {
-        const mesh = new THREE.Mesh(tileGeo, tileMat);
-        mesh.position.copy(pos);
-        scene.add(mesh);
       }
     }
   }
