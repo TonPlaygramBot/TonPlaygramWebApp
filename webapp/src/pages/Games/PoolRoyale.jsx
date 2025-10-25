@@ -256,9 +256,9 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // wooden rails now reuse the chrome pocket cuts with no additional relief
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // base relief trim keeps the wood cuts tucked under the chrome plates
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
-  1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // keep the corner wood arches identical to the chrome radius
+  1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
 
 function buildChromePlateGeometry({
@@ -482,8 +482,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp corner jaws to the chrome plate arch diameter
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // side jaws share the same chrome arch diameter with no overrun
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.01; // let the corner jaws reach the cushions without leaving a sliver
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.015; // let the middle jaw ride the expanded chrome/wood arc without leaving a gap
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.984; // pull the inner lip farther out so the widened jaw still meets the chrome cut
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.735; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -503,12 +503,12 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer 
 const POCKET_JAW_SIDE_EDGE_FACTOR = 0.42; // thicker side jaw shoulders to match the beefier Pool Royale liners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the snooker reference
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = 0.86; // let the side pockets carry more material through the middle span
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1; // side jaws keep a single arc that matches the pocket diameter
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1; // side jaws now keep a single arc that matches the pocket diameter
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // jaw footprint mirrors the pocket cut with no additional widening
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5; // keep the drop deep while matching the tighter jaw footprint
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1; // corner jaws stay inside the chrome arch span
-const CORNER_JAW_ARC_DEG = 90; // corner jaw span mirrors the chrome plate quarter-arc
-const SIDE_JAW_ARC_DEG = 180; // side jaw span mirrors the chrome plate half-arc
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // align the corner jaw spread with the snooker chrome cut geometry
+const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
+const SIDE_JAW_ARC_DEG = 150; // base side jaw span tuned so expansion covers half of the pocket circumference
 const POCKET_RIM_DEPTH_RATIO = 0.3; // shallow lip that hugs the top of each pocket jaw
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.022; // lift the rim slightly above the rail line to avoid z-fighting with the jaw
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
@@ -547,7 +547,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = 0; // keep middle pockets tucked into the chrome-aligned arches
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.06; // nudge middle pockets outward slightly so the jaws sit closer to the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -570,12 +570,10 @@ const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // bring corner pocket centres further toward the table middle
+  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // pull every corner pocket centre a hair toward the table middle
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-const SIDE_POCKET_CENTER_INSET =
-  SIDE_POCKET_RADIUS * 0.2 * POCKET_VISUAL_EXPANSION; // shift side pockets inward to match the new chrome arch alignment
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -2937,10 +2935,8 @@ const cornerPocketCenter = (sx, sz) =>
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
 let sidePocketShift = 0;
-const resolveSidePocketCenterX = () =>
-  Math.max(0, PLAY_W / 2 + sidePocketShift - SIDE_POCKET_CENTER_INSET);
 const pocketCenters = () => {
-  const sidePocketCenterX = resolveSidePocketCenterX();
+  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
   return [
     cornerPocketCenter(-1, -1),
     cornerPocketCenter(1, -1),
@@ -2976,7 +2972,6 @@ const formatBallLabel = (colorId) => {
   return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
 };
 const getPocketCenterById = (id) => {
-  const sidePocketCenterX = resolveSidePocketCenterX();
   switch (id) {
     case 'TL':
       return cornerPocketCenter(-1, -1);
@@ -2987,9 +2982,9 @@ const getPocketCenterById = (id) => {
     case 'BR':
       return cornerPocketCenter(1, 1);
     case 'TM':
-      return new THREE.Vector2(-sidePocketCenterX, 0);
+      return new THREE.Vector2(-(PLAY_W / 2 + sidePocketShift), 0);
     case 'BM':
-      return new THREE.Vector2(sidePocketCenterX, 0);
+      return new THREE.Vector2(PLAY_W / 2 + sidePocketShift, 0);
     default:
       return null;
   }
@@ -3886,8 +3881,7 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0042; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
-  const sideInset =
-    SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION + SIDE_POCKET_CENTER_INSET;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
   const desiredSidePocketShift = Math.max(0, halfWext - sideInset - halfW);
   const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
   const baseSidePocketShift = Math.min(desiredSidePocketShift, maxSidePocketShift);
@@ -3896,10 +3890,7 @@ function Table3D(
     Math.max(0, maxSidePocketShift - baseSidePocketShift)
   );
   sidePocketShift = baseSidePocketShift + extraSidePocketShift;
-  const sidePocketCenterX = Math.max(
-    0,
-    halfW + sidePocketShift - SIDE_POCKET_CENTER_INSET
-  );
+  const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
