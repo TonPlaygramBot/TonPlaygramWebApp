@@ -3169,10 +3169,6 @@ function buildLudoBoard(boardGroup) {
 
   const tileSize = LUDO_TILE * 0.92;
   const tileGeo = new THREE.BoxGeometry(tileSize, PLAYFIELD_HEIGHT, tileSize);
-  const homeBaseMats = BOARD_COLORS.map((color) => {
-    const darker = new THREE.Color(color).multiplyScalar(0.72);
-    return new THREE.MeshStandardMaterial({ color: darker, roughness: 0.85 });
-  });
   const pathMats = PLAYER_COLORS.map(
     (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
@@ -3186,7 +3182,7 @@ function buildLudoBoard(boardGroup) {
       const inCross = (r >= 6 && r <= 8) || (c >= 6 && c <= 8);
       const inTrimmedOuter = r < 2 || r > LUDO_GRID - 3 || c < 2 || c > LUDO_GRID - 3;
       if (homeIndex !== -1) {
-        const mesh = new THREE.Mesh(tileGeo, homeBaseMats[homeIndex]);
+        const mesh = new THREE.Mesh(tileGeo, tileMat);
         mesh.position.copy(pos);
         scene.add(mesh);
         continue;
