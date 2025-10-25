@@ -238,9 +238,8 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.42;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0.98; // carve a rounded fillet into the inner chrome corner
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.01; // grow the inner cut slightly so no chrome lip creeps onto the cloth
-const CHROME_CORNER_ZERO_EXTENSION_SCALE = 1.35; // stretch the new capsule pocket cut toward the playfield to hide the chrome sliver
-const CHROME_CORNER_WIDTH_SCALE = 0.97;
-const CHROME_CORNER_HEIGHT_SCALE = 0.97;
+const CHROME_CORNER_WIDTH_SCALE = 0.965;
+const CHROME_CORNER_HEIGHT_SCALE = 0.965;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -4355,17 +4354,10 @@ function Table3D(
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
-    const notchRadius = cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE;
-    const capsuleExtension = Math.max(0, cornerChamfer * CHROME_CORNER_ZERO_EXTENSION_SCALE);
-    const innerCx = cx - sx * capsuleExtension;
-    const innerCz = cz - sz * capsuleExtension;
-    const notchCircle = circlePoly(cx, cz, notchRadius);
-    const notchTailCircle = circlePoly(innerCx, innerCz, notchRadius);
-    const capsuleBody = boxPoly(
-      Math.min(cx, innerCx) - notchRadius,
-      Math.min(cz, innerCz) - notchRadius,
-      Math.max(cx, innerCx) + notchRadius,
-      Math.max(cz, innerCz) + notchRadius
+    const notchCircle = circlePoly(
+      cx,
+      cz,
+      cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE
     );
     const x1 = cx;
     const x2 = cx + sx * cornerChamfer;
@@ -4380,7 +4372,7 @@ function Table3D(
     const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
     const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
     const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
-    const unionParts = [notchCircle, notchTailCircle, capsuleBody, boxX, boxZ];
+    const unionParts = [notchCircle, boxX, boxZ];
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
       const filletRadius =
         Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
