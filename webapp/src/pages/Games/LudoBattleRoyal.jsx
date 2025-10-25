@@ -466,6 +466,8 @@ const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
 const CENTER_HOME_BASE_OFFSET = -0.0045;
+// Align the Ludo board quadrants with the token rails that sit on the table edges.
+const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAM = {
   fov: CAMERA_FOV,
@@ -583,17 +585,17 @@ const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
 const TOKEN_TRACK_LIFT = new THREE.Vector3(0, TOKEN_TRACK_HEIGHT, 0);
 const TOKEN_GOAL_LIFT = new THREE.Vector3(0, TOKEN_GOAL_HEIGHT, 0);
-const RAIL_TOKEN_FORWARD_SPACING = 0.05;
-const RAIL_TOKEN_SIDE_SPACING = 0.055;
+const RAIL_TOKEN_FORWARD_SPACING = 0.055;
+const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.08, 1, 1, 1]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.028;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.036;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.034,
-  0.034,
+  0.044,
+  0.044,
   TOKEN_RAIL_CENTER_PULL_DEFAULT,
-  0.034
+  0.044
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.35;
@@ -636,7 +638,7 @@ function getTokenRailHeight(playerIndex) {
   return getPlayerHomeHeight(playerIndex) + TOKEN_RAIL_HEIGHT_LIFT;
 }
 
-const DICE_SIZE = 0.082;
+const DICE_SIZE = 0.076;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.17;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -2375,6 +2377,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
+    boardGroup.rotation.y = BOARD_ROTATION_Y;
     tableInfo.group.add(boardGroup);
 
     const boardLookTarget = new THREE.Vector3(
