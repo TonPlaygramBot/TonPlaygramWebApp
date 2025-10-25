@@ -229,19 +229,19 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.02; // match the snooker chrome plate reach for identical pocket symmetry
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // align the short-rail chrome edge with the snooker layout
+const CHROME_CORNER_EXPANSION_SCALE = 1.035; // widen the corner plate reach a touch more
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.085; // push the short-rail chrome edge farther so it lines up with the marked trim
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
-const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // mirror the snooker inner corner without extra rounding
-const CHROME_CORNER_FIELD_CLEANUP_SCALE = 0; // avoid additional cleanup cuts to keep the snooker profile
-const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // reuse the snooker pocket cut expansion for identical jaws
-const CHROME_CORNER_WIDTH_SCALE = 0.99;
-const CHROME_CORNER_HEIGHT_SCALE = 0.99;
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // keep the rail-facing edge flush just like snooker
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0.85; // carve a rounded fillet into the inner chrome corner
+const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.12; // add an extra rounded bite to clear any lingering chrome inside the pocket
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.045;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // keep chrome arcs identical to the master pocket cut
+const CHROME_CORNER_WIDTH_SCALE = 0.965;
+const CHROME_CORNER_HEIGHT_SCALE = 0.965;
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
@@ -572,7 +572,7 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // pull every corner pocket centre a hair toward the table middle
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
