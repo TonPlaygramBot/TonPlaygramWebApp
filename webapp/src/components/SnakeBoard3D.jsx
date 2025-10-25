@@ -163,10 +163,27 @@ const TOP_TILE_EXTRA_LEVELS = 1;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
-const RAIL_HEIGHT = TILE_SIZE * 0.95;
-const RAIL_GAP_WIDTH = TILE_SIZE * 2.2;
+const RAIL_HEIGHT = TILE_SIZE * 0.6;
+const RAIL_GAP_WIDTH = TILE_SIZE * 1.4;
 const RAIL_RADIUS = TILE_SIZE * 0.03;
-const RAIL_WALKWAY_DEPTH = TILE_SIZE * 1.2;
+const RAIL_WALKWAY_DEPTH = TILE_SIZE * 0.85;
+const LEVEL_START_INDICES = LEVEL_TILE_COUNTS.reduce((starts, count, index) => {
+  if (index === 0) {
+    starts.push(1);
+  } else {
+    starts.push(starts[index - 1] + LEVEL_TILE_COUNTS[index - 1]);
+  }
+  return starts;
+}, []);
+const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) => ({
+  from: start + LEVEL_TILE_COUNTS[index] - 1,
+  to: LEVEL_START_INDICES[index + 1]
+}));
+const STAIR_STEP_COUNT = 5;
+const STAIR_COLOR = 0x111111;
+const STAIR_WIDTH = TILE_SIZE * 0.72;
+const STAIR_DEPTH_MIN = TILE_SIZE * 0.22;
+const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -286,7 +303,7 @@ function addPavementLayer(parent, size, thickness, bottomY, meshes) {
   return pavement;
 }
 
-function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth }, meshes) {
+function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth, gapCenter = 0 }, meshes) {
   const created = [];
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xf3f4f6,
@@ -296,10 +313,29 @@ function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth }, mes
     clearcoatRoughness: 0.12,
     envMapIntensity: 1.1
   });
-  const gapHalf = Math.min(halfSize * 0.85, gapWidth / 2);
+  const gapHalf = Math.min(halfSize * 0.92, gapWidth / 2);
   const walkwayDepth = Math.min(halfSize, RAIL_WALKWAY_DEPTH);
   const lowerY = topY + TILE_SIZE * 0.05;
   const upperY = lowerY + railHeight;
+
+  let gapLeft = gapCenter - gapHalf;
+  let gapRight = gapCenter + gapHalf;
+  if (gapLeft < -halfSize) {
+    const shift = -halfSize - gapLeft;
+    gapLeft += shift;
+    gapRight += shift;
+  }
+  if (gapRight > halfSize) {
+    const shift = gapRight - halfSize;
+    gapLeft -= shift;
+    gapRight -= shift;
+  }
+  const minGap = TILE_SIZE * 0.35;
+  if (gapRight - gapLeft < minGap) {
+    const center = (gapLeft + gapRight) / 2;
+    gapLeft = clamp(center - minGap / 2, -halfSize, halfSize);
+    gapRight = clamp(center + minGap / 2, -halfSize, halfSize);
+  }
 
   const addMesh = (mesh) => {
     if (!mesh) return;
@@ -355,10 +391,10 @@ function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth }, mes
   const leftX = -halfSize;
   const rightX = halfSize;
 
-  addRailPair(new THREE.Vector3(-halfSize, 0, frontZ), new THREE.Vector3(-gapHalf, 0, frontZ));
-  addRailPair(new THREE.Vector3(gapHalf, 0, frontZ), new THREE.Vector3(halfSize, 0, frontZ));
-  addRailPair(new THREE.Vector3(-halfSize, 0, backZ), new THREE.Vector3(-gapHalf, 0, backZ));
-  addRailPair(new THREE.Vector3(gapHalf, 0, backZ), new THREE.Vector3(halfSize, 0, backZ));
+  addRailPair(new THREE.Vector3(-halfSize, 0, frontZ), new THREE.Vector3(gapLeft, 0, frontZ));
+  addRailPair(new THREE.Vector3(gapRight, 0, frontZ), new THREE.Vector3(halfSize, 0, frontZ));
+  addRailPair(new THREE.Vector3(-halfSize, 0, backZ), new THREE.Vector3(gapLeft, 0, backZ));
+  addRailPair(new THREE.Vector3(gapRight, 0, backZ), new THREE.Vector3(halfSize, 0, backZ));
   addRailPair(new THREE.Vector3(leftX, 0, backZ), new THREE.Vector3(leftX, 0, frontZ));
   addRailPair(new THREE.Vector3(rightX, 0, backZ), new THREE.Vector3(rightX, 0, frontZ));
 
@@ -366,10 +402,10 @@ function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth }, mes
   if (walkwayReach > 0) {
     const innerFront = frontZ - walkwayReach;
     const innerBack = backZ + walkwayReach;
-    addRailPair(new THREE.Vector3(-gapHalf, 0, frontZ), new THREE.Vector3(-gapHalf, 0, innerFront));
-    addRailPair(new THREE.Vector3(gapHalf, 0, frontZ), new THREE.Vector3(gapHalf, 0, innerFront));
-    addRailPair(new THREE.Vector3(-gapHalf, 0, backZ), new THREE.Vector3(-gapHalf, 0, innerBack));
-    addRailPair(new THREE.Vector3(gapHalf, 0, backZ), new THREE.Vector3(gapHalf, 0, innerBack));
+    addRailPair(new THREE.Vector3(gapLeft, 0, frontZ), new THREE.Vector3(gapLeft, 0, innerFront));
+    addRailPair(new THREE.Vector3(gapRight, 0, frontZ), new THREE.Vector3(gapRight, 0, innerFront));
+    addRailPair(new THREE.Vector3(gapLeft, 0, backZ), new THREE.Vector3(gapLeft, 0, innerBack));
+    addRailPair(new THREE.Vector3(gapRight, 0, backZ), new THREE.Vector3(gapRight, 0, innerBack));
   }
 
   const postPoints = [
@@ -377,24 +413,93 @@ function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth }, mes
     [halfSize, frontZ],
     [-halfSize, backZ],
     [halfSize, backZ],
-    [-gapHalf, frontZ],
-    [gapHalf, frontZ],
-    [-gapHalf, backZ],
-    [gapHalf, backZ]
+    [gapLeft, frontZ],
+    [gapRight, frontZ],
+    [gapLeft, backZ],
+    [gapRight, backZ]
   ];
 
   if (walkwayReach > 0) {
     postPoints.push(
-      [-gapHalf, frontZ - walkwayReach],
-      [gapHalf, frontZ - walkwayReach],
-      [-gapHalf, backZ + walkwayReach],
-      [gapHalf, backZ + walkwayReach]
+      [gapLeft, frontZ - walkwayReach],
+      [gapRight, frontZ - walkwayReach],
+      [gapLeft, backZ + walkwayReach],
+      [gapRight, backZ + walkwayReach]
     );
   }
 
   postPoints.forEach(([x, z]) => addPost(x, z));
 
   return created;
+}
+
+function addWallStaircase(
+  parent,
+  { fromIndex, toIndex, indexToPosition, stepCount = STAIR_STEP_COUNT, width = STAIR_WIDTH, depthMin = STAIR_DEPTH_MIN, outwardOffset = STAIR_OUTWARD_OFFSET },
+  meshes
+) {
+  if (!indexToPosition?.has(fromIndex) || !indexToPosition?.has(toIndex) || stepCount <= 0) {
+    return null;
+  }
+  const created = [];
+  const fromPos = indexToPosition.get(fromIndex).clone();
+  const toPos = indexToPosition.get(toIndex).clone();
+  const heightDelta = toPos.y - fromPos.y;
+  if (heightDelta <= 0) return null;
+
+  const material = new THREE.MeshStandardMaterial({
+    color: STAIR_COLOR,
+    roughness: 0.55,
+    metalness: 0.2
+  });
+
+  const horizontal = new THREE.Vector3(toPos.x - fromPos.x, 0, toPos.z - fromPos.z);
+  const horizontalLength = horizontal.length();
+  let direction;
+  if (horizontalLength > 1e-6) {
+    direction = horizontal.clone().normalize();
+  } else {
+    direction = new THREE.Vector3(1, 0, 0);
+  }
+  const outward = new THREE.Vector3(-direction.z, 0, direction.x);
+  if (outward.lengthSq() > 1e-6) {
+    outward.normalize();
+    const toCenter = new THREE.Vector3(fromPos.x, 0, fromPos.z);
+    if (toCenter.dot(outward) < 0) outward.multiplyScalar(-1);
+  } else {
+    outward.set(0, 0, 1);
+  }
+
+  const stepHeight = heightDelta / stepCount;
+  const stepDepth = Math.max(depthMin, horizontalLength / Math.max(1, stepCount));
+  const totalDepth = stepDepth * stepCount;
+  const overshoot = Math.max(0, totalDepth - horizontalLength);
+  const startBase = fromPos
+    .clone()
+    .addScaledVector(direction, -overshoot / 2)
+    .addScaledVector(outward, outwardOffset);
+
+  const group = new THREE.Group();
+  for (let i = 0; i < stepCount; i += 1) {
+    const step = new THREE.Mesh(
+      new THREE.BoxGeometry(width, Math.max(stepHeight * 0.98, TILE_SIZE * 0.04), stepDepth),
+      material.clone()
+    );
+    const center = startBase.clone().addScaledVector(direction, stepDepth * (i + 0.5));
+    center.y = fromPos.y + stepHeight * (i + 0.5);
+    step.position.copy(center);
+    step.castShadow = true;
+    step.receiveShadow = true;
+    group.add(step);
+    created.push(step);
+  }
+
+  parent.add(group);
+  created.push(group);
+  if (meshes) {
+    created.forEach((mesh) => meshes.push(mesh));
+  }
+  return group;
 }
 
 function createChairClothTexture(chairOption, renderer) {
@@ -1620,6 +1725,7 @@ function buildSnakeBoard(
   const platformThickness = PYRAMID_PLATFORM_THICKNESS;
   const levelGap = PYRAMID_LEVEL_GAP;
   const platformMeshes = [];
+  const railingInfos = [];
   const levelPlacements = [];
   const topTileLift = (platformThickness + tileHeight + levelGap) * TOP_TILE_EXTRA_LEVELS;
 
@@ -1650,19 +1756,19 @@ function buildSnakeBoard(
     platformGroup.add(platform);
     platformMeshes.push(platform);
 
+    const platformTopY = currentLevelBottom + platformThickness;
+    const walkwayEstimate = -dimension / 2 + TILE_SIZE / 2;
+    railingInfos.push({
+      halfSize: platformSize / 2,
+      topY: platformTopY,
+      gapWidth: RAIL_GAP_WIDTH,
+      walkwayCenter: walkwayEstimate,
+      levelIndex
+    });
+
     if (levelIndex === 0) {
       const pavementSize = platformSize * PAVEMENT_EXTRA_SCALE;
       addPavementLayer(platformGroup, pavementSize, PAVEMENT_THICKNESS, currentLevelBottom, platformMeshes);
-      addChromeRailings(
-        platformGroup,
-        {
-          halfSize: platformSize / 2,
-          topY: currentLevelBottom + platformThickness,
-          railHeight: RAIL_HEIGHT,
-          gapWidth: RAIL_GAP_WIDTH
-        },
-        platformMeshes
-      );
     }
 
     const tileCenterY = currentLevelBottom + platformThickness + tileHeight / 2;
@@ -1733,6 +1839,39 @@ function buildSnakeBoard(
       label.position.set(tilePosition.x, labelY + TILE_LABEL_OFFSET, tilePosition.z);
       labelGroup.add(label);
     });
+  });
+
+  railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
+    const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
+    const startPos = indexToPosition.get(startIndex);
+    const gapCenter = startPos ? startPos.x : walkwayCenter;
+    addChromeRailings(
+      platformGroup,
+      {
+        halfSize,
+        topY,
+        railHeight: RAIL_HEIGHT,
+        gapWidth,
+        gapCenter
+      },
+      platformMeshes
+    );
+  });
+
+  STAIR_CONNECTIONS.forEach(({ from, to }, index) => {
+    addWallStaircase(
+      platformGroup,
+      {
+        fromIndex: from,
+        toIndex: to,
+        indexToPosition,
+        stepCount: STAIR_STEP_COUNT,
+        width: STAIR_WIDTH,
+        depthMin: STAIR_DEPTH_MIN,
+        outwardOffset: STAIR_OUTWARD_OFFSET * (1 - index * 0.08)
+      },
+      platformMeshes
+    );
   });
 
   const tileHundred = tileMeshes.get(TOTAL_BOARD_TILES);
