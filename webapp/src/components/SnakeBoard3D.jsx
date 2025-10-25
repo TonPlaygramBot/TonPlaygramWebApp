@@ -529,8 +529,8 @@ function getRailingEntryConfig(levelIndex, indexToPosition) {
   if (!fromPos || !toPos) {
     return { side: 'front', axis: 'x', center: null };
   }
-  const dx = toPos.x - fromPos.x;
-  const dz = toPos.z - fromPos.z;
+  const dx = fromPos.x - toPos.x;
+  const dz = fromPos.z - toPos.z;
   if (Math.abs(dx) >= Math.abs(dz)) {
     return {
       side: dx >= 0 ? 'right' : 'left',
