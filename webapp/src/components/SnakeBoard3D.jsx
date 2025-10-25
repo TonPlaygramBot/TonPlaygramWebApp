@@ -149,7 +149,8 @@ const TOKEN_HEIGHT = TILE_SIZE * 0.48;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
-const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.18;
+const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.3;
+const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
@@ -253,13 +254,31 @@ const DICE_SEAT_ADJUSTMENTS = [
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
-const LADDER_BASE_LIFT = TILE_SIZE * 0.24;
-const LADDER_ARCH_BASE = TILE_SIZE * 0.9;
-const LADDER_ARCH_SCALE = TILE_SIZE * 0.015;
-const LADDER_SWAY_BASE = TILE_SIZE * 0.3;
-const LADDER_SWAY_SCALE = TILE_SIZE * 0.012;
-const LADDER_INNER_LIFT_RATIO = 0.9;
-const LADDER_OUTER_LIFT_RATIO = 1.1;
+const LADDER_BASE_LIFT = TILE_SIZE * 0.26;
+const LADDER_ARCH_BASE = TILE_SIZE * 0.78;
+const LADDER_ARCH_SCALE = TILE_SIZE * 0.01;
+const LADDER_SWAY_BASE = TILE_SIZE * 0.16;
+const LADDER_SWAY_SCALE = TILE_SIZE * 0.0075;
+const LADDER_INNER_LIFT_RATIO = 0.72;
+const LADDER_OUTER_LIFT_RATIO = 0.72;
+const SNAKE_BASE_LIFT = TILE_SIZE * 0.2;
+const SNAKE_ARCH_BASE = TILE_SIZE * 0.45;
+const SNAKE_ARCH_SCALE = TILE_SIZE * 0.0045;
+const SNAKE_LATERAL_BASE = TILE_SIZE * 0.12;
+const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0038;
+
+function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
+  if (!point) return point;
+  const planar = new THREE.Vector3(point.x, 0, point.z);
+  const distance = planar.length();
+  if (distance < 1e-6) {
+    return point;
+  }
+  const pull = Math.min(amount, distance * 0.45);
+  planar.normalize().multiplyScalar(pull);
+  point.addScaledVector(planar, -1);
+  return point;
+}
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
@@ -1617,6 +1636,63 @@ function makeSnakeTexture() {
   return tex;
 }
 
+function makeFloorTexture() {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, size, size);
+
+  const tile = 64;
+  for (let y = 0; y < size; y += tile) {
+    for (let x = 0; x < size; x += tile) {
+      const shade = (x / tile + y / tile) % 2 === 0 ? '#1f2937' : '#1a2433';
+      ctx.fillStyle = shade;
+      ctx.fillRect(x, y, tile, tile);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x, y, tile, 1.5);
+      ctx.fillRect(x, y, 1.5, tile);
+    }
+  }
+
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.lineWidth = 2;
+  for (let y = 0; y <= size; y += tile) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(size, y + 0.5);
+    ctx.stroke();
+  }
+  for (let x = 0; x <= size; x += tile) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, size);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.22)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= size; i += tile / 2) {
+    ctx.beginPath();
+    ctx.moveTo(0, i + 0.5);
+    ctx.lineTo(size, i + 0.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i + 0.5, 0);
+    ctx.lineTo(i + 0.5, size);
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(6, 6);
+  tex.anisotropy = 8;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function makeRoundedBoxGeometry(w, h, d, r, seg = 4) {
   const geo = new THREE.BoxGeometry(w, h, d, seg, seg, seg);
   const pos = geo.attributes.position;
@@ -1676,10 +1752,15 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   const arenaGroup = new THREE.Group();
   scene.add(arenaGroup);
 
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-    new THREE.MeshStandardMaterial({ color: new THREE.Color('#020617'), roughness: 0.9, metalness: 0.1 })
-  );
+  const floorTexture = makeFloorTexture();
+  floorTexture.center.set(0.5, 0.5);
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color('#111827'),
+    roughness: 0.92,
+    metalness: 0.08,
+    map: floorTexture
+  });
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64), floorMaterial);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   arenaGroup.add(floor);
@@ -1856,6 +1937,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
     if (tableInfo?.dispose) tableInfo.dispose();
     scene.remove(ambient, spot, rim);
     floor.geometry.dispose();
+    floor.material.map?.dispose?.();
     floor.material.dispose();
     carpet.geometry.dispose();
     carpet.material.dispose();
@@ -2536,28 +2618,29 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
       } else {
         rightBase.normalize();
       }
-      const railOffset = TILE_SIZE * 0.18;
+      const railOffset = TILE_SIZE * 0.14;
 
       const baseLift = LADDER_BASE_LIFT;
-      const archHeight = LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE;
-      const swayAmount = LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE;
+      const archHeight = Math.min(TILE_SIZE * 1.05, LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE);
+      const swayAmount = Math.min(TILE_SIZE * 0.22, LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE);
 
-      const startPoint = A.clone().addScaledVector(up, baseLift);
-      const endPoint = B.clone().addScaledVector(up, baseLift);
-      const innerLift = archHeight * LADDER_INNER_LIFT_RATIO;
-      const outerLift = archHeight * LADDER_OUTER_LIFT_RATIO;
-      const midPointA = startPoint
+      const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift));
+      const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift));
+      const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
+      const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
+      const quarterPoint = startPoint
         .clone()
-        .lerp(endPoint, 0.35)
-        .addScaledVector(up, innerLift)
+        .lerp(endPoint, 0.25)
+        .addScaledVector(up, quarterLift)
         .addScaledVector(rightBase, swayAmount);
-      const midPointB = startPoint
+      const midPoint = startPoint.clone().lerp(endPoint, 0.5).addScaledVector(up, archHeight);
+      const threeQuarterPoint = startPoint
         .clone()
-        .lerp(endPoint, 0.7)
-        .addScaledVector(up, outerLift)
-        .addScaledVector(rightBase, -swayAmount * 0.85);
+        .lerp(endPoint, 0.75)
+        .addScaledVector(up, threeQuarterLift)
+        .addScaledVector(rightBase, -swayAmount);
 
-      const centerPoints = [startPoint, midPointA, midPointB, endPoint];
+      const centerPoints = [startPoint, quarterPoint, midPoint, threeQuarterPoint, endPoint];
       const centerCurve = new THREE.CatmullRomCurve3(centerPoints, false, 'centripetal');
 
       const leftPoints = [];
@@ -2615,8 +2698,8 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
 
       group.userData.paths.set(start, {
         curve: centerCurve,
-        start: A.clone(),
-        end: B.clone()
+        start: startPoint.clone(),
+        end: endPoint.clone()
       });
     });
 }
@@ -2666,31 +2749,35 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
   group.userData.paths = new Map();
 
   entries.forEach(([start, end]) => {
-    const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
-    const B = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
+    const baseStart = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
+    const baseEnd = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
+    const startPoint = pullPointTowardCenter(baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
+    const endPoint = pullPointTowardCenter(baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
     const length = Math.abs(start - end);
-    const mid = A.clone().lerp(B, 0.5);
-    const archHeight = TILE_SIZE * 0.6 + length * 0.006;
-    mid.y += archHeight;
-    const side = new THREE.Vector3(B.z - A.z, 0, -(B.x - A.x))
-      .normalize()
-      .multiplyScalar(TILE_SIZE * 0.3);
-    const p0 = A.clone();
-    const p1 = mid.add(side);
-    const p2 = B.clone();
-    const fullCurve = new THREE.CatmullRomCurve3([p0, p1, p2]);
+    const archHeight = Math.min(TILE_SIZE * 0.9, SNAKE_ARCH_BASE + length * SNAKE_ARCH_SCALE);
+    const peak = startPoint.clone().lerp(endPoint, 0.5).add(new THREE.Vector3(0, archHeight, 0));
+    const lateral = new THREE.Vector3(endPoint.z - startPoint.z, 0, -(endPoint.x - startPoint.x));
+    if (lateral.lengthSq() < 1e-6) {
+      lateral.set(1, 0, 0);
+    } else {
+      lateral.normalize();
+    }
+    const lateralAmount = Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE);
+    const peakLeft = peak.clone().addScaledVector(lateral, lateralAmount);
+    const peakRight = peak.clone().addScaledVector(lateral, -lateralAmount);
+    const fullCurve = new THREE.CatmullRomCurve3([startPoint, peakLeft, peakRight, endPoint], false, 'centripetal');
 
-    const bodyRadius = TILE_SIZE * 0.08;
+    const bodyRadius = TILE_SIZE * 0.075;
     const mainCurve = sampleSubCurve(fullCurve, 0, 0.75, 24);
     const bodyMain = new THREE.Mesh(new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false), matBody.clone());
-    const mainLen = A.distanceTo(fullCurve.getPoint(0.75));
+    const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.75));
     bodyMain.material.map.repeat.set(Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))), 2);
     group.add(bodyMain);
 
     group.userData.paths.set(start, {
       curve: fullCurve.clone(),
-      start: A.clone(),
-      end: B.clone()
+      start: startPoint.clone(),
+      end: endPoint.clone()
     });
 
     const tailSegments = [
@@ -2732,13 +2819,13 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     tongue.rotation.x = Math.PI / 2;
     tongue.position.z = headR * 1.5;
     headGroup.add(tongue);
-    const headPos = A.clone().add(tA.clone().multiplyScalar(headR * 0.8));
+    const headPos = startPoint.clone().add(tA.clone().multiplyScalar(headR * 0.6));
     headGroup.position.copy(headPos);
     headGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tA.clone());
     group.add(headGroup);
 
     const tailTip = new THREE.Mesh(new THREE.ConeGeometry(bodyRadius * 0.58, bodyRadius * 1.8, 12), matTail);
-    tailTip.position.copy(B.clone());
+    tailTip.position.copy(endPoint.clone());
     tailTip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tB.clone());
     group.add(tailTip);
   });
