@@ -121,6 +121,7 @@ const HIGHLIGHT_COLORS = {
 const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#e7e5e4');
 const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#a8a29e');
 const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#f4f4f5');
+const PYRAMID_CONCRETE_BASE = new THREE.Color('#6b7280');
 
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12;
@@ -1993,12 +1994,27 @@ function buildSnakeBoard(
     const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
     const tone = PYRAMID_CONCRETE_LIGHT.clone().lerp(PYRAMID_CONCRETE_SHADOW, t * 0.85);
     const rimTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
-    const mat = new THREE.MeshStandardMaterial({
+    const topTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
+    const wallMaterial = new THREE.MeshStandardMaterial({
       color: tone,
       roughness: 0.76,
       metalness: 0.08,
       emissive: rimTone.clone().multiplyScalar(0.18),
       emissiveIntensity: 0.14
+    });
+    const topMaterial = new THREE.MeshStandardMaterial({
+      color: topTone,
+      roughness: 0.68,
+      metalness: 0.12,
+      emissive: rimTone.clone().multiplyScalar(0.12),
+      emissiveIntensity: 0.12
+    });
+    const bottomMaterial = new THREE.MeshStandardMaterial({
+      color: PYRAMID_CONCRETE_BASE,
+      roughness: 0.84,
+      metalness: 0.1,
+      emissive: PYRAMID_CONCRETE_BASE.clone().multiplyScalar(0.06),
+      emissiveIntensity: 0.12
     });
     const baseExtraRatio = 1 - levelIndex / (PYRAMID_LEVELS.length + 1);
     let extra =
@@ -2009,7 +2025,16 @@ function buildSnakeBoard(
     }
     const shrinkFactor = BENTONITE_EXTRA_SHRINK[levelIndex] ?? 1;
     const platformSize = dimension + extra * shrinkFactor;
-    const platform = new THREE.Mesh(new THREE.BoxGeometry(platformSize, platformThickness, platformSize), mat);
+    const platformGeometry = new THREE.BoxGeometry(platformSize, platformThickness, platformSize);
+    const platformMaterials = [
+      wallMaterial,
+      wallMaterial,
+      topMaterial,
+      bottomMaterial,
+      wallMaterial,
+      wallMaterial
+    ];
+    const platform = new THREE.Mesh(platformGeometry, platformMaterials);
     platform.position.y = currentLevelBottom + platformThickness / 2;
     platformGroup.add(platform);
     platformMeshes.push(platform);
@@ -2256,8 +2281,13 @@ function buildSnakeBoard(
 
   disposeHandlers.push(() => {
     platformMeshes.forEach((mesh) => {
-      mesh.geometry.dispose();
-      mesh.material.dispose?.();
+      mesh.geometry?.dispose?.();
+      if (Array.isArray(mesh.material)) {
+        const uniqueMaterials = new Set(mesh.material);
+        uniqueMaterials.forEach((mat) => mat?.dispose?.());
+      } else {
+        mesh.material?.dispose?.();
+      }
     });
   });
 
