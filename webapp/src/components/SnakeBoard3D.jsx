@@ -149,9 +149,9 @@ const TOKEN_HEIGHT = TILE_SIZE * 0.48;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
-const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.12;
+const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.18;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
-const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.6;
+const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
 const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 0.9;
 // Extra distance so side-seat tokens rest closer to their players than the board edge.
@@ -160,6 +160,16 @@ const BACK_HOME_EXTRA_DISTANCE = TILE_SIZE * 2.8;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
+
+const PAVEMENT_EXTRA_SCALE = 1.18;
+const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
+const RAIL_HEIGHT = TILE_SIZE * 0.95;
+const RAIL_GAP_WIDTH = TILE_SIZE * 2.2;
+const RAIL_RADIUS = TILE_SIZE * 0.03;
+const RAIL_WALKWAY_DEPTH = TILE_SIZE * 1.2;
+const COIN_SPIN_SPEED = Math.PI / 7;
+const COIN_RAISE = TILE_SIZE * 0.24;
+const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -259,6 +269,132 @@ function buildPerimeterSequence(size) {
     sequence.push({ row, col: 0 });
   }
   return sequence;
+}
+
+function addPavementLayer(parent, size, thickness, bottomY, meshes) {
+  const pavementMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color('#6b7280'),
+    roughness: 0.88,
+    metalness: 0.35,
+    envMapIntensity: 0.6
+  });
+  const pavement = new THREE.Mesh(new THREE.BoxGeometry(size, thickness, size), pavementMaterial);
+  pavement.position.y = bottomY - thickness / 2;
+  pavement.receiveShadow = true;
+  parent.add(pavement);
+  if (meshes) meshes.push(pavement);
+  return pavement;
+}
+
+function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth }, meshes) {
+  const created = [];
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0xf3f4f6,
+    metalness: 1,
+    roughness: 0.18,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.12,
+    envMapIntensity: 1.1
+  });
+  const gapHalf = Math.min(halfSize * 0.85, gapWidth / 2);
+  const walkwayDepth = Math.min(halfSize, RAIL_WALKWAY_DEPTH);
+  const lowerY = topY + TILE_SIZE * 0.05;
+  const upperY = lowerY + railHeight;
+
+  const addMesh = (mesh) => {
+    if (!mesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    created.push(mesh);
+    if (meshes) meshes.push(mesh);
+  };
+
+  const addRail = (start, end, height) => {
+    const direction = end.clone().sub(start);
+    const length = direction.length();
+    if (length < 1e-4) return null;
+    const geom = new THREE.CylinderGeometry(RAIL_RADIUS, RAIL_RADIUS, length, 16);
+    const rail = new THREE.Mesh(geom, material.clone());
+    const center = start.clone().addScaledVector(direction, 0.5);
+    rail.position.copy(center);
+    rail.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    rail.position.y = height;
+    return rail;
+  };
+
+  const addRailPair = (start, end) => {
+    const baseStart = start.clone();
+    baseStart.y = lowerY;
+    const baseEnd = end.clone();
+    baseEnd.y = lowerY;
+    const highStart = start.clone();
+    highStart.y = upperY;
+    const highEnd = end.clone();
+    highEnd.y = upperY;
+    addMesh(addRail(baseStart, baseEnd, lowerY));
+    addMesh(addRail(highStart, highEnd, upperY));
+  };
+
+  const postCache = new Set();
+
+  const addPost = (x, z) => {
+    const key = `${x.toFixed(4)}:${z.toFixed(4)}`;
+    if (postCache.has(key)) return;
+    postCache.add(key);
+    const height = upperY - topY;
+    if (height <= 0) return;
+    const geom = new THREE.CylinderGeometry(RAIL_RADIUS * 1.25, RAIL_RADIUS * 1.25, height, 16);
+    const post = new THREE.Mesh(geom, material.clone());
+    post.position.set(x, topY + height / 2, z);
+    addMesh(post);
+  };
+
+  const frontZ = halfSize;
+  const backZ = -halfSize;
+  const leftX = -halfSize;
+  const rightX = halfSize;
+
+  addRailPair(new THREE.Vector3(-halfSize, 0, frontZ), new THREE.Vector3(-gapHalf, 0, frontZ));
+  addRailPair(new THREE.Vector3(gapHalf, 0, frontZ), new THREE.Vector3(halfSize, 0, frontZ));
+  addRailPair(new THREE.Vector3(-halfSize, 0, backZ), new THREE.Vector3(-gapHalf, 0, backZ));
+  addRailPair(new THREE.Vector3(gapHalf, 0, backZ), new THREE.Vector3(halfSize, 0, backZ));
+  addRailPair(new THREE.Vector3(leftX, 0, backZ), new THREE.Vector3(leftX, 0, frontZ));
+  addRailPair(new THREE.Vector3(rightX, 0, backZ), new THREE.Vector3(rightX, 0, frontZ));
+
+  const walkwayReach = Math.max(0, walkwayDepth);
+  if (walkwayReach > 0) {
+    const innerFront = frontZ - walkwayReach;
+    const innerBack = backZ + walkwayReach;
+    addRailPair(new THREE.Vector3(-gapHalf, 0, frontZ), new THREE.Vector3(-gapHalf, 0, innerFront));
+    addRailPair(new THREE.Vector3(gapHalf, 0, frontZ), new THREE.Vector3(gapHalf, 0, innerFront));
+    addRailPair(new THREE.Vector3(-gapHalf, 0, backZ), new THREE.Vector3(-gapHalf, 0, innerBack));
+    addRailPair(new THREE.Vector3(gapHalf, 0, backZ), new THREE.Vector3(gapHalf, 0, innerBack));
+  }
+
+  const postPoints = [
+    [-halfSize, frontZ],
+    [halfSize, frontZ],
+    [-halfSize, backZ],
+    [halfSize, backZ],
+    [-gapHalf, frontZ],
+    [gapHalf, frontZ],
+    [-gapHalf, backZ],
+    [gapHalf, backZ]
+  ];
+
+  if (walkwayReach > 0) {
+    postPoints.push(
+      [-gapHalf, frontZ - walkwayReach],
+      [gapHalf, frontZ - walkwayReach],
+      [-gapHalf, backZ + walkwayReach],
+      [gapHalf, backZ + walkwayReach]
+    );
+  }
+
+  postPoints.forEach(([x, z]) => addPost(x, z));
+
+  return created;
 }
 
 function createChairClothTexture(chairOption, renderer) {
@@ -1514,6 +1650,21 @@ function buildSnakeBoard(
     platformGroup.add(platform);
     platformMeshes.push(platform);
 
+    if (levelIndex === 0) {
+      const pavementSize = platformSize * PAVEMENT_EXTRA_SCALE;
+      addPavementLayer(platformGroup, pavementSize, PAVEMENT_THICKNESS, currentLevelBottom, platformMeshes);
+      addChromeRailings(
+        platformGroup,
+        {
+          halfSize: platformSize / 2,
+          topY: currentLevelBottom + platformThickness,
+          railHeight: RAIL_HEIGHT,
+          gapWidth: RAIL_GAP_WIDTH
+        },
+        platformMeshes
+      );
+    }
+
     const tileCenterY = currentLevelBottom + platformThickness + tileHeight / 2;
     const tileTopY = tileCenterY + tileHeight / 2;
     levelPlacements.push({
@@ -1653,9 +1804,13 @@ function buildSnakeBoard(
     })
   );
   coin.rotation.x = Math.PI / 2;
+  coin.position.y = COIN_LOCAL_LIFT;
+  coin.castShadow = true;
+  coin.receiveShadow = true;
   potGroup.add(coin);
+  potGroup.userData.coin = coin;
   const potPos = serpentineIndexToXZ(TOTAL_BOARD_TILES);
-  potGroup.position.set(potPos.x, potPos.y + TILE_SIZE * 0.1, potPos.z);
+  potGroup.position.set(potPos.x, potPos.y + COIN_RAISE, potPos.z);
   boardRoot.add(potGroup);
 
   const diceGroup = new THREE.Group();
@@ -2313,6 +2468,7 @@ export default function SnakeBoard3D({
   const lastDiceAnchorRef = useRef(null);
   const prevPlayerPositionsRef = useRef([]);
   const cameraRestoreRef = useRef(null);
+  const lastFrameTimeRef = useRef(0);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -2373,8 +2529,13 @@ export default function SnakeBoard3D({
     fitRef.current = arena.fit;
     arena.fit();
 
+    lastFrameTimeRef.current = 0;
+
     renderer.setAnimationLoop((time) => {
       const now = typeof time === 'number' ? time : performance.now();
+      const last = lastFrameTimeRef.current || now;
+      const deltaSeconds = Math.min(0.2, Math.max(0, (now - last) / 1000));
+      lastFrameTimeRef.current = now;
       const active = animationsRef.current;
       for (let i = active.length - 1; i >= 0; i -= 1) {
         const anim = active[i];
@@ -2416,6 +2577,9 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
+        if (board?.potGroup) {
+          board.potGroup.rotation.y += deltaSeconds * COIN_SPIN_SPEED;
+        }
         if (board?.seatAnchors?.length && seatCallbackRef.current) {
           const positions = board.seatAnchors.map((anchor, index) => {
             anchor.getWorldPosition(TEMP_SEAT_VECTOR);
@@ -2499,6 +2663,7 @@ export default function SnakeBoard3D({
           else obj.material?.dispose?.();
         }
       });
+      lastFrameTimeRef.current = 0;
     };
   }, []);
 
