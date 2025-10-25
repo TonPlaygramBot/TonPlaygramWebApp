@@ -75,6 +75,7 @@ const CUSTOM_CHAIR_ANGLES = [
 ];
 const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1100;
+const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -1493,6 +1494,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const cheerSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
+  const humanRollTimeoutRef = useRef(null);
   const turnAdvanceTimeoutRef = useRef(null);
   const fitRef = useRef(() => {});
   const [configOpen, setConfigOpen] = useState(false);
@@ -1516,13 +1518,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const seatPositionsRef = useRef([]);
   const [ui, setUi] = useState({
     turn: 0,
-    status: 'Your turn — roll the dice',
+    status: 'Your turn — dice rolling soon',
     dice: null,
     winner: null,
     turnCycle: 0
   });
-  const [readyToRoll, setReadyToRoll] = useState(true);
-  const readyToRollRef = useRef(true);
 
   const playerColorsHex = useMemo(
     () => PLAYER_COLORS.map((value) => colorNumberToHex(value)),
@@ -1565,10 +1565,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     uiRef.current = ui;
   }, [ui]);
 
-  useEffect(() => {
-    readyToRollRef.current = readyToRoll;
-  }, [readyToRoll]);
-
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
     seatAnchors.forEach((anchor) => {
@@ -1583,22 +1579,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     appearanceRef.current = appearance;
   }, [appearance]);
 
-  const canRoll = useMemo(() => {
-    const state = stateRef.current;
-    const dice = diceRef.current;
-    if (!readyToRoll) return false;
-    if (!state || state.winner) return false;
-    if (state.turn !== 0) return false;
-    if (state.animation) return false;
-    if (dice?.userData?.isRolling) return false;
-    return true;
-  }, [readyToRoll, ui.turn, ui.turnCycle, ui.winner, ui.dice]);
+  const clearHumanRollTimeout = useCallback(() => {
+    if (humanRollTimeoutRef.current) {
+      clearTimeout(humanRollTimeoutRef.current);
+      humanRollTimeoutRef.current = null;
+    }
+  }, []);
 
   const clearTurnAdvanceTimeout = useCallback(() => {
     if (turnAdvanceTimeoutRef.current) {
       clearTimeout(turnAdvanceTimeoutRef.current);
       turnAdvanceTimeoutRef.current = null;
     }
+  }, []);
+
+  const scheduleHumanAutoRoll = useCallback(() => {
+    const state = stateRef.current;
+    if (!state || state.winner || state.turn !== 0 || state.animation) return;
+    const diceObj = diceRef.current;
+    if (!diceObj || diceObj.userData?.isRolling) return;
+    if (humanRollTimeoutRef.current) return;
+    humanRollTimeoutRef.current = window.setTimeout(() => {
+      humanRollTimeoutRef.current = null;
+      rollDiceRef.current?.();
+    }, HUMAN_ROLL_DELAY_MS);
   }, []);
 
   const setTileHighlight = useCallback((tile, active) => {
@@ -2134,6 +2138,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         clearTimeout(diceClearTimeoutRef.current);
         diceClearTimeoutRef.current = null;
       }
+      if (humanRollTimeoutRef.current) {
+        clearTimeout(humanRollTimeoutRef.current);
+        humanRollTimeoutRef.current = null;
+      }
       if (turnAdvanceTimeoutRef.current) {
         clearTimeout(turnAdvanceTimeoutRef.current);
         turnAdvanceTimeoutRef.current = null;
@@ -2499,6 +2507,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
     applyRailLayout();
 
+    scheduleHumanAutoRoll();
+
     arenaRef.current = {
       renderer,
       scene,
@@ -2527,8 +2537,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         state.turn !== 0 ||
         state.winner ||
         state.animation ||
-        dice.userData?.isRolling ||
-        !readyToRollRef.current
+        dice.userData?.isRolling
       ) {
         return false;
       }
@@ -3067,8 +3076,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       const status =
         nextTurn === 0
           ? extraTurn
-            ? 'You rolled a 6 — roll again'
-            : 'Your turn — roll the dice'
+            ? 'You rolled a 6 — rolling again'
+            : 'Your turn — dice rolling soon'
           : extraTurn
           ? `${COLOR_NAMES[nextTurn]} rolled a 6 — rolling again`
           : `${COLOR_NAMES[nextTurn]} to roll`;
@@ -3084,16 +3093,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         clearTimeout(aiTimeoutRef.current);
         aiTimeoutRef.current = null;
       }
+      clearHumanRollTimeout();
       return;
     }
-    setReadyToRoll(nextTurn === 0);
     scheduleDiceClear();
     if (nextTurn === 0) {
+      clearHumanRollTimeout();
+      scheduleHumanAutoRoll();
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current);
         aiTimeoutRef.current = null;
       }
     } else {
+      clearHumanRollTimeout();
       const delay = extraTurn ? AI_EXTRA_TURN_DELAY_MS : AI_ROLL_DELAY_MS;
       queueAiRoll(delay);
     }
@@ -3135,6 +3147,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         winner: COLOR_NAMES[player],
         status: `${COLOR_NAMES[player]} wins!`
       }));
+      clearHumanRollTimeout();
       playCheer();
       coinConfetti();
       return true;
@@ -3185,15 +3198,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
   const rollDice = async () => {
     const state = stateRef.current;
+    clearHumanRollTimeout();
     clearTurnAdvanceTimeout();
     if (!state || state.winner) return;
     if (state.animation) return;
     const dice = diceRef.current;
     if (!dice || dice.userData?.isRolling) return;
     const player = state.turn;
-    if (player === 0) {
-      setReadyToRoll(false);
-    }
     const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
     const rollTargets = dice.userData?.rollTargets;
     const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
@@ -3446,22 +3457,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
             <span>{username || 'Guest'}</span>
           </div>
         </div>
-        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center space-y-2 pointer-events-none">
-          <button
-            type="button"
-            onClick={() => rollDiceRef.current?.()}
-            disabled={!canRoll}
-            className={`pointer-events-auto rounded-full px-6 py-2 text-sm font-semibold uppercase tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-              canRoll
-                ? 'bg-emerald-500/80 text-white shadow-[0_0_18px_rgba(16,185,129,0.45)] hover:bg-emerald-400/80'
-                : 'cursor-not-allowed bg-white/10 text-white/50'
-            }`}
-            aria-label="Hidh zarat"
-          >
-            Hidh zarat
-          </button>
-          <div className="rounded-full border border-[rgba(255,215,0,0.25)] bg-[rgba(7,10,18,0.65)] px-5 py-2 text-sm font-semibold backdrop-blur">
-            {ui.winner ? `${ui.winner} Wins` : ui.status}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
+            {ui.winner
+              ? `${ui.winner} Wins`
+              : ui.turn === 0
+              ? 'Your turn — dice rolling soon'
+              : ui.status}
           </div>
         </div>
         <div className="absolute right-3 bottom-3 flex flex-col space-y-2">
@@ -3666,10 +3668,10 @@ function buildLudoBoard(boardGroup) {
 }
 
 function getHomeIndex(r, c) {
-  if (r < 6 && c < 6) return 2;
+  if (r < 6 && c < 6) return 0;
   if (r < 6 && c > 8) return 1;
   if (r > 8 && c < 6) return 3;
-  if (r > 8 && c > 8) return 0;
+  if (r > 8 && c > 8) return 2;
   return -1;
 }
 
