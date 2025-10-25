@@ -235,6 +235,7 @@ const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0.85; // carve a rounded fillet into the inner chrome corner
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.045;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // keep chrome arcs identical to the master pocket cut
 const CHROME_CORNER_WIDTH_SCALE = 0.96;
@@ -480,7 +481,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // corner jaws now follow the chrome plate arcs exactly
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.01; // let the corner jaws reach the cushions without leaving a sliver
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.015; // let the middle jaw ride the expanded chrome/wood arc without leaving a gap
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.984; // pull the inner lip farther out so the widened jaw still meets the chrome cut
@@ -4311,6 +4312,43 @@ function Table3D(
     }
     return [[pts]];
   };
+  const cornerFieldFilletPoly = (cx, cz, sx, sz, radius, segments = 64) => {
+    if (radius <= MICRO_EPS) {
+      return null;
+    }
+    const axisXAngle = sx > 0 ? 0 : Math.PI;
+    const axisZAngle = sz > 0 ? Math.PI / 2 : -Math.PI / 2;
+    let startAngle = axisXAngle;
+    let endAngle = axisZAngle;
+    let sweep = endAngle - startAngle;
+    if (sweep <= 0) {
+      endAngle += Math.PI * 2;
+      sweep = endAngle - startAngle;
+    }
+    if (sweep > Math.PI) {
+      startAngle = axisZAngle;
+      endAngle = axisXAngle;
+      sweep = endAngle - startAngle;
+      if (sweep <= 0) {
+        endAngle += Math.PI * 2;
+        sweep = endAngle - startAngle;
+      }
+    }
+    if (sweep <= MICRO_EPS) {
+      return null;
+    }
+    const steps = Math.max(2, Math.ceil((segments * Math.abs(sweep)) / (Math.PI / 2)));
+    const pts = [[cx, cz]];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const angle = startAngle + sweep * t;
+      const x = cx + Math.cos(angle) * radius;
+      const z = cz + Math.sin(angle) * radius;
+      pts.push([x, z]);
+    }
+    pts.push([cx, cz]);
+    return [[pts]];
+  };
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
@@ -4336,14 +4374,21 @@ function Table3D(
     const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
     const unionParts = [notchCircle, boxX, boxZ];
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
-      unionParts.push([
-        [
-          [cx, cz],
-          [cx + sx * fieldClipWidth, cz],
-          [cx, cz + sz * fieldClipDepth],
-          [cx, cz]
-        ]
-      ]);
+      const filletRadius =
+        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
+      const fillet = cornerFieldFilletPoly(cx, cz, sx, sz, filletRadius);
+      if (fillet) {
+        unionParts.push(fillet);
+      } else {
+        unionParts.push([
+          [
+            [cx, cz],
+            [cx + sx * fieldClipWidth, cz],
+            [cx, cz + sz * fieldClipDepth],
+            [cx, cz]
+          ]
+        ]);
+      }
     }
     if (wedgeDepth > MICRO_EPS) {
       unionParts.push([
