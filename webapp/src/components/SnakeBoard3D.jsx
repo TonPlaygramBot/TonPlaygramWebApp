@@ -134,11 +134,15 @@ const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
 
-const BOARD_TILE_HEIGHT = TILE_SIZE * 0.095;
+const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
 const TILE_BOTTOM_COLOR = new THREE.Color(0x3d2514);
 const TILE_SIDE_EMISSIVE_SCALE = 0.25;
 const TILE_BOTTOM_EMISSIVE_SCALE = 0.1;
+
+const BENTONITE_EXTRA_SHRINK = [0.85, 0.92];
+const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
+const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS = TILE_SIZE * 0.3;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48;
@@ -1261,7 +1265,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
 
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-    new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ color: new THREE.Color('#020617'), roughness: 0.9, metalness: 0.1 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -1285,7 +1289,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
       1,
       true
     ),
-    createArenaWallMaterial('#0b1120', '#1e293b')
+    createArenaWallMaterial('#1f2937', '#64748b')
   );
   wall.position.y = ARENA_WALL_CENTER_Y;
   arenaGroup.add(wall);
@@ -1503,10 +1507,9 @@ function buildSnakeBoard(
     if (levelIndex === 0) {
       extra += FIRST_LEVEL_PLATFORM_EXTRA;
     }
-    const platform = new THREE.Mesh(
-      new THREE.BoxGeometry(dimension + extra, platformThickness, dimension + extra),
-      mat
-    );
+    const shrinkFactor = BENTONITE_EXTRA_SHRINK[levelIndex] ?? 1;
+    const platformSize = dimension + extra * shrinkFactor;
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(platformSize, platformThickness, platformSize), mat);
     platform.position.y = currentLevelBottom + platformThickness / 2;
     platformGroup.add(platform);
     platformMeshes.push(platform);
@@ -1580,6 +1583,33 @@ function buildSnakeBoard(
       labelGroup.add(label);
     });
   });
+
+  const tileHundred = tileMeshes.get(TOTAL_BOARD_TILES);
+  if (tileHundred) {
+    const topLevelPlacement = levelPlacements[levelPlacements.length - 1];
+    const supportBaseY = topLevelPlacement.tileCenterY - tileHeight / 2;
+    const supportTopY = tileHundred.position.y - tileHeight / 2;
+    const supportHeight = Math.max(
+      TILE_100_SUPPORT_HEIGHT_EXTRA,
+      supportTopY - supportBaseY + TILE_100_SUPPORT_HEIGHT_EXTRA
+    );
+    const supportMaterial = new THREE.MeshStandardMaterial({
+      color: PYRAMID_CONCRETE_LIGHT.clone().lerp(PYRAMID_CONCRETE_SHADOW, 0.55),
+      roughness: 0.74,
+      metalness: 0.08,
+      emissive: PYRAMID_CONCRETE_ACCENT.clone().multiplyScalar(0.14),
+      emissiveIntensity: 0.18
+    });
+    const support = new THREE.Mesh(
+      new THREE.CylinderGeometry(TILE_100_SUPPORT_RADIUS * 0.85, TILE_100_SUPPORT_RADIUS, supportHeight, 24),
+      supportMaterial
+    );
+    support.position.set(tileHundred.position.x, supportBaseY + supportHeight / 2, tileHundred.position.z);
+    support.castShadow = true;
+    support.receiveShadow = true;
+    platformGroup.add(support);
+    platformMeshes.push(support);
+  }
 
   const baseHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
   const baseStart = new THREE.Vector3(
