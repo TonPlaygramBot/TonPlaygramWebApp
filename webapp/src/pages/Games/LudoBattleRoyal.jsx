@@ -585,17 +585,17 @@ const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
 const TOKEN_TRACK_LIFT = new THREE.Vector3(0, TOKEN_TRACK_HEIGHT, 0);
 const TOKEN_GOAL_LIFT = new THREE.Vector3(0, TOKEN_GOAL_HEIGHT, 0);
-const RAIL_TOKEN_FORWARD_SPACING = 0.055;
+const RAIL_TOKEN_FORWARD_SPACING = 0.05;
 const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
-const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.08, 1, 1, 1]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.036;
+const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.048;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.044,
-  0.044,
-  TOKEN_RAIL_CENTER_PULL_DEFAULT,
-  0.044
+  0.056,
+  0.052,
+  0.056,
+  0.052
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.35;
@@ -1479,6 +1479,68 @@ function ease(t) {
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
+const TOKEN_SELECTION_SCALE = 1.08;
+
+function setTokenHighlight(token, active) {
+  if (!token) return;
+  if (!token.userData) token.userData = {};
+  if (!token.userData.baseScale) {
+    token.userData.baseScale = token.scale.clone();
+  }
+  const baseScale = token.userData.baseScale;
+  if (active) {
+    token.scale.set(
+      baseScale.x * TOKEN_SELECTION_SCALE,
+      baseScale.y * TOKEN_SELECTION_SCALE,
+      baseScale.z * TOKEN_SELECTION_SCALE
+    );
+  } else if (baseScale) {
+    token.scale.copy(baseScale);
+  }
+
+  const tokenColor = token.userData?.tokenColor ? new THREE.Color(token.userData.tokenColor) : null;
+  const highlightColor = tokenColor ? tokenColor.clone().lerp(new THREE.Color(0xffffff), 0.2) : null;
+
+  token.traverse((child) => {
+    if (!child?.isMesh) return;
+    if (!child.userData) child.userData = {};
+    const { material } = child;
+    if (!material) return;
+    if (material.emissive && !child.userData.baseEmissive) {
+      child.userData.baseEmissive = material.emissive.clone();
+    }
+    if (material.emissiveIntensity != null && child.userData.baseEmissiveIntensity == null) {
+      child.userData.baseEmissiveIntensity = material.emissiveIntensity;
+    }
+    if (active) {
+      if (material.emissive) {
+        if (highlightColor) {
+          material.emissive.copy(highlightColor);
+        } else {
+          material.emissive.setRGB(0.85, 0.85, 0.85);
+        }
+      }
+      if (material.emissiveIntensity != null) {
+        const base = child.userData.baseEmissiveIntensity ?? 0.7;
+        material.emissiveIntensity = Math.max(base, 1.25);
+      }
+    } else {
+      if (material.emissive && child.userData.baseEmissive) {
+        material.emissive.copy(child.userData.baseEmissive);
+      }
+      if (material.emissiveIntensity != null && child.userData.baseEmissiveIntensity != null) {
+        material.emissiveIntensity = child.userData.baseEmissiveIntensity;
+      }
+    }
+  });
+
+  token.userData.isSelectable = !!active;
+}
+
+function clearTokenHighlight(token) {
+  setTokenHighlight(token, false);
+}
+
 function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
@@ -1498,6 +1560,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const diceClearTimeoutRef = useRef(null);
   const humanRollTimeoutRef = useRef(null);
   const turnAdvanceTimeoutRef = useRef(null);
+  const humanSelectionRef = useRef(null);
   const fitRef = useRef(() => {});
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1595,9 +1658,43 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     }
   }, []);
 
+  const clearHumanSelection = useCallback(() => {
+    const selection = humanSelectionRef.current;
+    const state = stateRef.current;
+    if (selection && state?.tokens?.[0]) {
+      selection.options.forEach((option) => {
+        const token = state.tokens[0][option.token];
+        clearTokenHighlight(token);
+      });
+    }
+    humanSelectionRef.current = null;
+  }, []);
+
+  const beginHumanSelection = useCallback(
+    (roll, options) => {
+      const state = stateRef.current;
+      if (!state || !Array.isArray(options) || !options.length) return;
+      clearHumanSelection();
+      const normalized = options.map((option) => ({ token: option.token, entering: option.entering }));
+      humanSelectionRef.current = { roll, options: normalized };
+      normalized.forEach((option) => {
+        const token = state.tokens?.[0]?.[option.token];
+        if (token) {
+          setTokenHighlight(token, true);
+        }
+      });
+      setUi((s) => ({
+        ...s,
+        status: `Tap a token to move (rolled ${roll})`
+      }));
+    },
+    [clearHumanSelection, setUi]
+  );
+
   const scheduleHumanAutoRoll = useCallback(() => {
     const state = stateRef.current;
     if (!state || state.winner || state.turn !== 0 || state.animation) return;
+    if (humanSelectionRef.current) return;
     const diceObj = diceRef.current;
     if (!diceObj || diceObj.userData?.isRolling) return;
     if (humanRollTimeoutRef.current) return;
@@ -2540,7 +2637,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         state.turn !== 0 ||
         state.winner ||
         state.animation ||
-        dice.userData?.isRolling
+        dice.userData?.isRolling ||
+        humanSelectionRef.current
       ) {
         return false;
       }
@@ -2556,11 +2654,55 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       }
       return false;
     };
+
+    const attemptHumanSelection = (clientX, clientY) => {
+      const state = stateRef.current;
+      const selection = humanSelectionRef.current;
+      if (
+        !state ||
+        state.turn !== 0 ||
+        !selection ||
+        !Array.isArray(selection.options) ||
+        !selection.options.length
+      ) {
+        return false;
+      }
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.set(x, y);
+      raycaster.setFromCamera(pointer, camera);
+      const tokens = selection.options
+        .map((option) => state.tokens?.[0]?.[option.token])
+        .filter(Boolean);
+      if (!tokens.length) return false;
+      const hits = raycaster.intersectObjects(tokens, true);
+      if (!hits.length) return false;
+      let targetToken = null;
+      for (const hit of hits) {
+        const group = hit.object?.userData?.tokenGroup;
+        if (group && tokens.includes(group)) {
+          targetToken = group;
+          break;
+        }
+      }
+      if (!targetToken) return false;
+      const option = selection.options.find(
+        (opt) => state.tokens?.[0]?.[opt.token] === targetToken
+      );
+      if (!option) return false;
+      clearHumanSelection();
+      moveToken(0, option.token, selection.roll);
+      return true;
+    };
     let pointerLocked = false;
     const onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
-      const handled = attemptDiceRoll(clientX, clientY);
+      let handled = attemptHumanSelection(clientX, clientY);
+      if (!handled) {
+        handled = attemptDiceRoll(clientX, clientY);
+      }
       if (handled) {
         pointerLocked = true;
         if (controls) controls.enabled = false;
@@ -2742,6 +2884,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     window.addEventListener('resize', onResize);
 
     return () => {
+      clearHumanSelection();
       cancelAnimationFrame(animationId);
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current);
@@ -2964,6 +3107,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     return stack;
   };
 
+  const countThreatsAgainst = (state, player, targetProgress) => {
+    if (!state || targetProgress < 0 || targetProgress >= RING_STEPS) return 0;
+    const landingIdx = getTrackIndexForProgress(player, targetProgress);
+    if (landingIdx == null || SAFE_TRACK_INDEXES.has(landingIdx)) return 0;
+    let threat = 0;
+    for (let opponent = 0; opponent < 4; opponent += 1) {
+      if (opponent === player) continue;
+      for (let t = 0; t < 4; t += 1) {
+        const prog = state.progress[opponent][t];
+        if (prog < 0 || prog >= RING_STEPS) continue;
+        const oppIdx = getTrackIndexForProgress(opponent, prog);
+        if (oppIdx == null) continue;
+        const distance = (landingIdx - oppIdx + RING_STEPS) % RING_STEPS;
+        if (distance > 0 && distance <= 6) {
+          threat = Math.max(threat, 7 - distance);
+        }
+      }
+    }
+    return threat;
+  };
+
   const evaluateMoveOption = (state, player, option, roll) => {
     if (!state) return -Infinity;
     const current = state.progress[player][option.token];
@@ -2989,11 +3153,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       score += 450 + captureCount * 60;
     }
     const landingIdx = getTrackIndexForProgress(player, target);
+    let ownStack = 0;
     if (landingIdx != null) {
       if (SAFE_TRACK_INDEXES.has(landingIdx)) {
         score += 80;
       }
-      const ownStack = countOwnStacking(state, player, target, option.token);
+      ownStack = countOwnStacking(state, player, target, option.token);
       if (ownStack > 0) {
         score += 60 + ownStack * 25;
       }
@@ -3006,6 +3171,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         !(landingIdx != null && SAFE_TRACK_INDEXES.has(landingIdx))
       ) {
         score -= 40;
+      }
+    }
+    if (
+      landingIdx != null &&
+      !SAFE_TRACK_INDEXES.has(landingIdx) &&
+      ownStack === 0 &&
+      target < RING_STEPS
+    ) {
+      const threat = countThreatsAgainst(state, player, target);
+      if (threat > 0) {
+        score -= 45 + threat * 25;
       }
     }
     score += target * 6;
@@ -3067,6 +3243,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
   const advanceTurn = (extraTurn) => {
     clearTurnAdvanceTimeout();
+    clearHumanSelection();
     let nextTurn = 0;
     let updated = false;
     setUi((s) => {
@@ -3145,6 +3322,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const allHome = state.progress[player].every((p) => p >= GOAL_PROGRESS);
     if (allHome) {
       state.winner = player;
+      clearHumanSelection();
       setUi((s) => ({
         ...s,
         winner: COLOR_NAMES[player],
@@ -3203,6 +3381,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const state = stateRef.current;
     clearHumanRollTimeout();
     clearTurnAdvanceTimeout();
+    clearHumanSelection();
     if (!state || state.winner) return;
     if (state.animation) return;
     const dice = diceRef.current;
@@ -3251,6 +3430,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         turnAdvanceTimeoutRef.current = null;
         advanceTurn(value === 6);
       }, DICE_RESULT_EXTRA_HOLD_MS);
+      return;
+    }
+    if (player === 0) {
+      beginHumanSelection(value, options);
       return;
     }
     const choice = chooseMoveOption(state, player, value, options);
@@ -3598,6 +3781,17 @@ function buildLudoBoard(boardGroup) {
   const tokens = TOKEN_COLORS.map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const rook = makeRook(makeTokenMaterial(color));
+      rook.userData = {
+        ...(rook.userData || {}),
+        playerIndex: playerIdx,
+        tokenIndex: i
+      };
+      rook.traverse((node) => {
+        if (!node.userData) node.userData = {};
+        node.userData.tokenGroup = rook;
+        node.userData.playerIndex = playerIdx;
+        node.userData.tokenIndex = i;
+      });
       const homePos = startPads[playerIdx][i].clone();
       homePos.y = getTokenRailHeight(playerIdx);
       rook.position.copy(homePos);
@@ -3690,6 +3884,9 @@ function buildRingFromGrid(cellToWorld) {
 function getHomeStartPads(half) {
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
+  const inwardPull = TILE * 0.45;
+  const lateralSpread = TILE * 0.92;
+  const depthSpread = TILE * 0.64;
   const layout = [
     [1, 1],
     [1, -1],
@@ -3697,13 +3894,13 @@ function getHomeStartPads(half) {
     [-1, 1]
   ];
   return layout.map(([sx, sz]) => {
-    const cx = sx * off;
-    const cz = sz * off;
+    const cx = sx * off - sx * inwardPull;
+    const cz = sz * off - sz * inwardPull;
     return [
-      new THREE.Vector3(cx - 0.8 * TILE, 0, cz - 0.8 * TILE),
-      new THREE.Vector3(cx + 0.8 * TILE, 0, cz - 0.8 * TILE),
-      new THREE.Vector3(cx - 0.8 * TILE, 0, cz + 0.8 * TILE),
-      new THREE.Vector3(cx + 0.8 * TILE, 0, cz + 0.8 * TILE)
+      new THREE.Vector3(cx - lateralSpread, 0, cz - depthSpread),
+      new THREE.Vector3(cx + lateralSpread, 0, cz - depthSpread),
+      new THREE.Vector3(cx - lateralSpread, 0, cz + depthSpread),
+      new THREE.Vector3(cx + lateralSpread, 0, cz + depthSpread)
     ];
   });
 }
