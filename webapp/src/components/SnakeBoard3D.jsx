@@ -67,7 +67,7 @@ const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 0.85; // reduce board footprint by an additional 15%
+const BOARD_SCALE = 2.7 * 0.68 * 1.15; // enlarge board footprint by an additional 15%
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -84,15 +84,15 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 360;
+const DICE_SETTLE_DURATION = 320;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.25;
-const BOARD_EDGE_BUFFER = TILE_SIZE * 0.16;
+const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
-const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.28 / 3.4);
-const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.22 / 3.4);
+const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
+const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
@@ -125,7 +125,7 @@ const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 2.6;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 1.9;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.55;
 
-const BOARD_TILE_HEIGHT = TILE_SIZE * 0.06;
+const BOARD_TILE_HEIGHT = TILE_SIZE * 0.095;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
 const TILE_BOTTOM_COLOR = new THREE.Color(0x3d2514);
 const TILE_SIDE_EMISSIVE_SCALE = 0.25;
@@ -135,8 +135,9 @@ const TOKEN_RADIUS = TILE_SIZE * 0.3;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48;
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
-const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.08;
-const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.4;
+const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.12;
+const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
+const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.6;
 const HOME_TOKEN_FORWARD_LIFT = TILE_SIZE * 1.05;
 const HOME_TOKEN_OUTWARD_EXTRA = TILE_SIZE * 0.9;
 // Extra distance so side-seat tokens rest closer to their players than the board edge.
@@ -543,7 +544,7 @@ function captureCameraState(camera, controls) {
   };
 }
 
-function setDiceOrientation(dice, val) {
+function getDiceOrientationQuaternion(val) {
   const orientations = {
     1: new THREE.Euler(0, 0, 0),
     2: new THREE.Euler(-Math.PI / 2, 0, 0),
@@ -553,8 +554,13 @@ function setDiceOrientation(dice, val) {
     6: new THREE.Euler(Math.PI, 0, 0)
   };
   const euler = orientations[val] || orientations[1];
-  const q = new THREE.Quaternion().setFromEuler(euler);
+  return new THREE.Quaternion().setFromEuler(euler);
+}
+
+function setDiceOrientation(dice, val, quaternion) {
+  const q = quaternion ?? getDiceOrientationQuaternion(val);
   dice.setRotationFromQuaternion(q);
+  return q;
 }
 
 function makeDice() {
@@ -694,11 +700,16 @@ function makeDice() {
     });
   });
 
-  dice.userData.setValue = (val) => {
+  dice.userData.setValue = (val, { immediate = true } = {}) => {
     dice.userData.currentValue = val;
-    setDiceOrientation(dice, val);
+    const target = getDiceOrientationQuaternion(val);
+    dice.userData.targetQuaternion = target.clone();
+    if (immediate) {
+      dice.userData.appliedQuaternion = setDiceOrientation(dice, val, target);
+    }
   };
   dice.userData.currentValue = 1;
+  dice.userData.setValue(1, { immediate: true });
   return dice;
 }
 
@@ -934,23 +945,60 @@ function createDiceRollAnimation(
   };
 }
 
-function createDiceSettleAnimation(diceArray, { basePositions, baseY }) {
+function createDiceSettleAnimation(diceArray, { basePositions, baseY, startStates = [] }) {
   const start = performance.now();
+  const startPositions = diceArray.map((die, index) => {
+    const state = startStates[index];
+    if (state?.position) return state.position.clone();
+    return die.position.clone();
+  });
+  const startQuaternions = diceArray.map((die, index) => {
+    const state = startStates[index];
+    if (state?.quaternion) return state.quaternion.clone();
+    return die.quaternion.clone();
+  });
+  const targetPositions = basePositions.map((base) =>
+    base ? new THREE.Vector3(base.x, baseY, base.z) : null
+  );
+  const targetQuaternions = diceArray.map((die) => {
+    if (die.userData?.targetQuaternion) return die.userData.targetQuaternion.clone();
+    const fallback = getDiceOrientationQuaternion(die.userData?.currentValue ?? 1);
+    die.userData.targetQuaternion = fallback.clone();
+    return fallback;
+  });
+
   return {
+    type: 'diceSettle',
     update: (now) => {
       const t = Math.min((now - start) / DICE_SETTLE_DURATION, 1);
       const ease = easeOutCubic(t);
       diceArray.forEach((die, index) => {
-        const base = basePositions[index];
-        if (!base) return;
-        const wobble = Math.sin((1 - ease) * Math.PI) * (DICE_BOUNCE_HEIGHT * 0.18);
-        die.position.set(base.x, baseY + wobble, base.z);
+        const targetPos = targetPositions[index];
+        if (targetPos) {
+          const startPos = startPositions[index];
+          if (startPos) {
+            die.position.copy(startPos).lerp(targetPos, ease);
+          } else {
+            die.position.copy(targetPos);
+          }
+        }
+        const startQuat = startQuaternions[index];
+        const targetQuat = targetQuaternions[index];
+        if (startQuat && targetQuat) {
+          die.quaternion.copy(startQuat).slerp(targetQuat, ease);
+        }
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
-          const base = basePositions[index];
-          if (!base) return;
-          die.position.set(base.x, baseY, base.z);
+          const targetPos = targetPositions[index];
+          const targetQuat = targetQuaternions[index];
+          if (targetPos) {
+            die.position.copy(targetPos);
+          }
+          if (targetQuat) {
+            die.setRotationFromQuaternion(targetQuat);
+            die.userData.appliedQuaternion = targetQuat.clone();
+          }
         });
         return true;
       }
@@ -978,7 +1026,7 @@ function createTileLabel(number) {
   ctx.fillText(text, size / 2, size / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 4;
+  texture.anisotropy = 8;
   texture.colorSpace = THREE.SRGBColorSpace;
   const material = new THREE.MeshBasicMaterial({
     map: texture,
@@ -998,29 +1046,37 @@ function createTileLabel(number) {
 }
 
 function createTileMaterialSet(baseColor) {
-  const topColor = baseColor.clone();
-  const sideColor = TILE_SIDE_COLOR.clone().lerp(topColor, 0.25);
-  const bottomColor = TILE_BOTTOM_COLOR.clone().lerp(topColor, 0.15);
+  const topColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.08);
+  const sideColor = TILE_SIDE_COLOR.clone().lerp(topColor, 0.35);
+  const bottomColor = TILE_BOTTOM_COLOR.clone().lerp(topColor, 0.2);
 
   const topMaterial = new THREE.MeshStandardMaterial({
     color: topColor,
-    roughness: 0.78,
-    metalness: 0.05,
-    emissive: new THREE.Color(0x000000)
+    roughness: 0.48,
+    metalness: 0.18,
+    emissive: new THREE.Color(0x101321),
+    emissiveIntensity: 0.18,
+    envMapIntensity: 0.45
   });
+  topMaterial.shadowSide = THREE.DoubleSide;
 
   const sideMaterial = new THREE.MeshStandardMaterial({
     color: sideColor,
-    roughness: 0.85,
-    metalness: 0.08,
-    emissive: new THREE.Color(0x000000)
+    roughness: 0.62,
+    metalness: 0.12,
+    emissive: new THREE.Color(0x080c18),
+    emissiveIntensity: 0.14,
+    envMapIntensity: 0.32
   });
+  sideMaterial.shadowSide = THREE.FrontSide;
 
   const bottomMaterial = new THREE.MeshStandardMaterial({
     color: bottomColor,
-    roughness: 0.9,
-    metalness: 0.05,
-    emissive: new THREE.Color(0x000000)
+    roughness: 0.7,
+    metalness: 0.08,
+    emissive: new THREE.Color(0x05070e),
+    emissiveIntensity: 0.1,
+    envMapIntensity: 0.24
   });
 
   return {
@@ -1405,7 +1461,7 @@ function buildSnakeBoard(
   const labelGroup = new THREE.Group();
   boardRoot.add(labelGroup);
 
-  const platformThickness = TILE_SIZE * 0.32;
+  const platformThickness = TILE_SIZE * 0.36;
   const levelGap = TILE_SIZE * 0.08;
   const platformMeshes = [];
   const levelPlacements = [];
@@ -1418,13 +1474,18 @@ function buildSnakeBoard(
     const color = new THREE.Color(0x0f172a).lerp(new THREE.Color(0x1f2937), t);
     const mat = new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.9,
-      metalness: 0.08
+      roughness: 0.82,
+      metalness: 0.12,
+      emissive: new THREE.Color(0x0b1220),
+      emissiveIntensity: 0.12
     });
     const baseExtraRatio = 1 - levelIndex / (PYRAMID_LEVELS.length + 1);
-    const extra =
+    let extra =
       BOARD_BASE_EXTRA *
       (levelIndex === 0 ? baseExtraRatio * BASE_PLATFORM_EXTRA_MULTIPLIER : baseExtraRatio);
+    if (levelIndex === 0) {
+      extra += FIRST_LEVEL_PLATFORM_EXTRA;
+    }
     const platform = new THREE.Mesh(
       new THREE.BoxGeometry(dimension + extra, platformThickness, dimension + extra),
       mat
@@ -1476,6 +1537,8 @@ function buildSnakeBoard(
       }
       const tile = new THREE.Mesh(tileGeo, materialSet.materials);
       tile.position.copy(tilePosition);
+      tile.castShadow = true;
+      tile.receiveShadow = true;
       tile.userData.index = idx;
       tile.userData.topMaterial = materialSet.topMaterial;
       tile.userData.sideMaterial = materialSet.sideMaterial;
@@ -2554,9 +2617,13 @@ export default function SnakeBoard3D({
       const values = diceEvent.values || [];
       const active = diceSet.filter((die) => die.visible);
       if (active.length) {
+        const startStates = active.map((die) => ({
+          position: die.position.clone(),
+          quaternion: die.quaternion.clone()
+        }));
         active.forEach((die, index) => {
           const value = values[index] ?? values[values.length - 1] ?? 1;
-          die.userData.setValue?.(value);
+          die.userData.setValue?.(value, { immediate: false });
         });
         const storedBases = diceStateRef.current.basePositions || [];
         const basePositions =
@@ -2565,7 +2632,8 @@ export default function SnakeBoard3D({
             : active.map((die) => die.position.clone());
         const settleAnimation = createDiceSettleAnimation(active, {
           basePositions,
-          baseY: diceBaseY
+          baseY: diceBaseY,
+          startStates
         });
         if (settleAnimation) animationsRef.current.push(settleAnimation);
 
