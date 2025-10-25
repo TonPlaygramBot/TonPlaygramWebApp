@@ -239,8 +239,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0.85; // carve a rounded fillet into th
 const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.2; // add an extra rounded bite to clear any lingering chrome inside the pocket
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // match the snooker notch expansion to clear stray chrome slivers
-const CHROME_CORNER_WIDTH_SCALE = 1;
-const CHROME_CORNER_HEIGHT_SCALE = 1;
+const CHROME_CORNER_WIDTH_SCALE = 1.1;
+const CHROME_CORNER_HEIGHT_SCALE = 1.1;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_CORNER_CENTER_PUSH_SCALE = 0.4; // push corner chrome plates farther from centre while keeping their arches aligned
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -4206,7 +4206,17 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-  const chromeCornerCenterPush = TABLE.THICK * CHROME_CORNER_CENTER_PUSH_SCALE;
+  const chromeCornerCenterPushBase = TABLE.THICK * CHROME_CORNER_CENTER_PUSH_SCALE;
+  const chromeCornerWidthGrowth = Math.max(
+    0,
+    chromePlateBaseWidth * Math.max(0, CHROME_CORNER_WIDTH_SCALE - 1)
+  );
+  const chromeCornerHeightGrowth = Math.max(
+    0,
+    chromePlateBaseHeight * Math.max(0, CHROME_CORNER_HEIGHT_SCALE - 1)
+  );
+  const chromeCornerPushX = chromeCornerCenterPushBase + chromeCornerWidthGrowth / 2;
+  const chromeCornerPushZ = chromeCornerCenterPushBase + chromeCornerHeightGrowth / 2;
 
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
@@ -4487,9 +4497,9 @@ function Table3D(
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
     const centerX =
-      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterPush);
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerPushX);
     const centerZ =
-      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterPush);
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerPushZ);
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
     const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
     const notchLocalMP = notchMP.map((poly) =>
