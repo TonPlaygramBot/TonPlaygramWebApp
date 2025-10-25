@@ -547,6 +547,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.06; // nudge middle pockets outward slightly so the jaws sit closer to the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -567,16 +568,10 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_CENTER_OUTWARD_SHIFT =
-  POCKET_VIS_R * 0.08; // push pockets outward so the curved cuts, wood rails, and jaws sit farther from the table centre
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION -
-  POCKET_CENTER_OUTWARD_SHIFT; // shift corner pocket centres outward to match the wider arches
+  POCKET_VIS_R * 0.02 * POCKET_VISUAL_EXPANSION; // pull every corner pocket centre a hair toward the table middle
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const SIDE_POCKET_EXTRA_SHIFT =
-  BALL_R * 0.06 +
-  POCKET_CENTER_OUTWARD_SHIFT * 0.5; // extend middle pockets outward so jaws and rims follow the new alignment
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
