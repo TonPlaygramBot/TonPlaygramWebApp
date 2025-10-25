@@ -76,7 +76,8 @@ const CUSTOM_CHAIR_ANGLES = [
 const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1100;
 const HUMAN_ROLL_DELAY_MS = 2000;
-const AUTO_ROLL_DURATION_MS = 2000;
+const AUTO_ROLL_DURATION_MS = 1100;
+const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -87,6 +88,102 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
+
+const boardTileTextureCache = new Map();
+
+function createBoardTileTexture(baseColor, accentColor) {
+  if (typeof document === 'undefined') return null;
+  const base = new THREE.Color(baseColor);
+  const accent = new THREE.Color(accentColor ?? baseColor);
+  const key = `${base.getHexString()}-${accent.getHexString()}`;
+  if (boardTileTextureCache.has(key)) {
+    return boardTileTextureCache.get(key);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const highlight = base.clone().lerp(new THREE.Color(0xffffff), 0.35);
+  const shadow = base.clone().lerp(new THREE.Color(0x000000), 0.22);
+  const accentTone = accent.clone().lerp(base, 0.5);
+  const edge = accent.clone().lerp(new THREE.Color(0x000000), 0.25);
+
+  ctx.fillStyle = `#${base.getHexString()}`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const diag = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  diag.addColorStop(0, `#${highlight.getHexString()}`);
+  diag.addColorStop(0.45, `#${base.getHexString()}`);
+  diag.addColorStop(1, `#${shadow.getHexString()}`);
+  ctx.fillStyle = diag;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const radial = ctx.createRadialGradient(
+    canvas.width * 0.25,
+    canvas.height * 0.25,
+    canvas.width * 0.05,
+    canvas.width * 0.55,
+    canvas.height * 0.6,
+    canvas.width * 0.65
+  );
+  radial.addColorStop(0, `#${highlight.clone().lerp(new THREE.Color(0xffffff), 0.25).getHexString()}`);
+  radial.addColorStop(0.6, `#${base.getHexString()}`);
+  radial.addColorStop(1, `#${shadow.getHexString()}`);
+  ctx.fillStyle = radial;
+  ctx.globalAlpha = 0.8;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = `#${edge.getHexString()}`;
+  ctx.lineWidth = canvas.width * 0.08;
+  ctx.strokeRect(canvas.width * 0.06, canvas.height * 0.06, canvas.width * 0.88, canvas.height * 0.88);
+
+  ctx.save();
+  ctx.lineWidth = canvas.width * 0.04;
+  ctx.strokeStyle = `#${accentTone.getHexString()}`;
+  ctx.strokeRect(canvas.width * 0.12, canvas.height * 0.12, canvas.width * 0.76, canvas.height * 0.76);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(canvas.width * 0.32, canvas.height * 0.28, canvas.width * 0.18, canvas.height * 0.12, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+  boardTileTextureCache.set(key, texture);
+  return texture;
+}
+
+function createBoardTileMaterial(baseColor, accentColor) {
+  const base = new THREE.Color(baseColor);
+  const accent = new THREE.Color(accentColor ?? baseColor);
+  const texture = createBoardTileTexture(base, accent);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: base,
+    map: texture ?? null,
+    roughness: 0.42,
+    metalness: 0.12,
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.45,
+    sheen: 0.2,
+    sheenColor: base.clone().lerp(new THREE.Color(0xffffff), 0.12),
+    envMapIntensity: 0.55
+  });
+  material.emissive = accent.clone().multiplyScalar(0.16);
+  material.emissiveIntensity = 0.32;
+  return material;
+}
 
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
@@ -502,6 +599,9 @@ const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const TOKEN_MOVE_SPEED = 1.35;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
+const TRACK_INDEX_BY_KEY = new Map(
+  TRACK_COORDS.map(([r, c], index) => [keyFor(r, c), index])
+);
 const START_KEY_TO_PLAYER = new Map(
   PLAYER_START_INDEX.map((index, player) => {
     const [r, c] = TRACK_COORDS[index];
@@ -518,9 +618,12 @@ const SAFE_TRACK_KEY_SET = new Set(
   })
 );
 const HOME_COLUMN_KEY_TO_PLAYER = new Map();
+const HOME_COLUMN_KEY_TO_STEP = new Map();
 HOME_COLUMN_COORDS.forEach((coords, player) => {
-  coords.forEach(([r, c]) => {
-    HOME_COLUMN_KEY_TO_PLAYER.set(keyFor(r, c), player);
+  coords.forEach(([r, c], step) => {
+    const key = keyFor(r, c);
+    HOME_COLUMN_KEY_TO_PLAYER.set(key, player);
+    HOME_COLUMN_KEY_TO_STEP.set(key, step);
   });
 });
 
@@ -1113,18 +1216,18 @@ function setDiceOrientation(dice, val) {
 
 function spinDice(
   dice,
-  { duration = 1300, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
     const startPos = dice.position.clone();
     const endPos = targetPosition.clone();
     const spinVec = new THREE.Vector3(
-      0.6 + Math.random() * 0.5,
-      0.7 + Math.random() * 0.45,
-      0.5 + Math.random() * 0.55
+      1.2 + Math.random() * 0.7,
+      1.35 + Math.random() * 0.65,
+      1.05 + Math.random() * 0.75
     );
-    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.12, 0, (Math.random() - 0.5) * 0.12);
+    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
     const targetValue = 1 + Math.floor(Math.random() * 6);
 
     const step = () => {
@@ -1138,10 +1241,10 @@ function spinDice(
       position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
       dice.position.copy(position);
 
-      const spinFactor = 1 - eased * 0.35;
-      dice.rotation.x += spinVec.x * spinFactor * 0.16;
-      dice.rotation.y += spinVec.y * spinFactor * 0.16;
-      dice.rotation.z += spinVec.z * spinFactor * 0.16;
+      const spinFactor = 1 - eased * 0.28;
+      dice.rotation.x += spinVec.x * spinFactor * 0.22;
+      dice.rotation.y += spinVec.y * spinFactor * 0.22;
+      dice.rotation.z += spinVec.z * spinFactor * 0.22;
 
       if (t < 1) {
         requestAnimationFrame(step);
@@ -1161,6 +1264,73 @@ function spinDice(
 }
 
 const tokenTextureCache = new Map();
+
+function createTokenCountLabel() {
+  if (typeof document === 'undefined') return null;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(0.045, 0.045, 0.045);
+  sprite.position.set(0, 0.08, 0);
+  sprite.renderOrder = 30;
+  sprite.visible = false;
+  sprite.userData.countLabel = {
+    canvas,
+    ctx,
+    texture,
+    value: 0
+  };
+  return sprite;
+}
+
+function updateTokenCountLabel(sprite, count, baseColor) {
+  if (!sprite) return;
+  const data = sprite.userData?.countLabel;
+  if (!data) return;
+  if (data.value === count) return;
+  const { canvas, ctx, texture } = data;
+  const size = canvas.width;
+  ctx.clearRect(0, 0, size, size);
+
+  const color = baseColor
+    ? new THREE.Color(baseColor).lerp(new THREE.Color(0xffffff), 0.18)
+    : new THREE.Color('#1f2937');
+  const rim = color.clone().lerp(new THREE.Color(0x000000), 0.35);
+
+  ctx.fillStyle = `#${color.getHexString()}`;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.lineWidth = size * 0.08;
+  ctx.strokeStyle = `#${rim.getHexString()}`;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${size * 0.56}px Inter, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(count), size / 2, size / 2);
+
+  texture.needsUpdate = true;
+  data.value = count;
+}
 
 function createTokenTexture(color) {
   if (typeof document === 'undefined') return null;
@@ -1237,14 +1407,67 @@ function makeTokenMaterial(color) {
 
 function makeRook(mat) {
   const g = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.018, 24), mat);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.036, 24), mat);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.004, 8, 24), mat);
-  base.position.y = 0.009;
-  body.position.y = 0.009 + 0.018;
-  rim.position.y = 0.009 + 0.036 + 0.006;
-  rim.rotation.x = Math.PI / 2;
-  g.add(base, body, rim);
+  const accent = mat.clone();
+  if (accent.color) {
+    accent.color = accent.color.clone().lerp(new THREE.Color(0xffffff), 0.28);
+  }
+  accent.metalness = Math.min(0.55, (accent.metalness ?? 0) + 0.2);
+  accent.roughness = Math.max(0.18, (accent.roughness ?? 0.32) - 0.12);
+  accent.clearcoat = Math.min(0.95, (accent.clearcoat ?? 0.65) + 0.1);
+  accent.clearcoatRoughness = Math.max(0.12, (accent.clearcoatRoughness ?? 0.18) * 0.65);
+
+  const baseHeight = 0.018;
+  const bodyHeight = 0.034;
+  const crownHeight = 0.015;
+  const crownRadius = 0.013;
+  const finialRadius = 0.0065;
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.032, baseHeight, 48), mat);
+  base.position.y = baseHeight / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, bodyHeight, 48), mat);
+  body.position.y = baseHeight + bodyHeight / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0032, 18, 48), accent);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = baseHeight + bodyHeight;
+  collar.castShadow = true;
+  collar.receiveShadow = true;
+
+  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.02, crownHeight, 48), accent);
+  crownBase.position.y = baseHeight + bodyHeight + crownHeight / 2;
+  crownBase.castShadow = true;
+  crownBase.receiveShadow = true;
+
+  const crownTop = new THREE.Mesh(new THREE.SphereGeometry(crownRadius, 32, 24), accent);
+  crownTop.position.y = baseHeight + bodyHeight + crownHeight + crownRadius;
+  crownTop.castShadow = true;
+  crownTop.receiveShadow = true;
+
+  const finialMaterial = accent.clone();
+  finialMaterial.metalness = Math.min(0.7, finialMaterial.metalness + 0.1);
+  finialMaterial.roughness = Math.max(0.12, finialMaterial.roughness - 0.08);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(finialRadius, 24, 18), finialMaterial);
+  finial.position.y = crownTop.position.y + crownRadius * 0.7;
+  finial.castShadow = true;
+  finial.receiveShadow = true;
+
+  const label = createTokenCountLabel();
+  if (label) {
+    g.add(label);
+    g.userData.countLabel = label;
+  }
+
+  const tokenColorHex = mat?.color?.getHexString?.();
+  if (tokenColorHex) {
+    g.userData.tokenColor = `#${tokenColorHex}`;
+  }
+
+  g.add(base, body, collar, crownBase, crownTop, finial);
   return g;
 }
 
@@ -1272,6 +1495,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
   const humanRollTimeoutRef = useRef(null);
+  const turnAdvanceTimeoutRef = useRef(null);
   const fitRef = useRef(() => {});
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1362,6 +1586,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     }
   }, []);
 
+  const clearTurnAdvanceTimeout = useCallback(() => {
+    if (turnAdvanceTimeoutRef.current) {
+      clearTimeout(turnAdvanceTimeoutRef.current);
+      turnAdvanceTimeoutRef.current = null;
+    }
+  }, []);
+
   const scheduleHumanAutoRoll = useCallback(() => {
     const state = stateRef.current;
     if (!state || state.winner || state.turn !== 0 || state.animation) return;
@@ -1372,6 +1603,92 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       humanRollTimeoutRef.current = null;
       rollDiceRef.current?.();
     }, HUMAN_ROLL_DELAY_MS);
+  }, []);
+
+  const setTileHighlight = useCallback((tile, active) => {
+    if (!tile || !tile.material) return;
+    const data = tile.userData?.boardTile;
+    if (!data) return;
+    if (active) {
+      if (tile.material.emissive && data.highlightEmissive) {
+        tile.material.emissive.copy(data.highlightEmissive);
+      }
+      tile.material.emissiveIntensity = data.highlightIntensity;
+      data.isHighlighted = true;
+    } else {
+      if (tile.material.emissive && data.baseEmissive) {
+        tile.material.emissive.copy(data.baseEmissive);
+      }
+      tile.material.emissiveIntensity = data.baseIntensity;
+      data.isHighlighted = false;
+    }
+  }, []);
+
+  const findTileForProgress = useCallback((player, progress) => {
+    const state = stateRef.current;
+    if (!state) return null;
+    if (progress < 0) return null;
+    if (progress < RING_STEPS) {
+      const trackIndex = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
+      return state.trackTiles?.[trackIndex] ?? null;
+    }
+    if (progress < RING_STEPS + HOME_STEPS) {
+      const step = progress - RING_STEPS;
+      return state.homeColumnTiles?.[player]?.[step] ?? null;
+    }
+    return null;
+  }, []);
+
+  const updateAnimationHighlight = useCallback(
+    (anim, nextIndex) => {
+      if (!anim || !Array.isArray(anim.highlightTiles)) return;
+      if (anim.highlightIndex != null && anim.highlightIndex >= 0) {
+        const previous = anim.highlightTiles[anim.highlightIndex];
+        setTileHighlight(previous, false);
+      }
+      if (nextIndex != null && nextIndex >= 0 && nextIndex < anim.highlightTiles.length) {
+        const nextTile = anim.highlightTiles[nextIndex];
+        setTileHighlight(nextTile, true);
+        anim.highlightIndex = nextIndex;
+      } else {
+        anim.highlightIndex = -1;
+      }
+    },
+    [setTileHighlight]
+  );
+
+  const updateTokenStacks = useCallback(() => {
+    const state = stateRef.current;
+    if (!state) return;
+    const counts = new Map();
+    for (let player = 0; player < DEFAULT_PLAYER_COUNT; player += 1) {
+      for (let tokenIndex = 0; tokenIndex < 4; tokenIndex += 1) {
+        const progress = state.progress?.[player]?.[tokenIndex];
+        const token = state.tokens?.[player]?.[tokenIndex];
+        if (!token) continue;
+        const label = token.userData?.countLabel;
+        if (label) {
+          label.visible = false;
+        }
+        if (!Number.isFinite(progress) || progress < 0 || progress > GOAL_PROGRESS) {
+          continue;
+        }
+        const key = `${player}-${progress}`;
+        if (!counts.has(key)) counts.set(key, []);
+        counts.get(key).push(token);
+      }
+    }
+
+    counts.forEach((tokens) => {
+      if (!Array.isArray(tokens) || tokens.length < 2) return;
+      tokens.forEach((token) => {
+        const label = token.userData?.countLabel;
+        if (!label) return;
+        const tokenColor = token.userData?.tokenColor;
+        updateTokenCountLabel(label, tokens.length, tokenColor);
+        label.visible = true;
+      });
+    });
   }, []);
 
   const renderPreview = useCallback((type, option) => {
@@ -1825,6 +2142,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         clearTimeout(humanRollTimeoutRef.current);
         humanRollTimeoutRef.current = null;
       }
+      if (turnAdvanceTimeoutRef.current) {
+        clearTimeout(turnAdvanceTimeoutRef.current);
+        turnAdvanceTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -2174,11 +2495,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       goalSlots: boardData.goalSlots,
       tokens: boardData.tokens,
       turnIndicator: boardData.turnIndicator,
+      trackTiles: boardData.trackTiles,
+      homeColumnTiles: boardData.homeColumnTiles,
       progress: Array.from({ length: 4 }, () => Array(4).fill(-1)),
       turn: 0,
       winner: null,
       animation: null
     };
+
+    updateTokenStacks();
 
     applyRailLayout();
 
@@ -2266,20 +2591,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       if (state?.animation?.active) {
         const anim = state.animation;
         const seg = anim.segments?.[anim.segment];
-          if (!seg) {
-            const done = anim.onComplete;
-            if (anim.token) {
-              setCameraFocus({
-                target: anim.token.position.clone(),
-                follow: false,
-                ttl: 1.4,
-                priority: 2,
-                offset: CAMERA_TARGET_LIFT + 0.02,
-                force: true
-              });
-            }
-            state.animation = null;
-            if (typeof done === 'function') done();
+        if (anim.highlightIndex !== anim.segment) {
+          updateAnimationHighlight(anim, anim.segment);
+        }
+        if (!seg) {
+          const done = anim.onComplete;
+          if (anim.token) {
+            setCameraFocus({
+              target: anim.token.position.clone(),
+              follow: false,
+              ttl: 1.4,
+              priority: 2,
+              offset: CAMERA_TARGET_LIFT + 0.02,
+              force: true
+            });
+          }
+          updateAnimationHighlight(anim, -1);
+          state.animation = null;
+          if (typeof done === 'function') done();
+          updateTokenStacks();
         } else {
           anim.elapsed += delta;
           const duration = Math.max(seg.duration, 1e-4);
@@ -2310,8 +2640,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
                   force: true
                 });
               }
+              updateAnimationHighlight(anim, -1);
               state.animation = null;
               if (typeof done === 'function') done();
+              updateTokenStacks();
             }
           }
         }
@@ -2510,11 +2842,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const getWorldForProgress = (player, progress, tokenIndex) => {
     const state = stateRef.current;
     if (!state) return new THREE.Vector3();
-  if (progress < 0) {
-    const base = state.startPads[player][tokenIndex].clone();
-    base.y = getTokenRailHeight(player);
-    return base;
-  }
+    if (progress < 0) {
+      const base = state.startPads[player][tokenIndex].clone();
+      base.y = getTokenRailHeight(player);
+      return base;
+    }
     if (progress < RING_STEPS) {
       const idx = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
       return state.paths[idx].clone().add(TOKEN_TRACK_LIFT.clone());
@@ -2532,24 +2864,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const fromProgress = state.progress[player][tokenIndex];
     const path = [];
     if (fromProgress < 0) {
-      path.push(getWorldForProgress(player, -1, tokenIndex));
-      path.push(getWorldForProgress(player, 0, tokenIndex));
+      path.push({ position: getWorldForProgress(player, -1, tokenIndex), progress: fromProgress });
+      path.push({ position: getWorldForProgress(player, 0, tokenIndex), progress: 0 });
     } else {
-      path.push(getWorldForProgress(player, fromProgress, tokenIndex));
+      path.push({
+        position: getWorldForProgress(player, fromProgress, tokenIndex),
+        progress: fromProgress
+      });
       for (let p = fromProgress + 1; p <= targetProgress; p++) {
-        path.push(getWorldForProgress(player, p, tokenIndex));
+        path.push({ position: getWorldForProgress(player, p, tokenIndex), progress: p });
       }
     }
     const token = state.tokens[player][tokenIndex];
     const segments = [];
+    const highlightTiles = [];
     for (let i = 0; i < path.length - 1; i++) {
-      const from = path[i];
-      const to = path[i + 1];
+      const from = path[i].position;
+      const to = path[i + 1].position;
       const distance = from.distanceTo(to);
       const duration = Math.max(0.12, distance / TOKEN_MOVE_SPEED);
-      segments.push({ from, to, distance, duration });
+      segments.push({ from, to, distance, duration, progress: path[i + 1].progress });
+      const tile = findTileForProgress(player, path[i + 1].progress);
+      highlightTiles.push(tile ?? null);
     }
-      if (!segments.length) {
+    if (!segments.length) {
       if (token) {
         setCameraFocus({
           target: token.position.clone(),
@@ -2580,7 +2918,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       elapsed: 0,
       onComplete,
       player,
-      tokenIndex
+      tokenIndex,
+      highlightTiles,
+      highlightIndex: -1
     };
   };
 
@@ -2719,10 +3059,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         if (s.dice == null) return s;
         return { ...s, dice: null };
       });
-    }, 2000);
+    }, 2000 + DICE_RESULT_EXTRA_HOLD_MS);
   }, [setUi]);
 
   const advanceTurn = (extraTurn) => {
+    clearTurnAdvanceTimeout();
     let nextTurn = 0;
     let updated = false;
     setUi((s) => {
@@ -2828,6 +3169,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       playMove();
       handleCaptures(player, tokenIndex);
+      updateTokenStacks();
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
     };
@@ -2857,6 +3199,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const rollDice = async () => {
     const state = stateRef.current;
     clearHumanRollTimeout();
+    clearTurnAdvanceTimeout();
     if (!state || state.winner) return;
     if (state.animation) return;
     const dice = diceRef.current;
@@ -2887,7 +3230,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     setCameraFocus({
       target: landingFocus,
       follow: false,
-      ttl: 1.6,
+      ttl: 1.6 + DICE_RESULT_EXTRA_HOLD_MS / 1000,
       priority: 3,
       offset: CAMERA_TARGET_LIFT + 0.03,
       force: true
@@ -2900,12 +3243,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     if (!options.length) {
-      advanceTurn(value === 6);
+      clearTurnAdvanceTimeout();
+      turnAdvanceTimeoutRef.current = window.setTimeout(() => {
+        turnAdvanceTimeoutRef.current = null;
+        advanceTurn(value === 6);
+      }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
     const choice = chooseMoveOption(state, player, value, options);
     if (!choice) {
-      advanceTurn(value === 6);
+      clearTurnAdvanceTimeout();
+      turnAdvanceTimeoutRef.current = window.setTimeout(() => {
+        turnAdvanceTimeoutRef.current = null;
+        advanceTurn(value === 6);
+      }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
     moveToken(player, choice.token, value);
@@ -3136,14 +3487,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
 function buildLudoBoard(boardGroup) {
   const scene = boardGroup;
-  const tileMat = new THREE.MeshStandardMaterial({
-    color: 0xfef9ef,
-    roughness: 0.88
-  });
-  const safeMat = new THREE.MeshStandardMaterial({
-    color: 0xf4e3bd,
-    roughness: 0.84
-  });
+
+  const trackTileMeshes = new Array(RING_STEPS).fill(null);
+  const homeColumnTiles = Array.from({ length: DEFAULT_PLAYER_COUNT }, () =>
+    new Array(HOME_STEPS).fill(null)
+  );
+
+  const registerTile = (mesh) => {
+    if (!mesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    const mat = mesh.material;
+    const baseEmissive = mat?.emissive?.clone?.() ?? new THREE.Color(0x000000);
+    const baseIntensity = mat?.emissiveIntensity ?? 0;
+    const baseColor = mat?.color?.clone?.() ?? new THREE.Color(0xffffff);
+    const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
+    mesh.userData = {
+      ...mesh.userData,
+      boardTile: {
+        baseEmissive,
+        baseIntensity,
+        highlightEmissive,
+        highlightIntensity: Math.max(baseIntensity + 0.7, 0.75)
+      }
+    };
+  };
 
   const half = (LUDO_GRID * LUDO_TILE) / 2;
   const cellToWorld = (r, c) => {
@@ -3173,9 +3541,6 @@ function buildLudoBoard(boardGroup) {
 
   const tileSize = LUDO_TILE * 0.92;
   const tileGeo = new THREE.BoxGeometry(tileSize, PLAYFIELD_HEIGHT, tileSize);
-  const pathMats = PLAYER_COLORS.map(
-    (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
-  );
   for (let r = 0; r < LUDO_GRID; r++) {
     for (let c = 0; c < LUDO_GRID; c++) {
       const pos = cellToWorld(r, c);
@@ -3192,15 +3557,29 @@ function buildLudoBoard(boardGroup) {
         continue;
       }
       if (columnIndex !== -1) {
-        const mesh = new THREE.Mesh(tileGeo, pathMats[columnIndex]);
+        const baseColor = PLAYER_COLORS[columnIndex];
+        const accent = adjustHexColor(colorNumberToHex(baseColor), 0.2);
+        const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
+        registerTile(mesh);
+        const stepIndex = HOME_COLUMN_KEY_TO_STEP.get(key);
+        if (stepIndex != null) {
+          homeColumnTiles[columnIndex][stepIndex] = mesh;
+        }
         scene.add(mesh);
         continue;
       }
       if (TRACK_KEY_SET.has(key)) {
-        const mat = SAFE_TRACK_KEY_SET.has(key) ? safeMat : tileMat;
-        const mesh = new THREE.Mesh(tileGeo, mat);
+        const isSafe = SAFE_TRACK_KEY_SET.has(key);
+        const baseColor = isSafe ? 0xf4e3bd : 0xfef9ef;
+        const accent = isSafe ? '#f59e0b' : '#fbbf24';
+        const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
+        registerTile(mesh);
+        const trackIndex = TRACK_INDEX_BY_KEY.get(key);
+        if (trackIndex != null) {
+          trackTileMeshes[trackIndex] = mesh;
+        }
         scene.add(mesh);
         continue;
       }
@@ -3282,7 +3661,9 @@ function buildLudoBoard(boardGroup) {
     goalSlots,
     tokens,
     dice,
-    turnIndicator
+    turnIndicator,
+    trackTiles: trackTileMeshes,
+    homeColumnTiles
   };
 }
 
