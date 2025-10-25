@@ -118,6 +118,15 @@ const HIGHLIGHT_COLORS = {
   ladder: new THREE.Color(0x22c55e)
 };
 
+const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#e7e5e4');
+const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#a8a29e');
+const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#f4f4f5');
+
+const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48;
+const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12;
+
+const CAMERA_FOLLOW_MIN_TILE = 2;
+
 const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
 const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
@@ -133,6 +142,7 @@ const TILE_BOTTOM_EMISSIVE_SCALE = 0.1;
 
 const TOKEN_RADIUS = TILE_SIZE * 0.3;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48;
+const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
 const EDGE_TILE_OUTWARD_OFFSET = TILE_SIZE * 0.12;
@@ -518,6 +528,12 @@ function computeTokenFollowCameraState(board, fromIndex, toIndex) {
   }
 
   return { focusTarget, cameraPosition };
+}
+
+function shouldFollowTileChange(_fromIndex, toIndex) {
+  const to = Number(toIndex);
+  if (!Number.isFinite(to)) return false;
+  return to >= CAMERA_FOLLOW_MIN_TILE;
 }
 
 function createTokenCameraFollowAnimation(camera, controls, followState, restoreState, onComplete) {
@@ -1461,8 +1477,8 @@ function buildSnakeBoard(
   const labelGroup = new THREE.Group();
   boardRoot.add(labelGroup);
 
-  const platformThickness = TILE_SIZE * 0.36;
-  const levelGap = TILE_SIZE * 0.08;
+  const platformThickness = PYRAMID_PLATFORM_THICKNESS;
+  const levelGap = PYRAMID_LEVEL_GAP;
   const platformMeshes = [];
   const levelPlacements = [];
   const topTileLift = (platformThickness + tileHeight + levelGap) * TOP_TILE_EXTRA_LEVELS;
@@ -1471,13 +1487,14 @@ function buildSnakeBoard(
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const dimension = size * TILE_SIZE;
     const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
-    const color = new THREE.Color(0x0f172a).lerp(new THREE.Color(0x1f2937), t);
+    const tone = PYRAMID_CONCRETE_LIGHT.clone().lerp(PYRAMID_CONCRETE_SHADOW, t * 0.85);
+    const rimTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
     const mat = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.82,
-      metalness: 0.12,
-      emissive: new THREE.Color(0x0b1220),
-      emissiveIntensity: 0.12
+      color: tone,
+      roughness: 0.76,
+      metalness: 0.08,
+      emissive: rimTone.clone().multiplyScalar(0.18),
+      emissiveIntensity: 0.14
     });
     const baseExtraRatio = 1 - levelIndex / (PYRAMID_LEVELS.length + 1);
     let extra =
@@ -1786,34 +1803,132 @@ function updateTokens(
     let token = existing.get(index);
     if (!token) {
       token = new THREE.Group();
-      const material = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]),
-        roughness: 0.4,
-        metalness: 0.2
+      const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
+      const coreMaterial = new THREE.MeshPhysicalMaterial({
+        color: baseColor.clone(),
+        roughness: 0.32,
+        metalness: 0.45,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.22,
+        sheen: 0.35,
+        sheenColor: baseColor.clone().lerp(new THREE.Color('#ffffff'), 0.55)
       });
+      const accentMaterial = new THREE.MeshPhysicalMaterial({
+        color: baseColor.clone().lerp(TOKEN_ACCENT_TARGET, 0.55),
+        roughness: 0.24,
+        metalness: 0.82,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.25
+      });
+
+      const baseHeight = TOKEN_HEIGHT * 0.24;
+      const bodyHeight = TOKEN_HEIGHT * 0.46;
+      const leftoverHeight = Math.max(TOKEN_HEIGHT - (baseHeight + bodyHeight), TOKEN_HEIGHT * 0.18);
+      const headHeight = leftoverHeight * 0.65;
+      const crestHeight = Math.max(leftoverHeight - headHeight, TOKEN_HEIGHT * 0.08);
+
       const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.1, TOKEN_RADIUS * 1.2, TOKEN_HEIGHT * 0.65, 24),
-        material
+        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.45, TOKEN_RADIUS * 1.65, baseHeight, 48),
+        accentMaterial
       );
-      base.position.y = TOKEN_HEIGHT * 0.32;
+      base.position.y = baseHeight / 2;
+      base.castShadow = true;
+      base.receiveShadow = true;
       token.add(base);
-      const head = new THREE.Mesh(new THREE.SphereGeometry(TOKEN_RADIUS * 0.9, 18, 14), material);
-      head.position.y = TOKEN_HEIGHT * 0.95;
+
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.05, TOKEN_RADIUS * 0.82, bodyHeight, 48),
+        coreMaterial
+      );
+      body.position.y = baseHeight + bodyHeight / 2;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      token.add(body);
+
+      const collar = new THREE.Mesh(
+        new THREE.TorusGeometry(TOKEN_RADIUS * 0.95, TOKEN_HEIGHT * 0.06, 24, 48),
+        accentMaterial
+      );
+      collar.rotation.x = Math.PI / 2;
+      collar.position.y = baseHeight + bodyHeight * 0.78;
+      collar.castShadow = true;
+      collar.receiveShadow = true;
+      token.add(collar);
+
+      const head = new THREE.Mesh(
+        new RoundedBoxGeometry(TOKEN_RADIUS * 1.3, headHeight, TOKEN_RADIUS * 1.3, 6, TOKEN_RADIUS * 0.45),
+        coreMaterial
+      );
+      head.position.y = baseHeight + bodyHeight + headHeight / 2;
+      head.castShadow = true;
+      head.receiveShadow = true;
       token.add(head);
-      token.userData = { playerIndex: index, material, isSliding: false };
+
+      const crest = new THREE.Mesh(
+        new THREE.CylinderGeometry(TOKEN_RADIUS * 0.55, TOKEN_RADIUS * 0.7, crestHeight, 32),
+        accentMaterial
+      );
+      crest.position.y = baseHeight + bodyHeight + headHeight + crestHeight / 2;
+      crest.castShadow = true;
+      crest.receiveShadow = true;
+      token.add(crest);
+
+      token.userData = {
+        playerIndex: index,
+        material: coreMaterial,
+        coreMaterial,
+        accentMaterial,
+        isSliding: false
+      };
       tokensGroup.add(token);
     }
-    const mat = token.userData.material;
+
+    const mat = token.userData.coreMaterial || token.userData.material;
+    const accentMat = token.userData.accentMaterial || null;
     const targetColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
-    mat.color.copy(targetColor);
+
+    if (mat) {
+      mat.color.copy(targetColor);
+      if (mat.sheenColor) {
+        mat.sheenColor.copy(targetColor.clone().lerp(new THREE.Color('#ffffff'), 0.5));
+      }
+    }
+    if (accentMat) {
+      const accentColor = targetColor.clone().lerp(TOKEN_ACCENT_TARGET, 0.55);
+      accentMat.color.copy(accentColor);
+    }
+
+    let emissiveHex = 0x000000;
+    let emissiveIntensity = 0.2;
     if (burning.includes(index)) {
-      mat.emissive.setHex(0x7f1d1d);
+      emissiveHex = 0x7f1d1d;
+      emissiveIntensity = 0.65;
     } else if (index === rollingIndex) {
-      mat.emissive.setHex(0x0ea5e9);
+      emissiveHex = 0x0ea5e9;
+      emissiveIntensity = 0.45;
     } else if (index === currentTurn) {
-      mat.emissive.setHex(0x1d4ed8);
-    } else {
-      mat.emissive.setHex(0x000000);
+      emissiveHex = 0x1d4ed8;
+      emissiveIntensity = 0.4;
+    }
+
+    if (mat) {
+      if (emissiveHex === 0x000000) {
+        mat.emissive.setRGB(0, 0, 0);
+      } else {
+        mat.emissive.setHex(emissiveHex);
+      }
+      mat.emissiveIntensity = emissiveIntensity;
+    }
+
+    if (accentMat) {
+      if (emissiveHex === 0x000000) {
+        const glow = targetColor.clone().lerp(TOKEN_ACCENT_TARGET, 0.6).multiplyScalar(0.15);
+        accentMat.emissive.copy(glow);
+        accentMat.emissiveIntensity = 1;
+      } else {
+        accentMat.emissive.setHex(emissiveHex);
+        accentMat.emissiveIntensity = emissiveIntensity;
+      }
     }
 
     const rawPosition = Number(player.position);
@@ -2403,7 +2518,7 @@ export default function SnakeBoard3D({
     }
     prevPlayerPositionsRef.current = sanitizedPositions;
 
-    if (movement) {
+    if (movement && shouldFollowTileChange(movement.from, movement.to)) {
       const camera = cameraRef.current;
       const controls = board.controls;
       const followState = computeTokenFollowCameraState(board, movement.from, movement.to);
@@ -2486,7 +2601,7 @@ export default function SnakeBoard3D({
     const camera = cameraRef.current;
     const controls = board.controls;
     const followState = computeTokenFollowCameraState(board, slide.from, slide.to);
-    if (camera && controls && followState) {
+    if (camera && controls && followState && shouldFollowTileChange(slide.from, slide.to)) {
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
       if (!cameraRestoreRef.current) {
