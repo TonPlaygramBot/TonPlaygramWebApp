@@ -235,7 +235,7 @@ const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
-const CHROME_CORNER_FIELD_FILLET_SCALE = 0.85; // carve a rounded fillet into the inner chrome corner
+const CHROME_CORNER_FIELD_FILLET_SCALE = 1; // carve a rounded fillet into the inner chrome corner that matches the outer radius
 const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.2; // add an extra rounded bite to clear any lingering chrome inside the pocket
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // match the snooker notch expansion to clear stray chrome slivers
@@ -243,6 +243,7 @@ const CHROME_CORNER_WIDTH_SCALE = 1.1;
 const CHROME_CORNER_HEIGHT_SCALE = 1.1;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_CORNER_CENTER_PUSH_SCALE = 0.4; // push corner chrome plates farther from centre while keeping their arches aligned
+const CHROME_CORNER_INNER_RADIUS_MATCH_SCALE = 1; // keep the inner pocket corner rounding in lockstep with the outer chrome radius
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
@@ -257,7 +258,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // base relief trim keeps the wood cuts tucked under the chrome plates
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // keep wood pocket cuts identical to the chrome plates so only one arch is visible
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
@@ -4382,14 +4383,24 @@ function Table3D(
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
-    const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    const innerCornerTargetRadius = Math.min(
+      cornerChamfer,
+      chromePlateRadius * CHROME_CORNER_INNER_RADIUS_MATCH_SCALE
+    );
+    const fieldClipWidthBase = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
+    const fieldClipDepthBase = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    const fieldClipWidth = Math.max(fieldClipWidthBase, innerCornerTargetRadius);
+    const fieldClipDepth = Math.max(fieldClipDepthBase, innerCornerTargetRadius);
     const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
     const unionParts = [notchCircle, boxX, boxZ];
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
-      const filletRadius =
-        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
-      const fillet = cornerFieldFilletPoly(cx, cz, sx, sz, filletRadius);
+      const maxFilletRadius = Math.min(fieldClipWidth, fieldClipDepth);
+      const filletRadiusBase = Math.min(innerCornerTargetRadius, maxFilletRadius);
+      const effectiveFilletRadius = filletRadiusBase * CHROME_CORNER_FIELD_FILLET_SCALE;
+      const fillet =
+        effectiveFilletRadius > MICRO_EPS
+          ? cornerFieldFilletPoly(cx, cz, sx, sz, effectiveFilletRadius)
+          : null;
       if (fillet) {
         unionParts.push(fillet);
       } else {
@@ -4403,9 +4414,10 @@ function Table3D(
         ]);
       }
 
-      const cleanupRadius =
+      const cleanupRadiusBase =
         Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_CLEANUP_SCALE;
-      if (cleanupRadius > filletRadius + MICRO_EPS) {
+      const cleanupRadius = Math.max(cleanupRadiusBase, effectiveFilletRadius);
+      if (cleanupRadius > effectiveFilletRadius + MICRO_EPS) {
         const cleanupFillet = cornerFieldFilletPoly(cx, cz, sx, sz, cleanupRadius);
         if (cleanupFillet) {
           unionParts.push(cleanupFillet);
