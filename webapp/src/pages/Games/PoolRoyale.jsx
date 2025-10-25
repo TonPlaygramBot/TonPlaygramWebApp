@@ -236,7 +236,7 @@ const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.045;
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // keep chrome arcs identical to the master pocket cut
 const CHROME_CORNER_WIDTH_SCALE = 0.95;
 const CHROME_CORNER_HEIGHT_SCALE = 0.95;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
@@ -255,7 +255,8 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // base relief trim keeps the wood cuts tucked under the chrome plates
-const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE = 0.97; // tighten the corner arches so the wooden rail openings read smaller
+const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
+  1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
 
 function buildChromePlateGeometry({
@@ -479,7 +480,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // extend the jaw reach so the liner follows the larger chrome plate cut cleanly
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // corner jaws now follow the chrome plate arcs exactly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.015; // let the middle jaw ride the expanded chrome/wood arc without leaving a gap
 const POCKET_JAW_CORNER_INNER_SCALE = 1.11; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.984; // pull the inner lip farther out so the widened jaw still meets the chrome cut
