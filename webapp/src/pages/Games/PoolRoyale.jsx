@@ -238,7 +238,8 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.045;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
 const CHROME_CORNER_WIDTH_SCALE = 0.99;
-const CHROME_CORNER_HEIGHT_SCALE = 1.01;
+const CHROME_CORNER_HEIGHT_SCALE = 1;
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
@@ -4181,15 +4182,18 @@ function Table3D(
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
   );
+  const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE - chromeCornerEdgeTrim
   );
   const chromeCornerFieldExtension =
     POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE + chromeCornerFieldExtension
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
+      chromeCornerEdgeTrim +
+      chromeCornerFieldExtension
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
