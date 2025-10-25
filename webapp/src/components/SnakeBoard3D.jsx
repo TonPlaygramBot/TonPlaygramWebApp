@@ -254,18 +254,22 @@ const DICE_SEAT_ADJUSTMENTS = [
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
-const LADDER_BASE_LIFT = TILE_SIZE * 0.26;
-const LADDER_ARCH_BASE = TILE_SIZE * 0.78;
-const LADDER_ARCH_SCALE = TILE_SIZE * 0.01;
-const LADDER_SWAY_BASE = TILE_SIZE * 0.16;
-const LADDER_SWAY_SCALE = TILE_SIZE * 0.0075;
-const LADDER_INNER_LIFT_RATIO = 0.72;
-const LADDER_OUTER_LIFT_RATIO = 0.72;
-const SNAKE_BASE_LIFT = TILE_SIZE * 0.2;
-const SNAKE_ARCH_BASE = TILE_SIZE * 0.45;
-const SNAKE_ARCH_SCALE = TILE_SIZE * 0.0045;
-const SNAKE_LATERAL_BASE = TILE_SIZE * 0.12;
-const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0038;
+const LADDER_BASE_LIFT = TILE_SIZE * 0.32;
+const LADDER_ARCH_BASE = TILE_SIZE * 0.96;
+const LADDER_ARCH_SCALE = TILE_SIZE * 0.0125;
+const LADDER_SWAY_BASE = TILE_SIZE * 0.2;
+const LADDER_SWAY_SCALE = TILE_SIZE * 0.009;
+const LADDER_INNER_LIFT_RATIO = 0.78;
+const LADDER_OUTER_LIFT_RATIO = 0.78;
+const LADDER_CLEARANCE = TILE_SIZE * 0.16;
+const SNAKE_BASE_LIFT = TILE_SIZE * 0.3;
+const SNAKE_ARCH_BASE = TILE_SIZE * 0.62;
+const SNAKE_ARCH_SCALE = TILE_SIZE * 0.006;
+const SNAKE_LATERAL_BASE = TILE_SIZE * 0.16;
+const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0048;
+const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.22;
+const SNAKE_NECK_LIFT_RATIO = 0.42;
+const SNAKE_TAIL_LIFT_RATIO = 0.36;
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
   if (!point) return point;
@@ -2628,16 +2632,21 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
       const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift));
       const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
       const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
+      const clearance = Math.max(LADDER_CLEARANCE, archHeight * 0.3);
       const quarterPoint = startPoint
         .clone()
         .lerp(endPoint, 0.25)
-        .addScaledVector(up, quarterLift)
+        .addScaledVector(up, quarterLift + clearance * 0.6)
         .addScaledVector(rightBase, swayAmount);
-      const midPoint = startPoint.clone().lerp(endPoint, 0.5).addScaledVector(up, archHeight);
+      const midPoint = startPoint
+        .clone()
+        .lerp(endPoint, 0.5)
+        .addScaledVector(up, archHeight + clearance)
+        .addScaledVector(rightBase, swayAmount * -0.35);
       const threeQuarterPoint = startPoint
         .clone()
         .lerp(endPoint, 0.75)
-        .addScaledVector(up, threeQuarterLift)
+        .addScaledVector(up, threeQuarterLift + clearance * 0.6)
         .addScaledVector(rightBase, -swayAmount);
 
       const centerPoints = [startPoint, quarterPoint, midPoint, threeQuarterPoint, endPoint];
@@ -2755,7 +2764,7 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const endPoint = pullPointTowardCenter(baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
     const length = Math.abs(start - end);
     const archHeight = Math.min(TILE_SIZE * 0.9, SNAKE_ARCH_BASE + length * SNAKE_ARCH_SCALE);
-    const peak = startPoint.clone().lerp(endPoint, 0.5).add(new THREE.Vector3(0, archHeight, 0));
+    const peak = startPoint.clone().lerp(endPoint, 0.5).add(new THREE.Vector3(0, archHeight + SNAKE_CURVE_CLEARANCE, 0));
     const lateral = new THREE.Vector3(endPoint.z - startPoint.z, 0, -(endPoint.x - startPoint.x));
     if (lateral.lengthSq() < 1e-6) {
       lateral.set(1, 0, 0);
@@ -2765,12 +2774,24 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const lateralAmount = Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE);
     const peakLeft = peak.clone().addScaledVector(lateral, lateralAmount);
     const peakRight = peak.clone().addScaledVector(lateral, -lateralAmount);
-    const fullCurve = new THREE.CatmullRomCurve3([startPoint, peakLeft, peakRight, endPoint], false, 'centripetal');
+    const neckPoint = startPoint
+      .clone()
+      .lerp(peakLeft, 0.25)
+      .add(new THREE.Vector3(0, Math.max(SNAKE_CURVE_CLEARANCE, archHeight * SNAKE_NECK_LIFT_RATIO), 0));
+    const tailPoint = endPoint
+      .clone()
+      .lerp(peakRight, 0.25)
+      .add(new THREE.Vector3(0, Math.max(SNAKE_CURVE_CLEARANCE * 0.75, archHeight * SNAKE_TAIL_LIFT_RATIO), 0));
+    const fullCurve = new THREE.CatmullRomCurve3(
+      [startPoint, neckPoint, peakLeft, peakRight, tailPoint, endPoint],
+      false,
+      'centripetal'
+    );
 
     const bodyRadius = TILE_SIZE * 0.075;
-    const mainCurve = sampleSubCurve(fullCurve, 0, 0.75, 24);
+    const mainCurve = sampleSubCurve(fullCurve, 0.06, 0.78, 28);
     const bodyMain = new THREE.Mesh(new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false), matBody.clone());
-    const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.75));
+    const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.78));
     bodyMain.material.map.repeat.set(Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))), 2);
     group.add(bodyMain);
 
@@ -2781,9 +2802,9 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     });
 
     const tailSegments = [
-      [0.75, 0.87, bodyRadius * 0.9],
-      [0.87, 0.94, bodyRadius * 0.7],
-      [0.94, 1.0, bodyRadius * 0.5]
+      [0.78, 0.88, bodyRadius * 0.9],
+      [0.88, 0.95, bodyRadius * 0.7],
+      [0.95, 1.0, bodyRadius * 0.48]
     ];
     tailSegments.forEach(([t0, t1, r]) => {
       const segCurve = sampleSubCurve(fullCurve, t0, t1, 12);
