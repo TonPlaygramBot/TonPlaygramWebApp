@@ -4107,33 +4107,50 @@ function Table3D(
     WOOD_RAIL_CORNER_RADIUS_SCALE;
   const hasRoundedRailCorners = outerCornerRadius > MICRO_EPS;
 
-  const POCKET_GAP =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION; // pull the cushions a touch closer so they land right at the pocket arcs
-  const SHORT_CUSHION_EXTENSION =
-    POCKET_VIS_R * 0.065 * POCKET_VISUAL_EXPANSION; // pull short rail cushions further back so they stay clear of the pocket mouths
-  const LONG_CUSHION_TRIM =
-    POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // extend the long cushions so they stop right where the pocket arcs begin
-  const LONG_CUSHION_CORNER_EXTENSION =
-    POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // push the long cushions a touch further toward the corner pockets
-  const SIDE_CUSHION_POCKET_CLEARANCE =
-    POCKET_VIS_R * 0.045 * POCKET_VISUAL_EXPANSION; // extend side cushions so they meet the pocket openings cleanly
-  const SIDE_CUSHION_CENTER_PULL =
-    POCKET_VIS_R * 0.18 * POCKET_VISUAL_EXPANSION; // push long rail cushions a touch closer to the middle pockets
-  const SIDE_CUSHION_CORNER_TRIM =
-    POCKET_VIS_R * 0.005 * POCKET_VISUAL_EXPANSION; // extend side cushions toward the corner pockets for longer green rails
-  const horizLen =
-    PLAY_W -
-    2 * (POCKET_GAP - SHORT_CUSHION_EXTENSION - LONG_CUSHION_CORNER_EXTENSION) -
-    LONG_CUSHION_TRIM;
-  const vertSeg =
-    PLAY_H / 2 - 2 * (POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE);
-  const sideCushionOffset =
-    POCKET_GAP + SIDE_CUSHION_POCKET_CLEARANCE + SIDE_CUSHION_CENTER_PULL;
-  const trimmedVertSeg = Math.max(
-    vertSeg - SIDE_CUSHION_CORNER_TRIM,
-    vertSeg * 0.6
+  const innerHalfW = halfWext;
+  const innerHalfH = halfHext;
+  const cornerPocketRadius = CORNER_CHROME_NOTCH_RADIUS;
+  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = innerHalfW - (halfW - CORNER_POCKET_CENTER_INSET);
+  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+
+  // Derive exact cushion extents from the chrome pocket arcs so the rails stop
+  // precisely where each pocket begins.
+  const cornerCenterX = innerHalfW - cornerInset;
+  const cornerCenterZ = innerHalfH - cornerInset;
+  const cornerLineX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cornerLineZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cornerDeltaX = cornerLineX - cornerCenterX;
+  const cornerDeltaZ = cornerLineZ - cornerCenterZ;
+  const cornerReachX = Math.sqrt(
+    Math.max(cornerPocketRadius * cornerPocketRadius - cornerDeltaZ * cornerDeltaZ, 0)
   );
-  const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
+  const cornerReachZ = Math.sqrt(
+    Math.max(cornerPocketRadius * cornerPocketRadius - cornerDeltaX * cornerDeltaX, 0)
+  );
+  const cornerIntersectionX = cornerCenterX - cornerReachX;
+  const cornerIntersectionZ = cornerCenterZ - cornerReachZ;
+  const cornerCushionClearanceX = Math.max(0, cornerLineX - cornerIntersectionX);
+  const cornerCushionClearanceZ = Math.max(0, cornerLineZ - cornerIntersectionZ);
+  const cornerCushionClearance = Math.max(
+    cornerCushionClearanceX,
+    cornerCushionClearanceZ
+  );
+  const horizontalCushionLength = Math.max(
+    MICRO_EPS,
+    PLAY_W - 2 * cornerCushionClearance
+  );
+  const sideLineX =
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
+  const sideDeltaX = sidePocketCenterX - sideLineX;
+  const sidePocketReach = Math.sqrt(
+    Math.max(sidePocketRadius * sidePocketRadius - sideDeltaX * sideDeltaX, 0)
+  );
+  const verticalCushionLength = Math.max(
+    MICRO_EPS,
+    Math.max(0, cornerIntersectionZ - sidePocketReach)
+  );
+  const verticalCushionCenter = sidePocketReach + verticalCushionLength / 2;
 
   const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -4143,17 +4160,9 @@ function Table3D(
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
-  const chromeCornerMeetX = Math.max(0, horizLen / 2);
-  const bottomVerticalCenterZ =
-    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift;
-  const chromeCornerMeetZ = Math.max(
-    0,
-    Math.abs(bottomVerticalCenterZ - trimmedVertSeg / 2)
-  );
-  const sideChromeMeetZ = Math.max(
-    0,
-    Math.abs(bottomVerticalCenterZ + trimmedVertSeg / 2)
-  );
+  const chromeCornerMeetX = Math.max(0, horizontalCushionLength / 2);
+  const chromeCornerMeetZ = Math.max(0, cornerIntersectionZ);
+  const sideChromeMeetZ = Math.max(0, sidePocketReach);
   const chromePlateExpansionX = Math.max(
     0,
     (chromePlateInnerLimitX - chromeCornerMeetX) * CHROME_CORNER_EXPANSION_SCALE
@@ -4190,7 +4199,6 @@ function Table3D(
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
 
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
@@ -4218,13 +4226,6 @@ function Table3D(
     chromePlateRadius * 0.3,
     Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
   );
-
-  const innerHalfW = halfWext;
-  const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
-  const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset =
-    POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION + CORNER_POCKET_CENTER_INSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -5123,37 +5124,13 @@ function Table3D(
   const leftX = -halfW;
   const rightX = halfW;
 
-  addCushion(0, bottomZ, horizLen, true, false);
-  addCushion(0, topZ, horizLen, true, true);
+  addCushion(0, bottomZ, horizontalCushionLength, true, false);
+  addCushion(0, topZ, horizontalCushionLength, true, true);
 
-  addCushion(
-    leftX,
-    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift,
-    trimmedVertSeg,
-    false,
-    false
-  );
-  addCushion(
-    leftX,
-    halfH - sideCushionOffset - vertSeg / 2 - cornerShift,
-    trimmedVertSeg,
-    false,
-    false
-  );
-  addCushion(
-    rightX,
-    -halfH + sideCushionOffset + vertSeg / 2 + cornerShift,
-    trimmedVertSeg,
-    false,
-    true
-  );
-  addCushion(
-    rightX,
-    halfH - sideCushionOffset - vertSeg / 2 - cornerShift,
-    trimmedVertSeg,
-    false,
-    true
-  );
+  addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
+  addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
