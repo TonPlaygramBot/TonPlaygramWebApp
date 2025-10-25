@@ -242,7 +242,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // match the snooker notch ex
 const CHROME_CORNER_WIDTH_SCALE = 1.1;
 const CHROME_CORNER_HEIGHT_SCALE = 1.1;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
-const CHROME_CORNER_CENTER_PUSH_SCALE = 0.4; // push corner chrome plates farther from centre while keeping their arches aligned
+const CHROME_CORNER_CENTER_PUSH_SCALE = 0.62; // push corner chrome plates farther from centre while keeping their arches aligned
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
@@ -257,9 +257,9 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // base relief trim keeps the wood cuts tucked under the chrome plates
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // wood pocket cuts now match the chrome radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
-  1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
+  1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches mirror the chrome radius exactly
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
 
 function buildChromePlateGeometry({
