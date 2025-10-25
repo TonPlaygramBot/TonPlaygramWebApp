@@ -67,7 +67,7 @@ const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15; // enlarge board footprint by an additional 15%
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 0.8; // shrink board footprint by 20%
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -121,7 +121,7 @@ const HIGHLIGHT_COLORS = {
 const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#e7e5e4');
 const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#a8a29e');
 const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#f4f4f5');
-const PYRAMID_CONCRETE_BASE = new THREE.Color('#6b7280');
+const PYRAMID_CONCRETE_BASE = new THREE.Color('#e2e8f0');
 
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12;
@@ -1842,6 +1842,11 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
   controls.enableZoom = true;
+  controls.enableRotate = true;
+  controls.rotateSpeed = 0.6;
+  controls.minAzimuthAngle = -Infinity;
+  controls.maxAzimuthAngle = Infinity;
+  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
   controls.minPolarAngle = CAM.phiMin;
@@ -2025,7 +2030,14 @@ function buildSnakeBoard(
     }
     const shrinkFactor = BENTONITE_EXTRA_SHRINK[levelIndex] ?? 1;
     const platformSize = dimension + extra * shrinkFactor;
-    const platformGeometry = new THREE.BoxGeometry(platformSize, platformThickness, platformSize);
+    const roundedCornerRatio = levelIndex === 0 ? 0.08 : 0.045;
+    const maxCornerRadius = Math.max(0, platformThickness / 2 - 0.0001);
+    const desiredCornerRadius = platformSize * roundedCornerRatio;
+    const cornerRadius = Math.min(desiredCornerRadius, maxCornerRadius);
+    const platformGeometry =
+      cornerRadius > 0
+        ? new RoundedBoxGeometry(platformSize, platformThickness, platformSize, 8, cornerRadius)
+        : new THREE.BoxGeometry(platformSize, platformThickness, platformSize);
     const platformMaterials = [
       wallMaterial,
       wallMaterial,
