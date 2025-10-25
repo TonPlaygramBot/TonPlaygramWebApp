@@ -4426,49 +4426,9 @@ function Table3D(
   ].forEach(({ corner, sx, sz }) => {
     const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
     const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
-    const plateMinX = centerX - chromePlateWidth / 2;
-    const plateMaxX = centerX + chromePlateWidth / 2;
-    const plateMinZ = centerZ - chromePlateHeight / 2;
-    const plateMaxZ = centerZ + chromePlateHeight / 2;
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
     const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
-    const trimPolys = [];
-    const xTrimLimit = sx * chromePlateInnerLimitX;
-    if (Number.isFinite(xTrimLimit)) {
-      if (sx === 1) {
-        const cutMinX = plateMinX;
-        const cutMaxX = Math.min(xTrimLimit, plateMaxX);
-        if (cutMaxX - cutMinX > MICRO_EPS) {
-          trimPolys.push(boxPoly(cutMinX, plateMinZ, cutMaxX, plateMaxZ));
-        }
-      } else {
-        const cutMinX = Math.max(xTrimLimit, plateMinX);
-        const cutMaxX = plateMaxX;
-        if (cutMaxX - cutMinX > MICRO_EPS) {
-          trimPolys.push(boxPoly(cutMinX, plateMinZ, cutMaxX, plateMaxZ));
-        }
-      }
-    }
-    const zTrimLimit = sz * chromePlateInnerLimitZ;
-    if (Number.isFinite(zTrimLimit)) {
-      if (sz === 1) {
-        const cutMinZ = plateMinZ;
-        const cutMaxZ = Math.min(zTrimLimit, plateMaxZ);
-        if (cutMaxZ - cutMinZ > MICRO_EPS) {
-          trimPolys.push(boxPoly(plateMinX, cutMinZ, plateMaxX, cutMaxZ));
-        }
-      } else {
-        const cutMinZ = Math.max(zTrimLimit, plateMinZ);
-        const cutMaxZ = plateMaxZ;
-        if (cutMaxZ - cutMinZ > MICRO_EPS) {
-          trimPolys.push(boxPoly(plateMinX, cutMinZ, plateMaxX, cutMaxZ));
-        }
-      }
-    }
-    const notchWithTrim = trimPolys.length
-      ? polygonClipping.union(notchMP, ...trimPolys)
-      : notchMP;
-    const notchLocalMP = notchWithTrim.map((poly) =>
+    const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
       )
