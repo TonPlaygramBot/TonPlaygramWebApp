@@ -499,7 +499,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.034
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
-const TOKEN_MOVE_SPEED = 1.85;
+const TOKEN_MOVE_SPEED = 1.35;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
 const START_KEY_TO_PLAYER = new Map(
@@ -1074,9 +1074,13 @@ function addBoardMarkers(scene, cellToWorld) {
   });
 
   HOME_COLUMN_COORDS.forEach((coords, playerIdx) => {
+    const isHorizontal = coords.every(([row]) => row === coords[0][0]);
     coords.forEach(([homeR, homeC]) => {
       const homePos = cellToWorld(homeR, homeC).clone();
-      const arrowAngle = getArrowAngle(-homePos.x, -homePos.z);
+      let arrowAngle = getArrowAngle(-homePos.x, -homePos.z);
+      if (isHorizontal) {
+        arrowAngle = -arrowAngle;
+      }
       const arrowMarker = createMarkerMesh({
         label: '',
         color: PLAYER_COLORS[playerIdx],
@@ -1109,7 +1113,7 @@ function setDiceOrientation(dice, val) {
 
 function spinDice(
   dice,
-  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+  { duration = 1300, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -1135,9 +1139,9 @@ function spinDice(
       dice.position.copy(position);
 
       const spinFactor = 1 - eased * 0.35;
-      dice.rotation.x += spinVec.x * spinFactor * 0.2;
-      dice.rotation.y += spinVec.y * spinFactor * 0.2;
-      dice.rotation.z += spinVec.z * spinFactor * 0.2;
+      dice.rotation.x += spinVec.x * spinFactor * 0.16;
+      dice.rotation.y += spinVec.y * spinFactor * 0.16;
+      dice.rotation.z += spinVec.z * spinFactor * 0.16;
 
       if (t < 1) {
         requestAnimationFrame(step);
