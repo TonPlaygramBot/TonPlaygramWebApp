@@ -227,36 +227,36 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.04; // widen the chrome cut so the liner mirrors the photographed rim
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1; // keep the corner mouth perfectly symmetric around the pocket centre
-const CHROME_CORNER_EXPANSION_SCALE = 1.18; // widen the corner plate reach so the shoulders match the real chrome footprint
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.22; // push the short-rail chrome edge farther so it lines up with the trimmed shoulders
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0.032; // shave a little more wood so the chrome lands flush without gaps
-const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0.26; // carve the diagonal taper that appears on the production plates
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.34;
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.52;
-const CHROME_CORNER_FIELD_FILLET_SCALE = 0.82; // carve a rounded fillet into the inner chrome corner
-const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.08; // add a subtle rounded bite to clear any lingering chrome inside the pocket
-const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.12; // extend the field side bite so the chrome hugs the cloth edge
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.12; // expand the notch so the liner sits flush to the chrome cut
-const CHROME_CORNER_WIDTH_SCALE = 1.28;
-const CHROME_CORNER_HEIGHT_SCALE = 1.32;
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0.006; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
-const CHROME_CORNER_CENTER_PUSH_SCALE = 0.56; // push corner chrome plates farther from centre while keeping their arches aligned
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.04;
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.02; // keep the rail rounding hugging the new chrome shoulders
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 1.24;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1.12;
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.62;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 0.86;
-const CHROME_SIDE_FIELD_PULL_SCALE = 0.22;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.08;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.18;
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.028;
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.18;
-const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.08;
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // corner chrome arches track the pocket diameter with a subtle oversize for liners
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.01; // middle chrome arches now track the pocket diameter precisely
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.012; // widen the chrome cut so the liner mirrors the reference rim
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.34; // pull chrome arches further toward the table centre
+const CHROME_CORNER_EXPANSION_SCALE = 1.07; // widen the corner plate reach a touch more
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.14; // push the short-rail chrome edge farther so it lines up with the marked trim
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0.015; // shave a little more wood so the chrome lands flush without gaps
+const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.02;
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.24;
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0.94; // carve a rounded fillet into the inner chrome corner
+const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.34; // add an extra rounded bite to clear any lingering chrome inside the pocket
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.08; // extend the field side bite so the chrome hugs the cloth edge
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.03; // match the snooker notch expansion to clear stray chrome slivers
+const CHROME_CORNER_WIDTH_SCALE = 1.145;
+const CHROME_CORNER_HEIGHT_SCALE = 1.16;
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0.008; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
+const CHROME_CORNER_CENTER_PUSH_SCALE = 0.685; // push corner chrome plates farther from centre while keeping their arches aligned
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.035; // slightly increase the rail rounding so the chrome sits flush
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1;
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_FIELD_PULL_SCALE = 0;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.08;
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
+const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.008; // corner chrome arches track the pocket diameter with a subtle oversize for liners
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // wood pocket cuts now match the chrome radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches mirror the chrome radius exactly
@@ -1811,96 +1811,7 @@ function enhanceChromeMaterial(material) {
   if ('specularIntensity' in material) {
     material.specularIntensity = Math.max(1.02, material.specularIntensity ?? 1.02);
   }
-  const hammered = getHammeredChromeMaps();
-  if (hammered) {
-    const { map, roughnessMap, metalnessMap, bumpMap, bumpScale } = hammered;
-    if (map) {
-      material.map = map;
-      material.needsUpdate = true;
-    }
-    if (roughnessMap) {
-      material.roughnessMap = roughnessMap;
-      material.needsUpdate = true;
-    }
-    if (metalnessMap) {
-      material.metalnessMap = metalnessMap;
-      material.needsUpdate = true;
-    }
-    if (bumpMap) {
-      material.bumpMap = bumpMap;
-      material.bumpScale = bumpScale;
-      material.needsUpdate = true;
-    }
-  }
   material.needsUpdate = true;
-}
-
-let hammeredChromeCache = null;
-
-function createHammeredChromeCanvas(size = 128, strength = 0.55) {
-  if (typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  const imageData = ctx.createImageData(size, size);
-  const data = imageData.data;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const u = x / size;
-      const v = y / size;
-      const waveA = Math.sin((u + v) * Math.PI * 8);
-      const waveB = Math.sin((u - v) * Math.PI * 6);
-      const waveC = Math.sin(u * Math.PI * 12) * Math.cos(v * Math.PI * 12);
-      const waveD = Math.sin((u * v) * Math.PI * 20);
-      let tone = 0.58 + waveA * 0.16 + waveB * 0.12 + waveC * 0.09 + waveD * 0.05;
-      tone = THREE.MathUtils.clamp(tone * strength, 0, 1);
-      const base = 205;
-      const amplitude = 50;
-      const value = Math.round(THREE.MathUtils.clamp(base + amplitude * tone, 180, 255));
-      const idx = (y * size + x) * 4;
-      data[idx] = value;
-      data[idx + 1] = value;
-      data[idx + 2] = value;
-      data[idx + 3] = 255;
-    }
-  }
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
-}
-
-function getHammeredChromeMaps() {
-  if (hammeredChromeCache) {
-    return hammeredChromeCache;
-  }
-  if (typeof document === 'undefined') return null;
-  const baseCanvas = createHammeredChromeCanvas(256, 0.9);
-  const bumpCanvas = createHammeredChromeCanvas(192, 1.1);
-  if (!baseCanvas || !bumpCanvas) return null;
-
-  const map = new THREE.CanvasTexture(baseCanvas);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(4, 4);
-  map.anisotropy = 4;
-  map.needsUpdate = true;
-  if ('colorSpace' in map) {
-    map.colorSpace = THREE.SRGBColorSpace;
-  }
-
-  const bump = new THREE.CanvasTexture(bumpCanvas);
-  bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-  bump.repeat.copy(map.repeat);
-  bump.anisotropy = 4;
-  bump.needsUpdate = true;
-
-  hammeredChromeCache = {
-    map,
-    roughnessMap: bump,
-    metalnessMap: map,
-    bumpMap: bump,
-    bumpScale: 0.08
-  };
-  return hammeredChromeCache;
 }
 
 function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = {}) {
@@ -4454,68 +4365,64 @@ function Table3D(
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
-    const dirX = -sx;
-    const dirZ = -sz;
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
-    const radius = cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE;
-    const railExtension = radius * 1.85;
-    const fieldExtension = radius * 1.6;
-    const shoulderWidth = radius * 1.42;
-    const shoulderHeight = radius * 1.48;
-    const shoulderRadius = radius * 0.68;
-
-    const notchCircle = circlePoly(cx, cz, radius, 320);
-    const railRect = roundedRectPoly(
-      cx + (dirX * railExtension) / 2,
-      cz,
-      radius + railExtension,
-      shoulderHeight,
-      shoulderRadius,
-      256
-    );
-    const fieldRect = roundedRectPoly(
+    const notchCircle = circlePoly(
       cx,
-      cz + (dirZ * fieldExtension) / 2,
-      shoulderWidth,
-      radius + fieldExtension,
-      shoulderRadius,
-      256
+      cz,
+      cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE
     );
-    const diagonalOval = roundedRectPoly(
-      cx + dirX * radius * 0.64,
-      cz + dirZ * radius * 0.64,
-      radius * 1.45,
-      radius * 1.45,
-      radius * 0.72,
-      256
-    );
-
-    let union = polygonClipping.union(notchCircle, railRect, fieldRect, diagonalOval);
-
-    const clipX = radius + railExtension;
-    const clipZ = radius + fieldExtension;
-    const clip = [[[
-      [cx, cz],
-      [cx + dirX * clipX, cz],
-      [cx + dirX * clipX, cz + dirZ * clipZ * 0.58],
-      [cx + dirX * clipX * 0.62, cz + dirZ * clipZ],
-      [cx, cz + dirZ * clipZ],
-      [cx, cz]
-    ]]];
-    union = polygonClipping.intersection(union, clip);
-
+    const x1 = cx;
+    const x2 = cx + sx * cornerChamfer;
+    const z1 = cz - sz * cornerChamfer;
+    const z2 = cz + sz * cornerChamfer;
+    const boxX = boxPoly(Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2));
+    const x3 = cx - sx * cornerChamfer;
+    const x4 = cx + sx * cornerChamfer;
+    const z3 = cz;
+    const z4 = cz + sz * cornerChamfer;
+    const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
+    const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
+    const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
     const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
-    if (wedgeDepth > MICRO_EPS) {
-      const wedge = [[[
-        [cx, cz],
-        [cx - sx * wedgeDepth, cz],
-        [cx, cz - sz * wedgeDepth],
-        [cx, cz]
-      ]]];
-      union = polygonClipping.union(union, wedge);
-    }
+    const unionParts = [notchCircle, boxX, boxZ];
+    if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
+      const filletRadius =
+        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
+      const fillet = cornerFieldFilletPoly(cx, cz, sx, sz, filletRadius);
+      if (fillet) {
+        unionParts.push(fillet);
+      } else {
+        unionParts.push([
+          [
+            [cx, cz],
+            [cx + sx * fieldClipWidth, cz],
+            [cx, cz + sz * fieldClipDepth],
+            [cx, cz]
+          ]
+        ]);
+      }
 
+      const cleanupRadius =
+        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_CLEANUP_SCALE;
+      if (cleanupRadius > filletRadius + MICRO_EPS) {
+        const cleanupFillet = cornerFieldFilletPoly(cx, cz, sx, sz, cleanupRadius);
+        if (cleanupFillet) {
+          unionParts.push(cleanupFillet);
+        }
+      }
+    }
+    if (wedgeDepth > MICRO_EPS) {
+      unionParts.push([
+        [
+          [cx, cz],
+          [cx - sx * wedgeDepth, cz],
+          [cx, cz - sz * wedgeDepth],
+          [cx, cz]
+        ]
+      ]);
+    }
+    const union = polygonClipping.union(...unionParts);
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
@@ -4524,35 +4431,32 @@ function Table3D(
   };
 
   const sideNotchMP = (sx) => {
-    const dirX = -sx;
     const cx = sx * sidePocketCenterX;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
-    const railExtension = radius * (1 + Math.max(0, CHROME_SIDE_NOTCH_THROAT_SCALE));
-    const shoulderHeight = radius * 2.1 * CHROME_SIDE_NOTCH_HEIGHT_SCALE;
-    const shoulderRadius = Math.max(MICRO_EPS, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE);
-
-    const circle = circlePoly(cx, 0, radius, 320);
-    const railRect = roundedRectPoly(
-      cx + (dirX * railExtension) / 2,
+    const throatLength = Math.max(0, radius * CHROME_SIDE_NOTCH_THROAT_SCALE);
+    const throatHeight = Math.max(0, radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE);
+    const throatRadius = Math.max(
       0,
-      radius + railExtension,
-      shoulderHeight,
-      shoulderRadius,
-      256
+      Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
-    let union = polygonClipping.union(circle, railRect);
+    const circle = circlePoly(cx, 0, radius, 256);
+    const useThroat =
+      throatLength > MICRO_EPS && throatHeight > MICRO_EPS && throatRadius > MICRO_EPS;
 
-    const clipHalfHeight = shoulderHeight * 0.52;
-    const clip = [[[
-      [cx - dirX * radius * 0.45, -clipHalfHeight],
-      [cx + dirX * (radius + railExtension), -clipHalfHeight * 0.78],
-      [cx + dirX * (radius + railExtension), clipHalfHeight * 0.78],
-      [cx - dirX * radius * 0.45, clipHalfHeight],
-      [cx - dirX * radius * 0.45, -clipHalfHeight]
-    ]]];
-    union = polygonClipping.intersection(union, clip);
+    if (!useThroat) {
+      return adjustSideNotchDepth(circle);
+    }
 
+    const throat = roundedRectPoly(
+      cx + (sx * throatLength) / 2,
+      0,
+      Math.abs(throatLength),
+      throatHeight,
+      throatRadius,
+      192
+    );
+    const union = polygonClipping.union(circle, throat);
     return adjustSideNotchDepth(union);
   };
 
