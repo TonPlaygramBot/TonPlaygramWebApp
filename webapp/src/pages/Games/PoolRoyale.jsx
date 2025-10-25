@@ -236,10 +236,11 @@ const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9;
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0.85; // carve a rounded fillet into the inner chrome corner
+const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.12; // add an extra rounded bite to clear any lingering chrome inside the pocket
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.045;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // keep chrome arcs identical to the master pocket cut
-const CHROME_CORNER_WIDTH_SCALE = 0.96;
-const CHROME_CORNER_HEIGHT_SCALE = 0.96;
+const CHROME_CORNER_WIDTH_SCALE = 0.965;
+const CHROME_CORNER_HEIGHT_SCALE = 0.965;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -4388,6 +4389,15 @@ function Table3D(
             [cx, cz]
           ]
         ]);
+      }
+
+      const cleanupRadius =
+        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_CLEANUP_SCALE;
+      if (cleanupRadius > filletRadius + MICRO_EPS) {
+        const cleanupFillet = cornerFieldFilletPoly(cx, cz, sx, sz, cleanupRadius);
+        if (cleanupFillet) {
+          unionParts.push(cleanupFillet);
+        }
       }
     }
     if (wedgeDepth > MICRO_EPS) {
