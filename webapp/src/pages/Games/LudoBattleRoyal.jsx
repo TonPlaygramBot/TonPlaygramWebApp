@@ -74,6 +74,7 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(225)
 ];
 const AI_ROLL_DELAY_MS = 2000;
+const AI_EXTRA_TURN_DELAY_MS = 1100;
 const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 2000;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -1291,7 +1292,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     turn: 0,
     status: 'Your turn — dice rolling soon',
     dice: null,
-    winner: null
+    winner: null,
+    turnCycle: 0
   });
 
   const playerColorsHex = useMemo(
@@ -2726,10 +2728,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
       updated = true;
+      const status =
+        nextTurn === 0
+          ? extraTurn
+            ? 'You rolled a 6 — rolling again'
+            : 'Your turn — dice rolling soon'
+          : extraTurn
+          ? `${COLOR_NAMES[nextTurn]} rolled a 6 — rolling again`
+          : `${COLOR_NAMES[nextTurn]} to roll`;
       return {
         ...s,
         turn: nextTurn,
-        status: nextTurn === 0 ? 'Your turn — dice rolling soon' : `${COLOR_NAMES[nextTurn]} to roll`
+        turnCycle: (s.turnCycle ?? 0) + 1,
+        status
       };
     });
     if (!updated) {
@@ -2750,7 +2761,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       }
     } else {
       clearHumanRollTimeout();
-      queueAiRoll();
+      const delay = extraTurn ? AI_EXTRA_TURN_DELAY_MS : AI_ROLL_DELAY_MS;
+      queueAiRoll(delay);
     }
   };
 
@@ -2914,7 +2926,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         aiTimeoutRef.current = null;
       }
     };
-  }, [ui.turn, ui.winner, queueAiRoll]);
+  }, [ui.turn, ui.turnCycle, ui.winner, queueAiRoll]);
 
   return (
     <div
