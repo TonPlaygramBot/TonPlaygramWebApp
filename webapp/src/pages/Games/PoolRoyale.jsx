@@ -228,7 +228,7 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.12;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.18;
 const CHROME_CORNER_EXPANSION_SCALE = 1.035; // widen the corner plate reach a touch more
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.085; // push the short-rail chrome edge farther so it lines up with the marked trim
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
@@ -238,11 +238,11 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0.85; // carve a rounded fillet into the inner chrome corner
 const CHROME_CORNER_FIELD_CLEANUP_SCALE = 1.2; // add an extra rounded bite to clear any lingering chrome inside the pocket
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // keep chrome arcs identical to the master pocket cut
-const CHROME_CORNER_WIDTH_SCALE = 1;
-const CHROME_CORNER_HEIGHT_SCALE = 1;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // match the snooker notch expansion to clear stray chrome slivers
+const CHROME_CORNER_WIDTH_SCALE = 1.1;
+const CHROME_CORNER_HEIGHT_SCALE = 1.1;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
-const CHROME_CORNER_CENTER_PUSH_SCALE = 0.16; // slide corner chrome plates farther from centre without disturbing the pocket arch
+const CHROME_CORNER_CENTER_PUSH_SCALE = 0.24; // slide corner chrome plates farther from centre without disturbing the pocket arch
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
