@@ -238,8 +238,8 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.42;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0.98; // carve a rounded fillet into the inner chrome corner
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.01; // grow the inner cut slightly so no chrome lip creeps onto the cloth
-const CHROME_CORNER_WIDTH_SCALE = 0.97;
-const CHROME_CORNER_HEIGHT_SCALE = 0.97;
+const CHROME_CORNER_WIDTH_SCALE = 1.01;
+const CHROME_CORNER_HEIGHT_SCALE = 1.02;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -248,10 +248,11 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 0.97; // narrow the mid-rail chrome so the field edge clears the cloth cut
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.08;
+const CHROME_PLATE_THICKNESS_SCALE = 0.18; // extend the chrome deeper so it blankets the wood pocket relief
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // let the mid-rail chrome reach the pocket edge and blanket the rail cuts
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.16;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.085; // push the mid-rail plate back from the playing surface
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.02;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
@@ -4155,7 +4156,7 @@ function Table3D(
   );
   const verticalCushionCenter = sidePocketReach + verticalCushionLength / 2;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
+  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
