@@ -125,7 +125,7 @@ const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#f4f4f5');
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12;
 
-const CAMERA_FOLLOW_MIN_TILE = 2;
+const CAMERA_FOLLOW_MIN_TILE = Infinity;
 
 const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
@@ -303,7 +303,19 @@ function addPavementLayer(parent, size, thickness, bottomY, meshes) {
   return pavement;
 }
 
-function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth, gapCenter = 0 }, meshes) {
+function addChromeRailings(
+  parent,
+  {
+    halfSize,
+    topY,
+    railHeight,
+    gapWidth,
+    gapCenter = 0,
+    entrySide = 'front',
+    addNet = false
+  },
+  meshes
+) {
   const created = [];
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xf3f4f6,
@@ -313,28 +325,32 @@ function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth, gapCe
     clearcoatRoughness: 0.12,
     envMapIntensity: 1.1
   });
-  const gapHalf = Math.min(halfSize * 0.92, gapWidth / 2);
   const walkwayDepth = Math.min(halfSize, RAIL_WALKWAY_DEPTH);
   const lowerY = topY + TILE_SIZE * 0.05;
   const upperY = lowerY + railHeight;
 
-  let gapLeft = gapCenter - gapHalf;
-  let gapRight = gapCenter + gapHalf;
-  if (gapLeft < -halfSize) {
-    const shift = -halfSize - gapLeft;
-    gapLeft += shift;
-    gapRight += shift;
+  const entryAxis = entrySide === 'front' || entrySide === 'back' ? 'x' : 'z';
+  const axisMin = -halfSize;
+  const axisMax = halfSize;
+  const gapHalf = Math.min(halfSize * 0.92, gapWidth / 2);
+  let entryCenter = clamp(gapCenter, axisMin, axisMax);
+  let entryMin = entryCenter - gapHalf;
+  let entryMax = entryCenter + gapHalf;
+  if (entryMin < axisMin) {
+    const shift = axisMin - entryMin;
+    entryMin += shift;
+    entryMax += shift;
   }
-  if (gapRight > halfSize) {
-    const shift = gapRight - halfSize;
-    gapLeft -= shift;
-    gapRight -= shift;
+  if (entryMax > axisMax) {
+    const shift = entryMax - axisMax;
+    entryMin -= shift;
+    entryMax -= shift;
   }
   const minGap = TILE_SIZE * 0.35;
-  if (gapRight - gapLeft < minGap) {
-    const center = (gapLeft + gapRight) / 2;
-    gapLeft = clamp(center - minGap / 2, -halfSize, halfSize);
-    gapRight = clamp(center + minGap / 2, -halfSize, halfSize);
+  if (entryMax - entryMin < minGap) {
+    const center = (entryMin + entryMax) / 2;
+    entryMin = clamp(center - minGap / 2, axisMin, axisMax);
+    entryMax = clamp(center + minGap / 2, axisMin, axisMax);
   }
 
   const addMesh = (mesh) => {
@@ -391,46 +407,142 @@ function addChromeRailings(parent, { halfSize, topY, railHeight, gapWidth, gapCe
   const leftX = -halfSize;
   const rightX = halfSize;
 
-  addRailPair(new THREE.Vector3(-halfSize, 0, frontZ), new THREE.Vector3(gapLeft, 0, frontZ));
-  addRailPair(new THREE.Vector3(gapRight, 0, frontZ), new THREE.Vector3(halfSize, 0, frontZ));
-  addRailPair(new THREE.Vector3(-halfSize, 0, backZ), new THREE.Vector3(gapLeft, 0, backZ));
-  addRailPair(new THREE.Vector3(gapRight, 0, backZ), new THREE.Vector3(halfSize, 0, backZ));
-  addRailPair(new THREE.Vector3(leftX, 0, backZ), new THREE.Vector3(leftX, 0, frontZ));
-  addRailPair(new THREE.Vector3(rightX, 0, backZ), new THREE.Vector3(rightX, 0, frontZ));
+  const addNetPanel = (side, startCoord, endCoord) => {
+    if (!addNet) return;
+    const length = Math.abs(endCoord - startCoord);
+    const height = Math.max(0, upperY - topY);
+    if (length < 1e-4 || height < 1e-4) return;
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(length, height), createRailNetMaterial());
+    net.castShadow = false;
+    net.receiveShadow = false;
+    net.position.y = topY + height / 2;
+    switch (side) {
+      case 'front':
+        net.position.x = (startCoord + endCoord) / 2;
+        net.position.z = frontZ - RAIL_RADIUS * 0.3;
+        net.rotation.y = Math.PI;
+        break;
+      case 'back':
+        net.position.x = (startCoord + endCoord) / 2;
+        net.position.z = backZ + RAIL_RADIUS * 0.3;
+        break;
+      case 'left':
+        net.position.x = leftX + RAIL_RADIUS * 0.3;
+        net.position.z = (startCoord + endCoord) / 2;
+        net.rotation.y = Math.PI / 2;
+        break;
+      case 'right':
+        net.position.x = rightX - RAIL_RADIUS * 0.3;
+        net.position.z = (startCoord + endCoord) / 2;
+        net.rotation.y = -Math.PI / 2;
+        break;
+      default:
+        break;
+    }
+    addMesh(net);
+  };
+
+  const axisToVector = (side, coord) => {
+    switch (side) {
+      case 'front':
+        return new THREE.Vector3(coord, 0, frontZ);
+      case 'back':
+        return new THREE.Vector3(coord, 0, backZ);
+      case 'left':
+        return new THREE.Vector3(leftX, 0, coord);
+      case 'right':
+        return new THREE.Vector3(rightX, 0, coord);
+      default:
+        return new THREE.Vector3(coord, 0, 0);
+    }
+  };
+
+  const buildSegments = (side) => {
+    const axis = side === 'front' || side === 'back' ? 'x' : 'z';
+    const min = -halfSize;
+    const max = halfSize;
+    if (side !== entrySide) {
+      return [[min, max]];
+    }
+    if (axis !== entryAxis) {
+      return [[min, max]];
+    }
+    const segments = [];
+    if (entryMin > min) segments.push([min, entryMin]);
+    if (entryMax < max) segments.push([entryMax, max]);
+    return segments;
+  };
+
+  const addSide = (side) => {
+    buildSegments(side).forEach(([startCoord, endCoord]) => {
+      const minCoord = Math.min(startCoord, endCoord);
+      const maxCoord = Math.max(startCoord, endCoord);
+      if (maxCoord - minCoord < 1e-4) return;
+      const start = axisToVector(side, minCoord);
+      const end = axisToVector(side, maxCoord);
+      addRailPair(start, end);
+      addNetPanel(side, minCoord, maxCoord);
+      addPost(start.x, start.z);
+      addPost(end.x, end.z);
+    });
+  };
+
+  addSide('front');
+  addSide('back');
+  addSide('left');
+  addSide('right');
 
   const walkwayReach = Math.max(0, walkwayDepth);
-  if (walkwayReach > 0) {
-    const innerFront = frontZ - walkwayReach;
-    const innerBack = backZ + walkwayReach;
-    addRailPair(new THREE.Vector3(gapLeft, 0, frontZ), new THREE.Vector3(gapLeft, 0, innerFront));
-    addRailPair(new THREE.Vector3(gapRight, 0, frontZ), new THREE.Vector3(gapRight, 0, innerFront));
-    addRailPair(new THREE.Vector3(gapLeft, 0, backZ), new THREE.Vector3(gapLeft, 0, innerBack));
-    addRailPair(new THREE.Vector3(gapRight, 0, backZ), new THREE.Vector3(gapRight, 0, innerBack));
+  if (walkwayReach > 0 && entrySide) {
+    const directionMap = {
+      front: new THREE.Vector3(0, 0, -1),
+      back: new THREE.Vector3(0, 0, 1),
+      left: new THREE.Vector3(1, 0, 0),
+      right: new THREE.Vector3(-1, 0, 0)
+    };
+    const dir = directionMap[entrySide]?.clone();
+    if (dir && dir.lengthSq() > 1e-6) {
+      dir.normalize();
+      const entryCoords = [entryMin, entryMax];
+      entryCoords.forEach((coord) => {
+        const start = axisToVector(entrySide, coord);
+        const end = start.clone().addScaledVector(dir, walkwayReach);
+        addRailPair(start, end);
+        addPost(end.x, end.z);
+      });
+    }
   }
-
-  const postPoints = [
-    [-halfSize, frontZ],
-    [halfSize, frontZ],
-    [-halfSize, backZ],
-    [halfSize, backZ],
-    [gapLeft, frontZ],
-    [gapRight, frontZ],
-    [gapLeft, backZ],
-    [gapRight, backZ]
-  ];
-
-  if (walkwayReach > 0) {
-    postPoints.push(
-      [gapLeft, frontZ - walkwayReach],
-      [gapRight, frontZ - walkwayReach],
-      [gapLeft, backZ + walkwayReach],
-      [gapRight, backZ + walkwayReach]
-    );
-  }
-
-  postPoints.forEach(([x, z]) => addPost(x, z));
 
   return created;
+}
+
+function getRailingEntryConfig(levelIndex, indexToPosition) {
+  if (levelIndex <= 0) {
+    return { side: 'front', axis: 'x', center: null };
+  }
+  const stairInfo = STAIR_CONNECTIONS[levelIndex - 1];
+  if (!stairInfo) {
+    return { side: 'front', axis: 'x', center: null };
+  }
+  const fromPos = indexToPosition.get(stairInfo.from);
+  const toPos = indexToPosition.get(stairInfo.to);
+  if (!fromPos || !toPos) {
+    return { side: 'front', axis: 'x', center: null };
+  }
+  const dx = toPos.x - fromPos.x;
+  const dz = toPos.z - fromPos.z;
+  if (Math.abs(dx) >= Math.abs(dz)) {
+    return {
+      side: dx >= 0 ? 'right' : 'left',
+      axis: 'z',
+      center: toPos.z
+    };
+  }
+  return {
+    side: dz >= 0 ? 'front' : 'back',
+    axis: 'x',
+    center: toPos.x
+  };
 }
 
 function addWallStaircase(
@@ -1407,6 +1519,66 @@ function makeRailTexture() {
   return tex;
 }
 
+let railNetTextureCache = null;
+
+function getRailNetTexture() {
+  if (railNetTextureCache) return railNetTextureCache;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+  ctx.lineWidth = 2;
+  const spacing = 16;
+  for (let i = 0; i <= c.width; i += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(i + 0.5, 0);
+    ctx.lineTo(i + 0.5, c.height);
+    ctx.stroke();
+  }
+  for (let j = 0; j <= c.height; j += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(0, j + 0.5);
+    ctx.lineTo(c.width, j + 0.5);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= c.width; i += spacing / 2) {
+    ctx.beginPath();
+    ctx.moveTo(i + 0.5, 0);
+    ctx.lineTo(i + 0.5, c.height);
+    ctx.stroke();
+  }
+  for (let j = 0; j <= c.height; j += spacing / 2) {
+    ctx.beginPath();
+    ctx.moveTo(0, j + 0.5);
+    ctx.lineTo(c.width, j + 0.5);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 3);
+  tex.anisotropy = 4;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  railNetTextureCache = tex;
+  return tex;
+}
+
+function createRailNetMaterial() {
+  return new THREE.MeshStandardMaterial({
+    map: getRailNetTexture(),
+    color: 0xf8fafc,
+    roughness: 0.68,
+    metalness: 0.18,
+    transparent: true,
+    opacity: 0.58,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+}
+
 function makeSnakeTexture() {
   const c = document.createElement('canvas');
   c.width = 256;
@@ -1844,7 +2016,15 @@ function buildSnakeBoard(
   railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
     const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
     const startPos = indexToPosition.get(startIndex);
-    const gapCenter = startPos ? startPos.x : walkwayCenter;
+    const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
+    let gapCenter;
+    if (entryConfig.center != null) {
+      gapCenter = entryConfig.center;
+    } else if (startPos) {
+      gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
+    } else {
+      gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
+    }
     addChromeRailings(
       platformGroup,
       {
@@ -1852,7 +2032,9 @@ function buildSnakeBoard(
         topY,
         railHeight: RAIL_HEIGHT,
         gapWidth,
-        gapCenter
+        gapCenter,
+        entrySide: entryConfig.side,
+        addNet: levelIndex > 0
       },
       platformMeshes
     );
