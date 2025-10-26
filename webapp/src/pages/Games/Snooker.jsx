@@ -211,7 +211,6 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along 
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
 const CHROME_CORNER_WIDTH_SCALE = 0.99; // gently shrink chrome plates along the long rails
 const CHROME_CORNER_HEIGHT_SCALE = 0.99; // gently shrink chrome plates along the short rails
-const DISABLE_CORNER_FIELD_TRIANGLE = true;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
@@ -4102,7 +4101,7 @@ function Table3D(
         ]
       ]);
     }
-    if (wedgeDepth > MICRO_EPS && !DISABLE_CORNER_FIELD_TRIANGLE) {
+    if (wedgeDepth > MICRO_EPS) {
       unionParts.push([
         [
           [cx, cz],
