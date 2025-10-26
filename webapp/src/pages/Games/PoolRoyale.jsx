@@ -229,19 +229,19 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CORNER_POCKET_SCALE_BOOST = 1; // keep corner pocket scale identical to the 3D Snooker build
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // align notch centre offset with Snooker chrome
 const CHROME_CORNER_EXPANSION_SCALE = 1.02; // match the snooker corner plate reach exactly
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // mirror the snooker three-dimensional chrome fit
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0; // retain snooker chrome trim depth
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // remove the triangular wedge so the chrome hugs the pocket arc
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0; // eliminate extra field pull to keep the cloth cut seamless
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // mirror Snooker field trim so the chrome clears the rail chamfer
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim to the same depth used by the Snooker reference build
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // reuse Snooker notch expansion so the chrome hugs the pocket arcs identically
 const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate mirrors snooker proportions
-const CHROME_CORNER_WIDTH_SCALE = 0.975;
-const CHROME_CORNER_HEIGHT_SCALE = 0.975;
+const CHROME_CORNER_WIDTH_SCALE = 0.99;
+const CHROME_CORNER_HEIGHT_SCALE = 0.99;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -258,10 +258,9 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.96; // base relief trim keeps the wood cuts tucked under the chrome plates
-const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
-  1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // share chrome pocket arcs directly before applying Snooker-specific trims
+const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE = 0.993; // corner wood arches now match the Snooker trim inset
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.995; // side rail relief mirrors the Snooker side cut tightening
 
 function buildChromePlateGeometry({
   width,
@@ -1358,7 +1357,9 @@ const toHexColor = (value) => {
   return value ?? '#ffffff';
 };
 
-const ORIGINAL_RAIL_WIDTH = TABLE.WALL * 0.7;
+const SNOOKER_TABLE_SCALE = 2.85;
+const SNOOKER_RAIL_WIDTH = 2.6 * SNOOKER_TABLE_SCALE * 0.7;
+const ORIGINAL_RAIL_WIDTH = SNOOKER_RAIL_WIDTH; // widen Pool Royale rails to the full Snooker profile
 const ORIGINAL_FRAME_WIDTH = ORIGINAL_RAIL_WIDTH * 2.5;
 const ORIGINAL_OUTER_HALF_W =
   ORIGINAL_HALF_W + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
