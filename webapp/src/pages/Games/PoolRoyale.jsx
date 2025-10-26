@@ -524,7 +524,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
 const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
 const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
-const SIDE_RAIL_INNER_REDUCTION = 0.8;
+const SIDE_RAIL_INNER_REDUCTION = 0.74; // thicken the wooden rails so the cloth footprint tightens slightly
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
@@ -830,7 +830,7 @@ const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
 const DEFAULT_CUSHION_CUT_ANGLE = 31;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.1; // keep cushions hugging the newly expanded rails toward centre
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
