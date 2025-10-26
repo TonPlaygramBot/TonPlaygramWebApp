@@ -13,7 +13,7 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
       corner: 171.45,
       side: 152.4
     }),
-    cushionCutAngleDeg: 32,
+    cushionCutAngleDeg: 35,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
 });
