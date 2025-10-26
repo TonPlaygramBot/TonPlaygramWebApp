@@ -231,29 +231,29 @@ const CORNER_POCKET_SCALE_BOOST = 1.1; // widen the four corner pockets while le
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
 const CHROME_CORNER_EXPANSION_SCALE = 1.045; // widen the corner plate reach a touch more
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.1; // push the short-rail chrome edge farther so it lines up with the marked trim
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0.045; // shave extra chrome from the cloth-facing edge to keep the pocket clean
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.065; // push the short-rail chrome edge farther so it lines up with the marked trim
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0.12; // shave extra chrome from the cloth-facing edge to keep the pocket clean
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 1.32;
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.42;
-const CHROME_CORNER_FIELD_FILLET_SCALE = 0.98; // carve a rounded fillet into the inner chrome corner
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 2.2;
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 2.05;
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0.68; // carve a rounded fillet into the inner chrome corner
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.36; // stretch the chrome fascia deeper so it fully reaches the pocket liner
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.01; // grow the inner cut slightly so no chrome lip creeps onto the cloth
-const CHROME_CORNER_WIDTH_SCALE = 0.97;
-const CHROME_CORNER_HEIGHT_SCALE = 0.99;
+const CHROME_CORNER_WIDTH_SCALE = 0.963;
+const CHROME_CORNER_HEIGHT_SCALE = 0.985;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.012; // shave a slim band from both rail-facing edges so the chrome lands flush with the cushions
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 1;
-const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.78;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.9;
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 0.76;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.32; // drop the chrome farther so the plates wrap the full pocket depth
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.08; // stretch the mid-rail chrome to hug the pocket edge with no visible gap
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.24; // lengthen the mid-rail fascia so it continues down toward the pocket throat
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.085; // push the mid-rail plate back from the playing surface
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.02;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.02; // stretch the mid-rail chrome to hug the pocket edge with no visible gap
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.02; // lengthen the mid-rail fascia so it continues down toward the pocket throat
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.11; // push the mid-rail plate back from the playing surface
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.008;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
@@ -4314,43 +4314,6 @@ function Table3D(
     }
     return [[pts]];
   };
-  const cornerFieldFilletPoly = (cx, cz, sx, sz, radius, segments = 64) => {
-    if (radius <= MICRO_EPS) {
-      return null;
-    }
-    const axisXAngle = sx > 0 ? 0 : Math.PI;
-    const axisZAngle = sz > 0 ? Math.PI / 2 : -Math.PI / 2;
-    let startAngle = axisXAngle;
-    let endAngle = axisZAngle;
-    let sweep = endAngle - startAngle;
-    if (sweep <= 0) {
-      endAngle += Math.PI * 2;
-      sweep = endAngle - startAngle;
-    }
-    if (sweep > Math.PI) {
-      startAngle = axisZAngle;
-      endAngle = axisXAngle;
-      sweep = endAngle - startAngle;
-      if (sweep <= 0) {
-        endAngle += Math.PI * 2;
-        sweep = endAngle - startAngle;
-      }
-    }
-    if (sweep <= MICRO_EPS) {
-      return null;
-    }
-    const steps = Math.max(2, Math.ceil((segments * Math.abs(sweep)) / (Math.PI / 2)));
-    const pts = [[cx, cz]];
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const angle = startAngle + sweep * t;
-      const x = cx + Math.cos(angle) * radius;
-      const z = cz + Math.sin(angle) * radius;
-      pts.push([x, z]);
-    }
-    pts.push([cx, cz]);
-    return [[pts]];
-  };
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
@@ -4378,19 +4341,17 @@ function Table3D(
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
       const filletRadius =
         Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
-      const fillet = cornerFieldFilletPoly(cx, cz, sx, sz, filletRadius);
-      if (fillet) {
-        unionParts.push(fillet);
-      } else {
-        unionParts.push([
-          [
-            [cx, cz],
-            [cx + sx * fieldClipWidth, cz],
-            [cx, cz + sz * fieldClipDepth],
-            [cx, cz]
-          ]
-        ]);
-      }
+      const trimCenterX = cx - (sx * fieldClipWidth) / 2;
+      const trimCenterZ = cz - (sz * fieldClipDepth) / 2;
+      const fieldTrim = roundedRectPoly(
+        trimCenterX,
+        trimCenterZ,
+        Math.abs(fieldClipWidth),
+        Math.abs(fieldClipDepth),
+        filletRadius,
+        192
+      );
+      unionParts.push(fieldTrim);
     }
     if (wedgeDepth > MICRO_EPS) {
       unionParts.push([
