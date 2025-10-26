@@ -256,6 +256,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.4; // identical span factor used b
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94; // match snooker fascia drop
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06; // identical center trim depth to snooker
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
+const CHROME_PLATE_CENTER_OFFSET_SCALE = 0.06; // pull chrome plates farther from the table center for even rail spacing
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
@@ -4472,14 +4473,17 @@ function Table3D(
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
   // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
+  const chromePlateCenterOffset = TABLE.THICK * CHROME_PLATE_CENTER_OFFSET_SCALE;
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
-    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
+    const centerX =
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromePlateCenterOffset);
+    const centerZ =
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromePlateCenterOffset);
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
     const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
     const notchLocalMP = notchMP.map((poly) =>
@@ -4510,7 +4514,8 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX =
+      sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + chromePlateCenterOffset);
     const centerZ = 0;
     const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
     const notchLocalMP = notchMP.map((poly) =>
