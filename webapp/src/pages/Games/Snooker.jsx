@@ -515,6 +515,8 @@ const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
+const CORNER_POCKET_CENTER_INSET =
+  POCKET_VIS_R * 0.64 * POCKET_VISUAL_EXPANSION; // pull chrome plates, jaws, and rims further onto the cloth
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -2790,10 +2792,22 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
 }
 
 const pocketCenters = () => [
-  new THREE.Vector2(-PLAY_W / 2, -PLAY_H / 2),
-  new THREE.Vector2(PLAY_W / 2, -PLAY_H / 2),
-  new THREE.Vector2(-PLAY_W / 2, PLAY_H / 2),
-  new THREE.Vector2(PLAY_W / 2, PLAY_H / 2),
+  new THREE.Vector2(
+    -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
+    -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
+    -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
+    PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
+    PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
+  ),
   new THREE.Vector2(-PLAY_W / 2, 0),
   new THREE.Vector2(PLAY_W / 2, 0)
 ];
@@ -3985,7 +3999,7 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = POCKET_VIS_R * 0.58 * POCKET_VISUAL_EXPANSION;
+  const cornerInset = CORNER_POCKET_CENTER_INSET;
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
