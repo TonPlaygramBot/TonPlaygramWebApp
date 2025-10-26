@@ -573,6 +573,8 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.24 * POCKET_VISUAL_EXPANSION; // shift the corner pocket centres, chrome arches, wood relief, jaws, and rims further inboard per refreshed Pool Royale spec
+const CORNER_POCKET_CENTER_PULL_RATIO = 0.2; // pull Pool Royale corner hardware 20% closer to the table centre per mobile art request
+const CUSHION_CENTER_PULL_RATIO = 0.2; // slide all six green cushions 20% toward the cloth centre without altering their profile
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
@@ -4103,7 +4105,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = 0; // keep cushions flush with the rail like the snooker layout
+  const CUSHION_CENTER_NUDGE = halfH * CUSHION_CENTER_PULL_RATIO; // draw Pool Royale cushions 20% toward centre per art brief
   const SIDE_CUSHION_RAIL_REACH = 0; // snooker rails do not extend beyond the chrome, so no additional reach is required
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
@@ -4122,8 +4124,9 @@ function Table3D(
 
   // Derive exact cushion extents from the chrome pocket arcs so the rails stop
   // precisely where each pocket begins.
-  const cornerCenterX = innerHalfW - cornerInset;
-  const cornerCenterZ = innerHalfH - cornerInset;
+  const cornerCenterPull = 1 - CORNER_POCKET_CENTER_PULL_RATIO;
+  const cornerCenterX = (innerHalfW - cornerInset) * cornerCenterPull;
+  const cornerCenterZ = (innerHalfH - cornerInset) * cornerCenterPull;
   const cornerLineX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cornerLineZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cornerDeltaX = cornerLineX - cornerCenterX;
@@ -4355,8 +4358,8 @@ function Table3D(
   const ringArea = (ring) => signedRingArea(ring);
 
   const cornerNotchMP = (sx, sz) => {
-    const cx = sx * (innerHalfW - cornerInset);
-    const cz = sz * (innerHalfH - cornerInset);
+    const cx = sx * cornerCenterX;
+    const cz = sz * cornerCenterZ;
     const notchCircle = circlePoly(
       cx,
       cz,
@@ -4846,10 +4849,7 @@ function Table3D(
       { sx: 1, sz: -1 }
     ].forEach(({ sx, sz }) => {
       const baseMP = cornerNotchMP(sx, sz);
-      const fallbackCenter = new THREE.Vector2(
-        sx * (innerHalfW - cornerInset),
-        sz * (innerHalfH - cornerInset)
-      );
+      const fallbackCenter = new THREE.Vector2(sx * cornerCenterX, sz * cornerCenterZ);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
