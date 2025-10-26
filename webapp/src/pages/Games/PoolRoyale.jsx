@@ -242,6 +242,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015; // identical chrome cut growt
 const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate mirrors snooker proportions
 const CHROME_CORNER_WIDTH_SCALE = 0.975;
 const CHROME_CORNER_HEIGHT_SCALE = 0.975;
+const DISABLE_CORNER_FIELD_TRIANGLE = true;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -4393,7 +4394,7 @@ function Table3D(
         ]);
       }
     }
-    if (wedgeDepth > MICRO_EPS) {
+    if (wedgeDepth > MICRO_EPS && !DISABLE_CORNER_FIELD_TRIANGLE) {
       unionParts.push([
         [
           [cx, cz],
