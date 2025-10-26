@@ -227,7 +227,7 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CORNER_POCKET_SCALE_BOOST = 1.06; // widen the four corner pockets while letting every dependent mesh follow suit
+const CORNER_POCKET_SCALE_BOOST = 1.1; // widen the four corner pockets while letting every dependent mesh follow suit
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
 const CHROME_CORNER_EXPANSION_SCALE = 1.045; // widen the corner plate reach a touch more
