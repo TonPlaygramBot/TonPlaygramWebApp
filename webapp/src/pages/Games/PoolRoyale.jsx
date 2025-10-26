@@ -573,7 +573,7 @@ const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // shift the corner pocket centres, chrome arches, wood relief, jaws, and rims further inboard per refreshed Pool Royale spec
+  POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // shift the corner pocket centres, chrome arches, wood relief, jaws, and rims further inboard per refreshed Pool Royale spec (extra inset per latest request)
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
