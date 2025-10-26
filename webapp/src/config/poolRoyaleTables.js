@@ -4,6 +4,23 @@ const BASE_TABLE_COMPACT_SCALE = 1.44;
 const BASE_PLAYFIELD_WIDTH_MM = 2540; // WPA 9 ft playing surface width (100")
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
+  '9ft': {
+    id: '9ft',
+    label: '9 ft (Tournament)',
+    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // 100" × 50"
+    ballDiameterMm: 57.15,
+    pocketMouthMm: Object.freeze({
+      corner: 114.3,
+      side: 127
+    }),
+    cushionCutAngleDeg: 35,
+    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
+    scaleOverrides: Object.freeze({
+      scale: 1.56,
+      mobileScale: 1.72,
+      compactScale: 1.48
+    })
+  },
   '8ft': {
     id: '8ft',
     label: '8 ft',
@@ -56,7 +73,7 @@ export const TABLE_SIZE_OPTIONS = Object.freeze(
   }, {})
 );
 
-export const DEFAULT_TABLE_SIZE_ID = '8ft';
+export const DEFAULT_TABLE_SIZE_ID = '9ft';
 
 export function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
