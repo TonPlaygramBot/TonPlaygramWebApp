@@ -831,7 +831,7 @@ const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
 const DEFAULT_CUSHION_CUT_ANGLE = 31;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.1; // keep cushions hugging the newly expanded rails toward centre
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // let the playable face creep further inward with the cushion shift
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -4104,7 +4104,9 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.06; // pull the six green cushion segments slightly toward centre without changing their profile
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.075; // pull the six green cushion segments slightly toward centre without changing their profile
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.02; // trim the remaining corner gap so cushions reach further into each pocket
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.015; // extend the side cushions toward the pocket arches a hair more
   const SIDE_CUSHION_RAIL_REACH = 0; // snooker rails do not extend beyond the chrome, so no additional reach is required
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
@@ -4139,9 +4141,13 @@ function Table3D(
   const cornerIntersectionZ = cornerCenterZ - cornerReachZ;
   const cornerCushionClearanceX = Math.max(0, cornerLineX - cornerIntersectionX);
   const cornerCushionClearanceZ = Math.max(0, cornerLineZ - cornerIntersectionZ);
-  const cornerCushionClearance = Math.max(
+  const rawCornerCushionClearance = Math.max(
     cornerCushionClearanceX,
     cornerCushionClearanceZ
+  );
+  const cornerCushionClearance = Math.max(
+    0,
+    rawCornerCushionClearance - CUSHION_CORNER_CLEARANCE_REDUCTION
   );
   const horizontalCushionLength = Math.max(
     MICRO_EPS,
@@ -4153,11 +4159,15 @@ function Table3D(
   const sidePocketReach = Math.sqrt(
     Math.max(sidePocketRadius * sidePocketRadius - sideDeltaX * sideDeltaX, 0)
   );
+  const adjustedSidePocketReach = Math.max(
+    0,
+    sidePocketReach - SIDE_CUSHION_POCKET_REACH_REDUCTION
+  );
   const verticalCushionLength = Math.max(
     MICRO_EPS,
-    Math.max(0, cornerIntersectionZ - sidePocketReach)
+    Math.max(0, cornerIntersectionZ - adjustedSidePocketReach)
   );
-  const verticalCushionCenter = sidePocketReach + verticalCushionLength / 2;
+  const verticalCushionCenter = adjustedSidePocketReach + verticalCushionLength / 2;
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -4169,7 +4179,7 @@ function Table3D(
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromeCornerMeetX = Math.max(0, horizontalCushionLength / 2);
   const chromeCornerMeetZ = Math.max(0, cornerIntersectionZ);
-  const sideChromeMeetZ = Math.max(0, sidePocketReach);
+  const sideChromeMeetZ = Math.max(0, adjustedSidePocketReach);
   const chromePlateExpansionX = Math.max(
     0,
     (chromePlateInnerLimitX - chromeCornerMeetX) * CHROME_CORNER_EXPANSION_SCALE
