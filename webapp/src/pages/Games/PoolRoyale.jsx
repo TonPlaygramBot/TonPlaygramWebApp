@@ -4103,7 +4103,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = 0; // keep cushions flush with the rail like the snooker layout
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.06; // pull the six green cushion segments slightly toward centre without changing their profile
   const SIDE_CUSHION_RAIL_REACH = 0; // snooker rails do not extend beyond the chrome, so no additional reach is required
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
