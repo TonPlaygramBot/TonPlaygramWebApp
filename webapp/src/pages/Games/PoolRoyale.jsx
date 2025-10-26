@@ -572,7 +572,7 @@ const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.12 * POCKET_VISUAL_EXPANSION; // pull the corner pocket centres deeper toward the table middle so the chrome cuts, jaws, and rims sit further inboard per latest spec
+  POCKET_VIS_R * 0.16 * POCKET_VISUAL_EXPANSION; // pull the corner pocket centres even deeper toward the table middle so the chrome cuts, jaws, and rims sit further inboard per latest spec
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
