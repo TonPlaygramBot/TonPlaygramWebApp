@@ -245,7 +245,6 @@ const CHROME_CORNER_HEIGHT_SCALE = 0.975;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
-const CHROME_CORNER_PLATE_OUTWARD_OFFSET_SCALE = 0.42; // push corner chrome trims farther toward the table edges
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82; // align mid-rail chrome throat with snooker
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -4472,19 +4471,14 @@ function Table3D(
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
   // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
-  const chromeCornerOutwardOffset = TABLE.THICK * CHROME_CORNER_PLATE_OUTWARD_OFFSET_SCALE;
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
     { corner: 'topRight', sx: 1, sz: -1 },
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const offsetX = sx * chromeCornerOutwardOffset;
-    const offsetZ = sz * chromeCornerOutwardOffset;
-    const centerX =
-      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset) + offsetX;
-    const centerZ =
-      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset) + offsetZ;
+    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
+    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
     const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
     const notchLocalMP = notchMP.map((poly) =>
