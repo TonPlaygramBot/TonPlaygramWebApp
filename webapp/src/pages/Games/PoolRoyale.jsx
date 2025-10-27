@@ -4106,7 +4106,7 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.088; // pull the six green cushion segments slightly toward centre without changing their profile
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.026; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.022; // extend the side cushions toward the pocket arches while keeping their visual span consistent
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.012; // push the side cushions further into the corner pocket arches while keeping the middle span untouched
   const SIDE_CUSHION_RAIL_REACH = 0; // snooker rails do not extend beyond the chrome, so no additional reach is required
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
