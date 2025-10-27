@@ -229,7 +229,7 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CORNER_POCKET_SCALE_BOOST = 1; // keep corner pocket scale identical to the 3D Snooker build
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 0.985; // pull the corner chrome cut slightly toward the table center
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1;
 const CHROME_CORNER_EXPANSION_SCALE = 1.02; // match the snooker corner plate reach exactly
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // mirror the snooker three-dimensional chrome fit
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0; // retain snooker chrome trim depth
@@ -4112,7 +4112,7 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.012; // tighten the gap so cushions rest almost flush against the wooden rails
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.092; // stretch the green cushions further into the corner pocket throats per new spec
-const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.002; // let the side cushions stretch a touch closer to the middle pockets
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.006; // fine-tune side cushion span so all six rest cleanly between chrome cuts
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.032; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.4; // slide side-rail cushion blocks closer to the corner pockets per Pool Royale brief
   const SHORT_CUSHION_HEIGHT_SCALE = 1.035; // keep short rail cushions level with the others after the lowered profile
