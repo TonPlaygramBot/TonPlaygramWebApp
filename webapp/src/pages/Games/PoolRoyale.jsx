@@ -641,7 +641,7 @@ const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cov
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.032; // drop the cushion lip a little further so it sits perfectly flush with the surrounding rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.052; // drop the cushion lip slightly more so the top aligns with the wooden rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -4105,11 +4105,11 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.048; // keep cushions nearly flush with the wooden rails while leaving a hairline visual gap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.038; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.008; // let the four side cushions stretch closer to the corner pockets without clashing with the chrome cuts
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.024; // seat the side cushions firmly against the rail edge with no visible daylight yet no overlap
-  const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.012; // tighten the gap so cushions rest almost flush against the wooden rails
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.062; // push the corner cushions deeper toward the pockets per new spec
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.006; // fine-tune side cushion span so all six rest cleanly between chrome cuts
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.032; // press the side cushions firmly into the rails without creating overlap
+  const SHORT_CUSHION_HEIGHT_SCALE = 1.035; // keep short rail cushions level with the others after the lowered profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
   const outerCornerRadius =
