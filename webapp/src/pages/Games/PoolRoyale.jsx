@@ -4105,10 +4105,10 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.088; // pull the six green cushion segments slightly toward centre without changing their profile
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.048; // keep cushions nearly flush with the wooden rails while leaving a hairline visual gap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.038; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.022; // extend the side cushions a touch further toward the corner arches (extra inset per latest mobile request)
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.016; // push side cushions fractionally deeper into the rail edge without creating overlap
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.008; // let the four side cushions stretch closer to the corner pockets without clashing with the chrome cuts
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.024; // seat the side cushions firmly against the rail edge with no visible daylight yet no overlap
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
