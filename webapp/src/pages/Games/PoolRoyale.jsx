@@ -242,7 +242,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirror
 const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate mirrors snooker proportions
 const CHROME_CORNER_WIDTH_SCALE = 0.985;
 const CHROME_CORNER_HEIGHT_SCALE = 0.985;
-const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.26; // push the corner chrome plates farther outward to widen the centre gap and leave more distance from the centre line
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.14; // trim the outer chrome shoulder so it finishes flush with the rail edge
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -257,6 +257,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94; // match snooker fascia drop
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06; // identical center trim depth to snooker
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.08; // shave off the chrome overhang beyond the rails so the fascia stops with the woodwork
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
@@ -550,7 +551,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.06; // nudge middle pockets outward slightly so the jaws sit closer to the rails
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.12; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -566,15 +567,18 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST;
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.94; // trim the middle pocket opening slightly so the liner reads tighter
 const POCKET_SIDE_MOUTH_SCALE =
-  (CORNER_MOUTH_REF / SIDE_MOUTH_REF) * POCKET_CORNER_MOUTH_SCALE; // force middle pocket mouth to mirror the corner diameter
+  (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
+  POCKET_CORNER_MOUTH_SCALE *
+  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // tighten the middle pocket mouth while preserving the relative ratio to the corner spec
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.36 * POCKET_VISUAL_EXPANSION; // shift the corner pocket centres, chrome arches, wood relief, jaws, and rims further inboard per refreshed Pool Royale spec (extra inset per latest request)
+  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // keep the side pockets fixed while extending the corner cushions deeper toward each pocket mouth
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
@@ -4106,7 +4110,7 @@ function Table3D(
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.012; // tighten the gap so cushions rest almost flush against the wooden rails
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.062; // push the corner cushions deeper toward the pockets per new spec
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.092; // stretch the green cushions further into the corner pocket throats per new spec
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.006; // fine-tune side cushion span so all six rest cleanly between chrome cuts
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.032; // press the side cushions firmly into the rails without creating overlap
   const SHORT_CUSHION_HEIGHT_SCALE = 1.035; // keep short rail cushions level with the others after the lowered profile
@@ -4200,9 +4204,12 @@ function Table3D(
       chromeCornerPlateTrim
   );
   const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
+  const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE - chromeCornerEdgeTrim
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
+      chromeCornerEdgeTrim -
+      chromeOuterFlushTrim * 2
   );
   const chromeCornerFieldExtension =
     POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
@@ -4210,7 +4217,8 @@ function Table3D(
     MICRO_EPS,
     chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
       chromeCornerEdgeTrim +
-      chromeCornerFieldExtension
+      chromeCornerFieldExtension -
+      chromeOuterFlushTrim * 2
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -4231,7 +4239,8 @@ function Table3D(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
-      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE
+      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE -
+      chromeOuterFlushTrim * 2
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -4242,7 +4251,7 @@ function Table3D(
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE,
+    Math.max(MICRO_EPS, chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
