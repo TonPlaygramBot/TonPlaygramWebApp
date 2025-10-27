@@ -4106,9 +4106,9 @@ function Table3D(
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.088; // pull the six green cushion segments slightly toward centre without changing their profile
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.026; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.018; // extend the side cushions slightly deeper toward the corner arches
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.01; // nudge side cushions into the rail edge without creating visible overlap
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.038; // trim the remaining corner gap so cushions reach further into each pocket
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.028; // extend the side cushions slightly deeper toward the corner arches
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.012; // nudge side cushions into the rail edge without creating visible overlap
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -5097,6 +5097,7 @@ function Table3D(
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
+  const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
@@ -5142,6 +5143,7 @@ function Table3D(
     }
     const depth = maxZ - minZ;
     const frontSpan = backY - frontY;
+    const nosePull = baseThickness * CUSHION_NOSE_FRONT_PULL_SCALE;
     for (let i = 0; i < arr.length; i += 3) {
       const y = arr[i + 1];
       const z = arr[i + 2];
@@ -5151,6 +5153,13 @@ function Table3D(
       const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
       const minAllowedZ = minZ + depth * lift;
       if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
+
+      // Pull only the exposed nose toward the playfield so the top cushion profile
+      // extends further inwards while the base that touches the rails/cloth stays put.
+      const noseOffset = nosePull * frontFactor;
+      if (noseOffset > 0) {
+        arr[i + 1] = Math.min(arr[i + 1] - noseOffset, backY);
+      }
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
