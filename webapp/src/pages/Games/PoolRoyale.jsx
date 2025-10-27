@@ -831,7 +831,7 @@ const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
 const DEFAULT_CUSHION_CUT_ANGLE = 31;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playable face and cushion nose further inward to match the expanded top surface
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // let the playable face creep further inward with the cushion shift
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -4104,9 +4104,9 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.088; // pull the six green cushion segments slightly toward centre without changing their profile
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.026; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.022; // extend the side cushions toward the pocket arches while keeping their visual span consistent
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.075; // pull the six green cushion segments slightly toward centre without changing their profile
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.02; // trim the remaining corner gap so cushions reach further into each pocket
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.015; // extend the side cushions toward the pocket arches a hair more
   const SIDE_CUSHION_RAIL_REACH = 0; // snooker rails do not extend beyond the chrome, so no additional reach is required
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
@@ -5094,8 +5094,8 @@ function Table3D(
   const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.41;
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.68;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
