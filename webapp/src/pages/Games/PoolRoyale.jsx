@@ -251,16 +251,15 @@ const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the c
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.024; // ease the middle chrome arch farther from centre while keeping the pocket origin fixed
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.017; // ease the middle chrome arch farther from centre while keeping the pocket origin fixed
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.12; // reuse snooker plate thickness for perfect parity
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.035; // stretch the chrome arch slightly wider so the middle pockets sit farther from centre
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.025; // stretch the chrome arch slightly wider so the middle pockets sit farther from centre
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94; // match snooker fascia drop
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06; // identical center trim depth to snooker
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.02; // widen the middle chrome fascia to follow the pushed-out pocket arc
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_CORNER_OUTER_FLUSH_TRIM_SCALE = 0.16; // shave the corner fascia back so it ends flush with the rail profile
-const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.08; // keep the side fascia aligned with the rail run without altering the pocket
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.08; // shave off the chrome overhang beyond the rails so the fascia stops with the woodwork
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
@@ -554,7 +553,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.252; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.228; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -811,7 +810,7 @@ const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.42; // pare cue ball dots down so the measles read as very fine pips
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
 const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * (0.25 / 1.2);
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
@@ -4212,13 +4211,12 @@ function Table3D(
       chromeCornerPlateTrim
   );
   const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
-  const chromeCornerOuterFlushTrim =
-    TABLE.THICK * CHROME_CORNER_OUTER_FLUSH_TRIM_SCALE;
+  const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
       chromeCornerEdgeTrim -
-      chromeCornerOuterFlushTrim * 2
+      chromeOuterFlushTrim * 2
   );
   const chromeCornerFieldExtension =
     POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
@@ -4227,7 +4225,7 @@ function Table3D(
     chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
       chromeCornerEdgeTrim +
       chromeCornerFieldExtension -
-      chromeCornerOuterFlushTrim * 2
+      chromeOuterFlushTrim * 2
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -4248,14 +4246,12 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
-  const chromeSideOuterFlushTrim =
-    TABLE.THICK * CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE;
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
       TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE -
-      chromeSideOuterFlushTrim * 2
+      chromeOuterFlushTrim * 2
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -4266,10 +4262,7 @@ function Table3D(
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
   const sideChromePlateHeight = Math.min(
-    Math.max(
-      MICRO_EPS,
-      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeSideOuterFlushTrim * 2
-    ),
+    Math.max(MICRO_EPS, chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
