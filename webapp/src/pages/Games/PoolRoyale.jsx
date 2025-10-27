@@ -240,8 +240,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate mirrors snooker proportions
-const CHROME_CORNER_WIDTH_SCALE = 0.975;
-const CHROME_CORNER_HEIGHT_SCALE = 0.975;
+const CHROME_CORNER_WIDTH_SCALE = 0.98;
+const CHROME_CORNER_HEIGHT_SCALE = 0.98;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.26; // push the corner chrome plates farther outward to widen the centre gap and leave more distance from the centre line
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -827,8 +827,8 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5 * SPIN_VERTICAL_EFFECT_BOOST;
 const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
-// angle for cushion cuts guiding balls into pockets (Pool Royale spec now requires 31°)
-const DEFAULT_CUSHION_CUT_ANGLE = 31;
+// angle for cushion cuts guiding balls into pockets (Pool Royale spec now requires 35°)
+const DEFAULT_CUSHION_CUT_ANGLE = 35;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playable face and cushion nose further inward to match the expanded top surface
