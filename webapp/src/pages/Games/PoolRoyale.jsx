@@ -5067,7 +5067,7 @@ function Table3D(
   const chalkEndRailOffset = Math.min(endRailW * 0.18, Math.max(0, endRailW * 0.45 - chalkSize * 0.5));
   const chalkLongOffsetLimit = Math.max(0, PLAY_H / 2 - BALL_R * 3.5);
   const chalkShortOffsetLimit = Math.max(0, PLAY_W / 2 - BALL_R * 3.5);
-  const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.24);
+  const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.22);
   const chalkShortAxisOffset = Math.min(chalkShortOffsetLimit, PLAY_W * 0.22);
   const chalkSlots = [
     {
