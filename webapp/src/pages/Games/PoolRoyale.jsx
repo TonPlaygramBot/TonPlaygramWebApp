@@ -229,7 +229,7 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.05;
 const CORNER_POCKET_SCALE_BOOST = 1; // keep corner pocket scale identical to the 3D Snooker build
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.024; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.034; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
 const CHROME_CORNER_EXPANSION_SCALE = 1.02; // match the snooker corner plate reach exactly
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // mirror the snooker three-dimensional chrome fit
 const CHROME_CORNER_FIELD_TRIM_SCALE = 0; // retain snooker chrome trim depth
@@ -243,8 +243,8 @@ const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate m
 const CHROME_CORNER_WIDTH_SCALE = 1;
 const CHROME_CORNER_HEIGHT_SCALE = 1;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.15; // push the corner chrome plates farther out diagonally so both edges stay balanced
-const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0.0275; // slide corner chrome plates further onto the short rails per Pool Royale spec tweak
-const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0.016; // nudge corner chrome plates toward the centre of each short rail
+const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0.031; // slide corner chrome plates further onto the short rails per Pool Royale spec tweak
+const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0.021; // nudge corner chrome plates toward the centre of each short rail
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.012; // grow the middle chrome cut without altering the pocket cylinder
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -488,7 +488,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.022; // nudge the corner jaws farther into the widened chrome arches
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.028; // nudge the corner jaws farther into the widened chrome arches
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // clamp the side jaw outer reach exactly to the chrome/rail pocket arc
 const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = 0.992; // pull the inner lip farther out so the widened jaw still meets the chrome cut
@@ -553,7 +553,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.16; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.19; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
