@@ -4107,8 +4107,8 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.088; // pull the six green cushion segments slightly toward centre without changing their profile
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.038; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.028; // extend the side cushions slightly deeper toward the corner arches
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.012; // nudge side cushions into the rail edge without creating visible overlap
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.014; // extend the side cushions a touch further toward the corner arches
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.016; // push side cushions fractionally deeper into the rail edge without creating overlap
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
