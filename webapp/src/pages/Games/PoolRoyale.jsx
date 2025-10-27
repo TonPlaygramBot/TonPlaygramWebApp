@@ -243,6 +243,8 @@ const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate m
 const CHROME_CORNER_WIDTH_SCALE = 1;
 const CHROME_CORNER_HEIGHT_SCALE = 1;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.15; // push the corner chrome plates farther out diagonally so both edges stay balanced
+const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0.02; // slide corner chrome plates further onto the short rails per Pool Royale spec tweak
+const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0.015; // nudge corner chrome plates toward the centre of each short rail
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.012; // grow the middle chrome cut without altering the pocket cylinder
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
@@ -4234,6 +4236,10 @@ function Table3D(
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
   const chromeCornerCenterOutset =
     TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
+  const chromeCornerShortRailShift =
+    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE;
+  const chromeCornerShortRailCenterPull =
+    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE;
 
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
@@ -4506,9 +4512,11 @@ function Table3D(
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
     const centerX =
-      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset);
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset) -
+      sx * chromeCornerShortRailCenterPull;
     const centerZ =
-      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset);
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
+      sz * chromeCornerShortRailShift;
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
     const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
     const notchLocalMP = notchMP.map((poly) =>
