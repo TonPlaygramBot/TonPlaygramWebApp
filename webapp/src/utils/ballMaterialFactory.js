@@ -123,38 +123,6 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
     ctx.fillRect(0, stripeY, size, stripeHeight);
-  } else if (pattern === 'cueSpots') {
-    const spotRadius = size * 0.08;
-    const spotPositions = [
-      [0.25, 0.5],
-      [0.75, 0.5],
-      [0.5, 0.25],
-      [0.5, 0.75],
-      [0.02, 0.5],
-      [0.98, 0.5]
-    ];
-    spotPositions.forEach(([u, v]) => {
-      const x = size * u;
-      const y = size * v;
-      const grad = ctx.createRadialGradient(
-        x,
-        y,
-        spotRadius * 0.15,
-        x,
-        y,
-        spotRadius
-      );
-      grad.addColorStop(0, 'rgba(255,85,85,0.95)');
-      grad.addColorStop(1, 'rgba(150,0,0,0.88)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(x, y, spotRadius, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.lineWidth = Math.max(1, size * 0.01);
-      ctx.strokeStyle = 'rgba(90,0,0,0.35)';
-      ctx.stroke();
-    });
   }
 
   if (Number.isFinite(number)) {

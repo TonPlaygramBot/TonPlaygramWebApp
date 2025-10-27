@@ -245,7 +245,7 @@ const CHROME_CORNER_HEIGHT_SCALE = 1;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.19; // push the corner chrome plates farther out diagonally so both edges stay balanced
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0.036; // slide corner chrome plates further onto the short rails per Pool Royale spec tweak
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0.026; // nudge corner chrome plates toward the centre of each short rail
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0.06; // shave the chrome corner plates so their outer edges sit flush with the rails
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.012; // grow the middle chrome cut without altering the pocket cylinder
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
@@ -553,7 +553,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.3; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.228; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -810,7 +810,8 @@ const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const CUE_BALL_PATTERN_ID = 'cueSpots';
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
+const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * (0.25 / 1.2);
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -1366,7 +1367,6 @@ const toHexColor = (value) => {
 };
 
 const ORIGINAL_RAIL_WIDTH = TABLE.WALL * 0.7;
-const OUTER_WOOD_SCALE = 0.75; // shrink the visible rail caps and skirts without altering the playfield footprint
 const ORIGINAL_FRAME_WIDTH = ORIGINAL_RAIL_WIDTH * 2.5;
 const ORIGINAL_OUTER_HALF_W =
   ORIGINAL_HALF_W + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
@@ -3484,6 +3484,45 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  if (id === 'cue') {
+    const markerGeom = new THREE.CylinderGeometry(
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_DEPTH,
+      48
+    );
+    const markerMat = new THREE.MeshStandardMaterial({
+      color: 0xff3b3b,
+      emissive: 0x5a0000,
+      emissiveIntensity: 0.4,
+      roughness: 0.28,
+      metalness: 0.05
+    });
+    markerMat.depthWrite = false;
+    markerMat.needsUpdate = true;
+    markerMat.toneMapped = false;
+    markerMat.polygonOffset = true;
+    markerMat.polygonOffsetFactor = -0.5;
+    markerMat.polygonOffsetUnits = -0.5;
+    const markerOffset = BALL_R - CUE_MARKER_DEPTH * 0.5 + 0.001;
+    const localUp = new THREE.Vector3(0, 1, 0);
+    [
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, -1, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(0, 0, -1)
+    ].forEach((normal) => {
+      const marker = new THREE.Mesh(markerGeom, markerMat);
+      marker.position.copy(normal).multiplyScalar(markerOffset);
+      marker.quaternion.setFromUnitVectors(localUp, normal);
+      marker.castShadow = false;
+      marker.receiveShadow = false;
+      marker.renderOrder = 2;
+      mesh.add(marker);
+    });
+  }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
@@ -4045,17 +4084,13 @@ function Table3D(
 
   const railH = RAIL_HEIGHT;
   const railsTopY = frameTopY + railH;
-  const longRailBase = ORIGINAL_RAIL_WIDTH;
-  const endRailBase = ORIGINAL_RAIL_WIDTH;
-  const longRailW = longRailBase * OUTER_WOOD_SCALE; // keep proportions while shrinking the visible caps
-  const endRailW = endRailBase * OUTER_WOOD_SCALE;
-  const frameExpansionBase = TABLE.WALL * 0.08;
+  const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
+  const endRailW = ORIGINAL_RAIL_WIDTH;
+  const frameExpansion = TABLE.WALL * 0.08;
   const frameWidthLong =
-    (Math.max(0, ORIGINAL_OUTER_HALF_W - halfW - 2 * longRailBase) + frameExpansionBase) *
-    OUTER_WOOD_SCALE;
+    Math.max(0, ORIGINAL_OUTER_HALF_W - halfW - 2 * longRailW) + frameExpansion;
   const frameWidthEnd =
-    (Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailBase) + frameExpansionBase) *
-    OUTER_WOOD_SCALE;
+    Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
@@ -9506,7 +9541,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return b;
       };
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
-      cue = add('cue', cueColor, -BALL_R * 2, baulkZ, { pattern: CUE_BALL_PATTERN_ID });
+      cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
       const SPOTS = spotPositions(baulkZ);
 
       if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
