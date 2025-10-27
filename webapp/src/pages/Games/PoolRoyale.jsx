@@ -240,8 +240,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate mirrors snooker proportions
-const CHROME_CORNER_WIDTH_SCALE = 0.985;
-const CHROME_CORNER_HEIGHT_SCALE = 0.985;
+const CHROME_CORNER_WIDTH_SCALE = 0.99;
+const CHROME_CORNER_HEIGHT_SCALE = 0.99;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.14; // trim the outer chrome shoulder so it finishes flush with the rail edge
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
@@ -2591,6 +2591,7 @@ const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
+const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.12; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -4113,6 +4114,7 @@ function Table3D(
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.092; // stretch the green cushions further into the corner pocket throats per new spec
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.006; // fine-tune side cushion span so all six rest cleanly between chrome cuts
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.032; // press the side cushions firmly into the rails without creating overlap
+  const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.4; // slide side-rail cushion blocks closer to the corner pockets per Pool Royale brief
   const SHORT_CUSHION_HEIGHT_SCALE = 1.035; // keep short rail cushions level with the others after the lowered profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -4172,7 +4174,10 @@ function Table3D(
     MICRO_EPS,
     Math.max(0, cornerIntersectionZ - adjustedSidePocketReach)
   );
-  const verticalCushionCenter = adjustedSidePocketReach + verticalCushionLength / 2;
+  const verticalCushionCenter =
+    adjustedSidePocketReach +
+    verticalCushionLength / 2 +
+    SIDE_CUSHION_CORNER_SHIFT;
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
   const chromePlateInset = TABLE.THICK * 0.02;
@@ -8556,6 +8561,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
             TMP_SPH.copy(sph);
+            if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1) {
+              const hudState = hudRef.current ?? null;
+              if (hudState?.inHand && !shooting) {
+                TMP_SPH.radius = clampOrbitRadius(
+                  TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
+                );
+              }
+            }
             if (TMP_SPH.radius > 1e-6) {
               const aimLineWorldY =
                 (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
