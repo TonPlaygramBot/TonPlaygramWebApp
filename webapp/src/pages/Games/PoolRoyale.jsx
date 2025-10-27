@@ -1258,16 +1258,30 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0x101215,
-          metalness: 0.08,
-          roughness: 0.62,
-          clearcoat: 0.22,
-          clearcoatRoughness: 0.46,
-          sheen: 0.58,
-          sheenColor: new THREE.Color(0x1d1f25),
-          sheenRoughness: 0.5,
-          envMapIntensity: 0.34
+          color: 0x5f646a,
+          metalness: 0.12,
+          roughness: 0.68,
+          clearcoat: 0.16,
+          clearcoatRoughness: 0.52,
+          sheen: 0.44,
+          sheenColor: new THREE.Color(0x7a7f86),
+          sheenRoughness: 0.46,
+          envMapIntensity: 0.28
         });
+        const pocketJawTextures = createPocketJawTextures();
+        if (pocketJawTextures.map) {
+          pocketJaw.map = pocketJawTextures.map;
+          applySRGBColorSpace(pocketJaw.map);
+          pocketJaw.map.wrapS = pocketJaw.map.wrapT = THREE.RepeatWrapping;
+          pocketJaw.map.repeat.set(2.5, 2.5);
+          pocketJaw.map.anisotropy = 4;
+        }
+        if (pocketJawTextures.bump) {
+          pocketJaw.bumpMap = pocketJawTextures.bump;
+          pocketJaw.bumpMap.wrapS = pocketJaw.bumpMap.wrapT = THREE.RepeatWrapping;
+          pocketJaw.bumpMap.repeat.set(2.5, 2.5);
+          pocketJaw.bumpScale = 0.18;
+        }
         const pocketRim = new THREE.MeshPhysicalMaterial({
           color: 0x050608,
           metalness: 0.14,
@@ -1372,6 +1386,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = 4096;
 const CLOTH_THREAD_PITCH = 12 * 0.92;
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
+const POCKET_JAW_TEXTURE_SIZE = 1024;
 
 const createClothTextures = (() => {
   let cache = null;
@@ -1577,6 +1592,104 @@ const createClothTextures = (() => {
     bumpMap.magFilter = THREE.LinearFilter;
 
     cache = { map: colorMap, bump: bumpMap };
+    return cache;
+  };
+})();
+
+const createPocketJawTextures = (() => {
+  let cache = null;
+  const hashNoise = (x, y, seedX, seedY, phase = 0) =>
+    Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
+  const mix = (a, b, t) => a * (1 - t) + b * t;
+  return () => {
+    if (cache) return cache;
+    if (typeof document === 'undefined') {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+
+    const size = POCKET_JAW_TEXTURE_SIZE;
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.width = mapCanvas.height = size;
+    const mapCtx = mapCanvas.getContext('2d');
+    if (!mapCtx) {
+      cache = { map: null, bump: null };
+      return cache;
+    }
+
+    const baseLow = { r: 0x55, g: 0x58, b: 0x5c };
+    const baseHigh = { r: 0x6a, g: 0x6e, b: 0x73 };
+    const accent = { r: 0x7c, g: 0x80, b: 0x86 };
+    const radialCenter = size / 2;
+    const radialFalloff = radialCenter * radialCenter;
+    const image = mapCtx.createImageData(size, size);
+    const { data } = image;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const nx = x / size;
+        const ny = y / size;
+        const radial = ((x - radialCenter) ** 2 + (y - radialCenter) ** 2) / radialFalloff;
+        const shading = THREE.MathUtils.clamp(1 - radial * 0.35, 0.65, 1);
+        const coarse = hashNoise(x, y, 11.17, 47.73, 5.3);
+        const medium = hashNoise(x, y, 37.91, 19.54, -3.1);
+        const fine = hashNoise(x, y, 63.27, 7.81, 12.6);
+        const streakDir = hashNoise(x, y, 4.71, 29.17, -8.4) * Math.PI * 2;
+        const streak = Math.sin((nx * Math.cos(streakDir) + ny * Math.sin(streakDir)) * 18);
+        const streakMix = Math.pow(Math.abs(streak), 3.2);
+        const grain = THREE.MathUtils.clamp(
+          coarse * 0.55 + medium * 0.35 + fine * 0.1 + streakMix * 0.2,
+          0,
+          1
+        );
+        const accentMix = Math.pow(hashNoise(x, y, 21.3, 83.7, 2.6), 6);
+        const r = shading * mix(baseLow.r, baseHigh.r, grain) + accent.r * accentMix * 0.12;
+        const g = shading * mix(baseLow.g, baseHigh.g, grain) + accent.g * accentMix * 0.12;
+        const b = shading * mix(baseLow.b, baseHigh.b, grain) + accent.b * accentMix * 0.12;
+        data[idx] = Math.max(0, Math.min(255, r));
+        data[idx + 1] = Math.max(0, Math.min(255, g));
+        data[idx + 2] = Math.max(0, Math.min(255, b));
+        data[idx + 3] = 255;
+      }
+    }
+    mapCtx.putImageData(image, 0, 0);
+    const mapTexture = new THREE.CanvasTexture(mapCanvas);
+    applySRGBColorSpace(mapTexture);
+    mapTexture.wrapS = mapTexture.wrapT = THREE.RepeatWrapping;
+    mapTexture.repeat.set(2.5, 2.5);
+    mapTexture.anisotropy = 4;
+    mapTexture.needsUpdate = true;
+
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = size;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (!bumpCtx) {
+      cache = { map: mapTexture, bump: null };
+      return cache;
+    }
+    const bumpImage = bumpCtx.createImageData(size, size);
+    const bumpData = bumpImage.data;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const coarse = hashNoise(x, y, 27.41, 9.63, 1.1);
+        const medium = hashNoise(x, y, 51.73, 33.19, -12.7);
+        const fine = hashNoise(x, y, 89.17, 17.53, 4.9);
+        const bump = THREE.MathUtils.clamp(coarse * 0.4 + medium * 0.4 + fine * 0.2, 0, 1);
+        const value = Math.round(200 + (bump - 0.5) * 70);
+        bumpData[idx] = value;
+        bumpData[idx + 1] = value;
+        bumpData[idx + 2] = value;
+        bumpData[idx + 3] = 255;
+      }
+    }
+    bumpCtx.putImageData(bumpImage, 0, 0);
+    const bumpTexture = new THREE.CanvasTexture(bumpCanvas);
+    bumpTexture.wrapS = bumpTexture.wrapT = THREE.RepeatWrapping;
+    bumpTexture.repeat.set(2.5, 2.5);
+    bumpTexture.needsUpdate = true;
+
+    cache = { map: mapTexture, bump: bumpTexture };
     return cache;
   };
 })();
@@ -4105,10 +4218,10 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.088; // pull the six green cushion segments slightly toward centre without changing their profile
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.038; // trim the remaining corner gap so cushions reach further into each pocket
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.014; // extend the side cushions a touch further toward the corner arches
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.016; // push side cushions fractionally deeper into the rail edge without creating overlap
+  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a micro reveal while leaving the cushion bodies visually flush with the rails
+  const CUSHION_CORNER_GAP_TARGET = TABLE.THICK * 0.0025; // target seam size before the pocket arc begins
+  const SIDE_CUSHION_POCKET_GAP_TARGET = TABLE.THICK * 0.002; // maintain an even reveal before the side pocket jaw starts
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.026; // push side cushions deeper into the rail edge without creating overlap
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -4142,13 +4255,12 @@ function Table3D(
   const cornerIntersectionZ = cornerCenterZ - cornerReachZ;
   const cornerCushionClearanceX = Math.max(0, cornerLineX - cornerIntersectionX);
   const cornerCushionClearanceZ = Math.max(0, cornerLineZ - cornerIntersectionZ);
-  const rawCornerCushionClearance = Math.max(
-    cornerCushionClearanceX,
-    cornerCushionClearanceZ
-  );
+  const cornerClearances = [cornerCushionClearanceX, cornerCushionClearanceZ];
+  const averagedCornerClearance =
+    (cornerClearances[0] + cornerClearances[1]) / 2;
   const cornerCushionClearance = Math.max(
     0,
-    rawCornerCushionClearance - CUSHION_CORNER_CLEARANCE_REDUCTION
+    averagedCornerClearance - CUSHION_CORNER_GAP_TARGET
   );
   const horizontalCushionLength = Math.max(
     MICRO_EPS,
@@ -4162,7 +4274,7 @@ function Table3D(
   );
   const adjustedSidePocketReach = Math.max(
     0,
-    sidePocketReach - SIDE_CUSHION_POCKET_REACH_REDUCTION
+    sidePocketReach - SIDE_CUSHION_POCKET_GAP_TARGET
   );
   const verticalCushionLength = Math.max(
     MICRO_EPS,
