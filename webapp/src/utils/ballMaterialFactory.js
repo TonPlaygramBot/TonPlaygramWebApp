@@ -115,45 +115,6 @@ function drawPoolNumberBadge(ctx, size, number) {
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
-  if (pattern === 'cue_dots') {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
-
-    const dotColorCore = '#ff3d3d';
-    const dotColorEdge = '#aa1515';
-    const radius = size * 0.075;
-    const offsets = [
-      [0.5, 0.28],
-      [0.5, 0.72],
-      [0.28, 0.5],
-      [0.72, 0.5],
-      [0.32, 0.32],
-      [0.68, 0.68]
-    ];
-
-    offsets.forEach(([ox, oy]) => {
-      const cx = size * ox;
-      const cy = size * oy;
-      const grad = ctx.createRadialGradient(
-        cx,
-        cy,
-        radius * 0.15,
-        cx,
-        cy,
-        radius
-      );
-      grad.addColorStop(0, dotColorCore);
-      grad.addColorStop(1, dotColorEdge);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.fill();
-    });
-
-    return;
-  }
-
   ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
   ctx.fillRect(0, 0, size, size);
 

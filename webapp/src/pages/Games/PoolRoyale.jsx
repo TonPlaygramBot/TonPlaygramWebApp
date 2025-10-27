@@ -242,10 +242,10 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirror
 const CHROME_CORNER_DIMENSION_SCALE = 0.99; // ensure each chrome corner plate mirrors snooker proportions
 const CHROME_CORNER_WIDTH_SCALE = 1;
 const CHROME_CORNER_HEIGHT_SCALE = 1;
-const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.12; // trim the diagonal push so the corner chrome plates sit tighter to the rails
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.19; // push the corner chrome plates farther out diagonally so both edges stay balanced
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0.036; // slide corner chrome plates further onto the short rails per Pool Royale spec tweak
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0.026; // nudge corner chrome plates toward the centre of each short rail
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0.08; // shave the excess overhang so the corner fascia finishes flush with the rails
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.012; // grow the middle chrome cut without altering the pocket cylinder
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
@@ -254,12 +254,12 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1.017; // ease the middle chrome arch farther from centre while keeping the pocket origin fixed
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.12; // reuse snooker plate thickness for perfect parity
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.045; // stretch the chrome arch wider so the middle pockets sit farther from centre
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.025; // stretch the chrome arch slightly wider so the middle pockets sit farther from centre
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 0.94; // match snooker fascia drop
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.06; // identical center trim depth to snooker
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.02; // widen the middle chrome fascia to follow the pushed-out pocket arc
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.12; // increase the chrome trim so the fascia stays flush with the table edge
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.08; // shave off the chrome overhang beyond the rails so the fascia stops with the woodwork
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
@@ -553,7 +553,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.27; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.228; // push middle pockets farther outward so the chrome, rails, and jaws track the widened side span
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -810,6 +810,8 @@ const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
+const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * (0.25 / 1.2);
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -3482,6 +3484,45 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  if (id === 'cue') {
+    const markerGeom = new THREE.CylinderGeometry(
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_DEPTH,
+      48
+    );
+    const markerMat = new THREE.MeshStandardMaterial({
+      color: 0xff3b3b,
+      emissive: 0x5a0000,
+      emissiveIntensity: 0.4,
+      roughness: 0.28,
+      metalness: 0.05
+    });
+    markerMat.depthWrite = false;
+    markerMat.needsUpdate = true;
+    markerMat.toneMapped = false;
+    markerMat.polygonOffset = true;
+    markerMat.polygonOffsetFactor = -0.5;
+    markerMat.polygonOffsetUnits = -0.5;
+    const markerOffset = BALL_R - CUE_MARKER_DEPTH * 0.5 + 0.001;
+    const localUp = new THREE.Vector3(0, 1, 0);
+    [
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, -1, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(0, 0, -1)
+    ].forEach((normal) => {
+      const marker = new THREE.Mesh(markerGeom, markerMat);
+      marker.position.copy(normal).multiplyScalar(markerOffset);
+      marker.quaternion.setFromUnitVectors(localUp, normal);
+      marker.castShadow = false;
+      marker.receiveShadow = false;
+      marker.renderOrder = 2;
+      mesh.add(marker);
+    });
+  }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
@@ -9500,7 +9541,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return b;
       };
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
-      cue = add('cue', cueColor, -BALL_R * 2, baulkZ, { pattern: 'cue_dots' });
+      cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
       const SPOTS = spotPositions(baulkZ);
 
       if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
