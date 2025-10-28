@@ -231,8 +231,8 @@ const CORNER_POCKET_INWARD_SCALE = 1.035; // push the rounded corner cuts deeper
 const CORNER_POCKET_SCALE_BOOST = 1; // keep corner pocket scale identical to the 3D Snooker build
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.034; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
-const CHROME_CORNER_EXPANSION_SCALE = 1.04; // let the fascia swell toward centre so the chrome edge meets the cushion shoulder
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.02; // mirror the cushion reach while nudging the fascia further toward the cloth
+const CHROME_CORNER_EXPANSION_SCALE = 1; // lock the corner fascia to the cushion-derived span so it finishes flush with the jaws
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // mirror the cushion reach exactly so the chrome ends where the green rail begins
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // remove the triangular wedge so the chrome hugs the pocket arc
@@ -241,8 +241,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 1.012; // widen the corner plates so their inner arc touches the cushions
-const CHROME_CORNER_HEIGHT_SCALE = 1.008; // raise the fascia footprint to remove the visible gap above the cushions
+const CHROME_CORNER_WIDTH_SCALE = 0.978;
+const CHROME_CORNER_HEIGHT_SCALE = 0.954;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0; // keep the plate centres exactly between the cushion edge and outer rail
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -258,7 +258,7 @@ const CHROME_PLATE_THICKNESS_SCALE = 0.12; // reuse snooker plate thickness for 
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // match the pocket diameter exactly so the fascia meets the cushion shoulders
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1; // let the fascia drop the full cushion height for a seamless meeting plane
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // expand the side fascia toward centre until it kisses the green cushions
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0; // keep the side fascia width identical to the pocket cut
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
@@ -495,7 +495,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so th
 const POCKET_JAW_SIDE_INNER_SCALE = 0.992; // pull the inner lip farther out so the widened jaw still meets the chrome cut
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.81; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
-const POCKET_JAW_DEPTH_SCALE = 0.72; // extend the jaw liner deeper so the profile reads slightly taller in the pocket cut
+const POCKET_JAW_DEPTH_SCALE = 0.66; // proportion of the rail height the jaw liner drops into the pocket cut (≈3" drop as photographed)
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -1266,13 +1266,13 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0x5a5f66,
+          color: 0x101215,
           metalness: 0.08,
           roughness: 0.62,
           clearcoat: 0.22,
           clearcoatRoughness: 0.46,
           sheen: 0.58,
-          sheenColor: new THREE.Color(0x6a7078),
+          sheenColor: new THREE.Color(0x1d1f25),
           sheenRoughness: 0.5,
           envMapIntensity: 0.34
         });
