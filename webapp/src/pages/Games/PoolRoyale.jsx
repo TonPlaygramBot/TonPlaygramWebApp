@@ -496,6 +496,15 @@ const POCKET_JAW_SIDE_INNER_SCALE = 0.992; // pull the inner lip farther out so 
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = 1.81; // keep the side mouth consistent while letting the liner reach the longer chrome-backed arch
 const POCKET_JAW_DEPTH_SCALE = 0.7; // push the jaw liners a touch deeper for the taller fascia specification
+const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
+const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.72; // minimum centre thickness ratio (relative to jaw depth)
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.9; // maximum centre thickness ratio
+const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
+const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
+const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
+const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
 const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer along the corner jaw shoulders
 const POCKET_JAW_SIDE_EDGE_FACTOR = 0.42; // thicker side jaw shoulders to match the beefier Pool Royale liners
@@ -1573,24 +1582,11 @@ function createPocketLinerTextures(option) {
 function createPocketLinerMaterials(option) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
   const textures = createPocketLinerTextures(selection);
-  const baseColorValue = selection?.jawColor ?? selection?.rimColor ?? 0x9298a0;
-  const jawColor =
-    selection?.jawColor instanceof THREE.Color
-      ? selection.jawColor.clone()
-      : new THREE.Color(selection?.jawColor ?? baseColorValue);
-  const rimColor = jawColor.clone();
-  const baseSheenColor =
-    selection?.sheenColor instanceof THREE.Color
-      ? selection.sheenColor.clone()
-      : new THREE.Color(selection?.sheenColor ?? baseColorValue);
-  const rimSheenColor = baseSheenColor.clone();
-  const makeMaterial = (colorValue, overrides = {}) => {
-    const matColor =
-      colorValue instanceof THREE.Color
-        ? colorValue.clone()
-        : new THREE.Color(colorValue ?? baseColorValue);
+  const baseSheenColor = new THREE.Color(selection.sheenColor ?? 0x9298a0);
+  const rimSheenColor = new THREE.Color(selection.rimSheenColor ?? selection.sheenColor ?? 0x8f949b);
+  const makeMaterial = (color, overrides = {}) => {
     const material = new THREE.MeshPhysicalMaterial({
-      color: matColor,
+      color,
       roughness: overrides.roughness ?? selection.roughness ?? 0.7,
       metalness: overrides.metalness ?? selection.metalness ?? 0.05,
       clearcoat: overrides.clearcoat ?? selection.clearcoat ?? 0.15,
@@ -1599,10 +1595,8 @@ function createPocketLinerMaterials(option) {
       sheen: overrides.sheen ?? selection.sheen ?? 0.48,
       sheenRoughness: overrides.sheenRoughness ?? selection.sheenRoughness ?? 0.6,
       sheenColor: (overrides.sheenColor ?? baseSheenColor).clone(),
-      envMapIntensity:
-        overrides.envMapIntensity ?? selection.envMapIntensity ?? 0.28
+      envMapIntensity: overrides.envMapIntensity ?? selection.envMapIntensity ?? 0.28
     });
-    material.color.copy(matColor);
     if (textures.map) {
       material.map = textures.map;
       material.map.repeat.set(textures.repeat.x, textures.repeat.y);
@@ -1620,12 +1614,12 @@ function createPocketLinerMaterials(option) {
     return material;
   };
 
-  const jawMaterial = makeMaterial(jawColor, {
+  const jawMaterial = makeMaterial(selection.jawColor, {
     roughness: selection.jawRoughness ?? selection.roughness,
     bumpScale: selection.bumpScale,
     sheenColor: baseSheenColor
   });
-  const rimMaterial = makeMaterial(rimColor, {
+  const rimMaterial = makeMaterial(selection.rimColor, {
     roughness: selection.rimRoughness ?? selection.roughness,
     bumpScale: selection.rimBumpScale ?? selection.bumpScale,
     metalness: selection.rimMetalness ?? selection.metalness,
@@ -4888,9 +4882,9 @@ function Table3D(
     innerScale,
     outerScale,
     steps,
-    sideThinFactor: _sideThinFactor,
-    middleThinFactor: _middleThinFactor,
-    centerEase: _centerEase,
+    sideThinFactor,
+    middleThinFactor,
+    centerEase,
     clampOuter
   }) => {
     if (!(center instanceof THREE.Vector2)) {
@@ -4903,21 +4897,48 @@ function Table3D(
       return null;
     }
 
-    void _sideThinFactor;
-    void _middleThinFactor;
-    void _centerEase;
-
-    const startAngle = orientationAngle - jawAngle / 2;
-    const endAngle = orientationAngle + jawAngle / 2;
+    const halfAngle = jawAngle / 2;
+    const startAngle = orientationAngle - halfAngle;
+    const endAngle = orientationAngle + halfAngle;
     const innerBaseRadius = Math.max(MICRO_EPS, baseRadius * innerScale);
     let outerLimit = Math.max(innerBaseRadius + MICRO_EPS, baseRadius * outerScale);
     if (Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS) {
       outerLimit = Math.min(outerLimit, clampOuter);
+      outerLimit = Math.max(innerBaseRadius + MICRO_EPS, outerLimit);
     }
-    const uniformOuterRadius = Math.max(innerBaseRadius + MICRO_EPS * 6, outerLimit);
-    const uniformInnerRadius = Math.max(
-      MICRO_EPS,
-      Math.min(innerBaseRadius, uniformOuterRadius - MICRO_EPS * 6)
+    const baseThickness = Math.max(MICRO_EPS, outerLimit - innerBaseRadius);
+
+    const edgeFactor = THREE.MathUtils.clamp(sideThinFactor ?? 0.32, 0.1, 0.9);
+    const edgeThickness = Math.max(
+      MICRO_EPS * 12,
+      baseThickness * edgeFactor * POCKET_JAW_EDGE_TAPER_SCALE
+    );
+    const edgeInnerRadius = Math.max(
+      innerBaseRadius + MICRO_EPS * 6,
+      outerLimit - edgeThickness
+    );
+
+    const middleFactor = THREE.MathUtils.clamp(middleThinFactor ?? 0.85, 0, 1);
+    const centerThicknessRatio = THREE.MathUtils.lerp(
+      POCKET_JAW_CENTER_THICKNESS_MIN,
+      POCKET_JAW_CENTER_THICKNESS_MAX,
+      middleFactor
+    );
+    let centerOuterRadius = innerBaseRadius + baseThickness * centerThicknessRatio;
+    centerOuterRadius = Math.min(outerLimit - MICRO_EPS * 4, centerOuterRadius);
+    centerOuterRadius = Math.max(innerBaseRadius + MICRO_EPS * 4, centerOuterRadius);
+
+    const easeFactor = THREE.MathUtils.clamp(centerEase ?? 0.3, 0.1, 0.9);
+    const easeT = THREE.MathUtils.clamp((easeFactor - 0.1) / 0.8, 0, 1);
+    const outerPower = THREE.MathUtils.lerp(
+      POCKET_JAW_OUTER_EXPONENT_MAX,
+      POCKET_JAW_OUTER_EXPONENT_MIN,
+      easeT
+    );
+    const innerPower = THREE.MathUtils.lerp(
+      POCKET_JAW_INNER_EXPONENT_MAX,
+      POCKET_JAW_INNER_EXPONENT_MIN,
+      easeT
     );
 
     const requestedSteps =
@@ -4926,14 +4947,48 @@ function Table3D(
       ? Math.max(POCKET_JAW_SEGMENT_MIN, requestedSteps)
       : Math.max(POCKET_JAW_SEGMENT_MIN, Math.ceil((jawAngle / Math.PI) * 128));
 
+    const midAngle = (startAngle + endAngle) / 2;
     const outerPts = [];
     const innerPts = [];
 
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
       const theta = startAngle + t * (endAngle - startAngle);
-      const outerRadius = uniformOuterRadius;
-      const innerRadius = uniformInnerRadius;
+      const normalized = Math.abs(theta - midAngle) / halfAngle;
+      const clamped = THREE.MathUtils.clamp(normalized, 0, 1);
+      const eased = clamped <= 0
+        ? 0
+        : clamped >= 1
+          ? 1
+          : THREE.MathUtils.smootherstep(clamped, 0, 1);
+      const outerWeight = Math.pow(eased, outerPower);
+      const innerWeight = Math.pow(eased, innerPower);
+
+      let outerRadius = THREE.MathUtils.lerp(
+        centerOuterRadius,
+        outerLimit,
+        outerWeight
+      );
+      if (Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS) {
+        const flushBlend = THREE.MathUtils.smootherstep(
+          clamped,
+          POCKET_JAW_EDGE_FLUSH_START,
+          POCKET_JAW_EDGE_FLUSH_END
+        );
+        outerRadius = Math.min(
+          clampOuter,
+          THREE.MathUtils.lerp(outerRadius, clampOuter, flushBlend)
+        );
+      }
+      outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
+
+      let innerRadius = THREE.MathUtils.lerp(
+        innerBaseRadius,
+        edgeInnerRadius,
+        innerWeight
+      );
+      innerRadius = Math.min(innerRadius, outerRadius - MICRO_EPS * 6);
+      innerRadius = Math.max(innerBaseRadius, innerRadius);
 
       const outerX = center.x + Math.cos(theta) * outerRadius;
       const outerZ = center.y + Math.sin(theta) * outerRadius;
