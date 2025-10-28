@@ -649,7 +649,7 @@ const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cov
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.052; // drop the cushion lip slightly more so the top aligns with the wooden rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.078; // trim the cushion lip further so the top aligns cleanly with the wooden rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -1266,26 +1266,26 @@ const TABLE_FINISHES = Object.freeze(
           envMapIntensity: 1.38
         });
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0x6f7379,
-          metalness: 0.08,
-          roughness: 0.62,
-          clearcoat: 0.22,
-          clearcoatRoughness: 0.46,
-          sheen: 0.58,
-          sheenColor: new THREE.Color(0x8a8e94),
-          sheenRoughness: 0.5,
-          envMapIntensity: 0.34
+          color: 0x6d7177,
+          metalness: 0.05,
+          roughness: 0.68,
+          clearcoat: 0.18,
+          clearcoatRoughness: 0.48,
+          sheen: 0.52,
+          sheenColor: new THREE.Color(0x8f949b),
+          sheenRoughness: 0.58,
+          envMapIntensity: 0.28
         });
         const pocketRim = new THREE.MeshPhysicalMaterial({
-          color: 0x050608,
-          metalness: 0.14,
-          roughness: 0.72,
-          clearcoat: 0.18,
-          clearcoatRoughness: 0.56,
-          sheen: 0.42,
-          sheenColor: new THREE.Color(0x0e0f12),
-          sheenRoughness: 0.6,
-          envMapIntensity: 0.26
+          color: 0x383b40,
+          metalness: 0.06,
+          roughness: 0.76,
+          clearcoat: 0.14,
+          clearcoatRoughness: 0.54,
+          sheen: 0.44,
+          sheenColor: new THREE.Color(0x6f747b),
+          sheenRoughness: 0.62,
+          envMapIntensity: 0.24
         });
         return {
           frame,
@@ -1360,6 +1360,347 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   }
 ]);
+
+const DEFAULT_POCKET_LINER_OPTION_ID = 'graphiteHide';
+const POCKET_LINER_OPTIONS = Object.freeze([
+  {
+    id: 'graphiteHide',
+    label: 'Graphite Leather',
+    jawColor: 0x6d7076,
+    rimColor: 0x3b3e44,
+    sheenColor: 0x8f949b,
+    sheen: 0.52,
+    sheenRoughness: 0.58,
+    roughness: 0.68,
+    rimRoughness: 0.74,
+    metalness: 0.06,
+    clearcoat: 0.16,
+    clearcoatRoughness: 0.46,
+    envMapIntensity: 0.28,
+    bumpScale: 0.32,
+    rimBumpScale: 0.24,
+    texture: {
+      base: '#6f737a',
+      highlight: '#a3a8b0',
+      shadow: '#3a3d42',
+      density: 1.18,
+      grainSize: 0.9,
+      streakAlpha: 0.16,
+      creaseAlpha: 0.34,
+      seamContrast: 0.22,
+      repeatX: 2.4,
+      repeatY: 2.1,
+      seed: 1103
+    }
+  },
+  {
+    id: 'slateWeave',
+    label: 'Slate Weave',
+    jawColor: 0x707376,
+    rimColor: 0x34373c,
+    sheenColor: 0x9ba0a6,
+    sheen: 0.48,
+    sheenRoughness: 0.62,
+    roughness: 0.7,
+    rimRoughness: 0.78,
+    metalness: 0.04,
+    clearcoat: 0.14,
+    clearcoatRoughness: 0.5,
+    envMapIntensity: 0.26,
+    bumpScale: 0.36,
+    rimBumpScale: 0.28,
+    texture: {
+      base: '#6c7074',
+      highlight: '#b0b6be',
+      shadow: '#32343a',
+      density: 1.32,
+      grainSize: 1.05,
+      streakAlpha: 0.2,
+      creaseAlpha: 0.38,
+      seamContrast: 0.26,
+      repeatX: 2.8,
+      repeatY: 2.4,
+      seed: 2417
+    }
+  },
+  {
+    id: 'ashRubber',
+    label: 'Ash Rubber',
+    jawColor: 0x787b80,
+    rimColor: 0x404347,
+    sheenColor: 0x8d9198,
+    sheen: 0.44,
+    sheenRoughness: 0.64,
+    roughness: 0.72,
+    rimRoughness: 0.8,
+    metalness: 0.03,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.54,
+    envMapIntensity: 0.24,
+    bumpScale: 0.38,
+    rimBumpScale: 0.3,
+    texture: {
+      base: '#74787e',
+      highlight: '#b6bac1',
+      shadow: '#3b3e43',
+      density: 1.48,
+      grainSize: 1.12,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.4,
+      seamContrast: 0.28,
+      repeatX: 3,
+      repeatY: 2.6,
+      seed: 3651
+    }
+  },
+  {
+    id: 'stormGrip',
+    label: 'Storm Grip',
+    jawColor: 0x63666c,
+    rimColor: 0x2d3035,
+    sheenColor: 0x858992,
+    sheen: 0.5,
+    sheenRoughness: 0.56,
+    roughness: 0.66,
+    rimRoughness: 0.72,
+    metalness: 0.05,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.44,
+    envMapIntensity: 0.3,
+    bumpScale: 0.28,
+    rimBumpScale: 0.22,
+    texture: {
+      base: '#5f6369',
+      highlight: '#969ca5',
+      shadow: '#292c31',
+      density: 1.12,
+      grainSize: 0.82,
+      streakAlpha: 0.14,
+      creaseAlpha: 0.3,
+      seamContrast: 0.2,
+      repeatX: 2.2,
+      repeatY: 2,
+      seed: 5087
+    }
+  },
+  {
+    id: 'charcoalBand',
+    label: 'Charcoal Band',
+    jawColor: 0x5c5f65,
+    rimColor: 0x26292e,
+    sheenColor: 0x7d8189,
+    sheen: 0.46,
+    sheenRoughness: 0.6,
+    roughness: 0.74,
+    rimRoughness: 0.82,
+    metalness: 0.04,
+    clearcoat: 0.15,
+    clearcoatRoughness: 0.52,
+    envMapIntensity: 0.25,
+    bumpScale: 0.34,
+    rimBumpScale: 0.26,
+    texture: {
+      base: '#595c62',
+      highlight: '#9398a1',
+      shadow: '#24272c',
+      density: 1.42,
+      grainSize: 0.96,
+      streakAlpha: 0.22,
+      creaseAlpha: 0.36,
+      seamContrast: 0.32,
+      repeatX: 2.6,
+      repeatY: 2.2,
+      seed: 7021
+    }
+  }
+]);
+
+const POCKET_LINER_TEXTURE_CACHE = new Map();
+
+function createSeededRandom(seed = 1) {
+  let state = seed >>> 0;
+  return () => {
+    state = (1664525 * state + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function createPocketLinerTextures(option) {
+  const key = option?.id ?? DEFAULT_POCKET_LINER_OPTION_ID;
+  if (POCKET_LINER_TEXTURE_CACHE.has(key)) {
+    return POCKET_LINER_TEXTURE_CACHE.get(key);
+  }
+  const textureSettings = option?.texture ?? {};
+  const repeat = {
+    x: textureSettings.repeatX ?? 2.4,
+    y: textureSettings.repeatY ?? 2.2
+  };
+  if (typeof document === 'undefined') {
+    const fallback = { map: null, bump: null, repeat };
+    POCKET_LINER_TEXTURE_CACHE.set(key, fallback);
+    return fallback;
+  }
+
+  const SIZE = 512;
+  const mapCanvas = document.createElement('canvas');
+  mapCanvas.width = mapCanvas.height = SIZE;
+  const mapCtx = mapCanvas.getContext('2d');
+  mapCtx.fillStyle = textureSettings.base ?? '#70747a';
+  mapCtx.fillRect(0, 0, SIZE, SIZE);
+
+  const bumpCanvas = document.createElement('canvas');
+  bumpCanvas.width = bumpCanvas.height = SIZE;
+  const bumpCtx = bumpCanvas.getContext('2d');
+  bumpCtx.fillStyle = '#808080';
+  bumpCtx.fillRect(0, 0, SIZE, SIZE);
+
+  const rand = createSeededRandom(textureSettings.seed ?? 1);
+  const density = Math.max(0, textureSettings.density ?? 1);
+  const grainSize = Math.max(0.2, textureSettings.grainSize ?? 1);
+  const streakAlpha = Math.max(0, Math.min(1, textureSettings.streakAlpha ?? 0.18));
+  const creaseAlpha = Math.max(0, Math.min(1, textureSettings.creaseAlpha ?? 0.32));
+  const seamContrast = Math.max(0, Math.min(1, textureSettings.seamContrast ?? 0.24));
+  const grainCount = Math.floor(SIZE * SIZE * 0.0016 * density);
+  const TAU = Math.PI * 2;
+
+  for (let i = 0; i < grainCount; i++) {
+    const cx = rand() * SIZE;
+    const cy = rand() * SIZE;
+    const angle = rand() * TAU;
+    const rx = (0.35 + rand() * 0.65) * grainSize * 4;
+    const ry = rx * (0.55 + rand() * 0.35);
+    const alpha = 0.1 + rand() * 0.25;
+    const highlight = textureSettings.highlight ?? '#a6abb3';
+    const shadow = textureSettings.shadow ?? '#373a40';
+
+    mapCtx.save();
+    mapCtx.translate(cx, cy);
+    mapCtx.rotate(angle);
+    const grad = mapCtx.createLinearGradient(-rx, -ry, rx, ry);
+    grad.addColorStop(0, shadow);
+    grad.addColorStop(0.5, highlight);
+    grad.addColorStop(1, shadow);
+    mapCtx.fillStyle = grad;
+    mapCtx.globalAlpha = alpha * streakAlpha;
+    mapCtx.beginPath();
+    mapCtx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+    mapCtx.fill();
+    mapCtx.restore();
+
+    const bumpShade = Math.floor(120 + rand() * 40);
+    bumpCtx.save();
+    bumpCtx.translate(cx, cy);
+    bumpCtx.rotate(angle);
+    const bumpGrad = bumpCtx.createLinearGradient(-rx, -ry, rx, ry);
+    const bumpStart = Math.max(0, bumpShade - 28);
+    const bumpEnd = Math.min(255, bumpShade + 28);
+    bumpGrad.addColorStop(0, `rgb(${bumpStart},${bumpStart},${bumpStart})`);
+    bumpGrad.addColorStop(0.5, `rgb(${Math.floor(bumpShade)},${Math.floor(bumpShade)},${Math.floor(bumpShade)})`);
+    bumpGrad.addColorStop(1, `rgb(${bumpEnd},${bumpEnd},${bumpEnd})`);
+    bumpCtx.fillStyle = bumpGrad;
+    bumpCtx.globalAlpha = 0.3;
+    bumpCtx.beginPath();
+    bumpCtx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+    bumpCtx.fill();
+    bumpCtx.restore();
+  }
+
+  const seamCount = Math.max(2, Math.floor(4 * density));
+  mapCtx.globalAlpha = seamContrast * 0.6;
+  mapCtx.strokeStyle = textureSettings.shadow ?? '#35393e';
+  mapCtx.lineWidth = 2.4;
+  for (let i = 0; i < seamCount; i++) {
+    const startX = rand() * SIZE;
+    const startY = rand() * SIZE;
+    const endX = startX + (rand() - 0.5) * SIZE * 0.3;
+    const endY = startY + (rand() - 0.5) * SIZE * 0.3;
+    mapCtx.beginPath();
+    mapCtx.moveTo(startX, startY);
+    mapCtx.lineTo(endX, endY);
+    mapCtx.stroke();
+  }
+
+  bumpCtx.globalAlpha = creaseAlpha * 0.6;
+  bumpCtx.strokeStyle = 'rgba(96,96,96,0.85)';
+  bumpCtx.lineWidth = 2;
+  for (let i = 0; i < seamCount; i++) {
+    const startX = rand() * SIZE;
+    const startY = rand() * SIZE;
+    const endX = startX + (rand() - 0.5) * SIZE * 0.3;
+    const endY = startY + (rand() - 0.5) * SIZE * 0.3;
+    bumpCtx.beginPath();
+    bumpCtx.moveTo(startX, startY);
+    bumpCtx.lineTo(endX, endY);
+    bumpCtx.stroke();
+  }
+
+  const map = new THREE.CanvasTexture(mapCanvas);
+  applySRGBColorSpace(map);
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.RepeatWrapping;
+  map.anisotropy = 4;
+  map.needsUpdate = true;
+
+  const bump = new THREE.CanvasTexture(bumpCanvas);
+  bump.wrapS = THREE.RepeatWrapping;
+  bump.wrapT = THREE.RepeatWrapping;
+  bump.anisotropy = 2;
+  bump.needsUpdate = true;
+
+  const textures = { map, bump, repeat };
+  POCKET_LINER_TEXTURE_CACHE.set(key, textures);
+  return textures;
+}
+
+function createPocketLinerMaterials(option) {
+  const selection = option ?? POCKET_LINER_OPTIONS[0];
+  const textures = createPocketLinerTextures(selection);
+  const baseSheenColor = new THREE.Color(selection.sheenColor ?? 0x9298a0);
+  const rimSheenColor = new THREE.Color(selection.rimSheenColor ?? selection.sheenColor ?? 0x8f949b);
+  const makeMaterial = (color, overrides = {}) => {
+    const material = new THREE.MeshPhysicalMaterial({
+      color,
+      roughness: overrides.roughness ?? selection.roughness ?? 0.7,
+      metalness: overrides.metalness ?? selection.metalness ?? 0.05,
+      clearcoat: overrides.clearcoat ?? selection.clearcoat ?? 0.15,
+      clearcoatRoughness:
+        overrides.clearcoatRoughness ?? selection.clearcoatRoughness ?? 0.48,
+      sheen: overrides.sheen ?? selection.sheen ?? 0.48,
+      sheenRoughness: overrides.sheenRoughness ?? selection.sheenRoughness ?? 0.6,
+      sheenColor: (overrides.sheenColor ?? baseSheenColor).clone(),
+      envMapIntensity: overrides.envMapIntensity ?? selection.envMapIntensity ?? 0.28
+    });
+    if (textures.map) {
+      material.map = textures.map;
+      material.map.repeat.set(textures.repeat.x, textures.repeat.y);
+      material.map.needsUpdate = true;
+    }
+    if (textures.bump) {
+      material.bumpMap = textures.bump;
+      material.bumpMap.repeat.set(textures.repeat.x, textures.repeat.y);
+      material.bumpScale = overrides.bumpScale ?? selection.bumpScale ?? 0.32;
+      material.bumpMap.needsUpdate = true;
+    } else {
+      material.bumpScale = overrides.bumpScale ?? selection.bumpScale ?? 0.32;
+    }
+    material.needsUpdate = true;
+    return material;
+  };
+
+  const jawMaterial = makeMaterial(selection.jawColor, {
+    roughness: selection.jawRoughness ?? selection.roughness,
+    bumpScale: selection.bumpScale,
+    sheenColor: baseSheenColor
+  });
+  const rimMaterial = makeMaterial(selection.rimColor, {
+    roughness: selection.rimRoughness ?? selection.roughness,
+    bumpScale: selection.rimBumpScale ?? selection.bumpScale,
+    metalness: selection.rimMetalness ?? selection.metalness,
+    sheen: selection.rimSheen ?? selection.sheen,
+    sheenColor: rimSheenColor
+  });
+  return { jawMaterial, rimMaterial };
+}
 
 const toHexColor = (value) => {
   if (typeof value === 'number') {
@@ -5718,6 +6059,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [pocketLinerId, setPocketLinerId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerPocketLiner');
+      if (stored && POCKET_LINER_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_POCKET_LINER_OPTION_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -5725,6 +6075,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
+  );
+  const activePocketLinerOption = useMemo(
+    () =>
+      POCKET_LINER_OPTIONS.find((opt) => opt.id === pocketLinerId) ??
+      POCKET_LINER_OPTIONS[0],
+    [pocketLinerId]
   );
   const activeWoodTexture = useMemo(
     () =>
@@ -5996,6 +6352,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
     const woodSelection = activeWoodTexture;
+    const linerSelection = activePocketLinerOption;
     return {
       ...baseFinish,
       clothDetail:
@@ -6038,10 +6395,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             material: materials.accent.material.clone()
           };
         }
+        const liners = createPocketLinerMaterials(linerSelection);
+        materials.pocketJaw = liners.jawMaterial;
+        materials.pocketRim = liners.rimMaterial;
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
+  }, [
+    tableFinishId,
+    activeChromeOption,
+    activeClothOption,
+    activeWoodTexture,
+    activePocketLinerOption
+  ]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -6065,6 +6431,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerPocketLiner', pocketLinerId);
+    }
+  }, [pocketLinerId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
@@ -12443,6 +12814,46 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             style={{ backgroundColor: toHexColor(option.color) }}
                             aria-hidden="true"
                           />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Pocket Liners
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {POCKET_LINER_OPTIONS.map((option) => {
+                    const active = option.id === pocketLinerId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPocketLinerId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="flex h-3.5 w-6 overflow-hidden rounded-full border border-white/40"
+                            aria-hidden="true"
+                          >
+                            <span
+                              className="h-full w-1/2"
+                              style={{ backgroundColor: toHexColor(option.jawColor) }}
+                            />
+                            <span
+                              className="h-full w-1/2"
+                              style={{ backgroundColor: toHexColor(option.rimColor) }}
+                            />
+                          </span>
                           {option.label}
                         </span>
                       </button>
