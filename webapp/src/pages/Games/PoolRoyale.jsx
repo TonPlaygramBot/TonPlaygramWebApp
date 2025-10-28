@@ -247,7 +247,7 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = 0; // keep the plate centres exactly b
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.012; // grow the middle chrome cut without altering the pocket cylinder
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.022; // grow the middle chrome cut without altering the pocket cylinder
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -262,11 +262,11 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.06; // extend the side fascia 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // ever-so-slightly widen the rounded chrome cut without altering the rest of the fascia
-const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.01; // give the middle chrome arches a touch more breathing room without changing the pocket
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // side rail relief mirrors the pockets one-to-one
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.012; // nudge the wooden rail arches wider so they echo the chrome expansion
 
 function buildChromePlateGeometry({
   width,
@@ -494,7 +494,7 @@ const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; /
 const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // align middle pocket inner lip with the corner jaw profile
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // mirror the corner jaw outer reach for middle pockets
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 1.012; // let the middle jaw rims flare slightly further without altering the playable mouth
 const POCKET_JAW_DEPTH_SCALE = 1; // push the jaw liners the full rail depth so they stand as tall as the rims
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -552,7 +552,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.62; // push the middle chrome cut-outs farther outward so the rounded jaws clear the rail trim while staying aligned with the fascia plates
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.7; // push the middle chrome cut-outs farther outward so the rounded jaws clear the rail trim while staying aligned with the fascia plates
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
