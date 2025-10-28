@@ -247,7 +247,7 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = 0; // keep the plate centres exactly b
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.038; // grow the middle chrome cut without altering the pocket cylinder
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1; // keep the middle chrome arch exactly aligned with the jaw radius
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -261,12 +261,12 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.12; // extend the side fascia width to match the neighbouring rail span
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // ever-so-slightly widen the rounded chrome cut without altering the rest of the fascia
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.05; // give the middle chrome arches added breathing room without changing the pocket
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the corner chrome cut exactly matched to the jaw arch
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // keep the chrome arch identical to the pocket jaw opening
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.05; // nudge the wooden rail arches wider so they echo the chrome expansion
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep the wooden rail arches identical to the chrome cut radius
 
 function buildChromePlateGeometry({
   width,
@@ -512,7 +512,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.54; // align the corner jaw spread with the expanded chrome cut geometry
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.045; // flare the middle jaw spread slightly wider than the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // let the middle jaw radius swell a touch to support the broader arch
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // lock the middle jaw radius to the chrome arch with no extra flare
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // drop the middle jaws to the same depth as the corners
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -552,7 +552,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.95; // push the middle chrome cut-outs farther outward so the rounded jaws clear the rail trim while staying aligned with the fascia plates
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.35; // move the middle pockets farther from centre so every rail and chrome arch follows
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
