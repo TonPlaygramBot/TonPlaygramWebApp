@@ -584,6 +584,8 @@ const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+const CORNER_RAIL_NOTCH_INSET =
+  POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // slide the corner rail + chrome cuts slightly toward the playfield
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -4488,6 +4490,33 @@ function Table3D(
     scalePocketCutMP(mp, CHROME_CORNER_POCKET_CUT_SCALE);
   const scaleChromeSidePocketCut = (mp) =>
     scalePocketCutMP(mp, CHROME_SIDE_POCKET_CUT_SCALE);
+  const translatePocketCutMP = (mp, sx, sz, offset) => {
+    if (!Array.isArray(mp) || !mp.length) {
+      return mp;
+    }
+    if (!Number.isFinite(offset) || Math.abs(offset) <= MICRO_EPS) {
+      return mp;
+    }
+    const dx = -sx * offset;
+    const dz = -sz * offset;
+    if (!Number.isFinite(dx) || !Number.isFinite(dz)) {
+      return mp;
+    }
+    if (Math.abs(dx) <= MICRO_EPS && Math.abs(dz) <= MICRO_EPS) {
+      return mp;
+    }
+    return mp.map((poly) => {
+      if (!Array.isArray(poly)) return poly;
+      return poly.map((ring) => {
+        if (!Array.isArray(ring)) return ring;
+        return ring.map((pt) => {
+          if (!Array.isArray(pt) || pt.length < 2) return pt;
+          const [x, z] = pt;
+          return [x + dx, z + dz];
+        });
+      });
+    });
+  };
   const scaleWoodRailCornerPocketCut = (mp) =>
     scalePocketCutMP(
       scaleChromeCornerPocketCut(mp),
@@ -4515,7 +4544,12 @@ function Table3D(
       sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
       sz * chromeCornerShortRailShift;
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
-    const notchMP = scaleChromeCornerPocketCut(cornerNotchMP(sx, sz));
+    const notchMP = translatePocketCutMP(
+      scaleChromeCornerPocketCut(cornerNotchMP(sx, sz)),
+      sx,
+      sz,
+      CORNER_RAIL_NOTCH_INSET
+    );
     const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -4937,10 +4971,30 @@ function Table3D(
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
-    ...scaleWoodRailCornerPocketCut(cornerNotchMP(-1, 1)),
-    ...scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1)),
-    ...scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1))
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
+      1,
+      1,
+      CORNER_RAIL_NOTCH_INSET
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, 1)),
+      -1,
+      1,
+      CORNER_RAIL_NOTCH_INSET
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1)),
+      -1,
+      -1,
+      CORNER_RAIL_NOTCH_INSET
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1)),
+      1,
+      -1,
+      CORNER_RAIL_NOTCH_INSET
+    )
   );
 
   const railsOuter = new THREE.Shape();
