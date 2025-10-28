@@ -263,6 +263,10 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.08; // shave off the chrome overhang beyond the rails so the fascia stops with the woodwork
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
+const CUSHION_CHROME_SEAM_OUTER_SCALE = 1.004; // expand the cushion opening slightly so the seam can overlap the rails
+const CUSHION_CHROME_SEAM_INNER_SCALE = 0.996; // contract the cushion opening slightly to keep the seam band thin
+const CUSHION_CHROME_SEAM_HEIGHT = TABLE.THICK * 0.016; // subtle vertical thickness so the seam catches light without becoming bulky
+const CUSHION_CHROME_SEAM_ELEVATION = TABLE.THICK * 0.006; // float the seam just above the rail/cushion meeting point
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
@@ -4947,6 +4951,34 @@ function Table3D(
     ...scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1)),
     ...scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1))
   );
+
+  if (
+    openingMP?.length &&
+    CUSHION_CHROME_SEAM_OUTER_SCALE > CUSHION_CHROME_SEAM_INNER_SCALE &&
+    CUSHION_CHROME_SEAM_HEIGHT > MICRO_EPS
+  ) {
+    const seamOuterMP = scaleMultiPolygon(openingMP, CUSHION_CHROME_SEAM_OUTER_SCALE);
+    const seamInnerMP = scaleMultiPolygon(openingMP, CUSHION_CHROME_SEAM_INNER_SCALE);
+    const seamBandMP = polygonClipping.difference(seamOuterMP, seamInnerMP);
+    const seamShapes = multiPolygonToShapes(seamBandMP);
+    if (seamShapes.length) {
+      const seamGeom = new THREE.ExtrudeGeometry(seamShapes, {
+        depth: CUSHION_CHROME_SEAM_HEIGHT,
+        bevelEnabled: false,
+        curveSegments: 96
+      });
+      const seamMesh = new THREE.Mesh(seamGeom, trimMat);
+      seamMesh.rotation.x = -Math.PI / 2;
+      seamMesh.position.y =
+        railsTopY - CUSHION_CHROME_SEAM_HEIGHT + CUSHION_CHROME_SEAM_ELEVATION;
+      seamMesh.renderOrder = 4;
+      seamMesh.castShadow = false;
+      seamMesh.receiveShadow = false;
+      seamMesh.name = 'cushionChromeSeam';
+      railsGroup.add(seamMesh);
+      finishParts.trimMeshes.push(seamMesh);
+    }
+  }
 
   const railsOuter = new THREE.Shape();
   if (hasRoundedRailCorners) {
