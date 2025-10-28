@@ -5596,6 +5596,7 @@ function Table3D(
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
   const CUSHION_UNDERCUT_BASE_LIFT = 0.38;
+  const CUSHION_RAIL_BASE_LIFT = 0; // keep the cushion base flush with the cloth plane along the wooden rails
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.66;
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
@@ -5648,10 +5649,14 @@ function Table3D(
       const y = arr[i + 1];
       const z = arr[i + 2];
       const frontFactor = THREE.MathUtils.clamp((backY - y) / frontSpan, 0, 1);
-      if (frontFactor <= 0) continue;
       const taperedLift = CUSHION_UNDERCUT_FRONT_REMOVAL * frontFactor;
-      const lift = Math.min(CUSHION_UNDERCUT_BASE_LIFT + taperedLift, 0.94);
-      const minAllowedZ = minZ + depth * lift;
+      const baseLiftBlend = THREE.MathUtils.lerp(
+        CUSHION_RAIL_BASE_LIFT,
+        CUSHION_UNDERCUT_BASE_LIFT,
+        frontFactor
+      );
+      const lift = Math.min(baseLiftBlend + taperedLift, 0.94);
+      const minAllowedZ = Math.max(0, minZ + depth * lift);
       if (z < minAllowedZ) arr[i + 2] = minAllowedZ;
 
       // Pull only the exposed nose toward the playfield so the top cushion profile
