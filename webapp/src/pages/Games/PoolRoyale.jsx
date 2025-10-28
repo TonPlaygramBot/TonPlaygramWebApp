@@ -585,7 +585,7 @@ const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
-  POCKET_VIS_R * 0.04 * POCKET_VISUAL_EXPANSION; // slide the corner rail + chrome cuts slightly toward the playfield
+  POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // slide the corner rail + chrome cuts farther toward the playfield so only the rounded pocket cuts move inward
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
