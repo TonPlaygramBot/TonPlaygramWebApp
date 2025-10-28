@@ -496,6 +496,7 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // align midd
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_DEPTH_SCALE = 1; // push the jaw liners the full rail depth so they stand as tall as the rims
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.045; // raise the jaw assembly slightly so the fascia reads taller
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -651,7 +652,7 @@ const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cov
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.078; // trim the cushion lip further so the top aligns cleanly with the wooden rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.12; // shorten cushion height so the lip sits level with the wooden rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -5238,7 +5239,7 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = railsTopY;
+    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5263,7 +5264,7 @@ function Table3D(
       const rimOffsetScale = isMiddle
         ? SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE
         : POCKET_RIM_SURFACE_OFFSET_SCALE;
-      rimMesh.position.y = railsTopY + railH * rimOffsetScale;
+      rimMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + railH * rimOffsetScale;
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
