@@ -255,18 +255,18 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.15; // deepen every chrome plate slightly so the trim reads chunkier
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.12; // widen the side fascia so the chrome stretches toward the cushions
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.24; // widen the side fascia so the chrome stretches farther toward the cushions
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.04; // nudge the fascia taller until it meets the green cushion line
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.085; // extend the side fascia width to match the neighbouring rail span
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.12; // extend the side fascia width to match the neighbouring rail span
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // ever-so-slightly widen the rounded chrome cut without altering the rest of the fascia
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.026; // give the middle chrome arches a touch more breathing room without changing the pocket
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.05; // give the middle chrome arches added breathing room without changing the pocket
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.026; // nudge the wooden rail arches wider so they echo the chrome expansion
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.05; // nudge the wooden rail arches wider so they echo the chrome expansion
 
 function buildChromePlateGeometry({
   width,
