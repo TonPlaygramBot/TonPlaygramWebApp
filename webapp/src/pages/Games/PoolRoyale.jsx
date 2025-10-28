@@ -1125,6 +1125,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
+const POOL_ROYALE_POCKET_BASE_COLOR = 0x1b1e23;
+const POOL_ROYALE_POCKET_SHEEN_COLOR = 0x2d3239;
+const POOL_ROYALE_POCKET_TEXTURE_BASE_COLOR = 0x272c33;
 const CLOTH_TEXTURE_INTENSITY = 0.52;
 const CLOTH_HAIR_INTENSITY = 0.38;
 const CLOTH_BUMP_INTENSITY = 0.58;
@@ -1278,28 +1281,20 @@ const TABLE_FINISHES = Object.freeze(
           clearcoatRoughness: 0.1,
           envMapIntensity: 1.38
         });
+        const pocketSheenColor = new THREE.Color(POOL_ROYALE_POCKET_SHEEN_COLOR);
         const pocketJaw = new THREE.MeshPhysicalMaterial({
-          color: 0x6d7177,
-          metalness: 0.05,
-          roughness: 0.68,
-          clearcoat: 0.18,
-          clearcoatRoughness: 0.48,
-          sheen: 0.52,
-          sheenColor: new THREE.Color(0x8f949b),
-          sheenRoughness: 0.58,
-          envMapIntensity: 0.28
+          color: POOL_ROYALE_POCKET_BASE_COLOR,
+          metalness: 0.08,
+          roughness: 0.58,
+          clearcoat: 0.24,
+          clearcoatRoughness: 0.42,
+          sheen: 0.54,
+          sheenColor: pocketSheenColor.clone(),
+          sheenRoughness: 0.56,
+          envMapIntensity: 0.36
         });
-        const pocketRim = new THREE.MeshPhysicalMaterial({
-          color: 0x383b40,
-          metalness: 0.06,
-          roughness: 0.76,
-          clearcoat: 0.14,
-          clearcoatRoughness: 0.54,
-          sheen: 0.44,
-          sheenColor: new THREE.Color(0x6f747b),
-          sheenRoughness: 0.62,
-          envMapIntensity: 0.24
-        });
+        const pocketRim = pocketJaw.clone();
+        pocketRim.needsUpdate = true;
         return {
           frame,
           rail,
@@ -1398,14 +1393,23 @@ const POCKET_LINER_OPTIONS = Object.freeze(
     if (!finish) {
       return null;
     }
-    const baseHex = finish.colors?.rail ?? 0x6d7177;
-    const jawHex = mixHexColors(baseHex, 0xffffff, config.jawMix ?? 0.16);
-    const rimHex = mixHexColors(baseHex, 0x111111, config.rimMix ?? 0.32);
-    const sheenHex = mixHexColors(baseHex, 0xffffff, config.sheenMix ?? 0.4);
-    const rimSheenHex = mixHexColors(baseHex, 0xffffff, config.rimSheenMix ?? 0.26);
-    const highlightHex = mixHexColors(jawHex, 0xffffff, config.highlightMix ?? 0.25);
-    const shadowHex = mixHexColors(jawHex, 0x111111, config.shadowMix ?? 0.3);
-    const baseTextureHex = mixHexColors(jawHex, 0xffffff, config.textureBaseMix ?? 0.08);
+    const baseHex = finish.colors?.rail ?? POOL_ROYALE_POCKET_BASE_COLOR;
+    const pocketTone = mixHexColors(
+      POOL_ROYALE_POCKET_BASE_COLOR,
+      baseHex,
+      config.jawMix ?? 0.16
+    );
+    const jawHex = pocketTone;
+    const rimHex = pocketTone;
+    const sheenHex = mixHexColors(pocketTone, 0xffffff, config.sheenMix ?? 0.22);
+    const rimSheenHex = sheenHex;
+    const highlightHex = mixHexColors(pocketTone, 0xffffff, config.highlightMix ?? 0.18);
+    const shadowHex = mixHexColors(pocketTone, 0x050505, config.shadowMix ?? 0.44);
+    const baseTextureHex = mixHexColors(
+      pocketTone,
+      POOL_ROYALE_POCKET_TEXTURE_BASE_COLOR,
+      config.textureBaseMix ?? 0.38
+    );
     return Object.freeze({
       id: config.id,
       label: config.label,
@@ -1414,15 +1418,15 @@ const POCKET_LINER_OPTIONS = Object.freeze(
       rimColor: rimHex,
       sheenColor: sheenHex,
       rimSheenColor: rimSheenHex,
-      sheen: config.sheen ?? 0.5,
-      sheenRoughness: config.sheenRoughness ?? 0.58,
-      roughness: config.roughness ?? 0.7,
-      rimRoughness: config.rimRoughness ?? 0.78,
-      metalness: config.metalness ?? 0.05,
-      rimMetalness: config.rimMetalness ?? config.metalness ?? 0.05,
-      clearcoat: config.clearcoat ?? 0.16,
-      clearcoatRoughness: config.clearcoatRoughness ?? 0.46,
-      envMapIntensity: config.envMapIntensity ?? 0.28,
+      sheen: config.sheen ?? 0.54,
+      sheenRoughness: config.sheenRoughness ?? 0.56,
+      roughness: config.roughness ?? 0.58,
+      rimRoughness: config.rimRoughness ?? config.roughness ?? 0.58,
+      metalness: config.metalness ?? 0.08,
+      rimMetalness: config.rimMetalness ?? config.metalness ?? 0.08,
+      clearcoat: config.clearcoat ?? 0.24,
+      clearcoatRoughness: config.clearcoatRoughness ?? 0.4,
+      envMapIntensity: config.envMapIntensity ?? 0.34,
       bumpScale: config.bumpScale ?? 0.32,
       rimBumpScale: config.rimBumpScale ?? 0.24,
       texture: {
@@ -1472,7 +1476,7 @@ function createPocketLinerTextures(option) {
   const mapCanvas = document.createElement('canvas');
   mapCanvas.width = mapCanvas.height = SIZE;
   const mapCtx = mapCanvas.getContext('2d');
-  mapCtx.fillStyle = textureSettings.base ?? '#70747a';
+  mapCtx.fillStyle = textureSettings.base ?? '#272c33';
   mapCtx.fillRect(0, 0, SIZE, SIZE);
 
   const bumpCanvas = document.createElement('canvas');
@@ -1497,8 +1501,8 @@ function createPocketLinerTextures(option) {
     const rx = (0.35 + rand() * 0.65) * grainSize * 4;
     const ry = rx * (0.55 + rand() * 0.35);
     const alpha = 0.1 + rand() * 0.25;
-    const highlight = textureSettings.highlight ?? '#a6abb3';
-    const shadow = textureSettings.shadow ?? '#373a40';
+    const highlight = textureSettings.highlight ?? '#5c636e';
+    const shadow = textureSettings.shadow ?? '#101317';
 
     mapCtx.save();
     mapCtx.translate(cx, cy);
@@ -1582,20 +1586,24 @@ function createPocketLinerTextures(option) {
 function createPocketLinerMaterials(option) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
   const textures = createPocketLinerTextures(selection);
-  const baseSheenColor = new THREE.Color(selection.sheenColor ?? 0x9298a0);
-  const rimSheenColor = new THREE.Color(selection.rimSheenColor ?? selection.sheenColor ?? 0x8f949b);
+  const baseSheenColor = new THREE.Color(
+    selection.sheenColor ?? POOL_ROYALE_POCKET_SHEEN_COLOR
+  );
+  const rimSheenColor = new THREE.Color(
+    selection.rimSheenColor ?? selection.sheenColor ?? POOL_ROYALE_POCKET_SHEEN_COLOR
+  );
   const makeMaterial = (color, overrides = {}) => {
     const material = new THREE.MeshPhysicalMaterial({
       color,
-      roughness: overrides.roughness ?? selection.roughness ?? 0.7,
-      metalness: overrides.metalness ?? selection.metalness ?? 0.05,
-      clearcoat: overrides.clearcoat ?? selection.clearcoat ?? 0.15,
+      roughness: overrides.roughness ?? selection.roughness ?? 0.58,
+      metalness: overrides.metalness ?? selection.metalness ?? 0.08,
+      clearcoat: overrides.clearcoat ?? selection.clearcoat ?? 0.24,
       clearcoatRoughness:
-        overrides.clearcoatRoughness ?? selection.clearcoatRoughness ?? 0.48,
-      sheen: overrides.sheen ?? selection.sheen ?? 0.48,
-      sheenRoughness: overrides.sheenRoughness ?? selection.sheenRoughness ?? 0.6,
+        overrides.clearcoatRoughness ?? selection.clearcoatRoughness ?? 0.4,
+      sheen: overrides.sheen ?? selection.sheen ?? 0.54,
+      sheenRoughness: overrides.sheenRoughness ?? selection.sheenRoughness ?? 0.56,
       sheenColor: (overrides.sheenColor ?? baseSheenColor).clone(),
-      envMapIntensity: overrides.envMapIntensity ?? selection.envMapIntensity ?? 0.28
+      envMapIntensity: overrides.envMapIntensity ?? selection.envMapIntensity ?? 0.34
     });
     if (textures.map) {
       material.map = textures.map;
