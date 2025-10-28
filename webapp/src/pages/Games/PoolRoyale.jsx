@@ -1139,6 +1139,19 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
 });
 
 
+const clampToUnit = (value) => Math.min(1, Math.max(0, value));
+
+const mixHexColors = (fromHex, toHex, t) => {
+  const amount = clampToUnit(typeof t === 'number' ? t : 0);
+  const start = new THREE.Color(fromHex);
+  const target = new THREE.Color(toHex);
+  start.lerp(target, amount);
+  return start.getHex();
+};
+
+const hexNumberToCss = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
+
+
 const SHARED_WOOD_REPEAT = Object.freeze({
   x: TABLE_WOOD_REPEAT.x,
   y: TABLE_WOOD_REPEAT.y
@@ -1361,159 +1374,73 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const DEFAULT_POCKET_LINER_OPTION_ID = 'graphiteHide';
-const POCKET_LINER_OPTIONS = Object.freeze([
-  {
-    id: 'graphiteHide',
-    label: 'Graphite Leather',
-    jawColor: 0x6d7076,
-    rimColor: 0x3b3e44,
-    sheenColor: 0x8f949b,
-    sheen: 0.52,
-    sheenRoughness: 0.58,
-    roughness: 0.68,
-    rimRoughness: 0.74,
-    metalness: 0.06,
-    clearcoat: 0.16,
-    clearcoatRoughness: 0.46,
-    envMapIntensity: 0.28,
-    bumpScale: 0.32,
-    rimBumpScale: 0.24,
-    texture: {
-      base: '#6f737a',
-      highlight: '#a3a8b0',
-      shadow: '#3a3d42',
-      density: 1.18,
-      grainSize: 0.9,
-      streakAlpha: 0.16,
-      creaseAlpha: 0.34,
-      seamContrast: 0.22,
-      repeatX: 2.4,
-      repeatY: 2.1,
-      seed: 1103
+const POCKET_LINER_FINISH_LINKS = Object.freeze(
+  TABLE_FINISH_OPTIONS.slice(0, 5).map((finish, index) =>
+    Object.freeze({
+      id: `${finish.id}Pocket`,
+      finishId: finish.id,
+      label: `${finish.label} Pockets`,
+      jawMix: 0.08 + index * 0.035,
+      rimMix: 0.22 + index * 0.04,
+      textureDensity: 1.08 + index * 0.08,
+      seed: 1103 + index * 517
+    })
+  )
+);
+
+const DEFAULT_POCKET_LINER_OPTION_ID =
+  POCKET_LINER_FINISH_LINKS.find((link) => link.finishId === DEFAULT_TABLE_FINISH_ID)?.id ??
+  (POCKET_LINER_FINISH_LINKS[0]?.id ?? 'oakPocket');
+
+const POCKET_LINER_OPTIONS = Object.freeze(
+  POCKET_LINER_FINISH_LINKS.map((config, index) => {
+    const finish = TABLE_FINISHES[config.finishId];
+    if (!finish) {
+      return null;
     }
-  },
-  {
-    id: 'slateWeave',
-    label: 'Slate Weave',
-    jawColor: 0x707376,
-    rimColor: 0x34373c,
-    sheenColor: 0x9ba0a6,
-    sheen: 0.48,
-    sheenRoughness: 0.62,
-    roughness: 0.7,
-    rimRoughness: 0.78,
-    metalness: 0.04,
-    clearcoat: 0.14,
-    clearcoatRoughness: 0.5,
-    envMapIntensity: 0.26,
-    bumpScale: 0.36,
-    rimBumpScale: 0.28,
-    texture: {
-      base: '#6c7074',
-      highlight: '#b0b6be',
-      shadow: '#32343a',
-      density: 1.32,
-      grainSize: 1.05,
-      streakAlpha: 0.2,
-      creaseAlpha: 0.38,
-      seamContrast: 0.26,
-      repeatX: 2.8,
-      repeatY: 2.4,
-      seed: 2417
-    }
-  },
-  {
-    id: 'ashRubber',
-    label: 'Ash Rubber',
-    jawColor: 0x787b80,
-    rimColor: 0x404347,
-    sheenColor: 0x8d9198,
-    sheen: 0.44,
-    sheenRoughness: 0.64,
-    roughness: 0.72,
-    rimRoughness: 0.8,
-    metalness: 0.03,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.54,
-    envMapIntensity: 0.24,
-    bumpScale: 0.38,
-    rimBumpScale: 0.3,
-    texture: {
-      base: '#74787e',
-      highlight: '#b6bac1',
-      shadow: '#3b3e43',
-      density: 1.48,
-      grainSize: 1.12,
-      streakAlpha: 0.18,
-      creaseAlpha: 0.4,
-      seamContrast: 0.28,
-      repeatX: 3,
-      repeatY: 2.6,
-      seed: 3651
-    }
-  },
-  {
-    id: 'stormGrip',
-    label: 'Storm Grip',
-    jawColor: 0x63666c,
-    rimColor: 0x2d3035,
-    sheenColor: 0x858992,
-    sheen: 0.5,
-    sheenRoughness: 0.56,
-    roughness: 0.66,
-    rimRoughness: 0.72,
-    metalness: 0.05,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.44,
-    envMapIntensity: 0.3,
-    bumpScale: 0.28,
-    rimBumpScale: 0.22,
-    texture: {
-      base: '#5f6369',
-      highlight: '#969ca5',
-      shadow: '#292c31',
-      density: 1.12,
-      grainSize: 0.82,
-      streakAlpha: 0.14,
-      creaseAlpha: 0.3,
-      seamContrast: 0.2,
-      repeatX: 2.2,
-      repeatY: 2,
-      seed: 5087
-    }
-  },
-  {
-    id: 'charcoalBand',
-    label: 'Charcoal Band',
-    jawColor: 0x5c5f65,
-    rimColor: 0x26292e,
-    sheenColor: 0x7d8189,
-    sheen: 0.46,
-    sheenRoughness: 0.6,
-    roughness: 0.74,
-    rimRoughness: 0.82,
-    metalness: 0.04,
-    clearcoat: 0.15,
-    clearcoatRoughness: 0.52,
-    envMapIntensity: 0.25,
-    bumpScale: 0.34,
-    rimBumpScale: 0.26,
-    texture: {
-      base: '#595c62',
-      highlight: '#9398a1',
-      shadow: '#24272c',
-      density: 1.42,
-      grainSize: 0.96,
-      streakAlpha: 0.22,
-      creaseAlpha: 0.36,
-      seamContrast: 0.32,
-      repeatX: 2.6,
-      repeatY: 2.2,
-      seed: 7021
-    }
-  }
-]);
+    const baseHex = finish.colors?.rail ?? 0x6d7177;
+    const jawHex = mixHexColors(baseHex, 0xffffff, config.jawMix ?? 0.16);
+    const rimHex = mixHexColors(baseHex, 0x111111, config.rimMix ?? 0.32);
+    const sheenHex = mixHexColors(baseHex, 0xffffff, config.sheenMix ?? 0.4);
+    const rimSheenHex = mixHexColors(baseHex, 0xffffff, config.rimSheenMix ?? 0.26);
+    const highlightHex = mixHexColors(jawHex, 0xffffff, config.highlightMix ?? 0.25);
+    const shadowHex = mixHexColors(jawHex, 0x111111, config.shadowMix ?? 0.3);
+    const baseTextureHex = mixHexColors(jawHex, 0xffffff, config.textureBaseMix ?? 0.08);
+    return Object.freeze({
+      id: config.id,
+      label: config.label,
+      finishId: config.finishId,
+      jawColor: jawHex,
+      rimColor: rimHex,
+      sheenColor: sheenHex,
+      rimSheenColor: rimSheenHex,
+      sheen: config.sheen ?? 0.5,
+      sheenRoughness: config.sheenRoughness ?? 0.58,
+      roughness: config.roughness ?? 0.7,
+      rimRoughness: config.rimRoughness ?? 0.78,
+      metalness: config.metalness ?? 0.05,
+      rimMetalness: config.rimMetalness ?? config.metalness ?? 0.05,
+      clearcoat: config.clearcoat ?? 0.16,
+      clearcoatRoughness: config.clearcoatRoughness ?? 0.46,
+      envMapIntensity: config.envMapIntensity ?? 0.28,
+      bumpScale: config.bumpScale ?? 0.32,
+      rimBumpScale: config.rimBumpScale ?? 0.24,
+      texture: {
+        base: hexNumberToCss(baseTextureHex),
+        highlight: hexNumberToCss(highlightHex),
+        shadow: hexNumberToCss(shadowHex),
+        density: config.textureDensity ?? 1.2,
+        grainSize: config.grainSize ?? 1.05,
+        streakAlpha: config.streakAlpha ?? 0.18,
+        creaseAlpha: config.creaseAlpha ?? 0.34,
+        seamContrast: config.seamContrast ?? 0.26,
+        repeatX: config.repeatX ?? 2.4,
+        repeatY: config.repeatY ?? 2.2,
+        seed: config.seed ?? 1103 + index * 517
+      }
+    });
+  }).filter(Boolean)
+);
 
 const POCKET_LINER_TEXTURE_CACHE = new Map();
 
