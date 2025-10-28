@@ -517,7 +517,9 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // drop the middle jaws to the same d
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
+const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
+const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -5244,9 +5246,11 @@ function Table3D(
     group.add(jawMesh);
 
     let rimMesh = null;
-    if (POCKET_RIM_DEPTH_RATIO > MICRO_EPS) {
-      const rimDepth = Math.max(MICRO_EPS, jawDepth * POCKET_RIM_DEPTH_RATIO);
-      const rimGeom = new THREE.ExtrudeGeometry(jawShape, {
+    const rimDepthRatio = isMiddle ? SIDE_POCKET_RIM_DEPTH_RATIO : POCKET_RIM_DEPTH_RATIO;
+    if (rimDepthRatio > MICRO_EPS) {
+      const rimShape = jawShape.clone();
+      const rimDepth = Math.max(MICRO_EPS, jawDepth * rimDepthRatio);
+      const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
         curveSegments: Math.max(48, Math.ceil(localJawAngle / (Math.PI / 64))),
@@ -5256,8 +5260,10 @@ function Table3D(
       rimGeom.translate(0, -rimDepth, 0);
       rimGeom.computeVertexNormals();
       rimMesh = new THREE.Mesh(rimGeom, pocketRimMat);
-      rimMesh.position.y =
-        railsTopY + railH * POCKET_RIM_SURFACE_OFFSET_SCALE;
+      const rimOffsetScale = isMiddle
+        ? SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE
+        : POCKET_RIM_SURFACE_OFFSET_SCALE;
+      rimMesh.position.y = railsTopY + railH * rimOffsetScale;
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
