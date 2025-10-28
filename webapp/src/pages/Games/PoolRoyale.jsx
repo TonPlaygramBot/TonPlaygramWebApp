@@ -261,7 +261,7 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.06; // extend the side fascia width to match the neighbouring rail span
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1; // corner chrome arches must match the pocket diameter exactly
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // ever-so-slightly widen the rounded chrome cut without altering the rest of the fascia
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // middle chrome arches now track the pocket diameter precisely
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -489,8 +489,8 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.028; // nudge the corner jaws farther into the widened chrome arches
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // match side pocket clamp to the corner jaw specification
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp the corner jaws exactly to the chrome pocket arch
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the side jaw clamp identical to the corners
 const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // align middle pocket inner lip with the corner jaw profile
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
@@ -517,7 +517,7 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // drop the middle jaws to the same d
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0.3; // shallow lip that hugs the top of each pocket jaw
-const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.022; // lift the rim slightly above the rail line to avoid z-fighting with the jaw
+const POCKET_RIM_SURFACE_OFFSET_SCALE = 0; // keep the rim sitting flush with the jaw height so both surfaces align perfectly
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -1426,39 +1426,6 @@ const POCKET_LINER_PRESETS = Object.freeze([
       repeatX: 2.1,
       repeatY: 2.1,
       seed: 4319
-    }
-  }),
-  Object.freeze({
-    id: 'goldPocket',
-    label: 'Gold Pocket Jaws',
-    type: 'metal',
-    jawColor: 0xc4932f,
-    rimColor: 0xb88527,
-    sheenColor: 0xf8e1a6,
-    rimSheenColor: 0xf0c971,
-    sheen: 0.82,
-    sheenRoughness: 0.42,
-    roughness: 0.24,
-    rimRoughness: 0.28,
-    metalness: 0.94,
-    rimMetalness: 0.96,
-    clearcoat: 0.36,
-    clearcoatRoughness: 0.18,
-    envMapIntensity: 1.08,
-    bumpScale: 0.16,
-    rimBumpScale: 0.12,
-    texture: {
-      base: 0xd0a64a,
-      highlight: 0xf9e7b9,
-      shadow: 0x6f4f1a,
-      density: 0.48,
-      grainSize: 0.58,
-      streakAlpha: 0.18,
-      creaseAlpha: 0.14,
-      seamContrast: 0.22,
-      repeatX: 2.0,
-      repeatY: 2.0,
-      seed: 4897
     }
   }),
   Object.freeze({
