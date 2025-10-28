@@ -247,7 +247,7 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = 0; // keep the plate centres exactly b
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.97; // tuck the middle chrome arch slightly tighter so it reads smaller
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1; // keep the middle chrome arch exactly aligned with the jaw radius
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -262,7 +262,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.12; // extend the side fascia 
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the corner chrome cut exactly matched to the jaw arch
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.97; // reduce the chrome arch cut so it follows the slimmer jaw opening
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // keep the chrome arch identical to the pocket jaw opening
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // let the wooden rail arches match the chrome pocket radius exactly
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
@@ -555,7 +555,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.45; // push the middle pockets a touch farther from centre so rails and jaws drift outward
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.35; // move the middle pockets farther from centre so every rail and chrome arch follows
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -571,7 +571,7 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.92; // trim the middle pocket opening a little more so the liner reads tighter
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.94; // trim the middle pocket opening slightly so the liner reads tighter
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
