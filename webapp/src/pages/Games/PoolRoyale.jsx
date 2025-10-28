@@ -482,11 +482,22 @@ const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_SCALE = 1.17; // reduce snooker build to Pool Royale footprint without altering proportions
+const WIDTH_REF = 2540;
+const HEIGHT_REF = 1270;
+const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+const TABLE_THICK = 1.8 * TABLE_SCALE;
+const TABLE_WALL = 2.6 * TABLE_SCALE;
+const TABLE_H = 132 * TABLE_SCALE;
+const SIDE_RAIL_INNER_SCALE = 0.56; // match the short-rail cushion width by thickening the long rails outward
+const SIDE_RAIL_INNER_THICKNESS = TABLE_WALL * SIDE_RAIL_INNER_SCALE;
+const END_RAIL_INNER_THICKNESS = SIDE_RAIL_INNER_THICKNESS;
 const TABLE = {
-  W: 66 * TABLE_SCALE,
-  H: 132 * TABLE_SCALE,
-  THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE
+  W:
+    (TABLE_H - 2 * END_RAIL_INNER_THICKNESS) / TARGET_RATIO +
+    2 * SIDE_RAIL_INNER_THICKNESS,
+  H: TABLE_H,
+  THICK: TABLE_THICK,
+  WALL: TABLE_WALL
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.028; // nudge the corner jaws farther into the widened chrome arches
@@ -521,23 +532,12 @@ const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.022; // lift the rim slightly above th
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
 const BALL_D_REF = 57.15;
 const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
 const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
 const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
-const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
-const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
-const END_RAIL_INNER_SCALE =
-  (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
-  (2 * TABLE.WALL);
-const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
-const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
 const ORIGINAL_PLAY_W = TABLE.W - 2 * TABLE.WALL;
 const ORIGINAL_HALF_W = ORIGINAL_PLAY_W / 2;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
