@@ -250,7 +250,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.01; // slightly widen the middle chrome arch so the rounded cut reads larger
+  0.998; // match the middle chrome arch to the rail cut so the jaws follow the rounded profile exactly
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -258,10 +258,10 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.38; // widen the side fascia so the chrome stretches farther toward the cushions
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.24; // pull the side fascia back so it stops short of the wooden rail reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1; // lock the middle fascia height to the corner plate thickness
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.24; // extend the side fascia width further to match the wider middle chrome
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // keep a subtle reveal so the chrome plate edge stays visible like the corners
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the corner chrome cut exactly matched to the jaw arch
@@ -516,8 +516,8 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.54; // align the corner jaw spread with the expanded chrome cut geometry
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.015; // let the middle jaw spread breathe slightly more than the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.01; // nudge the middle jaw radius outward to match the larger rounded cut
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.992; // tighten the middle jaw span so it sits further from the table centreline
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // keep the jaw radius tucked inside the chrome cut to match the rail profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08; // push the middle jaws deeper so their height matches the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -559,7 +559,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.6; // push the middle pockets further outward so the rails and chrome arcs stay centred over the holes
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.74; // move the middle pockets slightly farther outboard so the jaws clear the table centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
