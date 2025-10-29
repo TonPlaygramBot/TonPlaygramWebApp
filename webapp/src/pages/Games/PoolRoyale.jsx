@@ -4339,23 +4339,80 @@ function Table3D(
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
-    const shape = new THREE.Shape();
-    shape.moveTo(-insetHalfW, -insetHalfH);
-    shape.lineTo(insetHalfW, -insetHalfH);
-    shape.lineTo(insetHalfW, insetHalfH);
-    shape.lineTo(-insetHalfW, insetHalfH);
-    shape.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p) => {
-      const hole = new THREE.Path();
-      hole.absellipse(p.x, p.y, holeRadius, holeRadius, 0, Math.PI * 2, true);
-      hole.autoClose = true;
-      shape.holes.push(hole);
+    const fallback = () => {
+      const shape = new THREE.Shape();
+      shape.moveTo(-insetHalfW, -insetHalfH);
+      shape.lineTo(insetHalfW, -insetHalfH);
+      shape.lineTo(insetHalfW, insetHalfH);
+      shape.lineTo(-insetHalfW, insetHalfH);
+      shape.lineTo(-insetHalfW, -insetHalfH);
+      const radius = Math.max(MICRO_EPS, holeRadius);
+      pocketPositions.forEach((p) => {
+        const hole = new THREE.Path();
+        hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
+        hole.autoClose = true;
+        shape.holes.push(hole);
+      });
+      return [shape];
+    };
+
+    const baseMP = rectPoly(insetHalfW * 2, insetHalfH * 2);
+    const baseCornerRadius = cornerPocketRadius * CHROME_CORNER_POCKET_RADIUS_SCALE;
+    const baseSideRadius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
+    const targetRadius = Math.max(MICRO_EPS, holeRadius);
+    const cornerScale =
+      baseCornerRadius > MICRO_EPS ? targetRadius / baseCornerRadius : null;
+    const sideScale = baseSideRadius > MICRO_EPS ? targetRadius / baseSideRadius : null;
+
+    const scalePocketMP = (mp, scale) => {
+      if (!Array.isArray(mp) || !mp.length) {
+        return null;
+      }
+      if (!Number.isFinite(scale) || scale <= 0) {
+        return mp;
+      }
+      const scaled = scaleMultiPolygon(mp, scale);
+      return Array.isArray(scaled) && scaled.length ? scaled : mp;
+    };
+
+    const pocketClips = [];
+    [
+      { sx: 1, sz: 1 },
+      { sx: -1, sz: 1 },
+      { sx: -1, sz: -1 },
+      { sx: 1, sz: -1 }
+    ].forEach(({ sx, sz }) => {
+      const scaled = scalePocketMP(cornerNotchMP(sx, sz), cornerScale);
+      if (Array.isArray(scaled) && scaled.length) {
+        pocketClips.push(scaled);
+      }
     });
-    return shape;
+    [-1, 1].forEach((sx) => {
+      const scaled = scalePocketMP(sideNotchMP(sx), sideScale);
+      if (Array.isArray(scaled) && scaled.length) {
+        pocketClips.push(scaled);
+      }
+    });
+
+    let clothMP = baseMP;
+    if (pocketClips.length) {
+      try {
+        clothMP = polygonClipping.difference(baseMP, ...pocketClips);
+      } catch (err) {
+        console.warn('PoolRoyale: failed to build cloth pocket cuts, using fallback.', err);
+        return fallback();
+      }
+    }
+
+    const shapes = multiPolygonToShapes(clothMP);
+    if (Array.isArray(shapes) && shapes.length) {
+      return shapes;
+    }
+    return fallback();
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
-  const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
+  const clothShapes = buildSurfaceShape(POCKET_HOLE_R);
+  const clothGeo = new THREE.ExtrudeGeometry(clothShapes, {
     depth: CLOTH_THICKNESS,
     bevelEnabled: false,
     curveSegments: 64,
@@ -4369,11 +4426,11 @@ function Table3D(
   cloth.receiveShadow = true;
   table.add(cloth);
 
-  const underlayShape = buildSurfaceShape(
+  const underlayShapes = buildSurfaceShape(
     POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE,
     CLOTH_UNDERLAY_EDGE_INSET
   );
-  const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
+  const underlayGeo = new THREE.ExtrudeGeometry(underlayShapes, {
     depth: CLOTH_UNDERLAY_THICKNESS,
     bevelEnabled: false,
     curveSegments: 48,
@@ -4425,11 +4482,11 @@ function Table3D(
     });
   }
 
-  const shadowCoverShape = buildSurfaceShape(
+  const shadowCoverShapes = buildSurfaceShape(
     CLOTH_SHADOW_COVER_HOLE_RADIUS,
     CLOTH_SHADOW_COVER_EDGE_INSET
   );
-  const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
+  const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShapes, {
     depth: CLOTH_SHADOW_COVER_THICKNESS,
     bevelEnabled: false,
     curveSegments: 32,
