@@ -3709,7 +3709,8 @@ function Table3D(
     shape.lineTo(-insetHalfW, -insetHalfH);
     pocketPositions.forEach((p) => {
       const hole = new THREE.Path();
-      hole.absellipse(p.x, p.y, holeRadius, holeRadius, 0, Math.PI * 2);
+      hole.absellipse(p.x, p.y, holeRadius, holeRadius, 0, Math.PI * 2, true);
+      hole.autoClose = true;
       shape.holes.push(hole);
     });
     return shape;
