@@ -491,7 +491,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.82; // lift the wooden rails a touch so their top edge aligns with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.88; // raise the wooden rails so their top surface finishes flush with the green cushions
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp the corner jaws exactly to the chrome pocket arch
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the side jaw clamp identical to the corners
 const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
