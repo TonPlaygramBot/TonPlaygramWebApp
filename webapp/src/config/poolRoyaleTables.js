@@ -32,24 +32,6 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     }),
     cushionCutAngleDeg: 35,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
-  },
-  'snooker-12ft': {
-    id: 'snooker-12ft',
-    label: 'Snooker 12 ft (Official)',
-    playfield: Object.freeze({ widthMm: 3569, heightMm: 1778 }),
-    ballDiameterMm: 52.5,
-    pocketMouthMm: Object.freeze({
-      corner: 89,
-      side: 109
-    }),
-    cushionCutAngleDeg: 35,
-    cushionRestitution: 0.99,
-    componentPreset: 'snooker',
-    markings: Object.freeze({
-      baulkFromBaulkMm: 737,
-      dRadiusMm: 292,
-      blackFromTopMm: 324
-    })
   }
 });
 
