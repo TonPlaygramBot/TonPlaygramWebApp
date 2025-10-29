@@ -498,8 +498,8 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so th
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // align middle pocket inner lip with the corner jaw profile
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
-const POCKET_JAW_DEPTH_SCALE = 0.78; // shorten the jaw liners so the fascia no longer drops below the pocket throat
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim slightly so it finishes just above the pocket
+const POCKET_JAW_DEPTH_SCALE = 1; // lock the jaw liners to the chrome plate thickness so every rim sits level
+const POCKET_JAW_ABOVE_CHROME_CLEARANCE = TABLE.THICK * 0.01; // hover the jaws slightly above the chrome trim outside the rim line
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -518,7 +518,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.54; // align the corner jaw spread
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.015; // let the middle jaw spread breathe slightly more than the corners
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.01; // nudge the middle jaw radius outward to match the larger rounded cut
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08; // push the middle jaws deeper so their height matches the corner profile
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the chrome plates just like the corners
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
@@ -4683,12 +4683,16 @@ function Table3D(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
   );
-  const sidePlateHeightByCushion = Math.max(
+  const sideChromePlateHeightTarget = Math.max(
     MICRO_EPS,
-    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
+    chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE
+  );
+  const sidePlateHeightByCushion = Math.max(
+    sideChromePlateHeightTarget,
+    Math.max(MICRO_EPS, Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2)
   );
   const sideChromePlateHeight = Math.min(
-    Math.max(MICRO_EPS, chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2),
+    sideChromePlateHeightTarget,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
@@ -5231,7 +5235,7 @@ function Table3D(
     }
     const jawDepth = Math.max(
       MICRO_EPS,
-      railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
+      chromePlateThickness * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
@@ -5243,7 +5247,9 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT;
+    const jawBaseY =
+      railsTopY + chromePlateThickness + POCKET_JAW_ABOVE_CHROME_CLEARANCE;
+    jawMesh.position.y = jawBaseY;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5268,7 +5274,7 @@ function Table3D(
       const rimOffsetScale = isMiddle
         ? SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE
         : POCKET_RIM_SURFACE_OFFSET_SCALE;
-      rimMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + railH * rimOffsetScale;
+      rimMesh.position.y = jawBaseY + railH * rimOffsetScale;
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
