@@ -617,14 +617,14 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings to mirror the snooker cut geometry
+const POCKET_CUT_EXPANSION = 1; // match the playable pocket diameter so the cloth holes sit directly over the throat
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
   envMapIntensityMax: 0.22
 });
 const POCKET_HOLE_R =
-  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
+  POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius exactly matches the pocket mouth
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
@@ -647,10 +647,10 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to intercept shadows before they reach the carpet
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // exposed plywood deck beneath the cloth to sell the wooden sub-structure
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
-const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint while staying invisible via colorWrite=false
-const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // widen the pocket apertures on the underlay to avoid clipping
+const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint so the board follows the playable field
+const CLOTH_UNDERLAY_HOLE_SCALE = 1; // keep underlay apertures flush with the cloth openings for perfect alignment
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
@@ -4101,6 +4101,8 @@ function Table3D(
     trimMeshes: [],
     pocketJawMeshes: [],
     pocketRimMeshes: [],
+    underlayMeshes: [],
+    clothEdgeMeshes: [],
     accentParent: null,
     accentMesh: null,
     dimensions: null,
@@ -4177,6 +4179,7 @@ function Table3D(
     emissive: clothColor.clone().multiplyScalar(0.05),
     emissiveIntensity: 0.5
   });
+  clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // denser weave so the wool fibres read smaller and sharper
@@ -4211,6 +4214,7 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
+  cushionMat.side = THREE.DoubleSide;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -4375,15 +4379,15 @@ function Table3D(
   });
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
   const underlayMat = new THREE.MeshStandardMaterial({
-    color: 0x8b6f4a,
-    roughness: 0.68,
-    metalness: 0.05,
+    color: 0x7a5a33,
+    roughness: 0.7,
+    metalness: 0.08,
     side: THREE.DoubleSide
   });
-  underlayMat.transparent = true;
-  underlayMat.opacity = 0;
+  underlayMat.transparent = false;
+  underlayMat.opacity = 1;
   underlayMat.depthWrite = true;
-  underlayMat.colorWrite = false; // stay hidden while intercepting shadows before they reach the carpet
+  underlayMat.colorWrite = true;
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
@@ -4392,6 +4396,32 @@ function Table3D(
   clothUnderlay.receiveShadow = true;
   clothUnderlay.renderOrder = cloth.renderOrder - 1;
   table.add(clothUnderlay);
+  finishParts.underlayMeshes.push(clothUnderlay);
+
+  const boardBottomY = clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS;
+  const clothEdgeTopY = cloth.position.y - MICRO_EPS;
+  const clothEdgeBottomY = boardBottomY - MICRO_EPS;
+  const clothEdgeHeight = clothEdgeTopY - clothEdgeBottomY;
+  if (clothEdgeHeight > MICRO_EPS) {
+    const clothSleeveGeo = new THREE.CylinderGeometry(
+      POCKET_HOLE_R,
+      POCKET_HOLE_R,
+      clothEdgeHeight,
+      64,
+      1,
+      true
+    );
+    const clothSleeveMidY = clothEdgeBottomY + clothEdgeHeight / 2;
+    pocketPositions.forEach((p) => {
+      const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothMat);
+      clothSleeve.position.set(p.x, clothSleeveMidY, p.y);
+      clothSleeve.castShadow = false;
+      clothSleeve.receiveShadow = false;
+      clothSleeve.renderOrder = cloth.renderOrder + 0.25;
+      table.add(clothSleeve);
+      finishParts.clothEdgeMeshes.push(clothSleeve);
+    });
+  }
 
   const shadowCoverShape = buildSurfaceShape(
     CLOTH_SHADOW_COVER_HOLE_RADIUS,
@@ -4485,8 +4515,11 @@ function Table3D(
 
   const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-  const POCKET_RIM_CLEARANCE = BALL_R * 0.04; // drop pocket rim just below the cloth so the lip hides under the felt
-  const pocketTopY = clothPlaneLocal - CLOTH_DROP - POCKET_RIM_CLEARANCE;
+  const POCKET_RIM_CLEARANCE = Math.max(
+    BALL_R * 0.04,
+    CLOTH_UNDERLAY_GAP + MICRO_EPS
+  ); // keep the rim tucked beneath the wooden board and cloth gap
+  const pocketTopY = boardBottomY - POCKET_RIM_CLEARANCE;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -4533,6 +4566,15 @@ function Table3D(
     repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
     rotation: woodRailSurface.rotation,
     textureSize: woodRailSurface.textureSize
+  });
+  finishParts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material) return;
+    applyWoodTextureToMaterial(mesh.material, {
+      repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
+      rotation: woodRailSurface.rotation,
+      textureSize: woodRailSurface.textureSize
+    });
+    mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
@@ -6033,6 +6075,18 @@ function applyTableFinishToTable(table, finish) {
     repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
     rotation: nextRailSurface.rotation,
     textureSize: nextRailSurface.textureSize
+  });
+  finishInfo.parts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material) return;
+    applyWoodTextureToMaterial(mesh.material, {
+      repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
+      rotation: nextRailSurface.rotation,
+      textureSize: nextRailSurface.textureSize
+    });
+    if (mesh.material.color && railMat.color) {
+      mesh.material.color.copy(railMat.color);
+    }
+    mesh.material.needsUpdate = true;
   });
   applyWoodTextureToMaterial(frameMat, {
     repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
