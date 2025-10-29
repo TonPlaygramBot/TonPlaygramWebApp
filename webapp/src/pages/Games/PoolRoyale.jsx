@@ -515,7 +515,7 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer 
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the snooker reference
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.54; // align the corner jaw spread with the expanded chrome cut geometry
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.56; // nudge the corner jaw spread so the fascia kisses the cushion shoulders
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.992; // tighten the middle jaw span so it sits further from the table centreline
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // keep the jaw radius tucked inside the chrome cut to match the rail profile
@@ -560,7 +560,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.74; // move the middle pockets slightly farther outboard so the jaws clear the table centre
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.79; // push the middle pockets a touch farther outboard so the jaws sit further from centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
