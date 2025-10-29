@@ -258,6 +258,7 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
+const CHROME_PLATE_THICKNESS_BOOST = TABLE.THICK * 0.02; // ensure side plates match the corner plate thickness once raised
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.38; // widen the side fascia so the chrome stretches farther toward the cushions
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1; // lock the middle fascia height to the corner plate thickness
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
@@ -492,6 +493,7 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
+const RAIL_VISUAL_LIFT = TABLE.THICK * 0.08; // additional wood lift so the rail tops finish flush with the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp the corner jaws exactly to the chrome pocket arch
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the side jaw clamp identical to the corners
 const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
@@ -4510,7 +4512,9 @@ function Table3D(
   });
 
   const railH = RAIL_HEIGHT;
-  const railsTopY = frameTopY + railH;
+  const railFinishHeight = railH + RAIL_VISUAL_LIFT;
+  const railsStructuralTopY = frameTopY + railH;
+  const railsTopY = frameTopY + railFinishHeight;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
   const frameExpansion = TABLE.WALL * 0.08;
@@ -4519,7 +4523,7 @@ function Table3D(
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
+  finishParts.dimensions = { outerHalfW, outerHalfH, railH: railFinishHeight, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
   const baseRailFallback = {
@@ -4607,7 +4611,10 @@ function Table3D(
     verticalCushionLength / 2 +
     SIDE_CUSHION_CORNER_SHIFT;
 
-  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
+  const chromePlateThickness = Math.max(
+    MICRO_EPS,
+    railFinishHeight * CHROME_PLATE_THICKNESS_SCALE + CHROME_PLATE_THICKNESS_BOOST
+  ); // drop the plates far enough to hide the rail pocket cuts
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -4658,8 +4665,7 @@ function Table3D(
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
-  const chromePlateY =
-    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const chromePlateY = railsTopY - chromePlateThickness + MICRO_EPS * 2;
   const chromeCornerCenterOutset =
     TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
   const chromeCornerShortRailShift =
@@ -5493,11 +5499,11 @@ function Table3D(
   });
 
   let railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
-    depth: railH,
+    depth: railFinishHeight,
     bevelEnabled: false,
     curveSegments: 96
   });
-  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO, {
+  railsGeom = softenOuterExtrudeEdges(railsGeom, railFinishHeight, RAIL_OUTER_EDGE_RADIUS_RATIO, {
     innerBounds: {
       halfWidth: Math.max(cushionInnerX, 0),
       halfHeight: Math.max(cushionInnerZ, 0),
@@ -5604,7 +5610,7 @@ function Table3D(
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
-  const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
+  const rawCushionHeight = Math.max(0, railsStructuralTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
