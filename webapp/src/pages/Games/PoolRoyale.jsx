@@ -257,8 +257,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.18; // baseline depth for chrome fascia
-const CHROME_PLATE_THICKNESS_LIFT = TABLE.THICK * 0.012; // extra thickness so middle plates match the corner trim after the rail lift
+const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.38; // widen the side fascia so the chrome stretches farther toward the cushions
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1; // lock the middle fascia height to the corner plate thickness
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
@@ -492,9 +491,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const BASE_RAIL_HEIGHT = TABLE.THICK * 1.78; // original stackup that kept the cushion lip flush with the chrome
-const RAIL_HEIGHT_EXTRA = TABLE.THICK * 0.06; // subtle lift so the wooden rails stand taller without disturbing the cushions
-const RAIL_HEIGHT = BASE_RAIL_HEIGHT + RAIL_HEIGHT_EXTRA;
+const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp the corner jaws exactly to the chrome pocket arch
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the side jaw clamp identical to the corners
 const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
@@ -609,18 +606,11 @@ console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
-const BASE_CLOTH_LIFT = (() => {
-  const ballR = BALL_R;
-  const microEpsRatio = 0.022857142857142857;
-  const eps = ballR * microEpsRatio;
-  return Math.max(0, BASE_RAIL_HEIGHT - ballR - eps);
-})();
 const CLOTH_LIFT = (() => {
   const ballR = BALL_R;
   const microEpsRatio = 0.022857142857142857;
   const eps = ballR * microEpsRatio;
-  const raised = Math.max(0, RAIL_HEIGHT - ballR - eps);
-  return Math.min(raised, BASE_CLOTH_LIFT);
+  return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
@@ -666,8 +656,7 @@ const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cov
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = MICRO_EPS; // raise the cushion base so the underside rests on the cloth while keeping the lip level with the rails
-const CUSHION_HEIGHT_DROP =
-  TABLE.THICK * 0.12 + RAIL_HEIGHT_EXTRA; // offset the taller rails so the cushion lip stays fixed in world space
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.12; // shorten cushion height so the lip sits level with the wooden rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -4618,8 +4607,7 @@ function Table3D(
     verticalCushionLength / 2 +
     SIDE_CUSHION_CORNER_SHIFT;
 
-  const chromePlateThickness =
-    railH * CHROME_PLATE_THICKNESS_SCALE + CHROME_PLATE_THICKNESS_LIFT; // drop the plates far enough to hide the rail pocket cuts
+  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
