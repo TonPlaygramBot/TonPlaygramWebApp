@@ -5599,9 +5599,9 @@ function Table3D(
   const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0.62;
-  const CUSHION_RAIL_BASE_LIFT = 0.28; // trim the rail-side base so the cushion underside sits higher without shifting its lip
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.54;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.44;
+  const CUSHION_RAIL_BASE_LIFT = 0; // keep the cushion base flush with the cloth plane along the wooden rails
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
@@ -5668,15 +5668,6 @@ function Table3D(
       const noseOffset = nosePull * frontFactor;
       if (noseOffset > 0) {
         arr[i + 1] = Math.min(arr[i + 1] - noseOffset, backY);
-      }
-    }
-    let rebasedMinZ = Infinity;
-    for (let i = 0; i < arr.length; i += 3) {
-      rebasedMinZ = Math.min(rebasedMinZ, arr[i + 2]);
-    }
-    if (Number.isFinite(rebasedMinZ) && rebasedMinZ > 0) {
-      for (let i = 0; i < arr.length; i += 3) {
-        arr[i + 2] -= rebasedMinZ;
       }
     }
     pos.needsUpdate = true;
