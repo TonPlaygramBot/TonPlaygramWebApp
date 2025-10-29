@@ -17,6 +17,7 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
+import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
@@ -215,33 +216,35 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_PLATE_THICKNESS_SCALE = 0.18;
 const WOOD_CORNER_CUT_SCALE = 0.993; // tighten wooden rail corner cutouts to better match the chrome plates
 const WOOD_SIDE_CUT_SCALE = 0.995; // gently shrink side pocket cutouts on the wooden rails
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1;
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1;
-const POCKET_JAW_CORNER_INNER_SCALE = 1.11;
-const POCKET_JAW_SIDE_INNER_SCALE = 0.962;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.723;
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.78;
-const POCKET_JAW_DEPTH_SCALE = 0.63;
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+const POCKET_JAW_CORNER_INNER_SCALE = 1.4425;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
+const POCKET_JAW_DEPTH_SCALE = CHROME_PLATE_THICKNESS_SCALE * 0.5;
 const POCKET_JAW_EDGE_FLUSH_START = 0.14;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24;
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.72;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.9;
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.56;
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.78;
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 96;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 0.9;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION =
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.015;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.01;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.9;
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5;
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.54;
 const CORNER_JAW_ARC_DEG = 120;
-const SIDE_JAW_ARC_DEG = 150;
+const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG;
 
 function buildChromePlateGeometry({
   width,
@@ -454,7 +457,62 @@ const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink fr
 // the HUD scale and gameplay math that rely on worldScaleFactor conversions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 2.85; // ~18% larger than the prior layout so the snooker table grows uniformly within the requested 15–20% window
+const POOL_ROYALE_TABLE_SPEC = resolveTableSize();
+const POOL_PLAYFIELD_WIDTH_MM = POOL_ROYALE_TABLE_SPEC.playfield.widthMm;
+const POOL_BALL_DIAMETER_MM = POOL_ROYALE_TABLE_SPEC.ballDiameterMm;
+const POOL_CORNER_MOUTH_MM = POOL_ROYALE_TABLE_SPEC.pocketMouthMm.corner;
+const POOL_SIDE_MOUTH_MM = POOL_ROYALE_TABLE_SPEC.pocketMouthMm.side;
+const SNOOKER_PLAYFIELD_WIDTH_MM = 3569;
+const SNOOKER_PLAYFIELD_HEIGHT_MM = 1778;
+const SIDE_RAIL_INNER_REDUCTION = 0.8;
+const TARGET_RATIO = SNOOKER_PLAYFIELD_WIDTH_MM / SNOOKER_PLAYFIELD_HEIGHT_MM;
+const POOL_TABLE_SCALE = 1.17;
+const POOL_TABLE = {
+  W: 66 * POOL_TABLE_SCALE,
+  H: 132 * POOL_TABLE_SCALE,
+  WALL: 2.6 * POOL_TABLE_SCALE
+};
+const POOL_SIDE_RAIL_INNER_REDUCTION = 0.72;
+const POOL_SIDE_RAIL_INNER_SCALE = 1 - POOL_SIDE_RAIL_INNER_REDUCTION;
+const POOL_SIDE_RAIL_INNER_THICKNESS =
+  POOL_TABLE.WALL * POOL_SIDE_RAIL_INNER_SCALE;
+const POOL_TARGET_RATIO = POOL_PLAYFIELD_WIDTH_MM / POOL_PLAYFIELD_HEIGHT_MM;
+const POOL_END_RAIL_INNER_SCALE =
+  (POOL_TABLE.H - POOL_TARGET_RATIO * (POOL_TABLE.W - 2 * POOL_SIDE_RAIL_INNER_THICKNESS)) /
+  (2 * POOL_TABLE.WALL);
+const POOL_END_RAIL_INNER_THICKNESS =
+  POOL_TABLE.WALL * POOL_END_RAIL_INNER_SCALE;
+const POOL_PLAY_W =
+  POOL_TABLE.W - 2 * POOL_SIDE_RAIL_INNER_THICKNESS;
+const POOL_PLAY_H =
+  POOL_TABLE.H - 2 * POOL_END_RAIL_INNER_THICKNESS;
+const POOL_INNER_LONG = Math.max(POOL_PLAY_W, POOL_PLAY_H);
+const POOL_MM_TO_UNITS = POOL_INNER_LONG / POOL_PLAYFIELD_WIDTH_MM;
+const POOL_BALL_SIZE_SCALE = 1.02;
+const POOL_SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.015;
+const BASE_TABLE_W = 66;
+const BASE_TABLE_H = 132;
+const BASE_TABLE_WALL = 2.6;
+const BASE_SIDE_RAIL_INNER_THICKNESS =
+  BASE_TABLE_WALL * (1 - SIDE_RAIL_INNER_REDUCTION);
+const BASE_END_RAIL_INNER_SCALE =
+  (BASE_TABLE_H -
+    TARGET_RATIO * (BASE_TABLE_W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS)) /
+  (2 * BASE_TABLE_WALL);
+const BASE_END_RAIL_INNER_THICKNESS =
+  BASE_TABLE_WALL * BASE_END_RAIL_INNER_SCALE;
+const BASE_INNER_LONG = Math.max(
+  BASE_TABLE_W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS,
+  BASE_TABLE_H - 2 * BASE_END_RAIL_INNER_THICKNESS
+);
+const POOL_BALL_DIAMETER_UNITS =
+  POOL_BALL_DIAMETER_MM * POOL_MM_TO_UNITS * POOL_BALL_SIZE_SCALE;
+const POOL_CORNER_MOUTH_UNITS =
+  POOL_CORNER_MOUTH_MM * POOL_MM_TO_UNITS;
+const POOL_SIDE_MOUTH_UNITS =
+  POOL_CORNER_MOUTH_MM * POOL_MM_TO_UNITS * POOL_SIDE_POCKET_MOUTH_REDUCTION_SCALE;
+const TABLE_SCALE =
+  (POOL_MM_TO_UNITS * SNOOKER_PLAYFIELD_WIDTH_MM) / BASE_INNER_LONG; // reuse Pool Royale components but stretch to a 12 ft snooker footprint
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -465,18 +523,16 @@ const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // shrink the inside rails so their exposed width is roughly 30% of the cushion depth
-const WIDTH_REF = 3569;
-const HEIGHT_REF = 1778;
-const BALL_D_REF = 52.5;
+const WIDTH_REF = SNOOKER_PLAYFIELD_WIDTH_MM;
+const HEIGHT_REF = SNOOKER_PLAYFIELD_HEIGHT_MM;
+const BALL_D_REF = POOL_BALL_DIAMETER_MM;
 const BAULK_FROM_BAULK_REF = 737;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 89;
-const SIDE_MOUTH_REF = 109;
-const SIDE_RAIL_INNER_REDUCTION = 0.8;
+const CORNER_MOUTH_REF = POOL_CORNER_MOUTH_MM;
+const SIDE_MOUTH_REF = POOL_SIDE_MOUTH_MM;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
@@ -494,7 +550,7 @@ console.assert(
   'Snooker table inner ratio must match 3569:1778 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
+const BALL_DIAMETER = POOL_BALL_DIAMETER_UNITS;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const CHALK_TOP_COLOR = 0x1f6d86;
@@ -511,14 +567,14 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
+const POCKET_CORNER_MOUTH = POOL_CORNER_MOUTH_UNITS;
+const POCKET_SIDE_MOUTH = POOL_SIDE_MOUTH_UNITS;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.64 * POCKET_VISUAL_EXPANSION; // pull chrome plates, jaws, and rims further onto the cloth
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
+const POCKET_MOUTH_TOLERANCE = 0.5 * POOL_MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
@@ -528,7 +584,7 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
+  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * POOL_MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
 const CLOTH_LIFT = (() => {
@@ -2350,7 +2406,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * 0.5;
+    const expectedRadius = BALL_D_REF * mmToUnits * 0.5 * POOL_BALL_SIZE_SCALE;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -3915,7 +3971,8 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
+  const chromePlateThickness =
+    railH * CHROME_PLATE_THICKNESS_SCALE; // match Pool Royale chrome depth for shared pocket trim
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
