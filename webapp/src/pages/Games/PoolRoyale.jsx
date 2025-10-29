@@ -494,13 +494,13 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp the corner jaws exactly to the chrome pocket arch
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the side jaw clamp identical to the corners
-const POCKET_JAW_CORNER_INNER_SCALE = 1.18; // ease the inner lip outward so the jaw sits a touch farther from centre
+const POCKET_JAW_CORNER_INNER_SCALE = 1.125; // ease the inner lip outward so the jaw sits a touch farther from centre
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // align middle pocket inner lip with the corner jaw profile
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
-const POCKET_JAW_DEPTH_SCALE = CHROME_PLATE_THICKNESS_SCALE * 0.5; // match jaw depth directly to the chrome fascia thickness while keeping the fascia 50% shorter
+const POCKET_JAW_DEPTH_SCALE = CHROME_PLATE_THICKNESS_SCALE; // match jaw depth directly to the chrome fascia thickness
 const POCKET_JAW_VERTICAL_LIFT_RATIO = 0.02; // keep the jaw resting just above the chrome plate surface
-const POCKET_JAW_OUTWARD_OFFSET = TABLE.THICK * 0.05; // nudge the jaw assembly so it lives outside the rim edge
+const POCKET_JAW_OUTWARD_OFFSET = TABLE.THICK * 0.03; // nudge the jaw assembly so it lives outside the rim edge
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -515,16 +515,16 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer 
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the snooker reference
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.6; // align the corner jaw spread with the expanded chrome cut geometry
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.54; // align the corner jaw spread with the expanded chrome cut geometry
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.015; // let the middle jaw spread breathe slightly more than the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.035; // nudge the middle jaw radius outward to match the larger rounded cut
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.01; // nudge the middle jaw radius outward to match the larger rounded cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaws flush with the chrome fascia depth
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
-const POCKET_RIM_DEPTH_RATIO = 1.85; // extend the rim fascia further so it spans from pocket throat to rail surface
+const POCKET_RIM_DEPTH_RATIO = 1.25; // extend the rim fascia further so it spans from pocket throat to rail surface
 const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
-const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.12; // lift the rim so it clears the chrome trim while remaining anchored to the jaws
+const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.06; // lift the rim so it clears the chrome trim while remaining anchored to the jaws
 const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
 const MIDDLE_POCKET_RIM_SPLIT_OFFSET = TABLE.THICK * 0.05; // space the twin middle pocket rims apart
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
@@ -1780,12 +1780,12 @@ function createPocketLinerMaterials(option) {
     bumpScale: selection.bumpScale,
     sheenColor: baseSheenColor
   });
-  const rimMaterial = makeMaterial(selection.jawColor, {
+  const rimMaterial = makeMaterial(selection.rimColor, {
     roughness: selection.rimRoughness ?? selection.roughness,
     bumpScale: selection.rimBumpScale ?? selection.bumpScale,
     metalness: selection.rimMetalness ?? selection.metalness,
     sheen: selection.rimSheen ?? selection.sheen,
-    sheenColor: baseSheenColor
+    sheenColor: rimSheenColor
   });
   return { jawMaterial, rimMaterial };
 }
