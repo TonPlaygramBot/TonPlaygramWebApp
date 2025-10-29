@@ -259,13 +259,14 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.24; // pull the side fascia back so it stops short of the wooden rail reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1; // lock the middle fascia height to the corner plate thickness
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.08; // let the middle fascia stretch farther along the pocket edge
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // keep a subtle reveal so the chrome plate edge stays visible like the corners
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the corner chrome cut exactly matched to the jaw arch
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.01; // open the chrome arch fractionally so the middle cut appears wider
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.018; // nudge the middle chrome cut toward the table centre so the rounded throat hugs the cloth cut
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
@@ -5008,8 +5009,12 @@ function Table3D(
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
     const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
+    const sidePocketCutCenterPull =
+      TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
     const notchLocalMP = notchMP.map((poly) =>
-      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
+      )
     );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
