@@ -4336,22 +4336,95 @@ function Table3D(
   sidePocketShift = baseSidePocketShift + extraSidePocketShift;
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
+  const sideRadiusScale = POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
-    const shape = new THREE.Shape();
-    shape.moveTo(-insetHalfW, -insetHalfH);
-    shape.lineTo(insetHalfW, -insetHalfH);
-    shape.lineTo(insetHalfW, insetHalfH);
-    shape.lineTo(-insetHalfW, insetHalfH);
-    shape.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p) => {
+
+    const baseRing = [
+      [-insetHalfW, -insetHalfH],
+      [insetHalfW, -insetHalfH],
+      [insetHalfW, insetHalfH],
+      [-insetHalfW, insetHalfH],
+      [-insetHalfW, -insetHalfH]
+    ];
+    const baseMP = [[baseRing]];
+
+    const createPocketSector = (center, sweep, radius, segments) => {
+      if (!center || !Number.isFinite(radius) || radius <= MICRO_EPS) {
+        return null;
+      }
+      const inward = new THREE.Vector2(-center.x, -center.y);
+      if (inward.lengthSq() <= MICRO_EPS * MICRO_EPS) {
+        inward.set(center.x >= 0 ? -1 : 1, center.y >= 0 ? -1 : 1);
+      }
+      inward.normalize();
+      const baseAngle = Math.atan2(inward.y, inward.x);
+      const halfSweep = sweep / 2;
+      const start = baseAngle - halfSweep;
+      const end = baseAngle + halfSweep;
+      const steps = Math.max(8, Math.ceil(segments));
+      const ring = [];
+      ring.push([center.x, center.y]);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + ((end - start) * i) / steps;
+        const px = center.x + Math.cos(t) * radius;
+        const py = center.y + Math.sin(t) * radius;
+        ring.push([px, py]);
+      }
+      ring.push([center.x, center.y]);
+      if (ring.length < 4) {
+        return null;
+      }
+      const area = signedRingArea(ring);
+      if (area < 0) {
+        ring.reverse();
+      }
+      const first = ring[0];
+      const last = ring[ring.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        ring.push([first[0], first[1]]);
+      }
+      return [[ring]];
+    };
+
+    const pocketSectors = pocketPositions
+      .map((center, index) => {
+        const isSidePocket = index >= 4;
+        const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+        const sweep = isSidePocket ? Math.PI : Math.PI / 2;
+        const baseSegments = isSidePocket ? 64 : 48;
+        return createPocketSector(center, sweep, radius, baseSegments);
+      })
+      .filter(Boolean);
+
+    let shapeMP = baseMP;
+    if (pocketSectors.length) {
+      shapeMP = polygonClipping.difference(baseMP, ...pocketSectors);
+    }
+    const shapes = multiPolygonToShapes(shapeMP);
+    if (shapes.length === 1) {
+      return shapes[0];
+    }
+    if (shapes.length > 1) {
+      return shapes;
+    }
+
+    const fallback = new THREE.Shape();
+    fallback.moveTo(-insetHalfW, -insetHalfH);
+    fallback.lineTo(insetHalfW, -insetHalfH);
+    fallback.lineTo(insetHalfW, insetHalfH);
+    fallback.lineTo(-insetHalfW, insetHalfH);
+    fallback.lineTo(-insetHalfW, -insetHalfH);
+    pocketPositions.forEach((p, index) => {
       const hole = new THREE.Path();
-      hole.absellipse(p.x, p.y, holeRadius, holeRadius, 0, Math.PI * 2, true);
+      const isSidePocket = index >= 4;
+      const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+      hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
       hole.autoClose = true;
-      shape.holes.push(hole);
+      fallback.holes.push(hole);
     });
-    return shape;
+    return fallback;
   };
 
   const clothShape = buildSurfaceShape(POCKET_HOLE_R);
