@@ -650,6 +650,7 @@ const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // exposed plywood deck beneath the cloth to sell the wooden sub-structure
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.018; // sink the plywood panel slightly further so it never overlaps the cloth
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint so the board follows the playable field
 const CLOTH_UNDERLAY_HOLE_SCALE = 1; // keep underlay apertures flush with the cloth openings for perfect alignment
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
@@ -4350,7 +4351,19 @@ function Table3D(
     ];
     const baseMP = [[baseRing]];
 
-    const createPocketSector = (center, sweep, radius, segments) => {
+    const closeRing = (ring) => {
+      if (!ring.length) {
+        return ring;
+      }
+      const first = ring[0];
+      const last = ring[ring.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        ring.push([first[0], first[1]]);
+      }
+      return ring;
+    };
+
+    const createPocketSector = (center, sweep, radius, segments, includeCenter = true) => {
       if (!center || !Number.isFinite(radius) || radius <= MICRO_EPS) {
         return null;
       }
@@ -4364,37 +4377,51 @@ function Table3D(
       const start = baseAngle - halfSweep;
       const end = baseAngle + halfSweep;
       const steps = Math.max(8, Math.ceil(segments));
-      const ring = [];
-      ring.push([center.x, center.y]);
+      const arcPoints = [];
       for (let i = 0; i <= steps; i++) {
         const t = start + ((end - start) * i) / steps;
         const px = center.x + Math.cos(t) * radius;
         const py = center.y + Math.sin(t) * radius;
-        ring.push([px, py]);
+        arcPoints.push([px, py]);
       }
-      ring.push([center.x, center.y]);
-      if (ring.length < 4) {
+      if (includeCenter) {
+        if (arcPoints.length < 2) {
+          return null;
+        }
+      } else if (arcPoints.length < 3) {
         return null;
       }
-      const area = signedRingArea(ring);
+      let ring = includeCenter
+        ? [[center.x, center.y], ...arcPoints]
+        : arcPoints.slice();
+      const areaRing = closeRing(ring.slice());
+      if (areaRing.length < 4) {
+        return null;
+      }
+      const area = signedRingArea(areaRing);
       if (area < 0) {
-        ring.reverse();
+        ring = ring.slice().reverse();
+        if (includeCenter) {
+          const centerIndex = ring.findIndex(
+            (pt) => pt[0] === center.x && pt[1] === center.y
+          );
+          if (centerIndex > 0) {
+            ring = ring
+              .slice(centerIndex)
+              .concat(ring.slice(0, centerIndex));
+          }
+        }
       }
-      const first = ring[0];
-      const last = ring[ring.length - 1];
-      if (first[0] !== last[0] || first[1] !== last[1]) {
-        ring.push([first[0], first[1]]);
-      }
-      return [[ring]];
+      return [[closeRing(ring)]];
     };
 
     const pocketSectors = pocketPositions
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
-        const sweep = isSidePocket ? Math.PI : Math.PI / 2;
-        const baseSegments = isSidePocket ? 64 : 48;
-        return createPocketSector(center, sweep, radius, baseSegments);
+        const sweep = isSidePocket ? Math.PI : Math.PI * 2;
+        const baseSegments = isSidePocket ? 64 : 64;
+        return createPocketSector(center, sweep, radius, baseSegments, isSidePocket);
       })
       .filter(Boolean);
 
@@ -4466,10 +4493,14 @@ function Table3D(
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
-    cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
+    cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP - CLOTH_UNDERLAY_EXTRA_DROP;
   clothUnderlay.castShadow = true;
   clothUnderlay.receiveShadow = true;
   clothUnderlay.renderOrder = cloth.renderOrder - 1;
+  clothUnderlay.userData = {
+    ...(clothUnderlay.userData || {}),
+    skipWoodTexture: true
+  };
   table.add(clothUnderlay);
   finishParts.underlayMeshes.push(clothUnderlay);
 
@@ -4644,7 +4675,7 @@ function Table3D(
     textureSize: woodRailSurface.textureSize
   });
   finishParts.underlayMeshes.forEach((mesh) => {
-    if (!mesh?.material) return;
+    if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
       rotation: woodRailSurface.rotation,
@@ -6153,7 +6184,7 @@ function applyTableFinishToTable(table, finish) {
     textureSize: nextRailSurface.textureSize
   });
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
-    if (!mesh?.material) return;
+    if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
       rotation: nextRailSurface.rotation,
