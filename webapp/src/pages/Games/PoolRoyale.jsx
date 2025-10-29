@@ -2851,21 +2851,31 @@ function applySnookerScaling({
   balls,
   markings,
   camera,
-  ui
+  ui,
+  spec
 }) {
+  const specMeta = spec && typeof spec === 'object' ? spec : null;
+  const componentPreset = specMeta?.componentPreset || 'pool';
+  const playfield = specMeta?.playfield || {};
+  const widthMm = playfield.widthMm || WIDTH_REF;
+  const heightMm = playfield.heightMm || HEIGHT_REF;
   const width = tableInnerRect?.width ?? innerLong;
   const height = tableInnerRect?.height ?? innerShort;
   const center = tableInnerRect?.center ?? new THREE.Vector3();
-  const mmToUnits = width / WIDTH_REF;
+  const mmToUnits = widthMm > 0 ? width / widthMm : width / WIDTH_REF;
   const ratio = width / Math.max(height, 1e-6);
+  const targetRatio = widthMm / Math.max(heightMm, 1e-6);
   console.assert(
-    Math.abs(ratio - TARGET_RATIO) < 1e-4,
-    'applySnookerScaling: table aspect ratio must remain 2:1.'
+    Math.abs(ratio - targetRatio) < 1e-4,
+    `applySnookerScaling: table aspect ratio must remain ${targetRatio.toFixed(4)}.`
   );
+  const pocketMouths = specMeta?.pocketMouthMm || {};
+  const cornerMouthMm = pocketMouths.corner || CORNER_MOUTH_REF;
+  const sideMouthMm = pocketMouths.side || SIDE_MOUTH_REF;
   const expectedCornerMouth =
-    CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
+    cornerMouthMm * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
   const expectedSideMouth =
-    SIDE_MOUTH_REF * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
+    sideMouthMm * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
   const actualCornerMouth = POCKET_VIS_R * 2;
   const actualSideMouth = SIDE_POCKET_RADIUS * 2;
   console.assert(
@@ -2883,9 +2893,26 @@ function applySnookerScaling({
       }
     });
   }
+  const markingsSpec = specMeta?.markings || {};
+  const baulkFromBaulkMm = markingsSpec.baulkFromBaulkMm || BAULK_FROM_BAULK_REF;
+  const dRadiusMm = markingsSpec.dRadiusMm || D_RADIUS_REF;
+  const blackFromTopMm = markingsSpec.blackFromTopMm || BLACK_FROM_TOP_REF;
+  const dRadiusUnits = dRadiusMm * mmToUnits;
+  const halfWidth = width / 2;
+  const topCushion = center.z + halfWidth;
+  const baulkCushion = center.z - halfWidth;
+  const baulkZ = baulkCushion + baulkFromBaulkMm * mmToUnits;
+  const pinkZ = (topCushion + center.z) / 2;
+  const blackZ = topCushion - blackFromTopMm * mmToUnits;
+  const snookerSpots = {
+    yellow: [-dRadiusUnits, baulkZ],
+    brown: [0, baulkZ],
+    green: [dRadiusUnits, baulkZ],
+    blue: [0, center.z],
+    pink: [0, pinkZ],
+    black: [0, blackZ]
+  };
   if (markings?.baulkLine) {
-    const halfWidth = width / 2;
-    const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
     if (markings.dArc) {
@@ -2894,19 +2921,19 @@ function applySnookerScaling({
     if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
       const [yellow, brown, green, blue, pink, black] = markings.spots;
       const spotY = yellow?.position?.y ?? markingY;
-      if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
-      if (brown) brown.position.set(0, spotY, baulkZ);
-      if (green) green.position.set(D_RADIUS, spotY, baulkZ);
-      if (blue) blue.position.set(0, spotY, center.z);
-      const topCushion = halfWidth;
-      const pinkZ = (topCushion + center.z) / 2;
-      const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
-      if (pink) pink.position.set(0, spotY, pinkZ);
-      if (black) black.position.set(0, spotY, blackZ);
+      if (yellow) yellow.position.set(snookerSpots.yellow[0], spotY, snookerSpots.yellow[1]);
+      if (brown) brown.position.set(snookerSpots.brown[0], spotY, snookerSpots.brown[1]);
+      if (green) green.position.set(snookerSpots.green[0], spotY, snookerSpots.green[1]);
+      if (blue) blue.position.set(snookerSpots.blue[0], spotY, snookerSpots.blue[1]);
+      if (pink) pink.position.set(snookerSpots.pink[0], spotY, snookerSpots.pink[1]);
+      if (black) black.position.set(snookerSpots.black[0], spotY, snookerSpots.black[1]);
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * 0.5;
+    const ballDiameterMm = specMeta?.ballDiameterMm || BALL_D_REF;
+    const expectedRadius = ballDiameterMm * mmToUnits * 0.5;
+    const radiusDelta = expectedRadius - BALL_R;
+    const redBalls = [];
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -2917,12 +2944,57 @@ function applySnookerScaling({
         const scale = expectedRadius / baseRadius;
         mesh.scale.setScalar(scale);
       }
+      mesh.position.y = BALL_CENTER_Y + radiusDelta;
+      if (componentPreset === 'snooker') {
+        if (typeof ball.id === 'string' && ball.id.startsWith('red_')) {
+          redBalls.push(ball);
+        } else if (snookerSpots[ball.id]) {
+          const [sx, sz] = snookerSpots[ball.id];
+          ball.pos.set(sx, sz);
+          mesh.position.set(sx, BALL_CENTER_Y + radiusDelta, sz);
+          if (ball.vel?.set) {
+            ball.vel.set(0, 0);
+          }
+        } else if (ball.id === 'cue') {
+          const cueX = -expectedRadius * 2;
+          ball.pos.set(cueX, baulkZ);
+          mesh.position.set(cueX, BALL_CENTER_Y + radiusDelta, baulkZ);
+          if (ball.vel?.set) {
+            ball.vel.set(0, 0);
+          }
+        }
+      }
     });
+    if (componentPreset === 'snooker' && redBalls.length) {
+      const rackStartZ = snookerSpots.pink[1] + expectedRadius * 2;
+      const rackPositions = generateRackPositions(
+        redBalls.length,
+        'triangle',
+        expectedRadius,
+        rackStartZ
+      );
+      redBalls.forEach((ball, index) => {
+        const pos =
+          rackPositions[index] || rackPositions[rackPositions.length - 1];
+        if (!pos) return;
+        ball.pos.set(pos.x, pos.z);
+        const mesh = ball.mesh;
+        if (mesh) {
+          mesh.position.set(pos.x, BALL_CENTER_Y + radiusDelta, pos.z);
+        }
+        if (ball.vel?.set) {
+          ball.vel.set(0, 0);
+        }
+      });
+    }
   }
   void cushions;
   void camera;
   void ui;
-  return { mmToUnits };
+  return {
+    mmToUnits,
+    spots: componentPreset === 'snooker' ? snookerSpots : null
+  };
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
@@ -3897,11 +3969,12 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y, options = {}) {
   const pattern = options.pattern || 'solid';
   const number = options.number ?? null;
+  const variantKey = options.variantKey || 'pool';
   const material = getBilliardBallMaterial({
     color,
     pattern,
     number,
-    variantKey: 'pool'
+    variantKey
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
@@ -10048,16 +10121,25 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
       const variantConfig = activeVariantRef.current;
+      const isSnookerTable = tableSizeMeta?.componentPreset === 'snooker';
+      const defaultBallMaterialKey =
+        (isSnookerTable ? 'snooker' : variantConfig?.ballMaterialKey) || 'pool';
       const add = (id, color, x, z, extra = {}) => {
-        const b = Guret(table, id, color, x, z, extra);
+        const options = { ...extra };
+        if (!options.variantKey) {
+          options.variantKey = defaultBallMaterialKey;
+        }
+        const b = Guret(table, id, color, x, z, options);
         balls.push(b);
         return b;
       };
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
       cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
-      const SPOTS = spotPositions(baulkZ);
+      let SPOTS = spotPositions(baulkZ);
 
-      if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
+      const shouldDisableSnookerMarkings =
+        variantConfig?.disableSnookerMarkings && !isSnookerTable;
+      if (shouldDisableSnookerMarkings && table?.userData?.markings) {
         const { dArc, spots } = table.userData.markings;
         if (dArc) dArc.visible = false;
         if (Array.isArray(spots)) {
@@ -10068,10 +10150,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       }
 
       const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
-      const rackLayout = variantConfig?.rackLayout || 'triangle';
-      const rackColors = Array.isArray(variantConfig?.objectColors)
-        ? variantConfig.objectColors
-        : [];
+      const rackLayout = isSnookerTable
+        ? 'triangle'
+        : variantConfig?.rackLayout || 'triangle';
+      const rackColors = isSnookerTable
+        ? new Array(15).fill(finishPalette.red ?? 0xd32232)
+        : Array.isArray(variantConfig?.objectColors)
+          ? variantConfig.objectColors
+          : [];
       const rackPositions = generateRackPositions(
         rackColors.length,
         rackLayout,
@@ -10083,21 +10169,38 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           x: 0,
           z: rackStartZ + rid * BALL_R * 1.9
         };
-        const color = getPoolBallColor(variantConfig, rid);
-        const number = getPoolBallNumber(variantConfig, rid);
-        const pattern = getPoolBallPattern(variantConfig, rid);
-        const ballId = getPoolBallId(variantConfig, rid);
+        const color = rackColors[rid] ?? finishPalette.red;
+        const number = isSnookerTable
+          ? null
+          : getPoolBallNumber(variantConfig, rid);
+        const pattern = isSnookerTable
+          ? 'solid'
+          : getPoolBallPattern(variantConfig, rid);
+        const ballId = isSnookerTable
+          ? `red_${rid + 1}`
+          : getPoolBallId(variantConfig, rid);
         add(ballId, color, pos.x, pos.z, { number, pattern });
       }
 
       // colours
-      const colors = variantConfig?.disableSnookerMarkings
+      const colorVariantKey = isSnookerTable
+        ? 'snooker'
+        : defaultBallMaterialKey;
+      const colors = shouldDisableSnookerMarkings
         ? {}
         : Object.fromEntries(
-            Object.entries(SPOTS).map(([k, [x, z]]) => [k, add(k, finishPalette[k], x, z)])
+            Object.entries(SPOTS).map(([k, [x, z]]) => [
+              k,
+              add(k, finishPalette[k], x, z, { variantKey: colorVariantKey })
+            ])
           );
 
-      applySnookerScaling({
+      Object.entries(colors).forEach(([name, ball]) => {
+        if (!ball) return;
+        ball.variantKey = colorVariantKey;
+      });
+
+      const scalingResult = applySnookerScaling({
         tableInnerRect: {
           width: PLAY_H,
           height: PLAY_W,
@@ -10108,8 +10211,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         balls,
         markings: table?.userData?.markings,
         camera,
-        ui: null
+        ui: null,
+        spec: tableSizeMeta
       });
+      if (scalingResult?.spots) {
+        SPOTS = scalingResult.spots;
+      }
 
       cueRef.current = cue;
       ballsRef.current = balls;
