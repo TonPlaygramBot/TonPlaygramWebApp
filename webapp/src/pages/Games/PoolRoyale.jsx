@@ -4485,7 +4485,8 @@ function Table3D(
 
   const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-  const pocketSurfaceOffset = TABLE.THICK * 0.06;
+  const POCKET_RIM_CLEARANCE = BALL_R * 0.04; // drop pocket rim just below the cloth so the lip hides under the felt
+  const pocketTopY = clothPlaneLocal - CLOTH_DROP - POCKET_RIM_CLEARANCE;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -4500,11 +4501,7 @@ function Table3D(
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
-    pocket.position.set(
-      p.x,
-      clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
-      p.y
-    );
+    pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2, p.y);
     pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
@@ -5920,7 +5917,7 @@ function Table3D(
   });
 
   pocketMeshes.forEach((mesh) => {
-    mesh.position.y = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
+    mesh.position.y = pocketTopY - TABLE.THICK / 2;
   });
 
   alignRailsToCushions(table, railsGroup);
