@@ -250,7 +250,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.01; // widen the middle chrome arch slightly so the jaws follow the rounded profile farther toward the rail
+  1.05; // widen the middle chrome arch slightly more so the jaws follow the rounded profile farther toward the rail
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -259,14 +259,14 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.24; // pull the side fascia back so it stops short of the wooden rail reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.08; // let the middle fascia stretch farther along the pocket edge
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.14; // let the middle fascia stretch farther along the pocket edge and toward the short rails
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // keep a subtle reveal so the chrome plate edge stays visible like the corners
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // open the corner chrome cut slightly wider so the rounded pocket reveal grows
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open the chrome arch a touch more so the middle cut breathes toward the rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.018; // nudge the middle chrome cut toward the table centre so the rounded throat hugs the cloth cut
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.05; // open the chrome arch a touch more so the middle cut breathes toward the rail
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.012; // push the middle chrome cut slightly toward the side rail so the rounded throat hugs the cloth cut after widening
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
@@ -526,6 +526,10 @@ const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims shar
 const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
 const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
+const SIDE_POCKET_RAIL_OUTWARD_SHIFT = BALL_R * 0.14; // slide the side chrome and wood cuts slightly outward while leaving the pocket centers intact
+const SIDE_POCKET_CUT_SWEEP = Math.PI * 2; // carve full circular cloth apertures for the middle pockets just like the corners
+const SIDE_POCKET_CUT_INCLUDE_CENTER = false; // drop the triangle fan centre vertex so the middle cloth cuts stay perfectly round
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.012; // raise the middle pocket jaws so their top surface finishes flush with the rails
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -4419,9 +4423,10 @@ function Table3D(
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
-        const sweep = isSidePocket ? Math.PI : Math.PI * 2;
-        const baseSegments = isSidePocket ? 64 : 64;
-        return createPocketSector(center, sweep, radius, baseSegments, isSidePocket);
+        const sweep = isSidePocket ? SIDE_POCKET_CUT_SWEEP : Math.PI * 2;
+        const includeCenter = isSidePocket ? SIDE_POCKET_CUT_INCLUDE_CENTER : true;
+        const baseSegments = 64;
+        return createPocketSector(center, sweep, radius, baseSegments, includeCenter);
       })
       .filter(Boolean);
 
@@ -5019,7 +5024,7 @@ function Table3D(
   };
 
   const sideNotchMP = (sx) => {
-    const cx = sx * sidePocketCenterX;
+    const cx = sx * (sidePocketCenterX + SIDE_POCKET_RAIL_OUTWARD_SHIFT);
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(0, radius * CHROME_SIDE_NOTCH_THROAT_SCALE);
     const throatHeight = Math.max(0, radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE);
@@ -5394,7 +5399,10 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT;
+    jawMesh.position.y =
+      railsTopY +
+      POCKET_JAW_VERTICAL_LIFT +
+      (isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0);
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5419,7 +5427,11 @@ function Table3D(
       const rimOffsetScale = isMiddle
         ? SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE
         : POCKET_RIM_SURFACE_OFFSET_SCALE;
-      rimMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + railH * rimOffsetScale;
+      rimMesh.position.y =
+        railsTopY +
+        POCKET_JAW_VERTICAL_LIFT +
+        railH * rimOffsetScale +
+        (isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0);
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
@@ -5518,7 +5530,10 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
-      const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
+      const fallbackCenter = new THREE.Vector2(
+        sx * (sidePocketCenterX + SIDE_POCKET_RAIL_OUTWARD_SHIFT),
+        0
+      );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
