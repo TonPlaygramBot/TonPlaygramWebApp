@@ -499,8 +499,8 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // align midd
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_DEPTH_SCALE = CHROME_PLATE_THICKNESS_SCALE * 0.5; // shorten the jaw body 50% while preserving the chrome fascia reference
-const POCKET_JAW_VERTICAL_LIFT_RATIO = 0.08; // raise the jaw so it sits on top of the chrome plate instead of partially recessed
-const POCKET_JAW_OUTWARD_OFFSET = TABLE.THICK * 0.06; // push the jaw assembly farther outside the chrome arch so it reads as an external fascia
+const POCKET_JAW_VERTICAL_LIFT_RATIO = 0.18; // raise the jaw farther so it crowns above the chrome plate instead of sitting flush
+const POCKET_JAW_OUTWARD_OFFSET = TABLE.THICK * 0.12; // push the jaw assembly farther outside the chrome arch so it reads as an external fascia
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
@@ -522,8 +522,8 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.01; // nudge the middle jaw radius ou
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaws flush with the chrome fascia depth
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
-const POCKET_RIM_DEPTH_RATIO = 2; // make the rim as tall as the previous jaw profile before the reduction
-const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
+const POCKET_RIM_HEIGHT = RAIL_HEIGHT; // match the rim depth to the full height of the wooden rails
+const SIDE_POCKET_RIM_HEIGHT = POCKET_RIM_HEIGHT; // keep the middle pocket rims identical to the rail height
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.06; // lift the rim so it clears the chrome trim while remaining anchored to the jaws
 const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
 const MIDDLE_POCKET_RIM_SPLIT_OFFSET = TABLE.THICK * 0.05; // space the twin middle pocket rims apart
@@ -1500,7 +1500,7 @@ const POCKET_LINER_OPTIONS = Object.freeze(
       }
       const baseHex = config.baseColor ?? finish.colors?.rail ?? 0x6d7177;
       const jawHex = config.jawColor ?? mixHexColors(baseHex, 0xffffff, config.jawMix ?? 0.16);
-      const rimHex = config.rimColor ?? jawHex;
+      const rimHex = jawHex;
       const sheenHex = config.sheenColor ?? mixHexColors(baseHex, 0xffffff, config.sheenMix ?? 0.4);
       const rimSheenHex =
         config.rimSheenColor ?? mixHexColors(jawHex, 0xffffff, config.rimSheenMix ?? 0.26);
@@ -1516,7 +1516,7 @@ const POCKET_LINER_OPTIONS = Object.freeze(
         label: config.label,
         finishId: config.finishId,
         jawColor: config.jawColor ?? jawHex,
-        rimColor: config.rimColor ?? rimHex,
+        rimColor: rimHex,
         sheenColor: config.sheenColor ?? sheenHex,
         rimSheenColor: config.rimSheenColor ?? rimSheenHex,
         sheen: config.sheen ?? 0.5,
@@ -1547,7 +1547,7 @@ const POCKET_LINER_OPTIONS = Object.freeze(
     }
     if (config.type === 'metal') {
       const jawHex = config.jawColor ?? 0x6d7177;
-      const rimHex = config.rimColor ?? jawHex;
+      const rimHex = jawHex;
       const sheenHex = config.sheenColor ?? mixHexColors(jawHex, 0xffffff, 0.35);
       const rimSheenHex =
         config.rimSheenColor ?? mixHexColors(rimHex, 0xffffff, 0.28);
@@ -5266,10 +5266,10 @@ function Table3D(
     }
 
     let rimMesh = null;
-    const rimDepthRatio = isMiddle ? SIDE_POCKET_RIM_DEPTH_RATIO : POCKET_RIM_DEPTH_RATIO;
-    if (rimDepthRatio > MICRO_EPS) {
+    const rimHeight = isMiddle ? SIDE_POCKET_RIM_HEIGHT : POCKET_RIM_HEIGHT;
+    if (rimHeight > MICRO_EPS) {
       const rimShape = jawShape.clone();
-      const rimDepth = Math.max(MICRO_EPS, jawDepth * rimDepthRatio);
+      const rimDepth = Math.max(MICRO_EPS, rimHeight);
       const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
