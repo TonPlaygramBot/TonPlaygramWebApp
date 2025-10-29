@@ -250,7 +250,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  0.998; // match the middle chrome arch to the rail cut so the jaws follow the rounded profile exactly
+  1.01; // widen the middle chrome arch slightly so the jaws follow the rounded profile farther toward the rail
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -265,7 +265,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // keep a subtle reveal so
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // open the corner chrome cut slightly wider so the rounded pocket reveal grows
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.01; // open the chrome arch fractionally so the middle cut appears wider
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open the chrome arch a touch more so the middle cut breathes toward the rail
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.018; // nudge the middle chrome cut toward the table centre so the rounded throat hugs the cloth cut
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -560,7 +560,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.79; // push the middle pockets a touch farther outboard so the jaws sit further from centre
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.92; // push the middle pockets a hair farther outboard so the jaws sit further from centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -4481,7 +4481,7 @@ function Table3D(
   });
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
   const underlayMat = new THREE.MeshStandardMaterial({
-    color: 0x7a5a33,
+    color: 0x1f7a3a,
     roughness: 0.7,
     metalness: 0.08,
     side: THREE.DoubleSide
