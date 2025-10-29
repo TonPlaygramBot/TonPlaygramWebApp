@@ -266,7 +266,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the corner chrome cut exactly matched to the jaw arch
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.01; // open the chrome arch fractionally so the middle cut appears wider
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.94; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep the wooden rail arches identical to the chrome cut radius
