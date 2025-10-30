@@ -250,7 +250,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.01; // widen the middle chrome arch slightly so the jaws follow the rounded profile farther toward the rail
+  1.025; // widen the middle chrome arch further so the jaws follow the rounded profile farther toward the rail
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -258,19 +258,19 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.24; // pull the side fascia back so it stops short of the wooden rail reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.08; // let the middle fascia stretch farther along the pocket edge
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.28; // extend the side fascia slightly farther toward the long rail edges
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.12; // let the middle fascia stretch farther along the pocket edge and toward the short rails
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // keep a subtle reveal so the chrome plate edge stays visible like the corners
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // open the corner chrome cut slightly wider so the rounded pocket reveal grows
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open the chrome arch a touch more so the middle cut breathes toward the rail
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.035; // open the chrome arch wider so the middle cut breathes toward the rail edge
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.018; // nudge the middle chrome cut toward the table centre so the rounded throat hugs the cloth cut
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep the wooden rail arches identical to the chrome cut radius
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.04; // push the wooden rail arches slightly farther toward the side cushions
 
 function buildChromePlateGeometry({
   width,
@@ -517,9 +517,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.56; // nudge the corner jaw spread so the fascia kisses the cushion shoulders
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.992; // tighten the middle jaw span so it sits further from the table centreline
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // keep the jaw radius tucked inside the chrome cut to match the rail profile
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.02; // expand the middle jaw span so it follows the widened chrome cut toward the rails
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.008; // let the jaw radius follow the enlarged chrome cut toward the rail profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08; // push the middle jaws deeper so their height matches the corner profile
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.01; // raise side jaws so their top surface finishes flush with the wood
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
@@ -4419,9 +4420,9 @@ function Table3D(
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
-        const sweep = isSidePocket ? Math.PI : Math.PI * 2;
-        const baseSegments = isSidePocket ? 64 : 64;
-        return createPocketSector(center, sweep, radius, baseSegments, isSidePocket);
+        const sweep = Math.PI * 2;
+        const baseSegments = isSidePocket ? 96 : 64;
+        return createPocketSector(center, sweep, radius, baseSegments, false);
       })
       .filter(Boolean);
 
@@ -5394,7 +5395,8 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT;
+    const jawVerticalOffset = isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0;
+    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5419,7 +5421,8 @@ function Table3D(
       const rimOffsetScale = isMiddle
         ? SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE
         : POCKET_RIM_SURFACE_OFFSET_SCALE;
-      rimMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + railH * rimOffsetScale;
+      rimMesh.position.y =
+        railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset + railH * rimOffsetScale;
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
