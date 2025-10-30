@@ -10925,6 +10925,51 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         return true;
       };
+      const findAiInHandPlacement = () => {
+        const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+        const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
+        const candidates = [];
+        candidates.push(new THREE.Vector2(0, baulkZ));
+        candidates.push(new THREE.Vector2(0, forwardBias));
+        const angles = [0, Math.PI / 8, -Math.PI / 8, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
+        for (const angle of angles) {
+          const candidate = new THREE.Vector2(
+            Math.cos(angle) * radius,
+            baulkZ + Math.sin(angle) * radius
+          );
+          candidates.push(candidate);
+        }
+        const limitX = PLAY_W / 2 - BALL_R;
+        const step = BALL_R * 2.1;
+        for (let x = step; x <= limitX; x += step) {
+          candidates.push(new THREE.Vector2(x, forwardBias));
+          candidates.push(new THREE.Vector2(-x, forwardBias));
+        }
+        for (const raw of candidates) {
+          const clamped = clampInHandPosition(raw);
+          if (!clamped) continue;
+          if (!free(clamped.x, clamped.y)) continue;
+          return clamped;
+        }
+        const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        return fallback && free(fallback.x, fallback.y) ? fallback : null;
+      };
+      const autoPlaceAiCueBall = () => {
+        const currentHud = hudRef.current;
+        if (!currentHud) return false;
+        if (currentHud.turn !== 1 || !currentHud.inHand) return false;
+        if (!cue || cue.active) return false;
+        if (!allStopped(balls)) return false;
+        const pos = findAiInHandPlacement();
+        if (!pos) return false;
+        cue.active = false;
+        updateCuePlacement(pos);
+        cue.active = true;
+        cue.mesh.visible = true;
+        hudRef.current = { ...currentHud, inHand: false };
+        setHud((prev) => ({ ...prev, inHand: false }));
+        return true;
+      };
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
@@ -11869,6 +11914,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = currentHud?.turn === 1;
+        if (isAiTurn) {
+          autoPlaceAiCueBall();
+        }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
           allStopped(balls) && cue?.active && !(currentHud?.over) && !(currentHud?.inHand);
