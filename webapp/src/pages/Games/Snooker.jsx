@@ -177,7 +177,14 @@ function adjustSideNotchDepth(mp) {
             ? ring.map((pt) => {
                 if (!Array.isArray(pt) || pt.length < 2) return pt;
                 const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+                const scaledZ = z * CHROME_SIDE_NOTCH_DEPTH_SCALE;
+                const pullBase = Math.abs(z) * CHROME_SIDE_FIELD_PULL_SCALE;
+                const maxPull = Math.min(Math.abs(scaledZ), pullBase);
+                if (maxPull <= 0) {
+                  return [x, scaledZ];
+                }
+                const dir = scaledZ === 0 ? 0 : scaledZ > 0 ? 1 : -1;
+                return [x, scaledZ - dir * maxPull];
               })
             : ring
         )
@@ -200,48 +207,87 @@ function createDefaultPocketJawMaterial() {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
+const CORNER_POCKET_INWARD_SCALE = 1.035; // push the rounded corner cuts deeper without moving the pocket centers
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.05;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.034; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
+const CHROME_CORNER_EXPANSION_SCALE = 1.012; // extend the fascia slightly farther so it closes over the rounded wood cut
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.012; // mirror the additional reach so both fascia edges wrap the cushion shoulders
+const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.99; // gently shrink chrome plates along the long rails
-const CHROME_CORNER_HEIGHT_SCALE = 0.99; // gently shrink chrome plates along the short rails
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const WOOD_CORNER_CUT_SCALE = 0.993; // tighten wooden rail corner cutouts to better match the chrome plates
-const WOOD_SIDE_CUT_SCALE = 0.995; // gently shrink side pocket cutouts on the wooden rails
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1;
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1;
-const POCKET_JAW_CORNER_INNER_SCALE = 1.11;
-const POCKET_JAW_SIDE_INNER_SCALE = 0.962;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.723;
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.78;
-const POCKET_JAW_DEPTH_SCALE = 0.63;
-const POCKET_JAW_EDGE_FLUSH_START = 0.14;
-const POCKET_JAW_EDGE_FLUSH_END = 1;
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.24;
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.72;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.9;
-const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // remove the triangular wedge so the chrome hugs the pocket arc
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0; // eliminate extra field pull to keep the cloth cut seamless
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to Pool Royale baseline
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
+const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia dimensions identical to the cushion span so both surfaces meet cleanly
+const CHROME_CORNER_WIDTH_SCALE = 0.988;
+const CHROME_CORNER_HEIGHT_SCALE = 0.968;
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
+const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
+const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the Pool Royale baseline
+const CHROME_SIDE_POCKET_RADIUS_SCALE =
+  CORNER_POCKET_INWARD_SCALE * CHROME_CORNER_POCKET_RADIUS_SCALE * 1.025; // widen the middle chrome arch to mirror Pool Royale's span
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match Pool Royale rail rounding so the chrome sits flush
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse Pool Royale notch height profile
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
+const CHROME_SIDE_FIELD_PULL_SCALE = 0;
+const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.42; // push the side fascia deeper along the arch so it wraps the full chrome reveal
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.42; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.26; // widen the middle fascia farther so it blankets the entire arch reveal
+const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.036; // open the corner chrome cut a touch further so the rounded pocket reveal grows
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.035; // open the chrome arch wider so the middle cut breathes toward the rail edge
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief to keep the chrome reveal dominant
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // pull the wooden corner relief slightly farther toward the cloth
+const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
+  (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE;
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.04; // push the wooden rail arches slightly farther toward the side cushions
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 0.992; // pull the corner jaws a fraction inward so the fascia aligns with the tightened wood cut
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without inset
+const POCKET_JAW_CORNER_INNER_SCALE = 1.436; // pull the inner lip outward so the jaw thickness drops roughly 50%
+const POCKET_JAW_SIDE_INNER_SCALE = 1.443; // keep the middle pocket inner lip aligned with the Pool Royale jaw profile
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
+const POCKET_JAW_DEPTH_SCALE = 0.54; // trim the jaw underside so it clears the green cloth plane
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim slightly so it finishes just above the pocket
+const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
+const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the Pool Royale jaw profile
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.48; // allow the inner arc to slim further through the pocket centre for a deeper arch
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66; // cap the inner arc thickness so the jaw maintains the pronounced curve
+const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
-const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
+const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 96;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 0.9;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5;
+const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer along the corner jaw shoulders
+const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep middle pocket chamfer identical to the corners
+const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the Pool Royale reference
+const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread so the fascia kisses the cushion shoulders
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.538; // trim the middle jaw span so it stops exactly where the cushions begin without overlap
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.008; // let the jaw radius follow the enlarged chrome cut toward the rail profile
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9; // trim the middle jaws slightly so their height sits just shy of the corner profile
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.9;
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5;
-const CORNER_JAW_ARC_DEG = 120;
-const SIDE_JAW_ARC_DEG = 150;
+const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° coverage
+const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
+const POCKET_RIM_DEPTH_RATIO = 1;
+const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO;
+const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02;
+const POCKET_RIM_SURFACE_ABSOLUTE_LIFT = TABLE.THICK * 0.052;
+const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE;
+const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT;
+const CORNER_RAIL_NOTCH_INSET =
+  POCKET_VIS_R * 0.06 * POCKET_VISUAL_EXPANSION; // slide the corner rail cuts toward the cloth so wooden arches mirror Pool Royale
 
 function buildChromePlateGeometry({
   width,
@@ -250,7 +296,8 @@ function buildChromePlateGeometry({
   thickness,
   corner = 'topLeft',
   notchMP = null,
-  shapeSegments = 96
+  shapeSegments = 96,
+  flat = false
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -268,7 +315,7 @@ function buildChromePlateGeometry({
   if (isSidePlate) {
     const rectRadius = Math.max(
       0,
-      Math.min(r * 0.5, Math.min(width, height) * 0.06)
+      Math.min(r, Math.min(width, height) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE)
     );
     const topStartX = -hw + rectRadius;
     shape.moveTo(topStartX, hh);
@@ -415,12 +462,19 @@ function buildChromePlateGeometry({
     }
   }
 
+  if (flat || thickness <= MICRO_EPS) {
+    let geo = new THREE.ShapeGeometry(shapesToExtrude, Math.max(8, shapeSegments));
+    geo.rotateX(-Math.PI / 2);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
   let geo = new THREE.ExtrudeGeometry(shapesToExtrude, {
     depth: thickness,
     bevelEnabled: true,
     bevelSegments: 3,
     bevelSize,
-    bevelThickness,
+    bevelThickness: Math.min(thickness * 0.35, thickness * CHROME_PLATE_THICKNESS_SCALE),
     curveSegments: 64
   });
   geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
@@ -3984,7 +4038,7 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
+  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // match Pool Royale fascia depth
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -4011,6 +4065,8 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
+  const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
+  const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
@@ -4021,13 +4077,20 @@ function Table3D(
     outerHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
       chromeCornerPlateTrim
   );
+  const chromeCornerFieldExtension =
+    POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
+      chromeCornerEdgeTrim -
+      chromeOuterFlushTrim * 2
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
+      chromeCornerEdgeTrim +
+      chromeCornerFieldExtension -
+      chromeOuterFlushTrim * 2
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -4036,16 +4099,25 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const chromeCornerCenterOutset =
+    TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
+  const chromeCornerShortRailShift =
+    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE;
+  const chromeCornerShortRailCenterPull =
+    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
+  const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
+      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
+      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE -
+      chromeOuterFlushTrim * 2
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -4056,13 +4128,13 @@ function Table3D(
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.94,
-    Math.max(MICRO_EPS, sidePlateHeightByCushion)
+    Math.max(
+      MICRO_EPS,
+      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2
+    ),
+    sidePlateHeightByCushion
   );
-  const sideChromePlateRadius = Math.min(
-    chromePlateRadius * 0.3,
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.04
-  );
+  const sideChromePlateRadius = Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.5;
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
@@ -4152,6 +4224,44 @@ function Table3D(
   };
   const ringArea = (ring) => signedRingArea(ring);
 
+  const cornerFieldFilletPoly = (cx, cz, sx, sz, radius, segments = 64) => {
+    if (radius <= MICRO_EPS) {
+      return null;
+    }
+    const axisXAngle = sx > 0 ? 0 : Math.PI;
+    const axisZAngle = sz > 0 ? Math.PI / 2 : -Math.PI / 2;
+    let startAngle = axisXAngle;
+    let endAngle = axisZAngle;
+    let sweep = endAngle - startAngle;
+    if (sweep <= 0) {
+      endAngle += Math.PI * 2;
+      sweep = endAngle - startAngle;
+    }
+    if (sweep > Math.PI) {
+      startAngle = axisZAngle;
+      endAngle = axisXAngle;
+      sweep = endAngle - startAngle;
+      if (sweep <= 0) {
+        endAngle += Math.PI * 2;
+        sweep = endAngle - startAngle;
+      }
+    }
+    if (sweep <= MICRO_EPS) {
+      return null;
+    }
+    const steps = Math.max(2, Math.ceil((segments * Math.abs(sweep)) / (Math.PI / 2)));
+    const pts = [[cx, cz]];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const angle = startAngle + sweep * t;
+      const x = cx + Math.cos(angle) * radius;
+      const z = cz + Math.sin(angle) * radius;
+      pts.push([x, z]);
+    }
+    pts.push([cx, cz]);
+    return [[pts]];
+  };
+
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
@@ -4170,19 +4280,26 @@ function Table3D(
     const z3 = cz;
     const z4 = cz + sz * cornerChamfer;
     const boxZ = boxPoly(Math.min(x3, x4), Math.min(z3, z4), Math.max(x3, x4), Math.max(z3, z4));
-    const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
     const fieldClipWidth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE;
     const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
+    const wedgeDepth = cornerChamfer * Math.max(0, CHROME_CORNER_NOTCH_WEDGE_SCALE);
     const unionParts = [notchCircle, boxX, boxZ];
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
-      unionParts.push([
-        [
-          [cx, cz],
-          [cx + sx * fieldClipWidth, cz],
-          [cx, cz + sz * fieldClipDepth],
-          [cx, cz]
-        ]
-      ]);
+      const filletRadius =
+        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
+      const fillet = cornerFieldFilletPoly(cx, cz, sx, sz, filletRadius);
+      if (fillet) {
+        unionParts.push(fillet);
+      } else {
+        unionParts.push([
+          [
+            [cx, cz],
+            [cx + sx * fieldClipWidth, cz],
+            [cx, cz + sz * fieldClipDepth],
+            [cx, cz]
+          ]
+        ]);
+      }
     }
     if (wedgeDepth > MICRO_EPS) {
       unionParts.push([
@@ -4202,23 +4319,26 @@ function Table3D(
     return scaleMultiPolygon(adjusted, CHROME_CORNER_NOTCH_EXPANSION_SCALE);
   };
 
+  const sidePocketCenterX = innerHalfW - sideInset;
+
   const sideNotchMP = (sx) => {
-    const cx = sx * (innerHalfW - sideInset);
+    const cx = sx * sidePocketCenterX;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
-    const throatLength = Math.max(
-      MICRO_EPS,
-      radius * CHROME_SIDE_NOTCH_THROAT_SCALE
-    );
-    const throatHeight = Math.max(
-      MICRO_EPS,
-      radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE
-    );
+    const throatLength = Math.max(0, radius * CHROME_SIDE_NOTCH_THROAT_SCALE);
+    const throatHeight = Math.max(0, radius * 2.4 * CHROME_SIDE_NOTCH_HEIGHT_SCALE);
     const throatRadius = Math.max(
-      MICRO_EPS,
-      Math.min(throatHeight / 2, radius * 0.6)
+      0,
+      Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
+    const useThroat =
+      throatLength > MICRO_EPS && throatHeight > MICRO_EPS && throatRadius > MICRO_EPS;
+
+    if (!useThroat) {
+      return adjustSideNotchDepth(circle);
+    }
+
     const throat = roundedRectPoly(
       cx + (sx * throatLength) / 2,
       0,
@@ -4227,10 +4347,62 @@ function Table3D(
       throatRadius,
       192
     );
-
     const union = polygonClipping.union(circle, throat);
     return adjustSideNotchDepth(union);
   };
+
+  const scalePocketCutMP = (mp, scale) => {
+    if (!Array.isArray(mp)) {
+      return mp;
+    }
+    if (scale === 1) {
+      return mp;
+    }
+    const scaled = scaleMultiPolygon(mp, scale);
+    return Array.isArray(scaled) && scaled.length ? scaled : mp;
+  };
+
+  const scaleChromeCornerPocketCut = (mp) =>
+    scalePocketCutMP(mp, CHROME_CORNER_POCKET_CUT_SCALE);
+  const scaleChromeSidePocketCut = (mp) =>
+    scalePocketCutMP(mp, CHROME_SIDE_POCKET_CUT_SCALE);
+  const translatePocketCutMP = (mp, sx, sz, offset) => {
+    if (!Array.isArray(mp) || !mp.length) {
+      return mp;
+    }
+    if (!Number.isFinite(offset) || Math.abs(offset) <= MICRO_EPS) {
+      return mp;
+    }
+    const dx = -sx * offset;
+    const dz = -sz * offset;
+    if (!Number.isFinite(dx) || !Number.isFinite(dz)) {
+      return mp;
+    }
+    if (Math.abs(dx) <= MICRO_EPS && Math.abs(dz) <= MICRO_EPS) {
+      return mp;
+    }
+    return mp.map((poly) => {
+      if (!Array.isArray(poly)) return poly;
+      return poly.map((ring) => {
+        if (!Array.isArray(ring)) return ring;
+        return ring.map((pt) => {
+          if (!Array.isArray(pt) || pt.length < 2) return pt;
+          const [x, z] = pt;
+          return [x + dx, z + dz];
+        });
+      });
+    });
+  };
+  const scaleWoodRailCornerPocketCut = (mp) =>
+    scalePocketCutMP(
+      scaleChromeCornerPocketCut(mp),
+      WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE
+    );
+  const scaleWoodRailSidePocketCut = (mp) =>
+    scalePocketCutMP(
+      scaleChromeSidePocketCut(mp),
+      WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE
+    );
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
@@ -4240,9 +4412,19 @@ function Table3D(
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
-    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
-    const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
+    const centerX =
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset) -
+      sx * chromeCornerShortRailCenterPull;
+    const centerZ =
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
+      sz * chromeCornerShortRailShift;
+    const notchMP = translatePocketCutMP(
+      scaleChromeCornerPocketCut(cornerNotchMP(sx, sz)),
+      sx,
+      sz,
+      CORNER_RAIL_NOTCH_INSET
+    );
+    const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
       )
@@ -4255,11 +4437,12 @@ function Table3D(
         thickness: chromePlateThickness,
         corner,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments
+        shapeSegments: chromePlateShapeSegments,
+        flat: true
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
@@ -4272,7 +4455,8 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
-    const notchLocalMP = sideNotchMP(sx).map((poly) =>
+    const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
+    const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
     const plate = new THREE.Mesh(
@@ -4283,11 +4467,12 @@ function Table3D(
         thickness: chromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments
+        shapeSegments: chromePlateShapeSegments,
+        flat: true
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
@@ -4612,7 +4797,7 @@ function Table3D(
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
-      const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
+      const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
@@ -4639,18 +4824,37 @@ function Table3D(
     }
   }
 
-  const woodSidePocketRadius = sidePocketRadius * WOOD_SIDE_CUT_SCALE;
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, woodSidePocketRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, woodSidePocketRadius)
+    ...scaleWoodRailSidePocketCut(sideNotchMP(-1)),
+    ...scaleWoodRailSidePocketCut(sideNotchMP(1))
   );
   openingMP = polygonClipping.union(
     openingMP,
-    ...scaleMultiPolygonBy(cornerNotchMP(1, 1), WOOD_CORNER_CUT_SCALE),
-    ...scaleMultiPolygonBy(cornerNotchMP(-1, 1), WOOD_CORNER_CUT_SCALE),
-    ...scaleMultiPolygonBy(cornerNotchMP(-1, -1), WOOD_CORNER_CUT_SCALE),
-    ...scaleMultiPolygonBy(cornerNotchMP(1, -1), WOOD_CORNER_CUT_SCALE)
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
+      1,
+      1,
+      CORNER_RAIL_NOTCH_INSET
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, 1)),
+      -1,
+      1,
+      CORNER_RAIL_NOTCH_INSET
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(-1, -1)),
+      -1,
+      -1,
+      CORNER_RAIL_NOTCH_INSET
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailCornerPocketCut(cornerNotchMP(1, -1)),
+      1,
+      -1,
+      CORNER_RAIL_NOTCH_INSET
+    )
   );
 
   const railsOuter = new THREE.Shape();
