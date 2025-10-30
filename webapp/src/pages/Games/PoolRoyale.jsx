@@ -4218,6 +4218,20 @@ function Table3D(
 
   const cushionMat = clothMat.clone();
   cushionMat.side = THREE.DoubleSide;
+  const clothEdgeMat = clothMat.clone();
+  clothEdgeMat.side = THREE.DoubleSide;
+  if (clothMat.map) {
+    const clonedMap = clothMat.map.clone();
+    clonedMap.image = clothMat.map.image;
+    clonedMap.needsUpdate = true;
+    clothEdgeMat.map = clonedMap;
+  }
+  if (clothMat.bumpMap) {
+    const clonedBump = clothMat.bumpMap.clone();
+    clonedBump.image = clothMat.bumpMap.image;
+    clonedBump.needsUpdate = true;
+    clothEdgeMat.bumpMap = clonedBump;
+  }
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -4228,7 +4242,7 @@ function Table3D(
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale
   };
-  const clothMaterials = [clothMat, cushionMat];
+  const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
   const applyClothDetail = (detail) => {
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
@@ -4311,6 +4325,7 @@ function Table3D(
     },
     clothMat,
     cushionMat,
+    clothEdgeMat,
     parts: finishParts,
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
@@ -4510,6 +4525,41 @@ function Table3D(
   const clothEdgeBottomY = boardBottomY - MICRO_EPS;
   const clothEdgeHeight = clothEdgeTopY - clothEdgeBottomY;
   if (clothEdgeHeight > MICRO_EPS) {
+    if (clothEdgeMat.map) {
+      const planeWidth = Math.max(MICRO_EPS, halfWext * 2);
+      const planeLength = Math.max(MICRO_EPS, halfHext * 2);
+      const baseRepeatValue = clothMat.userData?.baseRepeat ?? clothMat.map?.repeat?.x ?? 1;
+      const ratioValue = clothMat.userData?.repeatRatio ??
+        (clothMat.map?.repeat?.x ? clothMat.map.repeat.y / clothMat.map.repeat.x : 1);
+      const circumference = Math.max(MICRO_EPS, 2 * Math.PI * POCKET_HOLE_R);
+      const repeatAround = baseRepeatValue * (circumference / planeWidth);
+      const repeatHeight = baseRepeatValue * ratioValue * (clothEdgeHeight / planeLength);
+      clothEdgeMat.map.repeat.set(
+        Math.max(repeatAround, 1),
+        Math.max(repeatHeight, 0.5)
+      );
+      clothEdgeMat.map.center.set(0.5, 0.5);
+      clothEdgeMat.map.rotation = clothMat.map?.rotation ?? clothEdgeMat.map.rotation ?? 0;
+      clothEdgeMat.map.needsUpdate = true;
+    }
+    if (clothEdgeMat.bumpMap) {
+      const planeWidth = Math.max(MICRO_EPS, halfWext * 2);
+      const planeLength = Math.max(MICRO_EPS, halfHext * 2);
+      const baseRepeatValue = clothMat.userData?.baseRepeat ?? clothMat.map?.repeat?.x ?? 1;
+      const ratioValue = clothMat.userData?.repeatRatio ??
+        (clothMat.map?.repeat?.x ? clothMat.map.repeat.y / clothMat.map.repeat.x : 1);
+      const circumference = Math.max(MICRO_EPS, 2 * Math.PI * POCKET_HOLE_R);
+      const repeatAround = baseRepeatValue * (circumference / planeWidth);
+      const repeatHeight = baseRepeatValue * ratioValue * (clothEdgeHeight / planeLength);
+      clothEdgeMat.bumpMap.repeat.set(
+        Math.max(repeatAround, 1),
+        Math.max(repeatHeight, 0.5)
+      );
+      clothEdgeMat.bumpMap.center.set(0.5, 0.5);
+      clothEdgeMat.bumpMap.rotation = clothEdgeMat.map?.rotation ?? clothEdgeMat.bumpMap.rotation ?? 0;
+      clothEdgeMat.bumpMap.needsUpdate = true;
+    }
+    clothEdgeMat.needsUpdate = true;
     const clothSleeveGeo = new THREE.CylinderGeometry(
       POCKET_HOLE_R,
       POCKET_HOLE_R,
@@ -4520,7 +4570,7 @@ function Table3D(
     );
     const clothSleeveMidY = clothEdgeBottomY + clothEdgeHeight / 2;
     pocketPositions.forEach((p) => {
-      const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothMat);
+      const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothEdgeMat);
       clothSleeve.position.set(p.x, clothSleeveMidY, p.y);
       clothSleeve.castShadow = false;
       clothSleeve.receiveShadow = false;
@@ -6249,6 +6299,11 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.color.copy(clothColor);
     finishInfo.cushionMat.emissive.copy(emissiveColor);
     finishInfo.cushionMat.needsUpdate = true;
+  }
+  if (finishInfo.clothEdgeMat) {
+    finishInfo.clothEdgeMat.color.copy(clothColor);
+    finishInfo.clothEdgeMat.emissive.copy(emissiveColor);
+    finishInfo.clothEdgeMat.needsUpdate = true;
   }
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
