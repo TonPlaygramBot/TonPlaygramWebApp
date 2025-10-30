@@ -231,8 +231,8 @@ const CORNER_POCKET_INWARD_SCALE = 1.035; // push the rounded corner cuts deeper
 const CORNER_POCKET_SCALE_BOOST = 1; // keep corner pocket scale identical to the 3D Snooker build
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.05;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.034; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
-const CHROME_CORNER_EXPANSION_SCALE = 1; // lock the corner fascia to the cushion-derived span so it finishes flush with the jaws
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // mirror the cushion reach exactly so the chrome ends where the green rail begins
+const CHROME_CORNER_EXPANSION_SCALE = 1.012; // extend the fascia slightly farther so it closes over the rounded wood cut
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.012; // mirror the additional reach so both fascia edges wrap the cushion shoulders
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // remove the triangular wedge so the chrome hugs the pocket arc
@@ -241,8 +241,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.978;
-const CHROME_CORNER_HEIGHT_SCALE = 0.954;
+const CHROME_CORNER_WIDTH_SCALE = 0.988;
+const CHROME_CORNER_HEIGHT_SCALE = 0.968;
 const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -515,9 +515,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // reference factor for the chamfer 
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.92; // keep the centre mass similar to the snooker reference
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // share the same midpoint thickness between middle and corner pockets
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.56; // nudge the corner jaw spread so the fascia kisses the cushion shoulders
-const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.02; // expand the middle jaw span so it follows the widened chrome cut toward the rails
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.538; // trim the middle jaw span so it stops exactly where the cushions begin without overlap
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.008; // let the jaw radius follow the enlarged chrome cut toward the rail profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08; // push the middle jaws deeper so their height matches the corner profile
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.01; // raise side jaws so their top surface finishes flush with the wood
@@ -4736,7 +4735,8 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
-  const CUSHION_CENTER_NUDGE = TABLE.THICK * 0.012; // tighten the gap so cushions rest almost flush against the wooden rails
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.214; // stretch the short rail cushions deeper into the corner pocket throats per latest spec tweak and extend them slightly toward the corners so the cushion noses kiss the jaw shoulders
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * -0.002; // let the side cushions glide a touch further toward the middle pocket arches so their tips meet the chrome in one clean plane
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
@@ -4760,8 +4760,8 @@ function Table3D(
   // precisely where each pocket begins.
   const cornerCenterX = innerHalfW - cornerInset;
   const cornerCenterZ = innerHalfH - cornerInset;
-  const cornerLineX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
-  const cornerLineZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cornerLineX = halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE;
+  const cornerLineZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE;
   const cornerDeltaX = cornerLineX - cornerCenterX;
   const cornerDeltaZ = cornerLineZ - cornerCenterZ;
   const cornerReachX = Math.sqrt(
@@ -4787,7 +4787,7 @@ function Table3D(
     PLAY_W - 2 * cornerCushionClearance
   );
   const sideLineX =
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
   const sideDeltaX = sidePocketCenterX - sideLineX;
   const sidePocketReach = Math.sqrt(
     Math.max(sidePocketRadius * sidePocketRadius - sideDeltaX * sideDeltaX, 0)
@@ -4809,8 +4809,8 @@ function Table3D(
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
-  const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
-  const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
+  const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE;
+  const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
   const chromePlateInnerLimitZ = Math.max(0, cushionInnerZ);
   const chromeCornerMeetX = Math.max(0, horizontalCushionLength / 2);
@@ -5896,10 +5896,11 @@ function Table3D(
     if (horizontal) {
       const side = z >= 0 ? 1 : -1;
       group.position.z =
-        side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE);
+        side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE);
     } else {
       const side = x >= 0 ? 1 : -1;
-      const reach = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
+      const reach =
+        halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
       group.position.x = side * reach;
     }
 
