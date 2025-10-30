@@ -667,8 +667,8 @@ const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dr
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_BASE_OFFSET = MICRO_EPS * 0.05; // keep the cushion underside visually flush with the cloth without Z-fighting
-const CUSHION_HEIGHT_DROP = 0; // keep the cushion lip perfectly level with the wooden rails
+const CUSHION_EXTRA_LIFT = MICRO_EPS; // raise the cushion base so the underside rests on the cloth while keeping the lip level with the rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.12; // shorten cushion height so the lip sits level with the wooden rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -4479,7 +4479,6 @@ function Table3D(
   };
 
   const clothShape = buildSurfaceShape(POCKET_HOLE_R);
-  const clothTopY = clothPlaneLocal - CLOTH_DROP;
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
     bevelEnabled: false,
@@ -4489,7 +4488,7 @@ function Table3D(
   clothGeo.translate(0, 0, -CLOTH_THICKNESS);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
-  cloth.position.y = clothTopY;
+  cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
@@ -5814,11 +5813,11 @@ function Table3D(
   const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
   const NOSE_REDUCTION = 0.75;
-  const CUSHION_UNDERCUT_BASE_LIFT = 0;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.44;
   const CUSHION_RAIL_BASE_LIFT = 0; // keep the cushion base flush with the cloth plane along the wooden rails
-  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0;
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
-  const cushionBaseY = clothTopY + CUSHION_BASE_OFFSET;
+  const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
