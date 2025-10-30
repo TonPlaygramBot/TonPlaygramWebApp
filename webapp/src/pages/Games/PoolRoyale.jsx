@@ -266,7 +266,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.01; // open the corner chrome cut slightly wider so the rounded pocket reveal grows
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.035; // open the chrome arch wider so the middle cut breathes toward the rail edge
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.018; // nudge the middle chrome cut toward the table centre so the rounded throat hugs the cloth cut
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // corner wood arches must now mirror the chrome radius exactly
@@ -561,7 +561,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.92; // push the middle pockets a hair farther outboard so the jaws sit further from centre
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 2.02; // push the middle pockets fractionally farther outboard so every side arch clears the centreline
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
