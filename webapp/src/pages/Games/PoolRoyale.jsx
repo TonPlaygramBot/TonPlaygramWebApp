@@ -534,7 +534,9 @@ const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span
 const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
 const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
+const POCKET_RIM_SURFACE_ABSOLUTE_LIFT = TABLE.THICK * 0.052; // ensure the rim clears the jaw top even when the rails compress
 const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
+const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // Dimensions reflect WPA specifications (playing surface 100" × 50")
@@ -5481,8 +5483,12 @@ function Table3D(
       const rimOffsetScale = isMiddle
         ? SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE
         : POCKET_RIM_SURFACE_OFFSET_SCALE;
+      const rimAbsoluteLift = isMiddle
+        ? SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT
+        : POCKET_RIM_SURFACE_ABSOLUTE_LIFT;
+      const rimVerticalLift = Math.max(rimAbsoluteLift, railH * rimOffsetScale);
       rimMesh.position.y =
-        railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset + railH * rimOffsetScale;
+        railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset + rimVerticalLift;
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
