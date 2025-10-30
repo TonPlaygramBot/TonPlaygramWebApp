@@ -131,6 +131,17 @@ function multiPolygonToShapes(mp) {
   return shapes;
 }
 
+function filterMultiPolygonByArea(mp, minArea) {
+  if (!Array.isArray(mp)) return [];
+  const threshold = Math.max(0, Number.isFinite(minArea) ? minArea : 0);
+  return mp.filter((poly) => {
+    if (!Array.isArray(poly) || poly.length === 0) return false;
+    const outerRing = poly[0];
+    if (!Array.isArray(outerRing) || outerRing.length < 4) return false;
+    return Math.abs(signedRingArea(outerRing)) >= threshold;
+  });
+}
+
 function centroidFromRing(ring) {
   if (!Array.isArray(ring) || !ring.length) {
     return { x: 0, y: 0 };
@@ -267,6 +278,15 @@ const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full dis
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.036; // open the corner chrome cut a touch further so the rounded pocket reveal grows
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.035; // open the chrome arch wider so the middle cut breathes toward the rail edge
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
+const CORNER_POCKET_JAW_FILL_OUTER_SCALE = 1.014; // extend jaw-coloured filler so it bridges the triangular gap to the cushions
+const SIDE_POCKET_JAW_FILL_OUTER_SCALE = 1.01; // subtler expansion for the side jaws to maintain a consistent reveal
+const POCKET_JAW_FILL_DEPTH_RATIO = 0.12; // thin silicone bead sitting on top of the jaw fascia
+const POCKET_JAW_FILL_TOP_OFFSET_SCALE = -0.002; // sink the filler slightly so it blends into the jaw surface
+const CHROME_CORNER_SEAL_OUTER_SCALE = 1.008; // extend chrome-coloured sealant just beyond the fascia edge
+const CHROME_SIDE_SEAL_OUTER_SCALE = 1.006; // narrower seal for the side chrome plates to avoid overhang
+const CHROME_SEAL_INNER_SCALE = 1; // reference the exact chrome cut for the inner edge so the pocket opening stays unchanged
+const CHROME_SEAL_DEPTH_RATIO = 0.22; // create a low-profile silicone bead hugging the chrome surface
+const CHROME_SEAL_TOP_OFFSET_RATIO = 0.35; // lift the seal so it sits proud of the chrome without floating noticeably
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -5164,6 +5184,76 @@ function Table3D(
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
+
+  const createSealMeshes = (
+    mp,
+    {
+      outerScale,
+      innerScale = 1,
+      depth,
+      topY,
+      material,
+      parentGroup,
+      finishArray,
+      curveSegments = 96,
+      renderOrder,
+      minArea = MICRO_EPS * MICRO_EPS
+    }
+  ) => {
+    if (!Array.isArray(mp) || mp.length === 0) return;
+    if (!Number.isFinite(outerScale) || outerScale <= 0) return;
+    if (!Number.isFinite(innerScale) || innerScale <= 0) return;
+    if (!Number.isFinite(depth) || depth <= MICRO_EPS) return;
+    if (!parentGroup || typeof parentGroup.add !== 'function') return;
+    if (!material) return;
+    if (outerScale <= innerScale) return;
+
+    const outer = scalePocketCutMP(mp, outerScale);
+    if (!Array.isArray(outer) || outer.length === 0) return;
+    const innerMP = innerScale === 1 ? mp : scalePocketCutMP(mp, innerScale);
+    if (!Array.isArray(innerMP) || innerMP.length === 0) return;
+
+    const diff = polygonClipping.difference(outer, innerMP);
+    const sanitized = filterMultiPolygonByArea(diff, minArea);
+    if (!sanitized.length) return;
+
+    const shapes = multiPolygonToShapes(sanitized);
+    if (!shapes.length) return;
+
+    const extrudeDepth = Math.max(MICRO_EPS, depth);
+    shapes.forEach((shape) => {
+      const geom = new THREE.ExtrudeGeometry(shape, {
+        depth: extrudeDepth,
+        bevelEnabled: false,
+        curveSegments,
+        steps: 1
+      });
+      geom.rotateX(-Math.PI / 2);
+      geom.translate(0, -extrudeDepth, 0);
+      geom.computeVertexNormals();
+      const mesh = new THREE.Mesh(geom, material);
+      mesh.position.y = topY;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      if (renderOrder != null) {
+        mesh.renderOrder = renderOrder;
+      }
+      parentGroup.add(mesh);
+      if (Array.isArray(finishArray)) {
+        finishArray.push(mesh);
+      }
+    });
+  };
+
+  const jawFillerSpecs = [];
+  const jawFillerDepth = Math.max(MICRO_EPS, railH * POCKET_JAW_FILL_DEPTH_RATIO);
+  const jawFillerTopY =
+    railsTopY + POCKET_JAW_VERTICAL_LIFT + TABLE.THICK * POCKET_JAW_FILL_TOP_OFFSET_SCALE;
+  const minJawFillerArea = MICRO_EPS * MICRO_EPS * 0.5;
+  const chromeSealDepth = Math.max(MICRO_EPS, chromePlateThickness * CHROME_SEAL_DEPTH_RATIO);
+  const chromeSealTopY =
+    chromePlateY + chromePlateThickness + chromeSealDepth * CHROME_SEAL_TOP_OFFSET_RATIO;
+  const minChromeSealArea = MICRO_EPS * MICRO_EPS * 0.5;
   // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
@@ -5207,6 +5297,21 @@ function Table3D(
     plate.receiveShadow = false;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
+
+    createSealMeshes(notchMP, {
+      outerScale: CHROME_CORNER_SEAL_OUTER_SCALE,
+      innerScale: CHROME_SEAL_INNER_SCALE,
+      depth: chromeSealDepth,
+      topY: chromeSealTopY,
+      material: trimMat,
+      parentGroup: chromePlates,
+      finishArray: finishParts.trimMeshes,
+      curveSegments: chromePlateShapeSegments,
+      renderOrder: 3,
+      minArea: minChromeSealArea
+    });
+
+    jawFillerSpecs.push({ mp: notchMP, outerScale: CORNER_POCKET_JAW_FILL_OUTER_SCALE });
   });
 
   [
@@ -5240,10 +5345,41 @@ function Table3D(
     plate.receiveShadow = false;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
+
+    createSealMeshes(notchMP, {
+      outerScale: CHROME_SIDE_SEAL_OUTER_SCALE,
+      innerScale: CHROME_SEAL_INNER_SCALE,
+      depth: chromeSealDepth,
+      topY: chromeSealTopY,
+      material: trimMat,
+      parentGroup: chromePlates,
+      finishArray: finishParts.trimMeshes,
+      curveSegments: chromePlateShapeSegments,
+      renderOrder: 3,
+      minArea: minChromeSealArea
+    });
+
+    jawFillerSpecs.push({ mp: notchMP, outerScale: SIDE_POCKET_JAW_FILL_OUTER_SCALE });
   });
   railsGroup.add(chromePlates);
 
   const pocketJawGroup = new THREE.Group();
+
+  jawFillerSpecs.forEach(({ mp, outerScale }) => {
+    if (!Array.isArray(mp) || mp.length === 0) return;
+    createSealMeshes(mp, {
+      outerScale,
+      innerScale: 1,
+      depth: jawFillerDepth,
+      topY: jawFillerTopY,
+      material: pocketJawMat,
+      parentGroup: pocketJawGroup,
+      finishArray: finishParts.pocketJawMeshes,
+      curveSegments: chromePlateShapeSegments,
+      renderOrder: 2,
+      minArea: minJawFillerArea
+    });
+  });
 
   const buildPocketJawShape = ({
     center,
