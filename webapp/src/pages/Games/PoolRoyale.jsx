@@ -3734,7 +3734,7 @@ function reflectRails(ball) {
     if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral > sideSpan) continue;
+    if (lateral <= sideSpan) continue;
     if (distNormal < -sideDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
