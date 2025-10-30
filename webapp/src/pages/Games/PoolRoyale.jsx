@@ -259,9 +259,9 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.28; // extend the side fascia slightly farther toward the long rail edges
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.12; // let the middle fascia stretch farther along the pocket edge and toward the short rails
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.18; // extend the middle fascia farther along the pocket arch so it covers the rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.08; // keep a subtle reveal so the chrome plate edge stays visible like the corners
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.12; // widen the middle fascia slightly so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.036; // open the corner chrome cut a touch further so the rounded pocket reveal grows
@@ -280,7 +280,8 @@ function buildChromePlateGeometry({
   thickness,
   corner = 'topLeft',
   notchMP = null,
-  shapeSegments = 96
+  shapeSegments = 96,
+  flat = false
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -445,6 +446,13 @@ function buildChromePlateGeometry({
     }
   }
 
+  if (flat || thickness <= MICRO_EPS) {
+    let geo = new THREE.ShapeGeometry(shapesToExtrude, Math.max(8, shapeSegments));
+    geo.rotateX(-Math.PI / 2);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
   let geo = new THREE.ExtrudeGeometry(shapesToExtrude, {
     depth: thickness,
     bevelEnabled: true,
@@ -520,7 +528,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw sprea
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.538; // trim the middle jaw span so it stops exactly where the cushions begin without overlap
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.008; // let the jaw radius follow the enlarged chrome cut toward the rail profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08; // push the middle jaws deeper so their height matches the corner profile
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.01; // raise side jaws so their top surface finishes flush with the wood
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep the middle jaws at the identical elevation as the corners
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
@@ -5189,11 +5197,12 @@ function Table3D(
         thickness: chromePlateThickness,
         corner,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments
+        shapeSegments: chromePlateShapeSegments,
+        flat: true
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     chromePlates.add(plate);
