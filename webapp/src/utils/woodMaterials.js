@@ -14,6 +14,35 @@ const hslString = (h, s, l) => {
   return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
 };
 
+export const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
+export const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
+const MIN_WOOD_TEXTURE_SIZE = 256;
+const MIN_WOOD_ROUGHNESS_SIZE = 128;
+const MAX_WOOD_TEXTURE_SIZE = 1024;
+const MAX_WOOD_ROUGHNESS_SIZE = 512;
+
+const clampSize = (value, fallback, min, max) => {
+  const safeFallback = Number.isFinite(fallback) ? fallback : min;
+  const base = Number.isFinite(value) ? value : safeFallback;
+  const clamped = Math.min(Math.max(base, min), max);
+  return Math.round(clamped);
+};
+
+const normalizeWoodTextureSizes = (textureSize, roughnessSize) => ({
+  textureSize: clampSize(
+    textureSize,
+    DEFAULT_WOOD_TEXTURE_SIZE,
+    MIN_WOOD_TEXTURE_SIZE,
+    MAX_WOOD_TEXTURE_SIZE
+  ),
+  roughnessSize: clampSize(
+    roughnessSize,
+    DEFAULT_WOOD_ROUGHNESS_SIZE,
+    MIN_WOOD_ROUGHNESS_SIZE,
+    MAX_WOOD_ROUGHNESS_SIZE
+  )
+});
+
 const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -116,12 +145,12 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.09, y: 0.5 },
       rotation: Math.PI / 28,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     },
     frame: {
       repeat: { x: 0.18, y: 0.34 },
       rotation: Math.PI / 2,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     }
   }),
   Object.freeze({
@@ -130,12 +159,12 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.16, y: 0.62 },
       rotation: Math.PI / 9,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     },
     frame: {
       repeat: { x: 0.28, y: 0.46 },
       rotation: -Math.PI / 8,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     }
   }),
   Object.freeze({
@@ -144,12 +173,12 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.12, y: 0.68 },
       rotation: Math.PI / 2,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     },
     frame: {
       repeat: { x: 0.32, y: 0.4 },
       rotation: 0,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     }
   }),
   Object.freeze({
@@ -158,12 +187,12 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.1, y: 0.56 },
       rotation: Math.PI / 14,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     },
     frame: {
       repeat: { x: 0.24, y: 0.38 },
       rotation: Math.PI / 2,
-      textureSize: 3072
+      textureSize: DEFAULT_WOOD_TEXTURE_SIZE
     }
   })
 ]);
@@ -176,9 +205,6 @@ export const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
     return acc;
   }, {})
 );
-
-export const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
-export const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
 
 export const shiftLightness = (light, delta) => clamp01(light + delta);
 export const shiftSaturation = (sat, delta) => clamp01(sat + delta);
@@ -229,23 +255,33 @@ const ensureSharedWoodTextures = ({
   roughnessVariance,
   sharedKey
 }) => {
+  const normalizedSizes = normalizeWoodTextureSizes(textureSize, roughnessSize);
+  const normalizedTextureSize = normalizedSizes.textureSize;
+  const normalizedRoughnessSize = normalizedSizes.roughnessSize;
   const cacheKey = makeCacheKey({
     hue,
     sat,
     light,
     contrast,
-    textureSize,
-    roughnessSize,
+    textureSize: normalizedTextureSize,
+    roughnessSize: normalizedRoughnessSize,
     roughnessBase,
     roughnessVariance,
     sharedKey
   });
   let entry = WOOD_TEXTURE_BASE_CACHE.get(cacheKey);
   if (!entry) {
-    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const map = makeNaturalWoodTexture(
+      normalizedTextureSize,
+      normalizedTextureSize,
+      hue,
+      sat,
+      light,
+      contrast
+    );
     const roughnessMap = makeRoughnessMap(
-      roughnessSize,
-      roughnessSize,
+      normalizedRoughnessSize,
+      normalizedRoughnessSize,
       roughnessBase,
       roughnessVariance
     );
@@ -293,23 +329,33 @@ export const applyWoodTextures = (
 ) => {
   if (!material) return null;
   disposeWoodTextures(material);
+  const normalizedSizes = normalizeWoodTextureSizes(textureSize, roughnessSize);
+  const normalizedTextureSize = normalizedSizes.textureSize;
+  const normalizedRoughnessSize = normalizedSizes.roughnessSize;
   const baseTextures = sharedKey
     ? ensureSharedWoodTextures({
         hue,
         sat,
         light,
         contrast,
-        textureSize,
-        roughnessSize,
+        textureSize: normalizedTextureSize,
+        roughnessSize: normalizedRoughnessSize,
         roughnessBase,
         roughnessVariance,
         sharedKey
       })
     : {
-        map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
+        map: makeNaturalWoodTexture(
+          normalizedTextureSize,
+          normalizedTextureSize,
+          hue,
+          sat,
+          light,
+          contrast
+        ),
         roughnessMap: makeRoughnessMap(
-          roughnessSize,
-          roughnessSize,
+          normalizedRoughnessSize,
+          normalizedRoughnessSize,
           roughnessBase,
           roughnessVariance
         )
@@ -338,13 +384,15 @@ export const applyWoodTextures = (
     contrast,
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
-    textureSize,
-    roughnessSize,
+    textureSize: normalizedTextureSize,
+    roughnessSize: normalizedRoughnessSize,
     roughnessBase,
     roughnessVariance,
     sharedKey
   };
   material.userData.woodRepeat = new THREE.Vector2(repeatVec.x, repeatVec.y);
+  material.userData.woodRotation = rotation;
+  material.userData.woodTextureSize = normalizedTextureSize;
   return { map, roughnessMap };
 };
 
