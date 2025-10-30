@@ -57,6 +57,7 @@ public class PreviewRuntimeTests
     public void PreviewMatchesRuntime()
     {
         var solver = new BilliardsSolver();
+        solver.InitStandardTable();
         var others = new List<BilliardsSolver.Ball> { new BilliardsSolver.Ball { Position = new Vec2(1.2, 0.5) } };
         var start = new Vec2(0.2, 0.5);
         var dir = new Vec2(1, 0);
@@ -76,6 +77,7 @@ public class DeterminismTests
     public void PreviewDeterministic()
     {
         var solver = new BilliardsSolver();
+        solver.InitStandardTable();
         var others = new List<BilliardsSolver.Ball> { new BilliardsSolver.Ball { Position = new Vec2(1.2, 0.5) } };
         var start = new Vec2(0.2, 0.5);
         var dir = new Vec2(1, 0);
@@ -92,6 +94,7 @@ public class DirectionNormalizationTests
     public void PreviewShotNormalizesDirection()
     {
         var solver = new BilliardsSolver();
+        solver.InitStandardTable();
         var start = new Vec2(0.2, 0.5);
         double speed = 2.0;
         var p1 = solver.PreviewShot(start, new Vec2(1, 0), speed, new List<BilliardsSolver.Ball>());
@@ -106,6 +109,7 @@ public class CushionStepTests
     public void BallReflectsWithoutCrossingBoundary()
     {
         var solver = new BilliardsSolver();
+        solver.InitStandardTable();
         var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.5), Velocity = new Vec2(-5, 0) };
         solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.1);
         Assert.That(ball.Position.X, Is.GreaterThanOrEqualTo(PhysicsConstants.BallRadius - 1e-9));
@@ -119,14 +123,9 @@ public class PocketEdgeTests
     public void BallFallsIntoPocket()
     {
         var solver = new BilliardsSolver();
-        solver.PocketEdges.Add(new BilliardsSolver.Edge
-        {
-            A = new Vec2(0, 0.1),
-            B = new Vec2(0.1, 0),
-            Normal = new Vec2(1, 1).Normalized()
-        });
+        solver.InitStandardTable();
         var v = new Vec2(-1, -1).Normalized();
-        var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = v };
+        var ball = new BilliardsSolver.Ball { Position = new Vec2(0.25, 0.25), Velocity = v };
         var balls = new List<BilliardsSolver.Ball> { ball };
         solver.Step(balls, 0.3);
         Assert.That(ball.Pocketed, Is.True);
@@ -140,14 +139,15 @@ public class ConnectorEdgeTests
     public void BallBouncesOffConnectorWithReducedSpeed()
     {
         var solver = new BilliardsSolver();
+        solver.InitStandardTable();
         solver.ConnectorEdges.Add(new BilliardsSolver.Edge
         {
-            A = new Vec2(0, 0.1),
-            B = new Vec2(0.1, 0),
-            Normal = new Vec2(1, 1).Normalized()
+            A = new Vec2(1.2, 0.6),
+            B = new Vec2(1.3, 0.7),
+            Normal = new Vec2(-1, -1).Normalized()
         });
         var v = new Vec2(-1, -1).Normalized();
-        var ball = new BilliardsSolver.Ball { Position = new Vec2(0.2, 0.2), Velocity = v };
+        var ball = new BilliardsSolver.Ball { Position = new Vec2(1.4, 0.9), Velocity = v };
         var balls = new List<BilliardsSolver.Ball> { ball };
         solver.Step(balls, 0.3);
         Assert.That(ball.Pocketed, Is.False);
@@ -155,5 +155,19 @@ public class ConnectorEdgeTests
         Assert.That(ball.Velocity.X, Is.GreaterThan(0));
         Assert.That(ball.Velocity.Y, Is.GreaterThan(0));
         Assert.That(ball.Velocity.Length, Is.LessThan(0.5));
+    }
+}
+
+public class CushionGeometryTests
+{
+    [Test]
+    public void CornerJawContactMatchesVisualNose()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        var preview = solver.PreviewShot(new Vec2(0.45, 0.45), new Vec2(-1, -1), 2.0, new List<BilliardsSolver.Ball>());
+        double expected = PhysicsConstants.CornerPocketMouth / Math.Sqrt(2.0);
+        Assert.That(Math.Abs(preview.ContactPoint.X - expected), Is.LessThan(0.001));
+        Assert.That(Math.Abs(preview.ContactPoint.Y - expected), Is.LessThan(0.001));
     }
 }
