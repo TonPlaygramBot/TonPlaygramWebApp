@@ -510,8 +510,8 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match the 
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const POCKET_JAW_DEPTH_SCALE = 0.57; // sink the jaw underside slightly further so it rests against the pocket liner beneath the cloth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim slightly so it finishes just above the pocket
+const POCKET_JAW_DEPTH_SCALE = 0.46; // trim the jaw underside so no dark arch remains beneath the cloth cut
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
@@ -678,6 +678,7 @@ const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough cleara
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
+const CLOTH_EDGE_SLEEVES_ENABLED = false; // disable the vertical cloth sleeves so the black arch under the playfield disappears
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.02; // keep the cushion base closer to the rails so the pads sit level with the wood
@@ -4580,47 +4581,49 @@ function Table3D(
       clothEdgeMat.bumpMap.needsUpdate = true;
     }
     clothEdgeMat.needsUpdate = true;
-    const clothSleeveSegments = 6;
-    const clothSleeveGeo = new THREE.CylinderGeometry(
-      POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE,
-      POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE,
-      clothEdgeHeight,
-      64,
-      clothSleeveSegments,
-      true
-    );
-    const sleevePos = clothSleeveGeo.attributes.position;
-    const sleeveArr = sleevePos.array;
-    const sleeveHalfHeight = clothEdgeHeight / 2;
-    const baseTopRadius = POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE;
-    const baseBottomRadius = POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE;
-    for (let i = 0; i < sleeveArr.length; i += 3) {
-      const x = sleeveArr[i];
-      const y = sleeveArr[i + 1];
-      const z = sleeveArr[i + 2];
-      const radius = Math.hypot(x, z);
-      if (radius <= MICRO_EPS) continue;
-      const t = THREE.MathUtils.clamp((y + sleeveHalfHeight) / Math.max(MICRO_EPS, clothEdgeHeight), 0, 1);
-      const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-      const easedRadius = THREE.MathUtils.lerp(baseBottomRadius, baseTopRadius, eased);
-      const curvature = Math.sin(Math.PI * eased) * POCKET_HOLE_R * CLOTH_EDGE_CURVE_INTENSITY;
-      const targetRadius = Math.max(MICRO_EPS, easedRadius + curvature);
-      const scale = targetRadius / radius;
-      sleeveArr[i] = x * scale;
-      sleeveArr[i + 2] = z * scale;
+    if (CLOTH_EDGE_SLEEVES_ENABLED) {
+      const clothSleeveSegments = 6;
+      const clothSleeveGeo = new THREE.CylinderGeometry(
+        POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE,
+        POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE,
+        clothEdgeHeight,
+        64,
+        clothSleeveSegments,
+        true
+      );
+      const sleevePos = clothSleeveGeo.attributes.position;
+      const sleeveArr = sleevePos.array;
+      const sleeveHalfHeight = clothEdgeHeight / 2;
+      const baseTopRadius = POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE;
+      const baseBottomRadius = POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE;
+      for (let i = 0; i < sleeveArr.length; i += 3) {
+        const x = sleeveArr[i];
+        const y = sleeveArr[i + 1];
+        const z = sleeveArr[i + 2];
+        const radius = Math.hypot(x, z);
+        if (radius <= MICRO_EPS) continue;
+        const t = THREE.MathUtils.clamp((y + sleeveHalfHeight) / Math.max(MICRO_EPS, clothEdgeHeight), 0, 1);
+        const eased = THREE.MathUtils.smoothstep(t, 0, 1);
+        const easedRadius = THREE.MathUtils.lerp(baseBottomRadius, baseTopRadius, eased);
+        const curvature = Math.sin(Math.PI * eased) * POCKET_HOLE_R * CLOTH_EDGE_CURVE_INTENSITY;
+        const targetRadius = Math.max(MICRO_EPS, easedRadius + curvature);
+        const scale = targetRadius / radius;
+        sleeveArr[i] = x * scale;
+        sleeveArr[i + 2] = z * scale;
+      }
+      sleevePos.needsUpdate = true;
+      clothSleeveGeo.computeVertexNormals();
+      const clothSleeveMidY = clothEdgeBottomY + clothEdgeHeight / 2;
+      pocketPositions.forEach((p) => {
+        const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothEdgeMat);
+        clothSleeve.position.set(p.x, clothSleeveMidY, p.y);
+        clothSleeve.castShadow = false;
+        clothSleeve.receiveShadow = false;
+        clothSleeve.renderOrder = cloth.renderOrder + 0.25;
+        table.add(clothSleeve);
+        finishParts.clothEdgeMeshes.push(clothSleeve);
+      });
     }
-    sleevePos.needsUpdate = true;
-    clothSleeveGeo.computeVertexNormals();
-    const clothSleeveMidY = clothEdgeBottomY + clothEdgeHeight / 2;
-    pocketPositions.forEach((p) => {
-      const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothEdgeMat);
-      clothSleeve.position.set(p.x, clothSleeveMidY, p.y);
-      clothSleeve.castShadow = false;
-      clothSleeve.receiveShadow = false;
-      clothSleeve.renderOrder = cloth.renderOrder + 0.25;
-      table.add(clothSleeve);
-      finishParts.clothEdgeMeshes.push(clothSleeve);
-    });
   }
 
   const shadowCoverShape = buildSurfaceShape(
