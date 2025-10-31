@@ -531,11 +531,10 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9; // trim the middle jaws slightly so
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
-const POCKET_RIM_DEPTH_RATIO = 1; // match the chrome plate thickness so the pocket rims read as equally chunky
-const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the chrome plate massing
+const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
+const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
 const POCKET_RIM_SURFACE_ABSOLUTE_LIFT = TABLE.THICK * 0.052; // ensure the rim clears the jaw top even when the rails compress
-const POCKET_RIM_CHROME_CLEARANCE_RATIO = 0.8; // push the rim proud of the jaw by most of its thickness so it sits above the surface
 const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
@@ -5470,10 +5469,7 @@ function Table3D(
     const rimDepthRatio = isMiddle ? SIDE_POCKET_RIM_DEPTH_RATIO : POCKET_RIM_DEPTH_RATIO;
     if (rimDepthRatio > MICRO_EPS) {
       const rimShape = jawShape.clone();
-      const rimDepth = Math.max(
-        MICRO_EPS,
-        chromePlateThickness * rimDepthRatio
-      );
+      const rimDepth = Math.max(MICRO_EPS, jawDepth * rimDepthRatio);
       const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
@@ -5490,9 +5486,7 @@ function Table3D(
       const rimAbsoluteLift = isMiddle
         ? SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT
         : POCKET_RIM_SURFACE_ABSOLUTE_LIFT;
-      const rimVerticalLift =
-        Math.max(rimAbsoluteLift, railH * rimOffsetScale) +
-        chromePlateThickness * POCKET_RIM_CHROME_CLEARANCE_RATIO;
+      const rimVerticalLift = Math.max(rimAbsoluteLift, railH * rimOffsetScale);
       rimMesh.position.y =
         railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset + rimVerticalLift;
       rimMesh.castShadow = false;
