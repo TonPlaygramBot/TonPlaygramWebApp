@@ -680,8 +680,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.035; // drop the cushion base further so the green pads sit nearer to the carpet
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.21; // lower the cushion lip slightly more so the green profile stays tucked beneath the rails
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.02; // keep the cushion base closer to the rails so the pads sit level with the wood
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.17; // keep the cushion lip tucked beneath the rails without sinking the visible surface
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -4519,11 +4519,13 @@ function Table3D(
   });
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
   const underlayMat = new THREE.MeshStandardMaterial({
-    color: 0x1f7a3a,
-    roughness: 0.7,
-    metalness: 0.08,
+    color: 0x133d1f,
+    roughness: 0.85,
+    metalness: 0,
     side: THREE.DoubleSide
   });
+  underlayMat.map = null;
+  underlayMat.bumpMap = null;
   underlayMat.transparent = false;
   underlayMat.opacity = 1;
   underlayMat.depthWrite = true;
@@ -4715,7 +4717,7 @@ function Table3D(
     POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const POCKET_RIM_CLEARANCE = Math.max(
-    BALL_R * 0.028,
+    BALL_R * 0.02,
     CLOTH_UNDERLAY_GAP + MICRO_EPS * 2
   ); // keep the rim tucked beneath the wooden board while removing the visible gap
   const pocketTopY = boardBottomY - POCKET_RIM_CLEARANCE;
@@ -4779,7 +4781,7 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
-  const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.006; // nudge the cushions outward so they kiss the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.214; // stretch the short rail cushions deeper into the corner pocket throats per latest spec tweak and extend them slightly toward the corners so the cushion noses kiss the jaw shoulders
