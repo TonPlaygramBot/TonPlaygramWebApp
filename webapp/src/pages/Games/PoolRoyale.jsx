@@ -4520,7 +4520,7 @@ function Table3D(
   });
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
   const underlayMat = new THREE.MeshStandardMaterial({
-    color: 0x133d1f,
+    color: clothColor.clone(),
     roughness: 0.85,
     metalness: 0,
     side: THREE.DoubleSide
@@ -4719,11 +4719,8 @@ function Table3D(
   const POCKET_TOP_R =
     POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-  const POCKET_RIM_CLEARANCE = Math.max(
-    BALL_R * 0.02,
-    CLOTH_UNDERLAY_GAP + MICRO_EPS * 2
-  ); // keep the rim tucked beneath the wooden board while removing the visible gap
-  const pocketTopY = boardBottomY - POCKET_RIM_CLEARANCE;
+  const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the underlay without z-fighting
+  const pocketTopY = boardBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -5551,10 +5548,16 @@ function Table3D(
     if (!jawShape) {
       return null;
     }
-    const jawDepth = Math.max(
+    const jawVerticalOffset = isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0;
+    const jawTopY = railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset;
+    let jawDepth = Math.max(
       MICRO_EPS,
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
+    const requiredJawDepth = jawTopY - pocketTopY;
+    if (Number.isFinite(requiredJawDepth) && requiredJawDepth > jawDepth) {
+      jawDepth = requiredJawDepth + MICRO_EPS * 0.25;
+    }
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
@@ -5565,8 +5568,7 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    const jawVerticalOffset = isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0;
-    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset;
+    jawMesh.position.y = jawTopY;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
