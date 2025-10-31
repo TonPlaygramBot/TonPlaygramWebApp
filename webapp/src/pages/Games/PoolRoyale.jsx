@@ -265,7 +265,7 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.22; // widen the middle fascia
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.992; // let the rounded chrome corner cut open a touch more for a larger reveal
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.014; // open the middle chrome arch just a touch more so the rounded cut reads wider along the rail
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.024; // open the middle chrome arch slightly further so the rounded cut reads wider along the rail
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
@@ -665,9 +665,9 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // exposed plywood deck beneath the cloth to sell the wooden sub-structure
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.018; // sink the plywood panel slightly further so it never overlaps the cloth
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.024; // sink the plywood panel slightly further so it never overlaps the cloth
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint so the board follows the playable field
 const CLOTH_UNDERLAY_HOLE_SCALE = 1; // keep underlay apertures flush with the cloth openings for perfect alignment
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
@@ -675,7 +675,7 @@ const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dr
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = MICRO_EPS; // raise the cushion base so the underside rests on the cloth while keeping the lip level with the rails
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.01; // drop the cushion base slightly so the green pads sit closer to the carpet
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // lower the cushion lip slightly more so the green profile sits just beneath the rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -4528,7 +4528,7 @@ function Table3D(
     cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP - CLOTH_UNDERLAY_EXTRA_DROP;
   clothUnderlay.castShadow = true;
   clothUnderlay.receiveShadow = true;
-  clothUnderlay.renderOrder = cloth.renderOrder - 1;
+  clothUnderlay.renderOrder = cloth.renderOrder - 2; // ensure the cloth always renders cleanly above the thicker wood deck
   clothUnderlay.userData = {
     ...(clothUnderlay.userData || {}),
     skipWoodTexture: true
