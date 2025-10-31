@@ -231,19 +231,19 @@ const CORNER_POCKET_INWARD_SCALE = 1.035; // push the rounded corner cuts deeper
 const CORNER_POCKET_SCALE_BOOST = 1; // keep corner pocket scale identical to the 3D Snooker build
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.05;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.034; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
-const CHROME_CORNER_EXPANSION_SCALE = 1.012; // extend the fascia slightly farther so it closes over the rounded wood cut
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.012; // mirror the additional reach so both fascia edges wrap the cushion shoulders
+const CHROME_CORNER_EXPANSION_SCALE = 1.02; // extend the fascia farther so it blankets the rail-to-jaw seam
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.02; // mirror the additional reach so both fascia edges wrap the cushion shoulders
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // remove the triangular wedge so the chrome hugs the pocket arc
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0; // eliminate extra field pull to keep the cloth cut seamless
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
-const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.04; // let the corner fascia creep slightly toward the cloth like the reference photo
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.988;
-const CHROME_CORNER_HEIGHT_SCALE = 0.968;
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
+const CHROME_CORNER_WIDTH_SCALE = 1.02;
+const CHROME_CORNER_HEIGHT_SCALE = 1.016;
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.004; // push the fascia outward so the outer rim blankets the rail junction while the jaws stay sealed
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
@@ -259,11 +259,11 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.42; // push the side fascia deeper along the arch so it wraps the full chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.42; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.5; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.26; // widen the middle fascia farther so it blankets the entire arch reveal
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.34; // widen the middle fascia farther so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
+const CHROME_OUTER_FLUSH_TRIM_SCALE = -0.016; // extend the fascia past the old trim so it fully overlaps the wood-to-jaw seam
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.036; // open the corner chrome cut a touch further so the rounded pocket reveal grows
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.035; // open the chrome arch wider so the middle cut breathes toward the rail edge
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
@@ -1348,12 +1348,12 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xc0c9d5,
-    metalness: 0.78,
-    roughness: 0.36,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.28,
-    envMapIntensity: 0.6
+    color: 0x2e333c,
+    metalness: 0.82,
+    roughness: 0.42,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.24,
+    envMapIntensity: 0.54
   },
   {
     id: 'gold',
@@ -1421,30 +1421,30 @@ const POCKET_LINER_PRESETS = Object.freeze([
     id: 'chromePocket',
     label: 'Chrome Pocket Jaws',
     type: 'metal',
-    jawColor: 0xdde2eb,
-    rimColor: 0xcfd4de,
-    sheenColor: 0xf3f6fb,
-    rimSheenColor: 0xe3e7f0,
-    sheen: 0.78,
-    sheenRoughness: 0.34,
-    roughness: 0.28,
-    rimRoughness: 0.32,
-    metalness: 0.78,
-    rimMetalness: 0.86,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.12,
-    bumpScale: 0.18,
-    rimBumpScale: 0.12,
+    jawColor: 0x3a4049,
+    rimColor: 0x32363f,
+    sheenColor: 0x6b7078,
+    rimSheenColor: 0x5c6068,
+    sheen: 0.68,
+    sheenRoughness: 0.42,
+    roughness: 0.4,
+    rimRoughness: 0.44,
+    metalness: 0.76,
+    rimMetalness: 0.82,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.22,
+    envMapIntensity: 0.82,
+    bumpScale: 0.2,
+    rimBumpScale: 0.16,
     texture: {
-      base: 0xe6eaf2,
-      highlight: 0xf9fbff,
-      shadow: 0x6e727a,
-      density: 0.42,
-      grainSize: 0.62,
-      streakAlpha: 0.12,
-      creaseAlpha: 0.1,
-      seamContrast: 0.18,
+      base: 0x454952,
+      highlight: 0x8c929d,
+      shadow: 0x1f2227,
+      density: 0.48,
+      grainSize: 0.66,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.16,
+      seamContrast: 0.24,
       repeatX: 2.1,
       repeatY: 2.1,
       seed: 4319
@@ -4748,10 +4748,10 @@ function Table3D(
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = 0; // pull the long rail cushions flush with the wood so no green gaps show
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.214; // stretch the short rail cushions deeper into the corner pocket throats per latest spec tweak and extend them slightly toward the corners so the cushion noses kiss the jaw shoulders
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * -0.002; // let the side cushions glide a touch further toward the middle pocket arches so their tips meet the chrome in one clean plane
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // push the side cushions tight to the rails while keeping them just shy of overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1.035; // keep short rail cushions level with the others after the lowered profile
   const railsGroup = new THREE.Group();
@@ -4818,7 +4818,7 @@ function Table3D(
     SIDE_CUSHION_CORNER_SHIFT;
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
-  const chromePlateInset = TABLE.THICK * 0.02;
+  const chromePlateInset = TABLE.THICK * 0.012;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE;
