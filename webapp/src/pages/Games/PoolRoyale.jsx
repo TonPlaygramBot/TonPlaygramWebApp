@@ -4725,12 +4725,15 @@ function Table3D(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
     TABLE.THICK,
-    48
+    48,
+    1,
+    true
   );
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     metalness: 0.45,
-    roughness: 0.6
+    roughness: 0.6,
+    side: THREE.BackSide
   });
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
