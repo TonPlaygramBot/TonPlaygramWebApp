@@ -257,7 +257,8 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.28; // further bump plate depth so all six chrome trims share a chunkier profile
+const CHROME_PLATE_THICKNESS_SCALE = 0.42; // further bump plate depth so all six chrome trims share a chunkier profile
+const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.42; // push the side fascia deeper along the arch so it wraps the full chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.42; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
@@ -537,7 +538,7 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9; // trim the middle jaws slightly so
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
-const POCKET_RIM_DEPTH_RATIO = 1; // match the jaw depth so the pocket rims share the same vertical reach
+const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
 const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
 const POCKET_RIM_SURFACE_ABSOLUTE_LIFT = TABLE.THICK * 0.052; // ensure the rim clears the jaw top even when the rails compress
@@ -1343,7 +1344,7 @@ const TABLE_FINISHES = Object.freeze(
   }, {})
 );
 
-const TABLE_FINISH_ORDER = ['birch', 'maple', 'oak', 'walnut', 'smokedOak', 'ebony'];
+const TABLE_FINISH_ORDER = ['oak', 'walnut', 'smokedOak'];
 const TABLE_FINISH_OPTIONS = Object.freeze(
   TABLE_FINISH_ORDER.map((id) => TABLE_FINISHES[id]).filter(Boolean)
 );
@@ -5213,6 +5214,7 @@ function Table3D(
     plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
@@ -5246,6 +5248,7 @@ function Table3D(
     plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
