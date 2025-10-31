@@ -513,8 +513,9 @@ const POCKET_JAW_DEPTH_SCALE = 0.54; // trim the jaw underside so it now clears 
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim slightly so it finishes just above the pocket
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.2; // let the jaw edge lighten so it feathers into the cushion line without thickening the mouth
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.18; // preserve the middle jaw thickness for most of the span before easing into the side taper
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.5; // ease the taper more gradually so the edge slims gently toward each side pocket
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.48; // allow the inner arc to slim further through the pocket centre for a deeper arch
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66; // cap the inner arc thickness so the jaw maintains the new pronounced curve
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
@@ -5349,11 +5350,19 @@ function Table3D(
           );
         }
       }
-      const eased = taperNormalized <= 0
+      const taperProfile = taperNormalized <= 0
         ? 0
         : taperNormalized >= 1
           ? 1
-          : THREE.MathUtils.smootherstep(taperNormalized, 0, 1);
+          : Math.pow(
+              taperNormalized,
+              THREE.MathUtils.clamp(POCKET_JAW_EDGE_TAPER_PROFILE_POWER, 1, 5)
+            );
+      const eased = taperProfile <= 0
+        ? 0
+        : taperProfile >= 1
+          ? 1
+          : THREE.MathUtils.smootherstep(taperProfile, 0, 1);
       const outerWeight = Math.pow(eased, outerPower);
       const innerWeight = Math.pow(eased, innerPower);
 
