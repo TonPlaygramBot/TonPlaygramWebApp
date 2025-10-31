@@ -226,17 +226,17 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.02;
-const CORNER_POCKET_INWARD_SCALE = 1.02; // push the rounded corner cuts deeper without moving the pocket centers
+const POCKET_VISUAL_EXPANSION = 1.012;
+const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
 const CORNER_POCKET_SCALE_BOOST = 0.985; // nudge the corner mouth narrower than the 3D Snooker build for tighter pockets
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.02;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.034; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
-const CHROME_CORNER_EXPANSION_SCALE = 1.012; // extend the fascia slightly farther so it closes over the rounded wood cut
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.012; // mirror the additional reach so both fascia edges wrap the cushion shoulders
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
+const CHROME_CORNER_EXPANSION_SCALE = 1.006; // extend the fascia slightly farther so it closes over the rounded wood cut
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.006; // mirror the additional reach so both fascia edges wrap the cushion shoulders
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.04; // extend the fascia slightly farther along the arc so the chrome starts flush with the pocket curve
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.04; // mirror the extension along the second axis so the rounded arc ends stay covered
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // extend the fascia slightly farther along the arc so the chrome starts flush with the pocket curve
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034; // mirror the extension along the second axis so the rounded arc ends stay covered
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
@@ -250,7 +250,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.012; // widen the middle chrome arch further so the jaws follow the rounded profile farther toward the rail
+  1.006; // widen the middle chrome arch further so the jaws follow the rounded profile farther toward the rail
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -261,17 +261,17 @@ const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.42; // push the side fascia deeper along the arch so it wraps the full chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.42; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.26; // widen the middle fascia farther so it blankets the entire arch reveal
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.22; // widen the middle fascia farther so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 0.99; // ease the corner chrome cut back so the rounded pocket reveal shrinks slightly
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.99; // ease the middle chrome arch back so the cut finishes a touch narrower
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.985; // ease the corner chrome cut back so the rounded pocket reveal shrinks slightly
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.985; // ease the middle chrome arch back so the cut finishes a touch narrower
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // tighten the wooden rail pocket relief even further so the rounded corner cuts shrink slightly more and keep the chrome reveal dominant
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // pull only the wooden corner relief slightly farther toward the cloth
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.885; // tighten the wooden rail pocket relief even further so the rounded corner cuts shrink slightly more and keep the chrome reveal dominant
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.04; // push the wooden rail arches slightly farther toward the side cushions
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // push the wooden rail arches slightly farther toward the side cushions
 
 function buildChromePlateGeometry({
   width,
@@ -597,7 +597,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 0.93; // slightly tighten the interior diameter at the top of each pocket
+const POCKET_INTERIOR_TOP_SCALE = 0.92; // slightly tighten the interior diameter at the top of each pocket
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // keep the side pockets fixed while extending the corner cushions deeper toward each pocket mouth
