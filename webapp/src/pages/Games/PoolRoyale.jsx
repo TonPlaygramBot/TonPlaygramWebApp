@@ -266,13 +266,13 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28; // widen the middle fascia
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.992; // let the rounded chrome corner cut open a touch more for a larger reveal
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.052; // open the middle chrome arch noticeably more so the rounded cut mirrors the photo reference
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.065; // open the middle chrome arch a touch more so the rounded cut mirrors the photo reference
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // relax the wooden rail arches further so the relief keeps pace with the larger chrome cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.075; // relax the wooden rail arches slightly more so the relief keeps pace with the larger chrome cut
 
 function buildChromePlateGeometry({
   width,
@@ -680,8 +680,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.01; // drop the cushion base slightly so the green pads sit closer to the carpet
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // lower the cushion lip slightly more so the green profile sits just beneath the rails
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.035; // drop the cushion base further so the green pads sit nearer to the carpet
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.21; // lower the cushion lip slightly more so the green profile stays tucked beneath the rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -4715,9 +4715,9 @@ function Table3D(
     POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const POCKET_RIM_CLEARANCE = Math.max(
-    BALL_R * 0.04,
-    CLOTH_UNDERLAY_GAP + MICRO_EPS
-  ); // keep the rim tucked beneath the wooden board and cloth gap
+    BALL_R * 0.028,
+    CLOTH_UNDERLAY_GAP + MICRO_EPS * 2
+  ); // keep the rim tucked beneath the wooden board while removing the visible gap
   const pocketTopY = boardBottomY - POCKET_RIM_CLEARANCE;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
@@ -4734,6 +4734,9 @@ function Table3D(
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2, p.y);
+    pocket.renderOrder =
+      (clothUnderlay?.renderOrder ?? cloth.renderOrder) - 0.5; // render beneath the cloth to avoid z-fighting
+    pocket.castShadow = false;
     pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
