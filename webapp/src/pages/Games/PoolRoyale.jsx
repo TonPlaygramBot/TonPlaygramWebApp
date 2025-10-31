@@ -527,10 +527,6 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const POCKET_JAW_CORNER_INNER_MOON_SCALE = 0.58; // carve the inner lip deeper through the centre so the jaw silhouette forms a crescent
-const POCKET_JAW_SIDE_INNER_MOON_SCALE = 0.54; // mirror the crescent trim on the middle pockets while keeping their wider span balanced
-const POCKET_JAW_INNER_MOON_POWER = 1.7; // bias the moon trim toward the mid-span so the interior opening reads rounded
-const POCKET_JAW_INNER_MOON_CENTER_HOLD = 0.22; // keep the trim off the very edges so the jaw still meets the chrome plates flush
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.538; // trim the middle jaw span so it stops exactly where the cushions begin without overlap
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.008; // let the jaw radius follow the enlarged chrome cut toward the rail profile
@@ -5266,10 +5262,7 @@ function Table3D(
     middleThinFactor,
     centerEase,
     clampOuter,
-    outerExpansion = 0,
-    innerMoonScale = 0,
-    innerMoonPower = 1,
-    innerMoonCenterHold = 0
+    outerExpansion = 0
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -5339,9 +5332,6 @@ function Table3D(
     const innerPts = [];
 
     const taperHold = THREE.MathUtils.clamp(POCKET_JAW_CENTER_TAPER_HOLD, 0, 0.6);
-    const moonScale = Math.max(0, innerMoonScale);
-    const moonPower = Math.max(1, innerMoonPower);
-    const moonHold = THREE.MathUtils.clamp(innerMoonCenterHold, 0, 0.9);
 
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
@@ -5408,26 +5398,6 @@ function Table3D(
       );
       innerRadius = Math.min(innerRadius, outerRadius - MICRO_EPS * 6);
       innerRadius = Math.max(innerBaseRadius, innerRadius);
-
-      if (moonScale > MICRO_EPS) {
-        const alignment = Math.max(0, Math.cos(theta - orientationAngle));
-        if (alignment > MICRO_EPS) {
-          let centerBlend = Math.max(0, 1 - clamped);
-          if (moonHold > MICRO_EPS) {
-            centerBlend = centerBlend <= moonHold
-              ? 0
-              : (centerBlend - moonHold) / Math.max(MICRO_EPS, 1 - moonHold);
-          }
-          const moonRaw = alignment * centerBlend;
-          if (moonRaw > MICRO_EPS) {
-            const moonWeight = Math.pow(moonRaw, moonPower);
-            const moonEase = THREE.MathUtils.smootherstep(moonWeight, 0, 1);
-            const moonOffset = baseThickness * moonScale * moonEase;
-            innerRadius = Math.min(innerRadius + moonOffset, outerRadius - MICRO_EPS * 6);
-            innerRadius = Math.max(innerRadius, innerBaseRadius);
-          }
-        }
-      }
 
       const outerX = center.x + Math.cos(theta) * outerRadius;
       const outerZ = center.y + Math.sin(theta) * outerRadius;
@@ -5506,12 +5476,7 @@ function Table3D(
       middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
       centerEase: wide ? 0.28 : 0.36,
       clampOuter: localClampOuter,
-      outerExpansion: outerExpansion,
-      innerMoonScale: wide
-        ? POCKET_JAW_SIDE_INNER_MOON_SCALE
-        : POCKET_JAW_CORNER_INNER_MOON_SCALE,
-      innerMoonPower: POCKET_JAW_INNER_MOON_POWER,
-      innerMoonCenterHold: POCKET_JAW_INNER_MOON_CENTER_HOLD
+      outerExpansion: outerExpansion
     });
     if (!jawShape) {
       return null;
