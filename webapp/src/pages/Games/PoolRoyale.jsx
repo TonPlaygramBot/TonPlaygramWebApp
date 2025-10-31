@@ -532,9 +532,9 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.428; // pull the middle jaw span in a touch more so the slimmer jaws clear the cushion shoulders cleanly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.006; // let the jaw radius follow the subtly tightened chrome cut toward the rail profile
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.18; // extend the middle jaws downward so they blanket the exposed fascia left by the removed rims
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.36; // tighten the middle jaw span slightly so the slimmer jaws feel closer to reference
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.003; // ease the jaw radius so the middle pocket fascia trims in just a bit more
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.14; // soften the middle jaw depth so the profile reads lighter around the side pockets
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -680,8 +680,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.01; // drop the cushion base slightly so the green pads sit closer to the carpet
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // lower the cushion lip slightly more so the green profile sits just beneath the rails
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.028; // lower the cushion base further so the green pads settle deeper toward the carpet
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.22; // sink the cushion lip a touch more so the green profile tucks below the rails cleanly
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -4714,10 +4714,8 @@ function Table3D(
   const POCKET_TOP_R =
     POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-  const POCKET_RIM_CLEARANCE = Math.max(
-    BALL_R * 0.04,
-    CLOTH_UNDERLAY_GAP + MICRO_EPS
-  ); // keep the rim tucked beneath the wooden board and cloth gap
+  const POCKET_RIM_CLEARANCE =
+    CLOTH_UNDERLAY_GAP + MICRO_EPS * 2; // keep the rim kissing the wooden board with a micro air gap to avoid z-fighting
   const pocketTopY = boardBottomY - POCKET_RIM_CLEARANCE;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
@@ -4730,11 +4728,16 @@ function Table3D(
     metalness: 0.45,
     roughness: 0.6
   });
+  pocketMat.polygonOffset = true;
+  pocketMat.polygonOffsetFactor = 0.5;
+  pocketMat.polygonOffsetUnits = 1;
   const pocketMeshes = [];
+  const pocketRenderOrder = (clothUnderlay?.renderOrder ?? 0) - 0.5;
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2, p.y);
     pocket.receiveShadow = true;
+    pocket.renderOrder = pocketRenderOrder;
     table.add(pocket);
     pocketMeshes.push(pocket);
   });
