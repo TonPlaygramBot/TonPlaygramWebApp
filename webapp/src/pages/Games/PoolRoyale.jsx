@@ -5751,30 +5751,6 @@ function Table3D(
     )
   );
 
-  const updateExtrudedSurfaceFromOpening = (mesh, thickness, curveSegments = 64) => {
-    if (!mesh?.isMesh || thickness <= MICRO_EPS) {
-      return;
-    }
-    const shapes = multiPolygonToShapes(openingMP)
-      .map((shape) => shape?.clone?.())
-      .filter(Boolean);
-    if (!shapes.length) {
-      return;
-    }
-    const geometry = new THREE.ExtrudeGeometry(shapes, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments,
-      steps: 1
-    });
-    geometry.translate(0, 0, -thickness);
-    mesh.geometry?.dispose?.();
-    mesh.geometry = geometry;
-  };
-
-  updateExtrudedSurfaceFromOpening(clothUnderlay, CLOTH_UNDERLAY_THICKNESS, 96);
-  updateExtrudedSurfaceFromOpening(clothShadowCover, CLOTH_SHADOW_COVER_THICKNESS, 48);
-
   const railsOuter = new THREE.Shape();
   if (hasRoundedRailCorners) {
     railsOuter.moveTo(outerHalfW, -outerHalfH + outerCornerRadius);
