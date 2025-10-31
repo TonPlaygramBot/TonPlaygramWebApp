@@ -241,8 +241,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.996; // nudge the chrome plate farther down the long rail so it spans the arc start
-const CHROME_CORNER_HEIGHT_SCALE = 0.975; // mirror the subtle extension along the short rail so the arc ends stay covered
+const CHROME_CORNER_WIDTH_SCALE = 0.995; // nudge the chrome plate farther down the long rail so it spans the arc start
+const CHROME_CORNER_HEIGHT_SCALE = 0.974; // mirror the subtle extension along the short rail so the arc ends stay covered
 const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -502,9 +502,9 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 0.992; // pull the corner jaws a fraction inward so the fascia aligns with the tightened wood cut while chrome stays put
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
-const POCKET_JAW_CORNER_INNER_SCALE = 1.436; // pull the inner lip outward so the jaw thickness drops roughly 50%
+const POCKET_JAW_CORNER_INNER_SCALE = 1.419; // keep the inner lip parked at the previous reach so only the exterior edge expands
 const POCKET_JAW_SIDE_INNER_SCALE = 1.443; // keep the middle pocket inner lip aligned with the previous jaw profile
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
