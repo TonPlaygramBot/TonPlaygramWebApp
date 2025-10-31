@@ -506,20 +506,20 @@ const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = 1.528; // ease the middle pocket inner lip back inward so the slimmer jaws sit lighter against the chrome reveal
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match the middle pocket jaw thickness to the corner profile for identical mass
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const POCKET_JAW_DEPTH_SCALE = 0.54; // trim the jaw underside so it now clears the green cloth plane
+const POCKET_JAW_DEPTH_SCALE = 0.57; // sink the jaw underside slightly further so it rests against the pocket liner beneath the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim slightly so it finishes just above the pocket
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.46; // hold the peak mass through more of the middle span before easing toward the chrome plates
 const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6; // bias the taper toward a smooth rounded falloff that still finishes in a sharp tip
-const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = 0.26; // start the middle pocket taper earlier so the thickness eases toward the tips
-const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = 0.11; // sharpen the side pocket jaw interior so the edges finish in pointier tips
-const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = 1.25; // soften the taper curve on the middle jaws for a gradual interior falloff
+const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
+const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
+const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
@@ -534,8 +534,8 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.428; // pull the middle jaw span in a touch more so the slimmer jaws clear the cushion shoulders cleanly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.006; // let the jaw radius follow the subtly tightened chrome cut toward the rail profile
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.18; // extend the middle jaws downward so they blanket the exposed fascia left by the removed rims
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaw depth identical to the corners for a uniform vertical profile
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align the middle jaw height with the corners so all tops sit level
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -5270,11 +5270,12 @@ function Table3D(
         thickness: chromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments
+        shapeSegments: chromePlateShapeSegments,
+        flat: true
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
