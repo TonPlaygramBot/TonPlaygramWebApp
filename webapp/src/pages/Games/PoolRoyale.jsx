@@ -257,7 +257,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.18; // deepen every chrome plate slightly so the trim reads chunkier
+const CHROME_PLATE_THICKNESS_SCALE = 0.22; // bump plate depth so all six chrome trims share a slightly chunkier profile
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.42; // push the side fascia deeper along the arch so it wraps the full chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.42; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
@@ -516,6 +516,9 @@ const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome t
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.46; // hold the peak mass through more of the middle span before easing toward the chrome plates
 const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6; // bias the taper toward a smooth rounded falloff that still finishes in a sharp tip
+const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = 0.26; // start the middle pocket taper earlier so the thickness eases toward the tips
+const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = 0.11; // sharpen the side pocket jaw interior so the edges finish in pointier tips
+const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = 1.25; // soften the taper curve on the middle jaws for a gradual interior falloff
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.46; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.72; // allow a fuller middle section so the jaw crowns before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
@@ -673,7 +676,7 @@ const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cov
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = MICRO_EPS; // raise the cushion base so the underside rests on the cloth while keeping the lip level with the rails
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.12; // shorten cushion height so the lip sits level with the wooden rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.16; // lower the cushion lip a touch further so the green profile sits just beneath the rails
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -5262,7 +5265,10 @@ function Table3D(
     middleThinFactor,
     centerEase,
     clampOuter,
-    outerExpansion = 0
+    outerExpansion = 0,
+    taperHoldOverride,
+    edgeTaperScaleOverride,
+    edgeProfilePowerOverride
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -5288,10 +5294,21 @@ function Table3D(
       ? Math.max(0, outerExpansion)
       : 0;
 
+    const edgeTaperScale = Number.isFinite(edgeTaperScaleOverride)
+      ? edgeTaperScaleOverride
+      : POCKET_JAW_EDGE_TAPER_SCALE;
+    const profilePower = THREE.MathUtils.clamp(
+      Number.isFinite(edgeProfilePowerOverride)
+        ? edgeProfilePowerOverride
+        : POCKET_JAW_EDGE_TAPER_PROFILE_POWER,
+      1,
+      5
+    );
+
     const edgeFactor = THREE.MathUtils.clamp(sideThinFactor ?? 0.32, 0.1, 0.9);
     const edgeThickness = Math.max(
       MICRO_EPS * 12,
-      baseThickness * edgeFactor * POCKET_JAW_EDGE_TAPER_SCALE
+      baseThickness * edgeFactor * edgeTaperScale
     );
     const edgeInnerRadius = Math.max(
       innerBaseRadius + MICRO_EPS * 6,
@@ -5331,7 +5348,11 @@ function Table3D(
     const outerPts = [];
     const innerPts = [];
 
-    const taperHold = THREE.MathUtils.clamp(POCKET_JAW_CENTER_TAPER_HOLD, 0, 0.6);
+    const taperHold = THREE.MathUtils.clamp(
+      Number.isFinite(taperHoldOverride) ? taperHoldOverride : POCKET_JAW_CENTER_TAPER_HOLD,
+      0,
+      0.6
+    );
 
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
@@ -5354,10 +5375,7 @@ function Table3D(
         ? 0
         : taperNormalized >= 1
           ? 1
-          : Math.pow(
-              taperNormalized,
-              THREE.MathUtils.clamp(POCKET_JAW_EDGE_TAPER_PROFILE_POWER, 1, 5)
-            );
+          : Math.pow(taperNormalized, profilePower);
       const eased = taperProfile <= 0
         ? 0
         : taperProfile >= 1
@@ -5464,6 +5482,16 @@ function Table3D(
       );
     }
 
+    const taperHoldOverride = isMiddle
+      ? POCKET_JAW_SIDE_CENTER_TAPER_HOLD
+      : POCKET_JAW_CENTER_TAPER_HOLD;
+    const edgeTaperScaleOverride = isMiddle
+      ? POCKET_JAW_SIDE_EDGE_TAPER_SCALE
+      : POCKET_JAW_EDGE_TAPER_SCALE;
+    const edgeProfilePowerOverride = isMiddle
+      ? POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER
+      : POCKET_JAW_EDGE_TAPER_PROFILE_POWER;
+
     const jawShape = buildPocketJawShape({
       center,
       baseRadius: effectiveBaseRadius,
@@ -5476,7 +5504,10 @@ function Table3D(
       middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
       centerEase: wide ? 0.28 : 0.36,
       clampOuter: localClampOuter,
-      outerExpansion: outerExpansion
+      outerExpansion: outerExpansion,
+      taperHoldOverride,
+      edgeTaperScaleOverride,
+      edgeProfilePowerOverride
     });
     if (!jawShape) {
       return null;
