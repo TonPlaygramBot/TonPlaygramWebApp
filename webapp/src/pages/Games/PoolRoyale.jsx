@@ -242,7 +242,7 @@ const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
 const CHROME_CORNER_WIDTH_SCALE = 0.995; // nudge the chrome plate farther down the long rail so it spans the arc start
-const CHROME_CORNER_HEIGHT_SCALE = 0.974; // mirror the subtle extension along the short rail so the arc ends stay covered
+const CHROME_CORNER_HEIGHT_SCALE = 0.975; // mirror the subtle extension along the short rail so the arc ends stay covered
 const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -508,6 +508,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.419; // keep the inner lip parked at the
 const POCKET_JAW_SIDE_INNER_SCALE = 1.443; // keep the middle pocket inner lip aligned with the previous jaw profile
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const POCKET_JAW_DEPTH_SCALE = 0.54; // trim the jaw underside so it now clears the green cloth plane
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim slightly so it finishes just above the pocket
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
@@ -5258,7 +5259,8 @@ function Table3D(
     sideThinFactor,
     middleThinFactor,
     centerEase,
-    clampOuter
+    clampOuter,
+    outerExpansion = 0
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -5280,6 +5282,9 @@ function Table3D(
       outerLimit = Math.max(innerBaseRadius + MICRO_EPS, outerLimit);
     }
     const baseThickness = Math.max(MICRO_EPS, outerLimit - innerBaseRadius);
+    const outerExpansionAmount = Number.isFinite(outerExpansion)
+      ? Math.max(0, outerExpansion)
+      : 0;
 
     const edgeFactor = THREE.MathUtils.clamp(sideThinFactor ?? 0.32, 0.1, 0.9);
     const edgeThickness = Math.max(
@@ -5354,6 +5359,13 @@ function Table3D(
         );
       }
       outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
+      if (outerExpansionAmount > MICRO_EPS) {
+        const maxOuterRadius = Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS
+          ? clampOuter + outerExpansionAmount
+          : outerLimit + outerExpansionAmount;
+        outerRadius = Math.min(maxOuterRadius, outerRadius + outerExpansionAmount);
+        outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
+      }
 
       let innerRadius = THREE.MathUtils.lerp(
         innerBaseRadius,
@@ -5395,7 +5407,8 @@ function Table3D(
     orientationAngle,
     wide,
     isMiddle,
-    clampOuter
+    clampOuter,
+    outerExpansion
   }) => {
     const baseInnerScale = wide
       ? POCKET_JAW_SIDE_INNER_SCALE
@@ -5438,7 +5451,8 @@ function Table3D(
       sideThinFactor: wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR,
       middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
       centerEase: wide ? 0.28 : 0.36,
-      clampOuter: localClampOuter
+      clampOuter: localClampOuter,
+      outerExpansion: outerExpansion
     });
     if (!jawShape) {
       return null;
@@ -5579,7 +5593,8 @@ function Table3D(
         orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: cornerJawOuterLimit
+        clampOuter: cornerJawOuterLimit,
+        outerExpansion: POCKET_JAW_CORNER_OUTER_EXPANSION
       });
     });
   }
