@@ -264,10 +264,10 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.26; // widen the middle fascia farther so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the corner chrome cut a touch further so the rounded pocket reveal grows
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open the chrome arch wider so the middle cut breathes toward the rail edge
+const CHROME_CORNER_POCKET_CUT_SCALE = 0.99; // ease the corner chrome cut back so the rounded pocket reveal shrinks slightly
+const CHROME_SIDE_POCKET_CUT_SCALE = 0.99; // ease the middle chrome arch back so the cut finishes a touch narrower
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.92; // tighten the wooden rail pocket relief further so the rounded corner cuts shrink a touch more and keep the chrome reveal dominant
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // tighten the wooden rail pocket relief even further so the rounded corner cuts shrink slightly more and keep the chrome reveal dominant
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
@@ -597,7 +597,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 0.95; // scale factor that yields the interior diameter at the top of each pocket
+const POCKET_INTERIOR_TOP_SCALE = 0.93; // slightly tighten the interior diameter at the top of each pocket
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // keep the side pockets fixed while extending the corner cushions deeper toward each pocket mouth
@@ -683,7 +683,7 @@ const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.8 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
