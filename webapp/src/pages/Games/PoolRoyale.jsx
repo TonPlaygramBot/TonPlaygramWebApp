@@ -506,7 +506,7 @@ const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = 1.548; // push the middle pocket inner lip outward so the jaws read slimmer while keeping the chrome-facing profile intact
+const POCKET_JAW_SIDE_INNER_SCALE = 1.528; // ease the middle pocket inner lip back inward so the slimmer jaws sit lighter against the chrome reveal
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
@@ -532,9 +532,9 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.492; // trim the middle jaw span slightly more so the slimmer jaws stop right at the cushion shoulders
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.428; // pull the middle jaw span in a touch more so the slimmer jaws clear the cushion shoulders cleanly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.006; // let the jaw radius follow the subtly tightened chrome cut toward the rail profile
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9; // trim the middle jaws slightly so their height sits just shy of the corner profile
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.18; // extend the middle jaws downward so they blanket the exposed fascia left by the removed rims
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -675,9 +675,14 @@ const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cov
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
 const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
+const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
+const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
+const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
+const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.01; // drop the cushion base slightly so the green pads sit closer to the carpet
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.19; // lower the cushion lip slightly more so the green profile sits just beneath the rails
+const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
@@ -4542,15 +4547,19 @@ function Table3D(
   const clothEdgeBottomY = boardBottomY - MICRO_EPS;
   const clothEdgeHeight = clothEdgeTopY - clothEdgeBottomY;
   if (clothEdgeHeight > MICRO_EPS) {
+    const planeWidth = Math.max(MICRO_EPS, halfWext * 2);
+    const planeLength = Math.max(MICRO_EPS, halfHext * 2);
+    const baseRepeatValue = clothMat.userData?.baseRepeat ?? clothMat.map?.repeat?.x ?? 1;
+    const ratioValue = clothMat.userData?.repeatRatio ??
+      (clothMat.map?.repeat?.x ? clothMat.map.repeat.y / clothMat.map.repeat.x : 1);
+    const circumference = Math.max(MICRO_EPS, 2 * Math.PI * POCKET_HOLE_R);
+    const repeatAround = baseRepeatValue * (circumference / planeWidth);
+    const repeatHeight =
+      baseRepeatValue *
+      ratioValue *
+      (clothEdgeHeight / planeLength) *
+      CLOTH_EDGE_TEXTURE_HEIGHT_SCALE;
     if (clothEdgeMat.map) {
-      const planeWidth = Math.max(MICRO_EPS, halfWext * 2);
-      const planeLength = Math.max(MICRO_EPS, halfHext * 2);
-      const baseRepeatValue = clothMat.userData?.baseRepeat ?? clothMat.map?.repeat?.x ?? 1;
-      const ratioValue = clothMat.userData?.repeatRatio ??
-        (clothMat.map?.repeat?.x ? clothMat.map.repeat.y / clothMat.map.repeat.x : 1);
-      const circumference = Math.max(MICRO_EPS, 2 * Math.PI * POCKET_HOLE_R);
-      const repeatAround = baseRepeatValue * (circumference / planeWidth);
-      const repeatHeight = baseRepeatValue * ratioValue * (clothEdgeHeight / planeLength);
       clothEdgeMat.map.repeat.set(
         Math.max(repeatAround, 1),
         Math.max(repeatHeight, 0.5)
@@ -4560,14 +4569,6 @@ function Table3D(
       clothEdgeMat.map.needsUpdate = true;
     }
     if (clothEdgeMat.bumpMap) {
-      const planeWidth = Math.max(MICRO_EPS, halfWext * 2);
-      const planeLength = Math.max(MICRO_EPS, halfHext * 2);
-      const baseRepeatValue = clothMat.userData?.baseRepeat ?? clothMat.map?.repeat?.x ?? 1;
-      const ratioValue = clothMat.userData?.repeatRatio ??
-        (clothMat.map?.repeat?.x ? clothMat.map.repeat.y / clothMat.map.repeat.x : 1);
-      const circumference = Math.max(MICRO_EPS, 2 * Math.PI * POCKET_HOLE_R);
-      const repeatAround = baseRepeatValue * (circumference / planeWidth);
-      const repeatHeight = baseRepeatValue * ratioValue * (clothEdgeHeight / planeLength);
       clothEdgeMat.bumpMap.repeat.set(
         Math.max(repeatAround, 1),
         Math.max(repeatHeight, 0.5)
@@ -4577,14 +4578,37 @@ function Table3D(
       clothEdgeMat.bumpMap.needsUpdate = true;
     }
     clothEdgeMat.needsUpdate = true;
+    const clothSleeveSegments = 6;
     const clothSleeveGeo = new THREE.CylinderGeometry(
-      POCKET_HOLE_R,
-      POCKET_HOLE_R,
+      POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE,
+      POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE,
       clothEdgeHeight,
       64,
-      1,
+      clothSleeveSegments,
       true
     );
+    const sleevePos = clothSleeveGeo.attributes.position;
+    const sleeveArr = sleevePos.array;
+    const sleeveHalfHeight = clothEdgeHeight / 2;
+    const baseTopRadius = POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE;
+    const baseBottomRadius = POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE;
+    for (let i = 0; i < sleeveArr.length; i += 3) {
+      const x = sleeveArr[i];
+      const y = sleeveArr[i + 1];
+      const z = sleeveArr[i + 2];
+      const radius = Math.hypot(x, z);
+      if (radius <= MICRO_EPS) continue;
+      const t = THREE.MathUtils.clamp((y + sleeveHalfHeight) / Math.max(MICRO_EPS, clothEdgeHeight), 0, 1);
+      const eased = THREE.MathUtils.smoothstep(t, 0, 1);
+      const easedRadius = THREE.MathUtils.lerp(baseBottomRadius, baseTopRadius, eased);
+      const curvature = Math.sin(Math.PI * eased) * POCKET_HOLE_R * CLOTH_EDGE_CURVE_INTENSITY;
+      const targetRadius = Math.max(MICRO_EPS, easedRadius + curvature);
+      const scale = targetRadius / radius;
+      sleeveArr[i] = x * scale;
+      sleeveArr[i + 2] = z * scale;
+    }
+    sleevePos.needsUpdate = true;
+    clothSleeveGeo.computeVertexNormals();
     const clothSleeveMidY = clothEdgeBottomY + clothEdgeHeight / 2;
     pocketPositions.forEach((p) => {
       const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothEdgeMat);
@@ -5961,6 +5985,14 @@ function Table3D(
       const noseOffset = nosePull * frontFactor;
       if (noseOffset > 0) {
         arr[i + 1] = Math.min(arr[i + 1] - noseOffset, backY);
+      }
+    }
+    const trimZ = Math.min(maxZ, minZ + depth * CUSHION_FIELD_CLIP_RATIO);
+    if (trimZ > minZ) {
+      for (let i = 0; i < arr.length; i += 3) {
+        if (arr[i + 2] < trimZ) {
+          arr[i + 2] = trimZ;
+        }
       }
     }
     pos.needsUpdate = true;
