@@ -250,7 +250,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.008; // ease the middle chrome arch width so the jaws track a fraction closer to the rail profile and give the jaws a wider reveal
+  1.018; // open the middle chrome arch slightly more so the jaws sit deeper inside the wider chrome reveal
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -259,20 +259,20 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.42; // further bump plate depth so all six chrome trims share a chunkier profile
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.42; // push the side fascia deeper along the arch so it wraps the full chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.42; // extend the middle fascia farther along the pocket arch so it blankets the rail relief
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.5; // push the side fascia farther along the arch so it blankets the larger chrome reveal
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.48; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.22; // widen the middle fascia farther so it blankets the entire arch reveal
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28; // widen the middle fascia further so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.992; // let the rounded chrome corner cut open a touch more for a larger reveal
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.024; // open the middle chrome arch slightly further so the rounded cut reads wider along the rail
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.052; // open the middle chrome arch noticeably more so the rounded cut mirrors the photo reference
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // relax the wooden rail arches further so the relief keeps pace with the larger chrome cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // relax the wooden rail arches further so the relief keeps pace with the larger chrome cut
 
 function buildChromePlateGeometry({
   width,
@@ -506,7 +506,7 @@ const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = 1.504; // mirror the leaner interior profile on the middle pockets so the jaws slim inside without altering the outer curve or chrome alignment
+const POCKET_JAW_SIDE_INNER_SCALE = 1.548; // push the middle pocket inner lip outward so the jaws read slimmer while keeping the chrome-facing profile intact
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
@@ -532,7 +532,7 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.532; // trim the middle jaw span a touch further so it stops exactly where the cushions begin without overlap
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.492; // trim the middle jaw span slightly more so the slimmer jaws stop right at the cushion shoulders
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.006; // let the jaw radius follow the subtly tightened chrome cut toward the rail profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9; // trim the middle jaws slightly so their height sits just shy of the corner profile
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -POCKET_JAW_VERTICAL_LIFT; // drop the middle jaws so their top surface finishes flush with the rails
