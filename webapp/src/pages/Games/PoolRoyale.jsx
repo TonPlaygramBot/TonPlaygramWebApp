@@ -514,6 +514,7 @@ const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.065; // raise the visible rim s
 const POCKET_JAW_EDGE_FLUSH_START = 0.14; // begin easing the jaw back out earlier so the lip stays long and flush with chrome
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.24; // keep the edge thickness closer to the real jaw profile before it feathers into the cushion line
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.18; // preserve the middle jaw thickness for most of the span before easing into the side taper
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.48; // allow the inner arc to slim further through the pocket centre for a deeper arch
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66; // cap the inner arc thickness so the jaw maintains the new pronounced curve
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
@@ -5329,16 +5330,30 @@ function Table3D(
     const outerPts = [];
     const innerPts = [];
 
+    const taperHold = THREE.MathUtils.clamp(POCKET_JAW_CENTER_TAPER_HOLD, 0, 0.6);
+
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
       const theta = startAngle + t * (endAngle - startAngle);
       const normalized = Math.abs(theta - midAngle) / halfAngle;
       const clamped = THREE.MathUtils.clamp(normalized, 0, 1);
-      const eased = clamped <= 0
+      let taperNormalized = clamped;
+      if (taperHold > MICRO_EPS) {
+        if (taperNormalized <= taperHold) {
+          taperNormalized = 0;
+        } else {
+          taperNormalized = THREE.MathUtils.clamp(
+            (taperNormalized - taperHold) / (1 - taperHold),
+            0,
+            1
+          );
+        }
+      }
+      const eased = taperNormalized <= 0
         ? 0
-        : clamped >= 1
+        : taperNormalized >= 1
           ? 1
-          : THREE.MathUtils.smootherstep(clamped, 0, 1);
+          : THREE.MathUtils.smootherstep(taperNormalized, 0, 1);
       const outerWeight = Math.pow(eased, outerPower);
       const innerWeight = Math.pow(eased, innerPower);
 
