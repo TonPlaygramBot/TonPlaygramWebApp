@@ -265,13 +265,13 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.22; // widen the middle fascia
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.992; // let the rounded chrome corner cut open a touch more for a larger reveal
-const CHROME_SIDE_POCKET_CUT_SCALE = 0.992; // let the middle chrome arch open slightly more so the cut grows a touch wider
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.008; // open the middle chrome arch a hair more so the rounded cut reads wider along the rail
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.022; // ease the wooden rail arches back so the relief matches the broader chrome cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // relax the wooden rail arches further so the relief keeps pace with the larger chrome cut
 
 function buildChromePlateGeometry({
   width,
@@ -577,7 +577,7 @@ const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger agains
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 2.08; // push the middle pockets fractionally farther outboard so every side arch clears the centreline and the rims sit closer to the rails
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 2.14; // nudge the middle pockets farther outboard so the chrome plates, jaws, and rims align closer to the rail edges
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
