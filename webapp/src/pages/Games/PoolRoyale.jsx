@@ -1397,13 +1397,13 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     label: 'Fresh Green',
     color: 0x3fba73,
     detail: {
-      bumpMultiplier: 1.36,
-      roughness: 0.99,
-      sheen: 0.96,
-      sheenRoughness: 0.7,
-      clearcoat: 0.012,
-      clearcoatRoughness: 0.58,
-      emissiveIntensity: 0.62
+      bumpMultiplier: 1.44,
+      roughness: 0.98,
+      sheen: 0.95,
+      sheenRoughness: 0.66,
+      clearcoat: 0.014,
+      clearcoatRoughness: 0.6,
+      emissiveIntensity: 0.54
     }
   },
   {
@@ -1418,48 +1418,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       clearcoat: 0.016,
       clearcoatRoughness: 0.56,
       emissiveIntensity: 0.58
-    }
-  },
-  {
-    id: 'emeraldClassic',
-    label: 'Green Cloth',
-    color: 0x19a34a,
-    detail: {
-      bumpMultiplier: 1.48,
-      roughness: 0.995,
-      sheen: 0.97,
-      sheenRoughness: 0.68,
-      clearcoat: 0.01,
-      clearcoatRoughness: 0.6,
-      emissiveIntensity: 0.56
-    }
-  },
-  {
-    id: 'deepVerdant',
-    label: 'Deep Verdant',
-    color: 0x2b7f45,
-    detail: {
-      bumpMultiplier: 1.62,
-      roughness: 1,
-      sheen: 0.98,
-      sheenRoughness: 0.72,
-      clearcoat: 0.008,
-      clearcoatRoughness: 0.64,
-      emissiveIntensity: 0.5
-    }
-  },
-  {
-    id: 'sageHeritage',
-    label: 'Heritage Sage',
-    color: 0x39a15a,
-    detail: {
-      bumpMultiplier: 1.44,
-      roughness: 0.98,
-      sheen: 0.95,
-      sheenRoughness: 0.66,
-      clearcoat: 0.014,
-      clearcoatRoughness: 0.6,
-      emissiveIntensity: 0.54
     }
   }
 ]);
