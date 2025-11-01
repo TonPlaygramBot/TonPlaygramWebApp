@@ -1432,62 +1432,29 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.56,
     clearcoatRoughness: 0.16,
     envMapIntensity: 0.98
-  },
-  {
-    id: 'matteBlack',
-    label: 'Black Chrome',
-    color: 0x1a1a1a,
-    metalness: 0.84,
-    roughness: 0.36,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.94
   }
 ]);
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
+  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
-    id: 'freshGreen',
-    label: 'Fresh Green',
-    color: 0x3fba73,
+    id: 'emeraldClassic',
+    label: 'Green Cloth',
+    color: 0x19a34a,
     detail: {
-      bumpMultiplier: 1.44,
-      roughness: 0.98,
-      sheen: 0.95,
-      sheenRoughness: 0.66,
-      clearcoat: 0.014,
-      clearcoatRoughness: 0.6,
-      emissiveIntensity: 0.54
-    }
-  },
-  {
-    id: 'brightMint',
-    label: 'Bright Mint',
-    color: 0x45b974,
-    detail: {
-      bumpMultiplier: 1.28,
-      roughness: 0.965,
-      sheen: 0.94,
-      sheenRoughness: 0.64,
-      clearcoat: 0.016,
-      clearcoatRoughness: 0.56,
-      emissiveIntensity: 0.58
+      bumpMultiplier: 1.22,
+      roughness: 0.78,
+      sheenRoughness: 0.52,
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.32,
+      emissiveIntensity: 0.52
     }
   }
 ]);
 
 const POCKET_LINER_PRESETS = Object.freeze([
-  Object.freeze({
-    id: 'maplePocket',
-    label: 'Maple Pockets',
-    type: 'wood',
-    finishId: 'maple',
-    jawMix: 0.115,
-    rimMix: 0.26,
-    textureDensity: 1.16,
-    seed: 1620
-  }),
   Object.freeze({
     id: 'walnutPocket',
     label: 'Walnut Pocket Jaws',
@@ -1497,39 +1464,6 @@ const POCKET_LINER_PRESETS = Object.freeze([
     rimMix: 0.34,
     textureDensity: 1.32,
     seed: 2654
-  }),
-  Object.freeze({
-    id: 'chromePocket',
-    label: 'Chrome Pocket Jaws',
-    type: 'metal',
-    jawColor: 0xdde2eb,
-    rimColor: 0xcfd4de,
-    sheenColor: 0xf3f6fb,
-    rimSheenColor: 0xe3e7f0,
-    sheen: 0.78,
-    sheenRoughness: 0.34,
-    roughness: 0.28,
-    rimRoughness: 0.32,
-    metalness: 0.78,
-    rimMetalness: 0.86,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.12,
-    bumpScale: 0.18,
-    rimBumpScale: 0.12,
-    texture: {
-      base: 0xe6eaf2,
-      highlight: 0xf9fbff,
-      shadow: 0x6e727a,
-      density: 0.42,
-      grainSize: 0.62,
-      streakAlpha: 0.12,
-      creaseAlpha: 0.1,
-      seamContrast: 0.18,
-      repeatX: 2.1,
-      repeatY: 2.1,
-      seed: 4319
-    }
   }),
   Object.freeze({
     id: 'graphitePocket',
@@ -1583,7 +1517,7 @@ function resolvePocketLinerTextureColor(value, fallback) {
 }
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS[0]?.id ?? 'maplePocket';
+  POCKET_LINER_PRESETS[0]?.id ?? 'walnutPocket';
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config, index) => {
@@ -7744,8 +7678,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.35 : 1.9;
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
+      renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -7781,12 +7716,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let lastShotPower = 0;
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
+      const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 45;
       const dynamicTextureEntries = [];
       const registerDynamicTexture = (entry) => {
         if (!entry || !entry.texture || typeof entry.update !== 'function') {
           return null;
         }
-        dynamicTextureEntries.push(entry);
+        const minInterval =
+          typeof entry.minInterval === 'number' && Number.isFinite(entry.minInterval)
+            ? Math.max(0, entry.minInterval)
+            : DYNAMIC_TEXTURE_MIN_INTERVAL;
+        dynamicTextureEntries.push({
+          texture: entry.texture,
+          update: entry.update,
+          accumulator: 0,
+          minInterval
+        });
         return entry.texture;
       };
       const coinTicker = (() => {
@@ -7847,6 +7792,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         let offset = 0;
         return {
           texture,
+          minInterval: 1 / 45,
           update(delta) {
             if (!ctx) return;
             const text = coinTicker.text();
@@ -7934,6 +7880,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
         return {
           texture,
+          minInterval: 1 / 30,
           update(delta) {
             if (!ctx) return;
             const width = baseWidth;
@@ -12198,7 +12145,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
         const deltaSeconds = deltaMs / 1000;
         coinTicker.update(deltaSeconds);
-        dynamicTextureEntries.forEach((entry) => entry.update(deltaSeconds));
+        dynamicTextureEntries.forEach((entry) => {
+          entry.accumulator += deltaSeconds;
+          if (entry.accumulator < entry.minInterval) {
+            return;
+          }
+          const elapsed = entry.accumulator;
+          entry.accumulator = 0;
+          entry.update(elapsed);
+        });
         const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS;
         const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
         const physicsSubsteps = Math.min(
