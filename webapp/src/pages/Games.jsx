@@ -1,230 +1,53 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
 import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
+import GamesHallway from '../components/GamesHallway.jsx';
+
+const gamesCatalog = [
+  { name: "Texas Hold'em", route: '/games/texasholdem/lobby' },
+  { name: 'Domino Royal 3D', route: '/games/domino-royal/lobby' },
+  { name: 'Black Jack Multiplayer', route: '/games/blackjack/lobby' },
+  { name: 'Pool Royale', route: '/games/pollroyale/lobby' },
+  { name: '3D Snooker', route: '/games/snooker' },
+  { name: 'Goal Rush', route: '/games/goalrush/lobby' },
+  { name: 'Air Hockey', route: '/games/airhockey/lobby' },
+  { name: 'Table Tennis', route: '/games/tabletennis/lobby' },
+  { name: 'Free Kick', route: '/games/freekick/lobby' },
+  { name: 'Snake & Ladder', route: '/games/snake/lobby' },
+  { name: 'Falling Ball', route: '/games/fallingball/lobby' },
+  { name: 'Murlan Royale', route: '/games/murlanroyale/lobby' },
+  { name: 'Chess Battle Royal', route: '/games/chessbattleroyal/lobby' },
+  { name: 'Ludo Battle Royal', route: '/games/ludobattleroyal/lobby' }
+];
 
 export default function Games() {
   useTelegramBackButton();
+  const [showHallway, setShowHallway] = useState(false);
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
       <p className="text-center text-sm text-subtext">Online games are under construction and will be available soon.</p>
       <div className="space-y-4">
-        <div className="relative bg-surface border border-border rounded-xl p-4 shadow-lg overflow-hidden wide-card">
-          <div className="flex overflow-x-auto space-x-4 items-center pb-2">
-          <Link
-            to="/games/texasholdem/lobby"
-            className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-          >
-            <img
-              src="/assets/icons/texas-holdem.svg"
-              alt=""
-              className="h-20 w-20"
-            />
-            <h3
-              className="text-sm font-semibold text-center text-yellow-400"
-              style={{ WebkitTextStroke: '1px black' }}
-            >
-              Texas Hold'em
-            </h3>
-          </Link>
-          <Link
-            to="/games/domino-royal/lobby"
-            className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-          >
-            <img
-              src="/assets/icons/domino-royal.svg"
-              alt=""
-              className="h-20 w-20"
-            />
-            <h3
-              className="text-sm font-semibold text-center text-yellow-400"
-              style={{ WebkitTextStroke: '1px black' }}
-            >
-              Domino Royal 3D
-            </h3>
-          </Link>
-            <Link
-              to="/games/blackjack/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/blackjack.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-xs font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Black Jack Multiplayer
-              </h3>
-            </Link>
-            <Link
-              to="/games/pollroyale/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/pool-royale.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Pool Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/snooker"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/white_ball.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                3D Snooker
-              </h3>
-            </Link>
-            <Link
-              to="/games/goalrush/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/goal_rush_card_1200x675.webp"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Goal Rush
-              </h3>
-            </Link>
-            <Link
-              to="/games/airhockey/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/white_ball.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Air Hockey
-              </h3>
-            </Link>
-            <Link
-              to="/games/tabletennis/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <div className="h-20 w-20 flex items-center justify-center text-5xl">🏓</div>
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Table Tennis
-              </h3>
-            </Link>
-            <Link
-              to="/games/freekick/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <div className="h-20 w-20 flex items-center justify-center text-5xl">⚽</div>
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Free Kick
-              </h3>
-            </Link>
-            <Link
-              to="/games/snake/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/snakes_and_ladders.webp"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Snake &amp; Ladder
-              </h3>
-            </Link>
-            <Link
-              to="/games/fallingball/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/Falling Ball .png"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Falling Ball
-              </h3>
-            </Link>
-            <Link
-              to="/games/murlanroyale/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <img
-                src="/assets/icons/murlan-royale.svg"
-                alt=""
-                className="h-20 w-20"
-              />
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Murlan Royale
-              </h3>
-            </Link>
-            <Link
-              to="/games/chessbattleroyal/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <div className="h-20 w-20 flex items-center justify-center text-5xl">♟️</div>
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Chess Battle Royal
-              </h3>
-            </Link>
-            <Link
-              to="/games/ludobattleroyal/lobby"
-              className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-            >
-              <div className="h-20 w-20 flex items-center justify-center text-5xl">🎲</div>
-              <h3
-                className="text-sm font-semibold text-center text-yellow-400"
-                style={{ WebkitTextStroke: '1px black' }}
-              >
-                Ludo Battle Royal
-              </h3>
-            </Link>
+        <div className="relative bg-surface border border-border rounded-xl p-6 shadow-lg overflow-hidden wide-card space-y-4 text-center">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">3D Hallway Experience</h3>
+            <p className="text-sm text-subtext">
+              Step into our immersive corridor and pick your favorite game by entering through its door or tapping the monitors.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowHallway(true)}
+            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-base font-semibold text-black shadow-lg shadow-primary/40"
+          >
+            Enter Games
+          </button>
         </div>
       </div>
       <GameTransactionsCard />
       <LeaderboardCard />
+      {showHallway && <GamesHallway games={gamesCatalog} onClose={() => setShowHallway(false)} />}
     </div>
   );
 }
