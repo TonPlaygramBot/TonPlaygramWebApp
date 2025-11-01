@@ -1353,6 +1353,7 @@ let entryStartTime = 0;
 let entryCameraCurve = null;
 let entryTargetCurve = null;
 const ENTRY_TOTAL_DURATION = 6500;
+const ENTRY_SEAT_REMOVAL_PROGRESS = 0.78;
 
 function configureEntryCurves(finalPosition) {
   const approachHeight = 1.55;
@@ -1432,10 +1433,17 @@ function updateEntrySequence(now) {
     controls.target.copy(targetPoint);
   }
 
+  if (shouldRunHallwayEntry && seatLabelShouldDisplay && progress >= ENTRY_SEAT_REMOVAL_PROGRESS) {
+    disposeSeatLabel();
+  }
+
   if (progress >= 1) {
     entrySequenceActive = false;
     controls.enabled = true;
     controls.target.copy(CAMERA_TARGET);
+    if (shouldRunHallwayEntry && seatLabelShouldDisplay) {
+      disposeSeatLabel();
+    }
     positionCameraForViewport({ force: true });
   }
 }
@@ -1605,22 +1613,25 @@ updateTableMaterials();
 const tableParts = {};
 const chairs = [];
 let seatLabelMesh = null;
+let seatLabelShouldDisplay = shouldShowSeatLabel;
 
-function disposeSeatLabel() {
-  if (!seatLabelMesh) {
-    return;
+function disposeSeatLabel({ persistPreference = true } = {}) {
+  if (seatLabelMesh) {
+    seatLabelMesh.parent?.remove(seatLabelMesh);
+    if (seatLabelMesh.material?.map?.dispose) {
+      seatLabelMesh.material.map.dispose();
+    }
+    if (seatLabelMesh.material?.dispose) {
+      seatLabelMesh.material.dispose();
+    }
+    if (seatLabelMesh.geometry?.dispose) {
+      seatLabelMesh.geometry.dispose();
+    }
+    seatLabelMesh = null;
   }
-  seatLabelMesh.parent?.remove(seatLabelMesh);
-  if (seatLabelMesh.material?.map?.dispose) {
-    seatLabelMesh.material.map.dispose();
+  if (persistPreference) {
+    seatLabelShouldDisplay = false;
   }
-  if (seatLabelMesh.material?.dispose) {
-    seatLabelMesh.material.dispose();
-  }
-  if (seatLabelMesh.geometry?.dispose) {
-    seatLabelMesh.geometry.dispose();
-  }
-  seatLabelMesh = null;
 }
 
 function createSeatLabelMesh() {
@@ -2082,7 +2093,7 @@ function disposeChairResources(root) {
 }
 
 function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
-  disposeSeatLabel();
+  disposeSeatLabel({ persistPreference: false });
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -2118,7 +2129,7 @@ function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFA
     tableG.add(wrapper);
     chairs.push(wrapper);
 
-    if (shouldShowSeatLabel && index === HUMAN_SEAT_INDEX) {
+    if (seatLabelShouldDisplay && shouldShowSeatLabel && index === HUMAN_SEAT_INDEX) {
       seatLabelMesh = createSeatLabelMesh();
       const labelHeight =
         CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness + 0.72;
