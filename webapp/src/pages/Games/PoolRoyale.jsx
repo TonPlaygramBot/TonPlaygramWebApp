@@ -679,7 +679,6 @@ const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough cleara
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
-const CLOTH_EDGE_SLEEVES_ENABLED = false; // disable the vertical cloth sleeves so the black arch under the playfield disappears
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.02; // keep the cushion base closer to the rails so the pads sit level with the wood
@@ -1164,6 +1163,62 @@ const CLOTH_TEXTURE_INTENSITY = 0.62;
 const CLOTH_HAIR_INTENSITY = 0.56;
 const CLOTH_BUMP_INTENSITY = 0.82;
 const CLOTH_SOFT_BLEND = 0.46;
+
+const CLOTH_QUALITY = (() => {
+  const defaults = {
+    textureSize: 4096,
+    anisotropy: 48,
+    generateMipmaps: true,
+    bumpScaleMultiplier: 1,
+    sheen: 0.95,
+    sheenRoughness: 0.66
+  };
+
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      ...defaults,
+      textureSize: 2048,
+      anisotropy: 16,
+      bumpScaleMultiplier: 0.88,
+      sheen: 0.9,
+      sheenRoughness: 0.72
+    };
+  }
+
+  const dpr = window.devicePixelRatio ?? 1;
+  const ua = navigator.userAgent ?? '';
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
+
+  if (isMobileUA || isTouch || lowMemory) {
+    const highDensity = dpr >= 3;
+    return {
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 24 : 16,
+      generateMipmaps: true,
+      bumpScaleMultiplier: highDensity ? 0.9 : 0.82,
+      sheen: 0.82,
+      sheenRoughness: 0.78
+    };
+  }
+
+  if (hardwareConcurrency <= 6 || dpr < 1.75) {
+    return {
+      textureSize: 3072,
+      anisotropy: 32,
+      generateMipmaps: true,
+      bumpScaleMultiplier: 0.95,
+      sheen: 0.9,
+      sheenRoughness: 0.7
+    };
+  }
+
+  return defaults;
+})();
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   cloth,
@@ -1843,7 +1898,7 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_SIZE = 4096;
+const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.196; // enlarge thread spacing (~30%) so fibres read bigger
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
@@ -1997,10 +2052,11 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(16, 64);
-    colorMap.anisotropy = 64;
-    colorMap.generateMipmaps = true;
-    colorMap.minFilter = THREE.LinearMipmapLinearFilter;
+    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
+    colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
+      ? THREE.LinearMipmapLinearFilter
+      : THREE.LinearFilter;
     colorMap.magFilter = THREE.LinearFilter;
     applySRGBColorSpace(colorMap);
     colorMap.needsUpdate = true;
@@ -2052,10 +2108,13 @@ const createClothTextures = (() => {
     const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = colorMap.anisotropy;
-    bumpMap.generateMipmaps = true;
-    bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
+    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
+    bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
+      ? THREE.LinearMipmapLinearFilter
+      : THREE.LinearFilter;
     bumpMap.magFilter = THREE.LinearFilter;
+    bumpMap.needsUpdate = true;
 
     cache = { map: colorMap, bump: bumpMap };
     return cache;
@@ -4234,15 +4293,15 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.97,
-    sheen: 0.95,
+    roughness: 0.95,
+    sheen: CLOTH_QUALITY.sheen,
     sheenColor,
-    sheenRoughness: 0.66,
+    sheenRoughness: CLOTH_QUALITY.sheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.9,
-    envMapIntensity: 0.1,
-    emissive: clothColor.clone().multiplyScalar(0.05),
-    emissiveIntensity: 0.56
+    clearcoatRoughness: 0.86,
+    envMapIntensity: 0.08,
+    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissiveIntensity: 0.52
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
@@ -4255,7 +4314,7 @@ function Table3D(
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = 0.64 * 1.52 * 1.34 * 1.26;
+  const baseBumpScale = (0.64 * 1.52 * 1.34 * 1.26) * CLOTH_QUALITY.bumpScaleMultiplier;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -4276,7 +4335,8 @@ function Table3D(
     nearRepeat: baseRepeat * 1.12,
     farRepeat: baseRepeat * 0.44,
     bumpScale: clothMat.bumpScale,
-    baseBumpScale: clothMat.bumpScale
+    baseBumpScale: clothMat.bumpScale,
+    quality: CLOTH_QUALITY
   };
 
   const cushionMat = clothMat.clone();
@@ -4625,49 +4685,6 @@ function Table3D(
       clothEdgeMat.bumpMap.needsUpdate = true;
     }
     clothEdgeMat.needsUpdate = true;
-    if (CLOTH_EDGE_SLEEVES_ENABLED) {
-      const clothSleeveSegments = 6;
-      const clothSleeveGeo = new THREE.CylinderGeometry(
-        POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE,
-        POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE,
-        clothEdgeHeight,
-        64,
-        clothSleeveSegments,
-        true
-      );
-      const sleevePos = clothSleeveGeo.attributes.position;
-      const sleeveArr = sleevePos.array;
-      const sleeveHalfHeight = clothEdgeHeight / 2;
-      const baseTopRadius = POCKET_HOLE_R * CLOTH_EDGE_TOP_RADIUS_SCALE;
-      const baseBottomRadius = POCKET_HOLE_R * CLOTH_EDGE_BOTTOM_RADIUS_SCALE;
-      for (let i = 0; i < sleeveArr.length; i += 3) {
-        const x = sleeveArr[i];
-        const y = sleeveArr[i + 1];
-        const z = sleeveArr[i + 2];
-        const radius = Math.hypot(x, z);
-        if (radius <= MICRO_EPS) continue;
-        const t = THREE.MathUtils.clamp((y + sleeveHalfHeight) / Math.max(MICRO_EPS, clothEdgeHeight), 0, 1);
-        const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-        const easedRadius = THREE.MathUtils.lerp(baseBottomRadius, baseTopRadius, eased);
-        const curvature = Math.sin(Math.PI * eased) * POCKET_HOLE_R * CLOTH_EDGE_CURVE_INTENSITY;
-        const targetRadius = Math.max(MICRO_EPS, easedRadius + curvature);
-        const scale = targetRadius / radius;
-        sleeveArr[i] = x * scale;
-        sleeveArr[i + 2] = z * scale;
-      }
-      sleevePos.needsUpdate = true;
-      clothSleeveGeo.computeVertexNormals();
-      const clothSleeveMidY = clothEdgeBottomY + clothEdgeHeight / 2;
-      pocketPositions.forEach((p) => {
-        const clothSleeve = new THREE.Mesh(clothSleeveGeo, clothEdgeMat);
-        clothSleeve.position.set(p.x, clothSleeveMidY, p.y);
-        clothSleeve.castShadow = false;
-        clothSleeve.receiveShadow = false;
-        clothSleeve.renderOrder = cloth.renderOrder + 0.25;
-        table.add(clothSleeve);
-        finishParts.clothEdgeMeshes.push(clothSleeve);
-      });
-    }
   }
 
   const shadowCoverShape = buildSurfaceShape(
