@@ -26,6 +26,7 @@ export default function GamesHallway({ games, onClose }) {
   const [selectedGame, setSelectedGame] = useState(null);
   const overlayRootRef = useRef(null);
   const controlsRef = useRef({ moveForward: () => {}, moveBackward: () => {} });
+  const holdIntervalRef = useRef(null);
 
   useEffect(() => {
     if (!overlayRootRef.current) {
@@ -237,11 +238,11 @@ export default function GamesHallway({ games, onClose }) {
     let isDragging = false;
     let targetYaw = 0;
     let targetZ = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
-    const yawLimit = Math.PI / 6;
+    const yawLimit = Math.PI / 2.3;
     const dragThreshold = 6;
-    const moveSensitivity = 0.02;
+    const moveSensitivity = 0.05;
     const yawSensitivity = 0.0025;
-    const movementStep = 5;
+    const movementStep = 9;
 
     const clampZ = (value) => THREE.MathUtils.clamp(value, minZ, maxZ);
 
@@ -360,6 +361,32 @@ export default function GamesHallway({ games, onClose }) {
     };
   }, [games, navigate]);
 
+  const handlePointerHoldStart = (direction) => (event) => {
+    event.preventDefault();
+    const action = direction === 'forward' ? 'moveForward' : 'moveBackward';
+    controlsRef.current[action]?.();
+    if (holdIntervalRef.current) return;
+    holdIntervalRef.current = setInterval(() => {
+      controlsRef.current[action]?.();
+    }, 180);
+  };
+
+  const handlePointerHoldEnd = () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (holdIntervalRef.current) {
+        clearInterval(holdIntervalRef.current);
+        holdIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 text-text">
@@ -378,22 +405,56 @@ export default function GamesHallway({ games, onClose }) {
       <div className="relative flex-1">
         <div ref={containerRef} className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-end">
-          <div className="pointer-events-auto mx-auto mb-6 flex w-full max-w-xs justify-between gap-4 px-6">
+          <div className="pointer-events-auto mx-auto mb-8 flex w-full max-w-[280px] items-center justify-center gap-6 px-6">
             <button
               type="button"
-              onPointerDown={() => controlsRef.current.moveBackward()}
-              onClick={() => controlsRef.current.moveBackward()}
-              className="flex-1 rounded-full bg-white/10 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-lg backdrop-blur"
+              onPointerDown={handlePointerHoldStart('backward')}
+              onPointerUp={handlePointerHoldEnd}
+              onPointerLeave={handlePointerHoldEnd}
+              onPointerCancel={handlePointerHoldEnd}
+              onClick={(event) => {
+                if (event.detail === 0) {
+                  controlsRef.current.moveBackward();
+                }
+              }}
+              className="flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-xl backdrop-blur transition active:scale-95"
+              aria-label="Walk backward"
             >
-              Backward
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 5l-7 7 7 7" />
+              </svg>
             </button>
             <button
               type="button"
-              onPointerDown={() => controlsRef.current.moveForward()}
-              onClick={() => controlsRef.current.moveForward()}
-              className="flex-1 rounded-full bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-wide text-black shadow-lg"
+              onPointerDown={handlePointerHoldStart('forward')}
+              onPointerUp={handlePointerHoldEnd}
+              onPointerLeave={handlePointerHoldEnd}
+              onPointerCancel={handlePointerHoldEnd}
+              onClick={(event) => {
+                if (event.detail === 0) {
+                  controlsRef.current.moveForward();
+                }
+              }}
+              className="flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,215,0,0.35)] bg-gradient-to-br from-[#ffe27a] via-[#ffd141] to-[#ffb347] text-black shadow-[0_12px_30px_rgba(255,174,0,0.35)] transition active:scale-95"
+              aria-label="Walk forward"
             >
-              Forward
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-7 w-7"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+              </svg>
             </button>
           </div>
         </div>
