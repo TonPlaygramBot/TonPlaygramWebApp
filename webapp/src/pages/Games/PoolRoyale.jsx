@@ -656,7 +656,7 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.993;
+const FRICTION = 0.996; // let balls carry more momentum so play feels quicker
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
@@ -1159,8 +1159,8 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.62;
-const CLOTH_HAIR_INTENSITY = 0.62; // boost fine fuzz to lean toward a carpet-like nap
+const CLOTH_TEXTURE_INTENSITY = 0.56; // trim contrast so the weave reads more even across the surface
+const CLOTH_HAIR_INTENSITY = 0.28; // keep a hint of nap without introducing arc-like clumps
 const CLOTH_BUMP_INTENSITY = 0.74; // trim macro undulations so the surface reads flatter
 const CLOTH_SOFT_BLEND = 0.46;
 const CLOTH_PATTERN_SIZE_SCALE = 0.85; // shrink the felt pattern by roughly 15%
@@ -1989,46 +1989,48 @@ const createClothTextures = (() => {
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const fuzz = Math.pow(fiber, 1.2);
         const hair = hairFiber(x, y);
+        const nap = Math.pow(hair, 1.18);
+        const napDelta = nap - 0.5;
         const tonal = THREE.MathUtils.clamp(
           0.56 +
-            (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
-            (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
-            (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
-            (fiber - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.2 * CLOTH_TEXTURE_INTENSITY +
-            (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
+            (weave - 0.5) * 0.52 * CLOTH_TEXTURE_INTENSITY +
+            (cross - 0.5) * 0.46 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.22 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
+            (micro - 0.5) * 0.16 * CLOTH_TEXTURE_INTENSITY +
+            napDelta * 0.24 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
           0.5 +
-            (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
+            (tonal - 0.5) * (1 + (1.46 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            napDelta * 0.16 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
           0.34 +
-            (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
-            (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
-            (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
+            (cross - 0.5) * 0.42 * CLOTH_TEXTURE_INTENSITY +
+            (weave - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (sparkle - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
+            napDelta * 0.14 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.48 +
-            (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
+          0.46 +
+            (cross - 0.5) * 0.68 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.22 * CLOTH_TEXTURE_INTENSITY +
+            napDelta * 0.16 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
           0.38 +
-            (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
+            (highlightMix - 0.5) * (1 + (1.52 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            napDelta * 0.12 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
