@@ -656,12 +656,15 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.998; // let balls carry more momentum so play feels quicker
+const FRICTION = 0.9925; // tuned for faster energy loss so balls settle promptly on mobile refresh rates
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const STOP_EPS = 0.02;
+const ROLL_DECEL_PER_SECOND = 0.6; // linear rolling resistance (table units per simulated second)
+const MIN_ROLL_SPEED = 0.04; // clamp tiny velocities so balls actually come to rest
+const STOP_EPS = MIN_ROLL_SPEED;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
+const TARGET_FRAME_TIME_SECONDS = TARGET_FRAME_TIME_MS / 1000;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
@@ -7851,9 +7854,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
-      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
+      const resolvePixelRatio = () => {
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const isPortraitMobile = window.innerWidth <= 900;
+        const maxPixelRatio = isPortraitMobile ? 2 : 2.5;
+        return Math.min(devicePixelRatio, maxPixelRatio);
+      };
+      renderer.setPixelRatio(resolvePixelRatio());
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -12781,7 +12788,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             b.pos.addScaledVector(b.vel, stepScale);
             b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
-            const speed = b.vel.length();
+            let speed = b.vel.length();
+            if (speed > 0) {
+              const stepSeconds = TARGET_FRAME_TIME_SECONDS * stepScale;
+              const linearDecel = ROLL_DECEL_PER_SECOND * stepSeconds;
+              if (speed <= MIN_ROLL_SPEED || speed <= linearDecel) {
+                b.vel.set(0, 0);
+                speed = 0;
+              } else {
+                const nextSpeed = Math.max(0, speed - linearDecel);
+                const damp = nextSpeed / speed;
+                b.vel.multiplyScalar(damp);
+                speed = nextSpeed;
+              }
+            }
             const scaledSpeed = speed * stepScale;
             const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
             if (scaledSpeed < STOP_EPS) {
@@ -13270,6 +13290,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
+          renderer.setPixelRatio(resolvePixelRatio());
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
