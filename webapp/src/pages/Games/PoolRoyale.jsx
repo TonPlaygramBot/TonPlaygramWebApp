@@ -7766,9 +7766,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       renderer.toneMappingExposure = 1.2;
       const resolvePixelRatio = () => {
         const devicePixelRatio = window.devicePixelRatio || 1;
-        const isPortraitMobile = window.innerWidth <= 900;
-        const maxPixelRatio = isPortraitMobile ? 2 : 2.5;
-        return Math.min(devicePixelRatio, maxPixelRatio);
+        const viewportWidth = window.innerWidth || host.clientWidth || 0;
+        // Clamp portrait/mobile DPR to the 1.5 cap we used in the morning build so
+        // the renderer matches the faster baseline quality profile.
+        const mobilePixelCap = viewportWidth <= 1366 ? 1.5 : 2;
+        return Math.min(devicePixelRatio, mobilePixelCap);
       };
       renderer.setPixelRatio(resolvePixelRatio());
       renderer.shadowMap.enabled = true;
