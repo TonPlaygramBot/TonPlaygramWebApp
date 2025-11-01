@@ -502,7 +502,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.88; // lift the rails a touch more so their top edge finishes flush with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
@@ -683,7 +683,7 @@ const CLOTH_EDGE_SLEEVES_ENABLED = false; // disable the vertical cloth sleeves 
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.02; // keep the cushion base closer to the rails so the pads sit level with the wood
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.17; // keep the cushion lip tucked beneath the rails without sinking the visible surface
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // leave only a hair of separation so the cushion lip sits level with the rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -13108,9 +13108,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
+  const showPowerSlider = !hud.over;
   useEffect(() => {
+    if (!showPowerSlider) {
+      return undefined;
+    }
     const mount = sliderRef.current;
-    if (!mount) return;
+    if (!mount) return undefined;
     const slider = new SnookerPowerSlider({
       mount,
       value: powerRef.current * 100,
@@ -13130,7 +13134,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock]);
+  }, [applySliderLock, showPowerSlider]);
 
   // Spin controller interactions
   useEffect(() => {
@@ -13574,10 +13578,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         </div>
       )}
       {/* Power Slider */}
-      {showPlayerControls && (
+      {showPowerSlider && (
         <div
           className="absolute right-3 top-1/2 -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
+          data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
           <div
             ref={sliderRef}
