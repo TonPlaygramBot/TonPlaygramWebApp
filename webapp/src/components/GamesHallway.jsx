@@ -6,7 +6,6 @@ import * as THREE from 'three';
 const doorSpacing = 9;
 const hallwayHalfWidth = 6;
 const ceilingHeight = 5;
-const walkSpeed = 0.02;
 
 function useBodyScrollLock(isLocked) {
   useEffect(() => {
@@ -56,7 +55,7 @@ export default function GamesHallway({ games, onClose }) {
       0.1,
       400
     );
-    camera.position.set(0, 1.6, 8);
+    camera.position.set(0, 1.6, 4);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -136,8 +135,6 @@ export default function GamesHallway({ games, onClose }) {
     const doorMat = new THREE.MeshStandardMaterial({ map: doorTex, roughness: 0.4, metalness: 0.2 });
     const doorGeo = new THREE.BoxGeometry(2.8, 3.4, 0.12);
 
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 1, roughness: 0.2 });
-
     const interactable = [];
     let zPos = -5;
 
@@ -165,7 +162,7 @@ export default function GamesHallway({ games, onClose }) {
       ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 20;
       ctx.strokeRect(0, 0, 1024, 256);
-      ctx.font = 'bold 120px "Inter", Arial';
+      ctx.font = 'bold 140px "Inter", Arial';
       ctx.fillStyle = '#FFD700';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -174,15 +171,11 @@ export default function GamesHallway({ games, onClose }) {
       const signTex = new THREE.CanvasTexture(labelCanvas);
       const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, transparent: true });
 
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.7), signMat);
-      sign.position.set(index % 2 === 0 ? 1.5 : -1.5, 2.8, 0);
-      sign.rotation.y = index % 2 === 0 ? -Math.PI / 2 : Math.PI / 2;
-      door.add(sign);
-
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 16), poleMat);
-      const poleX = index % 2 === 0 ? sideX + 0.05 : sideX - 0.05;
-      pole.position.set(poleX, 1.4, zPos + 0.2);
-      scene.add(pole);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), signMat);
+      const signX = index % 2 === 0 ? -hallwayHalfWidth + 1.4 : hallwayHalfWidth - 1.4;
+      sign.position.set(signX, 3.1, zPos);
+      sign.rotation.y = index % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(sign);
 
       const screenCanvas = document.createElement('canvas');
       screenCanvas.width = 512;
@@ -196,7 +189,7 @@ export default function GamesHallway({ games, onClose }) {
       sctx.textBaseline = 'middle';
       sctx.fillText(game.name, 256, 90);
       sctx.font = '28px "Inter", Arial';
-      sctx.fillText('Tap monitor for lobby', 256, 175);
+      sctx.fillText('Click to enter the game', 256, 175);
       const screenTex = new THREE.CanvasTexture(screenCanvas);
       const screenMat = new THREE.MeshStandardMaterial({
         map: screenTex,
@@ -204,8 +197,9 @@ export default function GamesHallway({ games, onClose }) {
         emissiveIntensity: 0.5
       });
       const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), screenMat);
-      screen.position.set(poleX, 1.8, zPos + 0.15);
-      screen.rotation.y = index % 2 === 0 ? Math.PI / 4 : -Math.PI / 4;
+      const monitorX = index % 2 === 0 ? -hallwayHalfWidth + 0.08 : hallwayHalfWidth - 0.08;
+      screen.position.set(monitorX, 1.8, zPos);
+      screen.rotation.y = index % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
       screen.userData = { type: 'monitor', game };
       scene.add(screen);
       interactable.push(screen);
@@ -215,8 +209,7 @@ export default function GamesHallway({ games, onClose }) {
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-
-    const handlePointer = (event) => {
+    const handleInteraction = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -233,14 +226,80 @@ export default function GamesHallway({ games, onClose }) {
       }
     };
 
-    renderer.domElement.addEventListener('pointerdown', handlePointer);
+    const minZ = -corridorLength + 12;
+    const maxZ = 6;
+    camera.position.z = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
+
+    const pointerDown = { x: 0, y: 0 };
+    const lastPointer = { x: 0, y: 0 };
+    let isPointerDown = false;
+    let isDragging = false;
+    let yaw = 0;
+    const yawLimit = Math.PI / 6;
+    const dragThreshold = 6;
+    const moveSensitivity = 0.02;
+    const yawSensitivity = 0.0025;
+
+    const handlePointerDown = (event) => {
+      isPointerDown = true;
+      isDragging = false;
+      pointerDown.x = event.clientX;
+      pointerDown.y = event.clientY;
+      lastPointer.x = event.clientX;
+      lastPointer.y = event.clientY;
+      renderer.domElement.setPointerCapture?.(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+      if (!isPointerDown) return;
+
+      const dx = event.clientX - lastPointer.x;
+      const dy = event.clientY - lastPointer.y;
+
+      if (!isDragging) {
+        const totalDx = event.clientX - pointerDown.x;
+        const totalDy = event.clientY - pointerDown.y;
+        if (Math.hypot(totalDx, totalDy) > dragThreshold) {
+          isDragging = true;
+        }
+      }
+
+      if (isDragging) {
+        yaw = THREE.MathUtils.clamp(yaw - dx * yawSensitivity, -yawLimit, yawLimit);
+        const targetZ = camera.position.z - dy * moveSensitivity;
+        camera.position.z = THREE.MathUtils.clamp(targetZ, minZ, maxZ);
+      }
+
+      lastPointer.x = event.clientX;
+      lastPointer.y = event.clientY;
+    };
+
+    const handlePointerUp = (event) => {
+      if (!isPointerDown) return;
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      isPointerDown = false;
+      if (!isDragging) {
+        handleInteraction(event);
+      }
+    };
+
+    const handlePointerLeave = (event) => {
+      if (!isPointerDown) return;
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      isPointerDown = false;
+    };
+
+    renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+    renderer.domElement.addEventListener('pointermove', handlePointerMove);
+    renderer.domElement.addEventListener('pointerup', handlePointerUp);
+    renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
+    renderer.domElement.addEventListener('pointercancel', handlePointerLeave);
 
     let animationId;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      if (camera.position.z > -corridorLength + 10) {
-        camera.position.z -= walkSpeed;
-      }
+      camera.position.z = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
+      camera.rotation.y = yaw;
       renderer.render(scene, camera);
     };
     animate();
@@ -256,7 +315,11 @@ export default function GamesHallway({ games, onClose }) {
 
     return () => {
       cancelAnimationFrame(animationId);
-      renderer.domElement.removeEventListener('pointerdown', handlePointer);
+      renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
+      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+      renderer.domElement.removeEventListener('pointerup', handlePointerUp);
+      renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
+      renderer.domElement.removeEventListener('pointercancel', handlePointerLeave);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
       container.removeChild(renderer.domElement);
