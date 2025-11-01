@@ -1160,10 +1160,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.52;
-const CLOTH_HAIR_INTENSITY = 0.38;
-const CLOTH_BUMP_INTENSITY = 0.58;
-const CLOTH_SOFT_BLEND = 0.52;
+const CLOTH_TEXTURE_INTENSITY = 0.62;
+const CLOTH_HAIR_INTENSITY = 0.56;
+const CLOTH_BUMP_INTENSITY = 0.82;
+const CLOTH_SOFT_BLEND = 0.46;
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
   cloth,
@@ -1392,19 +1392,74 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
-  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
+  {
+    id: 'freshGreen',
+    label: 'Fresh Green',
+    color: 0x3fba73,
+    detail: {
+      bumpMultiplier: 1.36,
+      roughness: 0.99,
+      sheen: 0.96,
+      sheenRoughness: 0.7,
+      clearcoat: 0.012,
+      clearcoatRoughness: 0.58,
+      emissiveIntensity: 0.62
+    }
+  },
+  {
+    id: 'brightMint',
+    label: 'Bright Mint',
+    color: 0x45b974,
+    detail: {
+      bumpMultiplier: 1.28,
+      roughness: 0.965,
+      sheen: 0.94,
+      sheenRoughness: 0.64,
+      clearcoat: 0.016,
+      clearcoatRoughness: 0.56,
+      emissiveIntensity: 0.58
+    }
+  },
   {
     id: 'emeraldClassic',
     label: 'Green Cloth',
     color: 0x19a34a,
     detail: {
-      bumpMultiplier: 1.22,
-      roughness: 0.78,
-      sheenRoughness: 0.52,
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.32,
-      emissiveIntensity: 0.52
+      bumpMultiplier: 1.48,
+      roughness: 0.995,
+      sheen: 0.97,
+      sheenRoughness: 0.68,
+      clearcoat: 0.01,
+      clearcoatRoughness: 0.6,
+      emissiveIntensity: 0.56
+    }
+  },
+  {
+    id: 'deepVerdant',
+    label: 'Deep Verdant',
+    color: 0x2b7f45,
+    detail: {
+      bumpMultiplier: 1.62,
+      roughness: 1,
+      sheen: 0.98,
+      sheenRoughness: 0.72,
+      clearcoat: 0.008,
+      clearcoatRoughness: 0.64,
+      emissiveIntensity: 0.5
+    }
+  },
+  {
+    id: 'sageHeritage',
+    label: 'Heritage Sage',
+    color: 0x39a15a,
+    detail: {
+      bumpMultiplier: 1.44,
+      roughness: 0.98,
+      sheen: 0.95,
+      sheenRoughness: 0.66,
+      clearcoat: 0.014,
+      clearcoatRoughness: 0.6,
+      emissiveIntensity: 0.54
     }
   }
 ]);
@@ -1831,7 +1886,7 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = 4096;
-const CLOTH_THREAD_PITCH = 12 * 0.92;
+const CLOTH_THREAD_PITCH = 12 * 1.196; // enlarge thread spacing (~30%) so fibres read bigger
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -1890,9 +1945,16 @@ const createClothTextures = (() => {
       const tuft = Math.pow(tuftSeed, 3.8);
       const stray = Math.pow(straySeed, 2.4);
       const filament = Math.pow(Math.abs(along), 1.6);
-      const wisp = Math.pow(strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18), 4.2);
+      const wisp = Math.pow(
+        strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18),
+        4.2
+      );
+      const crossNap = Math.pow(
+        Math.abs(Math.cos((x - y) * 0.035 + wiggle * 0.42)),
+        2.1
+      );
       return THREE.MathUtils.clamp(
-        tuft * 0.55 + stray * 0.25 + filament * 0.3 + wisp * 0.2,
+        tuft * 0.45 + stray * 0.22 + filament * 0.28 + wisp * 0.18 + crossNap * 0.25,
         0,
         1
       );
@@ -2019,7 +2081,7 @@ const createClothTextures = (() => {
           0,
           1
         );
-        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 36);
+        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 48);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -3527,8 +3589,8 @@ function makeClothTexture(
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
-  const threadStep = 4; // emphasise the primary warp/weft directions
-  ctx.lineWidth = 0.7;
+  const threadStep = 4 * 1.3; // widen spacing so the thread pattern reads ~30% larger
+  ctx.lineWidth = 0.78;
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   for (let x = -threadStep; x < size + threadStep; x += threadStep) {
     ctx.beginPath();
@@ -3544,29 +3606,29 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  const weaveSpacing = 2;
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  const weaveSpacing = 2 * 1.3;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
   for (let y = 0; y < size; y += weaveSpacing) {
     const offset = (y / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
     for (let x = 0; x < size; x += weaveSpacing) {
-      ctx.fillRect(x + offset, y, 0.7, 1);
+      ctx.fillRect(x + offset, y, 0.9, 1.2);
     }
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
   for (let x = 0; x < size; x += weaveSpacing) {
     const offset = (x / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
     for (let y = 0; y < size; y += weaveSpacing) {
-      ctx.fillRect(x, y + offset, 1, 0.7);
+      ctx.fillRect(x, y + offset, 1.2, 0.9);
     }
   }
 
-  ctx.lineWidth = 0.35;
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  for (let i = 0; i < 180000; i++) {
+  ctx.lineWidth = 0.4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  for (let i = 0; i < 210000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const horizontal = Math.random() > 0.5;
-    const length = Math.random() * 0.6 + 0.25;
+    const length = Math.random() * 0.72 + 0.32;
     ctx.beginPath();
     if (horizontal) {
       ctx.moveTo(x - length / 2, y);
@@ -3578,12 +3640,12 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  for (let i = 0; i < 120000; i++) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+  for (let i = 0; i < 150000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const horizontal = Math.random() > 0.5;
-    const length = Math.random() * 0.5 + 0.15;
+    const length = Math.random() * 0.62 + 0.22;
     ctx.beginPath();
     if (horizontal) {
       ctx.moveTo(x - length / 2, y);
@@ -3595,14 +3657,26 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  ctx.globalAlpha = 0.2;
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.globalAlpha = 0.24;
+  ctx.fillStyle = 'rgba(0,0,0,0.24)';
+  for (let i = 0; i < 62000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.fillRect(x, y, 1.1, 1.1);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 0.32;
   for (let i = 0; i < 48000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
-    ctx.fillRect(x, y, 1, 1);
+    const length = Math.random() * 1.4 + 0.4;
+    ctx.beginPath();
+    ctx.moveTo(x - length * 0.3, y - length * 0.1);
+    ctx.lineTo(x + length * 0.3, y + length * 0.1);
+    ctx.stroke();
   }
-  ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -4202,27 +4276,28 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.94,
-    sheen: 0.92,
+    roughness: 0.97,
+    sheen: 0.95,
     sheenColor,
-    sheenRoughness: 0.58,
+    sheenRoughness: 0.66,
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
-    envMapIntensity: 0.12,
+    clearcoatRoughness: 0.9,
+    envMapIntensity: 0.1,
     emissive: clothColor.clone().multiplyScalar(0.05),
-    emissiveIntensity: 0.5
+    emissiveIntensity: 0.56
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 14; // denser weave so the wool fibres read smaller and sharper
+  const threadsPerBallTarget = 14; // base density before global scaling adjustments
+  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features by ~30%
   const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.12; // stretch the weave a touch so the pattern reads larger while staying taut
+    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = 0.64 * 1.52 * 1.34;
+  const baseBumpScale = 0.64 * 1.52 * 1.34 * 1.26;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
