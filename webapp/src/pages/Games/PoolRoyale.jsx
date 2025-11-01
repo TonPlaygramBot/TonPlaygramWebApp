@@ -1450,34 +1450,8 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'freshGreen',
-    label: 'Fresh Green',
-    color: 0x3fba73,
-    detail: {
-      bumpMultiplier: 1.44,
-      roughness: 0.98,
-      sheen: 0.95,
-      sheenRoughness: 0.66,
-      clearcoat: 0.014,
-      clearcoatRoughness: 0.6,
-      emissiveIntensity: 0.54
-    }
-  },
-  {
-    id: 'brightMint',
-    label: 'Bright Mint',
-    color: 0x45b974,
-    detail: {
-      bumpMultiplier: 1.28,
-      roughness: 0.965,
-      sheen: 0.94,
-      sheenRoughness: 0.64,
-      clearcoat: 0.016,
-      clearcoatRoughness: 0.56,
-      emissiveIntensity: 0.58
-    }
-  }
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
+  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 }
 ]);
 
 const POCKET_LINER_PRESETS = Object.freeze([
