@@ -502,7 +502,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
+const RAIL_HEIGHT = TABLE.THICK * 1.84; // lift the rails a touch more so their top edge finishes flush with the green cushions
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
@@ -13260,7 +13260,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const showPlayerControls = hud.turn === 0 && !hud.over && !aiTakingShot;
+  const showPlayerControls = hud.turn === 0 && !hud.over;
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
 
@@ -13561,7 +13561,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       )}
       {/* Power Slider */}
       {showPlayerControls && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        <div
+          className="absolute right-3 top-1/2 -translate-y-1/2"
+          data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
+        >
           <div
             ref={sliderRef}
             style={{
