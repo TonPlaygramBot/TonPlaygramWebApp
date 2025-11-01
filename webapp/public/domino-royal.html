@@ -132,6 +132,7 @@ app.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
 
 const scene = new THREE.Scene();
+const textureLoader = new THREE.TextureLoader();
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = envTex;
@@ -198,6 +199,11 @@ const CAMERA_HEIGHT_BOOST = { portrait: 1.95, landscape: 1.58 };
 const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
 const UP = new THREE.Vector3(0, 1, 0);
 
+const urlParams = new URLSearchParams(window.location.search);
+const entryMode = (urlParams.get('entry') || '').toLowerCase();
+const shouldRunHallwayEntry = entryMode === 'hallway';
+const shouldShowSeatLabel = shouldRunHallwayEntry;
+
 function seatBasisForAngle(angle, radius = CHAIR_RADIUS) {
   const useAngle = Number.isFinite(angle) ? angle : CAMERA_DEFAULT_AZIMUTH;
   const useRadius = Number.isFinite(radius) ? radius : CHAIR_RADIUS;
@@ -263,8 +269,7 @@ renderer.domElement.addEventListener(
   { passive: true }
 );
 
-function positionCameraForViewport({ force = false } = {}) {
-  fitCamera();
+function computeDesiredCameraPosition() {
   const dom = renderer.domElement;
   const width = dom?.clientWidth || window.innerWidth || 1;
   const height = dom?.clientHeight || window.innerHeight || 1;
@@ -274,6 +279,7 @@ function positionCameraForViewport({ force = false } = {}) {
   const seatHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
   const seatAnchor = seat.position.clone();
   seatAnchor.y = seatHeight;
+
   const retreat = isPortrait ? CAMERA_REAR_OFFSET.portrait : CAMERA_REAR_OFFSET.landscape;
   const lateral = isPortrait ? CAMERA_LATERAL_OFFSET.portrait : CAMERA_LATERAL_OFFSET.landscape;
   const elevation = isPortrait ? CAMERA_HEIGHT_BOOST.portrait : CAMERA_HEIGHT_BOOST.landscape;
@@ -283,28 +289,34 @@ function positionCameraForViewport({ force = false } = {}) {
     .addScaledVector(seat.forward, -retreat)
     .addScaledVector(seat.right, lateral);
   desiredPosition.y = seatHeight + elevation;
+  return desiredPosition;
+}
 
-  const clampPosition = (position) => {
-    const offset = position.clone().sub(CAMERA_TARGET);
-    const spherical = new THREE.Spherical().setFromVector3(offset);
-    if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
-      spherical.radius = CAMERA_MIN_RADIUS;
-      spherical.theta = CAMERA_DEFAULT_AZIMUTH;
-      spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
-    }
-    spherical.radius = THREE.MathUtils.clamp(spherical.radius, CAMERA_MIN_RADIUS, CAMERA_MAX_RADIUS);
-    spherical.phi = THREE.MathUtils.clamp(spherical.phi, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
-    const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
-    return CAMERA_TARGET.clone().add(clampedOffset);
-  };
+function clampCameraPosition(position) {
+  const offset = position.clone().sub(CAMERA_TARGET);
+  const spherical = new THREE.Spherical().setFromVector3(offset);
+  if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
+    spherical.radius = CAMERA_MIN_RADIUS;
+    spherical.theta = CAMERA_DEFAULT_AZIMUTH;
+    spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
+  }
+  spherical.radius = THREE.MathUtils.clamp(spherical.radius, CAMERA_MIN_RADIUS, CAMERA_MAX_RADIUS);
+  spherical.phi = THREE.MathUtils.clamp(spherical.phi, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
+  const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
+  return CAMERA_TARGET.clone().add(clampedOffset);
+}
 
+function positionCameraForViewport({ force = false } = {}) {
+  fitCamera();
+  const desiredPosition = computeDesiredCameraPosition();
+  const clampedDesired = clampCameraPosition(desiredPosition);
   if (!cameraHasUserControl || force) {
-    camera.position.copy(clampPosition(desiredPosition));
+    camera.position.copy(clampedDesired);
     if (force) {
       cameraHasUserControl = false;
     }
   } else {
-    camera.position.copy(clampPosition(camera.position));
+    camera.position.copy(clampCameraPosition(camera.position));
   }
 
   controls.target.copy(CAMERA_TARGET);
@@ -1234,6 +1246,200 @@ wall.receiveShadow = false;
 wall.castShadow = false;
 arenaG.add(wall);
 
+const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
+const hallwayDoorTexture = textureLoader.load(
+  'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/wood/oak_planks_diff_1k.jpg'
+);
+const hallwayDoorMaterial = new THREE.MeshStandardMaterial({
+  map: hallwayDoorTexture,
+  roughness: 0.4,
+  metalness: 0.2
+});
+const hallwayHandleMaterial = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
+const hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
+const hallwayDoorPivot = new THREE.Group();
+hallwayDoorPivot.position.set(-ARENA_DOOR_DIMENSIONS.width / 2, ARENA_DOOR_DIMENSIONS.height / 2, hallwayDoorZ);
+
+const hallwayDoor = new THREE.Mesh(
+  new THREE.BoxGeometry(
+    ARENA_DOOR_DIMENSIONS.width,
+    ARENA_DOOR_DIMENSIONS.height,
+    ARENA_DOOR_DIMENSIONS.thickness
+  ),
+  hallwayDoorMaterial
+);
+hallwayDoor.castShadow = true;
+hallwayDoor.receiveShadow = true;
+hallwayDoor.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, 0);
+hallwayDoorPivot.add(hallwayDoor);
+
+const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 16), hallwayHandleMaterial);
+hallwayHandle.rotation.z = Math.PI / 2;
+hallwayHandle.position.set(ARENA_DOOR_DIMENSIONS.width - 0.6, -0.35, ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03);
+hallwayHandle.castShadow = true;
+hallwayHandle.receiveShadow = false;
+hallwayDoor.add(hallwayHandle);
+
+const hallwayDoorFrame = new THREE.Mesh(
+  new THREE.BoxGeometry(
+    ARENA_DOOR_DIMENSIONS.width + 0.25,
+    ARENA_DOOR_DIMENSIONS.height + 0.2,
+    ARENA_DOOR_DIMENSIONS.thickness * 0.8
+  ),
+  new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.75, metalness: 0.18 })
+);
+hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
+hallwayDoorFrame.castShadow = false;
+hallwayDoorFrame.receiveShadow = false;
+hallwayDoorPivot.add(hallwayDoorFrame);
+
+const hallwayDoorGroup = new THREE.Group();
+hallwayDoorGroup.add(hallwayDoorPivot);
+arenaG.add(hallwayDoorGroup);
+
+const ARENA_WALKWAY_LENGTH = 14;
+const ARENA_WALKWAY_WIDTH = 4.2;
+const walkwayFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH, ARENA_WALKWAY_LENGTH),
+  new THREE.MeshStandardMaterial({ color: 0x1a1f2a, roughness: 0.82, metalness: 0.08 })
+);
+walkwayFloor.rotation.x = -Math.PI / 2;
+walkwayFloor.position.set(
+  0,
+  0.005,
+  hallwayDoorZ + ARENA_WALKWAY_LENGTH / 2 - ARENA_DOOR_DIMENSIONS.thickness * 0.5
+);
+walkwayFloor.receiveShadow = true;
+arenaG.add(walkwayFloor);
+
+const walkwayTrimMat = new THREE.MeshStandardMaterial({ color: 0x251a12, roughness: 0.68, metalness: 0.15 });
+const walkwayTrimGeo = new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.2, 0.12, 0.4);
+const walkwayFrontTrim = new THREE.Mesh(walkwayTrimGeo, walkwayTrimMat);
+walkwayFrontTrim.position.set(0, 0.06, hallwayDoorZ - 0.2);
+walkwayFrontTrim.castShadow = false;
+walkwayFrontTrim.receiveShadow = false;
+arenaG.add(walkwayFrontTrim);
+const walkwayOuterTrim = walkwayFrontTrim.clone();
+walkwayOuterTrim.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.2;
+arenaG.add(walkwayOuterTrim);
+
+const walkwaySideGeo = new THREE.BoxGeometry(0.35, 1.2, ARENA_WALKWAY_LENGTH);
+const walkwaySideMat = new THREE.MeshStandardMaterial({ color: 0x384152, roughness: 0.7, metalness: 0.18 });
+const walkwaySideLeft = new THREE.Mesh(walkwaySideGeo, walkwaySideMat);
+walkwaySideLeft.position.set(-ARENA_WALKWAY_WIDTH / 2 - 0.175, 0.6, walkwayFloor.position.z);
+walkwaySideLeft.castShadow = true;
+walkwaySideLeft.receiveShadow = true;
+arenaG.add(walkwaySideLeft);
+const walkwaySideRight = walkwaySideLeft.clone();
+walkwaySideRight.position.x = ARENA_WALKWAY_WIDTH / 2 + 0.175;
+arenaG.add(walkwaySideRight);
+
+const hallwayDoorState = {
+  pivot: hallwayDoorPivot,
+  openAngle: THREE.MathUtils.degToRad(100),
+  closedAngle: 0
+};
+const walkwayFarZ = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2;
+const walkwayEntryZ = walkwayFarZ + 1.5;
+
+function easeInOutCubic(t) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+let entrySequenceActive = false;
+let entryStartTime = 0;
+let entryCameraCurve = null;
+let entryTargetCurve = null;
+const ENTRY_TOTAL_DURATION = 6500;
+
+function configureEntryCurves(finalPosition) {
+  const approachHeight = 1.55;
+  const interiorHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS + 0.35;
+  entryCameraCurve = new THREE.CatmullRomCurve3(
+    [
+      new THREE.Vector3(0, approachHeight, walkwayEntryZ),
+      new THREE.Vector3(0, approachHeight, hallwayDoorZ + 0.6),
+      new THREE.Vector3(0, interiorHeight, hallwayDoorZ - 3.4),
+      finalPosition.clone()
+    ],
+    false,
+    'catmullrom',
+    0.45
+  );
+  entryTargetCurve = new THREE.CatmullRomCurve3(
+    [
+      new THREE.Vector3(0, 1.35, hallwayDoorZ - 1.4),
+      new THREE.Vector3(0, interiorHeight, hallwayDoorZ - 2.8),
+      CAMERA_TARGET.clone()
+    ],
+    false,
+    'catmullrom',
+    0.45
+  );
+}
+
+function startHallwayEntry() {
+  fitCamera();
+  const finalDesired = clampCameraPosition(computeDesiredCameraPosition());
+  configureEntryCurves(finalDesired);
+  entrySequenceActive = true;
+  entryStartTime = performance.now();
+  controls.enabled = false;
+  cameraHasUserControl = false;
+  if (entryCameraCurve) {
+    const startPoint = entryCameraCurve.getPoint(0);
+    camera.position.copy(startPoint);
+  }
+  if (entryTargetCurve) {
+    controls.target.copy(entryTargetCurve.getPoint(0));
+  } else {
+    controls.target.copy(CAMERA_TARGET);
+  }
+  if (hallwayDoorState) {
+    hallwayDoorState.pivot.rotation.y = hallwayDoorState.closedAngle;
+  }
+}
+
+function updateEntrySequence(now) {
+  if (!entrySequenceActive) {
+    return;
+  }
+  const timestamp = Number.isFinite(now) ? now : performance.now();
+  const elapsed = Math.max(0, timestamp - entryStartTime);
+  const progress = Math.min(elapsed / ENTRY_TOTAL_DURATION, 1);
+
+  const doorPhase = easeInOutCubic(Math.min(progress / 0.35, 1));
+  if (hallwayDoorState?.pivot) {
+    const angle = THREE.MathUtils.lerp(
+      hallwayDoorState.closedAngle,
+      hallwayDoorState.closedAngle - hallwayDoorState.openAngle,
+      doorPhase
+    );
+    hallwayDoorState.pivot.rotation.y = angle;
+  }
+
+  if (entryCameraCurve) {
+    const cameraPhase = easeInOutCubic(Math.min(Math.max((progress - 0.05) / 0.85, 0), 1));
+    const point = entryCameraCurve.getPoint(cameraPhase);
+    camera.position.copy(point);
+  }
+
+  if (entryTargetCurve) {
+    const targetPhase = easeInOutCubic(Math.min(Math.max((progress - 0.08) / 0.75, 0), 1));
+    const targetPoint = entryTargetCurve.getPoint(targetPhase);
+    controls.target.copy(targetPoint);
+  }
+
+  if (progress >= 1) {
+    entrySequenceActive = false;
+    controls.enabled = true;
+    controls.target.copy(CAMERA_TARGET);
+    positionCameraForViewport({ force: true });
+  }
+}
+
 /* ---------- Shapes & Table Build ---------- */
 function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
@@ -1398,6 +1604,50 @@ updateTableMaterials();
 
 const tableParts = {};
 const chairs = [];
+let seatLabelMesh = null;
+
+function disposeSeatLabel() {
+  if (!seatLabelMesh) {
+    return;
+  }
+  seatLabelMesh.parent?.remove(seatLabelMesh);
+  if (seatLabelMesh.material?.map?.dispose) {
+    seatLabelMesh.material.map.dispose();
+  }
+  if (seatLabelMesh.material?.dispose) {
+    seatLabelMesh.material.dispose();
+  }
+  if (seatLabelMesh.geometry?.dispose) {
+    seatLabelMesh.geometry.dispose();
+  }
+  seatLabelMesh = null;
+}
+
+function createSeatLabelMesh() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(12, 16, 24, 0.85)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#ffd24a';
+  ctx.lineWidth = 18;
+  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+  ctx.fillStyle = '#ffd24a';
+  ctx.font = 'bold 140px "Inter", Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SEAT', canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  const geometry = new THREE.PlaneGeometry(1.6, 0.8);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 12;
+  return mesh;
+}
+
 const TABLE_OUTER_RADIUS = TABLE_RADIUS;
 const TABLE_INNER_RADIUS = TABLE_OUTER_RADIUS * 0.84;
 const CLOTH_RADIUS = TABLE_OUTER_RADIUS * 0.72;
@@ -1832,6 +2082,7 @@ function disposeChairResources(root) {
 }
 
 function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
+  disposeSeatLabel();
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -1866,6 +2117,15 @@ function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFA
 
     tableG.add(wrapper);
     chairs.push(wrapper);
+
+    if (shouldShowSeatLabel && index === HUMAN_SEAT_INDEX) {
+      seatLabelMesh = createSeatLabelMesh();
+      const labelHeight =
+        CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness + 0.72;
+      seatLabelMesh.position.set(0, labelHeight, -CHAIR_DIMENSIONS.seatDepth * 0.35);
+      seatLabelMesh.rotation.x = -Math.PI / 16;
+      wrapper.add(seatLabelMesh);
+    }
   });
 }
 
@@ -2023,7 +2283,6 @@ function setStatus(t){ statusEl.textContent = statusPrefix ? `${statusPrefix} â€
 function genSet(){ const set=[]; for(let a=0;a<=6;a++){ for(let b=a;b<=6;b++){ set.push({a,b}); } } return set; }
 function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
-const urlParams = new URLSearchParams(window.location.search);
 const requestedPlayers = Number.parseInt(urlParams.get('players') || urlParams.get('playerCount') || '', 10);
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
@@ -3003,12 +3262,45 @@ function updateWinnerHighlight(now){
 }
 
 /* ---------- Loop & Resize ---------- */
-function tick(now){ updateDrawAnimations(now); updatePlacementAnimations(now); updateWinnerHighlight(now); controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick); }
+function tick(now){
+  updateEntrySequence(now);
+  updateDrawAnimations(now);
+  updatePlacementAnimations(now);
+  updateWinnerHighlight(now);
+  controls.update();
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
 requestAnimationFrame(tick);
-function onResize(){ positionCameraForViewport(); }
+function onResize(){
+  if (entrySequenceActive) {
+    fitCamera();
+    const finalDesired = clampCameraPosition(computeDesiredCameraPosition());
+    configureEntryCurves(finalDesired);
+    const now = performance.now();
+    const elapsed = Math.max(0, now - entryStartTime);
+    const progress = Math.min(elapsed / ENTRY_TOTAL_DURATION, 1);
+    if (entryCameraCurve) {
+      const cameraPhase = easeInOutCubic(Math.min(Math.max((progress - 0.05) / 0.85, 0), 1));
+      const point = entryCameraCurve.getPoint(cameraPhase);
+      camera.position.copy(point);
+    }
+    if (entryTargetCurve) {
+      const targetPhase = easeInOutCubic(Math.min(Math.max((progress - 0.08) / 0.75, 0), 1));
+      const targetPoint = entryTargetCurve.getPoint(targetPhase);
+      controls.target.copy(targetPoint);
+    }
+  } else {
+    positionCameraForViewport();
+  }
+}
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
 
-positionCameraForViewport({ force: true });
+if (shouldRunHallwayEntry) {
+  startHallwayEntry();
+} else {
+  positionCameraForViewport({ force: true });
+}
 </script>
 </body>
 </html>
