@@ -656,15 +656,12 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.9925; // tuned for faster energy loss so balls settle promptly on mobile refresh rates
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const ROLL_DECEL_PER_SECOND = 0.6; // linear rolling resistance (table units per simulated second)
-const MIN_ROLL_SPEED = 0.04; // clamp tiny velocities so balls actually come to rest
-const STOP_EPS = MIN_ROLL_SPEED;
-const TARGET_FPS = 60;
+const STOP_EPS = 0.02;
+const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
-const TARGET_FRAME_TIME_SECONDS = TARGET_FRAME_TIME_MS / 1000;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
@@ -803,8 +800,8 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-// Restore morning shot power using the legacy 2D tuning multiplier (3.3 * 0.3 * 1.65 * 1.5).
-const SHOT_FORCE_BOOST = 1.5;
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
+const SHOT_FORCE_BOOST = 1.5 * 0.75;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -1162,13 +1159,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.48; // restore the higher-contrast weave from the morning tuning pass
-const CLOTH_HAIR_INTENSITY = 0.26; // match the earlier fibre nap strength so stray hairs feel natural
-const CLOTH_BUMP_INTENSITY = 0.42; // revert bump depth so the roughness reads like the morning build
-const CLOTH_SOFT_BLEND = 0.52;
-const CLOTH_PATTERN_SIZE_SCALE = 1; // restore the original felt pattern density
-const CLOTH_PATTERN_REPEAT_SCALE = 1 / CLOTH_PATTERN_SIZE_SCALE;
-const CLOTH_CARPET_BUMP_MULTIPLIER = 0.72; // damp bump amplitude to smooth out visible waves
+const CLOTH_TEXTURE_INTENSITY = 0.62;
+const CLOTH_HAIR_INTENSITY = 0.56;
+const CLOTH_BUMP_INTENSITY = 0.82;
+const CLOTH_SOFT_BLEND = 0.46;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -1438,29 +1432,62 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.56,
     clearcoatRoughness: 0.16,
     envMapIntensity: 0.98
+  },
+  {
+    id: 'matteBlack',
+    label: 'Black Chrome',
+    color: 0x1a1a1a,
+    metalness: 0.84,
+    roughness: 0.36,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.94
   }
 ]);
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
-  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
   {
-    id: 'emeraldClassic',
-    label: 'Green Cloth',
-    color: 0x19a34a,
+    id: 'freshGreen',
+    label: 'Fresh Green',
+    color: 0x3fba73,
     detail: {
-      bumpMultiplier: 1.22,
-      roughness: 0.78,
-      sheenRoughness: 0.52,
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.32,
-      emissiveIntensity: 0.52
+      bumpMultiplier: 1.44,
+      roughness: 0.98,
+      sheen: 0.95,
+      sheenRoughness: 0.66,
+      clearcoat: 0.014,
+      clearcoatRoughness: 0.6,
+      emissiveIntensity: 0.54
+    }
+  },
+  {
+    id: 'brightMint',
+    label: 'Bright Mint',
+    color: 0x45b974,
+    detail: {
+      bumpMultiplier: 1.28,
+      roughness: 0.965,
+      sheen: 0.94,
+      sheenRoughness: 0.64,
+      clearcoat: 0.016,
+      clearcoatRoughness: 0.56,
+      emissiveIntensity: 0.58
     }
   }
 ]);
 
 const POCKET_LINER_PRESETS = Object.freeze([
+  Object.freeze({
+    id: 'maplePocket',
+    label: 'Maple Pockets',
+    type: 'wood',
+    finishId: 'maple',
+    jawMix: 0.115,
+    rimMix: 0.26,
+    textureDensity: 1.16,
+    seed: 1620
+  }),
   Object.freeze({
     id: 'walnutPocket',
     label: 'Walnut Pocket Jaws',
@@ -1556,7 +1583,7 @@ function resolvePocketLinerTextureColor(value, fallback) {
 }
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS[0]?.id ?? 'walnutPocket';
+  POCKET_LINER_PRESETS[0]?.id ?? 'maplePocket';
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config, index) => {
@@ -1669,26 +1696,6 @@ const POCKET_LINER_OPTIONS = Object.freeze(
     return null;
   }).filter(Boolean)
 );
-
-const DEFAULT_BROADCAST_CAMERA_ID = 'worldFeedShortRail';
-const BROADCAST_CAMERA_OPTIONS = Object.freeze([
-  Object.freeze({
-    id: 'worldFeedShortRail',
-    label: 'World Feed Railcam',
-    description: 'Tour-standard short-rail truck delivering the main TV cut.',
-    profile: Object.freeze({
-      railMode: 'shortLocked',
-      lateralInfluence: 0.22,
-      slideLimitMultiplier: 1.05,
-      focusLift: BALL_R * 1.3,
-      focusDepth: BALL_R * 2.6,
-      dollyOffset: -BALL_R * 6.5,
-      minSettle: 0.6,
-      idleLerpScale: 0.65,
-      idleMinSettle: 0.45
-    })
-  })
-]);
 
 const POCKET_LINER_TEXTURE_CACHE = new Map();
 
@@ -1955,8 +1962,12 @@ const createClothTextures = (() => {
         strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18),
         4.2
       );
+      const crossNap = Math.pow(
+        Math.abs(Math.cos((x - y) * 0.035 + wiggle * 0.42)),
+        2.1
+      );
       return THREE.MathUtils.clamp(
-        tuft * 0.55 + stray * 0.25 + filament * 0.3 + wisp * 0.2,
+        tuft * 0.45 + stray * 0.22 + filament * 0.28 + wisp * 0.18 + crossNap * 0.25,
         0,
         1
       );
@@ -1980,8 +1991,8 @@ const createClothTextures = (() => {
             (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
             (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
             (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
-            (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.2 * CLOTH_TEXTURE_INTENSITY +
             (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
             (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
           0,
@@ -2006,7 +2017,7 @@ const createClothTextures = (() => {
         const accentMix = THREE.MathUtils.clamp(
           0.48 +
             (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
             (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
           0,
           1
@@ -2041,7 +2052,6 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.repeat.set(16, 64);
     colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
     colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
@@ -2078,14 +2088,14 @@ const createClothTextures = (() => {
             (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
             (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
             (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
-            (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
-            (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
-            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.2 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.22 * CLOTH_BUMP_INTENSITY +
             (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
-        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 36);
+        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 48);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -3596,7 +3606,7 @@ function makeClothTexture(
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
-  const threadStep = 4; // revert to the tighter thread spacing from the morning build
+  const threadStep = 4 * 1.3; // widen spacing so the thread pattern reads ~30% larger
   ctx.lineWidth = 0.78;
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   for (let x = -threadStep; x < size + threadStep; x += threadStep) {
@@ -3613,7 +3623,7 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  const weaveSpacing = 2;
+  const weaveSpacing = 2 * 1.3;
   ctx.fillStyle = 'rgba(255,255,255,0.12)';
   for (let y = 0; y < size; y += weaveSpacing) {
     const offset = (y / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
@@ -3687,7 +3697,7 @@ function makeClothTexture(
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 7.2 * CLOTH_PATTERN_REPEAT_SCALE;
+  const baseRepeat = 7.2;
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
@@ -4283,30 +4293,28 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.98,
-    sheen: Math.min(CLOTH_QUALITY.sheen, 0.78),
+    roughness: 0.95,
+    sheen: CLOTH_QUALITY.sheen,
     sheenColor,
-    sheenRoughness: Math.max(CLOTH_QUALITY.sheenRoughness, 0.82),
+    sheenRoughness: CLOTH_QUALITY.sheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.92,
-    envMapIntensity: 0.06,
-    emissive: clothColor.clone().multiplyScalar(0.04),
-    emissiveIntensity: 0.46
+    clearcoatRoughness: 0.86,
+    envMapIntensity: 0.08,
+    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissiveIntensity: 0.52
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // base density before global scaling adjustments
-  const clothPatternUpscale = CLOTH_PATTERN_REPEAT_SCALE; // restore the original weave frequency
+  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features by ~30%
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale =
-    (0.64 * 1.52 * 1.34 * 1.26 * CLOTH_CARPET_BUMP_MULTIPLIER) *
-    CLOTH_QUALITY.bumpScaleMultiplier;
+  const baseBumpScale = (0.64 * 1.52 * 1.34 * 1.26) * CLOTH_QUALITY.bumpScaleMultiplier;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -6618,15 +6626,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_POCKET_LINER_OPTION_ID;
   });
-  const [broadcastCameraId, setBroadcastCameraId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerBroadcastCamera');
-      if (stored && BROADCAST_CAMERA_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_BROADCAST_CAMERA_ID;
-  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6634,12 +6633,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
-  );
-  const activeBroadcastCameraOption = useMemo(
-    () =>
-      BROADCAST_CAMERA_OPTIONS.find((opt) => opt.id === broadcastCameraId) ??
-      BROADCAST_CAMERA_OPTIONS[0],
-    [broadcastCameraId]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -7007,11 +7000,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
   }, [woodTextureId]);
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerBroadcastCamera', broadcastCameraId);
-    }
-  }, [broadcastCameraId]);
-  useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -7168,7 +7156,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
-  const broadcastProfileRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
@@ -7220,14 +7207,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const spinDotElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
-  useEffect(() => {
-    const profile = activeBroadcastCameraOption?.profile ?? null;
-    broadcastProfileRef.current = profile;
-    const rig = broadcastCamerasRef.current;
-    if (rig) {
-      rig.profile = profile;
-    }
-  }, [activeBroadcastCameraOption]);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -7764,15 +7743,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const resolvePixelRatio = () => {
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        const viewportWidth = window.innerWidth || host.clientWidth || 0;
-        // Clamp portrait/mobile DPR to the 1.5 cap we used in the morning build so
-        // the renderer matches the faster baseline quality profile.
-        const mobilePixelCap = viewportWidth <= 1366 ? 1.5 : 2;
-        return Math.min(devicePixelRatio, mobilePixelCap);
-      };
-      renderer.setPixelRatio(resolvePixelRatio());
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
@@ -8348,10 +8321,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
-      const initialBroadcastProfile =
-        broadcastProfileRef.current ?? BROADCAST_CAMERA_OPTIONS[0]?.profile ?? null;
-      broadcastProfileRef.current = initialBroadcastProfile;
-      broadcastRig.profile = initialBroadcastProfile;
 
       const tripodHeightBoost = 1.04;
       const tripodScale =
@@ -8995,133 +8964,49 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const profile = rig.profile ?? broadcastProfileRef.current ?? null;
-          const baseLerp = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
-          const scaledLerp = Number.isFinite(profile?.lerpMultiplier)
-            ? THREE.MathUtils.clamp(baseLerp * profile.lerpMultiplier, 0, 1)
-            : baseLerp;
-          const minSettle = Number.isFinite(profile?.minSettle)
-            ? THREE.MathUtils.clamp(profile.minSettle, 0, 1)
-            : 0.5;
-          const settleActive = Math.min(1, Math.max(scaledLerp, minSettle));
-          const idleScale = Number.isFinite(profile?.idleLerpScale)
-            ? profile.idleLerpScale
-            : 0.6;
-          const idleMinSettle = Number.isFinite(profile?.idleMinSettle)
-            ? THREE.MathUtils.clamp(profile.idleMinSettle, 0, 1)
-            : Math.min(minSettle * 0.85, minSettle);
-          const settleIdle = Math.min(
-            1,
-            Math.max(Math.min(1, scaledLerp * idleScale), idleMinSettle)
-          );
+          const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
           const focusTarget =
             focusWorld ??
             targetWorld ??
             rig.defaultFocusWorld ??
             rig.defaultFocus ??
             null;
-          const scaleFactor = Number.isFinite(worldScaleFactor)
-            ? worldScaleFactor
-            : 1;
-          const lateralInfluence = Number.isFinite(profile?.lateralInfluence)
-            ? profile.lateralInfluence
-            : 0.25;
-          const slideMultiplier = Number.isFinite(profile?.slideLimitMultiplier)
-            ? profile.slideLimitMultiplier
-            : 1;
-          const dollyOffset = Number.isFinite(profile?.dollyOffset)
-            ? profile.dollyOffset
-            : 0;
-          const focusLift = Number.isFinite(profile?.focusLift)
-            ? profile.focusLift
-            : 0;
-          const focusDepth = Number.isFinite(profile?.focusDepth)
-            ? profile.focusDepth
-            : 0;
-          const focusStrafe = Number.isFinite(profile?.focusStrafe)
-            ? profile.focusStrafe
-            : 0;
-          const panOffset = Number.isFinite(profile?.panOffset)
-            ? profile.panOffset
-            : 0;
-
-          const adjustFocus = (unit, source, dirSign) => {
-            if (!source) return null;
-            const focus = source.clone();
-            const direction =
-              Number.isFinite(dirSign) && dirSign !== 0
-                ? dirSign
-                : unit?.direction ?? 1;
-            if (focusLift) {
-              focus.y += focusLift * scaleFactor;
-            }
-            if (focusDepth) {
-              focus.z += focusDepth * direction * scaleFactor;
-            }
-            if (focusStrafe) {
-              focus.x += focusStrafe * direction * scaleFactor;
-            }
-            return focus;
-          };
-
-          const applyFocus = (unit, lookAt, settleValue, dirSign) => {
+          const applyFocus = (unit, lookAt, t) => {
             if (!unit) return;
-            const focus = adjustFocus(unit, lookAt, dirSign);
-            const slider = unit.slider;
-            if (slider) {
-              const limitBase =
-                slider.userData?.slideLimit ?? rig.slideLimit ?? 0;
-              const limit = Math.max(limitBase * slideMultiplier, 0);
-              const targetX = focus
-                ? THREE.MathUtils.clamp(
-                    focus.x * lateralInfluence,
-                    -limit,
-                    limit
-                  )
-                : 0;
-              slider.position.x = THREE.MathUtils.lerp(
-                slider.position.x,
-                targetX,
-                settleValue
+            if (unit.slider) {
+              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
+              const limit = Math.max(
+                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
+                0
               );
-              const direction =
-                Number.isFinite(dirSign) && dirSign !== 0
-                  ? dirSign
-                  : unit?.direction ?? 1;
-              const targetZ = dollyOffset * direction * scaleFactor;
-              slider.position.z = THREE.MathUtils.lerp(
-                slider.position.z,
-                targetZ,
-                settleValue
+              const targetX = lookAt
+                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
+                : 0;
+              unit.slider.position.x = THREE.MathUtils.lerp(
+                unit.slider.position.x,
+                targetX,
+                settle
+              );
+              unit.slider.position.z = THREE.MathUtils.lerp(
+                unit.slider.position.z,
+                0,
+                settle
               );
             }
-            if (focus && unit.head) {
-              unit.head.lookAt(focus);
-              if (panOffset) {
-                const direction =
-                  Number.isFinite(dirSign) && dirSign !== 0
-                    ? dirSign
-                    : unit?.direction ?? 1;
-                unit.head.rotateY(panOffset * direction);
-              }
+            if (lookAt && unit.head) {
+              unit.head.lookAt(lookAt);
             }
           };
-
           const frontUnits = [rig.cameras.front].filter(Boolean);
           const backUnits = [rig.cameras.back].filter(Boolean);
           const activeUnits = railDir >= 0 ? backUnits : frontUnits;
           const idleUnits = railDir >= 0 ? frontUnits : backUnits;
           activeUnits.forEach((unit) =>
-            applyFocus(unit, focusTarget, settleActive, railDir)
+            applyFocus(unit, focusTarget, lerpFactor)
           );
           const idleFocus = rig.defaultFocusWorld ?? focusTarget;
           idleUnits.forEach((unit) =>
-            applyFocus(
-              unit,
-              idleFocus,
-              settleIdle,
-              unit?.direction ?? railDir
-            )
+            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
           );
         };
 
@@ -9968,19 +9853,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
             : null;
           const nearRailThresholdX = RAIL_LIMIT_X - RAIL_NEAR_BUFFER;
-          const cueNearSideRail = Math.abs(cueBall.pos.x) > nearRailThresholdX;
-          const targetNearSideRail = targetBall
-            ? Math.abs(targetBall.pos.x) > nearRailThresholdX
+          const nearRailThresholdY = RAIL_LIMIT_Y - RAIL_NEAR_BUFFER;
+          const cueNearRail =
+            Math.abs(cueBall.pos.x) > nearRailThresholdX ||
+            Math.abs(cueBall.pos.y) > nearRailThresholdY;
+          const targetNearRail = targetBall
+            ? Math.abs(targetBall.pos.x) > nearRailThresholdX ||
+              Math.abs(targetBall.pos.y) > nearRailThresholdY
             : false;
-          const broadcastProfile = broadcastProfileRef.current ?? null;
-          const railMode = broadcastProfile?.railMode ?? 'shortLocked';
-          const preferSideRail = cueNearSideRail || targetNearSideRail;
-          const axis =
-            railMode === 'sideLocked'
-              ? 'side'
-              : railMode === 'hybrid' && preferSideRail
-                ? 'side'
-                : 'short';
+          const axis = 'short'; // force short-rail broadcast framing
           const initialRailDir =
             axis === 'side'
               ? signed(
@@ -12700,20 +12581,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             b.pos.addScaledVector(b.vel, stepScale);
             b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
-            let speed = b.vel.length();
-            if (speed > 0) {
-              const stepSeconds = TARGET_FRAME_TIME_SECONDS * stepScale;
-              const linearDecel = ROLL_DECEL_PER_SECOND * stepSeconds;
-              if (speed <= MIN_ROLL_SPEED || speed <= linearDecel) {
-                b.vel.set(0, 0);
-                speed = 0;
-              } else {
-                const nextSpeed = Math.max(0, speed - linearDecel);
-                const damp = nextSpeed / speed;
-                b.vel.multiplyScalar(damp);
-                speed = nextSpeed;
-              }
-            }
+            const speed = b.vel.length();
             const scaledSpeed = speed * stepScale;
             const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
             if (scaledSpeed < STOP_EPS) {
@@ -13202,7 +13070,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
-          renderer.setPixelRatio(resolvePixelRatio());
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
@@ -13588,10 +13455,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   })}
               </div>
             </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plates
-                </h3>
+            <div>
+              <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                Chrome Plates
+              </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {CHROME_COLOR_OPTIONS.map((option) => {
                     const active = option.id === chromeColorId;
@@ -13614,36 +13481,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             aria-hidden="true"
                           />
                           {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Broadcast Cameras
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {BROADCAST_CAMERA_OPTIONS.map((option) => {
-                    const active = option.id === broadcastCameraId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setBroadcastCameraId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/95 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex flex-col gap-1">
-                          <span>{option.label}</span>
-                          <span className="text-[10px] font-normal normal-case tracking-normal text-white/70">
-                            {option.description}
-                          </span>
                         </span>
                       </button>
                     );
