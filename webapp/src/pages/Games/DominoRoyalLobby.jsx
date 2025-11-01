@@ -56,6 +56,7 @@ export default function DominoRoyalLobby() {
     const username = getTelegramUsername();
     if (username) params.set('username', username);
     if (mode === 'local') params.set('avatars', 'flags');
+    params.set('entry', 'hallway');
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     const initData = window.Telegram?.WebApp?.initData;
