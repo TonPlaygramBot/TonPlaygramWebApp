@@ -25,7 +25,12 @@ export default function GamesHallway({ games, onClose }) {
   const navigate = useNavigate();
   const [selectedGame, setSelectedGame] = useState(null);
   const overlayRootRef = useRef(null);
-  const controlsRef = useRef({ moveForward: () => {}, moveBackward: () => {} });
+  const controlsRef = useRef({
+    moveForward: () => {},
+    moveBackward: () => {},
+    zoomIn: () => {},
+    zoomOut: () => {}
+  });
   const holdIntervalRef = useRef(null);
 
   useEffect(() => {
@@ -65,6 +70,7 @@ export default function GamesHallway({ games, onClose }) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
+    renderer.domElement.style.touchAction = 'none';
 
     const ambient = new THREE.AmbientLight(0xfff4d6, 0.4);
     scene.add(ambient);
@@ -183,20 +189,24 @@ export default function GamesHallway({ games, onClose }) {
       screenCanvas.width = 512;
       screenCanvas.height = 256;
       const sctx = screenCanvas.getContext('2d');
-      sctx.fillStyle = '#111';
+      sctx.fillStyle = '#021024';
       sctx.fillRect(0, 0, 512, 256);
-      sctx.fillStyle = '#00FFAA';
-      sctx.font = 'bold 42px "Inter", Arial';
       sctx.textAlign = 'center';
       sctx.textBaseline = 'middle';
-      sctx.fillText(game.name, 256, 90);
-      sctx.font = '28px "Inter", Arial';
-      sctx.fillText('Click to enter the game', 256, 175);
+      sctx.fillStyle = '#0affff';
+      sctx.shadowColor = 'rgba(10, 255, 255, 0.75)';
+      sctx.shadowBlur = 18;
+      sctx.font = 'bold 56px "Inter", Arial';
+      sctx.fillText(game.name, 256, 96);
+      sctx.font = '32px "Inter", Arial';
+      sctx.shadowBlur = 10;
+      sctx.fillStyle = '#9fffe8';
+      sctx.fillText('Tap to enter the game', 256, 178);
       const screenTex = new THREE.CanvasTexture(screenCanvas);
       const screenMat = new THREE.MeshStandardMaterial({
         map: screenTex,
         emissive: '#00ffaa',
-        emissiveIntensity: 0.5
+        emissiveIntensity: 1.2
       });
       const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), screenMat);
       const monitorX = signX;
@@ -238,15 +248,42 @@ export default function GamesHallway({ games, onClose }) {
     let isDragging = false;
     let targetYaw = 0;
     let targetZ = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
+    const minFov = 38;
+    const maxFov = 80;
+    let targetFov = THREE.MathUtils.clamp(camera.fov, minFov, maxFov);
     const yawLimit = Math.PI / 2.3;
     const dragThreshold = 6;
     const moveSensitivity = 0.05;
     const yawSensitivity = 0.0025;
     const movementStep = 9;
+    const zoomStep = 3;
+
+    const clampFov = (value) => THREE.MathUtils.clamp(value, minFov, maxFov);
+    const adjustZoom = (delta) => {
+      targetFov = clampFov(targetFov + delta);
+    };
 
     const clampZ = (value) => THREE.MathUtils.clamp(value, minZ, maxZ);
 
+    const activePointers = new Map();
+    let isTouchZoom = false;
+    let lastPinchDistance = null;
+
+    const updateTouchPointer = (event) => {
+      if (event.pointerType !== 'touch') return;
+      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (activePointers.size === 2) {
+        const [first, second] = [...activePointers.values()];
+        const dx = first.x - second.x;
+        const dy = first.y - second.y;
+        lastPinchDistance = Math.hypot(dx, dy);
+        isTouchZoom = true;
+        isDragging = false;
+      }
+    };
+
     const handlePointerDown = (event) => {
+      updateTouchPointer(event);
       isPointerDown = true;
       isDragging = false;
       targetZ = clampZ(camera.position.z);
@@ -259,6 +296,22 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     const handlePointerMove = (event) => {
+      if (event.pointerType === 'touch') {
+        updateTouchPointer(event);
+        if (isTouchZoom && activePointers.size >= 2) {
+          const [first, second] = [...activePointers.values()];
+          const dx = first.x - second.x;
+          const dy = first.y - second.y;
+          const distance = Math.hypot(dx, dy);
+          if (lastPinchDistance) {
+            const pinchDelta = (lastPinchDistance - distance) * 0.05;
+            adjustZoom(pinchDelta);
+          }
+          lastPinchDistance = distance;
+          return;
+        }
+      }
+
       if (!isPointerDown) return;
 
       const dx = event.clientX - lastPointer.x;
@@ -283,6 +336,13 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     const handlePointerUp = (event) => {
+      if (event.pointerType === 'touch') {
+        activePointers.delete(event.pointerId);
+        if (activePointers.size < 2) {
+          isTouchZoom = false;
+          lastPinchDistance = null;
+        }
+      }
       if (!isPointerDown) return;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
       isPointerDown = false;
@@ -292,8 +352,40 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     const handlePointerLeave = (event) => {
+      if (event.pointerType === 'touch') {
+        activePointers.delete(event.pointerId);
+        if (activePointers.size < 2) {
+          isTouchZoom = false;
+          lastPinchDistance = null;
+        }
+      }
       if (!isPointerDown) return;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
+      isPointerDown = false;
+    };
+
+    const handlePointerCancel = (event) => {
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      activePointers.delete(event.pointerId);
+      if (activePointers.size < 2) {
+        isTouchZoom = false;
+        lastPinchDistance = null;
+      }
+      isPointerDown = false;
+    };
+
+    const handleWheel = (event) => {
+      event.preventDefault();
+      const delta = event.deltaY * 0.015;
+      adjustZoom(delta);
+    };
+
+    const handleLostPointerCapture = (event) => {
+      activePointers.delete(event.pointerId);
+      if (activePointers.size < 2) {
+        isTouchZoom = false;
+        lastPinchDistance = null;
+      }
       isPointerDown = false;
     };
 
@@ -301,7 +393,9 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('pointermove', handlePointerMove);
     renderer.domElement.addEventListener('pointerup', handlePointerUp);
     renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
-    renderer.domElement.addEventListener('pointercancel', handlePointerLeave);
+    renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
+    renderer.domElement.addEventListener('lostpointercapture', handleLostPointerCapture);
+    renderer.domElement.addEventListener('wheel', handleWheel, { passive: false });
 
     let animationId;
     const clock = new THREE.Clock();
@@ -310,6 +404,11 @@ export default function GamesHallway({ games, onClose }) {
       const delta = clock.getDelta();
       camera.position.z = clampZ(THREE.MathUtils.damp(camera.position.z, targetZ, 6, delta));
       camera.rotation.y = THREE.MathUtils.damp(camera.rotation.y, targetYaw, 6, delta);
+      const nextFov = THREE.MathUtils.damp(camera.fov, targetFov, 8, delta);
+      if (Math.abs(nextFov - camera.fov) > 0.001) {
+        camera.fov = nextFov;
+        camera.updateProjectionMatrix();
+      }
       renderer.render(scene, camera);
     };
     animate();
@@ -320,6 +419,12 @@ export default function GamesHallway({ games, onClose }) {
       },
       moveBackward: () => {
         targetZ = clampZ(targetZ + movementStep);
+      },
+      zoomIn: () => {
+        adjustZoom(-zoomStep);
+      },
+      zoomOut: () => {
+        adjustZoom(zoomStep);
       }
     };
 
@@ -334,12 +439,19 @@ export default function GamesHallway({ games, onClose }) {
 
     return () => {
       cancelAnimationFrame(animationId);
-      controlsRef.current = { moveForward: () => {}, moveBackward: () => {} };
+      controlsRef.current = {
+        moveForward: () => {},
+        moveBackward: () => {},
+        zoomIn: () => {},
+        zoomOut: () => {}
+      };
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
       renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
-      renderer.domElement.removeEventListener('pointercancel', handlePointerLeave);
+      renderer.domElement.removeEventListener('pointercancel', handlePointerCancel);
+      renderer.domElement.removeEventListener('lostpointercapture', handleLostPointerCapture);
+      renderer.domElement.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
       container.removeChild(renderer.domElement);
@@ -369,6 +481,11 @@ export default function GamesHallway({ games, onClose }) {
     holdIntervalRef.current = setInterval(() => {
       controlsRef.current[action]?.();
     }, 180);
+  };
+
+  const handleZoomPress = (direction) => {
+    const action = direction === 'in' ? 'zoomIn' : 'zoomOut';
+    controlsRef.current[action]?.();
   };
 
   const handlePointerHoldEnd = () => {
@@ -405,7 +522,7 @@ export default function GamesHallway({ games, onClose }) {
       <div className="relative flex-1">
         <div ref={containerRef} className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-end">
-          <div className="pointer-events-auto mx-auto mb-8 flex w-full max-w-[280px] items-center justify-center gap-6 px-6">
+          <div className="pointer-events-auto mx-auto mb-8 flex w-full max-w-[320px] flex-wrap items-center justify-center gap-5 px-6">
             <button
               type="button"
               onPointerDown={handlePointerHoldStart('backward')}
@@ -456,6 +573,43 @@ export default function GamesHallway({ games, onClose }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
               </svg>
             </button>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => handleZoomPress('out')}
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/70 text-white shadow-lg backdrop-blur transition active:scale-95"
+                aria-label="Zoom out"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-5 w-5"
+                >
+                  <path strokeLinecap="round" d="M5 12h14" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleZoomPress('in')}
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(255,215,0,0.4)] bg-gradient-to-br from-[#ffe27a] via-[#ffd141] to-[#ffb347] text-black shadow-[0_10px_24px_rgba(255,174,0,0.35)] transition active:scale-95"
+                aria-label="Zoom in"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-5 w-5"
+                >
+                  <path strokeLinecap="round" d="M12 5v14" />
+                  <path strokeLinecap="round" d="M5 12h14" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
