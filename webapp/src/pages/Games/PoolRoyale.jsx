@@ -656,7 +656,7 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
 // Slightly reduce per-frame friction so rolls feel livelier on high refresh
 // rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.996; // let balls carry more momentum so play feels quicker
+const FRICTION = 0.998; // let balls carry more momentum so play feels quicker
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
@@ -1163,7 +1163,7 @@ const CLOTH_TEXTURE_INTENSITY = 0.56; // trim contrast so the weave reads more e
 const CLOTH_HAIR_INTENSITY = 0.28; // keep a hint of nap without introducing arc-like clumps
 const CLOTH_BUMP_INTENSITY = 0.74; // trim macro undulations so the surface reads flatter
 const CLOTH_SOFT_BLEND = 0.46;
-const CLOTH_PATTERN_SIZE_SCALE = 0.85; // shrink the felt pattern by roughly 15%
+const CLOTH_PATTERN_SIZE_SCALE = 1; // restore the original felt pattern density
 const CLOTH_PATTERN_REPEAT_SCALE = 1 / CLOTH_PATTERN_SIZE_SCALE;
 const CLOTH_CARPET_BUMP_MULTIPLIER = 0.72; // damp bump amplitude to smooth out visible waves
 
@@ -3611,7 +3611,7 @@ function makeClothTexture(
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
-  const threadStep = 4 * 1.3; // widen spacing so the thread pattern reads ~30% larger
+  const threadStep = 4; // revert to the tighter thread spacing from the morning build
   ctx.lineWidth = 0.78;
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   for (let x = -threadStep; x < size + threadStep; x += threadStep) {
@@ -3628,7 +3628,7 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  const weaveSpacing = 2 * 1.3;
+  const weaveSpacing = 2;
   ctx.fillStyle = 'rgba(255,255,255,0.12)';
   for (let y = 0; y < size; y += weaveSpacing) {
     const offset = (y / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
@@ -4312,7 +4312,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * CLOTH_PATTERN_REPEAT_SCALE; // shrink the visible weave by ~15%
+  const clothPatternUpscale = CLOTH_PATTERN_REPEAT_SCALE; // restore the original weave frequency
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
