@@ -4519,18 +4519,22 @@ function Table3D(
     steps: 1
   });
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-  const underlayMat = new THREE.MeshStandardMaterial({
-    color: clothColor.clone(),
-    roughness: 0.85,
-    metalness: 0,
-    side: THREE.DoubleSide
-  });
-  underlayMat.map = null;
-  underlayMat.bumpMap = null;
-  underlayMat.transparent = false;
-  underlayMat.opacity = 1;
+  const underlayMat = clothMat.clone();
+  underlayMat.side = THREE.DoubleSide;
+  underlayMat.transparent = clothMat.transparent;
+  underlayMat.opacity = clothMat.opacity;
   underlayMat.depthWrite = true;
   underlayMat.colorWrite = true;
+  if (underlayMat.map) {
+    const clonedMap = underlayMat.map.clone();
+    clonedMap.image = underlayMat.map.image;
+    underlayMat.map = clonedMap;
+  }
+  if (underlayMat.bumpMap) {
+    const clonedBump = underlayMat.bumpMap.clone();
+    clonedBump.image = underlayMat.bumpMap.image;
+    underlayMat.bumpMap = clonedBump;
+  }
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
@@ -6441,6 +6445,17 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.clothEdgeMat.emissive.copy(emissiveColor);
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
+  finishInfo.parts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material) return;
+    const mat = mesh.material;
+    if (mat.color) {
+      mat.color.copy(clothColor);
+    }
+    if (mat.emissive) {
+      mat.emissive.copy(emissiveColor);
+    }
+    mat.needsUpdate = true;
+  });
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
