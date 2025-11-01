@@ -1159,10 +1159,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.56; // trim contrast so the weave reads more even across the surface
-const CLOTH_HAIR_INTENSITY = 0.28; // keep a hint of nap without introducing arc-like clumps
-const CLOTH_BUMP_INTENSITY = 0.74; // trim macro undulations so the surface reads flatter
-const CLOTH_SOFT_BLEND = 0.46;
+const CLOTH_TEXTURE_INTENSITY = 0.48; // restore the higher-contrast weave from the morning tuning pass
+const CLOTH_HAIR_INTENSITY = 0.26; // match the earlier fibre nap strength so stray hairs feel natural
+const CLOTH_BUMP_INTENSITY = 0.42; // revert bump depth so the roughness reads like the morning build
+const CLOTH_SOFT_BLEND = 0.52;
 const CLOTH_PATTERN_SIZE_SCALE = 1; // restore the original felt pattern density
 const CLOTH_PATTERN_REPEAT_SCALE = 1 / CLOTH_PATTERN_SIZE_SCALE;
 const CLOTH_CARPET_BUMP_MULTIPLIER = 0.72; // damp bump amplitude to smooth out visible waves
@@ -1674,6 +1674,91 @@ const POCKET_LINER_OPTIONS = Object.freeze(
   }).filter(Boolean)
 );
 
+const DEFAULT_BROADCAST_CAMERA_ID = 'proRailDirector';
+const BROADCAST_CAMERA_OPTIONS = Object.freeze([
+  Object.freeze({
+    id: 'proRailDirector',
+    label: 'Pro Rail Director',
+    description: 'World tour short-rail dolly with balanced lateral tracking.',
+    profile: Object.freeze({
+      lateralInfluence: 0.24,
+      slideLimitMultiplier: 1.05,
+      focusLift: BALL_R * 1.4,
+      focusDepth: BALL_R * 2.8,
+      dollyOffset: -BALL_R * 6,
+      minSettle: 0.58,
+      idleLerpScale: 0.65,
+      idleMinSettle: 0.42
+    })
+  }),
+  Object.freeze({
+    id: 'arenaPanorama',
+    label: 'Arena Panorama',
+    description: 'High arena boom framing the full table for studio intros.',
+    profile: Object.freeze({
+      lateralInfluence: 0.18,
+      slideLimitMultiplier: 1.25,
+      focusLift: BALL_R * 4.2,
+      focusDepth: BALL_R * 6.8,
+      dollyOffset: BALL_R * 5.5,
+      lerpMultiplier: 0.65,
+      minSettle: 0.5,
+      idleLerpScale: 0.55,
+      idleMinSettle: 0.35
+    })
+  }),
+  Object.freeze({
+    id: 'immersiveFollower',
+    label: 'Immersive Follow',
+    description: 'Esports-style sideline jib that punches in on fast breaks.',
+    profile: Object.freeze({
+      lateralInfluence: 0.32,
+      slideLimitMultiplier: 0.85,
+      focusLift: BALL_R * 0.9,
+      focusDepth: BALL_R * 2.1,
+      dollyOffset: -BALL_R * 9,
+      lerpMultiplier: 1.35,
+      minSettle: 0.62,
+      idleLerpScale: 0.7,
+      idleMinSettle: 0.48
+    })
+  }),
+  Object.freeze({
+    id: 'cornerHero',
+    label: 'Corner Hero',
+    description: 'Feature-match pedestal with a heroic corner bias.',
+    profile: Object.freeze({
+      lateralInfluence: 0.28,
+      slideLimitMultiplier: 1.1,
+      focusLift: BALL_R * 2.6,
+      focusDepth: BALL_R * 3.5,
+      focusStrafe: BALL_R * 0.75,
+      dollyOffset: -BALL_R * 4.5,
+      panOffset: THREE.MathUtils.degToRad(3.5),
+      lerpMultiplier: 0.9,
+      minSettle: 0.55,
+      idleLerpScale: 0.6,
+      idleMinSettle: 0.4
+    })
+  }),
+  Object.freeze({
+    id: 'skyboxAnalyst',
+    label: 'Skybox Analyst',
+    description: 'Upper-deck analyst gantry for wide tactical breakdowns.',
+    profile: Object.freeze({
+      lateralInfluence: 0.16,
+      slideLimitMultiplier: 1.4,
+      focusLift: BALL_R * 5.8,
+      focusDepth: BALL_R * 9.5,
+      dollyOffset: BALL_R * 8,
+      lerpMultiplier: 0.55,
+      minSettle: 0.5,
+      idleLerpScale: 0.5,
+      idleMinSettle: 0.35
+    })
+  })
+]);
+
 const POCKET_LINER_TEXTURE_CACHE = new Map();
 
 function createSeededRandom(seed = 1) {
@@ -1939,12 +2024,8 @@ const createClothTextures = (() => {
         strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18),
         4.2
       );
-      const crossNap = Math.pow(
-        Math.abs(Math.cos((x - y) * 0.035 + wiggle * 0.42)),
-        2.1
-      );
       return THREE.MathUtils.clamp(
-        tuft * 0.45 + stray * 0.22 + filament * 0.28 + wisp * 0.18 + crossNap * 0.25,
+        tuft * 0.55 + stray * 0.25 + filament * 0.3 + wisp * 0.2,
         0,
         1
       );
@@ -1963,48 +2044,46 @@ const createClothTextures = (() => {
         const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
         const fuzz = Math.pow(fiber, 1.2);
         const hair = hairFiber(x, y);
-        const nap = Math.pow(hair, 1.18);
-        const napDelta = nap - 0.5;
         const tonal = THREE.MathUtils.clamp(
           0.56 +
-            (weave - 0.5) * 0.52 * CLOTH_TEXTURE_INTENSITY +
-            (cross - 0.5) * 0.46 * CLOTH_TEXTURE_INTENSITY +
-            (diamond - 0.5) * 0.22 * CLOTH_TEXTURE_INTENSITY +
-            (fiber - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
-            (micro - 0.5) * 0.16 * CLOTH_TEXTURE_INTENSITY +
-            napDelta * 0.24 * CLOTH_HAIR_INTENSITY,
+            (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
+            (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.32 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
+            (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const tonalEnhanced = THREE.MathUtils.clamp(
           0.5 +
-            (tonal - 0.5) * (1 + (1.46 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            napDelta * 0.16 * CLOTH_HAIR_INTENSITY,
+            (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const highlightMix = THREE.MathUtils.clamp(
           0.34 +
-            (cross - 0.5) * 0.42 * CLOTH_TEXTURE_INTENSITY +
-            (weave - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY +
-            (sparkle - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
-            napDelta * 0.14 * CLOTH_HAIR_INTENSITY,
+            (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
+            (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const accentMix = THREE.MathUtils.clamp(
-          0.46 +
-            (cross - 0.5) * 0.68 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.22 * CLOTH_TEXTURE_INTENSITY +
-            napDelta * 0.16 * CLOTH_HAIR_INTENSITY,
+          0.48 +
+            (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.3 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
         const highlightEnhanced = THREE.MathUtils.clamp(
           0.38 +
-            (highlightMix - 0.5) * (1 + (1.52 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            napDelta * 0.12 * CLOTH_HAIR_INTENSITY,
+            (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
@@ -2031,6 +2110,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
+    colorMap.repeat.set(16, 64);
     colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
     colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
@@ -2063,18 +2143,18 @@ const createClothTextures = (() => {
         const fuzz = Math.pow(fiber, 1.22);
         const hair = hairFiber(x, y);
         const bump = THREE.MathUtils.clamp(
-          0.58 +
-            (weave - 0.5) * 0.54 * CLOTH_BUMP_INTENSITY +
-            (cross - 0.5) * 0.32 * CLOTH_BUMP_INTENSITY +
-            (diamond - 0.5) * 0.42 * CLOTH_BUMP_INTENSITY +
-            (fiber - 0.5) * 0.34 * CLOTH_BUMP_INTENSITY +
-            (fuzz - 0.5) * 0.28 * CLOTH_BUMP_INTENSITY +
-            (micro - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
-            (hair - 0.5) * 0.46 * CLOTH_HAIR_INTENSITY,
+          0.56 +
+            (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
+            (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
+            (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.36 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.24 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.26 * CLOTH_BUMP_INTENSITY +
+            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
-        const value = clamp255(150 + (bump - 0.5) * 150 + (hair - 0.5) * 54);
+        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 36);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -6607,6 +6687,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_POCKET_LINER_OPTION_ID;
   });
+  const [broadcastCameraId, setBroadcastCameraId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('snookerBroadcastCamera');
+      if (stored && BROADCAST_CAMERA_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_BROADCAST_CAMERA_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6614,6 +6703,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
+  );
+  const activeBroadcastCameraOption = useMemo(
+    () =>
+      BROADCAST_CAMERA_OPTIONS.find((opt) => opt.id === broadcastCameraId) ??
+      BROADCAST_CAMERA_OPTIONS[0],
+    [broadcastCameraId]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -6981,6 +7076,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
   }, [woodTextureId]);
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('snookerBroadcastCamera', broadcastCameraId);
+    }
+  }, [broadcastCameraId]);
+  useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -7137,6 +7237,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
+  const broadcastProfileRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
@@ -7188,6 +7289,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const spinDotElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
+  useEffect(() => {
+    const profile = activeBroadcastCameraOption?.profile ?? null;
+    broadcastProfileRef.current = profile;
+    const rig = broadcastCamerasRef.current;
+    if (rig) {
+      rig.profile = profile;
+    }
+  }, [activeBroadcastCameraOption]);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -8302,6 +8411,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
+      const initialBroadcastProfile =
+        broadcastProfileRef.current ?? BROADCAST_CAMERA_OPTIONS[0]?.profile ?? null;
+      broadcastProfileRef.current = initialBroadcastProfile;
+      broadcastRig.profile = initialBroadcastProfile;
 
       const tripodHeightBoost = 1.04;
       const tripodScale =
@@ -8945,49 +9058,133 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
+          const profile = rig.profile ?? broadcastProfileRef.current ?? null;
+          const baseLerp = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
+          const scaledLerp = Number.isFinite(profile?.lerpMultiplier)
+            ? THREE.MathUtils.clamp(baseLerp * profile.lerpMultiplier, 0, 1)
+            : baseLerp;
+          const minSettle = Number.isFinite(profile?.minSettle)
+            ? THREE.MathUtils.clamp(profile.minSettle, 0, 1)
+            : 0.5;
+          const settleActive = Math.min(1, Math.max(scaledLerp, minSettle));
+          const idleScale = Number.isFinite(profile?.idleLerpScale)
+            ? profile.idleLerpScale
+            : 0.6;
+          const idleMinSettle = Number.isFinite(profile?.idleMinSettle)
+            ? THREE.MathUtils.clamp(profile.idleMinSettle, 0, 1)
+            : Math.min(minSettle * 0.85, minSettle);
+          const settleIdle = Math.min(
+            1,
+            Math.max(Math.min(1, scaledLerp * idleScale), idleMinSettle)
+          );
           const focusTarget =
             focusWorld ??
             targetWorld ??
             rig.defaultFocusWorld ??
             rig.defaultFocus ??
             null;
-          const applyFocus = (unit, lookAt, t) => {
+          const scaleFactor = Number.isFinite(worldScaleFactor)
+            ? worldScaleFactor
+            : 1;
+          const lateralInfluence = Number.isFinite(profile?.lateralInfluence)
+            ? profile.lateralInfluence
+            : 0.25;
+          const slideMultiplier = Number.isFinite(profile?.slideLimitMultiplier)
+            ? profile.slideLimitMultiplier
+            : 1;
+          const dollyOffset = Number.isFinite(profile?.dollyOffset)
+            ? profile.dollyOffset
+            : 0;
+          const focusLift = Number.isFinite(profile?.focusLift)
+            ? profile.focusLift
+            : 0;
+          const focusDepth = Number.isFinite(profile?.focusDepth)
+            ? profile.focusDepth
+            : 0;
+          const focusStrafe = Number.isFinite(profile?.focusStrafe)
+            ? profile.focusStrafe
+            : 0;
+          const panOffset = Number.isFinite(profile?.panOffset)
+            ? profile.panOffset
+            : 0;
+
+          const adjustFocus = (unit, source, dirSign) => {
+            if (!source) return null;
+            const focus = source.clone();
+            const direction =
+              Number.isFinite(dirSign) && dirSign !== 0
+                ? dirSign
+                : unit?.direction ?? 1;
+            if (focusLift) {
+              focus.y += focusLift * scaleFactor;
+            }
+            if (focusDepth) {
+              focus.z += focusDepth * direction * scaleFactor;
+            }
+            if (focusStrafe) {
+              focus.x += focusStrafe * direction * scaleFactor;
+            }
+            return focus;
+          };
+
+          const applyFocus = (unit, lookAt, settleValue, dirSign) => {
             if (!unit) return;
-            if (unit.slider) {
-              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
-              const limit = Math.max(
-                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
-                0
-              );
-              const targetX = lookAt
-                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
+            const focus = adjustFocus(unit, lookAt, dirSign);
+            const slider = unit.slider;
+            if (slider) {
+              const limitBase =
+                slider.userData?.slideLimit ?? rig.slideLimit ?? 0;
+              const limit = Math.max(limitBase * slideMultiplier, 0);
+              const targetX = focus
+                ? THREE.MathUtils.clamp(
+                    focus.x * lateralInfluence,
+                    -limit,
+                    limit
+                  )
                 : 0;
-              unit.slider.position.x = THREE.MathUtils.lerp(
-                unit.slider.position.x,
+              slider.position.x = THREE.MathUtils.lerp(
+                slider.position.x,
                 targetX,
-                settle
+                settleValue
               );
-              unit.slider.position.z = THREE.MathUtils.lerp(
-                unit.slider.position.z,
-                0,
-                settle
+              const direction =
+                Number.isFinite(dirSign) && dirSign !== 0
+                  ? dirSign
+                  : unit?.direction ?? 1;
+              const targetZ = dollyOffset * direction * scaleFactor;
+              slider.position.z = THREE.MathUtils.lerp(
+                slider.position.z,
+                targetZ,
+                settleValue
               );
             }
-            if (lookAt && unit.head) {
-              unit.head.lookAt(lookAt);
+            if (focus && unit.head) {
+              unit.head.lookAt(focus);
+              if (panOffset) {
+                const direction =
+                  Number.isFinite(dirSign) && dirSign !== 0
+                    ? dirSign
+                    : unit?.direction ?? 1;
+                unit.head.rotateY(panOffset * direction);
+              }
             }
           };
+
           const frontUnits = [rig.cameras.front].filter(Boolean);
           const backUnits = [rig.cameras.back].filter(Boolean);
           const activeUnits = railDir >= 0 ? backUnits : frontUnits;
           const idleUnits = railDir >= 0 ? frontUnits : backUnits;
           activeUnits.forEach((unit) =>
-            applyFocus(unit, focusTarget, lerpFactor)
+            applyFocus(unit, focusTarget, settleActive, railDir)
           );
           const idleFocus = rig.defaultFocusWorld ?? focusTarget;
           idleUnits.forEach((unit) =>
-            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
+            applyFocus(
+              unit,
+              idleFocus,
+              settleIdle,
+              unit?.direction ?? railDir
+            )
           );
         };
 
@@ -13436,10 +13633,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   })}
               </div>
             </div>
-            <div>
-              <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                Chrome Plates
-              </h3>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plates
+                </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {CHROME_COLOR_OPTIONS.map((option) => {
                     const active = option.id === chromeColorId;
@@ -13462,6 +13659,36 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             aria-hidden="true"
                           />
                           {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Cameras
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_CAMERA_OPTIONS.map((option) => {
+                    const active = option.id === broadcastCameraId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastCameraId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/95 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex flex-col gap-1">
+                          <span>{option.label}</span>
+                          <span className="text-[10px] font-normal normal-case tracking-normal text-white/70">
+                            {option.description}
+                          </span>
                         </span>
                       </button>
                     );
