@@ -502,10 +502,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT_BASE_SCALE = 1.96;
-const RAIL_HEIGHT_EXTRA_SCALE = 0.02;
-const RAIL_HEIGHT =
-  TABLE.THICK * (RAIL_HEIGHT_BASE_SCALE + RAIL_HEIGHT_EXTRA_SCALE); // extend the wooden rails slightly taller so their lip can meet the cushion crown cleanly
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
@@ -634,8 +631,7 @@ const CLOTH_LIFT = (() => {
   const ballR = BALL_R;
   const microEpsRatio = 0.022857142857142857;
   const eps = ballR * microEpsRatio;
-  const effectiveRailHeight = TABLE.THICK * RAIL_HEIGHT_BASE_SCALE;
-  return Math.max(0, effectiveRailHeight - ballR - eps);
+  return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
 const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
@@ -687,7 +683,7 @@ const CLOTH_EDGE_SLEEVES_ENABLED = false; // disable the vertical cloth sleeves 
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.02; // keep the cushion base closer to the rails so the pads sit level with the wood
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.0004; // keep a sub-millimetre separation so the cushion lip stays visually flush with the taller rails without triggering alignment offsets
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // leave only a hair of separation so the cushion lip sits level with the rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5939,69 +5935,33 @@ function Table3D(
   const chalkShortOffsetLimit = Math.max(0, PLAY_W / 2 - BALL_R * 3.5);
   const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.22);
   const chalkShortAxisOffset = Math.min(chalkShortOffsetLimit, PLAY_W * 0.22);
-  const createChalkSlot = (
-    basePosition,
-    tangent,
-    defaultOffset,
-    rotationY,
-    offsetLimits
-  ) => {
-    const normalizedTangent = tangent.clone();
-    if (normalizedTangent.lengthSq() > 1e-10) {
-      normalizedTangent.normalize();
-    }
-    const slotBase = basePosition.clone();
-    const slotPosition = slotBase.clone().addScaledVector(normalizedTangent, defaultOffset);
-    return {
-      basePosition: slotBase,
-      tangent: normalizedTangent,
-      defaultOffset,
-      rotationY,
-      offsetLimits,
-      position: slotPosition,
-      mesh: null
-    };
-  };
   const chalkSlots = [
-    createChalkSlot(
-      new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0),
-      new THREE.Vector3(0, 0, 1),
-      chalkLongAxisOffset,
-      Math.PI / 2,
-      { min: -chalkLongAxisOffset, max: chalkLongAxisOffset }
-    ),
-    createChalkSlot(
-      new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0),
-      new THREE.Vector3(0, 0, -1),
-      chalkLongAxisOffset,
-      -Math.PI / 2,
-      { min: -chalkLongAxisOffset, max: chalkLongAxisOffset }
-    ),
-    createChalkSlot(
-      new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset),
-      new THREE.Vector3(-1, 0, 0),
-      chalkShortAxisOffset,
-      0,
-      { min: -chalkShortAxisOffset, max: chalkShortAxisOffset }
-    ),
-    createChalkSlot(
-      new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset),
-      new THREE.Vector3(1, 0, 0),
-      chalkShortAxisOffset,
-      Math.PI,
-      { min: -chalkShortAxisOffset, max: chalkShortAxisOffset }
-    )
+    {
+      position: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0).add(
+        new THREE.Vector3(0, 0, 1).multiplyScalar(chalkLongAxisOffset)
+      ),
+      rotationY: Math.PI / 2
+    },
+    {
+      position: new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0).add(
+        new THREE.Vector3(0, 0, -1).multiplyScalar(chalkLongAxisOffset)
+      ),
+      rotationY: -Math.PI / 2
+    },
+    {
+      position: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset).add(
+        new THREE.Vector3(-1, 0, 0).multiplyScalar(chalkShortAxisOffset)
+      ),
+      rotationY: 0
+    },
+    {
+      position: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset).add(
+        new THREE.Vector3(1, 0, 0).multiplyScalar(chalkShortAxisOffset)
+      ),
+      rotationY: Math.PI
+    }
   ];
-  const chalkMeta = {
-    sideReach:
-      longRailW + chalkSideRailOffset + chalkLongAxisOffset + BALL_R * 1.1,
-    endReach: endRailW + chalkEndRailOffset + chalkShortAxisOffset + BALL_R * 1.1,
-    slack: BALL_R * 0.25,
-    overlapThreshold: BALL_R * 0.72,
-    nudgeDistance: BALL_R * 0.45
-  };
-  chalkSlots.forEach((slot) => {
-    const { position, rotationY } = slot;
+  chalkSlots.forEach(({ position, rotationY }) => {
     const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
     mesh.position.copy(position);
     mesh.rotation.y = rotationY;
@@ -6009,7 +5969,6 @@ function Table3D(
     mesh.receiveShadow = true;
     mesh.visible = true;
     chalkGroup.add(mesh);
-    slot.mesh = mesh;
   });
   table.add(chalkGroup);
 
@@ -6321,7 +6280,6 @@ function Table3D(
   });
 
   table.updateMatrixWorld(true);
-  let finalRailsTopLocal = frameTopY + railH;
   let cushionTopLocal = frameTopY;
   if (table.userData.cushions.length) {
     const box = new THREE.Box3();
@@ -6346,32 +6304,10 @@ function Table3D(
   });
 
   alignRailsToCushions(table, railsGroup);
-  const railVerticalOffset = railsGroup.position.y || 0;
-  if (Math.abs(railVerticalOffset) > 1e-5) {
-    chalkGroup.position.y += railVerticalOffset;
-  }
-  finalRailsTopLocal = frameTopY + railH + railVerticalOffset;
-  table.userData.chalks = chalkGroup.children;
-  table.userData.chalkSlots = chalkSlots.map((slot) => {
-    const offsetLimits = slot.offsetLimits
-      ? { min: slot.offsetLimits.min, max: slot.offsetLimits.max }
-      : null;
-    return {
-      basePosition: slot.basePosition.clone(),
-      tangent: slot.tangent.clone(),
-      defaultOffset: slot.defaultOffset,
-      offsetLimits,
-      position: slot.mesh ? slot.mesh.position : slot.position.clone(),
-      currentOffset: slot.defaultOffset
-    };
-  });
-  table.userData.chalkMeta = chalkMeta;
   table.updateMatrixWorld(true);
   updateRailLimitsFromTable(table);
 
   table.position.y = TABLE_Y;
-  table.userData.railsTopLocal = finalRailsTopLocal;
-  table.userData.railsTopWorld = finalRailsTopLocal + TABLE_Y;
   table.userData.cushionTopLocal = cushionTopLocal;
   table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
   table.userData.cushionLipClearance = clothPlaneWorld;
