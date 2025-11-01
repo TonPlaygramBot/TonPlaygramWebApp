@@ -20,10 +20,10 @@ const DEFAULT_TABLE_BASE_OPTION = Object.freeze({
 });
 
 const DEFAULT_TABLE_WOOD_OPTION = Object.freeze({
-  id: 'walnutHeritage',
-  label: 'Arre Heritage',
-  presetId: 'walnut',
-  grainId: 'heritagePlanks'
+  id: 'oakEstate',
+  label: 'Lis Estate',
+  presetId: 'oak',
+  grainId: 'estateBands'
 });
 
 export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
