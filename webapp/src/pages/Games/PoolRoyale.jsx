@@ -510,9 +510,9 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match the 
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const POCKET_JAW_DEPTH_SCALE = 0.46; // trim the jaw underside so no dark arch remains beneath the cloth cut
+const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.08; // hold the jaw underside slightly above the cloth so the lips start just above the green
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
@@ -536,7 +536,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw sprea
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.428; // pull the middle jaw span in a touch more so the slimmer jaws clear the cushion shoulders cleanly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.006; // let the jaw radius follow the subtly tightened chrome cut toward the rail profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaw depth identical to the corners for a uniform vertical profile
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align the middle jaw height with the corners so all tops sit level
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.015; // drop the middle jaw crowns slightly so they finish level with the surrounding rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -3071,7 +3071,8 @@ const SHORT_RAIL_POCKET_TRIGGER =
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
-const AI_EARLY_SHOT_DELAY_MS = 1800;
+const AI_EARLY_SHOT_DELAY_MS = 1200;
+const AI_THINKING_BUDGET_MS = 4500; // keep AI deliberation under five seconds before it commits to a shot
 const AI_SHOT_PREVIEW_DELAY_MS = 450;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -7028,14 +7029,41 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const aiShotPreviewRef = useRef(false);
   const aiShotTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
+  const [aiTakingShot, setAiTakingShot] = useState(false);
+  const recomputeAiShotState = useCallback(() => {
+    const hudState = hudRef.current;
+    const aiTurn = hudState?.turn === 1;
+    const previewing = Boolean(aiShotPreviewRef.current);
+    const cueViewActive = Boolean(aiShotCueViewRef.current);
+    const shooting = Boolean(shootingRef.current);
+    const active =
+      (aiTurn && (previewing || cueViewActive || shooting)) ||
+      previewing ||
+      cueViewActive;
+    setAiTakingShot(active);
+  }, []);
+  const setAiShotPreviewActive = useCallback(
+    (value) => {
+      aiShotPreviewRef.current = value;
+      recomputeAiShotState();
+    },
+    [recomputeAiShotState]
+  );
+  const setAiShotCueViewActive = useCallback(
+    (value) => {
+      aiShotCueViewRef.current = value;
+      recomputeAiShotState();
+    },
+    [recomputeAiShotState]
+  );
   const cancelAiShotPreview = useCallback(() => {
     if (aiShotTimeoutRef.current) {
       clearTimeout(aiShotTimeoutRef.current);
       aiShotTimeoutRef.current = null;
     }
-    aiShotPreviewRef.current = false;
-    aiShotCueViewRef.current = false;
-  }, []);
+    setAiShotPreviewActive(false);
+    setAiShotCueViewActive(false);
+  }, [setAiShotPreviewActive, setAiShotCueViewActive]);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
@@ -7053,6 +7081,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       clearEarlyAiShot();
     }
   }, [hud.turn, clearEarlyAiShot]);
+  useEffect(() => {
+    recomputeAiShotState();
+  }, [recomputeAiShotState, hud.turn, shotActive]);
   const applySliderLock = useCallback(() => {
     const slider = sliderInstanceRef.current;
     if (!slider) return;
@@ -11287,8 +11318,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         )
           return;
         const forcedCueView = aiShotCueViewRef.current;
-        aiShotCueViewRef.current = false;
-        aiShotPreviewRef.current = false;
+        setAiShotCueViewActive(false);
+        setAiShotPreviewActive(false);
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(forcedCueView ? 0 : 1);
         updateCamera();
@@ -11841,7 +11872,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             const now = performance.now();
             const elapsed = now - started;
-            const remaining = Math.max(0, 15000 - elapsed);
+            const remaining = Math.max(0, AI_THINKING_BUDGET_MS - elapsed);
             const options = evaluateShotOptions();
             const plan = options.bestPot ?? options.bestSafety ?? null;
             if (plan) {
@@ -11919,8 +11950,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           aimDirRef.current.copy(dir);
           topViewRef.current = false;
           alignStandingCameraToAim(cue, dir);
-          aiShotCueViewRef.current = true;
-          aiShotPreviewRef.current = true;
+          setAiShotCueViewActive(true);
+          setAiShotPreviewActive(true);
           applyCameraBlend(0);
           updateCamera();
           powerRef.current = plan.power;
@@ -11935,8 +11966,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           aiShotTimeoutRef.current = window.setTimeout(() => {
             aiShotTimeoutRef.current = null;
-            aiShotCueViewRef.current = true;
-            aiShotPreviewRef.current = false;
+            setAiShotCueViewActive(true);
+            setAiShotPreviewActive(false);
             fire();
           }, AI_SHOT_PREVIEW_DELAY_MS);
         };
@@ -13229,7 +13260,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const showPlayerControls = hud.turn === 0 && !hud.over;
+  const showPlayerControls = hud.turn === 0 && !hud.over && !aiTakingShot;
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
 
