@@ -25,6 +25,7 @@ export default function GamesHallway({ games, onClose }) {
   const navigate = useNavigate();
   const [selectedGame, setSelectedGame] = useState(null);
   const overlayRootRef = useRef(null);
+  const controlsRef = useRef({ moveForward: () => {}, moveBackward: () => {} });
 
   useEffect(() => {
     if (!overlayRootRef.current) {
@@ -173,7 +174,7 @@ export default function GamesHallway({ games, onClose }) {
 
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), signMat);
       const signX = index % 2 === 0 ? -hallwayHalfWidth + 1.4 : hallwayHalfWidth - 1.4;
-      sign.position.set(signX, 3.1, zPos);
+      sign.position.set(signX, 2.85, zPos);
       sign.rotation.y = index % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
       scene.add(sign);
 
@@ -196,9 +197,9 @@ export default function GamesHallway({ games, onClose }) {
         emissive: '#00ffaa',
         emissiveIntensity: 0.5
       });
-      const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), screenMat);
-      const monitorX = index % 2 === 0 ? -hallwayHalfWidth + 0.08 : hallwayHalfWidth - 0.08;
-      screen.position.set(monitorX, 1.8, zPos);
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), screenMat);
+      const monitorX = signX;
+      screen.position.set(monitorX, 1.6, zPos);
       screen.rotation.y = index % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
       screen.userData = { type: 'monitor', game };
       scene.add(screen);
@@ -234,15 +235,21 @@ export default function GamesHallway({ games, onClose }) {
     const lastPointer = { x: 0, y: 0 };
     let isPointerDown = false;
     let isDragging = false;
-    let yaw = 0;
+    let targetYaw = 0;
+    let targetZ = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
     const yawLimit = Math.PI / 6;
     const dragThreshold = 6;
     const moveSensitivity = 0.02;
     const yawSensitivity = 0.0025;
+    const movementStep = 5;
+
+    const clampZ = (value) => THREE.MathUtils.clamp(value, minZ, maxZ);
 
     const handlePointerDown = (event) => {
       isPointerDown = true;
       isDragging = false;
+      targetZ = clampZ(camera.position.z);
+      targetYaw = THREE.MathUtils.clamp(camera.rotation.y, -yawLimit, yawLimit);
       pointerDown.x = event.clientX;
       pointerDown.y = event.clientY;
       lastPointer.x = event.clientX;
@@ -265,9 +272,9 @@ export default function GamesHallway({ games, onClose }) {
       }
 
       if (isDragging) {
-        yaw = THREE.MathUtils.clamp(yaw - dx * yawSensitivity, -yawLimit, yawLimit);
-        const targetZ = camera.position.z - dy * moveSensitivity;
-        camera.position.z = THREE.MathUtils.clamp(targetZ, minZ, maxZ);
+        targetYaw = THREE.MathUtils.clamp(targetYaw - dx * yawSensitivity, -yawLimit, yawLimit);
+        const desiredZ = targetZ - dy * moveSensitivity;
+        targetZ = clampZ(desiredZ);
       }
 
       lastPointer.x = event.clientX;
@@ -296,13 +303,24 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('pointercancel', handlePointerLeave);
 
     let animationId;
+    const clock = new THREE.Clock();
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      camera.position.z = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
-      camera.rotation.y = yaw;
+      const delta = clock.getDelta();
+      camera.position.z = clampZ(THREE.MathUtils.damp(camera.position.z, targetZ, 6, delta));
+      camera.rotation.y = THREE.MathUtils.damp(camera.rotation.y, targetYaw, 6, delta);
       renderer.render(scene, camera);
     };
     animate();
+
+    controlsRef.current = {
+      moveForward: () => {
+        targetZ = clampZ(targetZ - movementStep);
+      },
+      moveBackward: () => {
+        targetZ = clampZ(targetZ + movementStep);
+      }
+    };
 
     const handleResize = () => {
       if (!container) return;
@@ -315,6 +333,7 @@ export default function GamesHallway({ games, onClose }) {
 
     return () => {
       cancelAnimationFrame(animationId);
+      controlsRef.current = { moveForward: () => {}, moveBackward: () => {} };
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
@@ -356,7 +375,29 @@ export default function GamesHallway({ games, onClose }) {
           Close
         </button>
       </div>
-      <div className="relative flex-1" ref={containerRef} />
+      <div className="relative flex-1">
+        <div ref={containerRef} className="absolute inset-0" />
+        <div className="pointer-events-none absolute inset-0 flex flex-col justify-end">
+          <div className="pointer-events-auto mx-auto mb-6 flex w-full max-w-xs justify-between gap-4 px-6">
+            <button
+              type="button"
+              onPointerDown={() => controlsRef.current.moveBackward()}
+              onClick={() => controlsRef.current.moveBackward()}
+              className="flex-1 rounded-full bg-white/10 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-lg backdrop-blur"
+            >
+              Backward
+            </button>
+            <button
+              type="button"
+              onPointerDown={() => controlsRef.current.moveForward()}
+              onClick={() => controlsRef.current.moveForward()}
+              className="flex-1 rounded-full bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-wide text-black shadow-lg"
+            >
+              Forward
+            </button>
+          </div>
+        </div>
+      </div>
       {selectedGame && overlayRootRef.current &&
         createPortal(
           <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center bg-black/95 px-6 text-center text-text">
