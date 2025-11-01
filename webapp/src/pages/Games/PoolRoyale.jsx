@@ -662,7 +662,7 @@ let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const ROLL_DECEL_PER_SECOND = 0.6; // linear rolling resistance (table units per simulated second)
 const MIN_ROLL_SPEED = 0.04; // clamp tiny velocities so balls actually come to rest
 const STOP_EPS = MIN_ROLL_SPEED;
-const TARGET_FPS = 90;
+const TARGET_FPS = 60;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const TARGET_FRAME_TIME_SECONDS = TARGET_FRAME_TIME_MS / 1000;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
@@ -803,8 +803,8 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-const SHOT_FORCE_BOOST = 1.5 * 0.75;
+// Restore morning shot power using the legacy 2D tuning multiplier (3.3 * 0.3 * 1.65 * 1.5).
+const SHOT_FORCE_BOOST = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -1438,16 +1438,6 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.56,
     clearcoatRoughness: 0.16,
     envMapIntensity: 0.98
-  },
-  {
-    id: 'matteBlack',
-    label: 'Black Chrome',
-    color: 0x1a1a1a,
-    metalness: 0.84,
-    roughness: 0.36,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.94
   }
 ]);
 
@@ -1471,16 +1461,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
 ]);
 
 const POCKET_LINER_PRESETS = Object.freeze([
-  Object.freeze({
-    id: 'maplePocket',
-    label: 'Maple Pockets',
-    type: 'wood',
-    finishId: 'maple',
-    jawMix: 0.115,
-    rimMix: 0.26,
-    textureDensity: 1.16,
-    seed: 1620
-  }),
   Object.freeze({
     id: 'walnutPocket',
     label: 'Walnut Pocket Jaws',
@@ -1576,7 +1556,7 @@ function resolvePocketLinerTextureColor(value, fallback) {
 }
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS[0]?.id ?? 'maplePocket';
+  POCKET_LINER_PRESETS[0]?.id ?? 'walnutPocket';
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config, index) => {
@@ -1706,76 +1686,6 @@ const BROADCAST_CAMERA_OPTIONS = Object.freeze([
       minSettle: 0.6,
       idleLerpScale: 0.65,
       idleMinSettle: 0.45
-    })
-  }),
-  Object.freeze({
-    id: 'premierHybridTrack',
-    label: 'Premier Hybrid Track',
-    description: 'Director-controlled rail that slides between short and side angles.',
-    profile: Object.freeze({
-      railMode: 'hybrid',
-      lateralInfluence: 0.28,
-      slideLimitMultiplier: 1.1,
-      focusLift: BALL_R * 1.8,
-      focusDepth: BALL_R * 3.4,
-      dollyOffset: -BALL_R * 5.2,
-      lerpMultiplier: 0.9,
-      minSettle: 0.55,
-      idleLerpScale: 0.6,
-      idleMinSettle: 0.4
-    })
-  }),
-  Object.freeze({
-    id: 'arenaHighWide',
-    label: 'Arena High Wide',
-    description: 'Signature boom sweeping high over the table for network openers.',
-    profile: Object.freeze({
-      railMode: 'shortLocked',
-      lateralInfluence: 0.18,
-      slideLimitMultiplier: 1.3,
-      focusLift: BALL_R * 4.8,
-      focusDepth: BALL_R * 7.2,
-      dollyOffset: BALL_R * 6.4,
-      lerpMultiplier: 0.62,
-      minSettle: 0.52,
-      idleLerpScale: 0.55,
-      idleMinSettle: 0.36
-    })
-  }),
-  Object.freeze({
-    id: 'cornerSpotlight',
-    label: 'Corner Spotlight',
-    description: 'Hero ISO pedestal framing break-offs from the feature corner.',
-    profile: Object.freeze({
-      railMode: 'sideLocked',
-      lateralInfluence: 0.34,
-      slideLimitMultiplier: 0.95,
-      focusLift: BALL_R * 2.4,
-      focusDepth: BALL_R * 3.2,
-      focusStrafe: BALL_R * 0.85,
-      dollyOffset: -BALL_R * 4.2,
-      panOffset: THREE.MathUtils.degToRad(4.5),
-      lerpMultiplier: 1.05,
-      minSettle: 0.58,
-      idleLerpScale: 0.68,
-      idleMinSettle: 0.46
-    })
-  }),
-  Object.freeze({
-    id: 'analysisDeck',
-    label: 'Analysis Deck',
-    description: 'Upper-deck analyst gantry for telestrator breakdowns.',
-    profile: Object.freeze({
-      railMode: 'hybrid',
-      lateralInfluence: 0.2,
-      slideLimitMultiplier: 1.35,
-      focusLift: BALL_R * 5.6,
-      focusDepth: BALL_R * 9.2,
-      dollyOffset: BALL_R * 7.5,
-      lerpMultiplier: 0.58,
-      minSettle: 0.5,
-      idleLerpScale: 0.52,
-      idleMinSettle: 0.38
     })
   })
 ]);

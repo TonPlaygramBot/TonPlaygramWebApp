@@ -111,34 +111,6 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'heritagePlanks',
-    label: 'Heritage Planks',
-    rail: {
-      repeat: { x: 0.09, y: 0.5 },
-      rotation: Math.PI / 28,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.18, y: 0.34 },
-      rotation: Math.PI / 2,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'atelierChevron',
-    label: 'Atelier Chevron',
-    rail: {
-      repeat: { x: 0.16, y: 0.62 },
-      rotation: Math.PI / 9,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.28, y: 0.46 },
-      rotation: -Math.PI / 8,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
     id: 'estateBands',
     label: 'Estate Bands',
     rail: {

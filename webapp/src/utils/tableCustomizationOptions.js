@@ -9,12 +9,8 @@ export const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 
 export const TABLE_WOOD_OPTIONS = [
-  { id: 'walnutHeritage', label: 'Arre Heritage', presetId: 'walnut', grainId: 'heritagePlanks' },
-  { id: 'mapleChevron', label: 'Panjo Chevron', presetId: 'maple', grainId: 'atelierChevron' },
   { id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' },
-  { id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' },
-  { id: 'wengeShadow', label: 'Wenge Hije', presetId: 'wenge', grainId: 'atelierChevron' },
-  { id: 'ebonyClassic', label: 'Eben Klasik', presetId: 'ebony', grainId: 'heritagePlanks' }
+  { id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' }
 ];
 
 export const TABLE_CLOTH_OPTIONS = [

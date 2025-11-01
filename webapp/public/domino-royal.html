@@ -512,34 +512,6 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 
 const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'heritagePlanks',
-    label: 'Heritage Planks',
-    rail: {
-      repeat: { x: 0.09, y: 0.5 },
-      rotation: Math.PI / 28,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.18, y: 0.34 },
-      rotation: Math.PI / 2,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'atelierChevron',
-    label: 'Atelier Chevron',
-    rail: {
-      repeat: { x: 0.16, y: 0.62 },
-      rotation: Math.PI / 9,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.28, y: 0.46 },
-      rotation: -Math.PI / 8,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
     id: 'estateBands',
     label: 'Estate Bands',
     rail: {
@@ -576,7 +548,7 @@ const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
   }, {})
 );
 
-const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'heritagePlanks';
+const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0]?.id ?? 'estateBands';
 const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
 const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
 const WOOD_TEXTURE_BASE_CACHE = new Map();
@@ -848,12 +820,8 @@ function resolveWoodComponents(option) {
 }
 
 const TABLE_WOOD_OPTIONS = Object.freeze([
-  makeTableWoodOption({ id: 'walnutHeritage', label: 'Arre Heritage', presetId: 'walnut', grainId: 'heritagePlanks' }),
-  makeTableWoodOption({ id: 'mapleChevron', label: 'Panjo Chevron', presetId: 'maple', grainId: 'atelierChevron' }),
   makeTableWoodOption({ id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' }),
-  makeTableWoodOption({ id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' }),
-  makeTableWoodOption({ id: 'wengeShadow', label: 'Wenge Hije', presetId: 'wenge', grainId: 'atelierChevron' }),
-  makeTableWoodOption({ id: 'ebonyClassic', label: 'Eben Klasik', presetId: 'ebony', grainId: 'heritagePlanks' })
+  makeTableWoodOption({ id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' })
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([

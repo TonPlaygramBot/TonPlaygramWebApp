@@ -1209,15 +1209,6 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     roughness: 0.35,
     clearcoat: 0.26,
     clearcoatRoughness: 0.2
-  },
-  {
-    id: 'matteBlack',
-    label: 'Black Chrome',
-    color: 0x1a1a1a,
-    metalness: 0.64,
-    roughness: 0.58,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.4
   }
 ]);
 
