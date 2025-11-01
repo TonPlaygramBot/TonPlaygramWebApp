@@ -1160,9 +1160,12 @@ const BASE_BALL_COLORS = Object.freeze({
   black: 0x111111
 });
 const CLOTH_TEXTURE_INTENSITY = 0.62;
-const CLOTH_HAIR_INTENSITY = 0.56;
-const CLOTH_BUMP_INTENSITY = 0.82;
+const CLOTH_HAIR_INTENSITY = 0.62; // boost fine fuzz to lean toward a carpet-like nap
+const CLOTH_BUMP_INTENSITY = 0.74; // trim macro undulations so the surface reads flatter
 const CLOTH_SOFT_BLEND = 0.46;
+const CLOTH_PATTERN_SIZE_SCALE = 0.85; // shrink the felt pattern by roughly 15%
+const CLOTH_PATTERN_REPEAT_SCALE = 1 / CLOTH_PATTERN_SIZE_SCALE;
+const CLOTH_CARPET_BUMP_MULTIPLIER = 0.72; // damp bump amplitude to smooth out visible waves
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -2084,18 +2087,18 @@ const createClothTextures = (() => {
         const fuzz = Math.pow(fiber, 1.22);
         const hair = hairFiber(x, y);
         const bump = THREE.MathUtils.clamp(
-          0.56 +
-            (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
-            (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
-            (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
-            (fiber - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
-            (fuzz - 0.5) * 0.2 * CLOTH_BUMP_INTENSITY +
-            (micro - 0.5) * 0.22 * CLOTH_BUMP_INTENSITY +
-            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
+          0.58 +
+            (weave - 0.5) * 0.54 * CLOTH_BUMP_INTENSITY +
+            (cross - 0.5) * 0.32 * CLOTH_BUMP_INTENSITY +
+            (diamond - 0.5) * 0.42 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.34 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.28 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
+            (hair - 0.5) * 0.46 * CLOTH_HAIR_INTENSITY,
           0,
           1
         );
-        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 48);
+        const value = clamp255(150 + (bump - 0.5) * 150 + (hair - 0.5) * 54);
         const i = (y * SIZE + x) * 4;
         bumpData[i + 0] = value;
         bumpData[i + 1] = value;
@@ -3697,7 +3700,7 @@ function makeClothTexture(
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  const baseRepeat = 7.2;
+  const baseRepeat = 7.2 * CLOTH_PATTERN_REPEAT_SCALE;
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
@@ -4293,28 +4296,30 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.95,
-    sheen: CLOTH_QUALITY.sheen,
+    roughness: 0.98,
+    sheen: Math.min(CLOTH_QUALITY.sheen, 0.78),
     sheenColor,
-    sheenRoughness: CLOTH_QUALITY.sheenRoughness,
+    sheenRoughness: Math.max(CLOTH_QUALITY.sheenRoughness, 0.82),
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
-    envMapIntensity: 0.08,
-    emissive: clothColor.clone().multiplyScalar(0.045),
-    emissiveIntensity: 0.52
+    clearcoatRoughness: 0.92,
+    envMapIntensity: 0.06,
+    emissive: clothColor.clone().multiplyScalar(0.04),
+    emissiveIntensity: 0.46
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // base density before global scaling adjustments
-  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features by ~30%
+  const clothPatternUpscale = (1 / 1.3) * CLOTH_PATTERN_REPEAT_SCALE; // shrink the visible weave by ~15%
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = (0.64 * 1.52 * 1.34 * 1.26) * CLOTH_QUALITY.bumpScaleMultiplier;
+  const baseBumpScale =
+    (0.64 * 1.52 * 1.34 * 1.26 * CLOTH_CARPET_BUMP_MULTIPLIER) *
+    CLOTH_QUALITY.bumpScaleMultiplier;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
