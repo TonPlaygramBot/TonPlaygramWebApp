@@ -1451,7 +1451,20 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
   { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
-  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 }
+  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
+  {
+    id: 'emeraldClassic',
+    label: 'Green Cloth',
+    color: 0x19a34a,
+    detail: {
+      bumpMultiplier: 1.22,
+      roughness: 0.78,
+      sheenRoughness: 0.52,
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.32,
+      emissiveIntensity: 0.52
+    }
+  }
 ]);
 
 const POCKET_LINER_PRESETS = Object.freeze([
@@ -1674,67 +1687,35 @@ const POCKET_LINER_OPTIONS = Object.freeze(
   }).filter(Boolean)
 );
 
-const DEFAULT_BROADCAST_CAMERA_ID = 'proRailDirector';
+const DEFAULT_BROADCAST_CAMERA_ID = 'worldFeedShortRail';
 const BROADCAST_CAMERA_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'proRailDirector',
-    label: 'Pro Rail Director',
-    description: 'World tour short-rail dolly with balanced lateral tracking.',
+    id: 'worldFeedShortRail',
+    label: 'World Feed Railcam',
+    description: 'Tour-standard short-rail truck delivering the main TV cut.',
     profile: Object.freeze({
-      lateralInfluence: 0.24,
+      railMode: 'shortLocked',
+      lateralInfluence: 0.22,
       slideLimitMultiplier: 1.05,
-      focusLift: BALL_R * 1.4,
-      focusDepth: BALL_R * 2.8,
-      dollyOffset: -BALL_R * 6,
-      minSettle: 0.58,
+      focusLift: BALL_R * 1.3,
+      focusDepth: BALL_R * 2.6,
+      dollyOffset: -BALL_R * 6.5,
+      minSettle: 0.6,
       idleLerpScale: 0.65,
-      idleMinSettle: 0.42
+      idleMinSettle: 0.45
     })
   }),
   Object.freeze({
-    id: 'arenaPanorama',
-    label: 'Arena Panorama',
-    description: 'High arena boom framing the full table for studio intros.',
+    id: 'premierHybridTrack',
+    label: 'Premier Hybrid Track',
+    description: 'Director-controlled rail that slides between short and side angles.',
     profile: Object.freeze({
-      lateralInfluence: 0.18,
-      slideLimitMultiplier: 1.25,
-      focusLift: BALL_R * 4.2,
-      focusDepth: BALL_R * 6.8,
-      dollyOffset: BALL_R * 5.5,
-      lerpMultiplier: 0.65,
-      minSettle: 0.5,
-      idleLerpScale: 0.55,
-      idleMinSettle: 0.35
-    })
-  }),
-  Object.freeze({
-    id: 'immersiveFollower',
-    label: 'Immersive Follow',
-    description: 'Esports-style sideline jib that punches in on fast breaks.',
-    profile: Object.freeze({
-      lateralInfluence: 0.32,
-      slideLimitMultiplier: 0.85,
-      focusLift: BALL_R * 0.9,
-      focusDepth: BALL_R * 2.1,
-      dollyOffset: -BALL_R * 9,
-      lerpMultiplier: 1.35,
-      minSettle: 0.62,
-      idleLerpScale: 0.7,
-      idleMinSettle: 0.48
-    })
-  }),
-  Object.freeze({
-    id: 'cornerHero',
-    label: 'Corner Hero',
-    description: 'Feature-match pedestal with a heroic corner bias.',
-    profile: Object.freeze({
+      railMode: 'hybrid',
       lateralInfluence: 0.28,
       slideLimitMultiplier: 1.1,
-      focusLift: BALL_R * 2.6,
-      focusDepth: BALL_R * 3.5,
-      focusStrafe: BALL_R * 0.75,
-      dollyOffset: -BALL_R * 4.5,
-      panOffset: THREE.MathUtils.degToRad(3.5),
+      focusLift: BALL_R * 1.8,
+      focusDepth: BALL_R * 3.4,
+      dollyOffset: -BALL_R * 5.2,
       lerpMultiplier: 0.9,
       minSettle: 0.55,
       idleLerpScale: 0.6,
@@ -1742,19 +1723,56 @@ const BROADCAST_CAMERA_OPTIONS = Object.freeze([
     })
   }),
   Object.freeze({
-    id: 'skyboxAnalyst',
-    label: 'Skybox Analyst',
-    description: 'Upper-deck analyst gantry for wide tactical breakdowns.',
+    id: 'arenaHighWide',
+    label: 'Arena High Wide',
+    description: 'Signature boom sweeping high over the table for network openers.',
     profile: Object.freeze({
-      lateralInfluence: 0.16,
-      slideLimitMultiplier: 1.4,
-      focusLift: BALL_R * 5.8,
-      focusDepth: BALL_R * 9.5,
-      dollyOffset: BALL_R * 8,
-      lerpMultiplier: 0.55,
+      railMode: 'shortLocked',
+      lateralInfluence: 0.18,
+      slideLimitMultiplier: 1.3,
+      focusLift: BALL_R * 4.8,
+      focusDepth: BALL_R * 7.2,
+      dollyOffset: BALL_R * 6.4,
+      lerpMultiplier: 0.62,
+      minSettle: 0.52,
+      idleLerpScale: 0.55,
+      idleMinSettle: 0.36
+    })
+  }),
+  Object.freeze({
+    id: 'cornerSpotlight',
+    label: 'Corner Spotlight',
+    description: 'Hero ISO pedestal framing break-offs from the feature corner.',
+    profile: Object.freeze({
+      railMode: 'sideLocked',
+      lateralInfluence: 0.34,
+      slideLimitMultiplier: 0.95,
+      focusLift: BALL_R * 2.4,
+      focusDepth: BALL_R * 3.2,
+      focusStrafe: BALL_R * 0.85,
+      dollyOffset: -BALL_R * 4.2,
+      panOffset: THREE.MathUtils.degToRad(4.5),
+      lerpMultiplier: 1.05,
+      minSettle: 0.58,
+      idleLerpScale: 0.68,
+      idleMinSettle: 0.46
+    })
+  }),
+  Object.freeze({
+    id: 'analysisDeck',
+    label: 'Analysis Deck',
+    description: 'Upper-deck analyst gantry for telestrator breakdowns.',
+    profile: Object.freeze({
+      railMode: 'hybrid',
+      lateralInfluence: 0.2,
+      slideLimitMultiplier: 1.35,
+      focusLift: BALL_R * 5.6,
+      focusDepth: BALL_R * 9.2,
+      dollyOffset: BALL_R * 7.5,
+      lerpMultiplier: 0.58,
       minSettle: 0.5,
-      idleLerpScale: 0.5,
-      idleMinSettle: 0.35
+      idleLerpScale: 0.52,
+      idleMinSettle: 0.38
     })
   })
 ]);
@@ -10031,15 +10049,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
             : null;
           const nearRailThresholdX = RAIL_LIMIT_X - RAIL_NEAR_BUFFER;
-          const nearRailThresholdY = RAIL_LIMIT_Y - RAIL_NEAR_BUFFER;
-          const cueNearRail =
-            Math.abs(cueBall.pos.x) > nearRailThresholdX ||
-            Math.abs(cueBall.pos.y) > nearRailThresholdY;
-          const targetNearRail = targetBall
-            ? Math.abs(targetBall.pos.x) > nearRailThresholdX ||
-              Math.abs(targetBall.pos.y) > nearRailThresholdY
+          const cueNearSideRail = Math.abs(cueBall.pos.x) > nearRailThresholdX;
+          const targetNearSideRail = targetBall
+            ? Math.abs(targetBall.pos.x) > nearRailThresholdX
             : false;
-          const axis = 'short'; // force short-rail broadcast framing
+          const broadcastProfile = broadcastProfileRef.current ?? null;
+          const railMode = broadcastProfile?.railMode ?? 'shortLocked';
+          const preferSideRail = cueNearSideRail || targetNearSideRail;
+          const axis =
+            railMode === 'sideLocked'
+              ? 'side'
+              : railMode === 'hybrid' && preferSideRail
+                ? 'side'
+                : 'short';
           const initialRailDir =
             axis === 'side'
               ? signed(
