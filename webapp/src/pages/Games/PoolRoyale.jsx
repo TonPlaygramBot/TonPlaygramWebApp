@@ -502,7 +502,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.84; // lift the rails a touch more so their top edge finishes flush with the green cushions
+const RAIL_HEIGHT = TABLE.THICK * 1.88; // lift the rails a touch more so their top edge finishes flush with the green cushions
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
@@ -7442,11 +7442,25 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           : 'colors';
       const scoreA = hudMeta?.scores?.A ?? frameState.players.A.score;
       const scoreB = hudMeta?.scores?.B ?? frameState.players.B.score;
+      const players = frameState.players ?? {};
+      const playerInfo = playerInfoRef.current ?? {};
+      const localName =
+        typeof playerInfo.name === 'string' && playerInfo.name.trim()
+          ? playerInfo.name
+          : players.A?.name;
+      let localId = 'A';
+      if (players.A?.name && players.A.name === localName) {
+        localId = 'A';
+      } else if (players.B?.name && players.B.name === localName) {
+        localId = 'B';
+      }
+      const activeId = frameState.activePlayer === 'B' ? 'B' : 'A';
+      const isPlayerTurn = activeId === localId;
       return {
         ...prev,
         A: scoreA,
         B: scoreB,
-        turn: frameState.activePlayer === 'A' ? 0 : 1,
+        turn: isPlayerTurn ? 0 : 1,
         phase: phaseLabel,
         next: nextLabel,
         over: frameState.frameOver
@@ -13260,9 +13274,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const showPlayerControls = hud.turn === 0 && !hud.over;
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
+  const showPlayerControls = isPlayerTurn && !hud.over;
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
