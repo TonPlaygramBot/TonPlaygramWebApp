@@ -512,6 +512,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the m
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const POCKET_JAW_DEPTH_SCALE = 0.46; // trim the jaw underside so no dark arch remains beneath the cloth cut
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.08; // hold the jaw underside slightly above the cloth so the lips start just above the green
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
@@ -3053,6 +3054,8 @@ const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
+const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
+const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -3068,7 +3071,8 @@ const SHORT_RAIL_POCKET_TRIGGER =
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
-const AI_EARLY_SHOT_DELAY_MS = 3500;
+const AI_EARLY_SHOT_DELAY_MS = 1800;
+const AI_SHOT_PREVIEW_DELAY_MS = 450;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -5558,9 +5562,12 @@ function Table3D(
       MICRO_EPS,
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
-    const requiredJawDepth = jawTopY - pocketTopY;
-    if (Number.isFinite(requiredJawDepth) && requiredJawDepth > jawDepth) {
-      jawDepth = requiredJawDepth + MICRO_EPS * 0.25;
+    const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
+    const safeBottomY = pocketTopY + clearance;
+    const maxJawDepth = jawTopY - safeBottomY;
+    if (Number.isFinite(maxJawDepth)) {
+      const limitedDepth = Math.max(MICRO_EPS, maxJawDepth - MICRO_EPS * 0.5);
+      jawDepth = Math.min(jawDepth, limitedDepth);
     }
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
@@ -6985,14 +6992,29 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const sliderInstanceRef = useRef(null);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
+  const aiShotPreviewRef = useRef(false);
+  const aiShotTimeoutRef = useRef(null);
+  const aiShotCueViewRef = useRef(false);
+  const cancelAiShotPreview = useCallback(() => {
+    if (aiShotTimeoutRef.current) {
+      clearTimeout(aiShotTimeoutRef.current);
+      aiShotTimeoutRef.current = null;
+    }
+    aiShotPreviewRef.current = false;
+    aiShotCueViewRef.current = false;
+  }, []);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
       clearTimeout(intent.timeout);
     }
     aiEarlyShotIntentRef.current = null;
-  }, [activeVariant]);
-  useEffect(() => () => clearEarlyAiShot(), [clearEarlyAiShot]);
+    cancelAiShotPreview();
+  }, [activeVariant, cancelAiShotPreview]);
+  useEffect(() => () => {
+    clearEarlyAiShot();
+    cancelAiShotPreview();
+  }, [clearEarlyAiShot, cancelAiShotPreview]);
   useEffect(() => {
     if (hud.turn !== 1) {
       clearEarlyAiShot();
@@ -7500,7 +7522,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     if (hud.over) return;
     const playerTurn = hud.turn;
-    const duration = playerTurn === 0 ? 60 : 15;
+    const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
     timerWarnedRef.current = false;
     clearInterval(timerRef.current);
@@ -11231,8 +11253,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           currentHud?.over
         )
           return;
+        const forcedCueView = aiShotCueViewRef.current;
+        aiShotCueViewRef.current = false;
+        aiShotPreviewRef.current = false;
         alignStandingCameraToAim(cue, aimDirRef.current);
-        applyCameraBlend(1);
+        applyCameraBlend(forcedCueView ? 0 : 1);
         updateCamera();
         const frameSnapshot = frameRef.current ?? frameState;
         let placedFromHand = false;
@@ -11838,6 +11863,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         aiShoot.current = () => {
           const currentHud = hudRef.current;
           if (currentHud?.over || currentHud?.inHand || shooting) return;
+          cancelAiShotPreview();
           let plan = aiPlanRef.current ?? computeAiShot();
           if (!plan) {
             const cuePos = cue?.pos ? cue.pos.clone() : null;
@@ -11860,13 +11886,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           aimDirRef.current.copy(dir);
           topViewRef.current = false;
           alignStandingCameraToAim(cue, dir);
+          aiShotCueViewRef.current = true;
+          aiShotPreviewRef.current = true;
+          applyCameraBlend(0);
+          updateCamera();
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
           const spinToApply = plan.spin ?? { x: 0, y: 0 };
           spinRef.current = { ...spinToApply };
           spinRequestRef.current = { ...spinToApply };
           resetSpinRef.current?.();
-          fire();
+          if (aiShotTimeoutRef.current) {
+            clearTimeout(aiShotTimeoutRef.current);
+            aiShotTimeoutRef.current = null;
+          }
+          aiShotTimeoutRef.current = window.setTimeout(() => {
+            aiShotTimeoutRef.current = null;
+            aiShotCueViewRef.current = true;
+            aiShotPreviewRef.current = false;
+            fire();
+          }, AI_SHOT_PREVIEW_DELAY_MS);
         };
 
         fireRef.current = fire;
@@ -12042,9 +12081,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
+        const cameraBlend = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        );
+        const baseAimLerp = THREE.MathUtils.lerp(
+          CUE_VIEW_AIM_LINE_LERP,
+          STANDING_VIEW_AIM_LINE_LERP,
+          cameraBlend
+        );
         const aimLerpFactor = chalkAssistTargetRef.current
-          ? CHALK_AIM_LERP_SLOW
-          : 0.2;
+          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
+          : baseAimLerp;
         aimDir.lerp(tmpAim, aimLerpFactor);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
@@ -12054,6 +12103,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = currentHud?.turn === 1;
+        const previewingAiShot = aiShotPreviewRef.current;
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
@@ -12061,7 +12111,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const canShowCue =
           allStopped(balls) && cue?.active && !(currentHud?.over) && !(currentHud?.inHand);
 
-        if (canShowCue && isPlayerTurn) {
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -12275,7 +12325,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           } else {
             target.visible = false;
           }
-        } else if (canShowCue && activeAiPlan) {
+        } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
@@ -13146,6 +13196,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const showPlayerControls = hud.turn === 0 && !hud.over && !shotActive;
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
 
@@ -13445,40 +13496,44 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         </div>
       )}
       {/* Power Slider */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-        <div
-          ref={sliderRef}
-          style={{
-            transform: `scale(${uiScale})`,
-            transformOrigin: 'top right'
-          }}
-        />
-      </div>
+      {showPlayerControls && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div
+            ref={sliderRef}
+            style={{
+              transform: `scale(${uiScale})`,
+              transformOrigin: 'top right'
+            }}
+          />
+        </div>
+      )}
 
       {/* Spin controller */}
-      <div
-        className="absolute bottom-4 right-4"
-        style={{
-          transform: `scale(${uiScale})`,
-          transformOrigin: 'bottom right'
-        }}
-      >
+      {showPlayerControls && (
         <div
-          id="spinBox"
-          className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
+          className="absolute bottom-4 right-4"
           style={{
-            background: `radial-gradient(circle, #ffffff 0%, #ffffff ${
-              SPIN_BOX_FILL_RATIO * 100
-            }%, #facc15 ${SPIN_BOX_FILL_RATIO * 100}%, #facc15 100%)`
+            transform: `scale(${uiScale})`,
+            transformOrigin: 'bottom right'
           }}
         >
           <div
-            id="spinDot"
-            className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
-            style={{ left: '50%', top: '50%' }}
-          ></div>
+            id="spinBox"
+            className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
+            style={{
+              background: `radial-gradient(circle, #ffffff 0%, #ffffff ${
+                SPIN_BOX_FILL_RATIO * 100
+              }%, #facc15 ${SPIN_BOX_FILL_RATIO * 100}%, #facc15 100%)`
+            }}
+          >
+            <div
+              id="spinDot"
+              className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: '50%', top: '50%' }}
+            ></div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
