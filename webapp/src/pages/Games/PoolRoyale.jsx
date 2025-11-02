@@ -653,16 +653,13 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
-// Slightly faster surface to keep balls rolling realistically on the snooker cloth
-// Ease per-frame friction so rolls keep their pace even during longer rallies
-// and on lower refresh-rate devices that previously drifted into slow motion.
-const FRICTION = 0.996;
-const DEFAULT_CUSHION_RESTITUTION = 0.99;
+// Match the snooker build so pace and rebound energy stay consistent between modes.
+const FRICTION = 0.993;
+const DEFAULT_CUSHION_RESTITUTION = 1;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
-const FRAME_TIME_SMOOTHING = 0.15;
 const FRAME_DROP_THRESHOLD_MS = 1000 / 55; // drop quality if sustained below ~55 FPS
 const FRAME_RECOVERY_THRESHOLD_MS = 1000 / 85; // ease quality back above ~85 FPS
 const FULL_HD_PIXEL_COUNT = 1920 * 1080;
@@ -806,8 +803,8 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power punchier for 3D play.
-const SHOT_FORCE_BOOST = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.36 * 1.65 * SHOT_FORCE_BOOST;
+const SHOT_FORCE_BOOST = 2.7 * 0.75; // align cue launch strength with snooker build
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -12268,7 +12265,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Loop
       let lastStepTime = performance.now();
-      let smoothedFrameDelta = TARGET_FRAME_TIME_MS;
       const pixelRatioMonitor = {
         enabled:
           pixelRatioCeiling - pixelRatioFloor > 0.05 &&
@@ -12320,12 +12316,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
-        smoothedFrameDelta = THREE.MathUtils.lerp(
-          smoothedFrameDelta,
-          deltaMs,
-          FRAME_TIME_SMOOTHING
-        );
-        const appliedDeltaMs = Math.min(smoothedFrameDelta, MAX_FRAME_TIME_MS);
+        const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
