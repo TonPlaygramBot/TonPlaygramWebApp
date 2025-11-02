@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 
-const doorSpacing = 9;
-const hallwayHalfWidth = 6;
-const ceilingHeight = 5;
+const lobbyRadius = 11;
+const doorRingRadius = lobbyRadius - 1.6;
+const ceilingHeight = 6;
 
 function useBodyScrollLock(isLocked) {
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function GamesHallway({ games, onClose }) {
     if (!container) return undefined;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#101015');
+    scene.background = new THREE.Color('#0c0d18');
 
     const loader = new THREE.TextureLoader();
 
@@ -60,9 +60,10 @@ export default function GamesHallway({ games, onClose }) {
       65,
       container.clientWidth / container.clientHeight,
       0.1,
-      400
+      200
     );
-    camera.position.set(0, 1.6, 4);
+    camera.position.set(0, 1.6, 0);
+    camera.lookAt(new THREE.Vector3(0, 1.6, -1));
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -72,71 +73,68 @@ export default function GamesHallway({ games, onClose }) {
     container.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = 'none';
 
-    const ambient = new THREE.AmbientLight(0xfff4d6, 0.4);
+    const ambient = new THREE.AmbientLight(0xfff4d6, 0.45);
     scene.add(ambient);
 
-    const centerGlow = new THREE.PointLight(0xffd27a, 2.5, 40, 2);
-    const corridorLength = Math.max(doorSpacing * (games.length + 2), 80);
-    centerGlow.position.set(0, ceilingHeight - 0.2, -corridorLength / 2);
+    const centerGlow = new THREE.PointLight(0xffd27a, 3.4, 60, 2);
+    centerGlow.position.set(0, ceilingHeight - 0.4, 0);
     scene.add(centerGlow);
 
-    for (let i = 0; i < 12; i++) {
-      const p = new THREE.PointLight(0xffb84d, 0.4, 18, 2);
-      p.position.set(0, ceilingHeight - 0.3, -i * 8);
-      scene.add(p);
-    }
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    dirLight.position.set(5, 10, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    dirLight.position.set(6, 12, 4);
     scene.add(dirLight);
 
     const floorTex = loader.load('https://threejsfundamentals.org/threejs/resources/images/checker.png');
     floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-    floorTex.repeat.set(20, 40);
+    floorTex.repeat.set(8, 8);
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTex,
-      color: '#aa0000',
-      roughness: 0.8,
-      metalness: 0.1
+      color: '#20223f',
+      roughness: 0.85,
+      metalness: 0.08
     });
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(hallwayHalfWidth * 2, corridorLength), floorMat);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(lobbyRadius, 72), floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, 0, -corridorLength / 2);
+    floor.receiveShadow = true;
     scene.add(floor);
 
     const wallTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/brick_diffuse.jpg');
     wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    wallTex.repeat.set(20, 10);
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
+    wallTex.repeat.set(12, 3);
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.75, side: THREE.BackSide });
+    const walls = new THREE.Mesh(new THREE.CylinderGeometry(lobbyRadius, lobbyRadius, ceilingHeight, 96, 1, true), wallMat);
+    walls.position.y = ceilingHeight / 2;
+    walls.receiveShadow = true;
+    scene.add(walls);
 
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(corridorLength, ceilingHeight), wallMat);
-    leftWall.position.set(-hallwayHalfWidth, ceilingHeight / 2, -corridorLength / 2);
-    leftWall.rotation.y = Math.PI / 2;
-    scene.add(leftWall);
-
-    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(corridorLength, ceilingHeight), wallMat);
-    rightWall.position.set(hallwayHalfWidth, ceilingHeight / 2, -corridorLength / 2);
-    rightWall.rotation.y = -Math.PI / 2;
-    scene.add(rightWall);
-
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xfff8dc, roughness: 0.6 });
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(hallwayHalfWidth * 2, corridorLength), ceilingMat);
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xfff4d6, roughness: 0.45 });
+    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(lobbyRadius, 72), ceilingMat);
     ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.set(0, ceilingHeight, -corridorLength / 2);
+    ceiling.position.y = ceilingHeight;
     scene.add(ceiling);
 
-    const panelMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      emissive: '#ffffff',
-      emissiveIntensity: 2,
-      roughness: 0.4
-    });
-    for (let i = 0; i < 12; i++) {
-      const panel = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), panelMat);
-      panel.rotation.x = Math.PI / 2;
-      panel.position.set(0, ceilingHeight - 0.05, -i * 8);
-      scene.add(panel);
-    }
+    const centerRing = new THREE.Mesh(
+      new THREE.TorusGeometry(lobbyRadius - 2, 0.12, 16, 128),
+      new THREE.MeshStandardMaterial({ color: '#ffd45e', emissive: '#c48a16', emissiveIntensity: 0.35, roughness: 0.4 })
+    );
+    centerRing.rotation.x = Math.PI / 2;
+    centerRing.position.y = 0.02;
+    scene.add(centerRing);
+
+    const playerPad = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.1, 1.1, 0.2, 48),
+      new THREE.MeshStandardMaterial({ color: '#0f111f', metalness: 0.25, roughness: 0.6 })
+    );
+    playerPad.position.y = 0.1;
+    scene.add(playerPad);
+
+    const playerGlow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.6, 48),
+      new THREE.MeshBasicMaterial({ color: '#ffd45e', transparent: true, opacity: 0.22 })
+    );
+    playerGlow.rotation.x = -Math.PI / 2;
+    playerGlow.position.y = 0.01;
+    scene.add(playerGlow);
 
     const doorTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/wood/oak_planks_diff_1k.jpg');
     const goldHandleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
@@ -144,46 +142,57 @@ export default function GamesHallway({ games, onClose }) {
     const doorGeo = new THREE.BoxGeometry(2.8, 3.4, 0.12);
 
     const interactable = [];
-    let zPos = -5;
+    const rotationStep = THREE.MathUtils.degToRad(18);
+    const doorCount = Math.max(games.length, 1);
 
     games.forEach((game, index) => {
+      const angle = (index / doorCount) * Math.PI * 2;
+      const x = Math.cos(angle) * doorRingRadius;
+      const z = Math.sin(angle) * doorRingRadius;
+
+      const doorGroup = new THREE.Group();
+      doorGroup.position.set(x, 0, z);
+      doorGroup.lookAt(0, 1.7, 0);
+      doorGroup.rotateY(Math.PI);
+
       const door = new THREE.Mesh(doorGeo, doorMat.clone());
-      const sideX = index % 2 === 0 ? -hallwayHalfWidth + 0.1 : hallwayHalfWidth - 0.1;
-      const openAngle = index % 2 === 0 ? Math.PI / 2 - 0.05 : -Math.PI / 2 + 0.05;
-      door.position.set(sideX, 1.7, zPos);
-      door.rotation.y = openAngle;
+      door.position.set(0, 1.7, 0.06);
+      door.castShadow = true;
+      door.receiveShadow = true;
       door.userData = { type: 'door', route: game.route };
-      scene.add(door);
+      doorGroup.add(door);
       interactable.push(door);
 
       const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 16), goldHandleMat);
       handle.rotation.z = Math.PI / 2;
-      handle.position.set(index % 2 === 0 ? 1.1 : -1.1, 1.3, 0.06);
+      handle.position.set(1.05, 1.3, 0);
       door.add(handle);
 
       const labelCanvas = document.createElement('canvas');
       labelCanvas.width = 1024;
       labelCanvas.height = 256;
       const ctx = labelCanvas.getContext('2d');
-      ctx.fillStyle = '#8B4513';
+      ctx.fillStyle = '#ffe55a';
       ctx.fillRect(0, 0, 1024, 256);
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 20;
-      ctx.strokeRect(0, 0, 1024, 256);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 32;
+      ctx.strokeRect(16, 16, 1024 - 32, 256 - 32);
       ctx.font = 'bold 140px "Inter", Arial';
-      ctx.fillStyle = '#FFD700';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 22;
+      ctx.strokeStyle = '#000000';
+      ctx.strokeText(game.name, 512, 128);
+      ctx.fillStyle = '#1a1a1a';
       ctx.fillText(game.name, 512, 128);
 
       const signTex = new THREE.CanvasTexture(labelCanvas);
       const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, transparent: true });
 
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), signMat);
-      const signX = index % 2 === 0 ? -hallwayHalfWidth + 1.4 : hallwayHalfWidth - 1.4;
-      sign.position.set(signX, 2.85, zPos);
-      sign.rotation.y = index % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
-      scene.add(sign);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.1), signMat);
+      sign.position.set(0, 3.3, 0.08);
+      doorGroup.add(sign);
 
       const screenCanvas = document.createElement('canvas');
       screenCanvas.width = 512;
@@ -191,32 +200,68 @@ export default function GamesHallway({ games, onClose }) {
       const sctx = screenCanvas.getContext('2d');
       sctx.fillStyle = '#021024';
       sctx.fillRect(0, 0, 512, 256);
+      sctx.strokeStyle = '#000000';
+      sctx.lineWidth = 12;
+      sctx.strokeRect(6, 6, 512 - 12, 256 - 12);
       sctx.textAlign = 'center';
       sctx.textBaseline = 'middle';
-      sctx.fillStyle = '#0affff';
-      sctx.shadowColor = 'rgba(10, 255, 255, 0.75)';
-      sctx.shadowBlur = 18;
       sctx.font = 'bold 56px "Inter", Arial';
+      sctx.lineJoin = 'round';
+      sctx.strokeStyle = '#000000';
+      sctx.lineWidth = 10;
+      sctx.strokeText(game.name, 256, 96);
+      sctx.fillStyle = '#0affff';
       sctx.fillText(game.name, 256, 96);
       sctx.font = '32px "Inter", Arial';
-      sctx.shadowBlur = 10;
+      sctx.lineWidth = 6;
+      sctx.strokeText('Tap to enter the game', 256, 178);
       sctx.fillStyle = '#9fffe8';
       sctx.fillText('Tap to enter the game', 256, 178);
       const screenTex = new THREE.CanvasTexture(screenCanvas);
       const screenMat = new THREE.MeshStandardMaterial({
         map: screenTex,
         emissive: '#00ffaa',
-        emissiveIntensity: 1.2
+        emissiveIntensity: 1.1
       });
+
+      const infoRadius = doorRingRadius - 2.4;
+      const infoGroup = new THREE.Group();
+      infoGroup.position.set(Math.cos(angle) * infoRadius, 0, Math.sin(angle) * infoRadius);
+      infoGroup.lookAt(0, 1.4, 0);
+
+      const tableBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.95, 0.95, 0.22, 36),
+        new THREE.MeshStandardMaterial({ color: '#0b0b0f', roughness: 0.7, metalness: 0.25 })
+      );
+      tableBase.position.y = 0.11;
+      infoGroup.add(tableBase);
+
+      const tableSurface = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.82, 0.82, 0.08, 36),
+        new THREE.MeshStandardMaterial({ color: '#ffe55a', roughness: 0.6, metalness: 0.18 })
+      );
+      tableSurface.position.y = 0.25;
+      infoGroup.add(tableSurface);
+
+      const tableRim = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.84, 0.84, 0.1, 36, 1, true),
+        new THREE.MeshStandardMaterial({ color: '#000000', metalness: 0.35, roughness: 0.5, side: THREE.DoubleSide })
+      );
+      tableRim.position.y = 0.25;
+      infoGroup.add(tableRim);
+
       const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), screenMat);
-      const monitorX = signX;
-      screen.position.set(monitorX, 1.6, zPos);
-      screen.rotation.y = index % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
+      screen.position.set(0, 1.55, 0);
+      infoGroup.add(screen);
       screen.userData = { type: 'monitor', game };
-      scene.add(screen);
       interactable.push(screen);
 
-      zPos -= doorSpacing;
+      const doorLight = new THREE.PointLight(0xffe49a, 1.6, 14, 2.2);
+      doorLight.position.set(Math.cos(angle) * (doorRingRadius - 0.2), 3.4, Math.sin(angle) * (doorRingRadius - 0.2));
+      scene.add(doorLight);
+
+      scene.add(doorGroup);
+      scene.add(infoGroup);
     });
 
     const raycaster = new THREE.Raycaster();
@@ -238,24 +283,19 @@ export default function GamesHallway({ games, onClose }) {
       }
     };
 
-    const minZ = -corridorLength + 12;
-    const maxZ = 6;
-    camera.position.z = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
-
     const pointerDown = { x: 0, y: 0 };
     const lastPointer = { x: 0, y: 0 };
     let isPointerDown = false;
     let isDragging = false;
-    let targetYaw = 0;
-    let targetZ = THREE.MathUtils.clamp(camera.position.z, minZ, maxZ);
+    let targetYaw = camera.rotation.y;
+    let targetPitch = camera.rotation.x;
     const minFov = 38;
     const maxFov = 80;
     let targetFov = THREE.MathUtils.clamp(camera.fov, minFov, maxFov);
-    const yawLimit = Math.PI / 2.3;
     const dragThreshold = 6;
-    const moveSensitivity = 0.05;
-    const yawSensitivity = 0.0025;
-    const movementStep = 9;
+    const yawSensitivity = 0.003;
+    const pitchSensitivity = 0.0025;
+    const pitchLimit = Math.PI / 4;
     const zoomStep = 3;
 
     const clampFov = (value) => THREE.MathUtils.clamp(value, minFov, maxFov);
@@ -263,7 +303,17 @@ export default function GamesHallway({ games, onClose }) {
       targetFov = clampFov(targetFov + delta);
     };
 
-    const clampZ = (value) => THREE.MathUtils.clamp(value, minZ, maxZ);
+    const clampPitch = (value) => THREE.MathUtils.clamp(value, -pitchLimit, pitchLimit);
+    const wrapYaw = (value) => {
+      const fullRotation = Math.PI * 2;
+      let next = value % fullRotation;
+      if (next > Math.PI) {
+        next -= fullRotation;
+      } else if (next < -Math.PI) {
+        next += fullRotation;
+      }
+      return next;
+    };
 
     const activePointers = new Map();
     let isTouchZoom = false;
@@ -286,8 +336,8 @@ export default function GamesHallway({ games, onClose }) {
       updateTouchPointer(event);
       isPointerDown = true;
       isDragging = false;
-      targetZ = clampZ(camera.position.z);
-      targetYaw = THREE.MathUtils.clamp(camera.rotation.y, -yawLimit, yawLimit);
+      targetYaw = wrapYaw(camera.rotation.y);
+      targetPitch = clampPitch(camera.rotation.x);
       pointerDown.x = event.clientX;
       pointerDown.y = event.clientY;
       lastPointer.x = event.clientX;
@@ -326,9 +376,8 @@ export default function GamesHallway({ games, onClose }) {
       }
 
       if (isDragging) {
-        targetYaw = THREE.MathUtils.clamp(targetYaw - dx * yawSensitivity, -yawLimit, yawLimit);
-        const desiredZ = targetZ - dy * moveSensitivity;
-        targetZ = clampZ(desiredZ);
+        targetYaw = wrapYaw(targetYaw - dx * yawSensitivity);
+        targetPitch = clampPitch(targetPitch - dy * pitchSensitivity);
       }
 
       lastPointer.x = event.clientX;
@@ -402,8 +451,8 @@ export default function GamesHallway({ games, onClose }) {
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       const delta = clock.getDelta();
-      camera.position.z = clampZ(THREE.MathUtils.damp(camera.position.z, targetZ, 6, delta));
       camera.rotation.y = THREE.MathUtils.damp(camera.rotation.y, targetYaw, 6, delta);
+      camera.rotation.x = THREE.MathUtils.damp(camera.rotation.x, targetPitch, 6, delta);
       const nextFov = THREE.MathUtils.damp(camera.fov, targetFov, 8, delta);
       if (Math.abs(nextFov - camera.fov) > 0.001) {
         camera.fov = nextFov;
@@ -415,10 +464,10 @@ export default function GamesHallway({ games, onClose }) {
 
     controlsRef.current = {
       moveForward: () => {
-        targetZ = clampZ(targetZ - movementStep);
+        targetYaw = wrapYaw(targetYaw + rotationStep);
       },
       moveBackward: () => {
-        targetZ = clampZ(targetZ + movementStep);
+        targetYaw = wrapYaw(targetYaw - rotationStep);
       },
       zoomIn: () => {
         adjustZoom(-zoomStep);
@@ -475,7 +524,7 @@ export default function GamesHallway({ games, onClose }) {
 
   const handlePointerHoldStart = (direction) => (event) => {
     event.preventDefault();
-    const action = direction === 'forward' ? 'moveForward' : 'moveBackward';
+    const action = direction === 'clockwise' ? 'moveForward' : 'moveBackward';
     controlsRef.current[action]?.();
     if (holdIntervalRef.current) return;
     holdIntervalRef.current = setInterval(() => {
@@ -508,8 +557,8 @@ export default function GamesHallway({ games, onClose }) {
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 text-text">
         <div>
-          <h3 className="text-lg font-semibold">TonPlaygram Gaming Hallway</h3>
-          <p className="text-xs text-subtext">Tap a door to jump into the game lobby. Tap a monitor to preview lobby options.</p>
+          <h3 className="text-lg font-semibold">TonPlaygram Circular Lobby</h3>
+          <p className="text-xs text-subtext">Doors surround you in the lobby. Tap a door to enter the game or a monitor to preview its lobby options.</p>
         </div>
         <button
           type="button"
@@ -525,7 +574,7 @@ export default function GamesHallway({ games, onClose }) {
           <div className="pointer-events-auto mx-auto mb-8 flex w-full max-w-[320px] flex-wrap items-center justify-center gap-5 px-6">
             <button
               type="button"
-              onPointerDown={handlePointerHoldStart('backward')}
+              onPointerDown={handlePointerHoldStart('counterclockwise')}
               onPointerUp={handlePointerHoldEnd}
               onPointerLeave={handlePointerHoldEnd}
               onPointerCancel={handlePointerHoldEnd}
@@ -535,7 +584,7 @@ export default function GamesHallway({ games, onClose }) {
                 }
               }}
               className="flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-xl backdrop-blur transition active:scale-95"
-              aria-label="Walk backward"
+              aria-label="Rotate left"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -550,7 +599,7 @@ export default function GamesHallway({ games, onClose }) {
             </button>
             <button
               type="button"
-              onPointerDown={handlePointerHoldStart('forward')}
+              onPointerDown={handlePointerHoldStart('clockwise')}
               onPointerUp={handlePointerHoldEnd}
               onPointerLeave={handlePointerHoldEnd}
               onPointerCancel={handlePointerHoldEnd}
@@ -560,7 +609,7 @@ export default function GamesHallway({ games, onClose }) {
                 }
               }}
               className="flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,215,0,0.35)] bg-gradient-to-br from-[#ffe27a] via-[#ffd141] to-[#ffb347] text-black shadow-[0_12px_30px_rgba(255,174,0,0.35)] transition active:scale-95"
-              aria-label="Walk forward"
+              aria-label="Rotate right"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
