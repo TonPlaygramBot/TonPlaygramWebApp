@@ -7766,16 +7766,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const narrowScreen = window.innerWidth <= 1366;
         const mobileLike = coarsePointer || narrowScreen;
         if (!mobileLike) {
-          return Math.min(devicePixelRatio, 1.9);
+          // Allow desktop-class hardware to render with crisper edges up to UHD
+          // while still respecting the device's native pixel density.
+          return Math.min(devicePixelRatio, 2.5);
         }
         const cores = navigator.hardwareConcurrency ?? 4;
-        let cap = 1.25;
-        if (cores >= 8) cap = 1.6;
-        else if (cores >= 6) cap = 1.45;
-        else if (cores >= 4) cap = 1.3;
+        let cap = 1.4;
+        if (cores >= 8) cap = 1.9;
+        else if (cores >= 6) cap = 1.75;
+        else if (cores >= 4) cap = 1.6;
         const navEntry = performance?.getEntriesByType?.('navigation')?.[0];
         if (navEntry && navEntry.domComplete > 8000) {
-          cap = Math.min(cap, 1.2);
+          cap = Math.min(cap, 1.4);
         }
         return Math.min(devicePixelRatio, cap);
       };
