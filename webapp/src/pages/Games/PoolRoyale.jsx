@@ -1174,6 +1174,23 @@ const CLOTH_QUALITY = (() => {
     sheenRoughness: 0.66
   };
 
+  const detectLowRefresh = () => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    const queries = ['(max-refresh-rate: 60hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+    for (const query of queries) {
+      try {
+        if (window.matchMedia(query).matches) {
+          return true;
+        }
+      } catch (err) {
+        // ignore unsupported query
+      }
+    }
+    return false;
+  };
+
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
@@ -1193,16 +1210,17 @@ const CLOTH_QUALITY = (() => {
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowMemory = deviceMemory !== null && deviceMemory <= 4;
+  const lowRefresh = detectLowRefresh();
 
-  if (isMobileUA || isTouch || lowMemory) {
+  if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1536,
-      anisotropy: highDensity ? 24 : 16,
+      textureSize: highDensity ? 1536 : 1152,
+      anisotropy: highDensity ? 16 : 12,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.9 : 0.82,
-      sheen: 0.82,
-      sheenRoughness: 0.78
+      bumpScaleMultiplier: highDensity ? 0.82 : 0.74,
+      sheen: 0.78,
+      sheenRoughness: 0.82
     };
   }
 
@@ -2351,6 +2369,62 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
+const CARPET_QUALITY = (() => {
+  const defaults = {
+    textureSize: 1024,
+    anisotropy: 8,
+    bumpAnisotropy: 6,
+    generateMipmaps: true
+  };
+
+  const detectLowRefresh = () => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    const queries = ['(max-refresh-rate: 60hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+    for (const query of queries) {
+      try {
+        if (window.matchMedia(query).matches) {
+          return true;
+        }
+      } catch (err) {
+        // ignore unsupported query
+      }
+    }
+    return false;
+  };
+
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      ...defaults,
+      textureSize: 768,
+      anisotropy: 6,
+      bumpAnisotropy: 4
+    };
+  }
+
+  const dpr = window.devicePixelRatio ?? 1;
+  const ua = navigator.userAgent ?? '';
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
+  const lowRefresh = detectLowRefresh();
+
+  if (isMobileUA || isTouch || lowMemory || lowRefresh) {
+    const highDensity = dpr >= 3;
+    return {
+      textureSize: highDensity ? 896 : 640,
+      anisotropy: highDensity ? 6 : 4,
+      bumpAnisotropy: highDensity ? 4 : 3,
+      generateMipmaps: true
+    };
+  }
+
+  return defaults;
+})();
+
 const createCarpetTextures = (() => {
   let cache = null;
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -2382,7 +2456,12 @@ const createCarpetTextures = (() => {
       return cache;
     }
 
-    const size = 1024;
+    const {
+      textureSize: size,
+      anisotropy: carpetAnisotropy,
+      bumpAnisotropy: carpetBumpAnisotropy,
+      generateMipmaps: carpetGenerateMipmaps
+    } = CARPET_QUALITY;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -2451,10 +2530,12 @@ const createCarpetTextures = (() => {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = 8;
-    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.anisotropy = carpetAnisotropy;
+    texture.minFilter = carpetGenerateMipmaps
+      ? THREE.LinearMipMapLinearFilter
+      : THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = true;
+    texture.generateMipmaps = carpetGenerateMipmaps;
     applySRGBColorSpace(texture);
 
     // bump map: derive from red base with extra fiber noise
@@ -2479,10 +2560,12 @@ const createCarpetTextures = (() => {
 
     const bump = new THREE.CanvasTexture(bumpCanvas);
     bump.wrapS = bump.wrapT = THREE.ClampToEdgeWrapping;
-    bump.anisotropy = 6;
-    bump.minFilter = THREE.LinearMipMapLinearFilter;
+    bump.anisotropy = carpetBumpAnisotropy;
+    bump.minFilter = carpetGenerateMipmaps
+      ? THREE.LinearMipMapLinearFilter
+      : THREE.LinearFilter;
     bump.magFilter = THREE.LinearFilter;
-    bump.generateMipmaps = true;
+    bump.generateMipmaps = carpetGenerateMipmaps;
 
     cache = { map: texture, bump };
     return cache;
