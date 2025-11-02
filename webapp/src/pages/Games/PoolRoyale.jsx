@@ -3170,6 +3170,25 @@ const AI_SHOT_PREVIEW_DELAY_MS = 450;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
+const resolveShortRailBroadcastDirection = ({
+  pocketCenter = null,
+  approachDir = null,
+  ballPos = null,
+  ballVel = null,
+  fallback = 1
+} = {}) => {
+  const resolveComponent = (value, alt) =>
+    Number.isFinite(value) && Math.abs(value) > 1e-4 ? signed(value, alt) : null;
+  const fromPocket = resolveComponent(pocketCenter?.y, fallback);
+  if (fromPocket != null) return fromPocket;
+  const fromApproach = resolveComponent(approachDir?.y, fallback);
+  if (fromApproach != null) return fromApproach;
+  const fromBallPos = resolveComponent(ballPos?.y, fallback);
+  if (fromBallPos != null) return fromBallPos;
+  const fromBallVel = resolveComponent(ballVel?.y, fallback);
+  if (fromBallVel != null) return fromBallVel;
+  return signed(fallback, 1);
+};
 const computeStandingViewHeight = (
   targetHeight,
   horizontalDistance,
@@ -9345,8 +9364,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
               }
+              const broadcastRailDir =
+                activeShotView.axis === 'short'
+                  ? railDir
+                  : activeShotView.broadcastRailDir ?? railDir;
+              activeShotView.broadcastRailDir = broadcastRailDir;
               broadcastArgs = {
-                railDir,
+                railDir: broadcastRailDir,
                 targetWorld: desiredPosition ?? null,
                 focusWorld: focusTargetVec3 ?? null,
                 lerp: lerpT
@@ -9393,8 +9417,30 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             } else {
               railDir = activeShotView.railDir;
             }
+            let broadcastRailDir =
+              activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
+            const fallbackBroadcast = signed(
+              activeShotView.lastBallPos?.y ?? pocketCenter.y ?? 0,
+              broadcastRailDir ?? railDir ?? 1
+            );
+            if (anchorType === 'side') {
+              const resolvedBroadcastRailDir =
+                resolveShortRailBroadcastDirection({
+                  pocketCenter: pocketCenter2D,
+                  approachDir,
+                  ballPos: activeShotView.lastBallPos,
+                  ballVel: focusBall?.vel,
+                  fallback: fallbackBroadcast
+                });
+              if (Number.isFinite(resolvedBroadcastRailDir)) {
+                broadcastRailDir = resolvedBroadcastRailDir;
+              }
+            } else {
+              broadcastRailDir = railDir;
+            }
+            activeShotView.broadcastRailDir = broadcastRailDir;
             broadcastArgs = {
-              railDir,
+              railDir: broadcastRailDir ?? railDir,
               targetWorld: null,
               focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
               lerp: 0.25
@@ -9889,17 +9935,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               Math.abs(targetBall.pos.y) > nearRailThresholdY
             : false;
           const axis = 'short'; // force short-rail broadcast framing
+          const shortRailDir = signed(
+            cueBall.pos.y ?? cueBall.launchDir?.y ?? railNormal?.y ?? 1
+          );
           const initialRailDir =
             axis === 'side'
               ? signed(
                   railNormal?.x ?? cueBall.pos.x ?? cueBall.launchDir?.x ?? 1
                 )
-              : signed(
-                  cueBall.pos.y ??
-                    cueBall.launchDir?.y ??
-                    railNormal?.y ??
-                    1
-                );
+              : shortRailDir;
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -9929,6 +9973,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             cueLookAhead: longShot ? BALL_R * 9 : BALL_R * 6,
             axis,
             railDir: initialRailDir,
+            broadcastRailDir: shortRailDir,
             hasSwitchedRail: false,
             railNormal: railNormal ? railNormal.clone() : null,
             longShot,
@@ -10032,6 +10077,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             minOutside,
             POCKET_CAM.maxOutside
           );
+          const broadcastRailDir = isSidePocket
+            ? resolveShortRailBroadcastDirection({
+                pocketCenter: best.center,
+                approachDir,
+                ballPos: pos,
+                ballVel: dir,
+                fallback: signed(pos.y, 1)
+              })
+            : railDir;
           return {
             mode: 'pocket',
             ballId,
@@ -10050,6 +10104,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             isSidePocket,
             anchorType: isSidePocket ? 'side' : 'short',
             railDir,
+            broadcastRailDir,
             anchorId: anchorId ?? anchorPocketId,
             anchorOutward:
               anchorOutward?.normalize() ?? fallbackOutward,
