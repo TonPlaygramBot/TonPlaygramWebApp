@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 
 const lobbyRadius = 11;
-const doorRingRadius = lobbyRadius - 1.6;
+const doorRingRadius = lobbyRadius - 0.9;
 const ceilingHeight = 6;
 
 function useBodyScrollLock(isLocked) {
@@ -63,7 +63,8 @@ export default function GamesHallway({ games, onClose }) {
       200
     );
     camera.position.set(0, 1.6, 0);
-    camera.lookAt(new THREE.Vector3(0, 1.6, -1));
+    const defaultLookAt = new THREE.Vector3(0, 1.6, -1.2);
+    camera.lookAt(defaultLookAt);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -191,8 +192,9 @@ export default function GamesHallway({ games, onClose }) {
       const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, transparent: true });
 
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.1), signMat);
-      sign.position.set(0, 3.3, 0.08);
-      doorGroup.add(sign);
+      sign.position.set(0, 1.96, 0.09);
+      sign.rotation.y = Math.PI;
+      door.add(sign);
 
       const screenCanvas = document.createElement('canvas');
       screenCanvas.width = 512;
@@ -208,12 +210,12 @@ export default function GamesHallway({ games, onClose }) {
       sctx.font = 'bold 56px "Inter", Arial';
       sctx.lineJoin = 'round';
       sctx.strokeStyle = '#000000';
-      sctx.lineWidth = 10;
+      sctx.lineWidth = 16;
       sctx.strokeText(game.name, 256, 96);
       sctx.fillStyle = '#0affff';
       sctx.fillText(game.name, 256, 96);
       sctx.font = '32px "Inter", Arial';
-      sctx.lineWidth = 6;
+      sctx.lineWidth = 10;
       sctx.strokeText('Tap to enter the game', 256, 178);
       sctx.fillStyle = '#9fffe8';
       sctx.fillText('Tap to enter the game', 256, 178);
@@ -288,14 +290,13 @@ export default function GamesHallway({ games, onClose }) {
     let isPointerDown = false;
     let isDragging = false;
     let targetYaw = camera.rotation.y;
-    let targetPitch = camera.rotation.x;
+    const defaultPitch = camera.rotation.x;
+    let targetPitch = defaultPitch;
     const minFov = 38;
     const maxFov = 80;
     let targetFov = THREE.MathUtils.clamp(camera.fov, minFov, maxFov);
     const dragThreshold = 6;
     const yawSensitivity = 0.003;
-    const pitchSensitivity = 0.0025;
-    const pitchLimit = Math.PI / 4;
     const zoomStep = 3;
 
     const clampFov = (value) => THREE.MathUtils.clamp(value, minFov, maxFov);
@@ -303,7 +304,6 @@ export default function GamesHallway({ games, onClose }) {
       targetFov = clampFov(targetFov + delta);
     };
 
-    const clampPitch = (value) => THREE.MathUtils.clamp(value, -pitchLimit, pitchLimit);
     const wrapYaw = (value) => {
       const fullRotation = Math.PI * 2;
       let next = value % fullRotation;
@@ -337,7 +337,7 @@ export default function GamesHallway({ games, onClose }) {
       isPointerDown = true;
       isDragging = false;
       targetYaw = wrapYaw(camera.rotation.y);
-      targetPitch = clampPitch(camera.rotation.x);
+      targetPitch = defaultPitch;
       pointerDown.x = event.clientX;
       pointerDown.y = event.clientY;
       lastPointer.x = event.clientX;
@@ -365,7 +365,6 @@ export default function GamesHallway({ games, onClose }) {
       if (!isPointerDown) return;
 
       const dx = event.clientX - lastPointer.x;
-      const dy = event.clientY - lastPointer.y;
 
       if (!isDragging) {
         const totalDx = event.clientX - pointerDown.x;
@@ -377,7 +376,7 @@ export default function GamesHallway({ games, onClose }) {
 
       if (isDragging) {
         targetYaw = wrapYaw(targetYaw - dx * yawSensitivity);
-        targetPitch = clampPitch(targetPitch - dy * pitchSensitivity);
+        targetPitch = defaultPitch;
       }
 
       lastPointer.x = event.clientX;
