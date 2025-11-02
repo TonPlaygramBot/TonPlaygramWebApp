@@ -105,6 +105,8 @@ export default function GamesHallway({ games, onClose }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.physicallyCorrectLights = true;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
@@ -140,16 +142,12 @@ export default function GamesHallway({ games, onClose }) {
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const wallTex = loader.load(
-      'https://images.unsplash.com/photo-1528222354212-a29573cdb844?auto=format&fit=crop&w=1600&q=80'
-    );
-    wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    wallTex.repeat.set(12, 3.5);
-    wallTex.colorSpace = THREE.SRGBColorSpace;
     const wallMat = new THREE.MeshStandardMaterial({
-      map: wallTex,
-      roughness: 0.55,
-      metalness: 0.18,
+      color: '#bcdfff',
+      roughness: 0.32,
+      metalness: 0.12,
+      emissive: '#a3d1ff',
+      emissiveIntensity: 0.08,
       side: THREE.BackSide
     });
     const walls = new THREE.Mesh(new THREE.CylinderGeometry(lobbyRadius, lobbyRadius, ceilingHeight, 96, 1, true), wallMat);
@@ -157,38 +155,58 @@ export default function GamesHallway({ games, onClose }) {
     walls.receiveShadow = true;
     scene.add(walls);
 
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xfff4d6, roughness: 0.45 });
+    const ceilingMat = new THREE.MeshStandardMaterial({
+      color: '#10131f',
+      roughness: 0.28,
+      metalness: 0.55,
+      emissive: '#0f1526',
+      emissiveIntensity: 0.18
+    });
     const ceiling = new THREE.Mesh(new THREE.CircleGeometry(lobbyRadius, 72), ceilingMat);
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.y = ceilingHeight;
     scene.add(ceiling);
 
     const ceilingLights = new THREE.Group();
-    const ceilingLightMaterial = new THREE.MeshStandardMaterial({
-      color: '#fef7dc',
-      emissive: '#fff2c4',
-      emissiveIntensity: 1.4,
-      roughness: 0.3
+    const trackMaterial = new THREE.MeshStandardMaterial({
+      color: '#1a2132',
+      roughness: 0.48,
+      metalness: 0.76
     });
-    const ceilingLightGeometry = new THREE.PlaneGeometry(1.1, 1.1);
-    const ceilingLightPositions = [
-      [-2.5, -2.5],
-      [-2.5, 2.5],
-      [2.5, -2.5],
-      [2.5, 2.5],
-      [0, -3.8],
-      [0, 3.8]
-    ];
-    ceilingLightPositions.forEach(([x, z]) => {
-      const lightPanel = new THREE.Mesh(ceilingLightGeometry, ceilingLightMaterial);
-      lightPanel.position.set(x, ceilingHeight - 0.12, z);
+    const lightMaterial = new THREE.MeshStandardMaterial({
+      color: '#f1f6ff',
+      emissive: '#f6fbff',
+      emissiveIntensity: 1.65,
+      roughness: 0.18
+    });
+    const lightBarGeometry = new THREE.PlaneGeometry(3.8, 0.58);
+    const trackRing = new THREE.Mesh(
+      new THREE.TorusGeometry(lobbyRadius - 1.1, 0.06, 24, 128),
+      trackMaterial
+    );
+    trackRing.rotation.x = Math.PI / 2;
+    trackRing.position.y = ceilingHeight - 0.18;
+    ceilingLights.add(trackRing);
+
+    const lightSegments = 8;
+    for (let i = 0; i < lightSegments; i += 1) {
+      const angle = (i / lightSegments) * Math.PI * 2;
+      const radius = lobbyRadius - 1.4;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const lightPanel = new THREE.Mesh(lightBarGeometry, lightMaterial);
+      lightPanel.position.set(x, ceilingHeight - 0.1, z);
       lightPanel.rotation.x = Math.PI / 2;
+      lightPanel.lookAt(0, ceilingHeight - 0.1, 0);
       ceilingLights.add(lightPanel);
 
-      const glow = new THREE.PointLight(0xfff6d1, 1.4, 10, 1.8);
-      glow.position.set(x, ceilingHeight - 0.08, z);
-      ceilingLights.add(glow);
-    });
+      const downLight = new THREE.SpotLight(0xf5f8ff, 1.35, 22, Math.PI / 4, 0.4, 1.8);
+      downLight.castShadow = true;
+      downLight.position.set(x, ceilingHeight - 0.05, z);
+      downLight.target.position.set(x * 0.6, 0.4, z * 0.6);
+      scene.add(downLight.target);
+      ceilingLights.add(downLight);
+    }
     scene.add(ceilingLights);
 
     const centerRing = new THREE.Mesh(
@@ -243,18 +261,36 @@ export default function GamesHallway({ games, onClose }) {
     playerGlow.position.y = 0.01;
     scene.add(playerGlow);
 
-    const doorTex = loader.load('https://em-content.zobj.net/thumbs/240/apple/354/door_1f6aa.png');
-    doorTex.colorSpace = THREE.SRGBColorSpace;
-    doorTex.anisotropy = 4;
-    const goldHandleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
-    const doorMat = new THREE.MeshStandardMaterial({
-      map: doorTex,
-      transparent: true,
-      roughness: 0.32,
-      metalness: 0.18
+    const doorDimensions = { width: 2.8, height: 3.35, depth: 0.16 };
+    const frameThickness = 0.22;
+    const railThickness = 0.16;
+    const doorFrameMaterial = new THREE.MeshStandardMaterial({
+      color: '#1f2b3a',
+      metalness: 0.92,
+      roughness: 0.24
     });
-    doorMat.alphaTest = 0.15;
-    const doorGeo = new THREE.BoxGeometry(2.8, 3.4, 0.12);
+    const doorAccentMaterial = new THREE.MeshStandardMaterial({
+      color: '#31435a',
+      metalness: 0.78,
+      roughness: 0.18
+    });
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: '#d8ecff',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.92,
+      thickness: 0.18,
+      envMapIntensity: 0.85,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.08
+    });
+    const handleMaterial = new THREE.MeshStandardMaterial({
+      color: '#f0d284',
+      metalness: 1,
+      roughness: 0.22,
+      emissive: '#fce79c',
+      emissiveIntensity: 0.18
+    });
 
     const interactable = [];
     const rotationStep = THREE.MathUtils.degToRad(18);
@@ -270,59 +306,115 @@ export default function GamesHallway({ games, onClose }) {
       doorGroup.lookAt(0, 1.7, 0);
       doorGroup.rotateY(Math.PI);
 
-      const door = new THREE.Mesh(doorGeo, doorMat.clone());
-      door.position.set(0, 1.7, 0.06);
-      door.castShadow = true;
-      door.receiveShadow = true;
+      const door = new THREE.Group();
+      door.position.set(0, 1.7, 0.02);
       door.userData = { type: 'door', route: game.route };
+
+      const frameGroup = new THREE.Group();
+      const verticalGeo = new THREE.BoxGeometry(frameThickness, doorDimensions.height, doorDimensions.depth);
+      const horizontalGeo = new THREE.BoxGeometry(doorDimensions.width, frameThickness, doorDimensions.depth);
+
+      const leftFrame = new THREE.Mesh(verticalGeo, doorFrameMaterial);
+      leftFrame.position.set(-doorDimensions.width / 2 + frameThickness / 2, 0, 0);
+      leftFrame.castShadow = true;
+      leftFrame.receiveShadow = true;
+      frameGroup.add(leftFrame);
+
+      const rightFrame = leftFrame.clone();
+      rightFrame.position.x = doorDimensions.width / 2 - frameThickness / 2;
+      frameGroup.add(rightFrame);
+
+      const topFrame = new THREE.Mesh(horizontalGeo, doorFrameMaterial);
+      topFrame.position.set(0, doorDimensions.height / 2 - frameThickness / 2, 0);
+      topFrame.castShadow = true;
+      topFrame.receiveShadow = true;
+      frameGroup.add(topFrame);
+
+      const bottomFrame = new THREE.Mesh(horizontalGeo, doorFrameMaterial);
+      bottomFrame.position.set(0, -doorDimensions.height / 2 + frameThickness / 2, 0);
+      bottomFrame.castShadow = true;
+      bottomFrame.receiveShadow = true;
+      frameGroup.add(bottomFrame);
+
+      const midRail = new THREE.Mesh(
+        new THREE.BoxGeometry(doorDimensions.width - frameThickness * 1.6, railThickness, doorDimensions.depth * 0.9),
+        doorAccentMaterial
+      );
+      midRail.position.set(0, -0.2, 0);
+      midRail.castShadow = true;
+      midRail.receiveShadow = true;
+      frameGroup.add(midRail);
+
+      const upperRail = midRail.clone();
+      upperRail.scale.y = 0.6;
+      upperRail.position.y = 0.85;
+      frameGroup.add(upperRail);
+
+      door.add(frameGroup);
+
+      const glassPanel = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          doorDimensions.width - frameThickness * 2.2,
+          doorDimensions.height - frameThickness * 2.4,
+          doorDimensions.depth * 0.3
+        ),
+        glassMaterial
+      );
+      glassPanel.position.set(0, 0.1, 0.01);
+      glassPanel.castShadow = false;
+      glassPanel.receiveShadow = false;
+      door.add(glassPanel);
+
+      const handlePlate = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.48, 0.05),
+        doorAccentMaterial
+      );
+      handlePlate.position.set(doorDimensions.width / 2 - frameThickness * 1.1, 0.05, doorDimensions.depth / 2 + 0.005);
+      door.add(handlePlate);
+
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.36, 28), handleMaterial);
+      handle.rotation.z = Math.PI / 2;
+      handle.position.set(doorDimensions.width / 2 - frameThickness * 1.1, 0.05, doorDimensions.depth / 2 + 0.08);
+      handle.castShadow = true;
+      door.add(handle);
+
       doorGroup.add(door);
       interactable.push(door);
 
-      const handlePlate = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12, 0.42, 0.015),
-        new THREE.MeshStandardMaterial({ color: '#f4d77d', metalness: 0.85, roughness: 0.18 })
-      );
-      handlePlate.position.set(1.05, 1.32, 0.01);
-      door.add(handlePlate);
-
-      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.34, 24), goldHandleMat);
-      handle.rotation.z = Math.PI / 2;
-      handle.position.set(1.05, 1.32, 0.05);
-      door.add(handle);
-
       const labelCanvas = document.createElement('canvas');
-      labelCanvas.width = 1024;
-      labelCanvas.height = 256;
+      labelCanvas.width = 2048;
+      labelCanvas.height = 512;
       const ctx = labelCanvas.getContext('2d');
-      ctx.fillStyle = '#10121e';
-      ctx.fillRect(0, 0, 1024, 256);
-      const frameGradient = ctx.createLinearGradient(0, 0, 1024, 0);
-      frameGradient.addColorStop(0, '#4e2d17');
-      frameGradient.addColorStop(0.5, '#c58c43');
-      frameGradient.addColorStop(1, '#4e2d17');
+      ctx.fillStyle = '#111525';
+      ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
+      const frameGradient = ctx.createLinearGradient(0, 0, labelCanvas.width, 0);
+      frameGradient.addColorStop(0, '#4b6ea3');
+      frameGradient.addColorStop(0.5, '#8fb5ff');
+      frameGradient.addColorStop(1, '#4b6ea3');
       ctx.strokeStyle = frameGradient;
-      ctx.lineWidth = 28;
+      ctx.lineWidth = 48;
       ctx.lineJoin = 'round';
-      ctx.strokeRect(18, 18, 1024 - 36, 256 - 36);
+      ctx.strokeRect(36, 36, labelCanvas.width - 72, labelCanvas.height - 72);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      let fontSize = 150;
-      const maxWidth = 1024 - 180;
+      let fontSize = 340;
+      const maxWidth = labelCanvas.width - 460;
       do {
         ctx.font = `bold ${fontSize}px "Inter", Arial`;
         fontSize -= 6;
       } while (fontSize > 96 && ctx.measureText(game.name).width > maxWidth);
-      ctx.lineWidth = 26;
-      ctx.strokeStyle = '#000000';
-      ctx.strokeText(game.name, 512, 134);
-      ctx.fillStyle = '#ffe55a';
-      ctx.fillText(game.name, 512, 134);
+      ctx.lineWidth = 40;
+      ctx.strokeStyle = '#03040a';
+      ctx.strokeText(game.name, labelCanvas.width / 2, labelCanvas.height / 2 + 12);
+      ctx.fillStyle = '#f7fbff';
+      ctx.fillText(game.name, labelCanvas.width / 2, labelCanvas.height / 2 + 12);
 
       const signTex = new THREE.CanvasTexture(labelCanvas);
+      signTex.colorSpace = THREE.SRGBColorSpace;
       const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide });
 
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.1), signMat);
-      sign.position.set(0, 2.18, 0.09);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.45), signMat);
+      sign.position.set(0, 2.28, doorDimensions.depth / 2 + 0.08);
       sign.rotation.y = Math.PI;
       door.add(sign);
 
@@ -386,7 +478,7 @@ export default function GamesHallway({ games, onClose }) {
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(pointer, camera);
-      const intersects = raycaster.intersectObjects(interactable, false);
+      const intersects = raycaster.intersectObjects(interactable, true);
       if (intersects.length > 0) {
         const { type, route, game } = intersects[0].object.userData;
         if (type === 'door' && route) {
