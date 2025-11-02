@@ -8053,27 +8053,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const targetRenderWidth = 1920;
-      const targetRenderHeight = 1080;
-      const maxPixelRatio = window.innerWidth <= 1366 ? 2.5 : 3;
-      const updateRendererResolution = () => {
-        const rect = host.getBoundingClientRect();
-        const width = Math.max(1, rect.width || host.clientWidth);
-        const height = Math.max(1, rect.height || host.clientHeight);
-        const basePixelRatio = window.devicePixelRatio || 1;
-        const desiredPixelRatio = Math.max(
-          basePixelRatio,
-          targetRenderWidth / width,
-          targetRenderHeight / height
-        );
-        const pixelRatio = Math.min(maxPixelRatio, desiredPixelRatio);
-        renderer.setPixelRatio(pixelRatio);
-        renderer.setSize(width, height, false);
-      };
-      updateRendererResolution();
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.35 : 1.9;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      // Ensure the canvas fills the host element so the table is centered and
+      // scaled correctly on all view modes.
+      renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
       renderer.domElement.addEventListener('webglcontextlost', (e) =>
         e.preventDefault()
@@ -8104,7 +8092,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let lastShotPower = 0;
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
-      const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 60;
+      const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 45;
       const dynamicTextureEntries = [];
       const registerDynamicTexture = (entry) => {
         if (!entry || !entry.texture || typeof entry.update !== 'function') {
@@ -8180,7 +8168,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         let offset = 0;
         return {
           texture,
-          minInterval: 1 / 60,
+          minInterval: 1 / 45,
           update(delta) {
             if (!ctx) return;
             const text = coinTicker.text();
@@ -8206,9 +8194,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const createMatchTvEntry = () => {
         const baseWidth = 1024;
         const baseHeight = 512;
-        const devicePixelRatio =
-          typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-        const resolutionScale = Math.min(2.5, Math.max(1, devicePixelRatio));
+        const resolutionScale = 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(baseWidth * resolutionScale);
         canvas.height = Math.round(baseHeight * resolutionScale);
@@ -13452,7 +13438,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
-          updateRendererResolution();
+          renderer.setSize(host.clientWidth, host.clientHeight);
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
