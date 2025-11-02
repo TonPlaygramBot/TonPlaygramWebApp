@@ -654,9 +654,9 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.height
 );
 // Slightly faster surface to keep balls rolling realistically on the snooker cloth
-// Slightly reduce per-frame friction so rolls feel livelier on high refresh
-// rate displays (e.g. 90 Hz) instead of drifting into slow motion.
-const FRICTION = 0.993;
+// Ease per-frame friction so rolls keep their pace even during longer rallies
+// and on lower refresh-rate devices that previously drifted into slow motion.
+const FRICTION = 0.996;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
@@ -800,9 +800,9 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-const SHOT_FORCE_BOOST = 1.5 * 0.75;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power punchier for 3D play.
+const SHOT_FORCE_BOOST = 1.5;
+const SHOT_BASE_SPEED = 3.3 * 0.36 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -7761,7 +7761,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.35 : 1.9;
+      // Trim the effective resolution on handheld screens to recover frame rate.
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1 : 1.8;
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
