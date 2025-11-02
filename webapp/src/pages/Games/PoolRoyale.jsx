@@ -662,6 +662,11 @@ let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
+const FRAME_TIME_SMOOTHING = 0.15;
+const FRAME_DROP_THRESHOLD_MS = 1000 / 55; // drop quality if sustained below ~55 FPS
+const FRAME_RECOVERY_THRESHOLD_MS = 1000 / 85; // ease quality back above ~85 FPS
+const FULL_HD_PIXEL_COUNT = 1920 * 1080;
+const MAX_FULL_HD_SCALE = 3;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
@@ -7781,10 +7786,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         return Math.min(devicePixelRatio, cap);
       };
-      let basePixelRatio = determinePixelRatio();
-      let activePixelRatio = basePixelRatio;
+      const computeFullHdScale = () => {
+        const viewportArea = Math.max(1, host.clientWidth * host.clientHeight);
+        const scale = Math.sqrt(FULL_HD_PIXEL_COUNT / viewportArea);
+        return Math.max(1, Math.min(MAX_FULL_HD_SCALE, scale));
+      };
+      const nativePixelRatio = determinePixelRatio();
+      let pixelRatioFloor = computeFullHdScale();
+      let pixelRatioCeiling = Math.max(nativePixelRatio, pixelRatioFloor);
+      let activePixelRatio = pixelRatioCeiling;
       const applyPixelRatio = (ratio, { resize = true } = {}) => {
-        renderer.setPixelRatio(ratio);
+        const clamped = THREE.MathUtils.clamp(
+          ratio,
+          pixelRatioFloor,
+          pixelRatioCeiling
+        );
+        activePixelRatio = clamped;
+        renderer.setPixelRatio(clamped);
         if (resize) {
           renderer.setSize(host.clientWidth, host.clientHeight, false);
         }
@@ -12250,15 +12268,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Loop
       let lastStepTime = performance.now();
+      let smoothedFrameDelta = TARGET_FRAME_TIME_MS;
       const pixelRatioMonitor = {
         enabled:
-          activePixelRatio > 1 &&
+          pixelRatioCeiling - pixelRatioFloor > 0.05 &&
           ((window.matchMedia?.('(pointer:coarse)').matches ?? false) ||
             window.innerWidth <= 1366),
         sampleWindow: 90,
         samples: 0,
         total: 0,
-        last: null
+        last: null,
+        floor: pixelRatioFloor,
+        ceiling: pixelRatioCeiling
       };
       const step = (now) => {
         if (pixelRatioMonitor.enabled) {
@@ -12268,11 +12289,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             pixelRatioMonitor.total += delta;
             if (pixelRatioMonitor.samples >= pixelRatioMonitor.sampleWindow) {
               const avg = pixelRatioMonitor.total / pixelRatioMonitor.samples;
-              if (avg > 19 && activePixelRatio > 1) {
-                const nextRatio = Math.max(1, activePixelRatio * 0.9);
+              if (
+                avg > FRAME_DROP_THRESHOLD_MS &&
+                activePixelRatio > pixelRatioMonitor.floor + 0.01
+              ) {
+                const nextRatio = Math.max(
+                  pixelRatioMonitor.floor,
+                  activePixelRatio * 0.9
+                );
                 if (nextRatio < activePixelRatio - 0.01) {
-                  activePixelRatio = nextRatio;
-                  applyPixelRatio(activePixelRatio);
+                  applyPixelRatio(nextRatio);
+                }
+              } else if (
+                avg < FRAME_RECOVERY_THRESHOLD_MS &&
+                activePixelRatio < pixelRatioMonitor.ceiling - 0.01
+              ) {
+                const nextRatio = Math.min(
+                  pixelRatioMonitor.ceiling,
+                  Math.max(pixelRatioMonitor.floor, activePixelRatio * 1.05)
+                );
+                if (nextRatio > activePixelRatio + 0.01) {
+                  applyPixelRatio(nextRatio);
                 }
               }
               pixelRatioMonitor.samples = 0;
@@ -12283,7 +12320,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
-        const deltaSeconds = deltaMs / 1000;
+        smoothedFrameDelta = THREE.MathUtils.lerp(
+          smoothedFrameDelta,
+          deltaMs,
+          FRAME_TIME_SMOOTHING
+        );
+        const appliedDeltaMs = Math.min(smoothedFrameDelta, MAX_FRAME_TIME_MS);
+        const deltaSeconds = appliedDeltaMs / 1000;
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
@@ -12294,7 +12337,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           entry.accumulator = 0;
           entry.update(elapsed);
         });
-        const frameScaleBase = deltaMs / TARGET_FRAME_TIME_MS;
+        const frameScaleBase = appliedDeltaMs / TARGET_FRAME_TIME_MS;
         const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
         const physicsSubsteps = Math.min(
           MAX_PHYSICS_SUBSTEPS,
@@ -13165,16 +13208,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
-          const nextBase = determinePixelRatio();
-          basePixelRatio = nextBase;
-          if (activePixelRatio > basePixelRatio + 0.01) {
-            activePixelRatio = basePixelRatio;
-            applyPixelRatio(activePixelRatio);
-          } else if (basePixelRatio - activePixelRatio > 0.12) {
-            const eased = Math.min(basePixelRatio, activePixelRatio * 1.1);
+          const nextNative = determinePixelRatio();
+          pixelRatioFloor = computeFullHdScale();
+          pixelRatioCeiling = Math.max(nextNative, pixelRatioFloor);
+          pixelRatioMonitor.floor = pixelRatioFloor;
+          pixelRatioMonitor.ceiling = pixelRatioCeiling;
+          pixelRatioMonitor.enabled =
+            pixelRatioCeiling - pixelRatioFloor > 0.05 &&
+            ((window.matchMedia?.('(pointer:coarse)').matches ?? false) ||
+              window.innerWidth <= 1366);
+          if (activePixelRatio > pixelRatioCeiling + 0.01) {
+            applyPixelRatio(pixelRatioCeiling);
+          } else if (activePixelRatio < pixelRatioFloor - 0.01) {
+            applyPixelRatio(pixelRatioFloor);
+          } else if (pixelRatioCeiling - activePixelRatio > 0.12) {
+            const eased = Math.min(pixelRatioCeiling, activePixelRatio * 1.1);
             if (eased > activePixelRatio + 0.01) {
-              activePixelRatio = eased;
-              applyPixelRatio(activePixelRatio);
+              applyPixelRatio(eased);
             } else {
               renderer.setSize(host.clientWidth, host.clientHeight);
             }
