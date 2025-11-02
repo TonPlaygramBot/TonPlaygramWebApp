@@ -13141,8 +13141,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     };
   }, [applySliderLock, showPowerSlider]);
 
+  const isPlayerTurn = hud.turn === 0;
+  const isOpponentTurn = hud.turn === 1;
+  const showPlayerControls = isPlayerTurn && !hud.over;
+
   // Spin controller interactions
   useEffect(() => {
+    if (!showPlayerControls) {
+      spinDotElRef.current = null;
+      resetSpinRef.current = () => {};
+      spinRequestRef.current = { x: 0, y: 0 };
+      spinLegalityRef.current = { blocked: false, reason: '' };
+      return;
+    }
+
     const box = document.getElementById('spinBox');
     const dot = document.getElementById('spinDot');
     if (!box || !dot) return;
@@ -13280,12 +13292,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [updateSpinDotPosition]);
+  }, [showPlayerControls, updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const isPlayerTurn = hud.turn === 0;
-  const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over;
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
