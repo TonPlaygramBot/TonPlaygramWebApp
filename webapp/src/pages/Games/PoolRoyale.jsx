@@ -7760,10 +7760,34 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      // Trim the effective resolution on handheld screens to recover frame rate.
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1 : 1.8;
-      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
+      const determinePixelRatio = () => {
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const coarsePointer = window.matchMedia?.('(pointer:coarse)').matches ?? false;
+        const narrowScreen = window.innerWidth <= 1366;
+        const mobileLike = coarsePointer || narrowScreen;
+        if (!mobileLike) {
+          return Math.min(devicePixelRatio, 1.9);
+        }
+        const cores = navigator.hardwareConcurrency ?? 4;
+        let cap = 1.25;
+        if (cores >= 8) cap = 1.6;
+        else if (cores >= 6) cap = 1.45;
+        else if (cores >= 4) cap = 1.3;
+        const navEntry = performance?.getEntriesByType?.('navigation')?.[0];
+        if (navEntry && navEntry.domComplete > 8000) {
+          cap = Math.min(cap, 1.2);
+        }
+        return Math.min(devicePixelRatio, cap);
+      };
+      let basePixelRatio = determinePixelRatio();
+      let activePixelRatio = basePixelRatio;
+      const applyPixelRatio = (ratio, { resize = true } = {}) => {
+        renderer.setPixelRatio(ratio);
+        if (resize) {
+          renderer.setSize(host.clientWidth, host.clientHeight, false);
+        }
+      };
+      applyPixelRatio(activePixelRatio, { resize: false });
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -12224,7 +12248,37 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Loop
       let lastStepTime = performance.now();
+      const pixelRatioMonitor = {
+        enabled:
+          activePixelRatio > 1 &&
+          ((window.matchMedia?.('(pointer:coarse)').matches ?? false) ||
+            window.innerWidth <= 1366),
+        sampleWindow: 90,
+        samples: 0,
+        total: 0,
+        last: null
+      };
       const step = (now) => {
+        if (pixelRatioMonitor.enabled) {
+          if (pixelRatioMonitor.last != null) {
+            const delta = now - pixelRatioMonitor.last;
+            pixelRatioMonitor.samples += 1;
+            pixelRatioMonitor.total += delta;
+            if (pixelRatioMonitor.samples >= pixelRatioMonitor.sampleWindow) {
+              const avg = pixelRatioMonitor.total / pixelRatioMonitor.samples;
+              if (avg > 19 && activePixelRatio > 1) {
+                const nextRatio = Math.max(1, activePixelRatio * 0.9);
+                if (nextRatio < activePixelRatio - 0.01) {
+                  activePixelRatio = nextRatio;
+                  applyPixelRatio(activePixelRatio);
+                }
+              }
+              pixelRatioMonitor.samples = 0;
+              pixelRatioMonitor.total = 0;
+            }
+          }
+          pixelRatioMonitor.last = now;
+        }
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
         const deltaSeconds = deltaMs / 1000;
@@ -13109,9 +13163,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
+          const nextBase = determinePixelRatio();
+          basePixelRatio = nextBase;
+          if (activePixelRatio > basePixelRatio + 0.01) {
+            activePixelRatio = basePixelRatio;
+            applyPixelRatio(activePixelRatio);
+          } else if (basePixelRatio - activePixelRatio > 0.12) {
+            const eased = Math.min(basePixelRatio, activePixelRatio * 1.1);
+            if (eased > activePixelRatio + 0.01) {
+              activePixelRatio = eased;
+              applyPixelRatio(activePixelRatio);
+            } else {
+              renderer.setSize(host.clientWidth, host.clientHeight);
+            }
+          } else {
+            renderer.setSize(host.clientWidth, host.clientHeight);
+          }
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
-          renderer.setSize(host.clientWidth, host.clientHeight);
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
           if (!scaleChanged) {
             const margin = Math.max(
