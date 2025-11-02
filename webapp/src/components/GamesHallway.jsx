@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 const doorSpacing = 9;
 const hallwayHalfWidth = 6;
-const ceilingHeight = hallwayHalfWidth;
+const ceilingHeight = 5;
 
 function useBodyScrollLock(isLocked) {
   useEffect(() => {
@@ -109,22 +109,21 @@ export default function GamesHallway({ games, onClose }) {
     wallTex.repeat.set(20, 10);
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
 
-    const tunnelMat = wallMat.clone();
-    tunnelMat.side = THREE.BackSide;
-    const tunnelGeo = new THREE.CylinderGeometry(
-      hallwayHalfWidth,
-      hallwayHalfWidth,
-      corridorLength,
-      64,
-      1,
-      true,
-      Math.PI,
-      Math.PI
-    );
-    const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
-    tunnel.rotation.x = Math.PI / 2;
-    tunnel.position.set(0, 0, -corridorLength / 2);
-    scene.add(tunnel);
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(corridorLength, ceilingHeight), wallMat);
+    leftWall.position.set(-hallwayHalfWidth, ceilingHeight / 2, -corridorLength / 2);
+    leftWall.rotation.y = Math.PI / 2;
+    scene.add(leftWall);
+
+    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(corridorLength, ceilingHeight), wallMat);
+    rightWall.position.set(hallwayHalfWidth, ceilingHeight / 2, -corridorLength / 2);
+    rightWall.rotation.y = -Math.PI / 2;
+    scene.add(rightWall);
+
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xfff8dc, roughness: 0.6 });
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(hallwayHalfWidth * 2, corridorLength), ceilingMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(0, ceilingHeight, -corridorLength / 2);
+    scene.add(ceiling);
 
     const panelMat = new THREE.MeshStandardMaterial({
       color: '#ffffff',
@@ -166,19 +165,15 @@ export default function GamesHallway({ games, onClose }) {
       labelCanvas.width = 1024;
       labelCanvas.height = 256;
       const ctx = labelCanvas.getContext('2d');
-      ctx.fillStyle = '#FFEB3B';
+      ctx.fillStyle = '#8B4513';
       ctx.fillRect(0, 0, 1024, 256);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 16;
-      ctx.strokeRect(8, 8, 1024 - 16, 256 - 16);
-      ctx.font = 'bold 140px "Inter", Arial';
-      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 20;
-      ctx.strokeStyle = '#000000';
-      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeRect(0, 0, 1024, 256);
+      ctx.font = 'bold 140px "Inter", Arial';
+      ctx.fillStyle = '#FFD700';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.strokeText(game.name, 512, 128);
       ctx.fillText(game.name, 512, 128);
 
       const signTex = new THREE.CanvasTexture(labelCanvas);
@@ -201,21 +196,12 @@ export default function GamesHallway({ games, onClose }) {
       sctx.fillStyle = '#0affff';
       sctx.shadowColor = 'rgba(10, 255, 255, 0.75)';
       sctx.shadowBlur = 18;
-      sctx.lineJoin = 'round';
-      sctx.lineWidth = 6;
-      sctx.strokeStyle = '#000000';
       sctx.font = 'bold 56px "Inter", Arial';
-      sctx.strokeText(game.name, 256, 96);
       sctx.fillText(game.name, 256, 96);
       sctx.font = '32px "Inter", Arial';
       sctx.shadowBlur = 10;
-      sctx.lineWidth = 4;
-      sctx.strokeText('Tap to enter the game', 256, 178);
       sctx.fillStyle = '#9fffe8';
       sctx.fillText('Tap to enter the game', 256, 178);
-      sctx.shadowBlur = 0;
-      sctx.lineWidth = 8;
-      sctx.strokeRect(6, 6, 512 - 12, 256 - 12);
       const screenTex = new THREE.CanvasTexture(screenCanvas);
       const screenMat = new THREE.MeshStandardMaterial({
         map: screenTex,
